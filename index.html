@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0f172a" />
+<title>Quét tem vải - NK Textile</title>
+<link rel="manifest" href="manifest.json" />
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --accent:#22d3ee; --accent2:#0ea5e9;
+    --ok:#22c55e; --text:#e2e8f0; --muted:#94a3b8; --border:#334155;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--text); padding:16px; padding-bottom:48px;
+  }
+  header{text-align:center; margin-bottom:16px}
+  header h1{font-size:20px; margin:0 0 4px}
+  header p{margin:0; color:var(--muted); font-size:13px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px}
+  .btn{
+    width:100%; border:none; border-radius:12px; padding:16px; font-size:17px; font-weight:600;
+    color:#001018; background:linear-gradient(135deg,var(--accent),var(--accent2)); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.secondary{background:#334155; color:var(--text)}
+  .btn[disabled]{opacity:.5}
+  .btn-row{display:flex; gap:10px; margin-top:10px}
+  .btn-row .btn{font-size:15px; padding:13px}
+  input[type=file]{display:none}
+  #preview{width:100%; border-radius:12px; display:none; margin-top:12px; border:1px solid var(--border)}
+  #progress{display:none; margin-top:14px}
+  .bar{height:10px; background:#0b1220; border-radius:6px; overflow:hidden}
+  .bar > i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s}
+  #progressText{font-size:13px; color:var(--muted); margin-top:6px; text-align:center}
+  .field{margin-bottom:10px}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px}
+  .field input{
+    width:100%; background:#0b1220; border:1px solid var(--border); border-radius:10px;
+    padding:11px 12px; color:var(--text); font-size:15px;
+  }
+  .field input:focus{outline:none; border-color:var(--accent)}
+  .field.filled input{border-color:var(--ok)}
+  #results{display:none}
+  .hint{font-size:12px; color:var(--muted); margin-top:4px; line-height:1.5}
+  details{margin-top:12px}
+  summary{color:var(--muted); font-size:13px; cursor:pointer}
+  pre{background:#0b1220; padding:12px; border-radius:10px; overflow:auto; font-size:12px; color:#cbd5e1; white-space:pre-wrap}
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(100px);
+    background:var(--ok); color:#04130a; padding:12px 20px; border-radius:30px; font-weight:600;
+    transition:transform .3s; z-index:99; box-shadow:0 8px 30px rgba(0,0,0,.4);
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📷 Quét tem vải</h1>
+  <p>Chụp ảnh tem → tự động bóc tách thông tin</p>
+</header>
+
+<div class="card">
+  <button class="btn" id="captureBtn">📸 Mở camera / Chọn ảnh tem</button>
+  <input type="file" id="fileInput" accept="image/*" capture="environment" />
+  <img id="preview" alt="Ảnh tem" />
+  <div id="progress">
+    <div class="bar"><i id="bar"></i></div>
+    <div id="progressText">Đang nhận dạng…</div>
+  </div>
+</div>
+
+<div class="card" id="results">
+  <div id="fields"></div>
+  <div class="btn-row">
+    <button class="btn" id="copyBtn">📋 Sao chép</button>
+    <button class="btn secondary" id="jsonBtn">{ } JSON</button>
+  </div>
+  <p class="hint">💡 Mọi ô đều sửa được. Nếu OCR đọc sai, bạn chỉnh tay rồi sao chép.</p>
+  <details>
+    <summary>Xem văn bản OCR thô</summary>
+    <pre id="rawText"></pre>
+  </details>
+</div>
+
+<div class="toast" id="toast">Đã sao chép!</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+// ---- Khai báo 14 trường thông tin trên tem ----
+// key: id nội bộ | label: nhãn hiển thị | aliases: các từ khoá để dò trong văn bản OCR (không dấu, viết thường)
+const FIELDS = [
+  { key:'po',        label:'PO',                       aliases:['po'] },
+  { key:'manpl',     label:'Mã NPL',                   aliases:['ma npl','manpl'] },
+  { key:'mahang',    label:'Mã hàng',                  aliases:['ma hang','mahang'] },
+  { key:'tenvai',    label:'Tên vải',                  aliases:['ten vai','tenvai'] },
+  { key:'mau',       label:'Màu',                      aliases:['mau'] },
+  { key:'khovai',    label:'Khổ vải',                  aliases:['kho vai','khovai'] },
+  { key:'mevai',     label:'Mẻ vải',                   aliases:['me vai','mevai'] },
+  { key:'stt',       label:'Số thứ tự cuộn vải',       aliases:['so thu tu cuon vai','thu tu cuon','cuon vai'] },
+  { key:'trongluong',label:'Trọng lượng vải',          aliases:['trong luong vai','trong luong'] },
+  { key:'gross',     label:'Khối lượng Gross (Kg)',    aliases:['khoi luong gross','gross'] },
+  { key:'net',       label:'Net',                      aliases:['net'] },
+  { key:'ngaykiem',  label:'Ngày kiểm',                aliases:['ngay kiem'] },
+  { key:'phanloai',  label:'Phân loại chất lượng',     aliases:['phan loai chat luong','phan loai'] },
+  { key:'xuatxu',    label:'Xuất xứ',                  aliases:['xuat xu'] },
+];
+
+// Bỏ dấu tiếng Việt để dò từ khoá ổn định hơn
+function noAccent(s){
+  return s.normalize('NFD').replace(/[̀-ͯ]/g,'')
+          .replace(/đ/g,'d').replace(/Đ/g,'D')
+          .toLowerCase();
+}
+
+// ---- Bóc tách thông tin từ văn bản OCR ----
+function parse(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const out = {};
+
+  for(const line of lines){
+    // Cắt bỏ số thứ tự đầu dòng kiểu "1." , "10." , "6)" ...
+    const clean = line.replace(/^\s*\d{1,2}\s*[.)]\s*/,'');
+    const flat = noAccent(clean);
+
+    for(const f of FIELDS){
+      if(out[f.key]) continue; // đã lấy được rồi thì bỏ qua
+      for(const a of f.aliases){
+        const idx = flat.indexOf(a);
+        if(idx === -1) continue;
+        // Lấy phần sau nhãn: cắt từ sau alias, rồi bỏ dấu ":" "-" thừa
+        let val = clean.slice(idx + a.length);
+        // bỏ phần "(Kg)" / "(...)" dính ngay sau nhãn, rồi bỏ dấu ":" "-" thừa đầu chuỗi
+        val = val.replace(/^\s*\([^)]*\)/,'').replace(/^[\s:：\-–.]+/,'').trim();
+        // Một số dòng có 2 trường (vd: "Trọng lượng vải: 250GSM   Net: 19.7")
+        // tách trường "Net" nếu dính chung
+        if(f.key !== 'net'){
+          const m = noAccent(val).indexOf('net');
+          if(m > 0 && /\d/.test(val)){
+            const netPart = val.slice(m);
+            val = val.slice(0,m).trim();
+            const nm = netPart.replace(/^[^0-9.,]*/,'').match(/[\d.,]+/);
+            if(nm && !out.net) out.net = nm[0];
+          }
+        }
+        if(val) out[f.key] = val;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+// ---- Giao diện ----
+const els = {
+  fileInput: document.getElementById('fileInput'),
+  captureBtn: document.getElementById('captureBtn'),
+  preview: document.getElementById('preview'),
+  progress: document.getElementById('progress'),
+  bar: document.getElementById('bar'),
+  progressText: document.getElementById('progressText'),
+  results: document.getElementById('results'),
+  fields: document.getElementById('fields'),
+  rawText: document.getElementById('rawText'),
+  copyBtn: document.getElementById('copyBtn'),
+  jsonBtn: document.getElementById('jsonBtn'),
+  toast: document.getElementById('toast'),
+};
+
+els.captureBtn.addEventListener('click', ()=> els.fileInput.click());
+els.fileInput.addEventListener('change', onFile);
+
+function showToast(msg){
+  els.toast.textContent = msg;
+  els.toast.classList.add('show');
+  setTimeout(()=>els.toast.classList.remove('show'), 1800);
+}
+
+async function onFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+
+  els.preview.src = URL.createObjectURL(file);
+  els.preview.style.display = 'block';
+  els.progress.style.display = 'block';
+  els.bar.style.width = '0%';
+  els.captureBtn.disabled = true;
+  els.progressText.textContent = 'Đang tải bộ nhận dạng…';
+
+  try{
+    const { data } = await Tesseract.recognize(file, 'vie+eng', {
+      logger: m=>{
+        if(m.status === 'recognizing text'){
+          els.bar.style.width = Math.round(m.progress*100) + '%';
+          els.progressText.textContent = 'Đang đọc chữ… ' + Math.round(m.progress*100) + '%';
+        } else {
+          els.progressText.textContent = m.status;
+        }
+      }
+    });
+    renderResults(data.text);
+  }catch(err){
+    els.progressText.textContent = '❌ Lỗi: ' + err.message;
+  }finally{
+    els.captureBtn.disabled = false;
+    setTimeout(()=> els.progress.style.display='none', 600);
+  }
+}
+
+function renderResults(rawText){
+  const parsed = parse(rawText);
+  els.fields.innerHTML = '';
+  for(const f of FIELDS){
+    const v = parsed[f.key] || '';
+    const wrap = document.createElement('div');
+    wrap.className = 'field' + (v ? ' filled' : '');
+    wrap.innerHTML = `<label>${f.label}</label>
+      <input id="fld_${f.key}" value="${(v).replace(/"/g,'&quot;')}" placeholder="—" />`;
+    els.fields.appendChild(wrap);
+  }
+  els.rawText.textContent = rawText.trim() || '(không đọc được chữ)';
+  els.results.style.display = 'block';
+  els.results.scrollIntoView({behavior:'smooth'});
+}
+
+function collect(){
+  const o = {};
+  for(const f of FIELDS){
+    o[f.label] = document.getElementById('fld_'+f.key).value.trim();
+  }
+  return o;
+}
+
+els.copyBtn.addEventListener('click', ()=>{
+  const o = collect();
+  const txt = FIELDS.map(f=> `${f.label}: ${o[f.label]}`).join('\n');
+  navigator.clipboard.writeText(txt).then(()=>showToast('Đã sao chép văn bản!'));
+});
+
+els.jsonBtn.addEventListener('click', ()=>{
+  const txt = JSON.stringify(collect(), null, 2);
+  navigator.clipboard.writeText(txt).then(()=>showToast('Đã sao chép JSON!'));
+});
+
+// Đăng ký service worker (để cài ra màn hình chính, dùng offline phần giao diện)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
