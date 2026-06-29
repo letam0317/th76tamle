@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Form Audit - Kiểm soát kho 5S</title>
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js (CDN) - defer để chạy sau khi DOM tải xong -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Thư viện quét mã vạch / QR (CDN) -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    /* Cuộn mượt cho danh sách dropdown */
+    .dropdown-scroll { scrollbar-width: thin; }
+    .dropdown-scroll::-webkit-scrollbar { width: 6px; }
+    .dropdown-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+
+<body class="bg-slate-100 min-h-screen py-6 px-4">
+
+  <!--
+    ===========================================================
+    HƯỚNG DẪN NHANH (dành cho người dùng):
+    1. Mở file google-script.gs, làm theo hướng dẫn để lấy đường link Web App.
+    2. Dán đường link đó vào biến WEBHOOK_URL ở cuối file này (phần <script>).
+    3. Mở file index.html này bằng trình duyệt (nên dùng điện thoại để quét mã & chụp ảnh).
+       * Lưu ý: Camera chỉ bật được khi mở qua https:// hoặc localhost (yêu cầu bảo mật của trình duyệt).
+    ===========================================================
+  -->
+
+  <div
+    x-data="auditForm()"
+    class="max-w-xl mx-auto"
+  >
+    <!-- Tiêu đề -->
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Form Audit - Kiểm soát kho 5S</h1>
+      <p class="text-sm text-slate-500 mt-1">Ghi nhận hiện trạng kiểm soát kho theo tiêu chuẩn 5S</p>
+    </div>
+
+    <!-- Thẻ chứa form -->
+    <form
+      @submit.prevent="guiBaoCao()"
+      class="bg-white rounded-3xl shadow-lg shadow-slate-200 p-6 sm:p-8 space-y-6"
+    >
+
+      <!-- ===== MỤC 1: Hiện trạng (Ghi chú, không bắt buộc) ===== -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          1. Hiện trạng (ghi chú)
+        </label>
+        <textarea
+          x-model="form.hienTrang"
+          rows="3"
+          placeholder="Mô tả nhanh hiện trạng ghi nhận (không bắt buộc)..."
+          class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+        ></textarea>
+      </div>
+
+      <!-- ===== MỤC 2: Khu vực / vị trí + nút quét mã vạch ===== -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          2. Khu vực hoặc vị trí ghi nhận <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            x-model="form.viTri"
+            placeholder="Nhập hoặc quét mã vạch vị trí..."
+            class="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+          />
+          <!-- Nút bật camera quét mã -->
+          <button
+            type="button"
+            @click="moCamera()"
+            title="Quét mã vạch / QR"
+            class="shrink-0 w-12 h-12 flex items-center justify-center rounded-2xl bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition"
+          >
+            <!-- Icon mã vạch -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h2v14H3V5zm4 0h1v14H7V5zm3 0h2v14h-2V5zm4 0h1v14h-1V5zm3 0h2v14h-2V5z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Khung hiển thị camera khi quét -->
+        <div x-show="dangQuet" x-cloak class="mt-3 rounded-2xl overflow-hidden border border-slate-200 bg-black">
+          <div id="reader" class="w-full"></div>
+          <button
+            type="button"
+            @click="dongCamera()"
+            class="w-full py-2.5 bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition"
+          >
+            Đóng camera
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== MỤC 3: Hạng mục 5S (Searchable Dropdown) ===== -->
+      <div x-data="{ }" @click.outside="moDropdown = false">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          3. Thuộc hạng mục <span class="text-red-500">*</span>
+        </label>
+        <div class="relative">
+          <input
+            type="text"
+            x-model="tuKhoa"
+            @focus="moDropdown = true"
+            @input="moDropdown = true"
+            placeholder="Gõ để tìm (ví dụ: hsd, fefo, rác...)"
+            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+          />
+
+          <!-- Danh sách kết quả lọc -->
+          <div
+            x-show="moDropdown"
+            x-cloak
+            class="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto dropdown-scroll rounded-2xl border border-slate-200 bg-white shadow-xl"
+          >
+            <template x-for="(muc, idx) in danhSachLoc()" :key="idx">
+              <div
+                @click="chonHangMuc(muc)"
+                class="px-4 py-3 text-sm text-slate-700 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0"
+                :class="{ 'bg-blue-50 font-medium': form.hangMuc === muc }"
+                x-text="muc"
+              ></div>
+            </template>
+            <div x-show="danhSachLoc().length === 0" class="px-4 py-3 text-sm text-slate-400">
+              Không tìm thấy hạng mục phù hợp
+            </div>
+          </div>
+        </div>
+
+        <!-- Hạng mục đã chọn -->
+        <p x-show="form.hangMuc" x-cloak class="mt-2 text-xs text-green-600">
+          ✓ Đã chọn: <span x-text="form.hangMuc" class="font-medium"></span>
+        </p>
+      </div>
+
+      <!-- ===== MỤC 4: Hình ảnh / clip ===== -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          4. Hình ảnh / clip tại thời điểm ghi nhận <span class="text-red-500">*</span>
+        </label>
+
+        <!-- Khu vực kéo thả / bấm chọn -->
+        <label
+          @dragover.prevent="keoVao = true"
+          @dragleave.prevent="keoVao = false"
+          @drop.prevent="keoVao = false; xuLyFile($event.dataTransfer.files)"
+          :class="keoVao ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-slate-50'"
+          class="flex flex-col items-center justify-center w-full rounded-2xl border-2 border-dashed px-4 py-6 cursor-pointer hover:bg-slate-100 transition text-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5"/>
+          </svg>
+          <span class="text-sm text-slate-600 font-medium">Bấm để chụp ảnh / chọn file</span>
+          <span class="text-xs text-slate-400 mt-0.5">hoặc kéo thả ảnh/video vào đây</span>
+          <!-- capture="environment" giúp điện thoại mở thẳng camera sau -->
+          <input
+            type="file"
+            accept="image/*,video/*"
+            capture="environment"
+            multiple
+            class="hidden"
+            @change="xuLyFile($event.target.files)"
+          />
+        </label>
+
+        <!-- Preview ảnh thu nhỏ -->
+        <div x-show="files.length > 0" x-cloak class="grid grid-cols-3 gap-2 mt-3">
+          <template x-for="(f, i) in files" :key="i">
+            <div class="relative group">
+              <template x-if="f.loai === 'image'">
+                <img :src="f.preview" class="w-full h-24 object-cover rounded-xl border border-slate-200" />
+              </template>
+              <template x-if="f.loai === 'video'">
+                <video :src="f.preview" class="w-full h-24 object-cover rounded-xl border border-slate-200"></video>
+              </template>
+              <!-- Nút xoá -->
+              <button
+                type="button"
+                @click="xoaFile(i)"
+                class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow hover:bg-red-600"
+              >✕</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ===== Nút gửi báo cáo ===== -->
+      <button
+        type="submit"
+        :disabled="dangGui"
+        class="w-full rounded-2xl bg-blue-600 text-white font-semibold py-3.5 text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span x-show="!dangGui">GỬI BÁO CÁO</span>
+        <span x-show="dangGui" x-cloak>Đang gửi, vui lòng đợi...</span>
+      </button>
+
+      <!-- Thông báo kết quả -->
+      <div
+        x-show="thongBao.noiDung"
+        x-cloak
+        :class="thongBao.loai === 'ok' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'"
+        class="rounded-2xl border px-4 py-3 text-sm text-center"
+        x-text="thongBao.noiDung"
+      ></div>
+
+    </form>
+
+    <p class="text-center text-xs text-slate-400 mt-4">Hệ thống kiểm soát kho 5S</p>
+  </div>
+
+  <!-- ===========================================================
+       PHẦN LOGIC (Alpine.js)
+       =========================================================== -->
+  <script>
+    // 👉 BƯỚC QUAN TRỌNG: Dán đường link Google Web App của bạn vào đây
+    const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
+
+    // Danh sách 31 hạng mục 5S (nạp cố định)
+    const DANH_SACH_5S = [
+      "Không phát sinh vi phạm hạng mục",
+      "Hàng hóa phải được sắp xếp gọn gàng, trưng bày đủ theo sức chứa của thùng, khay, hộp, mâm kệ hoặc pallet.",
+      "Hạn sử dụng thấp trưng bày lớp ngoài cùng, HSD cao trưng bày bên trong (nguyên tắc FEFO)",
+      "Nếu trưng bày nhiều lớp cùng loại sản phẩm, phải có miếng lót carton giữa các lớp.",
+      "Khi trưng bày hàng hóa tuyệt đối không đè lên hoặc che khuất sản phẩm khác.",
+      "Hàng hóa số lượng nhiều dạng thùng khi trưng bày ở khu vực soạn hàng phải được rọc băng keo tất cả các thùng nhưng không được cắt nắp",
+      "Khi trưng bày hàng hóa trong kho, tất cả hàng hoá phải được để trên kệ hoặc pallet, không được để dưới nền kho hoặc để trực tiếp lên mặt kệ sắt sẽ ảnh hưởng đến ngoại quan sản phẩm. Phải có thùng hoặc khay chứa sản phẩm để hạn chế bụi bẩn sản phẩm",
+      "Bàn làm việc và khu vực phụ trách: phải được vệ sinh hằng ngày vào cuối mỗi ca.",
+      "CCDC, VPP (pallet, xe soạn hàng, các loại rổ, thùng đóng đơn, thùng giấy tái chế, thùng rác, rác phải phân loại...), vật dụng cá nhân (chai/ly nước uống, balo, túi,...) đặt đúng vị trí lưu trữ, trả về đúng nơi quy định sau khi sử dụng. Vệ sinh và dọn rác sạch sẽ sau khi sử dụng.",
+      "Trên sàn kho/hàng hóa: không được để rác (chai/ly nước, hộp cơm, giấy vụn, giấy chèn, lõi băng keo, lõi giấy in, bịch nilon...). Nếu có rác ở sàn kho, trên hàng hóa hoặc CCDC nhân viên phải nhặt đem đến thùng rác gần nhất để bỏ",
+      "Tất cả hàng hoá nhập vào kho đóng đơn đều phải được dán mã SKU nếu không có barcode trên sản phẩm.",
+      "CCDC phải được sử dụng đúng mục đích và không dùng cho việc cá nhân. Đảm bảo CCDC, VPP luôn trong trạng thái sẵn sàng để sử dụng.",
+      "Lấy hết hàng trong thùng mới lấy qua thùng khác. Lấy theo thứ tự từ trái sang phải, từ ngoài vào trong và từ trên xuống dưới",
+      "Lấy luôn thùng nếu NV là người soạn hàng cuối cùng của thùng đó đem về khu vực soạn hàng để tái sử dụng hoặc rọc thùng để vào nơi quy định nếu không thể tận dụng.",
+      "Hàng hóa để tạm chờ xử lý ngoài khu vực hoạch định phải gán thông tin người phụ trách, mục đích, thời gian xử lý hoàn tất.",
+      "Sản phẩm hoặc thùng hàng lẻ (không còn nguyên băng keo/hiện trạng bảo quản từ NCC) và sản phẩm ít tác động: phải được che phủ bằng thùng có nắp đậy (nhựa hoặc carton), vệ sinh bụi bám tránh ảnh hưởng ngoại quan.",
+      "Tất cả sản phẩm ở kho chỉ được lưu trữ ở những vị trí thể hiện rõ thông tin và phải để đúng nơi có tồn sản phẩm đó trên hệ thống.",
+      "Vi phạm kiểm soát ra vào kho tổng hoặc đóng mở cổng để ra vào hoặc nhập/xuất hàng không đúng quy định mà không có sự đồng ý của cấp Quản lý",
+      "Đơn trữ trong rổ chờ bàn giao không được để vượt quá mép rổ.",
+      "Trong thời gian làm việc cần tập trung và không làm ảnh hưởng đến hiệu quả công việc. Đối với thiết bị cá nhân cần tuân thủ quy định: Điện thoại: Không sử dụng cho mục đích cá nhân.  Tai nghe: Tuyệt đối không đeo tai nghe trong phạm vi kho Loa: Không mở loa cá nhân khi làm việc",
+      "Không tự ý di chuyển ra khỏi kho ngoại trừ giờ nghỉ buổi trưa, giờ nghỉ buổi chiều hoặc được sự đồng ý của cấp quản lý.  Trước khi ra khỏi cổng NV có trách nhiệm tìm đến bảo vệ để yêu cầu kiểm tra, soát người. Nếu không có bảo vệ tại vị trí, NV phải chờ và tuyệt đối không tự ý di chuyển ra khỏi kho.",
+      "Tắt các thiết bị điện khi không sử dụng.",
+      "Không có hàng lẻ để qua ngày ở khu vực trữ Warehouse.",
+      "Hàng hoá nhập trữ bắt buộc quấn màng PE, quấn đủ quấn đúng đảm bảo chắc chắn. Hàng phải được xếp gọn và lọt lòng pallet. Hàng nặng chất thấp (không quá 1,3m), hàng nhẹ chất cao nhưng không vượt quá chiều cao quy định",
+      "Ăn uống, nghỉ ngơi đúng thời gian và đúng nơi quy định",
+      "Không trữ hay trưng bày hàng hóa, công cụ, văn phòng phẩm,... chắn lối đi hoặc tại khu vực không được phép",
+      "Đùa giỡn, chửi tục, làm việc chuyên trong giờ làm việc",
+      "Vận hành xe nâng an toàn",
+      "Thao tác vật lý với hàng hóa (trưng bày, luân chuyển, hạn sử dụng) đúng theo yêu cầu của hệ thống và ngược lại.",
+      "Có kỳ kiểm kê được giao nhưng không kiểm hoặc chưa hoàn tất đợt kiểm kê trong ngày",
+      "Nhân viên kiểm đếm sai số lượng thực tế",
+      "Bảo quản hàng hóa, công cụ dụng cụ và tài sản cố định"
+    ];
+
+    function auditForm() {
+      return {
+        // ---- Trạng thái dữ liệu ----
+        form: { hienTrang: '', viTri: '', hangMuc: '' },
+        files: [],          // danh sách file ảnh/video kèm preview
+        tuKhoa: '',         // từ khoá đang gõ ở mục 3
+        moDropdown: false,
+        dangQuet: false,    // đang bật camera quét mã?
+        keoVao: false,      // đang kéo file vào vùng thả?
+        dangGui: false,
+        thongBao: { loai: '', noiDung: '' },
+        _scanner: null,     // đối tượng camera quét mã
+
+        // ---- Mục 3: Lọc danh sách theo từ khoá ----
+        danhSachLoc() {
+          const k = (this.tuKhoa || '').toLowerCase().trim();
+          if (!k) return DANH_SACH_5S;
+          return DANH_SACH_5S.filter(m => m.toLowerCase().includes(k));
+        },
+        chonHangMuc(muc) {
+          this.form.hangMuc = muc;
+          this.tuKhoa = muc;
+          this.moDropdown = false;
+        },
+
+        // ---- Mục 2: Quét mã vạch / QR ----
+        async moCamera() {
+          this.dangQuet = true;
+          // Chờ Alpine hiển thị khung #reader rồi mới khởi tạo camera
+          await this.$nextTick();
+          try {
+            this._scanner = new Html5Qrcode("reader");
+            await this._scanner.start(
+              { facingMode: "environment" },          // ưu tiên camera sau
+              { fps: 10, qrbox: { width: 250, height: 250 } },
+              (decodedText) => {                        // quét thành công
+                this.form.viTri = decodedText;
+                this.dongCamera();                      // tắt camera tiết kiệm pin
+              },
+              () => { /* bỏ qua lỗi từng khung hình */ }
+            );
+          } catch (err) {
+            this.dangQuet = false;
+            alert("Không mở được camera. Vui lòng cho phép quyền camera và mở trang qua https.\n" + err);
+          }
+        },
+        async dongCamera() {
+          if (this._scanner) {
+            try { await this._scanner.stop(); this._scanner.clear(); } catch (e) {}
+            this._scanner = null;
+          }
+          this.dangQuet = false;
+        },
+
+        // ---- Mục 4: Xử lý file ảnh/video ----
+        xuLyFile(fileList) {
+          for (const file of fileList) {
+            const loai = file.type.startsWith('video') ? 'video' : 'image';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              this.files.push({
+                ten: file.name,
+                loai: loai,
+                mime: file.type,
+                preview: e.target.result,   // dạng base64 (dùng để xem trước & gửi đi)
+                base64: e.target.result
+              });
+            };
+            reader.readAsDataURL(file);
+          }
+        },
+        xoaFile(i) { this.files.splice(i, 1); },
+
+        // ---- Gửi báo cáo ----
+        async guiBaoCao() {
+          this.thongBao = { loai: '', noiDung: '' };
+
+          // Kiểm tra các mục bắt buộc (*)
+          if (!this.form.viTri.trim()) {
+            this.thongBao = { loai: 'err', noiDung: 'Vui lòng nhập Khu vực / vị trí ghi nhận (Mục 2).' };
+            return;
+          }
+          if (!this.form.hangMuc.trim()) {
+            this.thongBao = { loai: 'err', noiDung: 'Vui lòng chọn Hạng mục 5S (Mục 3).' };
+            return;
+          }
+          if (this.files.length === 0) {
+            this.thongBao = { loai: 'err', noiDung: 'Vui lòng đính kèm ít nhất 1 hình ảnh / clip (Mục 4).' };
+            return;
+          }
+
+          this.dangGui = true;
+
+          // Gói dữ liệu gửi sang Google Apps Script
+          const duLieu = {
+            hienTrang: this.form.hienTrang.trim(),
+            viTri: this.form.viTri.trim(),
+            hangMuc: this.form.hangMuc.trim(),
+            hinhAnh: this.files.map(f => ({ ten: f.ten, mime: f.mime, base64: f.base64 }))
+          };
+
+          try {
+            // Dùng Content-Type text/plain để tránh lỗi CORS preflight với Apps Script
+            const res = await fetch(WEBHOOK_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify(duLieu)
+            });
+            const ketQua = await res.json();
+
+            if (ketQua.status === 'success') {
+              this.thongBao = { loai: 'ok', noiDung: '✓ Gửi báo cáo thành công! Dữ liệu đã được lưu.' };
+              // Reset form sau khi gửi
+              this.form = { hienTrang: '', viTri: '', hangMuc: '' };
+              this.tuKhoa = '';
+              this.files = [];
+            } else {
+              throw new Error(ketQua.message || 'Lỗi không xác định từ máy chủ.');
+            }
+          } catch (err) {
+            this.thongBao = { loai: 'err', noiDung: '✗ Gửi thất bại: ' + err.message + '. Kiểm tra lại WEBHOOK_URL.' };
+          } finally {
+            this.dangGui = false;
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>
