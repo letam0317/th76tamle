@@ -1,0 +1,198 @@
+/**
+ * ============================================================================
+ *  BACKEND: Form Audit - Kiểm soát kho 5S  (Google Apps Script)  — BẢN 2
+ * ============================================================================
+ *
+ *  CHỨC NĂNG:
+ *   - doPost: nhận dữ liệu form web, tự tạo tab "WMS-5S-AUDIT", lưu ảnh lên
+ *     Drive, chèn 1 hàng mới. (giữ nguyên như bản 1)
+ *   - doGet?action=pending : trả về các báo cáo CHƯA đẩy sang workflow
+ *     (cột "Mã task" còn trống) và KHÔNG phải loại "Không phát sinh vi phạm",
+ *     kèm ảnh dạng base64 — để bộ đẩy (push-5s-to-workflow.js) tạo task.
+ *   - doGet?action=mark&row=N&code=XXX : ghi mã task vào hàng đã đẩy xong.
+ *   - doGet?action=alert&msg=... : gửi email cảnh báo (vd phiên work.hasaki.vn hết hạn),
+ *     có chống spam (tối đa 1 mail / ALERT_THROTTLE_GIO giờ).
+ *   * Các action trên yêu cầu tham số ?key=<SECRET> để bảo vệ dữ liệu.
+ *
+ *  ====== KHI CẬP NHẬT BẢN NÀY: nhớ TRIỂN KHAI LẠI ======
+ *   ⚠ ĐẶT LẠI biến SECRET = giá trị thật (trùng APPSCRIPT_KEY trong .env) — trong file
+ *     này nó đang là placeholder để không lộ bí mật lên git.
+ *   Sau khi dán đè code: Triển khai → Quản lý bản triển khai (Manage deployments)
+ *   → bấm bút chì ✎ Sửa → Version: New version → Triển khai. URL /exec giữ nguyên.
+ * ============================================================================
+ */
+
+var TEN_SHEET = 'WMS-5S-AUDIT';
+var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
+// 🔑 Mã bí mật bảo vệ endpoint đọc/đánh dấu. Bộ đẩy phải gửi ?key=... trùng giá trị này.
+//    ĐẶT GIÁ TRỊ THẬT KHI DÁN VÀO APPS SCRIPT (giống APPSCRIPT_KEY trong .env, không lưu vào git).
+var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';
+// Cụm mở đầu của hạng mục "đạt" (không tạo task)
+var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
+// Cột (1-based): 1 Ngày | 2 Hiện trạng | 3 Vị trí | 4 Hạng mục | 5 Ảnh | 6 Mã task
+var COL_MA_TASK = 6;
+var MAX_PENDING = 25; // số báo cáo trả về mỗi lần gọi (tránh quá tải)
+// 📧 Email nhận cảnh báo khi phiên đăng nhập work.hasaki.vn hết hạn (bộ đẩy không lấy được token).
+var ALERT_EMAIL = 'th76tamle02@gmail.com';
+var ALERT_THROTTLE_GIO = 12; // chỉ gửi tối đa 1 mail mỗi 12 giờ (tránh spam mỗi lần lịch chạy)
+
+/* ----------------------------- POST: lưu form ----------------------------- */
+function doPost(e) {
+  try {
+    var duLieu = JSON.parse(e.postData.contents);
+    var sheet = layHoacTaoSheet();
+    var chuoiHinhAnh = '';
+    if (duLieu.hinhAnh && duLieu.hinhAnh.length > 0) {
+      chuoiHinhAnh = luuHinhAnhLenDrive(duLieu.hinhAnh, duLieu.viTri).join('\n');
+    }
+    sheet.appendRow([
+      new Date(),
+      duLieu.hienTrang || '',
+      duLieu.viTri || '',
+      duLieu.hangMuc || '',
+      chuoiHinhAnh,
+      ''                       // cột Mã task: để trống = chưa đẩy
+    ]);
+    return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
+  } catch (err) {
+    return phanHoiJson({ status: 'error', message: String(err) });
+  }
+}
+
+/* ------------------ GET: pending / mark / kiểm tra hoạt động ------------------ */
+function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) || '';
+  if (action === 'pending') return apiPending(e);
+  if (action === 'mark') return apiMark(e);
+  if (action === 'alert') return apiAlert(e);
+  return phanHoiJson({ status: 'success', message: 'Web App đang hoạt động bình thường.' });
+}
+
+/** Trả về các báo cáo chưa đẩy (chưa có mã task) + ảnh base64. */
+function apiPending(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var sheet = layHoacTaoSheet();
+  var last = sheet.getLastRow();
+  if (last < 2) return phanHoiJson({ status: 'success', rows: [] });
+  var values = sheet.getRange(2, 1, last - 1, 6).getValues();
+  var rows = [];
+  for (var i = 0; i < values.length && rows.length < MAX_PENDING; i++) {
+    var r = values[i];
+    var rowIndex = i + 2;
+    var maTask = String(r[COL_MA_TASK - 1] || '').trim();
+    var hangMuc = String(r[3] || '').trim();
+    if (maTask) continue;                                   // đã đẩy rồi
+    if (!hangMuc) continue;                                 // thiếu hạng mục
+    if (hangMuc.indexOf(KHONG_VI_PHAM_PREFIX) === 0) {      // "đạt" -> bỏ qua, đánh dấu để khỏi xét lại
+      sheet.getRange(rowIndex, COL_MA_TASK).setValue('(không vi phạm - bỏ qua)');
+      continue;
+    }
+    rows.push({
+      row: rowIndex,
+      ngay: formatNgay(r[0]),
+      hienTrang: String(r[1] || ''),
+      viTri: String(r[2] || ''),
+      hangMuc: hangMuc,
+      images: layAnhBase64(String(r[4] || ''))
+    });
+  }
+  return phanHoiJson({ status: 'success', rows: rows });
+}
+
+/** Ghi mã task vào 1 hàng (sau khi đẩy thành công). */
+function apiMark(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var row = parseInt(e.parameter.row, 10);
+  var code = e.parameter.code || '';
+  if (!row) return phanHoiJson({ status: 'error', message: 'Thiếu row' });
+  layHoacTaoSheet().getRange(row, COL_MA_TASK).setValue(code);
+  return phanHoiJson({ status: 'success' });
+}
+
+/** Gửi email cảnh báo (vd: phiên work.hasaki.vn hết hạn). Có chống spam theo ALERT_THROTTLE_GIO. */
+function apiAlert(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var msg = e.parameter.msg || 'Bộ đẩy báo cáo 5S gặp sự cố.';
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty('LAST_ALERT_MS') || 0);
+  var now = new Date().getTime();
+  if (now - last < ALERT_THROTTLE_GIO * 3600 * 1000) {
+    return phanHoiJson({ status: 'success', skipped: true, message: 'Đã gửi gần đây, bỏ qua để tránh spam.' });
+  }
+  try {
+    MailApp.sendEmail(ALERT_EMAIL, '[5S] Cần đăng nhập lại work.hasaki.vn',
+      'Bộ đẩy báo cáo 5S không tạo được task vì:\n\n' + msg +
+      '\n\nXử lý: mở thư mục dự án và chạy lệnh:\n    node login-hasaki.js\n' +
+      'rồi đăng nhập lại (email + OTP). Sau đó lịch tự động sẽ chạy lại bình thường.\n\n' +
+      'Thời điểm: ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss'));
+    props.setProperty('LAST_ALERT_MS', String(now));
+    return phanHoiJson({ status: 'success', sent: true });
+  } catch (err) {
+    return phanHoiJson({ status: 'error', message: String(err) });
+  }
+}
+
+/* ------------------------------- Tiện ích ------------------------------- */
+function formatNgay(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'GMT+7', 'yyyy-MM-dd HH:mm:ss');
+  return String(v || '');
+}
+
+/** Từ chuỗi link Drive (mỗi dòng 1 link) -> mảng {filename, mime, base64}. */
+function layAnhBase64(chuoi) {
+  var out = [];
+  if (!chuoi) return out;
+  var lines = chuoi.split(/\s*\n\s*/);
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(/[-\w]{25,}/); // ID file Drive
+    if (!m) continue;
+    try {
+      var file = DriveApp.getFileById(m[0]);
+      var blob = file.getBlob();
+      out.push({ filename: file.getName(), mime: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()) });
+    } catch (err) { /* bỏ qua file lỗi */ }
+  }
+  return out;
+}
+
+function layHoacTaoSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(TEN_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(TEN_SHEET);
+    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(2, 280); sheet.setColumnWidth(4, 320); sheet.setColumnWidth(5, 320); sheet.setColumnWidth(6, 160);
+  } else if (!sheet.getRange(1, COL_MA_TASK).getValue()) {
+    // Sheet cũ chưa có cột Mã task -> thêm tiêu đề
+    sheet.getRange(1, COL_MA_TASK).setValue('Mã task workflow').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+    sheet.setColumnWidth(6, 160);
+  }
+  return sheet;
+}
+
+function luuHinhAnhLenDrive(danhSachAnh, viTri) {
+  var thuMuc = layHoacTaoThuMuc();
+  var links = [];
+  var thoiGian = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
+  for (var i = 0; i < danhSachAnh.length; i++) {
+    var anh = danhSachAnh[i];
+    var phan = anh.base64.split(',');
+    var blob = Utilities.newBlob(Utilities.base64Decode(phan[1] || phan[0]), anh.mime, anh.ten);
+    blob.setName(thoiGian + '_' + (viTri || 'vitri') + '_' + (i + 1));
+    var file = thuMuc.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    links.push(file.getUrl());
+  }
+  return links;
+}
+
+function layHoacTaoThuMuc() {
+  var ds = DriveApp.getFoldersByName(TEN_THU_MUC_ANH);
+  return ds.hasNext() ? ds.next() : DriveApp.createFolder(TEN_THU_MUC_ANH);
+}
+
+function phanHoiJson(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
