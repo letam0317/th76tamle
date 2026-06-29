@@ -108,29 +108,43 @@ async function sendAlert(msg) {
 
 /* ---------------------------- 4) Tạo task ---------------------------- */
 function endOfDay(ngay) { const d = (ngay || "").slice(0, 10); return (d || ngay) + " 23:59:00"; }
+const EXT_THEO_MIME = {
+  "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp",
+  "image/gif": "gif", "image/heic": "jpg",
+  "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
+  "video/x-matroska": "mkv", "video/3gpp": "3gp",
+};
 async function createTask(token, row, type00) {
   const fd = new FormData();
   const ten = ("[5S] " + (row.viTri || "?") + " - " + row.hangMuc).slice(0, 90);
+  // Ngày vi phạm: ưu tiên thời gian từ ảnh/video (client gửi qua thoiGianViPham), thiếu thì dùng lúc gửi form.
+  const ngayViPham = row.thoiGianViPham || row.ngay || "";
   fd.set("name", ten);
   fd.set("amount_of_work", "0");
   fd.set("type", "2");
   fd.set("staff_id", STAFF_ID);
-  fd.set("date_start", row.ngay || "");
-  fd.set("date_end", endOfDay(row.ngay));
+  fd.set("date_start", (ngayViPham || "").slice(0, 10));
+  fd.set("date_end", endOfDay(ngayViPham));
   fd.set("planned_hours", "0");
   fd.set("piority", "0");
   fd.set("workflow_id", WORKFLOW_ID);
-  fd.set("data[configs][DATE00]", row.ngay || "");
+  fd.set("data[configs][DATE00]", ngayViPham);
   fd.set("data[configs][TYPE00]", type00);
-  fd.set("data[configs][BIN00]", (row.viTri || "") + (row.hienTrang ? (" — " + row.hienTrang) : ""));
-  for (const img of (row.images || [])) {
-    const buf = Buffer.from(img.base64, "base64");
-    const mime = img.mime || "image/jpeg";
-    const ext = ({ "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/heic": "jpg", "video/mp4": "mp4" })[mime] || "jpg";
-    let fname = img.filename || "anh";
-    if (!/\.[a-z0-9]{2,4}$/i.test(fname)) fname += "." + ext;   // bảo đảm có đuôi file hợp lệ
-    fd.append("data[configs][IMA00][]", new Blob([buf], { type: mime }), fname);
+  fd.set("data[configs][BIN00]", row.viTri || "");           // Vị trí ghi nhận (giữ nguyên)
+  fd.set("note", row.hienTrang || "");                        // Hiện trạng (ghi chú) -> Mô tả task
+  let soAnh = 0, soVideo = 0;
+  for (const m of (row.images || [])) {
+    const mime = m.mime || "image/jpeg";
+    const laVideo = /^video\//i.test(mime);
+    const buf = Buffer.from(m.base64, "base64");
+    const ext = EXT_THEO_MIME[mime] || (laVideo ? "mp4" : "jpg");
+    let fname = m.filename || (laVideo ? "video" : "anh");
+    if (!/\.[a-z0-9]{2,4}$/i.test(fname)) fname += "." + ext;
+    const field = laVideo ? "data[configs][VID01][]" : "data[configs][IMA00][]";
+    fd.append(field, new Blob([buf], { type: mime }), fname);
+    if (laVideo) soVideo++; else soAnh++;
   }
+  row._soAnh = soAnh; row._soVideo = soVideo;                 // để log
   const res = await fetch(API_CREATE, {
     method: "POST",
     headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" },
@@ -158,10 +172,11 @@ async function createTask(token, row, type00) {
   for (const row of rows) {
     const type00 = matchType00(row.hangMuc, options);
     if (!type00) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": không khớp hạng mục «" + row.hangMuc.slice(0, 40) + "...»"); continue; }
-    if (!row.images || !row.images.length) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": thiếu ảnh (IMA00 bắt buộc)."); continue; }
+    const coAnh = (row.images || []).some((m) => !/^video\//i.test(m.mime || "image/jpeg"));
+    if (!coAnh) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": thiếu ẢNH (IMA00 bắt buộc; chỉ có video không tạo được task)."); continue; }
     try {
       const r = await createTask(token, row, type00);
-      if (r.ok) { ok++; log("  ✓ Hàng " + row.row + " → task " + r.code); await markDone(row.row, r.code); }
+      if (r.ok) { ok++; log("  ✓ Hàng " + row.row + " → task " + r.code + " (ảnh:" + (row._soAnh||0) + " video:" + (row._soVideo||0) + ")"); await markDone(row.row, r.code); }
       else { fail++; log("  ✗ Hàng " + row.row + " thất bại (HTTP " + r.http + "): " + JSON.stringify(r.raw).slice(0, 200)); }
     } catch (e) { fail++; log("  ✗ Hàng " + row.row + " lỗi: " + e.message); }
   }

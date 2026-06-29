@@ -29,8 +29,10 @@ var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
 var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';
 // Cụm mở đầu của hạng mục "đạt" (không tạo task)
 var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
-// Cột (1-based): 1 Ngày | 2 Hiện trạng | 3 Vị trí | 4 Hạng mục | 5 Ảnh | 6 Mã task
+// Cột (1-based): 1 Ngày | 2 Hiện trạng | 3 Vị trí | 4 Hạng mục | 5 Ảnh | 6 Mã task | 7 Thời gian vi phạm
 var COL_MA_TASK = 6;
+var COL_TG_VI_PHAM = 7;   // thời gian lấy từ ảnh/video (client gửi); thiếu thì để trống -> bộ đẩy dùng cột Ngày
+var SO_COT = 7;
 var MAX_PENDING = 25; // số báo cáo trả về mỗi lần gọi (tránh quá tải)
 // 📧 Email nhận cảnh báo khi phiên đăng nhập work.hasaki.vn hết hạn (bộ đẩy không lấy được token).
 var ALERT_EMAIL = 'th76tamle02@gmail.com';
@@ -51,7 +53,8 @@ function doPost(e) {
       duLieu.viTri || '',
       duLieu.hangMuc || '',
       chuoiHinhAnh,
-      ''                       // cột Mã task: để trống = chưa đẩy
+      '',                          // 6 Mã task: để trống = chưa đẩy
+      duLieu.thoiGianViPham || ''  // 7 Thời gian vi phạm (lấy từ ảnh/video; thiếu thì trống)
     ]);
     return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
   } catch (err) {
@@ -74,7 +77,7 @@ function apiPending(e) {
   var sheet = layHoacTaoSheet();
   var last = sheet.getLastRow();
   if (last < 2) return phanHoiJson({ status: 'success', rows: [] });
-  var values = sheet.getRange(2, 1, last - 1, 6).getValues();
+  var values = sheet.getRange(2, 1, last - 1, SO_COT).getValues();
   var rows = [];
   for (var i = 0; i < values.length && rows.length < MAX_PENDING; i++) {
     var r = values[i];
@@ -93,6 +96,7 @@ function apiPending(e) {
       hienTrang: String(r[1] || ''),
       viTri: String(r[2] || ''),
       hangMuc: hangMuc,
+      thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]),     // thời gian vi phạm (nếu có)
       images: layAnhBase64(String(r[4] || ''))
     });
   }
@@ -160,14 +164,19 @@ function layHoacTaoSheet() {
   var sheet = ss.getSheetByName(TEN_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(TEN_SHEET);
-    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow']);
-    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow', 'Thời gian vi phạm']);
+    sheet.getRange(1, 1, 1, SO_COT).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
     sheet.setFrozenRows(1);
-    sheet.setColumnWidth(2, 280); sheet.setColumnWidth(4, 320); sheet.setColumnWidth(5, 320); sheet.setColumnWidth(6, 160);
-  } else if (!sheet.getRange(1, COL_MA_TASK).getValue()) {
-    // Sheet cũ chưa có cột Mã task -> thêm tiêu đề
-    sheet.getRange(1, COL_MA_TASK).setValue('Mã task workflow').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
-    sheet.setColumnWidth(6, 160);
+    sheet.setColumnWidth(2, 280); sheet.setColumnWidth(4, 320); sheet.setColumnWidth(5, 320); sheet.setColumnWidth(6, 160); sheet.setColumnWidth(7, 170);
+  } else {
+    if (!sheet.getRange(1, COL_MA_TASK).getValue()) {        // sheet cũ chưa có cột Mã task
+      sheet.getRange(1, COL_MA_TASK).setValue('Mã task workflow').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+      sheet.setColumnWidth(6, 160);
+    }
+    if (!sheet.getRange(1, COL_TG_VI_PHAM).getValue()) {      // sheet cũ chưa có cột Thời gian vi phạm
+      sheet.getRange(1, COL_TG_VI_PHAM).setValue('Thời gian vi phạm').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+      sheet.setColumnWidth(7, 170);
+    }
   }
   return sheet;
 }
