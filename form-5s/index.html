@@ -384,10 +384,33 @@
           c.width = v.videoWidth;
           c.height = v.videoHeight;
           c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+          this._veNhanThoiGian(c);                 // gắn nhãn thời gian lúc chụp
           const dataUrl = c.toDataURL('image/jpeg', 0.9);
           const ten = 'chup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.jpg';
           this.files.push({ ten: ten, loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl });
           this.soAnhChup++;
+        },
+
+        // Chuỗi nhãn: "hh:mm:ss dd-mm-yyyy |Audit Hasaki"
+        _chuoiThoiGian() {
+          const d = new Date(), p = (n) => String(n).padStart(2, '0');
+          return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + ' ' +
+                 p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' |Audit Hasaki';
+        },
+        // Vẽ nhãn thời gian ở góc dưới-trái ảnh trên canvas
+        _veNhanThoiGian(canvas) {
+          const ctx = canvas.getContext('2d');
+          const text = this._chuoiThoiGian();
+          const fs = Math.max(16, Math.round(canvas.width * 0.032));   // cỡ chữ theo bề ngang ảnh
+          const pad = Math.round(fs * 0.5);
+          ctx.font = '700 ' + fs + 'px Arial, sans-serif';
+          ctx.textBaseline = 'alphabetic';
+          const tw = ctx.measureText(text).width;
+          const x = pad, baseY = canvas.height - pad;
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';                          // nền mờ cho dễ đọc
+          ctx.fillRect(x - pad / 2, baseY - fs - pad / 2, tw + pad, fs + pad);
+          ctx.fillStyle = '#FFD400';                                   // chữ vàng
+          ctx.fillText(text, x, baseY - pad / 2);
         },
         dongChupAnh() {
           if (this._cameraStream) { this._cameraStream.getTracks().forEach(t => t.stop()); this._cameraStream = null; }
@@ -395,19 +418,36 @@
           this.dangChupAnh = false;
         },
 
-        // ---- Mục 4: Xử lý file ảnh/video ----
+        // ---- Mục 4: Xử lý file ảnh/video (ảnh được gắn nhãn thời gian khi tải lên) ----
         xuLyFile(fileList) {
           for (const file of fileList) {
             const loai = file.type.startsWith('video') ? 'video' : 'image';
             const reader = new FileReader();
             reader.onload = (e) => {
-              this.files.push({
-                ten: file.name,
-                loai: loai,
-                mime: file.type,
-                preview: e.target.result,   // dạng base64 (dùng để xem trước & gửi đi)
-                base64: e.target.result
-              });
+              if (loai === 'image') {
+                const img = new Image();
+                img.onload = () => {
+                  const c = document.createElement('canvas');
+                  c.width = img.naturalWidth || img.width;
+                  c.height = img.naturalHeight || img.height;
+                  const ctx = c.getContext('2d');
+                  ctx.drawImage(img, 0, 0, c.width, c.height);
+                  this._veNhanThoiGian(c);                 // gắn nhãn thời gian lúc tải lên
+                  const dataUrl = c.toDataURL('image/jpeg', 0.9);
+                  this.files.push({
+                    ten: (file.name || 'anh').replace(/\.[^.]+$/, '') + '.jpg',
+                    loai: 'image', mime: 'image/jpeg',
+                    preview: dataUrl, base64: dataUrl
+                  });
+                };
+                img.src = e.target.result;
+              } else {
+                // Video: giữ nguyên, không gắn nhãn (không xử lý được phía trình duyệt)
+                this.files.push({
+                  ten: file.name, loai: 'video', mime: file.type,
+                  preview: e.target.result, base64: e.target.result
+                });
+              }
             };
             reader.readAsDataURL(file);
           }
