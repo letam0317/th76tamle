@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard 5S - Kiểm soát kho</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>[x-cloak]{display:none}</style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="max-w-7xl mx-auto p-4">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">📊 Dashboard 5S — Kiểm soát kho</h1>
+        <p class="text-xs text-slate-500" id="meta">Đang tải dữ liệu từ tab 5S-TASKS...</p>
+      </div>
+      <button id="btnReload" class="rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700">↻ Tải lại</button>
+    </div>
+
+    <!-- Thẻ thống kê -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4" id="cards"></div>
+
+    <!-- Bộ lọc -->
+    <div class="bg-white rounded-2xl shadow-sm p-3 mb-4 grid grid-cols-2 sm:grid-cols-6 gap-2 text-sm">
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Từ ngày</span><input type="date" id="fTu" class="border rounded-lg px-2 py-1.5"></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Đến ngày</span><input type="date" id="fDen" class="border rounded-lg px-2 py-1.5"></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Trạng thái</span><select id="fTrangThai" class="border rounded-lg px-2 py-1.5"><option value="">Tất cả</option></select></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Nguồn</span><select id="fNguon" class="border rounded-lg px-2 py-1.5"><option value="">Tất cả</option><option>Form</option><option>Khác</option></select></label>
+      <label class="flex flex-col gap-1 col-span-2"><span class="text-xs text-slate-500">Tìm (vị trí / lỗi / mã)</span><input type="text" id="fTim" placeholder="vd: F0-A1 ..." class="border rounded-lg px-2 py-1.5"></label>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-4">
+      <!-- Bảng task -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-4 py-2 border-b font-semibold text-sm flex justify-between"><span>Danh sách task vi phạm</span><span id="dem" class="text-slate-400 font-normal"></span></div>
+        <div class="overflow-x-auto max-h-[70vh]">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-50 sticky top-0">
+              <tr class="text-left text-slate-500">
+                <th class="px-3 py-2">Mã</th><th class="px-3 py-2">Ngày VP</th><th class="px-3 py-2">Lỗi vi phạm</th>
+                <th class="px-3 py-2">Vị trí</th><th class="px-3 py-2">Trạng thái</th><th class="px-3 py-2">Bước hiện tại</th>
+                <th class="px-3 py-2">Người</th><th class="px-3 py-2">📷/🎥</th><th class="px-3 py-2">Nguồn</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Phân bố -->
+      <div class="space-y-4">
+        <div class="bg-white rounded-2xl shadow-sm p-4">
+          <h3 class="font-semibold text-sm mb-2">Theo bước hiện tại</h3>
+          <div id="theoButoc" class="space-y-1.5 text-xs"></div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-4">
+          <h3 class="font-semibold text-sm mb-2">Theo trạng thái</h3>
+          <div id="theoTrangThai" class="space-y-1.5 text-xs"></div>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-xs text-slate-400 mt-4">Dữ liệu cập nhật khi chạy <b>DONG-BO-TASK.bat</b>. Nguồn: workflow 591 (work.hasaki.vn).</p>
+  </div>
+
+  <script>
+    // ⚙️ CẤU HÌNH — điền Sheet ID (lấy từ ?action=info). Tab phải chia sẻ "Bất kỳ ai có liên kết: Người xem".
+    const SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
+    const TAB = "5S-TASKS";
+
+    const COL = { ma:0, loai:1, macha:2, ten:3, mota:4, loi:5, vitri:6, ngayVP:7, trangThai:8, pct:9, buoc:10, nguoi:11, ngayTao:12, anh:13, video:14, nguon:15 };
+    let DATA = [];   // chỉ task "Cha"
+
+    const BADGE = { "Hoàn thành":"bg-green-100 text-green-700", "Đang xử lý":"bg-blue-100 text-blue-700", "Chưa xử lý":"bg-slate-100 text-slate-600", "Quá hạn":"bg-red-100 text-red-700", "Từ chối/Huỷ":"bg-amber-100 text-amber-700" };
+    const esc = (s) => String(s==null?"":s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    function taiDuLieu() {
+      if (SHEET_ID === "__SHEET_ID__") { document.getElementById('meta').textContent = "⚠ Chưa cấu hình SHEET_ID trong file."; return; }
+      const cb = "gviz_" + Date.now();
+      window[cb] = (resp) => {
+        try {
+          const t = resp.table; const rows = t.rows || [];
+          const arr = rows.map(r => (r.c || []).map(c => c ? (c.f != null ? c.f : c.v) : ""));
+          // bỏ header nếu gviz coi hàng đầu là dữ liệu (gviz thường tự nhận header -> cols.label)
+          DATA = arr.filter(x => (x[COL.loai] || "") === "Cha");
+          napBoLoc(); render();
+          document.getElementById('meta').textContent = "Tổng " + arr.length + " bản ghi · " + DATA.length + " task vi phạm · cập nhật lúc tải trang.";
+        } catch (e) { document.getElementById('meta').textContent = "Lỗi đọc dữ liệu: " + e; }
+        delete window[cb];
+      };
+      const url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?sheet=" + encodeURIComponent(TAB) + "&headers=1&tqx=out:json;responseHandler:" + cb;
+      const s = document.createElement('script'); s.src = url; s.onerror = () => document.getElementById('meta').textContent = "Không tải được sheet (kiểm tra Sheet ID & quyền chia sẻ)."; document.body.appendChild(s);
+    }
+
+    function napBoLoc() {
+      const sel = document.getElementById('fTrangThai');
+      const tts = [...new Set(DATA.map(r => r[COL.trangThai]).filter(Boolean))];
+      sel.innerHTML = '<option value="">Tất cả</option>' + tts.map(t => `<option>${esc(t)}</option>`).join('');
+    }
+
+    function locDuLieu() {
+      const tu = document.getElementById('fTu').value, den = document.getElementById('fDen').value;
+      const tt = document.getElementById('fTrangThai').value, ng = document.getElementById('fNguon').value;
+      const tim = document.getElementById('fTim').value.toLowerCase().trim();
+      return DATA.filter(r => {
+        const ngay = String(r[COL.ngayVP] || r[COL.ngayTao] || "").slice(0,10);
+        if (tu && ngay && ngay < tu) return false;
+        if (den && ngay && ngay > den) return false;
+        if (tt && r[COL.trangThai] !== tt) return false;
+        if (ng && r[COL.nguon] !== ng) return false;
+        if (tim && !((r[COL.vitri]+" "+r[COL.loi]+" "+r[COL.ma]).toLowerCase().includes(tim))) return false;
+        return true;
+      });
+    }
+
+    function the(label, val, cls) { return `<div class="bg-white rounded-2xl shadow-sm p-3"><div class="text-2xl font-bold ${cls||''}">${val}</div><div class="text-xs text-slate-500">${label}</div></div>`; }
+
+    function render() {
+      const d = locDuLieu();
+      const dem = (f) => d.filter(f).length;
+      const hoanThanh = dem(r => r[COL.trangThai] === "Hoàn thành");
+      const quaHan = dem(r => r[COL.trangThai] === "Quá hạn");
+      const dangCho = d.length - hoanThanh;
+      const pctTB = d.length ? Math.round(d.reduce((s,r)=>s+(parseFloat(r[COL.pct])||0),0)/d.length) : 0;
+      document.getElementById('cards').innerHTML =
+        the("Task vi phạm", d.length) + the("Hoàn thành", hoanThanh, "text-green-600") +
+        the("Đang/chưa xử lý", dangCho, "text-blue-600") + the("Quá hạn", quaHan, "text-red-600") +
+        the("% hoàn thành TB", pctTB + "%", "text-teal-600");
+
+      document.getElementById('dem').textContent = d.length + " task";
+      document.getElementById('tbody').innerHTML = d.map(r => {
+        const b = BADGE[r[COL.trangThai]] || "bg-slate-100 text-slate-600";
+        return `<tr class="border-t hover:bg-slate-50">
+          <td class="px-3 py-2 font-medium whitespace-nowrap">${esc(r[COL.ma])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(String(r[COL.ngayVP]||"").slice(0,16))}</td>
+          <td class="px-3 py-2 max-w-[260px] truncate" title="${esc(r[COL.loi])}">${esc(r[COL.loi])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(r[COL.vitri])}</td>
+          <td class="px-3 py-2"><span class="rounded-full px-2 py-0.5 ${b}">${esc(r[COL.trangThai])}</span></td>
+          <td class="px-3 py-2 max-w-[160px] truncate" title="${esc(r[COL.buoc])}">${esc(r[COL.buoc])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(r[COL.nguoi])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(r[COL.anh])}/${esc(r[COL.video])}</td>
+          <td class="px-3 py-2"><span class="rounded px-1.5 py-0.5 ${r[COL.nguon]==='Form'?'bg-teal-50 text-teal-700':'bg-slate-100 text-slate-500'}">${esc(r[COL.nguon])}</span></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-400">Không có task khớp bộ lọc.</td></tr>';
+
+      veBar('theoButoc', d, COL.buoc);
+      veBar('theoTrangThai', d, COL.trangThai);
+    }
+
+    function veBar(id, d, col) {
+      const m = {}; d.forEach(r => { const k = r[col] || "(trống)"; m[k] = (m[k]||0)+1; });
+      const max = Math.max(1, ...Object.values(m));
+      document.getElementById(id).innerHTML = Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+        `<div><div class="flex justify-between"><span class="truncate pr-2" title="${esc(k)}">${esc(k)}</span><b>${v}</b></div>
+         <div class="h-1.5 bg-slate-100 rounded"><div class="h-1.5 bg-teal-500 rounded" style="width:${(v/max*100)}%"></div></div></div>`
+      ).join('') || '<p class="text-slate-400">Không có dữ liệu.</p>';
+    }
+
+    ['fTu','fDen','fTrangThai','fNguon','fTim'].forEach(id => document.getElementById(id).addEventListener('input', render));
+    document.getElementById('btnReload').addEventListener('click', taiDuLieu);
+    taiDuLieu();
+  </script>
+</body>
+</html>
