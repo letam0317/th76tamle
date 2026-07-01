@@ -1,0 +1,18 @@
+Windows Registry Editor Version 5.00
+
+; ============================================================
+;  Dang ky giao thuc hasaki5s:// -> chay LOGIN-HASAKI.bat
+;  Bam dup file .reg nay 1 LAN (chon Yes) de kich hoat nut trong email.
+;  Ghi vao HKEY_CURRENT_USER nen KHONG can quyen Admin.
+;  Neu doi duong dan thu muc du an, sua lai dong "command" ben duoi.
+; ============================================================
+
+[HKEY_CURRENT_USER\Software\Classes\hasaki5s]
+@="URL:Hasaki 5S Login"
+"URL Protocol"=""
+
+[HKEY_CURRENT_USER\Software\Classes\hasaki5s\DefaultIcon]
+@="cmd.exe,0"
+
+[HKEY_CURRENT_USER\Software\Classes\hasaki5s\shell\open\command]
+@="\"C:\\Users\\lechitam\\New folder\\LOGIN-HASAKI.bat\" \"%1\""

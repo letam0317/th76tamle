@@ -22,7 +22,8 @@ _*.js
 node_modules/
 ui_*.png
 
-# Log chay bo day 5S (chay ngam theo lich)
-day-bao-cao-5s.log
+# Log & lockfile chay ngam theo lich (khong commit)
+*.log
+.login-open.lock
 # Ban deploy Apps Script co SECRET that — KHONG commit
 google-script-DEPLOY.gs

@@ -9,8 +9,4 @@ echo [%date% %time%] Bat dau day bao cao 5S... >> day-bao-cao-5s.log
 node push-5s-to-workflow.js >> day-bao-cao-5s.log 2>&1
 echo [%date% %time%] Ket thuc. >> day-bao-cao-5s.log
 echo. >> day-bao-cao-5s.log
-REM Khi chay tay (khong tham so) thi hien log roi tu dong dong.
-if "%~1"=="" (
-  type day-bao-cao-5s.log
-  timeout /t 8 >nul
-)
+REM Chay xong tu dong dong cua so ngay (log ghi vao day-bao-cao-5s.log).

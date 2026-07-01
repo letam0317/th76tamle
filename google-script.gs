@@ -72,7 +72,44 @@ function doGet(e) {
   if (action === 'mark') return apiMark(e);
   if (action === 'alert') return apiAlert(e);
   if (action === 'info') return apiInfo(e);
+  if (action === 'requestLogin') return apiRequestLogin(e);   // link trong email (điện thoại/web bấm được)
+  if (action === 'loginStatus') return apiLoginStatus(e);     // máy PC hỏi có yêu cầu login không
+  if (action === 'clearLogin') return apiClearLogin(e);       // máy PC báo đã xử lý
   return phanHoiJson({ status: 'success', message: 'Web App đang hoạt động bình thường.' });
+}
+
+/** Người dùng bấm nút trong email (từ ĐIỆN THOẠI hoặc WEB bất kỳ) → đặt cờ yêu cầu đăng nhập.
+ *  Máy PC sẽ thấy cờ này (qua ?action=loginStatus) và tự mở màn hình đăng nhập.
+ *  Trả về trang HTML thân thiện thay vì JSON. */
+function apiRequestLogin(e) {
+  if ((e.parameter.key || '') !== SECRET) {
+    return HtmlService.createHtmlOutput('<h2>Sai mã bảo mật.</h2>').setTitle('5S - Lỗi');
+  }
+  PropertiesService.getScriptProperties().setProperty('LOGIN_REQUESTED', String(new Date().getTime()));
+  var html =
+    '<div style="font-family:Arial;max-width:460px;margin:40px auto;text-align:center;color:#222">' +
+    '<div style="font-size:56px">✅</div>' +
+    '<h2 style="color:#1a7f37">Đã gửi yêu cầu đăng nhập</h2>' +
+    '<p style="font-size:15px;line-height:1.6">Máy tính chạy bộ đẩy 5S sẽ <b>tự mở màn hình đăng nhập</b> trong vòng ~2 phút.</p>' +
+    '<p style="font-size:15px;line-height:1.6">Hãy tới máy tính đó, <b>gõ mã OTP 6 số</b> và bấm Đăng nhập (email &amp; mật khẩu đã tự điền sẵn).</p>' +
+    '<p style="color:#888;font-size:12px">Có thể đóng trang này.</p>' +
+    '</div>';
+  return HtmlService.createHtmlOutput(html).setTitle('5S - Yêu cầu đăng nhập');
+}
+
+/** Máy PC hỏi: có ai vừa yêu cầu đăng nhập không? (cờ còn hiệu lực trong 15 phút). */
+function apiLoginStatus(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('LOGIN_REQUESTED') || 0);
+  var conHieuLuc = ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000;
+  return phanHoiJson({ status: 'success', requested: conHieuLuc, ts: ts });
+}
+
+/** Máy PC báo đã mở màn hình đăng nhập → xoá cờ để khỏi mở lại. */
+function apiClearLogin(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  PropertiesService.getScriptProperties().deleteProperty('LOGIN_REQUESTED');
+  return phanHoiJson({ status: 'success', cleared: true });
 }
 
 /** Trả về các báo cáo chưa đẩy (chưa có mã task) + ảnh base64. */
@@ -128,11 +165,34 @@ function apiAlert(e) {
     return phanHoiJson({ status: 'success', skipped: true, message: 'Đã gửi gần đây, bỏ qua để tránh spam.' });
   }
   try {
-    MailApp.sendEmail(ALERT_EMAIL, '[5S] Cần đăng nhập lại work.hasaki.vn',
+    var thoiDiem = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss');
+    var textBody =
       'Bộ đẩy báo cáo 5S không tạo được task vì:\n\n' + msg +
-      '\n\nXử lý: mở thư mục dự án và chạy lệnh:\n    node login-hasaki.js\n' +
+      '\n\nXử lý nhanh: bấm nút "Đăng nhập lại" trong email (bản HTML).\n' +
+      'Hoặc mở thư mục dự án và chạy lệnh:\n    node login-hasaki.js\n' +
       'rồi đăng nhập lại (email + OTP). Sau đó lịch tự động sẽ chạy lại bình thường.\n\n' +
-      'Thời điểm: ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss'));
+      'Thời điểm: ' + thoiDiem;
+    var linkWeb = ScriptApp.getService().getUrl() + '?action=requestLogin&key=' + encodeURIComponent(SECRET);
+    var htmlBody =
+      '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.6">' +
+      '<p>Bộ đẩy báo cáo 5S <b>không tạo được task</b> vì:</p>' +
+      '<p style="background:#fff3cd;border:1px solid #ffe08a;padding:10px 12px;border-radius:6px">' + msg + '</p>' +
+      '<p><b>Bấm nút dưới đây (điện thoại hay máy tính đều được):</b></p>' +
+      '<p><a href="' + linkWeb + '" style="display:inline-block;background:#e60023;color:#fff;' +
+      'text-decoration:none;padding:14px 30px;border-radius:8px;font-weight:bold;font-size:16px">' +
+      '🔐 Yêu cầu đăng nhập lại</a></p>' +
+      '<p style="color:#555;font-size:13px">Máy tính chạy bộ đẩy sẽ tự mở màn hình đăng nhập trong ~2 phút; ' +
+      'bạn chỉ cần tới đó gõ <b>OTP 6 số</b> (email &amp; mật khẩu đã tự điền).</p>' +
+      '<p style="color:#888;font-size:12px;margin-top:18px">Đang ngồi ngay tại máy tính đó? Bấm nhanh: ' +
+      '<a href="hasaki5s://login">mở màn hình đăng nhập ngay</a></p>' +
+      '<p style="color:#888;font-size:12px">Thời điểm: ' + thoiDiem + '</p>' +
+      '</div>';
+    MailApp.sendEmail({
+      to: ALERT_EMAIL,
+      subject: '[5S] Cần đăng nhập lại work.hasaki.vn',
+      body: textBody,
+      htmlBody: htmlBody
+    });
     props.setProperty('LAST_ALERT_MS', String(now));
     return phanHoiJson({ status: 'success', sent: true });
   } catch (err) {
