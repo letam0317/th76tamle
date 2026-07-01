@@ -148,29 +148,43 @@
           4. Hình ảnh / clip tại thời điểm ghi nhận <span class="text-red-500">*</span>
         </label>
 
-        <!-- Khu vực kéo thả / bấm chọn -->
-        <label
-          @dragover.prevent="keoVao = true"
-          @dragleave.prevent="keoVao = false"
-          @drop.prevent="keoVao = false; xuLyFile($event.dataTransfer.files)"
-          :class="keoVao ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-slate-50'"
-          class="flex flex-col items-center justify-center w-full rounded-2xl border-2 border-dashed px-4 py-6 cursor-pointer hover:bg-slate-100 transition text-center"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5"/>
-          </svg>
-          <span class="text-sm text-slate-600 font-medium">Bấm để chụp ảnh / chọn file</span>
-          <span class="text-xs text-slate-400 mt-0.5">hoặc kéo thả ảnh/video vào đây</span>
-          <!-- capture="environment" giúp điện thoại mở thẳng camera sau -->
-          <input
-            type="file"
-            accept="image/*,video/*"
-            capture="environment"
-            multiple
-            class="hidden"
-            @change="xuLyFile($event.target.files)"
-          />
-        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Nút CHỤP ẢNH TRỰC TIẾP (mở camera live trong trang) -->
+          <button
+            type="button"
+            @click="moChupAnh()"
+            class="flex flex-col items-center justify-center rounded-2xl border-2 border-blue-300 bg-blue-50 px-3 py-6 hover:bg-blue-100 active:scale-[0.98] transition text-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-blue-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>
+            </svg>
+            <span class="text-sm text-blue-700 font-semibold">Chụp ảnh trực tiếp</span>
+            <span class="text-xs text-blue-400 mt-0.5">mở camera</span>
+          </button>
+
+          <!-- Nút CHỌN TỪ THƯ VIỆN / kéo thả -->
+          <label
+            @dragover.prevent="keoVao = true"
+            @dragleave.prevent="keoVao = false"
+            @drop.prevent="keoVao = false; xuLyFile($event.dataTransfer.files)"
+            :class="keoVao ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-slate-50'"
+            class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 py-6 cursor-pointer hover:bg-slate-100 transition text-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5"/>
+            </svg>
+            <span class="text-sm text-slate-600 font-medium">Chọn từ thư viện</span>
+            <span class="text-xs text-slate-400 mt-0.5">hoặc kéo thả</span>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              class="hidden"
+              @change="xuLyFile($event.target.files)"
+            />
+          </label>
+        </div>
 
         <!-- Preview ảnh thu nhỏ -->
         <div x-show="files.length > 0" x-cloak class="grid grid-cols-3 gap-2 mt-3">
@@ -193,14 +207,72 @@
         </div>
       </div>
 
+      <!-- ===== Modal CAMERA: chụp ảnh / quay video trực tiếp ===== -->
+      <div x-show="dangChupAnh" x-cloak class="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+        <!-- Chuyển chế độ Ảnh / Video -->
+        <div class="flex gap-1 mb-3 bg-white/10 rounded-full p-1" :class="dangQuay ? 'opacity-40 pointer-events-none' : ''">
+          <button type="button" @click="datCheDo(false)"
+            :class="!cheDoVideo ? 'bg-white text-slate-800' : 'text-white'"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition">📷 Ảnh</button>
+          <button type="button" @click="datCheDo(true)"
+            :class="cheDoVideo ? 'bg-white text-slate-800' : 'text-white'"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition">🎥 Video</button>
+        </div>
+
+        <video x-ref="video" autoplay playsinline muted class="w-full max-w-md rounded-2xl bg-black"></video>
+        <canvas x-ref="canvas" class="hidden"></canvas>
+
+        <!-- Đồng hồ khi đang quay -->
+        <p x-show="dangQuay" x-cloak class="mt-3 text-red-400 text-sm font-semibold flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+          <span x-text="'Đang quay ' + Math.floor(giayQuay/60) + ':' + String(giayQuay%60).padStart(2,'0')"></span>
+        </p>
+        <p x-show="!dangQuay" class="text-white/70 text-xs mt-3"
+           x-text="soAnhChup > 0 ? ('Đã ghi ' + soAnhChup + ' mục — bấm Xong khi đủ') : (cheDoVideo ? 'Bấm nút đỏ để bắt đầu quay (1080p)' : 'Đưa camera vào đối tượng rồi bấm Chụp')"></p>
+
+        <div class="flex items-center gap-4 mt-4">
+          <button type="button" @click="dongChupAnh()" x-show="!dangQuay"
+            class="rounded-2xl bg-white/20 text-white font-medium px-5 py-3 text-sm hover:bg-white/30 transition">Xong</button>
+
+          <!-- Nút chính: chụp ảnh / quay / dừng -->
+          <template x-if="!cheDoVideo">
+            <button type="button" @click="chupAnh()"
+              class="rounded-full bg-white w-16 h-16 flex items-center justify-center shadow-lg ring-4 ring-white/40 active:scale-95 transition">
+              <span class="block w-12 h-12 rounded-full bg-blue-600"></span>
+            </button>
+          </template>
+          <template x-if="cheDoVideo">
+            <button type="button" @click="dangQuay ? dungQuay() : batDauQuay()"
+              class="rounded-full bg-white w-16 h-16 flex items-center justify-center shadow-lg ring-4 ring-white/40 active:scale-95 transition">
+              <span x-show="!dangQuay" class="block w-12 h-12 rounded-full bg-red-600"></span>
+              <span x-show="dangQuay" x-cloak class="block w-7 h-7 rounded bg-red-600"></span>
+            </button>
+          </template>
+
+          <button type="button" @click="doiCamera()" x-show="!dangQuay"
+            class="rounded-2xl bg-white/20 text-white font-medium px-4 py-3 text-sm hover:bg-white/30 transition" title="Đổi camera trước/sau">⇄</button>
+        </div>
+      </div>
+
+      <!-- ===== Overlay tiến trình nén video tải lên ===== -->
+      <div x-show="dangNen" x-cloak class="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-6 text-center">
+        <svg class="w-10 h-10 text-white animate-spin mb-3" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+        </svg>
+        <p class="text-white text-sm" x-text="tienTrinhNen || 'Đang xử lý video...'"></p>
+        <p class="text-white/50 text-xs mt-1">Video lớn (50–100MB) đang được hạ xuống 720p để gửi nhanh & nhẹ Drive.</p>
+      </div>
+
       <!-- ===== Nút gửi báo cáo ===== -->
       <button
         type="submit"
-        :disabled="dangGui"
+        :disabled="dangGui || dangNen"
         class="w-full rounded-2xl bg-blue-600 text-white font-semibold py-3.5 text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <span x-show="!dangGui">GỬI BÁO CÁO</span>
+        <span x-show="!dangGui && !dangNen">GỬI BÁO CÁO</span>
         <span x-show="dangGui" x-cloak>Đang gửi, vui lòng đợi...</span>
+        <span x-show="dangNen && !dangGui" x-cloak>Đang xử lý video...</span>
       </button>
 
       <!-- Thông báo kết quả -->
@@ -272,6 +344,17 @@
         dangGui: false,
         thongBao: { loai: '', noiDung: '' },
         _scanner: null,     // đối tượng camera quét mã
+        dangChupAnh: false, // đang mở camera?
+        _cameraStream: null,// luồng camera đang dùng
+        soAnhChup: 0,       // số ảnh/clip đã ghi trong phiên camera này
+        cameraSau: true,    // true = camera sau (environment), false = camera trước
+        cheDoVideo: false,  // false = chụp ảnh, true = quay video
+        dangQuay: false,    // đang quay video?
+        _recorder: null, _videoChunks: [], _quayTimer: null, giayQuay: 0,
+        dangNen: false, tienTrinhNen: '',   // trạng thái nén video tải lên (50-100MB -> 720p)
+        MAX_VIDEO_MB: 100,  // > 100MB: chặn; 50-100MB: tự hạ 720p; <=50MB: giữ nguyên
+        NGUONG_NEN_MB: 50,
+        MAX_ANH_PX: 2560,   // cạnh dài tối đa của ảnh (~2K) để gửi nhanh, nhẹ Drive
 
         // ---- Mục 3: Lọc danh sách theo từ khoá ----
         danhSachLoc() {
@@ -314,22 +397,187 @@
           this.dangQuet = false;
         },
 
-        // ---- Mục 4: Xử lý file ảnh/video ----
-        xuLyFile(fileList) {
-          for (const file of fileList) {
-            const loai = file.type.startsWith('video') ? 'video' : 'image';
+        // ---- Mục 4: Chụp ảnh trực tiếp bằng camera (getUserMedia) ----
+        async moChupAnh() {
+          this.dangChupAnh = true;
+          this.soAnhChup = 0;
+          await this.$nextTick();
+          await this._batCamera();
+        },
+        async _batCamera() {
+          if (this._cameraStream) { this._cameraStream.getTracks().forEach(t => t.stop()); this._cameraStream = null; }
+          try {
+            this._cameraStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: this.cameraSau ? { ideal: 'environment' } : 'user',
+                width: { ideal: 1920 }, height: { ideal: 1080 }   // ~1080p (~2K) để clip gọn
+              },
+              audio: this.cheDoVideo            // bật mic khi quay video
+            });
+            const v = this.$refs.video;
+            v.srcObject = this._cameraStream;
+            v.muted = true;
+            await v.play().catch(() => {});
+          } catch (err) {
+            this.dangChupAnh = false;
+            alert("Không mở được camera. Hãy cho phép quyền camera/mic và mở trang qua HTTPS.\n" + err);
+          }
+        },
+        async doiCamera() {
+          if (this.dangQuay) return;            // đang quay thì không đổi
+          this.cameraSau = !this.cameraSau;
+          await this._batCamera();
+        },
+        async datCheDo(video) {                 // chuyển Ảnh <-> Video (cần bật lại stream để thêm/bỏ mic)
+          if (this.dangQuay || this.cheDoVideo === video) return;
+          this.cheDoVideo = video;
+          await this._batCamera();
+        },
+        chupAnh() {
+          const v = this.$refs.video;
+          if (!v || !v.videoWidth) return;
+          const c = this.$refs.canvas;
+          c.width = v.videoWidth;
+          c.height = v.videoHeight;
+          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+          this._veNhanThoiGian(c);                 // nhãn thời gian lúc chụp
+          const dataUrl = c.toDataURL('image/jpeg', 0.9);
+          const ten = 'chup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.jpg';
+          this.files.push({ ten: ten, loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl, tg: Date.now() });
+          this.soAnhChup++;
+        },
+        // ---- Quay video trong app (1080p) ----
+        batDauQuay() {
+          if (!this._cameraStream) return;
+          const mime = ['video/mp4;codecs=h264,aac', 'video/webm;codecs=vp9,opus', 'video/webm']
+            .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+          try {
+            this._recorder = new MediaRecorder(this._cameraStream, mime ? { mimeType: mime, videoBitsPerSecond: 4000000 } : undefined);
+          } catch (e) { alert('Trình duyệt không hỗ trợ quay video: ' + e); return; }
+          this._videoChunks = [];
+          this._recorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) this._videoChunks.push(ev.data); };
+          this._recorder.onstop = () => {
+            const type = (this._recorder && this._recorder.mimeType) || 'video/webm';
+            const blob = new Blob(this._videoChunks, { type });
+            const ext = /mp4/.test(type) ? 'mp4' : 'webm';
             const reader = new FileReader();
             reader.onload = (e) => {
               this.files.push({
-                ten: file.name,
-                loai: loai,
-                mime: file.type,
-                preview: e.target.result,   // dạng base64 (dùng để xem trước & gửi đi)
-                base64: e.target.result
+                ten: 'quay_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.' + ext,
+                loai: 'video', mime: type.split(';')[0], preview: e.target.result, base64: e.target.result, tg: Date.now()
               });
+              this.soAnhChup++;
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(blob);
+          };
+          this._recorder.start();
+          this.dangQuay = true; this.giayQuay = 0;
+          this._quayTimer = setInterval(() => { this.giayQuay++; }, 1000);
+        },
+        dungQuay() {
+          if (this._recorder && this.dangQuay) { try { this._recorder.stop(); } catch (e) {} }
+          this.dangQuay = false;
+          if (this._quayTimer) { clearInterval(this._quayTimer); this._quayTimer = null; }
+        },
+
+        // Chuỗi nhãn: "hh:mm:ss dd-mm-yyyy |Audit Hasaki"
+        _chuoiThoiGian() {
+          const d = new Date(), p = (n) => String(n).padStart(2, '0');
+          return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + ' ' +
+                 p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' |Audit Hasaki';
+        },
+        // Vẽ nhãn thời gian ở góc dưới-trái ảnh trên canvas
+        _veNhanThoiGian(canvas) {
+          const ctx = canvas.getContext('2d');
+          const text = this._chuoiThoiGian();
+          const fs = Math.max(16, Math.round(canvas.width * 0.032));   // cỡ chữ theo bề ngang ảnh
+          const pad = Math.round(fs * 0.5);
+          ctx.font = '700 ' + fs + 'px Arial, sans-serif';
+          ctx.textBaseline = 'alphabetic';
+          const tw = ctx.measureText(text).width;
+          const x = pad, baseY = canvas.height - pad;
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';                          // nền mờ cho dễ đọc
+          ctx.fillRect(x - pad / 2, baseY - fs - pad / 2, tw + pad, fs + pad);
+          ctx.fillStyle = '#FFD400';                                   // chữ vàng
+          ctx.fillText(text, x, baseY - pad / 2);
+        },
+        dongChupAnh() {
+          if (this.dangQuay) this.dungQuay();
+          if (this._cameraStream) { this._cameraStream.getTracks().forEach(t => t.stop()); this._cameraStream = null; }
+          if (this.$refs.video) this.$refs.video.srcObject = null;
+          this.dangChupAnh = false;
+        },
+
+        // ---- Mục 4: Xử lý file ảnh/video ----
+        xuLyFile(fileList) {
+          for (const file of Array.from(fileList)) {
+            if ((file.type || '').startsWith('video')) this._themVideo(file);
+            else this._themAnh(file);
           }
+        },
+        // Ảnh: thu nhỏ về <=2K + gắn nhãn thời gian (lúc tải lên) + nén JPEG
+        _themAnh(file) {
+          const tg = file.lastModified || Date.now();          // thời gian gốc của ảnh
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+              const max = this.MAX_ANH_PX;
+              if (Math.max(w, h) > max) { const s = max / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+              const c = document.createElement('canvas'); c.width = w; c.height = h;
+              c.getContext('2d').drawImage(img, 0, 0, w, h);
+              this._veNhanThoiGian(c);
+              const dataUrl = c.toDataURL('image/jpeg', 0.85);
+              this.files.push({ ten: (file.name || 'anh').replace(/\.[^.]+$/, '') + '.jpg', loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl, tg });
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        },
+        // Video: <=50MB giữ nguyên; 50-100MB tự hạ 720p; >100MB chặn
+        async _themVideo(file) {
+          const tg = file.lastModified || Date.now();
+          const mb = file.size / (1024 * 1024);
+          if (mb > this.MAX_VIDEO_MB) {
+            alert('Video nặng ' + mb.toFixed(0) + 'MB, vượt giới hạn ' + this.MAX_VIDEO_MB + 'MB.\nVui lòng quay clip ngắn hơn.');
+            return;
+          }
+          let blob = file;
+          if (mb > this.NGUONG_NEN_MB) {
+            try { this.dangNen = true; blob = await this._nenVideo720(file); }
+            catch (err) { alert('Không nén được video, gửi nguyên gốc. (' + err + ')'); blob = file; }
+            finally { this.dangNen = false; this.tienTrinhNen = ''; }
+          }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            this.files.push({ ten: file.name || 'video.mp4', loai: 'video', mime: (blob.type || file.type || 'video/mp4').split(';')[0], preview: e.target.result, base64: e.target.result, tg });
+          };
+          reader.readAsDataURL(blob);
+        },
+        // Transcode -> 720p bằng canvas.captureStream + MediaRecorder (mất ~ thời lượng clip)
+        _nenVideo720(file) {
+          return new Promise((resolve, reject) => {
+            const v = document.createElement('video');
+            v.muted = true; v.playsInline = true; v.src = URL.createObjectURL(file);
+            v.onloadedmetadata = () => {
+              const scale = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+              const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
+              const c = document.createElement('canvas'); c.width = w; c.height = h;
+              const ctx = c.getContext('2d');
+              const mime = ['video/mp4;codecs=h264', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+              const rec = new MediaRecorder(c.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 2500000 } : undefined);
+              const chunks = [];
+              rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+              rec.onstop = () => { URL.revokeObjectURL(v.src); resolve(new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] })); };
+              let raf;
+              const draw = () => { if (!v.paused && !v.ended) { ctx.drawImage(v, 0, 0, w, h); this.tienTrinhNen = 'Đang nén video 720p... ' + Math.round((v.currentTime / (v.duration || 1)) * 100) + '%'; raf = requestAnimationFrame(draw); } };
+              rec.start();
+              v.play().then(() => draw()).catch(reject);
+              v.onended = () => { cancelAnimationFrame(raf); setTimeout(() => { try { rec.stop(); } catch (e) {} }, 200); };
+            };
+            v.onerror = () => reject('không mở được video');
+          });
         },
         xoaFile(i) { this.files.splice(i, 1); },
 
@@ -350,14 +598,27 @@
             this.thongBao = { loai: 'err', noiDung: 'Vui lòng đính kèm ít nhất 1 hình ảnh / clip (Mục 4).' };
             return;
           }
+          if (this.dangNen) {
+            this.thongBao = { loai: 'err', noiDung: 'Đang xử lý video, vui lòng đợi giây lát rồi gửi lại.' };
+            return;
+          }
 
           this.dangGui = true;
+
+          // Thời gian vi phạm = mốc thời gian sớm nhất của ảnh/video; nếu không có thì = lúc gửi form
+          const mocs = this.files.map(f => f.tg).filter(Boolean);
+          const tgViPham = mocs.length ? Math.min(...mocs) : Date.now();
+          const p = (n) => String(n).padStart(2, '0');
+          const d = new Date(tgViPham);
+          const thoiGianViPham = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+                                 p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
 
           // Gói dữ liệu gửi sang Google Apps Script
           const duLieu = {
             hienTrang: this.form.hienTrang.trim(),
             viTri: this.form.viTri.trim(),
             hangMuc: this.form.hangMuc.trim(),
+            thoiGianViPham: thoiGianViPham,
             hinhAnh: this.files.map(f => ({ ten: f.ten, mime: f.mime, base64: f.base64 }))
           };
 

@@ -1,1 +1,28 @@
 .claude/
+
+# Bí mật — TUYỆT ĐỐI không đẩy lên git
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+*.secret
+credentials.json
+service-account*.json
+.wms-token.json
+
+# Crawler — sản phẩm gỡ lỗi (có thể lộ dữ liệu / phiên đăng nhập)
+debug-*.png
+debug-*.html
+.wms-session/
+
+wms_*.json
+ck_*.json
+*.xlsx
+_*.js
+node_modules/
+ui_*.png
+
+# Log chay bo day 5S (chay ngam theo lich)
+day-bao-cao-5s.log
+# Ban deploy Apps Script co SECRET that — KHONG commit
+google-script-DEPLOY.gs

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard 5S - Kiểm soát kho</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="max-w-7xl mx-auto p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold">📊 Dashboard 5S — Kiểm soát kho</h1>
+        <p class="text-xs text-slate-500" id="meta">Đang tải...</p>
+      </div>
+      <button id="btnReload" class="rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700">↻ Tải lại</button>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4" id="cards"></div>
+
+    <div class="bg-white rounded-2xl shadow-sm p-3 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Từ ngày (vi phạm)</span><input type="date" id="fTu" class="border rounded-lg px-2 py-1.5"></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Đến ngày</span><input type="date" id="fDen" class="border rounded-lg px-2 py-1.5"></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Trạng thái</span><select id="fStatus" class="border rounded-lg px-2 py-1.5"><option value="">Tất cả</option></select></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Lỗi vi phạm</span><select id="fLoi" class="border rounded-lg px-2 py-1.5"><option value="">Tất cả</option></select></label>
+      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Tìm (vị trí / mã)</span><input type="text" id="fTim" placeholder="F0-A1 / HSK-..." class="border rounded-lg px-2 py-1.5"></label>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-4 py-2 border-b font-semibold text-sm flex justify-between"><span>Task vi phạm</span><span id="dem" class="text-slate-400 font-normal"></span></div>
+      <div class="overflow-x-auto max-h-[72vh]">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 sticky top-0"><tr class="text-left text-slate-500">
+            <th class="px-3 py-2">Ảnh</th><th class="px-3 py-2">Mã</th><th class="px-3 py-2">Ngày VP</th>
+            <th class="px-3 py-2">Lỗi vi phạm</th><th class="px-3 py-2">Vị trí</th><th class="px-3 py-2">Trạng thái</th>
+            <th class="px-3 py-2">Người thực hiện (B1)</th><th class="px-3 py-2"></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="text-center text-xs text-slate-400 mt-4">Cập nhật khi bấm Export trên workflow rồi chạy <b>DONG-BO-TASK.bat</b>. Nguồn: workflow 591.</p>
+  </div>
+
+  <!-- Modal chi tiết -->
+  <div id="modal" class="fixed inset-0 bg-black/60 z-50 hidden items-start justify-center p-3 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full my-6 shadow-xl">
+      <div class="flex justify-between items-center px-5 py-3 border-b sticky top-0 bg-white rounded-t-2xl">
+        <h2 class="font-bold text-sm" id="mTitle"></h2>
+        <button id="mClose" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+      </div>
+      <div class="p-5 space-y-4" id="mBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
+    const TAB = "5S-TASKS";
+    let H = [], ROWS = [];   // header[], rows[][]
+    let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNguoiB1;
+
+    const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const isMedia = v => typeof v==="string" && v.indexOf("https://hr-media")===0;
+    const isVideo = u => /\.(mp4|webm|mov|m4v|3gp)(\?|$)/i.test(u);
+    const idxOf = (kw) => H.findIndex(h => (h||"").toLowerCase().includes(kw.toLowerCase()));
+
+    function mediaHtml(val, big) {
+      return val.split("\n").filter(s=>s.indexOf("http")===0).map(u =>
+        isVideo(u) ? `<video src="${esc(u)}" controls class="${big?'max-h-72':'h-28'} rounded-lg border inline-block mr-1 mb-1"></video>`
+                   : `<a href="${esc(u)}" target="_blank"><img src="${esc(u)}" loading="lazy" class="${big?'max-h-72':'h-20'} rounded-lg border object-cover inline-block mr-1 mb-1 hover:opacity-80"></a>`
+      ).join("");
+    }
+
+    function taiDuLieu() {
+      const cb = "gviz_" + Date.now();
+      window[cb] = (resp) => {
+        try {
+          const t = resp.table;
+          H = (t.cols||[]).map(c => c.label || "");
+          ROWS = (t.rows||[]).map(r => (r.c||[]).map(c => c ? (c.v==null?"":c.v) : ""));
+          iCode=idxOf("Task Code"); iLink=idxOf("Link Task"); iName=idxOf("Task Name");
+          iStatus=H.findIndex(h=>h==="Status"); iCreatedAt=idxOf("Created At");
+          iAnh=idxOf("Hình ảnh vi phạm"); iNgayVP=idxOf("Ngày vi phạm"); iLoi=idxOf("Lỗi vi phạm"); iViTri=idxOf("Vị trí ghi nhận");
+          iNguoiB1=H.findIndex(h=>/B1\..*Người thực hiện/i.test(h));
+          napLoc(); render();
+          document.getElementById('meta').textContent = ROWS.length + " task · " + H.length + " cột · nhấp 1 dòng để xem chi tiết + ảnh/clip.";
+        } catch(e){ document.getElementById('meta').textContent = "Lỗi đọc dữ liệu: " + e; }
+        delete window[cb];
+      };
+      const url = "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?sheet="+encodeURIComponent(TAB)+"&headers=1&tqx=out:json;responseHandler:"+cb;
+      const s = document.createElement('script'); s.src=url; s.onerror=()=>document.getElementById('meta').textContent="Không tải được sheet (kiểm tra quyền chia sẻ)."; document.body.appendChild(s);
+    }
+
+    function uniq(i){ return [...new Set(ROWS.map(r=>r[i]).filter(Boolean))].sort(); }
+    function napLoc(){
+      if(iStatus>=0) document.getElementById('fStatus').innerHTML='<option value="">Tất cả</option>'+uniq(iStatus).map(v=>`<option>${esc(v)}</option>`).join('');
+      if(iLoi>=0) document.getElementById('fLoi').innerHTML='<option value="">Tất cả</option>'+uniq(iLoi).map(v=>`<option>${esc(v)}</option>`).join('');
+    }
+
+    function loc(){
+      const tu=document.getElementById('fTu').value, den=document.getElementById('fDen').value;
+      const st=document.getElementById('fStatus').value, lo=document.getElementById('fLoi').value;
+      const tim=document.getElementById('fTim').value.toLowerCase().trim();
+      return ROWS.filter(r=>{
+        const ng=String(r[iNgayVP]||"").slice(0,10);
+        if(tu&&ng&&ng<tu)return false; if(den&&ng&&ng>den)return false;
+        if(st&&r[iStatus]!==st)return false; if(lo&&r[iLoi]!==lo)return false;
+        if(tim&&!((String(r[iViTri])+" "+r[iCode]+" "+r[iLoi]).toLowerCase().includes(tim)))return false;
+        return true;
+      });
+    }
+    const the=(l,v,c)=>`<div class="bg-white rounded-2xl shadow-sm p-3"><div class="text-2xl font-bold ${c||''}">${v}</div><div class="text-xs text-slate-500">${l}</div></div>`;
+
+    function render(){
+      const d=loc();
+      const coAnh=d.filter(r=>isMedia(r[iAnh])).length;
+      const coVideo=d.filter(r=>{ const vi=idxOf("Video vi phạm"); return isMedia(r[vi]); }).length;
+      document.getElementById('cards').innerHTML =
+        the("Task vi phạm",d.length)+the("Có ảnh",coAnh,"text-teal-600")+the("Có clip",coVideo,"text-indigo-600")+
+        the("Lỗi khác nhau",new Set(d.map(r=>r[iLoi]).filter(Boolean)).size,"text-amber-600")+
+        the("Vị trí khác nhau",new Set(d.map(r=>r[iViTri]).filter(Boolean)).size,"text-blue-600");
+      document.getElementById('dem').textContent=d.length+" task";
+      document.getElementById('tbody').innerHTML = d.map((r,idx)=>{
+        const anh=isMedia(r[iAnh])?`<img src="${esc(r[iAnh].split("\n")[0])}" loading="lazy" class="h-12 w-12 object-cover rounded">`:'<span class="text-slate-300">—</span>';
+        return `<tr class="border-t hover:bg-teal-50 cursor-pointer" data-i="${ROWS.indexOf(r)}">
+          <td class="px-3 py-2">${anh}</td>
+          <td class="px-3 py-2 font-medium whitespace-nowrap">${esc(r[iCode])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(String(r[iNgayVP]||"").slice(0,16))}</td>
+          <td class="px-3 py-2 max-w-[240px] truncate" title="${esc(r[iLoi])}">${esc(r[iLoi])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(r[iViTri])}</td>
+          <td class="px-3 py-2">${esc(r[iStatus])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(r[iNguoiB1>=0?iNguoiB1:0])}</td>
+          <td class="px-3 py-2 text-teal-600 whitespace-nowrap">Chi tiết ›</td></tr>`;
+      }).join('') || '<tr><td colspan="8" class="px-3 py-8 text-center text-slate-400">Không có task khớp bộ lọc.</td></tr>';
+      document.querySelectorAll('#tbody tr[data-i]').forEach(tr=>tr.addEventListener('click',()=>moChiTiet(+tr.dataset.i)));
+    }
+
+    function moChiTiet(i){
+      const r=ROWS[i];
+      document.getElementById('mTitle').innerHTML = esc(r[iCode])+' — '+esc(r[iName]) + (r[iLink]?` · <a href="${esc(r[iLink])}" target="_blank" class="text-teal-600 font-normal">mở task ↗</a>`:'');
+      // Gom theo nhóm bước (tiền tố trước "▸")
+      const groups={};
+      for(let c=0;c<H.length;c++){
+        const val=r[c]; if(val===""||val==null) continue;
+        const h=H[c]; const parts=h.split("▸");
+        const g = parts.length>1 ? parts[0].trim() : "Thông tin chung";
+        const label = parts.length>1 ? parts[1].trim() : h.trim();
+        (groups[g]=groups[g]||[]).push({label,val});
+      }
+      let html="";
+      for(const g in groups){
+        html += `<div><h3 class="font-semibold text-teal-700 text-sm mb-1 border-b pb-1">${esc(g)}</h3><div class="space-y-1.5">`;
+        for(const {label,val} of groups[g]){
+          const body = isMedia(val) ? `<div class="mt-1">${mediaHtml(val,true)}</div>` : `<span class="text-slate-700">${esc(val)}</span>`;
+          html += `<div class="text-xs"><span class="text-slate-400">${esc(label)}: </span>${body}</div>`;
+        }
+        html += `</div></div>`;
+      }
+      document.getElementById('mBody').innerHTML=html;
+      document.getElementById('modal').classList.remove('hidden'); document.getElementById('modal').classList.add('flex');
+    }
+    function dongModal(){ document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').classList.remove('flex'); }
+    document.getElementById('mClose').addEventListener('click',dongModal);
+    document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') dongModal(); });
+    ['fTu','fDen','fStatus','fLoi','fTim'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+    document.getElementById('btnReload').addEventListener('click',taiDuLieu);
+    taiDuLieu();
+  </script>
+</body>
+</html>
