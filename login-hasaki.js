@@ -71,9 +71,18 @@ async function tuDien() {
 const heNhip = setInterval(tuDien, 1200);
 page.on("framenavigated", () => { /* reset để điền lại nếu SSO sang bước mới */ });
 
+// Tự đóng sau 15 phút nếu không ai hoàn tất đăng nhập — tránh cửa sổ treo
+// giữ profile & chặn bộ đẩy (đồng bộ với lock 15' của bộ canh).
+const TU_DONG_MS = 15 * 60 * 1000;
+const heTuDong = setTimeout(() => {
+  console.log("⏰ Quá 15 phút chưa đóng — tự đóng để giải phóng profile.");
+  browser.close().catch(() => {});
+}, TU_DONG_MS);
+
 console.log("👉 Khi thấy bảng workflow 591 hiện ra là xong. Đóng cửa sổ trình duyệt để lưu phiên.");
 await new Promise((resolve) => browser.on("disconnected", resolve));
 clearInterval(heNhip);
+clearTimeout(heTuDong);
 xoaLock();
 console.log("Đã lưu phiên. Bạn có thể chạy lại bộ đẩy.");
 process.exit(0);
