@@ -1,9 +1,10 @@
 /**
- * login-hasaki.js — Mở Edge để đăng nhập work.hasaki.vn 1 lần (lưu phiên).
- * TỰ ĐỘNG điền email + mật khẩu (đọc từ .env: HASAKI_EMAIL / HASAKI_PASSWORD),
- * bạn CHỈ CẦN gõ OTP 6 số rồi bấm đăng nhập. Đổi mật khẩu → sửa .env là xong.
- * Nếu .env chưa có thông tin, sẽ để bạn tự nhập tay như trước.
- * Sau khi thấy bảng workflow hiện ra, đóng cửa sổ là được.
+ * login-hasaki.js — Mở Edge đăng nhập work.hasaki.vn 1 lần (lưu phiên).
+ *
+ * - CHỈ mở 1 cửa sổ: nếu đã có cửa sổ login đang chạy (lock < 15') thì thoát ngay.
+ * - TỰ ĐIỀN email + mật khẩu (.env: HASAKI_EMAIL / HASAKI_PASSWORD); bạn chỉ gõ OTP 6 số.
+ * - Đăng nhập THÀNH CÔNG → hiện banner "✅ thành công" → tự đóng sau 5 giây.
+ * - Không hoàn tất trong 15' → tự đóng để khỏi treo giữ profile.
  */
 import puppeteer from "puppeteer";
 import "dotenv/config";
@@ -11,7 +12,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const LOCK = path.join(path.dirname(fileURLToPath(import.meta.url)), ".login-open.lock");
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const LOCK = path.join(DIR, ".login-open.lock");
 const xoaLock = () => { try { fs.rmSync(LOCK, { force: true }); } catch {} };
 
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
@@ -19,70 +21,104 @@ const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folde
 const EMAIL = process.env.HASAKI_EMAIL || "";
 const PASSWORD = process.env.HASAKI_PASSWORD || "";
 
+// 1) Chống mở 2 cửa sổ: đã có cửa sổ login đang chạy thì thoát.
+if (fs.existsSync(LOCK)) {
+  const tuoi = Date.now() - fs.statSync(LOCK).mtimeMs;
+  if (tuoi < 15 * 60 * 1000) { console.log("Đã có cửa sổ đăng nhập đang mở — bỏ qua, không mở thêm."); process.exit(0); }
+  xoaLock();
+}
+fs.writeFileSync(LOCK, String(Date.now()));
+
+// 2) Đánh dấu profile "thoát sạch" để Edge KHÔNG bật cửa sổ khôi phục tab cũ.
+try {
+  const pref = path.join(PROFILE_DIR, "Default", "Preferences");
+  if (fs.existsSync(pref)) {
+    const j = JSON.parse(fs.readFileSync(pref, "utf8"));
+    j.profile = j.profile || {}; j.profile.exit_type = "Normal"; j.profile.exited_cleanly = true;
+    fs.writeFileSync(pref, JSON.stringify(j));
+  }
+} catch { /* không sao nếu chưa có */ }
+
 const browser = await puppeteer.launch({
   headless: false, defaultViewport: null, executablePath: EDGE_PATH, userDataDir: PROFILE_DIR,
-  args: ["--start-maximized", "--disable-blink-features=AutomationControlled"],
+  args: ["--start-maximized", "--disable-blink-features=AutomationControlled",
+         "--hide-crash-restore-bubble", "--no-first-run", "--no-default-browser-check"],
 });
 const page = (await browser.pages())[0] || (await browser.newPage());
+
+// 3) Tín hiệu đăng nhập thành công = có request kèm Authorization tới wshr.hasaki.vn.
+let dangNhapOk = false;
+page.on("request", (req) => {
+  const a = req.headers()["authorization"];
+  if (a && /wshr\.hasaki\.vn/.test(req.url())) dangNhapOk = true;
+});
+
 await page.goto("https://work.hasaki.vn/tasks-workflow?wfid=591", { waitUntil: "domcontentloaded" }).catch(() => {});
 
-if (EMAIL && PASSWORD) {
-  console.log("⏳ Đang tự điền email + mật khẩu... (bạn chỉ cần gõ OTP 6 số khi hiện ra)");
-} else {
-  console.log("ℹ️  Chưa có HASAKI_EMAIL/HASAKI_PASSWORD trong .env → đăng nhập tay như thường.");
-}
+if (EMAIL && PASSWORD) console.log("⏳ Tự điền email + mật khẩu... (bạn chỉ cần gõ OTP 6 số khi hiện ra)");
+else console.log("ℹ️  Chưa có HASAKI_EMAIL/HASAKI_PASSWORD trong .env → đăng nhập tay.");
 
-// Tự điền các bước đăng nhập khi field xuất hiện (SSO có thể chia nhiều bước:
-// email → mật khẩu → OTP). Chỉ điền field còn trống, KHÔNG đụng ô OTP.
+// Tự điền email/mật khẩu khi field xuất hiện (SSO nhiều bước); KHÔNG đụng ô OTP.
 const daDien = { email: false, pass: false };
 async function tuDien() {
-  if (!EMAIL || !PASSWORD) return;
+  if (!EMAIL || !PASSWORD || dangNhapOk) return;
   try {
-    // 1) Ô email/tài khoản
     if (!daDien.email) {
-      const emailSel = 'input[type="email"], input[name*="email" i], input[id*="email" i], input[name*="user" i], input[autocomplete="username"]';
-      const filled = await page.evaluate((sel, val) => {
-        const el = [...document.querySelectorAll(sel)].find(e => e.offsetParent !== null && !e.value);
+      const sel = 'input[type="email"], input[name*="email" i], input[id*="email" i], input[name*="user" i], input[autocomplete="username"]';
+      const ok = await page.evaluate((s, v) => {
+        const el = [...document.querySelectorAll(s)].find(e => e.offsetParent !== null && !e.value);
         if (!el) return false;
-        el.focus(); el.value = val;
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
+        el.focus(); el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
         return true;
-      }, emailSel, EMAIL);
-      if (filled) { daDien.email = true; console.log("  ✓ Đã điền email."); }
+      }, sel, EMAIL);
+      if (ok) { daDien.email = true; console.log("  ✓ Đã điền email."); }
     }
-    // 2) Ô mật khẩu (không phải ô OTP: OTP thường maxlength<=8, name chứa otp/code)
     if (!daDien.pass) {
-      const filled = await page.evaluate((val) => {
-        const els = [...document.querySelectorAll('input[type="password"]')]
-          .filter(e => e.offsetParent !== null && !e.value);
+      const ok = await page.evaluate((v) => {
+        const els = [...document.querySelectorAll('input[type="password"]')].filter(e => e.offsetParent !== null && !e.value);
         const el = els.find(e => !/otp|code|token/i.test(e.name + e.id + (e.placeholder || ""))) || els[0];
         if (!el) return false;
-        el.focus(); el.value = val;
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
+        el.focus(); el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
         return true;
       }, PASSWORD);
-      if (filled) { daDien.pass = true; console.log("  ✓ Đã điền mật khẩu. 👉 Bây giờ gõ OTP 6 số và bấm Đăng nhập."); }
+      if (ok) { daDien.pass = true; console.log("  ✓ Đã điền mật khẩu. 👉 Gõ OTP 6 số và bấm Đăng nhập."); }
     }
-  } catch { /* trang đang chuyển, thử lại vòng sau */ }
+  } catch { /* trang đang chuyển, thử lại */ }
+}
+const heNhip = setInterval(tuDien, 1200);
+
+// Banner thông báo trong trang rồi tự đóng.
+async function banner(text, mau) {
+  try {
+    await page.evaluate((t, m) => {
+      let d = document.getElementById("__hsk5s_banner");
+      if (!d) { d = document.createElement("div"); d.id = "__hsk5s_banner"; document.body.appendChild(d); }
+      d.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:" + m +
+        ";color:#fff;font:bold 18px Arial;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)";
+      d.textContent = t;
+    }, text, mau);
+  } catch {}
 }
 
-const heNhip = setInterval(tuDien, 1200);
-page.on("framenavigated", () => { /* reset để điền lại nếu SSO sang bước mới */ });
+// 4) Vòng theo dõi: thành công → banner → đóng sau 5s. Hết 15' → tự đóng.
+const HAN_MS = 15 * 60 * 1000;
+const batDau = Date.now();
+const heTheoDoi = setInterval(async () => {
+  if (dangNhapOk) {
+    clearInterval(heTheoDoi); clearInterval(heNhip);
+    console.log("✅ Đăng nhập thành công. Cửa sổ tự đóng sau 5 giây...");
+    await banner("✅ Đăng nhập thành công! Cửa sổ tự đóng sau 5 giây...", "#1a7f37");
+    setTimeout(() => browser.close().catch(() => {}), 5000);
+  } else if (Date.now() - batDau > HAN_MS) {
+    clearInterval(heTheoDoi); clearInterval(heNhip);
+    console.log("⏰ Quá 15 phút chưa đăng nhập — tự đóng để giải phóng profile.");
+    browser.close().catch(() => {});
+  }
+}, 1000);
 
-// Tự đóng sau 15 phút nếu không ai hoàn tất đăng nhập — tránh cửa sổ treo
-// giữ profile & chặn bộ đẩy (đồng bộ với lock 15' của bộ canh).
-const TU_DONG_MS = 15 * 60 * 1000;
-const heTuDong = setTimeout(() => {
-  console.log("⏰ Quá 15 phút chưa đóng — tự đóng để giải phóng profile.");
-  browser.close().catch(() => {});
-}, TU_DONG_MS);
-
-console.log("👉 Khi thấy bảng workflow 591 hiện ra là xong. Đóng cửa sổ trình duyệt để lưu phiên.");
+console.log("👉 Đăng nhập xong sẽ tự đóng. (Đóng tay cũng được.)");
 await new Promise((resolve) => browser.on("disconnected", resolve));
-clearInterval(heNhip);
-clearTimeout(heTuDong);
+clearInterval(heNhip); clearInterval(heTheoDoi);
 xoaLock();
-console.log("Đã lưu phiên. Bạn có thể chạy lại bộ đẩy.");
+console.log(dangNhapOk ? "Đã lưu phiên. Bộ đẩy chạy lại bình thường." : "Đã đóng (chưa xác nhận đăng nhập).");
 process.exit(0);

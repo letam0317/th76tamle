@@ -34,11 +34,11 @@ if (!data || !data.requested) { log("Không có yêu cầu đăng nhập."); pro
 log("⚡ Có yêu cầu đăng nhập! Đang mở màn hình login...");
 await fetch(APPSCRIPT_URL + "?action=clearLogin&key=" + encodeURIComponent(KEY)).catch(() => {});   // xoá cờ ngay
 
-fs.writeFileSync(LOCK, String(Date.now()));
+// login-hasaki.js TỰ quản lock (tự khoá khi mở, tự thoát nếu đã có cửa sổ) →
+// bộ canh chỉ cần spawn, không đụng lock để tránh mở trùng.
 const child = spawn(process.execPath, [path.join(DIR, "login-hasaki.js")], {
   cwd: DIR, detached: true, stdio: "ignore",
 });
-child.on("exit", () => { try { fs.rmSync(LOCK, { force: true }); } catch {} });
 child.unref();
-log("Đã mở login-hasaki.js. Hãy gõ OTP 6 số trên máy này.");
+log("Đã gọi login-hasaki.js. Hãy gõ OTP 6 số trên máy này.");
 process.exit(0);
