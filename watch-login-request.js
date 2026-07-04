@@ -21,14 +21,16 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 if (!KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
 const hoi = async (act) => { const r = await fetch(APPSCRIPT_URL + "?action=" + act + "&key=" + encodeURIComponent(KEY)).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
-const chay = (file) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };
+const chay = (file) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };   // GUI (login): chạy nền, không chờ
+const chayCho = (file) => new Promise((res) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, stdio: "ignore" }); c.on("exit", res); c.on("error", res); });   // nền (auto-export): CHỜ xong
 
 // 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
 const s = await hoi("syncStatus");
 if (s && s.requested) {
-  log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export...");
+  log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export (chờ xong)...");
   await fetch(APPSCRIPT_URL + "?action=clearSync&key=" + encodeURIComponent(KEY)).catch(() => {});
-  chay("auto-export-sync.js");   // auto-export tự có khoá chống chạy chồng
+  await chayCho("auto-export-sync.js");   // chờ hoàn tất; auto-export có khoá chống chạy chồng
+  log("Auto-export xong.");
 } else log("Không có yêu cầu cập nhật.");
 
 // 2) Yêu cầu ĐĂNG NHẬP (nút trong email). Bỏ qua nếu cửa sổ login đang mở (<15').
