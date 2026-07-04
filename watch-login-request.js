@@ -1,10 +1,10 @@
 /**
  * watch-login-request.js — Bộ canh trên MÁY PC (chạy định kỳ mỗi ~2 phút).
- * Hỏi Apps Script "có ai vừa bấm nút Yêu cầu đăng nhập không?" (từ điện thoại/web).
- * Nếu có → xoá cờ + mở màn hình đăng nhập (login-hasaki.js) ngay trên máy này.
- * Chống mở trùng bằng lockfile .login-open.lock.
+ * Hỏi Apps Script 2 việc (cờ đặt từ điện thoại/web/dashboard):
+ *   1) "Cập nhật dashboard?" (nút Cập nhật ngay + PIN) → chạy auto-export-sync.js
+ *   2) "Đăng nhập lại?" (nút trong email) → mở login-hasaki.js
  *
- * Chạy 1 lần:  node watch-login-request.js   (hoặc để Task Scheduler gọi mỗi 2 phút)
+ * Chạy 1 lần:  node watch-login-request.js   (Task Scheduler gọi mỗi 2 phút)
  */
 import "dotenv/config";
 import { spawn } from "node:child_process";
@@ -20,25 +20,29 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 if (!KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
-// Nếu cửa sổ login đang mở (lock < 15 phút) thì bỏ qua để khỏi mở nhiều cửa sổ.
+const hoi = async (act) => { const r = await fetch(APPSCRIPT_URL + "?action=" + act + "&key=" + encodeURIComponent(KEY)).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
+const chay = (file) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };
+
+// 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
+const s = await hoi("syncStatus");
+if (s && s.requested) {
+  log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export...");
+  await fetch(APPSCRIPT_URL + "?action=clearSync&key=" + encodeURIComponent(KEY)).catch(() => {});
+  chay("auto-export-sync.js");   // auto-export tự có khoá chống chạy chồng
+} else log("Không có yêu cầu cập nhật.");
+
+// 2) Yêu cầu ĐĂNG NHẬP (nút trong email). Bỏ qua nếu cửa sổ login đang mở (<15').
+let boQuaLogin = false;
 if (fs.existsSync(LOCK)) {
-  const tuoi = Date.now() - fs.statSync(LOCK).mtimeMs;
-  if (tuoi < 15 * 60 * 1000) { log("Cửa sổ đăng nhập đang mở, bỏ qua."); process.exit(0); }
-  fs.rmSync(LOCK, { force: true });   // lock cũ quá 15' -> coi như đã đóng
+  if (Date.now() - fs.statSync(LOCK).mtimeMs < 15 * 60 * 1000) boQuaLogin = true;
+  else fs.rmSync(LOCK, { force: true });
 }
-
-const res = await fetch(APPSCRIPT_URL + "?action=loginStatus&key=" + encodeURIComponent(KEY)).catch(() => null);
-const data = res && res.ok ? await res.json().catch(() => null) : null;
-if (!data || !data.requested) { log("Không có yêu cầu đăng nhập."); process.exit(0); }
-
-log("⚡ Có yêu cầu đăng nhập! Đang mở màn hình login...");
-await fetch(APPSCRIPT_URL + "?action=clearLogin&key=" + encodeURIComponent(KEY)).catch(() => {});   // xoá cờ ngay
-
-// login-hasaki.js TỰ quản lock (tự khoá khi mở, tự thoát nếu đã có cửa sổ) →
-// bộ canh chỉ cần spawn, không đụng lock để tránh mở trùng.
-const child = spawn(process.execPath, [path.join(DIR, "login-hasaki.js")], {
-  cwd: DIR, detached: true, stdio: "ignore",
-});
-child.unref();
-log("Đã gọi login-hasaki.js. Hãy gõ OTP 6 số trên máy này.");
+if (!boQuaLogin) {
+  const d = await hoi("loginStatus");
+  if (d && d.requested) {
+    log("⚡ Có yêu cầu đăng nhập! Mở màn hình login...");
+    await fetch(APPSCRIPT_URL + "?action=clearLogin&key=" + encodeURIComponent(KEY)).catch(() => {});
+    chay("login-hasaki.js");   // login-hasaki.js tự quản lock
+  } else log("Không có yêu cầu đăng nhập.");
+}
 process.exit(0);

@@ -27,6 +27,7 @@ var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
 // 🔑 Mã bí mật bảo vệ endpoint đọc/đánh dấu. Bộ đẩy phải gửi ?key=... trùng giá trị này.
 //    ĐẶT GIÁ TRỊ THẬT KHI DÁN VÀO APPS SCRIPT (giống APPSCRIPT_KEY trong .env, không lưu vào git).
 var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';
+var SYNC_PIN = 'DAT_PIN_RIENG_O_DAY';   // PIN cho nút "Cập nhật ngay" trên dashboard (chỉ người biết PIN mới ép refresh được)
 // Cụm mở đầu của hạng mục "đạt" (không tạo task)
 var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
 // Cột (1-based): 1 Ngày | 2 Hiện trạng | 3 Vị trí | 4 Hạng mục | 5 Ảnh | 6 Mã task | 7 Thời gian vi phạm
@@ -75,7 +76,38 @@ function doGet(e) {
   if (action === 'requestLogin') return apiRequestLogin(e);   // link trong email (điện thoại/web bấm được)
   if (action === 'loginStatus') return apiLoginStatus(e);     // máy PC hỏi có yêu cầu login không
   if (action === 'clearLogin') return apiClearLogin(e);       // máy PC báo đã xử lý
+  if (action === 'requestSync') return apiRequestSync(e);     // nút "Cập nhật ngay" trên dashboard (cần PIN)
+  if (action === 'syncStatus') return apiSyncStatus(e);       // máy PC hỏi có yêu cầu cập nhật không
+  if (action === 'clearSync') return apiClearSync(e);         // máy PC báo đã cập nhật xong
   return phanHoiJson({ status: 'success', message: 'Web App đang hoạt động bình thường.' });
+}
+
+/** Trả JSONP (cho dashboard gọi cross-origin qua thẻ <script>). */
+function phanHoiJsonp(cb, obj) {
+  return ContentService.createTextOutput(cb + '(' + JSON.stringify(obj) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+/** Dashboard bấm "Cập nhật ngay" + nhập PIN → đặt cờ để máy PC tự chạy auto-export.
+ *  Bảo vệ bằng SYNC_PIN (không phải SECRET) để không lộ key hệ thống trên trang public. */
+function apiRequestSync(e) {
+  var cb = e.parameter.callback || 'cb';
+  if ((e.parameter.pin || '') !== SYNC_PIN) return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' });
+  PropertiesService.getScriptProperties().setProperty('SYNC_REQUESTED', String(new Date().getTime()));
+  return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật. Dữ liệu sẽ mới sau vài phút.' });
+}
+
+/** Máy PC hỏi: có ai vừa bấm "Cập nhật ngay" không? (cờ hiệu lực 15 phút). */
+function apiSyncStatus(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('SYNC_REQUESTED') || 0);
+  return phanHoiJson({ status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts });
+}
+
+/** Máy PC báo đã chạy auto-export → xoá cờ. */
+function apiClearSync(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  PropertiesService.getScriptProperties().deleteProperty('SYNC_REQUESTED');
+  return phanHoiJson({ status: 'success', cleared: true });
 }
 
 /** Người dùng bấm nút trong email (từ ĐIỆN THOẠI hoặc WEB bất kỳ) → đặt cờ yêu cầu đăng nhập.

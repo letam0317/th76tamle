@@ -24,7 +24,7 @@ ui_*.png
 
 # Log & lockfile & marker chay ngam theo lich (khong commit)
 *.log
-.login-open.lock
+*.lock
 .last-sync.json
 .exports/
 # Ban deploy Apps Script co SECRET that — KHONG commit

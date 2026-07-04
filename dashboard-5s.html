@@ -13,7 +13,10 @@
         <h1 class="text-xl sm:text-2xl font-bold">📊 Dashboard 5S — Kiểm soát kho</h1>
         <p class="text-xs text-slate-500" id="meta">Đang tải...</p>
       </div>
-      <button id="btnReload" class="rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700">↻ Tải lại</button>
+      <div class="flex gap-2">
+        <button id="btnReload" class="rounded-xl bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2 hover:bg-slate-300" title="Đọc lại dữ liệu mới nhất từ Sheet">↻ Tải lại</button>
+        <button id="btnSync" class="rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700" title="Ép hệ thống kéo dữ liệu mới nhất (cần PIN)">⟳ Cập nhật ngay</button>
+      </div>
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4" id="cards"></div>
@@ -62,6 +65,7 @@
   <script>
     const SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
     const TAB = "5S-TASKS";
+    const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
     let H = [], ROWS = [];   // header[], rows[][]
     let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNguoiB1;
 
@@ -183,6 +187,28 @@
     document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!document.getElementById('lightbox').classList.contains('hidden')) dongLB(); else dongModal(); } });
     ['fTu','fDen','fStatus','fLoi','fTim'].forEach(id=>document.getElementById(id).addEventListener('input',render));
     document.getElementById('btnReload').addEventListener('click',taiDuLieu);
+
+    // Ép cập nhật dữ liệu thật (chạy auto-export trên máy chủ) — cần PIN, người xem không có PIN thì không kích hoạt được
+    let dangCho=false;
+    function capNhatNgay(){
+      if(dangCho){ alert("Đang chờ hệ thống cập nhật, vui lòng đợi..."); return; }
+      const pin=prompt("Nhập PIN để ép cập nhật dữ liệu ngay:");
+      if(!pin) return;
+      const cb="sync_"+Date.now();
+      window[cb]=(resp)=>{
+        delete window[cb];
+        if(resp && resp.status==='success'){
+          dangCho=true;
+          document.getElementById('meta').textContent="⏳ Đã gửi yêu cầu cập nhật — hệ thống đang kéo dữ liệu, sẽ tự làm mới sau ~3 phút...";
+          setTimeout(()=>{ dangCho=false; taiDuLieu(); }, 180000);
+        } else alert("❌ "+((resp&&resp.message)||"Không gửi được yêu cầu."));
+      };
+      const s=document.createElement('script');
+      s.src=APPSCRIPT_URL+"?action=requestSync&pin="+encodeURIComponent(pin)+"&callback="+cb;
+      s.onerror=()=>{ alert("Không kết nối được máy chủ."); delete window[cb]; };
+      document.body.appendChild(s);
+    }
+    document.getElementById('btnSync').addEventListener('click',capNhatNgay);
     taiDuLieu();
   </script>
 </body>

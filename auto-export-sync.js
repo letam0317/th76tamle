@@ -91,8 +91,15 @@ async function taiVaDoc(filePath) {
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
 }
 
+const RUN_LOCK = path.join(DIR, ".export-running.lock");
 (async () => {
+  // Chống chạy chồng (7h sáng + nút Cập nhật ngay) → xung đột profile Edge.
+  if (fs.existsSync(RUN_LOCK) && Date.now() - fs.statSync(RUN_LOCK).mtimeMs < 10 * 60 * 1000) {
+    log("Đang có phiên auto-export khác chạy, bỏ qua."); process.exit(0);
+  }
   fs.mkdirSync(EXPORT_DIR, { recursive: true });
+  fs.writeFileSync(RUN_LOCK, String(Date.now()));
+  process.on("exit", () => { try { fs.rmSync(RUN_LOCK, { force: true }); } catch {} });
   const token = await getToken().catch(e => { log("✗ " + e.message); process.exit(2); });
   log("✓ Đã lấy token.");
 
