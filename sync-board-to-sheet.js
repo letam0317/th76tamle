@@ -44,6 +44,13 @@ function fileExportMoiNhat() {
 
 (async () => {
   const file = fileExportMoiNhat();
+  // Bỏ qua nếu file export mới nhất KHÔNG đổi so với lần đồng bộ trước (tránh ghi đè thừa).
+  const marker = path.join(process.cwd(), ".last-sync.json");
+  const dauVet = path.basename(file) + ":" + fs.statSync(file).mtimeMs;
+  const buoc = process.argv.includes("--force") === false;
+  if (buoc && fs.existsSync(marker)) {
+    try { if (JSON.parse(fs.readFileSync(marker, "utf8")).dauVet === dauVet) { log("Không có file export mới (bỏ qua). Bấm Xuất trên workflow để cập nhật."); process.exit(0); } } catch {}
+  }
   log("Đọc file export: " + path.basename(file));
   const wb = XLSX.readFile(file);
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -76,7 +83,9 @@ function fileExportMoiNhat() {
     body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header, rows }),
   });
   let j = {}; try { j = JSON.parse(await res.text()); } catch {}
-  if (j.status === "success") log("✓ Đã ghi " + j.written + " dòng vào tab 5S-TASKS lúc " + j.at);
-  else log("✗ Ghi tab thất bại: " + JSON.stringify(j).slice(0, 200));
+  if (j.status === "success") {
+    log("✓ Đã ghi " + j.written + " dòng vào tab 5S-TASKS lúc " + j.at);
+    try { fs.writeFileSync(marker, JSON.stringify({ dauVet, at: j.at })); } catch {}
+  } else log("✗ Ghi tab thất bại: " + JSON.stringify(j).slice(0, 200));
   process.exit(0);
 })().catch(e => { log("✗ " + e.message); process.exit(2); });

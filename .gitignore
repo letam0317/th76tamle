@@ -22,8 +22,10 @@ _*.js
 node_modules/
 ui_*.png
 
-# Log & lockfile chay ngam theo lich (khong commit)
+# Log & lockfile & marker chay ngam theo lich (khong commit)
 *.log
 .login-open.lock
+.last-sync.json
+.exports/
 # Ban deploy Apps Script co SECRET that — KHONG commit
 google-script-DEPLOY.gs
