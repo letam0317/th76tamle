@@ -53,6 +53,12 @@
     </div>
   </div>
 
+  <!-- Lightbox ảnh/clip (popup ngay trong dashboard) -->
+  <div id="lightbox" class="fixed inset-0 bg-black/80 z-[60] hidden items-center justify-center p-4">
+    <button id="lbClose" class="absolute top-3 right-5 text-white text-4xl leading-none hover:text-slate-300">&times;</button>
+    <div id="lbContent" class="flex items-center justify-center"></div>
+  </div>
+
   <script>
     const SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
     const TAB = "5S-TASKS";
@@ -66,8 +72,8 @@
 
     function mediaHtml(val, big) {
       return val.split("\n").filter(s=>s.indexOf("http")===0).map(u =>
-        isVideo(u) ? `<video src="${esc(u)}" controls class="${big?'max-h-72':'h-28'} rounded-lg border inline-block mr-1 mb-1"></video>`
-                   : `<a href="${esc(u)}" target="_blank"><img src="${esc(u)}" loading="lazy" class="${big?'max-h-72':'h-20'} rounded-lg border object-cover inline-block mr-1 mb-1 hover:opacity-80"></a>`
+        isVideo(u) ? `<video src="${esc(u)}" preload="metadata" data-url="${esc(u)}" data-type="vid" class="js-media cursor-pointer ${big?'max-h-72':'h-28'} rounded-lg border inline-block mr-1 mb-1 hover:opacity-80"></video>`
+                   : `<img src="${esc(u)}" loading="lazy" data-url="${esc(u)}" data-type="img" class="js-media cursor-pointer ${big?'max-h-72':'h-20'} rounded-lg border object-cover inline-block mr-1 mb-1 hover:opacity-80">`
       ).join("");
     }
 
@@ -162,6 +168,19 @@
     function dongModal(){ document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').classList.remove('flex'); }
     document.getElementById('mClose').addEventListener('click',dongModal);
     document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') dongModal(); });
+
+    // Lightbox: bấm ảnh/clip -> phóng to ngay trong dashboard (không mở tab mới)
+    function openLB(url,type){
+      document.getElementById('lbContent').innerHTML = type==='vid'
+        ? `<video src="${esc(url)}" controls autoplay class="max-w-[92vw] max-h-[90vh] rounded-lg"></video>`
+        : `<img src="${esc(url)}" class="max-w-[92vw] max-h-[90vh] object-contain rounded-lg">`;
+      const lb=document.getElementById('lightbox'); lb.classList.remove('hidden'); lb.classList.add('flex');
+    }
+    function dongLB(){ const lb=document.getElementById('lightbox'); lb.classList.add('hidden'); lb.classList.remove('flex'); document.getElementById('lbContent').innerHTML=''; }
+    document.getElementById('lbClose').addEventListener('click',dongLB);
+    document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox') dongLB(); });
+    document.addEventListener('click',e=>{ const m=e.target.closest('.js-media'); if(m){ e.preventDefault(); e.stopPropagation(); openLB(m.dataset.url,m.dataset.type); } });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!document.getElementById('lightbox').classList.contains('hidden')) dongLB(); else dongModal(); } });
     ['fTu','fDen','fStatus','fLoi','fTim'].forEach(id=>document.getElementById(id).addEventListener('input',render));
     document.getElementById('btnReload').addEventListener('click',taiDuLieu);
     taiDuLieu();
