@@ -100,12 +100,11 @@
       m = String(v).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
       return String(v).slice(0,10);
     }
-    // Nhân viên vi phạm: CHỈ hiện họ tên (từ B1.1). KHÔNG hiện dãy số mã/SĐT.
+    // Nhân viên vi phạm: CHỈ hiện khi ô "Nhân viên vi phạm" là HỌ TÊN (có chữ).
+    // Nếu là dãy số (mã/SĐT) hoặc trống → để TRỐNG.
     const nvvp = r => {
-      if(iNVten>=0 && r[iNVten]) return r[iNVten];                        // tên người tự xác nhận ở B1.1
       const c = iNVVP>=0 ? String(r[iNVVP]||"").trim() : "";
-      if(c && !/^[\d\s.\-+()]+$/.test(c)) return c;                       // nếu ô "Nhân viên vi phạm" là chữ (tên) thì hiện
-      return "—";                                                         // còn lại (dãy số) → để trống
+      return (c && /\p{L}/u.test(c)) ? c : "";                            // có chữ cái = họ tên → hiện; còn lại → trống
     };
 
     function mediaHtml(val, big) {
