@@ -34,9 +34,9 @@
       <div class="overflow-x-auto max-h-[72vh]">
         <table class="w-full text-xs">
           <thead class="bg-slate-50 sticky top-0"><tr class="text-left text-slate-500">
-            <th class="px-3 py-2">Ảnh</th><th class="px-3 py-2">Mã</th><th class="px-3 py-2">Ngày VP</th>
+            <th class="px-3 py-2">Ảnh</th><th class="px-3 py-2">Mã</th><th class="px-3 py-2">Ngày vi phạm</th>
             <th class="px-3 py-2">Lỗi vi phạm</th><th class="px-3 py-2">Vị trí</th><th class="px-3 py-2">Trạng thái</th>
-            <th class="px-3 py-2">Người thực hiện (B1)</th><th class="px-3 py-2"></th>
+            <th class="px-3 py-2">Nhân viên vi phạm</th><th class="px-3 py-2">Quản lý trực tiếp</th><th class="px-3 py-2"></th>
           </tr></thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -67,12 +67,41 @@
     const TAB = "5S-TASKS";
     const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
     let H = [], ROWS = [];   // header[], rows[][]
-    let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNguoiB1;
+    let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNVVP, iNVten, iQLTT;
 
     const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const isMedia = v => typeof v==="string" && v.indexOf("https://hr-media")===0;
     const isVideo = u => /\.(mp4|webm|mov|m4v|3gp)(\?|$)/i.test(u);
     const idxOf = (kw) => H.findIndex(h => (h||"").toLowerCase().includes(kw.toLowerCase()));
+    const nhanCuoi = h => (h||"").split("▸").pop().trim();   // phần nhãn sau dấu ▸
+
+    // Dịch nhãn cột (Anh → Việt, nghĩa dễ hiểu)
+    const DICH = {"task code":"Mã công việc","link task":"Liên kết công việc","task name":"Tên công việc",
+      "status":"Trạng thái","created by":"Người tạo","created at":"Thời gian tạo","deadline":"Hạn chót",
+      "link planogram (nếu có)":"Liên kết sơ đồ trưng bày (nếu có)"};
+    const dichNhan = s => DICH[String(s).trim().toLowerCase()] || s;
+    // Dịch giá trị trạng thái
+    const STT = {"none":"Chưa xử lý","new":"Mới","processing":"Đang xử lý","in progress":"Đang xử lý",
+      "finished":"Hoàn thành","done":"Hoàn thành","completed":"Hoàn thành","cancelled":"Đã huỷ","canceled":"Đã huỷ","overdue":"Quá hạn"};
+    const dichStatus = v => STT[String(v).trim().toLowerCase()] || v;
+    // "Date(2026,4,29,9,7,47)" → "29/05/2026 09:07"  (tháng gviz đếm từ 0)
+    function fmtNgay(v){
+      const m = String(v).match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)$/);
+      if(!m) return v;
+      const p = n => String(n).padStart(2,"0");
+      const gio = m[4]!=null ? " "+p(m[4])+":"+p(m[5]) : "";
+      return p(m[3])+"/"+p(+m[2]+1)+"/"+m[1]+gio;
+    }
+    // Chuẩn hoá về yyyy-mm-dd để lọc theo ngày
+    function ngayISO(v){
+      let m = String(v).match(/^Date\((\d+),(\d+),(\d+)/);
+      if(m) return m[1]+"-"+String(+m[2]+1).padStart(2,"0")+"-"+m[3].padStart(2,"0");
+      m = String(v).match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
+      m = String(v).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+      return String(v).slice(0,10);
+    }
+    // Nhân viên vi phạm hiển thị: ưu tiên tên (B1.1), thiếu thì mã, thiếu nữa thì —
+    const nvvp = r => (iNVten>=0 && r[iNVten]) ? r[iNVten] : ((iNVVP>=0 && r[iNVVP]) ? r[iNVVP] : "—");
 
     function mediaHtml(val, big) {
       return val.split("\n").filter(s=>s.indexOf("http")===0).map(u =>
@@ -91,7 +120,10 @@
           iCode=idxOf("Task Code"); iLink=idxOf("Link Task"); iName=idxOf("Task Name");
           iStatus=H.findIndex(h=>h==="Status"); iCreatedAt=idxOf("Created At");
           iAnh=idxOf("Hình ảnh vi phạm"); iNgayVP=idxOf("Ngày vi phạm"); iLoi=idxOf("Lỗi vi phạm"); iViTri=idxOf("Vị trí ghi nhận");
-          iNguoiB1=H.findIndex(h=>/B1\..*Người thực hiện/i.test(h));
+          // Nhân viên vi phạm: ưu tiên TÊN (người tự xác nhận ở B1.1), thiếu thì mã ở "Nhân viên vi phạm"
+          iNVten=H.findIndex(h=>/B1\.1.*Người thực hiện/i.test(h));
+          iNVVP=H.findIndex(h=>nhanCuoi(h).toLowerCase()==="nhân viên vi phạm");
+          iQLTT=H.findIndex(h=>/quản lý trực tiếp/i.test(nhanCuoi(h)));
           napLoc(); render();
           document.getElementById('meta').textContent = ROWS.length + " task · " + H.length + " cột · nhấp 1 dòng để xem chi tiết + ảnh/clip.";
         } catch(e){ document.getElementById('meta').textContent = "Lỗi đọc dữ liệu: " + e; }
@@ -103,7 +135,8 @@
 
     function uniq(i){ return [...new Set(ROWS.map(r=>r[i]).filter(Boolean))].sort(); }
     function napLoc(){
-      if(iStatus>=0) document.getElementById('fStatus').innerHTML='<option value="">Tất cả</option>'+uniq(iStatus).map(v=>`<option>${esc(v)}</option>`).join('');
+      if(iStatus>=0){ const sts=[...new Set(ROWS.map(r=>dichStatus(r[iStatus])).filter(Boolean))].sort();
+        document.getElementById('fStatus').innerHTML='<option value="">Tất cả</option>'+sts.map(v=>`<option>${esc(v)}</option>`).join(''); }
       if(iLoi>=0) document.getElementById('fLoi').innerHTML='<option value="">Tất cả</option>'+uniq(iLoi).map(v=>`<option>${esc(v)}</option>`).join('');
     }
 
@@ -112,10 +145,10 @@
       const st=document.getElementById('fStatus').value, lo=document.getElementById('fLoi').value;
       const tim=document.getElementById('fTim').value.toLowerCase().trim();
       return ROWS.filter(r=>{
-        const ng=String(r[iNgayVP]||"").slice(0,10);
+        const ng=ngayISO(r[iNgayVP]);
         if(tu&&ng&&ng<tu)return false; if(den&&ng&&ng>den)return false;
-        if(st&&r[iStatus]!==st)return false; if(lo&&r[iLoi]!==lo)return false;
-        if(tim&&!((String(r[iViTri])+" "+r[iCode]+" "+r[iLoi]).toLowerCase().includes(tim)))return false;
+        if(st&&dichStatus(r[iStatus])!==st)return false; if(lo&&r[iLoi]!==lo)return false;
+        if(tim&&!((String(r[iViTri])+" "+r[iCode]+" "+r[iLoi]+" "+nvvp(r)+" "+(iQLTT>=0?r[iQLTT]:"")).toLowerCase().includes(tim)))return false;
         return true;
       });
     }
@@ -135,13 +168,14 @@
         return `<tr class="border-t hover:bg-teal-50 cursor-pointer" data-i="${ROWS.indexOf(r)}">
           <td class="px-3 py-2">${anh}</td>
           <td class="px-3 py-2 font-medium whitespace-nowrap">${esc(r[iCode])}</td>
-          <td class="px-3 py-2 whitespace-nowrap">${esc(String(r[iNgayVP]||"").slice(0,16))}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(fmtNgay(r[iNgayVP]))}</td>
           <td class="px-3 py-2 max-w-[240px] truncate" title="${esc(r[iLoi])}">${esc(r[iLoi])}</td>
           <td class="px-3 py-2 whitespace-nowrap">${esc(r[iViTri])}</td>
-          <td class="px-3 py-2">${esc(r[iStatus])}</td>
-          <td class="px-3 py-2 whitespace-nowrap">${esc(r[iNguoiB1>=0?iNguoiB1:0])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(dichStatus(r[iStatus]))}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(nvvp(r))}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${iQLTT>=0?esc(r[iQLTT]||'—'):'—'}</td>
           <td class="px-3 py-2 text-teal-600 whitespace-nowrap">Chi tiết ›</td></tr>`;
-      }).join('') || '<tr><td colspan="8" class="px-3 py-8 text-center text-slate-400">Không có task khớp bộ lọc.</td></tr>';
+      }).join('') || '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-400">Không có task khớp bộ lọc.</td></tr>';
       document.querySelectorAll('#tbody tr[data-i]').forEach(tr=>tr.addEventListener('click',()=>moChiTiet(+tr.dataset.i)));
     }
 
@@ -154,14 +188,16 @@
         const val=r[c]; if(val===""||val==null) continue;
         const h=H[c]; const parts=h.split("▸");
         const g = parts.length>1 ? parts[0].trim() : "Thông tin chung";
-        const label = parts.length>1 ? parts[1].trim() : h.trim();
+        const label = dichNhan(parts.length>1 ? parts[1].trim() : h.trim());
         (groups[g]=groups[g]||[]).push({label,val});
       }
       let html="";
       for(const g in groups){
         html += `<div><h3 class="font-semibold text-teal-700 text-sm mb-1 border-b pb-1">${esc(g)}</h3><div class="space-y-1.5">`;
         for(const {label,val} of groups[g]){
-          const body = isMedia(val) ? `<div class="mt-1">${mediaHtml(val,true)}</div>` : `<span class="text-slate-700">${esc(val)}</span>`;
+          let disp = fmtNgay(val);                                   // format ngày nếu là dạng Date(...)
+          if(/trạng thái/i.test(label)) disp = dichStatus(val);      // dịch giá trị trạng thái
+          const body = isMedia(val) ? `<div class="mt-1">${mediaHtml(val,true)}</div>` : `<span class="text-slate-700">${esc(disp)}</span>`;
           html += `<div class="text-xs"><span class="text-slate-400">${esc(label)}: </span>${body}</div>`;
         }
         html += `</div></div>`;
