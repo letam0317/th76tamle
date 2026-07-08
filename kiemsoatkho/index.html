@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Kiểm soát kho 5S" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📊%3C/text%3E%3C/svg%3E" />
+  <title>Kiểm soát kho 5S — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Trên điện thoại: panel lọc thu gọn được; trên màn hình lớn luôn hiện */
+    @media (max-width: 639px){ #filterGrid.collapsed{ display:none; } }
+    .line-clamp-2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="max-w-7xl mx-auto p-3 sm:p-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div>
+        <h1 class="text-lg sm:text-2xl font-bold leading-tight">📊 Dashboard 5S — Kiểm soát kho</h1>
+        <p class="text-xs text-slate-500" id="meta">Đang tải...</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="btnReload" class="flex-1 sm:flex-none rounded-xl bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2.5 sm:py-2 hover:bg-slate-300 active:bg-slate-400" title="Đọc lại dữ liệu mới nhất từ Sheet">↻ Tải lại</button>
+        <button id="btnSync" class="flex-1 sm:flex-none rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2.5 sm:py-2 hover:bg-teal-700 active:bg-teal-800" title="Ép hệ thống kéo dữ liệu mới nhất (cần PIN)">⟳ Cập nhật ngay</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4" id="cards"></div>
+
+    <div class="mb-4">
+      <button id="btnFilter" class="sm:hidden w-full bg-white rounded-2xl shadow-sm px-4 py-3 font-semibold text-sm flex items-center justify-between mb-2">
+        <span>🔎 Bộ lọc</span><span class="text-xs text-slate-400 font-normal" id="filterHint">chạm để mở ▾</span>
+      </button>
+      <div id="filterGrid" class="collapsed bg-white rounded-2xl shadow-sm p-3 grid grid-cols-1 sm:grid-cols-5 gap-2 text-sm">
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Từ ngày (vi phạm)</span><input type="date" id="fTu" class="border rounded-lg px-2 py-2.5 sm:py-1.5"></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Đến ngày</span><input type="date" id="fDen" class="border rounded-lg px-2 py-2.5 sm:py-1.5"></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Trạng thái</span><select id="fStatus" class="border rounded-lg px-2 py-2.5 sm:py-1.5"><option value="">Tất cả</option></select></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Lỗi vi phạm</span><select id="fLoi" class="border rounded-lg px-2 py-2.5 sm:py-1.5"><option value="">Tất cả</option></select></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Tìm (vị trí / mã)</span><input type="text" id="fTim" placeholder="F0-A1 / HSK-..." class="border rounded-lg px-2 py-2.5 sm:py-1.5"></label>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-4 py-2 border-b font-semibold text-sm flex justify-between"><span>Task vi phạm</span><span id="dem" class="text-slate-400 font-normal"></span></div>
+      <!-- Bảng đầy đủ: chỉ hiện trên màn hình lớn -->
+      <div class="overflow-x-auto max-h-[72vh] hidden sm:block">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 sticky top-0"><tr class="text-left text-slate-500">
+            <th class="px-3 py-2">Ảnh</th><th class="px-3 py-2">Mã</th><th class="px-3 py-2">Ngày vi phạm</th>
+            <th class="px-3 py-2">Lỗi vi phạm</th><th class="px-3 py-2">Vị trí</th><th class="px-3 py-2">Trạng thái</th>
+            <th class="px-3 py-2">Nhân viên vi phạm</th><th class="px-3 py-2">Quản lý trực tiếp</th><th class="px-3 py-2"></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <!-- Danh sách thẻ: chỉ hiện trên điện thoại -->
+      <div class="divide-y sm:hidden" id="cardList"></div>
+    </div>
+    <p class="text-center text-xs text-slate-400 mt-4">Dữ liệu đọc trực tuyến từ Google Sheet (tab <b>5S-TASKS</b>, nguồn workflow 591) · tự làm mới mỗi 5 phút. Bấm <b>⟳ Cập nhật ngay</b> (cần PIN) để ép hệ thống kéo dữ liệu mới nhất.</p>
+  </div>
+
+  <!-- Modal chi tiết -->
+  <div id="modal" class="fixed inset-0 bg-black/60 z-50 hidden items-start justify-center p-3 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full my-6 shadow-xl">
+      <div class="flex justify-between items-center px-5 py-3 border-b sticky top-0 bg-white rounded-t-2xl">
+        <h2 class="font-bold text-sm" id="mTitle"></h2>
+        <button id="mClose" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+      </div>
+      <div class="p-5 space-y-4" id="mBody"></div>
+    </div>
+  </div>
+
+  <!-- Lightbox ảnh/clip (popup ngay trong dashboard) -->
+  <div id="lightbox" class="fixed inset-0 bg-black/80 z-[60] hidden items-center justify-center p-4">
+    <button id="lbClose" class="absolute top-3 right-5 text-white text-4xl leading-none hover:text-slate-300">&times;</button>
+    <div id="lbContent" class="flex items-center justify-center"></div>
+  </div>
+
+  <script>
+    const SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
+    const TAB = "5S-TASKS";
+    const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
+    let H = [], ROWS = [];   // header[], rows[][]
+    let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNVVP, iNVten, iQLTT;
+
+    const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const isMedia = v => typeof v==="string" && v.indexOf("https://hr-media")===0;
+    const isVideo = u => /\.(mp4|webm|mov|m4v|3gp)(\?|$)/i.test(u);
+    const idxOf = (kw) => H.findIndex(h => (h||"").toLowerCase().includes(kw.toLowerCase()));
+    const nhanCuoi = h => (h||"").split("▸").pop().trim();   // phần nhãn sau dấu ▸
+
+    // Dịch nhãn cột (Anh → Việt, nghĩa dễ hiểu)
+    const DICH = {"task code":"Mã công việc","link task":"Liên kết công việc","task name":"Tên công việc",
+      "status":"Trạng thái","created by":"Người tạo","created at":"Thời gian tạo","deadline":"Hạn chót",
+      "link planogram (nếu có)":"Liên kết sơ đồ trưng bày (nếu có)"};
+    const dichNhan = s => DICH[String(s).trim().toLowerCase()] || s;
+    // Dịch giá trị trạng thái
+    const STT = {"none":"Chưa xử lý","new":"Mới","processing":"Đang xử lý","in progress":"Đang xử lý",
+      "finished":"Hoàn thành","done":"Hoàn thành","completed":"Hoàn thành","cancelled":"Đã huỷ","canceled":"Đã huỷ","overdue":"Quá hạn"};
+    const dichStatus = v => STT[String(v).trim().toLowerCase()] || v;
+    // "Date(2026,4,29,9,7,47)" → "29/05/2026 09:07"  (tháng gviz đếm từ 0)
+    function fmtNgay(v){
+      const m = String(v).match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)$/);
+      if(!m) return v;
+      const p = n => String(n).padStart(2,"0");
+      const gio = m[4]!=null ? " "+p(m[4])+":"+p(m[5]) : "";
+      return p(m[3])+"/"+p(+m[2]+1)+"/"+m[1]+gio;
+    }
+    // Chuẩn hoá về yyyy-mm-dd để lọc theo ngày
+    function ngayISO(v){
+      let m = String(v).match(/^Date\((\d+),(\d+),(\d+)/);
+      if(m) return m[1]+"-"+String(+m[2]+1).padStart(2,"0")+"-"+m[3].padStart(2,"0");
+      m = String(v).match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
+      m = String(v).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+      return String(v).slice(0,10);
+    }
+    // Nhân viên vi phạm: CHỈ hiện khi ô "Nhân viên vi phạm" là HỌ TÊN (có chữ).
+    // Nếu là dãy số (mã/SĐT) hoặc trống → để TRỐNG.
+    const nvvp = r => {
+      const c = iNVVP>=0 ? String(r[iNVVP]||"").trim() : "";
+      return (c && /\p{L}/u.test(c)) ? c : "";                            // có chữ cái = họ tên → hiện; còn lại → trống
+    };
+
+    function mediaHtml(val, big) {
+      return val.split("\n").filter(s=>s.indexOf("http")===0).map(u =>
+        isVideo(u) ? `<video src="${esc(u)}" preload="metadata" data-url="${esc(u)}" data-type="vid" class="js-media cursor-pointer ${big?'max-h-72':'h-28'} rounded-lg border inline-block mr-1 mb-1 hover:opacity-80"></video>`
+                   : `<img src="${esc(u)}" loading="lazy" data-url="${esc(u)}" data-type="img" class="js-media cursor-pointer ${big?'max-h-72':'h-20'} rounded-lg border object-cover inline-block mr-1 mb-1 hover:opacity-80">`
+      ).join("");
+    }
+
+    function taiDuLieu() {
+      const cb = "gviz_" + Date.now();
+      window[cb] = (resp) => {
+        try {
+          const t = resp.table;
+          H = (t.cols||[]).map(c => c.label || "");
+          ROWS = (t.rows||[]).map(r => (r.c||[]).map(c => c ? (c.v==null?"":c.v) : ""));
+          iCode=idxOf("Task Code"); iLink=idxOf("Link Task"); iName=idxOf("Task Name");
+          iStatus=H.findIndex(h=>h==="Status"); iCreatedAt=idxOf("Created At");
+          iAnh=idxOf("Hình ảnh vi phạm"); iNgayVP=idxOf("Ngày vi phạm"); iLoi=idxOf("Lỗi vi phạm"); iViTri=idxOf("Vị trí ghi nhận");
+          // Nhân viên vi phạm: ưu tiên TÊN (người tự xác nhận ở B1.1), thiếu thì mã ở "Nhân viên vi phạm"
+          iNVten=H.findIndex(h=>/B1\.1.*Người thực hiện/i.test(h));
+          iNVVP=H.findIndex(h=>nhanCuoi(h).toLowerCase()==="nhân viên vi phạm");
+          iQLTT=H.findIndex(h=>/quản lý trực tiếp/i.test(nhanCuoi(h)));
+          napLoc(); render();
+          const gio = new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          document.getElementById('meta').textContent = ROWS.length + " task · cập nhật lúc " + gio + " · tự làm mới mỗi 5 phút · nhấp 1 dòng xem chi tiết.";
+        } catch(e){ document.getElementById('meta').textContent = "Lỗi đọc dữ liệu: " + e; }
+        delete window[cb];
+      };
+      const url = "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?sheet="+encodeURIComponent(TAB)+"&headers=1&tqx=out:json;responseHandler:"+cb;
+      const s = document.createElement('script'); s.src=url; s.onerror=()=>document.getElementById('meta').textContent="Không tải được sheet (kiểm tra quyền chia sẻ)."; document.body.appendChild(s);
+    }
+
+    function uniq(i){ return [...new Set(ROWS.map(r=>r[i]).filter(Boolean))].sort(); }
+    function napLoc(){
+      if(iStatus>=0){ const sts=[...new Set(ROWS.map(r=>dichStatus(r[iStatus])).filter(Boolean))].sort();
+        document.getElementById('fStatus').innerHTML='<option value="">Tất cả</option>'+sts.map(v=>`<option>${esc(v)}</option>`).join(''); }
+      if(iLoi>=0) document.getElementById('fLoi').innerHTML='<option value="">Tất cả</option>'+uniq(iLoi).map(v=>`<option>${esc(v)}</option>`).join('');
+    }
+
+    function loc(){
+      const tu=document.getElementById('fTu').value, den=document.getElementById('fDen').value;
+      const st=document.getElementById('fStatus').value, lo=document.getElementById('fLoi').value;
+      const tim=document.getElementById('fTim').value.toLowerCase().trim();
+      return ROWS.filter(r=>{
+        const ng=ngayISO(r[iNgayVP]);
+        if(tu&&ng&&ng<tu)return false; if(den&&ng&&ng>den)return false;
+        if(st&&dichStatus(r[iStatus])!==st)return false; if(lo&&r[iLoi]!==lo)return false;
+        if(tim&&!((String(r[iViTri])+" "+r[iCode]+" "+r[iLoi]+" "+nvvp(r)+" "+(iQLTT>=0?r[iQLTT]:"")).toLowerCase().includes(tim)))return false;
+        return true;
+      });
+    }
+    const the=(l,v,c)=>`<div class="bg-white rounded-2xl shadow-sm p-3"><div class="text-xl sm:text-2xl font-bold ${c||''}">${v}</div><div class="text-[11px] sm:text-xs text-slate-500 leading-tight">${l}</div></div>`;
+
+    function render(){
+      const d=loc();
+      const coAnh=d.filter(r=>isMedia(r[iAnh])).length;
+      const coVideo=d.filter(r=>{ const vi=idxOf("Video vi phạm"); return isMedia(r[vi]); }).length;
+      document.getElementById('cards').innerHTML =
+        the("Task vi phạm",d.length)+the("Có ảnh",coAnh,"text-teal-600")+the("Có clip",coVideo,"text-indigo-600")+
+        the("Lỗi khác nhau",new Set(d.map(r=>r[iLoi]).filter(Boolean)).size,"text-amber-600")+
+        the("Vị trí khác nhau",new Set(d.map(r=>r[iViTri]).filter(Boolean)).size,"text-blue-600");
+      document.getElementById('dem').textContent=d.length+" task";
+      // Bảng (desktop)
+      document.getElementById('tbody').innerHTML = d.map((r,idx)=>{
+        const anh=isMedia(r[iAnh])?`<img src="${esc(r[iAnh].split("\n")[0])}" loading="lazy" class="h-12 w-12 object-cover rounded">`:'<span class="text-slate-300">—</span>';
+        return `<tr class="border-t hover:bg-teal-50 cursor-pointer" data-i="${ROWS.indexOf(r)}">
+          <td class="px-3 py-2">${anh}</td>
+          <td class="px-3 py-2 font-medium whitespace-nowrap">${esc(r[iCode])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(fmtNgay(r[iNgayVP]))}</td>
+          <td class="px-3 py-2 max-w-[240px] truncate" title="${esc(r[iLoi])}">${esc(r[iLoi])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(r[iViTri])}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(dichStatus(r[iStatus]))}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${esc(nvvp(r))}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${iQLTT>=0?esc(r[iQLTT]||'—'):'—'}</td>
+          <td class="px-3 py-2 text-teal-600 whitespace-nowrap">Chi tiết ›</td></tr>`;
+      }).join('') || '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-400">Không có task khớp bộ lọc.</td></tr>';
+      document.querySelectorAll('#tbody tr[data-i]').forEach(tr=>tr.addEventListener('click',()=>moChiTiet(+tr.dataset.i)));
+
+      // Danh sách thẻ (điện thoại)
+      const nhan=(l,v)=> v?`<div><span class="text-slate-400">${l}: </span><span class="text-slate-700">${esc(v)}</span></div>`:'';
+      document.getElementById('cardList').innerHTML = d.map(r=>{
+        const anh=isMedia(r[iAnh])?`<img src="${esc(r[iAnh].split("\n")[0])}" loading="lazy" class="h-16 w-16 object-cover rounded-lg flex-shrink-0">`:'<div class="h-16 w-16 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 flex-shrink-0">—</div>';
+        const nv=nvvp(r), ql=iQLTT>=0?(r[iQLTT]||''):'';
+        return `<div class="flex gap-3 p-3 active:bg-teal-50 cursor-pointer" data-i="${ROWS.indexOf(r)}">
+          ${anh}
+          <div class="flex-1 min-w-0 text-xs space-y-0.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-semibold text-sm truncate">${esc(r[iCode])}</span>
+              <span class="text-[11px] whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${esc(dichStatus(r[iStatus]))}</span>
+            </div>
+            <div class="text-slate-800 font-medium line-clamp-2">${esc(r[iLoi]||'')}</div>
+            ${nhan('Vị trí',r[iViTri])}
+            ${nhan('Ngày',fmtNgay(r[iNgayVP]))}
+            ${nhan('NV vi phạm',nv)}
+            ${nhan('QL trực tiếp',ql)}
+          </div>
+          <div class="self-center text-teal-600 text-lg">›</div>
+        </div>`;
+      }).join('') || '<div class="px-3 py-10 text-center text-slate-400 text-sm">Không có task khớp bộ lọc.</div>';
+      document.querySelectorAll('#cardList [data-i]').forEach(el=>el.addEventListener('click',()=>moChiTiet(+el.dataset.i)));
+    }
+
+    function moChiTiet(i){
+      const r=ROWS[i];
+      document.getElementById('mTitle').innerHTML = esc(r[iCode])+' — '+esc(r[iName]) + (r[iLink]?` · <a href="${esc(r[iLink])}" target="_blank" class="text-teal-600 font-normal">mở task ↗</a>`:'');
+      // Gom theo nhóm bước (tiền tố trước "▸")
+      const groups={};
+      for(let c=0;c<H.length;c++){
+        const val=r[c]; if(val===""||val==null) continue;
+        const h=H[c]; const parts=h.split("▸");
+        const g = parts.length>1 ? parts[0].trim() : "Thông tin chung";
+        const label = dichNhan(parts.length>1 ? parts[1].trim() : h.trim());
+        (groups[g]=groups[g]||[]).push({label,val});
+      }
+      let html="";
+      for(const g in groups){
+        html += `<div><h3 class="font-semibold text-teal-700 text-sm mb-1 border-b pb-1">${esc(g)}</h3><div class="space-y-1.5">`;
+        for(const {label,val} of groups[g]){
+          let disp = fmtNgay(val);                                   // format ngày nếu là dạng Date(...)
+          if(/trạng thái/i.test(label)) disp = dichStatus(val);      // dịch giá trị trạng thái
+          const body = isMedia(val) ? `<div class="mt-1">${mediaHtml(val,true)}</div>` : `<span class="text-slate-700">${esc(disp)}</span>`;
+          html += `<div class="text-xs"><span class="text-slate-400">${esc(label)}: </span>${body}</div>`;
+        }
+        html += `</div></div>`;
+      }
+      document.getElementById('mBody').innerHTML=html;
+      document.getElementById('modal').classList.remove('hidden'); document.getElementById('modal').classList.add('flex');
+    }
+    function dongModal(){ document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').classList.remove('flex'); }
+    document.getElementById('mClose').addEventListener('click',dongModal);
+    document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') dongModal(); });
+
+    // Lightbox: bấm ảnh/clip -> phóng to ngay trong dashboard (không mở tab mới)
+    function openLB(url,type){
+      document.getElementById('lbContent').innerHTML = type==='vid'
+        ? `<video src="${esc(url)}" controls autoplay class="max-w-[92vw] max-h-[90vh] rounded-lg"></video>`
+        : `<img src="${esc(url)}" class="max-w-[92vw] max-h-[90vh] object-contain rounded-lg">`;
+      const lb=document.getElementById('lightbox'); lb.classList.remove('hidden'); lb.classList.add('flex');
+    }
+    function dongLB(){ const lb=document.getElementById('lightbox'); lb.classList.add('hidden'); lb.classList.remove('flex'); document.getElementById('lbContent').innerHTML=''; }
+    document.getElementById('lbClose').addEventListener('click',dongLB);
+    document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox') dongLB(); });
+    document.addEventListener('click',e=>{ const m=e.target.closest('.js-media'); if(m){ e.preventDefault(); e.stopPropagation(); openLB(m.dataset.url,m.dataset.type); } });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!document.getElementById('lightbox').classList.contains('hidden')) dongLB(); else dongModal(); } });
+    ['fTu','fDen','fStatus','fLoi','fTim'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+    document.getElementById('btnReload').addEventListener('click',taiDuLieu);
+
+    // Nút bộ lọc trên điện thoại: đóng/mở panel lọc
+    document.getElementById('btnFilter').addEventListener('click',()=>{
+      const g=document.getElementById('filterGrid'), dong=g.classList.toggle('collapsed');
+      document.getElementById('filterHint').textContent = dong ? 'chạm để mở ▾' : 'chạm để đóng ▴';
+    });
+
+    // Ép cập nhật dữ liệu thật (chạy auto-export trên máy chủ) — cần PIN, người xem không có PIN thì không kích hoạt được
+    let dangCho=false;
+    function capNhatNgay(){
+      if(dangCho){ alert("Đang chờ hệ thống cập nhật, vui lòng đợi..."); return; }
+      const pin=prompt("Nhập PIN để ép cập nhật dữ liệu ngay:");
+      if(!pin) return;
+      const cb="sync_"+Date.now();
+      window[cb]=(resp)=>{
+        delete window[cb];
+        if(resp && resp.status==='success'){
+          dangCho=true;
+          document.getElementById('meta').textContent="⏳ Đã gửi yêu cầu cập nhật — hệ thống đang kéo dữ liệu, sẽ tự làm mới sau ~3 phút...";
+          setTimeout(()=>{ dangCho=false; taiDuLieu(); }, 180000);
+        } else alert("❌ "+((resp&&resp.message)||"Không gửi được yêu cầu."));
+      };
+      const s=document.createElement('script');
+      s.src=APPSCRIPT_URL+"?action=requestSync&pin="+encodeURIComponent(pin)+"&callback="+cb;
+      s.onerror=()=>{ alert("Không kết nối được máy chủ."); delete window[cb]; };
+      document.body.appendChild(s);
+    }
+    document.getElementById('btnSync').addEventListener('click',capNhatNgay);
+
+    // Tự làm mới ONLINE: đọc lại Sheet mỗi 5 phút, và ngay khi người dùng quay lại tab.
+    taiDuLieu();
+    setInterval(()=>{ if(!dangCho) taiDuLieu(); }, 5*60*1000);
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && !dangCho) taiDuLieu(); });
+  </script>
+</body>
+</html>
