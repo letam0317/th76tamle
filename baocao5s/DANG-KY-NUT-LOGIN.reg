@@ -15,4 +15,4 @@ Windows Registry Editor Version 5.00
 @="cmd.exe,0"
 
 [HKEY_CURRENT_USER\Software\Classes\hasaki5s\shell\open\command]
-@="\"C:\\Users\\lechitam\\New folder\\LOGIN-HASAKI.bat\" \"%1\""
+@="\"C:\\Users\\lechitam\\New folder\\baocao5s\\LOGIN-HASAKI.bat\" \"%1\""

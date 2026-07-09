@@ -5,33 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard 5S - Kiểm soát kho</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Trên điện thoại: panel lọc thu gọn được; trên màn hình lớn luôn hiện */
+    @media (max-width: 639px){ #filterGrid.collapsed{ display:none; } }
+    .line-clamp-2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
-  <div class="max-w-7xl mx-auto p-4">
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <div class="max-w-7xl mx-auto p-3 sm:p-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
       <div>
-        <h1 class="text-xl sm:text-2xl font-bold">📊 Dashboard 5S — Kiểm soát kho</h1>
+        <h1 class="text-lg sm:text-2xl font-bold leading-tight">📊 Dashboard 5S — Kiểm soát kho</h1>
         <p class="text-xs text-slate-500" id="meta">Đang tải...</p>
       </div>
       <div class="flex gap-2">
-        <button id="btnReload" class="rounded-xl bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2 hover:bg-slate-300" title="Đọc lại dữ liệu mới nhất từ Sheet">↻ Tải lại</button>
-        <button id="btnSync" class="rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700" title="Ép hệ thống kéo dữ liệu mới nhất (cần PIN)">⟳ Cập nhật ngay</button>
+        <button id="btnReload" class="flex-1 sm:flex-none rounded-xl bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2.5 sm:py-2 hover:bg-slate-300 active:bg-slate-400" title="Đọc lại dữ liệu mới nhất từ Sheet">↻ Tải lại</button>
+        <button id="btnSync" class="flex-1 sm:flex-none rounded-xl bg-teal-600 text-white text-sm font-medium px-4 py-2.5 sm:py-2 hover:bg-teal-700 active:bg-teal-800" title="Ép hệ thống kéo dữ liệu mới nhất (cần PIN)">⟳ Cập nhật ngay</button>
       </div>
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4" id="cards"></div>
 
-    <div class="bg-white rounded-2xl shadow-sm p-3 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
-      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Từ ngày (vi phạm)</span><input type="date" id="fTu" class="border rounded-lg px-2 py-1.5"></label>
-      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Đến ngày</span><input type="date" id="fDen" class="border rounded-lg px-2 py-1.5"></label>
-      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Trạng thái</span><select id="fStatus" class="border rounded-lg px-2 py-1.5"><option value="">Tất cả</option></select></label>
-      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Lỗi vi phạm</span><select id="fLoi" class="border rounded-lg px-2 py-1.5"><option value="">Tất cả</option></select></label>
-      <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Tìm (vị trí / mã)</span><input type="text" id="fTim" placeholder="F0-A1 / HSK-..." class="border rounded-lg px-2 py-1.5"></label>
+    <div class="mb-4">
+      <button id="btnFilter" class="sm:hidden w-full bg-white rounded-2xl shadow-sm px-4 py-3 font-semibold text-sm flex items-center justify-between mb-2">
+        <span>🔎 Bộ lọc</span><span class="text-xs text-slate-400 font-normal" id="filterHint">chạm để mở ▾</span>
+      </button>
+      <div id="filterGrid" class="collapsed bg-white rounded-2xl shadow-sm p-3 grid grid-cols-1 sm:grid-cols-5 gap-2 text-sm">
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Từ ngày (vi phạm)</span><input type="date" id="fTu" class="border rounded-lg px-2 py-2.5 sm:py-1.5"></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Đến ngày</span><input type="date" id="fDen" class="border rounded-lg px-2 py-2.5 sm:py-1.5"></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Trạng thái</span><select id="fStatus" class="border rounded-lg px-2 py-2.5 sm:py-1.5"><option value="">Tất cả</option></select></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Lỗi vi phạm</span><select id="fLoi" class="border rounded-lg px-2 py-2.5 sm:py-1.5"><option value="">Tất cả</option></select></label>
+        <label class="flex flex-col gap-1"><span class="text-xs text-slate-500">Tìm (vị trí / mã)</span><input type="text" id="fTim" placeholder="F0-A1 / HSK-..." class="border rounded-lg px-2 py-2.5 sm:py-1.5"></label>
+      </div>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div class="px-4 py-2 border-b font-semibold text-sm flex justify-between"><span>Task vi phạm</span><span id="dem" class="text-slate-400 font-normal"></span></div>
-      <div class="overflow-x-auto max-h-[72vh]">
+      <!-- Bảng đầy đủ: chỉ hiện trên màn hình lớn -->
+      <div class="overflow-x-auto max-h-[72vh] hidden sm:block">
         <table class="w-full text-xs">
           <thead class="bg-slate-50 sticky top-0"><tr class="text-left text-slate-500">
             <th class="px-3 py-2">Ảnh</th><th class="px-3 py-2">Mã</th><th class="px-3 py-2">Ngày vi phạm</th>
@@ -41,6 +52,8 @@
           <tbody id="tbody"></tbody>
         </table>
       </div>
+      <!-- Danh sách thẻ: chỉ hiện trên điện thoại -->
+      <div class="divide-y sm:hidden" id="cardList"></div>
     </div>
     <p class="text-center text-xs text-slate-400 mt-4">Cập nhật khi bấm Export trên workflow rồi chạy <b>DONG-BO-TASK.bat</b>. Nguồn: workflow 591.</p>
   </div>
@@ -156,7 +169,7 @@
         return true;
       });
     }
-    const the=(l,v,c)=>`<div class="bg-white rounded-2xl shadow-sm p-3"><div class="text-2xl font-bold ${c||''}">${v}</div><div class="text-xs text-slate-500">${l}</div></div>`;
+    const the=(l,v,c)=>`<div class="bg-white rounded-2xl shadow-sm p-3"><div class="text-xl sm:text-2xl font-bold ${c||''}">${v}</div><div class="text-[11px] sm:text-xs text-slate-500 leading-tight">${l}</div></div>`;
 
     function render(){
       const d=loc();
@@ -167,6 +180,7 @@
         the("Lỗi khác nhau",new Set(d.map(r=>r[iLoi]).filter(Boolean)).size,"text-amber-600")+
         the("Vị trí khác nhau",new Set(d.map(r=>r[iViTri]).filter(Boolean)).size,"text-blue-600");
       document.getElementById('dem').textContent=d.length+" task";
+      // Bảng (desktop)
       document.getElementById('tbody').innerHTML = d.map((r,idx)=>{
         const anh=isMedia(r[iAnh])?`<img src="${esc(r[iAnh].split("\n")[0])}" loading="lazy" class="h-12 w-12 object-cover rounded">`:'<span class="text-slate-300">—</span>';
         return `<tr class="border-t hover:bg-teal-50 cursor-pointer" data-i="${ROWS.indexOf(r)}">
@@ -181,6 +195,29 @@
           <td class="px-3 py-2 text-teal-600 whitespace-nowrap">Chi tiết ›</td></tr>`;
       }).join('') || '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-400">Không có task khớp bộ lọc.</td></tr>';
       document.querySelectorAll('#tbody tr[data-i]').forEach(tr=>tr.addEventListener('click',()=>moChiTiet(+tr.dataset.i)));
+
+      // Danh sách thẻ (điện thoại)
+      const nhan=(l,v)=> v?`<div><span class="text-slate-400">${l}: </span><span class="text-slate-700">${esc(v)}</span></div>`:'';
+      document.getElementById('cardList').innerHTML = d.map(r=>{
+        const anh=isMedia(r[iAnh])?`<img src="${esc(r[iAnh].split("\n")[0])}" loading="lazy" class="h-16 w-16 object-cover rounded-lg flex-shrink-0">`:'<div class="h-16 w-16 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 flex-shrink-0">—</div>';
+        const nv=nvvp(r), ql=iQLTT>=0?(r[iQLTT]||''):'';
+        return `<div class="flex gap-3 p-3 active:bg-teal-50 cursor-pointer" data-i="${ROWS.indexOf(r)}">
+          ${anh}
+          <div class="flex-1 min-w-0 text-xs space-y-0.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-semibold text-sm truncate">${esc(r[iCode])}</span>
+              <span class="text-[11px] whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${esc(dichStatus(r[iStatus]))}</span>
+            </div>
+            <div class="text-slate-800 font-medium line-clamp-2">${esc(r[iLoi]||'')}</div>
+            ${nhan('Vị trí',r[iViTri])}
+            ${nhan('Ngày',fmtNgay(r[iNgayVP]))}
+            ${nhan('NV vi phạm',nv)}
+            ${nhan('QL trực tiếp',ql)}
+          </div>
+          <div class="self-center text-teal-600 text-lg">›</div>
+        </div>`;
+      }).join('') || '<div class="px-3 py-10 text-center text-slate-400 text-sm">Không có task khớp bộ lọc.</div>';
+      document.querySelectorAll('#cardList [data-i]').forEach(el=>el.addEventListener('click',()=>moChiTiet(+el.dataset.i)));
     }
 
     function moChiTiet(i){
@@ -227,6 +264,12 @@
     document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!document.getElementById('lightbox').classList.contains('hidden')) dongLB(); else dongModal(); } });
     ['fTu','fDen','fStatus','fLoi','fTim'].forEach(id=>document.getElementById(id).addEventListener('input',render));
     document.getElementById('btnReload').addEventListener('click',taiDuLieu);
+
+    // Nút bộ lọc trên điện thoại: đóng/mở panel lọc
+    document.getElementById('btnFilter').addEventListener('click',()=>{
+      const g=document.getElementById('filterGrid'), dong=g.classList.toggle('collapsed');
+      document.getElementById('filterHint').textContent = dong ? 'chạm để mở ▾' : 'chạm để đóng ▴';
+    });
 
     // Ép cập nhật dữ liệu thật (chạy auto-export trên máy chủ) — cần PIN, người xem không có PIN thì không kích hoạt được
     let dangCho=false;

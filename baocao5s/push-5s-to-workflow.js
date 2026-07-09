@@ -14,6 +14,11 @@
  */
 import puppeteer from "puppeteer";
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { layTokenTuPhucHoi } from "./auto-login.js";
+
+const DIR = path.dirname(fileURLToPath(import.meta.url));
 
 /* ----------------------------- CẤU HÌNH ----------------------------- */
 // Bí mật & cấu hình lấy từ .env (KHÔNG hardcode key — .env đã được gitignore).
@@ -27,7 +32,7 @@ if (!APPSCRIPT_KEY) {
 }
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 // Profile Edge ổn định (gitignore qua .wms-session/) — KHÔNG để trong Temp để lịch chạy ngầm khỏi mất phiên.
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
 const API_CREATE = "https://wshr.hasaki.vn/api/hr/projects/create-task-workflow";
 const API_WORKFLOW = "https://wshr.hasaki.vn/api/hr/workflows/" + WORKFLOW_ID;
 const MATCH_THRESHOLD = 0.55;                        // ngưỡng khớp hạng mục
@@ -157,16 +162,19 @@ async function createTask(token, row, type00) {
 /* ------------------------------- MAIN ------------------------------- */
 (async () => {
   log("Bắt đầu đẩy báo cáo 5S sang workflow " + WORKFLOW_ID);
+
+  // TỐI ƯU: hỏi báo cáo chưa đẩy TRƯỚC (GET rẻ, không cần Edge). Rỗng → thoát ngay,
+  // KHÔNG mở Edge lấy token → đỡ mở Edge vô ích mỗi 15' + tránh xung đột profile khi rảnh.
+  const rows = await getPending();
+  log("→ Có " + rows.length + " báo cáo (có vi phạm) chưa đẩy.");
+  if (!rows.length) { log("Không có gì để đẩy (không mở Edge). Xong."); process.exit(0); }
+
   let token;
-  try { token = await getToken(); log("✓ Đã lấy token."); }
+  try { token = await layTokenTuPhucHoi(getToken, DIR, log); log("✓ Đã lấy token."); }
   catch (e) { log("✗ " + e.message); await sendAlert(e.message); process.exit(2); }
 
   const options = await getType00Options(token);
   log("✓ Workflow có " + options.length + " lựa chọn 'Lỗi vi phạm'.");
-
-  const rows = await getPending();
-  log("→ Có " + rows.length + " báo cáo (có vi phạm) chưa đẩy.");
-  if (!rows.length) { log("Không có gì để đẩy. Xong."); process.exit(0); }
 
   let ok = 0, skip = 0, fail = 0;
   for (const row of rows) {

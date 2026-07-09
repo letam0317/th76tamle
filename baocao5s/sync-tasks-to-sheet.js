@@ -18,7 +18,7 @@ const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/ma
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const WORKFLOW_ID = process.env.WORKFLOW_ID || "591";
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
 const FROM_DATE = process.env.SYNC_FROM || "2026-01-01";   // mốc bắt đầu kéo task
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);

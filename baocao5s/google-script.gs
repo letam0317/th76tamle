@@ -199,29 +199,36 @@ function apiAlert(e) {
   try {
     var thoiDiem = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss');
     var textBody =
-      'Bộ đẩy báo cáo 5S không tạo được task vì:\n\n' + msg +
-      '\n\nXử lý nhanh: bấm nút "Đăng nhập lại" trong email (bản HTML).\n' +
-      'Hoặc mở thư mục dự án và chạy lệnh:\n    node login-hasaki.js\n' +
-      'rồi đăng nhập lại (email + OTP). Sau đó lịch tự động sẽ chạy lại bình thường.\n\n' +
+      '⚠️ Hệ thống 5S đã TỰ ĐỘNG thử đăng nhập lại work.hasaki.vn nhưng THẤT BẠI:\n\n' + msg +
+      '\n\nBình thường token hết hạn sẽ tự đăng nhập lại (email + mật khẩu + OTP tự sinh) —\n' +
+      'mail này CHỈ gửi khi việc tự động đó KHÔNG thành công, tức cần kiểm tra tay.\n\n' +
+      'Nguyên nhân có thể:\n' +
+      '  • Mật khẩu công ty đã đổi → cập nhật HASAKI_PASSWORD trong .env\n' +
+      '  • Tài khoản bị khoá tạm (nhập sai nhiều lần) → chờ mở khoá\n' +
+      '  • Khoá 2FA (HASAKI_2FA_SECRET) sai/đổi → cập nhật lại\n' +
+      '  • Cổng đăng nhập nâng cấp bảo mật (Turnstile) hoặc đổi giao diện\n\n' +
+      'Kiểm tra tại máy chạy: mở thư mục dự án và chạy\n    node login-hasaki.js --show\n' +
+      'để xem cửa sổ đăng nhập và tìm chỗ kẹt. Vào được rồi thì lịch tự động chạy lại bình thường.\n\n' +
       'Thời điểm: ' + thoiDiem;
-    var linkWeb = ScriptApp.getService().getUrl() + '?action=requestLogin&key=' + encodeURIComponent(SECRET);
     var htmlBody =
       '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.6">' +
-      '<p>Bộ đẩy báo cáo 5S <b>không tạo được task</b> vì:</p>' +
-      '<p style="background:#fff3cd;border:1px solid #ffe08a;padding:10px 12px;border-radius:6px">' + msg + '</p>' +
-      '<p><b>Bấm nút dưới đây (điện thoại hay máy tính đều được):</b></p>' +
-      '<p><a href="' + linkWeb + '" style="display:inline-block;background:#e60023;color:#fff;' +
-      'text-decoration:none;padding:14px 30px;border-radius:8px;font-weight:bold;font-size:16px">' +
-      '🔐 Yêu cầu đăng nhập lại</a></p>' +
-      '<p style="color:#555;font-size:13px">Máy tính chạy bộ đẩy sẽ tự mở màn hình đăng nhập trong ~2 phút; ' +
-      'bạn chỉ cần tới đó gõ <b>OTP 6 số</b> (email &amp; mật khẩu đã tự điền).</p>' +
-      '<p style="color:#888;font-size:12px;margin-top:18px">Đang ngồi ngay tại máy tính đó? Bấm nhanh: ' +
-      '<a href="hasaki5s://login">mở màn hình đăng nhập ngay</a></p>' +
-      '<p style="color:#888;font-size:12px">Thời điểm: ' + thoiDiem + '</p>' +
+      '<p>⚠️ Hệ thống 5S đã <b>tự động thử đăng nhập lại</b> work.hasaki.vn nhưng <b>THẤT BẠI</b>:</p>' +
+      '<p style="background:#fdecea;border:1px solid #f5a3a3;padding:10px 12px;border-radius:6px">' + msg + '</p>' +
+      '<p style="color:#555">Token hết hạn bình thường sẽ <b>tự đăng nhập lại</b> (email + mật khẩu + OTP tự sinh). ' +
+      'Mail này CHỈ gửi khi việc tự động đó không thành công → cần kiểm tra tay.</p>' +
+      '<p><b>Nguyên nhân có thể:</b></p>' +
+      '<ul style="color:#333">' +
+      '<li>Mật khẩu công ty đã đổi → cập nhật <code>HASAKI_PASSWORD</code> trong <code>.env</code></li>' +
+      '<li>Tài khoản bị khoá tạm (nhập sai nhiều lần) → chờ mở khoá</li>' +
+      '<li>Khoá 2FA (<code>HASAKI_2FA_SECRET</code>) sai/đổi → cập nhật lại</li>' +
+      '<li>Cổng đăng nhập nâng cấp Turnstile hoặc đổi giao diện</li>' +
+      '</ul>' +
+      '<p style="color:#555">Tại máy chạy: mở thư mục dự án, chạy <code>node login-hasaki.js --show</code> để xem cửa sổ đăng nhập và tìm chỗ kẹt.</p>' +
+      '<p style="color:#888;font-size:12px;margin-top:18px">Thời điểm: ' + thoiDiem + '</p>' +
       '</div>';
     MailApp.sendEmail({
       to: ALERT_EMAIL,
-      subject: '[5S] Cần đăng nhập lại work.hasaki.vn',
+      subject: '[5S] ⚠️ Tự đăng nhập work.hasaki.vn THẤT BẠI — cần kiểm tra tay',
       body: textBody,
       htmlBody: htmlBody
     });
