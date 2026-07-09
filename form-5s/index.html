@@ -297,6 +297,7 @@
     const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
 
     // Danh sách 31 hạng mục 5S (nạp cố định)
+    const SHEET_ID_5S = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
     const DANH_SACH_5S = [
       "Không phát sinh vi phạm hạng mục",
       "Hàng hóa phải được sắp xếp gọn gàng, trưng bày đủ theo sức chứa của thùng, khay, hộp, mâm kệ hoặc pallet.",
@@ -336,6 +337,7 @@
       return {
         // ---- Trạng thái dữ liệu ----
         form: { hienTrang: '', viTri: '', hangMuc: '' },
+        dsHangMuc: DANH_SACH_5S.slice(),   // danh mục mục 3 — đồng bộ từ tab QUY-DINH (gviz); fallback = danh sách gốc
         files: [],          // danh sách file ảnh/video kèm preview
         tuKhoa: '',         // từ khoá đang gõ ở mục 3
         moDropdown: false,
@@ -356,11 +358,28 @@
         NGUONG_NEN_MB: 50,
         MAX_ANH_PX: 2560,   // cạnh dài tối đa của ảnh (~2K) để gửi nhanh, nhẹ Drive
 
-        // ---- Mục 3: Lọc danh sách theo từ khoá ----
+        // ---- Đồng bộ danh mục mục 3 từ tab QUY-DINH (tự cập nhật khi Sheet đổi chữ) ----
+        init() {
+          const cb = 'qd5s_' + Date.now();
+          window[cb] = (resp) => {
+            try {
+              const rows = ((resp.table && resp.table.rows) || []).map(r => (r.c || []).map(c => c ? (c.v == null ? '' : c.v) : ''));
+              const ds = rows.filter(r => /^\d+$/.test(String(r[0]).trim())).map(r => String(r[1] || '').trim()).filter(Boolean);
+              if (ds.length) this.dsHangMuc = ['Không phát sinh vi phạm hạng mục', ...ds];
+            } catch (e) {}
+            delete window[cb];
+          };
+          const s = document.createElement('script');
+          s.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID_5S + '/gviz/tq?sheet=QUY-DINH&headers=1&tqx=out:json;responseHandler:' + cb;
+          s.onerror = () => { delete window[cb]; };
+          document.body.appendChild(s);
+          setTimeout(() => s.remove(), 30000);
+        },
+        // ---- Mục 3: Lọc danh sách theo từ khoá (nguồn: dsHangMuc đã đồng bộ QUY-DINH) ----
         danhSachLoc() {
           const k = (this.tuKhoa || '').toLowerCase().trim();
-          if (!k) return DANH_SACH_5S;
-          return DANH_SACH_5S.filter(m => m.toLowerCase().includes(k));
+          if (!k) return this.dsHangMuc;
+          return this.dsHangMuc.filter(m => m.toLowerCase().includes(k));
         },
         chonHangMuc(muc) {
           this.form.hangMuc = muc;
