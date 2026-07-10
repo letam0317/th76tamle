@@ -65,7 +65,8 @@ function doPost(e) {
       duLieu.hangMuc || '',
       chuoiHinhAnh,
       '',                          // 6 Mã task: để trống = chưa đẩy
-      duLieu.thoiGianViPham || ''  // 7 Thời gian vi phạm (lấy từ ảnh/video; thiếu thì trống)
+      duLieu.thoiGianViPham || '', // 7 Thời gian vi phạm (lấy từ ảnh/video; thiếu thì trống)
+      duLieu.maSanPham || ''       // 8 Mã sản phẩm (không bắt buộc)
     ]);
     return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
   } catch (err) {

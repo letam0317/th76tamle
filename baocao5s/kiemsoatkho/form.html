@@ -9,8 +9,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Alpine.js (CDN) - defer để chạy sau khi DOM tải xong -->
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <!-- Thư viện quét mã vạch / QR (CDN) -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- Thư viện quét mã vạch / QR (CDN) — defer: chỉ dùng khi bấm quét, không chặn hiển thị form -->
+  <script defer src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     /* Cuộn mượt cho danh sách dropdown */
@@ -84,7 +84,7 @@
           </button>
         </div>
 
-        <!-- Khung hiển thị camera khi quét -->
+        <!-- Khung hiển thị camera khi quét (dùng chung cho Vị trí + Mã sản phẩm) -->
         <div x-show="dangQuet" x-cloak class="mt-3 rounded-2xl overflow-hidden border border-slate-200 bg-black">
           <div id="reader" class="w-full"></div>
           <button
@@ -97,10 +97,35 @@
         </div>
       </div>
 
-      <!-- ===== MỤC 3: Hạng mục 5S (Searchable Dropdown) ===== -->
+      <!-- ===== MỤC 3: Mã sản phẩm (KHÔNG bắt buộc) — nhập tay hoặc quét barcode/QR ===== -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          3. Mã sản phẩm <span class="text-xs font-normal text-slate-400">(không bắt buộc)</span>
+        </label>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            x-model="form.maSanPham"
+            placeholder="Nhập hoặc quét mã vạch sản phẩm..."
+            class="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+          />
+          <button
+            type="button"
+            @click="moCamera('maSanPham')"
+            title="Quét mã vạch / QR sản phẩm"
+            class="shrink-0 w-12 h-12 flex items-center justify-center rounded-2xl bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h2v14H3V5zm4 0h1v14H7V5zm3 0h2v14h-2V5zm4 0h1v14h-1V5zm3 0h2v14h-2V5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== MỤC 4: Hạng mục 5S (Searchable Dropdown) ===== -->
       <div x-data="{ }" @click.outside="moDropdown = false">
         <label class="block text-sm font-semibold text-slate-700 mb-2">
-          3. Thuộc hạng mục <span class="text-red-500">*</span>
+          4. Thuộc hạng mục <span class="text-red-500">*</span>
         </label>
         <div class="relative">
           <input
@@ -138,10 +163,10 @@
         </p>
       </div>
 
-      <!-- ===== MỤC 4: Hình ảnh / clip ===== -->
+      <!-- ===== MỤC 5: Hình ảnh / clip ===== -->
       <div>
         <label class="block text-sm font-semibold text-slate-700 mb-2">
-          4. Hình ảnh / clip tại thời điểm ghi nhận <span class="text-red-500">*</span>
+          5. Hình ảnh / clip tại thời điểm ghi nhận <span class="text-red-500">*</span>
         </label>
 
         <div class="grid grid-cols-2 gap-2">
@@ -370,7 +395,7 @@
     function auditForm() {
       return {
         // ---- Trạng thái dữ liệu ----
-        form: { hienTrang: '', viTri: '', hangMuc: '' },
+        form: { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' },
         dsHangMuc: DANH_SACH_5S.slice(),  // hạng mục hiển thị (reactive) — tải từ QUY-DINH lúc mở form
         files: [],          // danh sách file ảnh/video kèm preview
         xemMedia: null,     // ảnh/clip đang xem phóng to (Mục 4)
@@ -429,7 +454,8 @@
         },
 
         // ---- Mục 2: Quét mã vạch / QR ----
-        async moCamera() {
+        async moCamera(target) {
+          this._scanTarget = target || 'viTri';   // quét vào ô Vị trí hoặc Mã sản phẩm
           this.dangQuet = true;
           // Chờ Alpine hiển thị khung #reader rồi mới khởi tạo camera
           await this.$nextTick();
@@ -439,7 +465,7 @@
               { facingMode: "environment" },          // ưu tiên camera sau
               { fps: 10, qrbox: { width: 250, height: 250 } },
               (decodedText) => {                        // quét thành công
-                this.form.viTri = decodedText;
+                this.form[this._scanTarget || 'viTri'] = decodedText;
                 this.dongCamera();                      // tắt camera tiết kiệm pin
               },
               () => { /* bỏ qua lỗi từng khung hình */ }
@@ -758,11 +784,11 @@
             return;
           }
           if (!this.form.hangMuc.trim()) {
-            this.thongBao = { loai: 'err', noiDung: 'Vui lòng chọn Hạng mục 5S (Mục 3).' };
+            this.thongBao = { loai: 'err', noiDung: 'Vui lòng chọn Hạng mục 5S (Mục 4).' };
             return;
           }
           if (this.files.length === 0) {
-            this.thongBao = { loai: 'err', noiDung: 'Vui lòng đính kèm ít nhất 1 hình ảnh / clip (Mục 4).' };
+            this.thongBao = { loai: 'err', noiDung: 'Vui lòng đính kèm ít nhất 1 hình ảnh / clip (Mục 5).' };
             return;
           }
           if (this.dangNen) {
@@ -784,6 +810,7 @@
           const duLieu = {
             hienTrang: this.form.hienTrang.trim(),
             viTri: this.form.viTri.trim(),
+            maSanPham: this.form.maSanPham.trim(),
             hangMuc: this.form.hangMuc.trim(),
             thoiGianViPham: thoiGianViPham,
             hinhAnh: this.files.map(f => ({ ten: f.ten, mime: f.mime, base64: f.base64 }))
@@ -801,7 +828,7 @@
             if (ketQua.status === 'success') {
               this.thongBao = { loai: 'ok', noiDung: '✓ Gửi báo cáo thành công! Dữ liệu đã được lưu.' };
               // Reset form sau khi gửi
-              this.form = { hienTrang: '', viTri: '', hangMuc: '' };
+              this.form = { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' };
               this.tuKhoa = '';
               this.files = [];
             } else {
