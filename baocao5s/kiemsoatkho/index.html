@@ -537,6 +537,28 @@ th.kpi-col-val, td.kpi-val{text-align:right;}
 /* ===== 7 THẺ TỔNG KẾT: ẩn trong bộ chọn ===== */
 .btn-cards{display:block; width:100%; text-align:left; margin-bottom:12px;}
 .cards.collapsed{display:none;}
+/* ===== BANNER CẢNH BÁO (tab Tổng quan) — ám thị răn đe ===== */
+.cb-banner{position:relative; overflow:hidden; display:flex; align-items:center; gap:15px; padding:18px 20px 16px;
+  border-radius:14px; margin-bottom:14px; color:#fff; box-shadow:var(--shadow);
+  background:linear-gradient(135deg,#7f1d1d 0%,#b91c1c 55%,#8a1616 100%);}
+.cb-banner::before{content:""; position:absolute; top:0; left:0; right:0; height:6px;
+  background:repeating-linear-gradient(45deg,#fbbf24 0 12px,#1f2937 12px 24px);}   /* sọc cảnh báo vàng-đen */
+.cb-banner svg{width:40px; height:40px; flex:0 0 auto; filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
+.cb-t{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.cb-t b{font-size:15px; font-weight:800; letter-spacing:.14em;}
+.cb-t span{font-size:12.5px; opacity:.88; line-height:1.45;}
+/* dải 4 chỉ số tháng */
+.kpi-band{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px;}
+.kb-tile{background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--bad);
+  border-radius:12px; padding:14px 16px; box-shadow:var(--shadow); min-width:0;}
+.kb-num{font-size:27px; font-weight:800; color:var(--bad); font-variant-numeric:tabular-nums; line-height:1.1;}
+.kb-lbl{font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin-top:6px;}
+.kb-sub{font-size:12px; color:var(--text); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+@media (max-width:820px){
+  .kpi-band{grid-template-columns:1fr 1fr; gap:8px;}
+  .kb-num{font-size:22px;}
+  .cb-t b{font-size:13.5px; letter-spacing:.1em;}
+}
 .bb-up{padding:3px 8px; font-size:12px; line-height:1.3; border-radius:6px; white-space:nowrap;}
 .bb-up:hover{border-color:var(--accent); color:var(--accent);}
 
@@ -578,12 +600,15 @@ th.kpi-col-val, td.kpi-val{text-align:right;}
 <body>
 <div id="hskMark" aria-hidden="true"><img src="hasaki-logo.png" alt="" /></div>
 <div id="latteMark" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true">
-  <!-- thân sao chìm tone-on-tone (đậm hơn nền latte một chút) -->
-  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="#4c4f69" opacity=".04"/>
+  <defs><radialGradient id="lmR" cx="50%" cy="42%" r="72%">
+    <stop offset="0%" stop-color="#e8452e"/><stop offset="100%" stop-color="#c21a04"/>
+  </radialGradient></defs>
+  <!-- thân sao đỏ rất nhạt — CÓ MÀU nhưng không thô -->
+  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="url(#lmR)" opacity=".055"/>
   <!-- viền sáng lệch nhẹ lên-trái: hiệu ứng khắc chìm (emboss) -->
-  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="none" stroke="#ffffff" stroke-width=".26" opacity=".55" transform="translate(-0.09,-0.11)"/>
-  <!-- viền line-art chính (màu mực latte, mảnh) -->
-  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="none" stroke="#4c4f69" stroke-width=".26" opacity=".13"/>
+  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="none" stroke="#ffffff" stroke-width=".26" opacity=".6" transform="translate(-0.09,-0.11)"/>
+  <!-- viền line-art ĐỎ TRẦM, mảnh (kiểu logo chìm ngân hàng — có màu, không rực) -->
+  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="none" stroke="#c21a04" stroke-width=".26" opacity=".17"/>
 </svg></div>
 <div class="wrap">
   <header>
@@ -641,8 +666,23 @@ th.kpi-col-val, td.kpi-val{text-align:right;}
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
   <section id="pane-tong" class="pane">
+    <!-- Banner giám sát 5S (răn đe) -->
+    <div class="cb-banner" role="note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="#ffffff" opacity=".95"/></svg>
+      <div class="cb-t">
+        <b>KHU VỰC GIÁM SÁT 5S — AUDIT HASAKI</b>
+        <span>Mọi vi phạm đều được ghi nhận bằng hình ảnh, quy trách nhiệm đến từng cá nhân và trừ KPI luỹ tiến theo QUY-DINH. Vi phạm lặp lại trong tháng, mức trừ tăng theo số lần.</span>
+      </div>
+    </div>
+    <!-- Dải chỉ số tháng -->
+    <div class="kpi-band" id="kpiBand">
+      <div class="kb-tile"><div class="sk sk-line" style="width:60%"></div></div>
+      <div class="kb-tile"><div class="sk sk-line" style="width:60%"></div></div>
+      <div class="kb-tile"><div class="sk sk-line" style="width:60%"></div></div>
+      <div class="kb-tile"><div class="sk sk-line" style="width:60%"></div></div>
+    </div>
     <!-- Luỹ kế KPI trừ trong tháng -->
-    <div class="panel" style="margin-bottom:14px">
+    <div class="panel" id="kpiPanel" style="margin-bottom:14px">
       <div class="panel-head"><span>Luỹ kế KPI trừ trong tháng</span>
         <select id="kpiThang" title="Chọn tháng/năm"></select></div>
       <div class="kpi-wrap" id="kpiWrap"><div style="padding:16px"><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:60%"></div></div></div>
@@ -831,7 +871,7 @@ const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1v
 
 let H = [], ROWS = [];
 let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNVVP, iQLTT, iVideo, iNVName, iBienBan;
-let iB2loi, iKP, iB11ND, STATUS_COLS = [];
+let iB2loi, iKP, iB11ND, iDieuHuong=-1, STATUS_COLS = [];
 let firstLoad = true, dangCho = false, galleries = {}, rowGal = {};
 
 /* Bảng tra Mã NV → Họ tên do người dùng khai báo tay (ưu tiên cao nhất).
@@ -931,16 +971,18 @@ const dichNhan = s => DICH[String(s).trim().toLowerCase()] || s;
 const STT = {"none":"Chưa xử lý","new":"Mới","processing":"Đang xử lý","in progress":"Đang xử lý",
   "finished":"Hoàn thành","done":"Hoàn thành","completed":"Hoàn thành","cancelled":"Đã huỷ","canceled":"Đã huỷ","overdue":"Quá hạn"};
 const dichStatus = v => STT[String(v).trim().toLowerCase()] || v;
+// Trạng thái hiển thị: task bị vô hiệu (Điều hướng cancel) -> "Đã huỷ" (nhất quán: không đếm tần suất/KPI)
+const statusHienThi = r => daHuy(r) ? "Đã huỷ" : dichStatus(r[iStatus]);
 // Ô "Trạng thái" gộp luôn LINK sang work.hasaki (thay cho cột Mã đã bỏ). Có link -> chữ thường + gạch chấm + mũi tên ↗.
 const statusCell = r => {
-  const txt = esc(dichStatus(r[iStatus]));
+  const txt = esc(statusHienThi(r));
   return r[iLink]
     ? `<a class="status-link" href="${esc(r[iLink])}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">${txt}</a>`
     : txt;
 };
 // Bản "badge" cho thẻ mobile
 const statusBadge = r => {
-  const txt = esc(dichStatus(r[iStatus]));
+  const txt = esc(statusHienThi(r));
   return r[iLink]
     ? `<a class="badge badge-link" href="${esc(r[iLink])}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">${txt}</a>`
     : `<span class="badge">${txt}</span>`;
@@ -980,7 +1022,9 @@ const keyVP = r => codeVP(r);
 const lines = v => { const p=String(v||'').split(',').map(s=>s.trim()).filter(Boolean); return p.length?p.map(esc).join('<br>'):'—'; };
 const b2Loi = r => (iB2loi>=0 ? String(r[iB2loi]||"").trim() : "");
 const kpVP  = r => (iKP>=0 ? String(r[iKP]||"").trim() : "");
-const daHuy = r => STATUS_COLS.some(i => /cancel/i.test(String(r[i]||"")));
+// Task ĐÃ HUỶ (vô hiệu): Status tổng bị cancel HOẶC bước "Điều hướng" bị cancel (flow bị huỷ).
+// KHÔNG dùng "bất kỳ bước nào cancel" — các nhánh B3.x không dùng bị cancel là chuyện bình thường.
+const daHuy = r => /cancel/i.test(String(r[iStatus]||"")) || (iDieuHuong>=0 && /cancel/i.test(String(r[iDieuHuong]||"")));
 // Khoá thời gian để sắp xếp (mới nhất → cũ nhất)
 function tsOf(v){
   const m = String(v).match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)$/);
@@ -1029,6 +1073,7 @@ function taiDuLieu(){
       iKP=idxOf("B4.1 Audit kiểm tra khắc phục ▸ Xác nhận khắc phục");
       iB11ND=idxOf("B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Người thực hiện");
       STATUS_COLS=H.map((h,i)=>i).filter(i=>H[i]==="Status"||nhanCuoi(H[i]).toLowerCase()==="status");
+      iDieuHuong=idxOf("Điều hướng ▸ Status");   // cờ nhận biết task bị HUỶ (flow vô hiệu)
       // Dựng bảng Mã NV → Họ tên từ tên người tự xác nhận ở B1.1 (mỗi mã lấy tên đầu tiên gặp được)
       NAME_BY_CODE={};
       if(iB11ND>=0) ROWS.forEach(r=>{
@@ -1055,7 +1100,7 @@ function taiDuLieu(){
 function uniq(i){ return [...new Set(ROWS.map(r=>r[i]).filter(Boolean))].sort(); }
 function napLoc(){
   if(iStatus>=0){
-    const sts=[...new Set(ROWS.map(r=>dichStatus(r[iStatus])).filter(Boolean))].sort();
+    const sts=[...new Set(ROWS.map(statusHienThi).filter(Boolean))].sort();
     $('fStatus').innerHTML='<option value="">Tất cả</option>'+sts.map(v=>`<option>${esc(v)}</option>`).join('');
   }
   if(iLoi>=0) $('fLoi').innerHTML='<option value="">Tất cả</option>'+uniq(iLoi).map(v=>`<option>${esc(v)}</option>`).join('');
@@ -1067,7 +1112,7 @@ function loc(){
   return ROWS.filter(r=>{
     const ng=ngayISO(r[iNgayVP]);
     if(gFrom&&ng&&ng<gFrom)return false; if(gTo&&ng&&ng>gTo)return false;
-    if(st&&dichStatus(r[iStatus])!==st)return false; if(lo&&r[iLoi]!==lo)return false;
+    if(st&&statusHienThi(r)!==st)return false; if(lo&&r[iLoi]!==lo)return false;
     if(tim&&!((String(r[iViTri])+" "+r[iCode]+" "+r[iLoi]+" "+codeVP(r)+" "+nameVP(r)+" "+(iQLTT>=0?r[iQLTT]:"")).toLowerCase().includes(tim)))return false;
     return true;
   });
@@ -1106,6 +1151,7 @@ function tinhTanSuat(){
   FREQ={};
   const seq={};   // "mãNV|năm-tháng" -> [{gi,t}]
   ROWS.forEach((r,gi)=>{
+    if(daHuy(r)) return;                          // task ĐÃ HUỶ -> không đếm tần suất / không trừ KPI
     const t=ngayMs(r[iNgayVP]); if(t==null) return;
     const d=new Date(t), ym=d.getFullYear()+'-'+(d.getMonth()+1);
     codeVP(r).split(',').map(s=>s.trim()).filter(Boolean).forEach(cd=>{
@@ -1174,7 +1220,7 @@ function renderKpi(){
   // --- NV vi phạm ---
   const grp={}, tenMa={};
   ROWS.forEach(r=>{
-    if(ymOf(r)!==ym) return;
+    if(ymOf(r)!==ym || daHuy(r)) return;          // bỏ task đã huỷ
     const t=ngayMs(r[iNgayVP]);
     const names=iNVName>=0?String(r[iNVName]||'').split(',').map(s=>s.trim()):[];
     codeVP(r).split(',').map(s=>s.trim()).filter(Boolean).forEach((cd,ci)=>{
@@ -1192,7 +1238,7 @@ function renderKpi(){
   const ql=QL_NGHIEP_VU.map(([key,ten])=>{
     let xm=0,kxm=0; const list=[];
     ROWS.forEach(r=>{
-      if(ymOf(r)!==ym) return;
+      if(ymOf(r)!==ym || daHuy(r)) return;        // bỏ task đã huỷ
       if(chuanTen(iQLTT>=0?r[iQLTT]:'').indexOf(key)<0) return;
       if(chuanTen(nameVP(r)).indexOf(key)>=0) return;        // chính QL là NV vi phạm -> không tính
       if(codeVP(r)) xm++; else kxm++;
@@ -1223,6 +1269,17 @@ function renderKpi(){
   }
   h+='</tbody></table>';
   $('kpiWrap').innerHTML=h;
+  // ---- Dải 4 chỉ số của tháng (trên bảng luỹ kế) ----
+  const thangTasks=ROWS.filter(r=>ymOf(r)===ym && !daHuy(r));
+  const tongKpi=nv.reduce((s,x)=>s+x.kpi,0);
+  const loiDem={}; thangTasks.forEach(r=>{const l=String(r[iLoi]||'').trim(); if(l) loiDem[l]=(loiDem[l]||0)+1;});
+  const topLoi=Object.entries(loiDem).sort((a,b)=>b[1]-a[1])[0];
+  const tile=(num,lbl,sub)=>`<div class="kb-tile"><div class="kb-num">${num}</div><div class="kb-lbl">${lbl}</div>${sub?`<div class="kb-sub" title="${esc(sub)}">${esc(sub)}</div>`:''}</div>`;
+  $('kpiBand').innerHTML =
+    tile(thangTasks.length,'Task vi phạm trong tháng')+
+    tile(nv.length,'NV bị trừ KPI')+
+    tile('−'+String(Math.round(tongKpi*100)/100).replace('.',',')+'%','Tổng KPI đã trừ (NV)')+
+    tile(topLoi?(topLoi[1]+'×'):'—','Lỗi phổ biến nhất trong tháng', topLoi?topLoi[0]:'');
 }
 function moKpiChiTiet(loai,idx){
   if(!KPI_DATA) return;
