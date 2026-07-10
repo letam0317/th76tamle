@@ -33,6 +33,15 @@ if (s && s.requested) {
   log("Auto-export xong.");
 } else log("Không có yêu cầu cập nhật.");
 
+// 1b) Yêu cầu CẬP NHẬT CHẤM CÔNG (nút "Cập nhật chấm công" + PIN)
+const tsq = await hoi("timesheetStatus");
+if (tsq && tsq.requested) {
+  log("⚡ Có yêu cầu cập nhật chấm công! Chạy pull-timesheet (chờ xong)...");
+  await fetch(APPSCRIPT_URL + "?action=clearTimesheet&key=" + encodeURIComponent(KEY)).catch(() => {});
+  await chayCho("pull-timesheet.js");
+  log("Pull-timesheet xong.");
+} else log("Không có yêu cầu chấm công.");
+
 // 2) Yêu cầu ĐĂNG NHẬP (nút trong email). Bỏ qua nếu cửa sổ login đang mở (<15').
 let boQuaLogin = false;
 if (fs.existsSync(LOCK)) {

@@ -32,6 +32,8 @@ const ROLL_DAYS = Number(process.env.ROLL_DAYS || 45);     // cửa sổ an toà
 const FULL_RESYNC = process.env.FULL_RESYNC === "1";       // ép đồng bộ TOÀN BỘ từ SYNC_FROM (bỏ qua cache) — chạy tay khi cần
 const CACHE_FILE = path.join(EXPORT_DIR, "tasks-cache.json"); // KHO BỀN VỮNG: task terminal đóng băng ở đây, không export lại
 const laTerminal = (v) => /^(finished|canceled|cancelled|failed)$/i.test(String(v).trim()); // đã xong/huỷ/thất bại → không refresh nữa
+const STAFF_API = "https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=10000&sort=staff_id"; // danh bạ NV (id/code → họ tên)
+const nhanCuoi = (h) => String(h || "").split("▸").pop().trim();
 const MEDIA_BASE = "https://hr-media.hasaki.vn/production/hr/";       // ảnh/clip (công khai)
 const FILE_BASE = "https://wshr.hasaki.vn/production/hr/";            // file Excel export (công khai)
 const API = "https://wshr.hasaki.vn/api/hr/excel-io";
@@ -65,6 +67,24 @@ function parseNgay(v) {
   return null;
 }
 const loadCache = () => { try { return JSON.parse(fs.readFileSync(CACHE_FILE, "utf8")); } catch { return null; } };
+
+// Danh bạ NV: dựng map (code + staff_id) → họ tên đầy đủ để đổi "Nhân viên vi phạm" từ mã số sang tên.
+async function layDanhBaNV(token) {
+  try {
+    const j = await (await fetch(STAFF_API, { headers: { authorization: token } })).json();
+    const list = j.data || j.rows || [];
+    const dir = {};
+    for (const s of list) {
+      const nm = s.staff_name || s.full_name || s.name; if (!nm) continue;
+      if (s.code != null) dir[String(s.code)] = nm;                                   // mã NV (đa số khớp field này)
+      if (s.staff_id != null && dir[String(s.staff_id)] == null) dir[String(s.staff_id)] = nm;
+    }
+    log("✓ Danh bạ NV: " + Object.keys(dir).length + " mã.");
+    return dir;
+  } catch (e) { log("  (cảnh báo: không tải được danh bạ NV: " + e.message + ")"); return {}; }
+}
+// Đổi chuỗi mã "23751,38125" -> "Phùng Lê Cao Minh, Mai Lê Hoàng Phi" (mã không tra được -> bỏ, KHÔNG ghi số).
+const tenNVvp = (val, dir) => String(val || "").split(",").map(s => s.trim()).filter(Boolean).map(x => dir[x] || "").filter(Boolean).join(", ");
 
 // Xác định khoảng ngày CẦN export hôm nay:
 //  - Mặc định: 45 ngày gần nhất (bắt task mới + task bị mở lại trong 45 ngày).
@@ -141,6 +161,7 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
   process.on("exit", () => { try { fs.rmSync(RUN_LOCK, { force: true }); } catch {} });
   const token = await layTokenTuPhucHoi(getToken, DIR, log).catch(e => { log("✗ " + e.message); process.exit(2); });
   log("✓ Đã lấy token.");
+  const nvDir = await layDanhBaNV(token);   // danh bạ NV để đổi mã → họ tên
 
   // Nạp KHO BỀN VỮNG (cache): task terminal cũ giữ nguyên, không export lại.
   // LUÔN seed từ cache (kể cả FULL) → cửa sổ nào export lỗi vẫn giữ dữ liệu cũ, KHÔNG mất task.
@@ -185,14 +206,41 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
   // Cờ "kho hoàn chỉnh": FULL mà mọi cửa sổ OK → complete. FULL còn lỗi → complete=false (lần sau tự chạy full lại).
   // Incremental thì kế thừa trạng thái kho nền (lỗi cửa sổ gần đây không phá tính hoàn chỉnh của phần đã đóng băng).
   const complete = rg.full ? (loi === 0) : (cache ? cache.complete !== false : true);
-  // Chuẩn hoá mọi dòng về đúng số cột header rồi ghi + lưu cache.
-  const rows = [...byCode.values()].map(r => Array.from({ length: header.length }, (_, i) => (r[i] != null ? r[i] : "")));
+  // KHO TÊN NV BỀN VỮNG: giữ mọi tên đã từng tra được (kể cả NV đã nghỉ, rời danh bạ) → xem lại dữ liệu cũ luôn có tên.
+  // Ưu tiên tên MỚI từ danh bạ hiện tại; mã không còn trong danh bạ thì dùng tên đã lưu trước đó.
+  const persist = (cache && cache.nvNames) || {};
+  const resolver = Object.assign({}, persist, nvDir);   // danh bạ hiện tại đè tên cũ; tên cũ được giữ nếu mã đã rời danh bạ
+  const nvIdx = header.findIndex(h => nhanCuoi(h).toLowerCase() === "nhân viên vi phạm");
+  // GIỮ cột "Biên bản" đã có trên 5S-TASKS (đọc theo Task Code) để không mất khi ghi đè.
+  const SID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
+  const bbByCode = {};
   try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify({ header, complete, rows: Object.fromEntries(byCode), updatedAt: new Date().toISOString() }));
+    const t = await (await fetch("https://docs.google.com/spreadsheets/d/" + SID + "/gviz/tq?sheet=5S-TASKS&headers=1&tqx=out:json")).text();
+    const tab = JSON.parse(t.match(/\{[\s\S]*\}/)[0]).table;
+    const cols = (tab.cols || []).map(c => c.label || "");
+    const iC = cols.findIndex(h => /task code/i.test(h)), iB = cols.findIndex(h => /^biên bản$/i.test(h));
+    if (iC >= 0 && iB >= 0) (tab.rows || []).forEach(rr => { const c = rr.c || []; const code = c[iC] && c[iC].v != null ? String(c[iC].v).trim() : ""; const bb = c[iB] && c[iB].v != null ? String(c[iB].v) : ""; if (code && bb) bbByCode[code] = bb; });
+    log("  Giữ " + Object.keys(bbByCode).length + " biên bản đã có.");
+  } catch (e) { log("  (chưa có cột Biên bản trên 5S-TASKS - sẽ tạo mới)"); }
+  const outHeader = [...header, "Tên NV vi phạm", "Biên bản"];
+  const rows = [...byCode.entries()].map(([code, r]) => {
+    const base = Array.from({ length: header.length }, (_, i) => (r[i] != null ? r[i] : ""));
+    base.push(nvIdx >= 0 ? tenNVvp(base[nvIdx], resolver) : "");
+    base.push(bbByCode[code] || "");
+    return base;
+  });
+  // Tích luỹ vào kho tên: mọi mã NV xuất hiện + tra được -> lưu lại vĩnh viễn.
+  if (nvIdx >= 0) for (const r of byCode.values())
+    String(r[nvIdx] || "").split(",").map(s => s.trim()).filter(Boolean).forEach(cd => { if (resolver[cd]) persist[cd] = resolver[cd]; });
+  // Lưu cache = dữ liệu THÔ + kho tên NV bền vững (nvNames).
+  try {
+    fs.writeFileSync(CACHE_FILE, JSON.stringify({ header, complete, nvNames: persist, rows: Object.fromEntries(byCode), updatedAt: new Date().toISOString() }));
   } catch (e) { log("  (cảnh báo: không lưu được cache: " + e.message + ")"); }
   if (loi > 0) log("  ⚠ " + loi + " cửa sổ export lỗi → kho đánh dấu CHƯA hoàn chỉnh, lần chạy sau sẽ tự dựng lại full.");
-  log("→ Ghi " + rows.length + " task (" + header.length + " cột, vừa refresh " + moi + ") vào 5S-TASKS...");
-  const res = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header, rows }) });
+  log("  Kho tên NV bền vững: " + Object.keys(persist).length + " mã.");
+  const daTra = rows.filter(r => /\p{L}/u.test(String(r[header.length]))).length;   // cột "Tên NV vi phạm" (trước cột Biên bản)
+  log("→ Ghi " + rows.length + " task (" + outHeader.length + " cột, refresh " + moi + ", " + daTra + " dòng có tên NV) vào 5S-TASKS...");
+  const res = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header: outHeader, rows }) });
   let j = {}; try { j = JSON.parse(await res.text()); } catch {}
   log(j.status === "success" ? "✓ Đã ghi " + j.written + " dòng lúc " + j.at : "✗ Ghi tab thất bại: " + JSON.stringify(j).slice(0, 200));
   // giữ 3 file .xlsx gần nhất

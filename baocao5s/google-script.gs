@@ -46,6 +46,7 @@ function doPost(e) {
   try {
     var duLieu = JSON.parse(e.postData.contents);
     if (duLieu && duLieu.action === 'syncTasks') return apiSyncTasks(duLieu);   // nhánh đồng bộ dashboard
+    if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
     var sheet = layHoacTaoSheet();
     var chuoiHinhAnh = '';
     if (duLieu.hinhAnh && duLieu.hinhAnh.length > 0) {
@@ -79,6 +80,10 @@ function doGet(e) {
   if (action === 'requestSync') return apiRequestSync(e);     // nút "Cập nhật ngay" trên dashboard (cần PIN)
   if (action === 'syncStatus') return apiSyncStatus(e);       // máy PC hỏi có yêu cầu cập nhật không
   if (action === 'clearSync') return apiClearSync(e);         // máy PC báo đã cập nhật xong
+  if (action === 'caps') return phanHoiJson({ status: 'success', timesheet: true, tabWrite: true }); // bản đã hỗ trợ ghi tab + chấm công
+  if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (cần PIN)
+  if (action === 'timesheetStatus') return apiTimesheetStatus(e);   // máy PC hỏi có yêu cầu chấm công không
+  if (action === 'clearTimesheet') return apiClearTimesheet(e);     // máy PC báo đã kéo chấm công xong
   return phanHoiJson({ status: 'success', message: 'Web App đang hoạt động bình thường.' });
 }
 
@@ -107,6 +112,24 @@ function apiSyncStatus(e) {
 function apiClearSync(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   PropertiesService.getScriptProperties().deleteProperty('SYNC_REQUESTED');
+  return phanHoiJson({ status: 'success', cleared: true });
+}
+
+/** Dashboard bấm "Cập nhật chấm công" + PIN → đặt cờ để máy PC chạy pull-timesheet. */
+function apiRequestTimesheet(e) {
+  var cb = e.parameter.callback || 'cb';
+  if ((e.parameter.pin || '') !== SYNC_PIN) return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' });
+  PropertiesService.getScriptProperties().setProperty('TS_REQUESTED', String(new Date().getTime()));
+  return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật chấm công. Dữ liệu sẽ mới sau vài phút.' });
+}
+function apiTimesheetStatus(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('TS_REQUESTED') || 0);
+  return phanHoiJson({ status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts });
+}
+function apiClearTimesheet(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  PropertiesService.getScriptProperties().deleteProperty('TS_REQUESTED');
   return phanHoiJson({ status: 'success', cleared: true });
 }
 
@@ -251,17 +274,54 @@ function apiSyncTasks(duLieu) {
   if ((duLieu.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   var header = duLieu.header || [];
   var rows = duLieu.rows || [];
+  var tenTab = duLieu.tab || TEN_SHEET_TASKS;   // tab đích (mặc định 5S-TASKS; vd CHAM-CONG)
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(TEN_SHEET_TASKS);
-  if (!sheet) sheet = ss.insertSheet(TEN_SHEET_TASKS);
+  var sheet = ss.getSheetByName(tenTab);
+  if (!sheet) sheet = ss.insertSheet(tenTab);
   sheet.clearContents();
+  try { sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart(); } catch (e) {}
   var all = [header].concat(rows);
   if (all.length && header.length) {
     sheet.getRange(1, 1, all.length, header.length).setValues(all);
     sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
-    sheet.setFrozenRows(1);
+    try { sheet.setFrozenRows(1); } catch (e) {}
   }
   return phanHoiJson({ status: 'success', written: rows.length, at: Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss') });
+}
+
+/** Tải biên bản (ảnh) cho 1 task -> lưu Drive + ghi tab BIEN-BAN. duLieu={code,files:[{name,mime,base64}]} */
+function apiUploadBienBan(duLieu) {
+  var code = String(duLieu.code || '').trim();
+  if (!code) return phanHoiJson({ status: 'error', message: 'Thiếu mã task' });
+  var files = duLieu.files || [];
+  var it = DriveApp.getFoldersByName('WMS-5S-BIENBAN');
+  var folder = it.hasNext() ? it.next() : DriveApp.createFolder('WMS-5S-BIENBAN');
+  var urls = [];
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    var blob = Utilities.newBlob(Utilities.base64Decode(f.base64), f.mime || 'image/jpeg', f.name || ('bienban_' + code + '_' + new Date().getTime() + '.jpg'));
+    var file = folder.createFile(blob);
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+    urls.push('https://drive.google.com/uc?export=view&id=' + file.getId());
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('5S-TASKS');
+  if (sh) {
+    var lastCol = sh.getLastColumn(), lastRow = sh.getLastRow();
+    var head = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+    var iCode = -1, iBB = -1;
+    for (var c = 0; c < head.length; c++) { var h = String(head[c]).trim().toLowerCase(); if (h === 'task code') iCode = c; if (h === 'biên bản') iBB = c; }
+    if (iCode < 0) for (var c2 = 0; c2 < head.length; c2++) if (/task code/i.test(head[c2])) iCode = c2;
+    if (iBB < 0) { iBB = lastCol; sh.getRange(1, iBB + 1).setValue('Biên bản').setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff'); }
+    if (iCode >= 0 && lastRow > 1) {
+      var codes = sh.getRange(2, iCode + 1, lastRow - 1, 1).getValues();
+      for (var r = 0; r < codes.length; r++) if (String(codes[r][0]).trim() === code) {
+        var cell = sh.getRange(r + 2, iBB + 1); var cur = String(cell.getValue() || '').trim();
+        cell.setValue((cur ? cur + '\n' : '') + urls.join('\n')); break;
+      }
+    }
+  }
+  return phanHoiJson({ status: 'success', urls: urls });
 }
 
 /* ------------------------------- Tiện ích ------------------------------- */
