@@ -590,9 +590,9 @@
           ctx.font = '500 ' + subFs + 'px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,0.78)';
           ctx.fillText('Kiểm soát kho', txX, ty + lh);
 
-          // ---- Nhãn thời gian (dưới Viên nhãn, căn lề phải) ----
+          // ---- Nhãn thời gian (dưới Viên nhãn, căn lề phải) — cỡ GẤP ĐÔI cho dễ đọc ----
           const time = this._thoiGianNhan(ts);
-          const tmFs = Math.round(fs * 0.78);
+          const tmFs = Math.round(fs * 1.56);
           ctx.font = '600 ' + tmFs + 'px ' + FONT;
           const tw = ctx.measureText(time).width;
           ctx.fillStyle = '#ffffff';

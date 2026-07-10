@@ -496,22 +496,24 @@ tbody td.c-bb{width:118px; white-space:normal;}
 /* ===== CỘT TẦN SUẤT VI PHẠM ===== */
 thead th.c-freq, tbody td.c-freq{white-space:nowrap; vertical-align:middle;}
 .freq-lan{font-weight:600;}
-/* NV/QL/Lỗi cho phép gói dòng -> chừa chỗ cho các cột mới, Trạng thái + Biên bản luôn sát lề phải không tràn ngang */
-thead th.c-nv, tbody td.c-nv{white-space:normal; min-width:140px; max-width:220px;}
-thead th.c-ql, tbody td.c-ql{white-space:normal; min-width:110px; max-width:170px;}
+/* TIÊU ĐỀ CỘT ghi thẳng, KHÔNG xuống dòng; HỌ TÊN mỗi người 1 dòng (<br>), không gãy giữa tên */
+#pane-task thead th{white-space:nowrap;}
+tbody td.c-nv, tbody td.c-ql{white-space:nowrap;}
 thead th.c-loi, tbody td.c-loi{max-width:270px;}
-thead th.c-freq{white-space:normal; width:110px;}   /* header "Tần suất vi phạm" gói 2 dòng cho gọn */
-.table-wrap{overflow-x:auto;}                        /* màn quá hẹp -> cuộn ngang thay vì vỡ cột */
-@media (max-width:1300px){                           /* laptop nhỏ: siết cột để đủ 10 cột không tràn */
-  thead th.c-loi, tbody td.c-loi{max-width:185px;}
-  thead th.c-nv, tbody td.c-nv{max-width:155px;}
-  thead th.c-ql, tbody td.c-ql{max-width:125px;}
-  thead th.c-ngay, tbody td.c-ngay{width:94px; white-space:normal;}
-  thead th.c-status, tbody td.c-status{width:106px; white-space:normal;}
-  thead th.c-bb, tbody td.c-bb{width:104px;}
-  thead th.c-anh, tbody td.c-anh{width:56px;}
-  tbody td.c-freq{white-space:normal; max-width:112px;}   /* "Lần n/tháng" + KPI xuống 2 dòng */
-}
+.table-wrap{overflow-x:auto;}                        /* bảng rộng hơn màn -> cuộn ngang, không bóp cột */
+@media (max-width:1300px){ thead th.c-loi, tbody td.c-loi{max-width:200px;} }
+/* ===== BẢNG LUỸ KẾ KPI TRỪ (tab Tổng quan) ===== */
+.kpi-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+.kpi-wrap table{width:100%; border-collapse:collapse; font-size:13px;}
+.kpi-wrap thead th{position:sticky; top:0; background:var(--surface2); text-align:left; color:var(--muted); font-weight:600; padding:9px 14px; white-space:nowrap; z-index:1;}
+.kpi-wrap tbody td{padding:9px 14px; border-top:1px solid var(--border); white-space:nowrap;}
+.kpi-wrap tbody tr[data-kpi]{cursor:pointer;}
+.kpi-wrap tbody tr[data-kpi]:hover{background:var(--hover);}
+.kpi-sep td{background:var(--surface2); color:var(--muted); font-weight:600; font-size:12px; white-space:normal;}
+#kpiThang{max-width:180px;}
+/* ===== 7 THẺ TỔNG KẾT: ẩn trong bộ chọn ===== */
+.btn-cards{display:block; width:100%; text-align:left; margin-bottom:12px;}
+.cards.collapsed{display:none;}
 .bb-up{padding:3px 8px; font-size:12px; line-height:1.3; border-radius:6px; white-space:nowrap;}
 .bb-up:hover{border-color:var(--accent); color:var(--accent);}
 
@@ -609,7 +611,16 @@ thead th.c-freq{white-space:normal; width:110px;}   /* header "Tần suất vi p
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
   <section id="pane-tong" class="pane">
-    <div class="cards" id="cards">
+    <!-- Luỹ kế KPI trừ trong tháng -->
+    <div class="panel" style="margin-bottom:14px">
+      <div class="panel-head"><span>Luỹ kế KPI trừ trong tháng</span>
+        <select id="kpiThang" title="Chọn tháng/năm"></select></div>
+      <div class="kpi-wrap" id="kpiWrap"><div style="padding:16px"><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:60%"></div></div></div>
+    </div>
+    <p class="foot" style="margin:0 0 14px">Tính từ <b>Ngày khai báo</b> của task trong tháng được chọn · KPI trừ theo hạng mục QUY-DINH và lần vi phạm luỹ tiến · <b>bấm 1 dòng</b> để xem các task chi tiết. Quản lý nghiệp vụ: −0.2%/lượt <b>xác minh được</b> NV, −1%/lượt <b>không xác minh được</b>; không tính lượt mà chính quản lý là NV vi phạm.</p>
+
+    <button class="btn-cards" id="btnCards">Tổng kết nhanh (7 mục) — chạm để mở</button>
+    <div class="cards collapsed" id="cards">
       <div class="card"><div class="sk sk-card"></div></div>
       <div class="card"><div class="sk sk-card"></div></div>
       <div class="card"><div class="sk sk-card"></div></div>
@@ -935,6 +946,8 @@ const nameVP = r => {
 };
 // Khoá gộp NV (không trùng): dùng mã làm khoá, hiển thị theo nameVP
 const keyVP = r => codeVP(r);
+// Hiển thị danh sách tên: MỖI NGƯỜI 1 DÒNG (đầy đủ họ tên, không gãy giữa tên)
+const lines = v => { const p=String(v||'').split(',').map(s=>s.trim()).filter(Boolean); return p.length?p.map(esc).join('<br>'):'—'; };
 const b2Loi = r => (iB2loi>=0 ? String(r[iB2loi]||"").trim() : "");
 const kpVP  = r => (iKP>=0 ? String(r[iKP]||"").trim() : "");
 const daHuy = r => STATUS_COLS.some(i => /cancel/i.test(String(r[i]||"")));
@@ -994,7 +1007,7 @@ function taiDuLieu(){
       });
       DL_COLS=H.map((h,i)=>i).filter(i=>/deadline/i.test(nhanCuoi(H[i])));   // mốc khoá biên bản 96h
       tinhTanSuat();                                                          // bộ đếm tần suất vi phạm/tháng
-      napLoc(); render();
+      napLoc(); render(); napKpiThang();                                      // bảng luỹ kế KPI (tab Tổng quan)
       const gio = new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
       $('meta').textContent = ROWS.length + " task · cập nhật lúc " + gio + " · tự làm mới mỗi 5 phút · nhấp 1 dòng để xem chi tiết.";
       if(firstLoad){ $('pane-tong').style.animation='none'; requestAnimationFrame(()=>{ $('pane-tong').style.animation=''; }); firstLoad=false; }
@@ -1039,7 +1052,7 @@ const STATS = {
           pick:d=>d.filter(r=>codeVP(r)),
           count:rows=>new Set(rows.map(keyVP)).size},
   chuaXM:{cap:"Chưa xác minh NV vi phạm (B1)", color:"var(--warn)",
-          pick:d=>d.filter(r=>!codeVP(r))},
+          pick:d=>d.filter(r=>!codeVP(r) && !daHuy(r))},   // bỏ task đã huỷ (huỷ thì không cần xác minh)
   loiCN: {cap:"Lỗi cá nhân", color:"var(--bad)",
           pick:d=>d.filter(r=>b2Loi(r)==="Lỗi cá nhân")},
   koCN:  {cap:"Không phải lỗi cá nhân", color:"var(--info)",
@@ -1107,6 +1120,75 @@ function bbKhoa(r){
   return max!=null && (Date.now()-max)>KHOA_BB_MS;
 }
 
+/* ===== LUỸ KẾ KPI TRỪ TRONG THÁNG (tab Tổng quan) =====
+   - NV vi phạm: mỗi lượt trong tháng (theo Ngày khai báo, luỹ tiến) trừ %KPI của hạng mục theo lần.
+   - Quản lý nghiệp vụ: −0.2%/lượt XÁC MINH ĐƯỢC (task có mã NV), −1%/lượt KHÔNG xác minh được;
+     KHÔNG tính lượt mà chính quản lý nằm trong "Nhân viên vi phạm". */
+const QL_NGHIEP_VU=[["võ văn đức","Võ Văn Đức"],["hà trọng thúc bằng","Hà Trọng Thúc Bằng"],
+  ["lê thị ngọc huyền","Lê Thị Ngọc Huyền"],["hồ ngọc tú uyên","Hồ Ngọc Tú Uyên"],["diệp quốc hải","Diệp Quốc Hải"]];
+let KPI_DATA=null;
+const ymOf=r=>{const t=ngayMs(r[iNgayVP]);if(t==null)return null;const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+function napKpiThang(){
+  const cur=$('kpiThang').value;
+  const yms=[...new Set(ROWS.map(ymOf).filter(Boolean))].sort().reverse();
+  $('kpiThang').innerHTML=yms.map(y=>{const[a,b]=y.split("-");return `<option value="${y}">Tháng ${b}/${a}</option>`;}).join('');
+  if(yms.includes(cur)) $('kpiThang').value=cur;
+  renderKpi();
+}
+function renderKpi(){
+  const ym=$('kpiThang').value;
+  if(!ym){ $('kpiWrap').innerHTML='<div class="empty-row">Chưa có dữ liệu.</div>'; return; }
+  // --- NV vi phạm ---
+  const grp={}, tenMa={};
+  ROWS.forEach(r=>{
+    if(ymOf(r)!==ym) return;
+    const t=ngayMs(r[iNgayVP]);
+    const names=iNVName>=0?String(r[iNVName]||'').split(',').map(s=>s.trim()):[];
+    codeVP(r).split(',').map(s=>s.trim()).filter(Boolean).forEach((cd,ci)=>{
+      (grp[cd]=grp[cd]||[]).push({t,r});
+      if(names[ci]&&/\p{L}/u.test(names[ci])) tenMa[cd]=names[ci];
+    });
+  });
+  const nv=Object.entries(grp).map(([cd,list])=>{
+    list.sort((a,b)=>a.t-b.t);
+    let kpi=0; list.forEach((e,i)=>{ const k=Number(kpiTheoLoi(e.r[iLoi],i+1)); if(!isNaN(k)) kpi+=k; });
+    return {id:cd, ten:NV_MAP[cd]||tenMa[cd]||NAME_BY_CODE[cd]||("Mã "+cd), luot:list.length, kpi, list:list.map(e=>e.r)};
+  }).sort((a,b)=>b.kpi-a.kpi||b.luot-a.luot);
+  // --- Quản lý nghiệp vụ ---
+  const chuanTen=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const ql=QL_NGHIEP_VU.map(([key,ten])=>{
+    let xm=0,kxm=0; const list=[];
+    ROWS.forEach(r=>{
+      if(ymOf(r)!==ym) return;
+      if(chuanTen(iQLTT>=0?r[iQLTT]:'').indexOf(key)<0) return;
+      if(chuanTen(nameVP(r)).indexOf(key)>=0) return;        // chính QL là NV vi phạm -> không tính
+      if(codeVP(r)) xm++; else kxm++;
+      list.push(r);
+    });
+    return {ten,xm,kxm,kpi:Math.round((xm*0.2+kxm*1)*100)/100,list};
+  }).filter(q=>q.list.length);
+  KPI_DATA={nv,ql,ym};
+  const fmt=v=>{const s=String(Math.round(v*100)/100).replace('.',',');return v>0?`<span class="kpi-neg">−${s}% KPI</span>`:'<span class="kpi-zero">0% KPI</span>';};
+  let h='<table><thead><tr><th>ID</th><th>Họ và tên</th><th>Lượt ghi nhận</th><th>KPI trừ luỹ kế</th></tr></thead><tbody>';
+  h+=nv.map((x,i)=>`<tr data-kpi="nv:${i}" title="Bấm xem các task trong tháng"><td>${esc(x.id)}</td><td><b>${esc(x.ten)}</b></td><td>${x.luot}</td><td>${fmt(x.kpi)}</td></tr>`).join('')
+     ||'<tr><td colspan="4"><div class="empty-row">Không có NV vi phạm trong tháng này.</div></td></tr>';
+  if(ql.length){
+    h+='<tr class="kpi-sep"><td colspan="4">Quản lý nghiệp vụ — KPI theo trách nhiệm xác minh (−0.2%/lượt xác minh được · −1%/lượt không xác minh được)</td></tr>';
+    h+=ql.map((x,i)=>`<tr data-kpi="ql:${i}" title="Bấm xem các task trong tháng"><td>QL</td><td><b>${esc(x.ten)}</b></td><td>${x.xm+x.kxm} <span class="muted">(${x.xm} XM · ${x.kxm} không XM)</span></td><td>${fmt(x.kpi)}</td></tr>`).join('');
+  }
+  h+='</tbody></table>';
+  $('kpiWrap').innerHTML=h;
+}
+function moKpiChiTiet(loai,idx){
+  if(!KPI_DATA) return;
+  const x=(loai==='nv'?KPI_DATA.nv:KPI_DATA.ql)[idx]; if(!x) return;
+  const rows=(x.list||[]).slice().sort(cmpNgayDesc);
+  const [nam,thang]=KPI_DATA.ym.split('-');
+  $('stTitle').textContent=(loai==='nv'?(x.ten+' ('+x.id+')'):(x.ten+' — Quản lý nghiệp vụ'))+' · tháng '+thang+'/'+nam+' · '+rows.length+' task';
+  $('stBody').innerHTML=rowsTableHTML(rows);
+  $('statModal').classList.add('show');
+}
+
 const STAT_ORDER=["nv","chuaXM","loiCN","koCN","kpDat","kpChua","huy"];
 
 /* ===== RENDER (debounce bằng requestAnimationFrame — mượt, không lag) ===== */
@@ -1132,8 +1214,8 @@ function _render(){
       <td class="c-ngay">${esc(fmtNgay(r[iNgayVP]))}</td>
       <td class="c-vitri">${esc(r[iViTri])}</td>
       <td class="c-loi" title="${esc(r[iLoi])}">${esc(r[iLoi])}</td>
-      <td class="c-nv">${esc(nameVP(r)||'—')}</td>
-      <td class="c-ql">${iQLTT>=0?esc(r[iQLTT]||'—'):'—'}</td>
+      <td class="c-nv">${lines(nameVP(r))}</td>
+      <td class="c-ql">${iQLTT>=0?lines(r[iQLTT]):'—'}</td>
       <td class="c-anh">${anh}</td>
       <td class="c-freq">${freqCell(gi,r)}</td>
       <td class="c-flex"></td>
@@ -1151,7 +1233,7 @@ function _render(){
       <div class="cl-body">
         <div class="cl-top">${statusBadge(r)}</div>
         <div class="cl-loi">${esc(r[iLoi]||'')}</div>
-        ${kv('Vị trí',r[iViTri])}${kv('Ngày khai báo',fmtNgay(r[iNgayVP]))}${kv('NV vi phạm',nameVP(r))}${kv('QL trực tiếp',iQLTT>=0?r[iQLTT]:'')}
+        ${kv('Vị trí',r[iViTri])}${kv('Ngày khai báo',fmtNgay(r[iNgayVP]))}${nameVP(r)?`<div class="cl-kv">NV vi phạm: <b>${lines(nameVP(r))}</b></div>`:''}${iQLTT>=0&&r[iQLTT]?`<div class="cl-kv">QL trực tiếp: <b>${lines(r[iQLTT])}</b></div>`:''}
         <div class="cl-kv">Tần suất: ${freqCell(gi,r)}</div>
         <div class="cl-kv" style="margin-top:6px">Biên bản: ${bbCell(r)}</div>
       </div>
@@ -1167,8 +1249,8 @@ function rowsTableHTML(rows){
       <td class="c-ngay">${esc(fmtNgay(r[iNgayVP]))}</td>
       <td>${esc(r[iViTri]||'—')}</td>
       <td class="c-loi" title="${esc(r[iLoi])}">${esc(r[iLoi]||'—')}</td>
-      <td>${esc(nameVP(r)||'—')}</td>
-      <td>${iQLTT>=0?esc(r[iQLTT]||'—'):'—'}</td>
+      <td>${lines(nameVP(r))}</td>
+      <td>${iQLTT>=0?lines(r[iQLTT]):'—'}</td>
       <td>${statusCell(r)}</td></tr>`;
   }).join('');
   return `<table><thead><tr>
@@ -1375,7 +1457,7 @@ function taiQuyDinh(){
     const rows=((resp.table&&resp.table.rows)||[]).map(r=>(r.c||[]).map(c=>c?(c.v==null?"":c.v):""));
     QD=rows.filter(r=>/^\d+$/.test(String(r[0]).trim()));   // chỉ giữ dòng có STT là số (bỏ header phụ)
     renderQuyDinh();
-    if(ROWS.length) render();   // QD về sau dữ liệu task -> vẽ lại để cột Tần suất có %KPI
+    if(ROWS.length){ render(); renderKpi(); }   // QD về sau dữ liệu task -> vẽ lại Tần suất + bảng luỹ kế KPI
   }catch(e){ $('hmWrap').innerHTML='<div class="empty-row">Lỗi đọc QUY-DINH: '+esc(e.message)+'</div>'; } delete window[cb]; };
   const s=document.createElement('script');
   s.src="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?sheet="+encodeURIComponent(TAB_QD)+"&headers=1&tqx=out:json;responseHandler:"+cb;
@@ -1633,6 +1715,9 @@ document.addEventListener('click', e=>{
   // Hạng mục 5S: bấm 1 hạng mục -> pop-up minh hoạ SAI/ĐÚNG
   const hm=e.target.closest('[data-hm]');
   if(hm){ moHinhHangMuc(+hm.dataset.hm); return; }
+  // Bảng luỹ kế KPI: bấm 1 dòng (NV/QL) -> pop-up các task trong tháng
+  const kp=e.target.closest('[data-kpi]');
+  if(kp){ const [lo,ix]=kp.dataset.kpi.split(':'); moKpiChiTiet(lo,+ix); return; }
   const row=e.target.closest('[data-i]');
   if(row && !e.target.closest('.thumb') && !e.target.closest('a')){ moChiTiet(+row.dataset.i); return; }
   // Thumb trong modal -> lightbox carousel
@@ -1678,6 +1763,11 @@ $('gmClose').addEventListener('click',dongGhiNhan);
 $('ghiModal').addEventListener('click',e=>{ if(e.target.id==='ghiModal') dongGhiNhan(); });
 $('hmmClose').addEventListener('click',dongHinhHangMuc);
 $('hmModal').addEventListener('click',e=>{ if(e.target.id==='hmModal') dongHinhHangMuc(); });
+$('kpiThang').addEventListener('change',renderKpi);
+$('btnCards').addEventListener('click',()=>{
+  const dong=$('cards').classList.toggle('collapsed');
+  $('btnCards').textContent='Tổng kết nhanh (7 mục) — chạm để '+(dong?'mở':'đóng');
+});
 $('bbFile').addEventListener('change',e=>{ taiBienBanLen(e.target.files); });
 
 // ---- Date picker wiring ----
