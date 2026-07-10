@@ -43,8 +43,8 @@ var TEN_SHEET_TASKS = '5S-TASKS';   // tab mirror toàn bộ task workflow (cho 
 
 // 🔒 BẢO MẬT DỮ LIỆU CÁ NHÂN: các tab chứa PII (họ tên/email/chấm công) ghi sang 1 SHEET RIÊNG
 //    KHÔNG chia sẻ công khai. Dashboard KHÔNG đọc các tab này nên không ảnh hưởng.
-//    ĐẶT ID sheet riêng (tạo tay, chỉ chia sẻ nội bộ) vào đây; để trống '' = vẫn ghi vào sheet hiện tại.
-var PRIVATE_SHEET_ID = '';                       // vd '1AbC...'; trống = chưa tách (giữ hành vi cũ)
+//    ID sheet riêng được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng() 1 lần.
+var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
 var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];         // tab nhạy cảm -> ghi vào PRIVATE_SHEET_ID
 
 /* ----------------------------- POST: lưu form / sync ----------------------------- */
@@ -99,6 +99,38 @@ function apiCheckPin(e) {
   var cb = e.parameter.callback || 'cb';
   var ok = (e.parameter.pin || '') === SYNC_PIN;
   return phanHoiJsonp(cb, { status: 'success', ok: ok });
+}
+
+/**
+ * ⚙️ CHẠY 1 LẦN trong editor (chọn hàm thietLapSheetRieng → Run):
+ *   1) Tạo Spreadsheet RIÊNG "WMS-5S-NHANSU" (mặc định KHÔNG chia sẻ công khai), lưu ID vào Script Properties.
+ *   2) Chuyển tab NHAN-SU + CHAM-CONG (kèm dữ liệu) từ sheet công khai sang sheet riêng.
+ *   3) XOÁ 2 tab đó khỏi sheet công khai → hết lộ dữ liệu cá nhân qua gviz.
+ *   Từ đó apiSyncTasks tự ghi 2 tab này vào sheet riêng. Chạy lại an toàn (idempotent).
+ *   (Lần đầu Apps Script sẽ hỏi cấp quyền Drive/Spreadsheet — bấm Cho phép.)
+ */
+function thietLapSheetRieng() {
+  var props = PropertiesService.getScriptProperties();
+  var pubSS = SpreadsheetApp.getActiveSpreadsheet();
+  var priv = null, id = props.getProperty('PRIVATE_SHEET_ID');
+  if (id) { try { priv = SpreadsheetApp.openById(id); } catch (e) { priv = null; } }
+  if (!priv) {
+    priv = SpreadsheetApp.create('WMS-5S-NHANSU (RIENG - khong chia se cong khai)');
+    props.setProperty('PRIVATE_SHEET_ID', priv.getId());
+  }
+  var log = ['Sheet rieng: ' + priv.getUrl()];
+  for (var i = 0; i < PII_TABS.length; i++) {
+    var tab = PII_TABS[i], src = pubSS.getSheetByName(tab);
+    if (!src) { log.push(tab + ': khong co o sheet cong khai (bo qua)'); continue; }
+    var old = priv.getSheetByName(tab); if (old) priv.deleteSheet(old);   // ghi de ban cu
+    src.copyTo(priv).setName(tab);                                        // copy ca du lieu + dinh dang
+    if (pubSS.getSheets().length > 1) pubSS.deleteSheet(src);             // xoa khoi cong khai
+    log.push(tab + ': da chuyen sang sheet rieng + xoa khoi cong khai');
+  }
+  var def = priv.getSheetByName('Sheet1'); if (def && priv.getSheets().length > 1) { try { priv.deleteSheet(def); } catch (e) {} }
+  var msg = 'XONG.\n' + log.join('\n') + '\n(ID da luu Script Properties -> apiSyncTasks tu ghi vao sheet rieng)';
+  Logger.log(msg);
+  return msg;
 }
 
 /** Trả JSONP (cho dashboard gọi cross-origin qua thẻ <script>). */
