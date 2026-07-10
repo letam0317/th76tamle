@@ -1278,12 +1278,25 @@ function renderQuyDinh(){
 
 /* ===== GHI NHẬN 5S — nhúng form-5s qua iframe, mở khi nhập đúng PIN ===== */
 const FORM_URL="form.html";   // bản form ghi nhận nằm ngay trong repo kiemsoatkho (không phụ thuộc link cũ th76tamle/form-5s)
+// Kiểm PIN PHÍA MÁY CHỦ (Apps Script) — PIN KHÔNG còn nằm trong mã nguồn front-end.
 function moGhiNhan(){
   const pin=prompt("Nhập PIN để ghi nhận vi phạm 5S:");
   if(pin===null) return;
-  if(pin.trim()!=="233135"){ alert("Sai PIN."); return; }
-  if(!$('gmFrame').getAttribute('src')) $('gmFrame').setAttribute('src',FORM_URL);   // nạp form lần đầu
-  $('ghiModal').classList.add('show');
+  if(!pin.trim()) return;
+  const cb="cp_"+Date.now();
+  let s=null; const to=setTimeout(()=>{ done(); alert("Không kết nối được máy chủ để kiểm PIN."); },12000);
+  function done(){ clearTimeout(to); delete window[cb]; if(s&&s.parentNode) s.remove(); }
+  window[cb]=resp=>{ done();
+    if(resp && resp.ok===true){
+      if(!$('gmFrame').getAttribute('src')) $('gmFrame').setAttribute('src',FORM_URL);   // nạp form lần đầu
+      $('ghiModal').classList.add('show');
+    } else if(resp && resp.ok===false){ alert("Sai PIN."); }
+    else { alert("Máy chủ chưa hỗ trợ kiểm PIN — vui lòng cập nhật (triển khai lại) Apps Script."); }
+  };
+  s=document.createElement('script');
+  s.src=APPSCRIPT_URL+"?action=checkPin&pin="+encodeURIComponent(pin)+"&callback="+cb;
+  s.onerror=()=>{ done(); alert("Không kết nối được máy chủ."); };
+  document.body.appendChild(s);
 }
 function dongGhiNhan(){ $('ghiModal').classList.remove('show'); }
 
