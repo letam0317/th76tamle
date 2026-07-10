@@ -24,6 +24,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { luuNhieu } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCK = path.join(DIR, ".login-open.lock");
@@ -79,8 +80,12 @@ const browser = await puppeteer.launch({
 });
 const page = (await browser.pages())[0] || (await browser.newPage());
 
-let ok = false;
-page.on("request", (req) => { const a = req.headers()["authorization"]; if (a && /wshr\.hasaki\.vn/.test(req.url())) ok = true; });
+let ok = false, tokWork = null, tokHr = null;
+// Bắt token cho CẢ work lẫn hr trong 1 phiên đăng nhập → 1 lần login đủ cho cả 3 bộ.
+page.on("request", (req) => {
+  const a = req.headers()["authorization"];
+  if (a && /wshr\.hasaki\.vn/.test(req.url())) { ok = true; if (/hr\.hasaki\.vn/.test(page.url())) tokHr = a; else tokWork = a; }
+});
 
 await page.goto("https://work.hasaki.vn/tasks-workflow?wfid=591", { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
 log(SECRET ? ("⏳ Tự đăng nhập" + (DRY_OTP ? " (DRY-OTP: sẽ KHÔNG nộp OTP)..." : "...")) : (EMAIL ? "⏳ Tự điền email+mật khẩu (bạn gõ OTP)..." : "ℹ️  Thiếu .env → đăng nhập tay."));
@@ -195,12 +200,25 @@ const nhip = setInterval(tick, 1000);
 
 const HAN = AUTO ? 4 * 60 * 1000 : 15 * 60 * 1000;
 const t0 = Date.now();
+// Sau khi đăng nhập OK: chụp LUÔN token hr.hasaki (session đã có) → nạp kho CẢ work + hr,
+// để 1 lần đăng nhập là đủ cho cả 3 bộ, các bộ khác không phải mở trình duyệt/đăng nhập lại.
+let dangKetThuc = false;
+async function ketThucThanhCong() {
+  if (dangKetThuc) return; dangKetThuc = true;
+  clearInterval(theoDoi); clearInterval(nhip);
+  log("✅ Đăng nhập thành công.");
+  try {
+    if (!tokHr) {
+      await page.goto("https://hr.hasaki.vn/", { waitUntil: "networkidle2", timeout: 30000 }).catch(() => {});
+      for (let i = 0; i < 12 && !tokHr; i++) await new Promise((r) => setTimeout(r, 700));
+    }
+  } catch {}
+  try { luuNhieu(DIR, { work: tokWork, hr: tokHr }); log("  ✓ Nạp kho token: work=" + (tokWork ? "có" : "—") + ", hr=" + (tokHr ? "có" : "—") + "."); } catch (e) { log("  (không nạp được kho token: " + e.message + ")"); }
+  browser.close().catch(() => {});
+}
 const theoDoi = setInterval(() => {
-  if (ok) {
-    clearInterval(theoDoi); clearInterval(nhip);
-    log("✅ Đăng nhập thành công. Đóng ngay.");
-    browser.close().catch(() => {});
-  } else if (Date.now() - t0 > HAN) {
+  if (ok) { ketThucThanhCong(); }
+  else if (Date.now() - t0 > HAN) {
     clearInterval(theoDoi); clearInterval(nhip);
     log("⏰ Quá hạn chưa đăng nhập được (Turnstile/OTP?). Đóng.");
     browser.close().catch(() => {});

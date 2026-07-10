@@ -159,7 +159,7 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
   fs.mkdirSync(EXPORT_DIR, { recursive: true });
   fs.writeFileSync(RUN_LOCK, String(Date.now()));
   process.on("exit", () => { try { fs.rmSync(RUN_LOCK, { force: true }); } catch {} });
-  const token = await layTokenTuPhucHoi(getToken, DIR, log).catch(e => { log("✗ " + e.message); process.exit(2); });
+  const token = await layTokenTuPhucHoi(getToken, DIR, log, "work").catch(e => { log("✗ " + e.message); process.exit(2); });
   log("✓ Đã lấy token.");
   const nvDir = await layDanhBaNV(token);   // danh bạ NV để đổi mã → họ tên
 

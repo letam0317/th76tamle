@@ -170,7 +170,7 @@ async function createTask(token, row, type00) {
   if (!rows.length) { log("Không có gì để đẩy (không mở Edge). Xong."); process.exit(0); }
 
   let token;
-  try { token = await layTokenTuPhucHoi(getToken, DIR, log); log("✓ Đã lấy token."); }
+  try { token = await layTokenTuPhucHoi(getToken, DIR, log, "work"); log("✓ Đã lấy token."); }
   catch (e) { log("✗ " + e.message); await sendAlert(e.message); process.exit(2); }
 
   const options = await getType00Options(token);

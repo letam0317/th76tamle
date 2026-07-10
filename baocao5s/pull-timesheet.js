@@ -82,7 +82,7 @@ async function keoTimesheet(token, majorId, from, to) {
     const caps = await fetch(APPSCRIPT_URL + "?action=caps&key=" + encodeURIComponent(APPSCRIPT_KEY)).then(r => r.json()).catch(() => null);
     if (!caps || caps.timesheet !== true) { log("✗ Apps Script chưa redeploy (chưa hỗ trợ ghi tab). BỎ QUA."); process.exit(3); }
   }
-  const token = await layTokenTuPhucHoi(getToken, DIR, log).catch(e => { log("✗ " + e.message); process.exit(2); });
+  const token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
   const today = homNay();
   log("✓ Token hr.hasaki.vn. Ngày chấm công: " + today);
 
