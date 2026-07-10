@@ -1075,7 +1075,8 @@ function tinhTanSuat(){
   }
 }
 // Tra %KPI trừ của hạng mục theo lần (QUY-DINH: cột 3=lần1, 6=lần2, 9=lần3+); khớp theo text "Lỗi vi phạm".
-const _chuan=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+// LƯU Ý: WMS export làm rơi dấu phẩy trong text ("Ăn uống  nghỉ ngơi...") -> chuẩn hoá BỎ DẤU CÂU khi so khớp.
+const _chuan=s=>String(s||'').toLowerCase().replace(/[.,;:!?()"'“”‘’–—]/g,' ').replace(/\s+/g,' ').trim();
 function kpiTheoLoi(loi,lan){
   if(!QD.length) return null;
   const n=_chuan(loi); if(!n) return null;
