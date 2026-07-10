@@ -227,6 +227,14 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
     const base = Array.from({ length: header.length }, (_, i) => (r[i] != null ? r[i] : ""));
     base.push(nvIdx >= 0 ? tenNVvp(base[nvIdx], resolver) : "");
     base.push(bbByCode[code] || "");
+    // CHỐNG SHEETS NUỐT DẤU PHẨY + CHỐNG GVIZ MIXED-TYPE:
+    //  - "260997,251308" bị Sheets hiểu là SỐ 260997251308 (phẩy = hàng nghìn) -> mất tách mã.
+    //  - Nếu chỉ vài ô là text còn đa số là số -> gviz gán kiểu cột = số và trả ô text về RỖNG.
+    //  => Ép CẢ CỘT thành text bằng tiền tố ' (chuẩn Sheets, không hiển thị) — mọi ô cùng kiểu chuỗi.
+    if (nvIdx >= 0 && String(base[nvIdx] || "").trim() !== "") {
+      const cds = String(base[nvIdx]).split(",").map(s => s.trim()).filter(Boolean);
+      base[nvIdx] = "'" + cds.join(", ");
+    }
     return base;
   });
   // Tích luỹ vào kho tên: mọi mã NV xuất hiện + tra được -> lưu lại vĩnh viễn.
