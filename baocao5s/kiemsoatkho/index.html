@@ -425,6 +425,17 @@ thead th.c-status, tbody td.c-status{width:150px;}
 #pane-hangmuc td.hm-loi{white-space:pre-wrap; min-width:200px; max-width:340px; line-height:1.4; color:var(--bad);}
 #pane-hangmuc td.hm-nv{white-space:normal; min-width:110px; font-weight:600; font-size:12px;}
 #pane-hangmuc th.hm-lan, #pane-hangmuc td.hm-lan{white-space:normal; width:160px; min-width:130px; text-align:center; line-height:1.4;}
+/* vạch ngăn cách giữa 3 cột "Vi phạm lần" (hài hoà theme, dùng màu viền chung) */
+#pane-hangmuc th.hm-lan, #pane-hangmuc td.hm-lan{border-left:1px solid var(--border);}
+/* chỉ số KPI trừ: TÔ ĐỎ hài hoà theme (dùng --bad của từng theme), đậm nhẹ - không thô */
+.kpi-neg{color:var(--bad); font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.kpi-zero{color:var(--muted); white-space:nowrap;}
+.hm-sep{color:var(--muted); opacity:.6;}
+/* mobile: mỗi "lần" 1 dòng, có vạch ngăn nhẹ */
+.hm-c-lan{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:5px 0; border-top:1px solid var(--border); font-size:12.5px;}
+.hm-c-lan:first-child{border-top:0;}
+.hm-c-k{color:var(--muted); font-weight:600; flex:0 0 auto;}
+.hm-c-lan>span:last-child{text-align:right;}
 /* mục giải nghĩa */
 .hm-legend{margin-top:16px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; box-shadow:var(--shadow);}
 .hm-lg-h{font-size:14px; font-weight:700; color:var(--accent); margin-bottom:12px; text-transform:uppercase; letter-spacing:.04em;}
@@ -635,9 +646,9 @@ tbody td.c-bb{width:118px; white-space:normal;}
           <div class="hm-lg-t">KPI trừ theo trách nhiệm xác minh <span style="font-weight:500;color:var(--muted)">(áp dụng cho Quản lý nghiệp vụ — QLPTCH / QLĐG)</span></div>
           <p style="margin:0 0 7px">Dành cho <b>quản lý nghiệp vụ phụ trách Khu vực/Vị trí</b>: mức trừ tuỳ khả năng truy ra cá nhân vi phạm.</p>
           <ul>
-            <li><b class="hm-neg">−1</b> — QL <b>không xác minh được</b> cá nhân/nhóm chịu trách nhiệm</li>
-            <li><b class="hm-neg">−0.2</b> — QL <b>xác minh được</b> cá nhân/nhóm chịu trách nhiệm</li>
-            <li><b>0</b> — Không phát sinh vi phạm hạng mục</li>
+            <li>Ghi nhận <span class="kpi-neg">−1% KPI</span> trên mỗi lượt vi phạm <b>không xác minh được</b> cá nhân/nhóm chịu trách nhiệm</li>
+            <li>Ghi nhận <span class="kpi-neg">−0.2% KPI</span> trên mỗi lượt vi phạm <b>xác minh được</b> cá nhân/nhóm chịu trách nhiệm</li>
+            <li><span class="kpi-zero">0% KPI</span> — Không phát sinh vi phạm hạng mục</li>
           </ul>
         </div>
         <div class="hm-lg-card hm-lg-wide">
@@ -1243,21 +1254,26 @@ function taiQuyDinh(){
   document.body.appendChild(s); setTimeout(()=>s.remove(),30000);
 }
 // Hiển thị đầy đủ 1 lần vi phạm: "−X% KPI · Hạ KN · <Xử lý khác>"
+// Trả về HTML (đã esc phần động). Chỉ số KPI trừ được TÔ ĐỎ qua class kpi-neg.
 function lanTxt(kpi,haKN,xuLy){
   const parts=[]; const k=String(kpi).trim();
-  if(k!==""){ parts.push((k==="0"||Number(k)===0)?"0% KPI":("−"+k+"% KPI")); }
+  if(k!==""){
+    parts.push((k==="0"||Number(k)===0)
+      ? '<span class="kpi-zero">0% KPI</span>'
+      : `<span class="kpi-neg">−${esc(k)}% KPI</span>`);
+  }
   if(String(haKN).trim()==="Có") parts.push("Hạ KN");
-  const x=String(xuLy).trim(); if(x && x!=="Không") parts.push(x);
-  return parts.length?parts.join(" · "):"—";
+  const x=String(xuLy).trim(); if(x && x!=="Không") parts.push(esc(x));
+  return parts.length?parts.join('<span class="hm-sep"> · </span>'):"—";
 }
 function renderQuyDinh(){
   const tim=($('hmTim').value||"").toLowerCase().trim();
   const d=QD.filter(r=> !tim || String(r[1]).toLowerCase().includes(tim));
   $('hmDem').textContent=d.length+" hạng mục";
   $('hmWrap').innerHTML='<table><thead><tr><th class="hm-stt">STT</th><th>Hạng mục 5S</th><th class="hm-lan">Vi phạm lần 1</th><th class="hm-lan">Vi phạm lần 2</th><th class="hm-lan">Vi phạm lần 3+</th></tr></thead><tbody>'+
-    (d.map(r=>`<tr><td class="hm-stt">${esc(r[0])}</td><td class="hm-qd">${esc(r[1])}</td><td class="hm-lan">${esc(lanTxt(r[3],r[4],r[5]))}</td><td class="hm-lan">${esc(lanTxt(r[6],r[7],r[8]))}</td><td class="hm-lan">${esc(lanTxt(r[9],r[10],r[11]))}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty-row">Không có hạng mục khớp.</div></td></tr>')+
+    (d.map(r=>`<tr><td class="hm-stt">${esc(r[0])}</td><td class="hm-qd">${esc(r[1])}</td><td class="hm-lan">${lanTxt(r[3],r[4],r[5])}</td><td class="hm-lan">${lanTxt(r[6],r[7],r[8])}</td><td class="hm-lan">${lanTxt(r[9],r[10],r[11])}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty-row">Không có hạng mục khớp.</div></td></tr>')+
     '</tbody></table>';
-  $('hmCards').innerHTML=d.map(r=>`<div class="cl-item" style="cursor:default"><div class="cl-body"><div class="cl-top"><b>Hạng mục #${esc(r[0])}</b></div><div class="cl-kv" style="white-space:pre-wrap;margin-top:2px;color:var(--text)">${esc(r[1])}</div><div class="cl-kv" style="margin-top:6px;color:var(--muted)"><b>L1:</b> ${esc(lanTxt(r[3],r[4],r[5]))} · <b>L2:</b> ${esc(lanTxt(r[6],r[7],r[8]))} · <b>L3+:</b> ${esc(lanTxt(r[9],r[10],r[11]))}</div></div></div>`).join('')||'<div class="empty-row">Không có hạng mục khớp.</div>';
+  $('hmCards').innerHTML=d.map(r=>`<div class="cl-item" style="cursor:default"><div class="cl-body"><div class="cl-top"><b>Hạng mục #${esc(r[0])}</b></div><div class="cl-kv" style="white-space:pre-wrap;margin-top:2px;color:var(--text)">${esc(r[1])}</div><div class="hm-c-lans" style="margin-top:8px"><div class="hm-c-lan"><span class="hm-c-k">Lần 1</span><span>${lanTxt(r[3],r[4],r[5])}</span></div><div class="hm-c-lan"><span class="hm-c-k">Lần 2</span><span>${lanTxt(r[6],r[7],r[8])}</span></div><div class="hm-c-lan"><span class="hm-c-k">Lần 3+</span><span>${lanTxt(r[9],r[10],r[11])}</span></div></div></div></div>`).join('')||'<div class="empty-row">Không có hạng mục khớp.</div>';
 }
 
 /* ===== GHI NHẬN 5S — nhúng form-5s qua iframe, mở khi nhập đúng PIN ===== */
