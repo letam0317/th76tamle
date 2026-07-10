@@ -71,11 +71,13 @@
 /* ===== HASAKI: watermark logo bóng mờ + font Inter (CHỈ theme hasaki) ===== */
 #hskMark{position:fixed; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden;}
 [data-theme="hasaki"] #hskMark{display:flex;}
-/* ===== LATTE: watermark NGÔI SAO ĐỎ chìm ở trung tâm (đồng bộ favicon) — to, thẳng, hiện đại ===== */
+/* ===== LATTE: watermark NGÔI SAO kiểu VietinBank — TONE-ON-TONE "dập chìm" =====
+   Phân tích app VietinBank: logo nền là LINE-ART cùng tông màu nền (chỉ đậm hơn chút),
+   KHÔNG dùng màu thương hiệu rực; kích thước RẤT LỚN; cảm giác khắc chìm sang trọng.
+   Áp dụng: sao viền mảnh màu mực latte + thân chìm + viền sáng lệch nhẹ (hiệu ứng emboss). */
 #latteMark{position:fixed; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; transform:translateZ(0);}
 [data-theme="latte"] #latteMark{display:flex;}
-#latteMark svg{width:min(64vw,720px); height:auto; opacity:.065; user-select:none;
-  filter:drop-shadow(0 30px 90px rgba(216,30,5,.2));}
+#latteMark svg{width:min(100vmin,980px); height:auto; user-select:none;}
 #hskMark img{
   width:min(48vw,560px); height:auto; opacity:.07;
   transform:rotate(-6deg); user-select:none;
@@ -502,15 +504,36 @@ tbody td.c-nv, tbody td.c-ql{white-space:nowrap;}
 thead th.c-loi, tbody td.c-loi{max-width:270px;}
 .table-wrap{overflow-x:auto;}                        /* bảng rộng hơn màn -> cuộn ngang, không bóp cột */
 @media (max-width:1300px){ thead th.c-loi, tbody td.c-loi{max-width:200px;} }
-/* ===== BẢNG LUỸ KẾ KPI TRỪ (tab Tổng quan) ===== */
+/* ===== BẢNG LUỸ KẾ KPI TRỪ (tab Tổng quan) — trang trọng, to rõ ===== */
+#kpiPanel .panel-head{font-size:14px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;}
+#kpiPanel .panel-head>span:first-child{border-left:4px solid var(--bad); padding-left:11px;}
 .kpi-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-.kpi-wrap table{width:100%; border-collapse:collapse; font-size:13px;}
-.kpi-wrap thead th{position:sticky; top:0; background:var(--surface2); text-align:left; color:var(--muted); font-weight:600; padding:9px 14px; white-space:nowrap; z-index:1;}
-.kpi-wrap tbody td{padding:9px 14px; border-top:1px solid var(--border); white-space:nowrap;}
+.kpi-wrap table{width:100%; border-collapse:collapse; font-size:14px;}
+.kpi-wrap thead th{position:sticky; top:0; background:var(--surface2); text-align:left; color:var(--muted);
+  font-weight:700; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; padding:12px 16px; white-space:nowrap; z-index:1;}
+.kpi-wrap tbody td{padding:13px 16px; border-top:1px solid var(--border); white-space:nowrap; vertical-align:middle;}
 .kpi-wrap tbody tr[data-kpi]{cursor:pointer;}
 .kpi-wrap tbody tr[data-kpi]:hover{background:var(--hover);}
-.kpi-sep td{background:var(--surface2); color:var(--muted); font-weight:600; font-size:12px; white-space:normal;}
-#kpiThang{max-width:180px;}
+.kpi-rank{width:44px; text-align:center; color:var(--muted); font-weight:800; font-variant-numeric:tabular-nums;}
+.kpi-top .kpi-rank{color:var(--bad);}
+.kpi-top{box-shadow:inset 3px 0 0 var(--bad);}          /* top 3: vạch đỏ trang trọng bên trái */
+.kpi-id{color:var(--muted); font-variant-numeric:tabular-nums; letter-spacing:.03em;}
+.kpi-ten{font-weight:700; font-size:15px;}
+.kpi-pill{display:inline-block; padding:3px 11px; border:1px solid var(--border); border-radius:999px;
+  font-weight:700; font-size:12.5px; background:var(--surface2);}
+th.kpi-col-val, td.kpi-val{text-align:right;}
+.kpi-val{font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; min-width:150px;}
+.kpi-bar{height:4px; border-radius:2px; background:var(--bad); opacity:.55; margin:6px 0 0 auto; transition:width .3s ease;}
+.kpi-sep td{background:var(--surface2); color:var(--text); font-weight:800; font-size:11.5px; letter-spacing:.09em; white-space:normal; padding:11px 16px; border-top:2px solid var(--border);}
+.kpi-sep-note{color:var(--muted); font-weight:600; letter-spacing:.02em; text-transform:none;}
+#kpiThang{max-width:190px; font-weight:600;}
+@media (max-width:560px){
+  .kpi-wrap tbody td{padding:11px 10px;}
+  .kpi-wrap thead th{padding:10px 10px;}
+  .kpi-ten{font-size:14px;}
+  .kpi-val{font-size:15px; min-width:110px;}
+  .kpi-rank{width:32px;}
+}
 /* ===== 7 THẺ TỔNG KẾT: ẩn trong bộ chọn ===== */
 .btn-cards{display:block; width:100%; text-align:left; margin-bottom:12px;}
 .cards.collapsed{display:none;}
@@ -554,7 +577,14 @@ thead th.c-loi, tbody td.c-loi{max-width:270px;}
 </head>
 <body>
 <div id="hskMark" aria-hidden="true"><img src="hasaki-logo.png" alt="" /></div>
-<div id="latteMark" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="lmGrad" cx="50%" cy="40%" r="70%"><stop offset="0%" stop-color="#ff6a52"/><stop offset="100%" stop-color="#c21a04"/></radialGradient></defs><polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="url(#lmGrad)"/></svg></div>
+<div id="latteMark" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true">
+  <!-- thân sao chìm tone-on-tone (đậm hơn nền latte một chút) -->
+  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="#4c4f69" opacity=".04"/>
+  <!-- viền sáng lệch nhẹ lên-trái: hiệu ứng khắc chìm (emboss) -->
+  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="none" stroke="#ffffff" stroke-width=".26" opacity=".55" transform="translate(-0.09,-0.11)"/>
+  <!-- viền line-art chính (màu mực latte, mảnh) -->
+  <polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="none" stroke="#4c4f69" stroke-width=".26" opacity=".13"/>
+</svg></div>
 <div class="wrap">
   <header>
     <div>
@@ -1138,6 +1168,9 @@ function napKpiThang(){
 function renderKpi(){
   const ym=$('kpiThang').value;
   if(!ym){ $('kpiWrap').innerHTML='<div class="empty-row">Chưa có dữ liệu.</div>'; return; }
+  const chuanTen=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  // QUẢN LÝ nghiệp vụ KHÔNG nằm trong bảng NV vi phạm (không hiển thị / không tính KPI trừ NV)
+  const laQL=t=>{const n=chuanTen(t);return QL_NGHIEP_VU.some(([k])=>n===k||n.indexOf(k)>=0);};
   // --- NV vi phạm ---
   const grp={}, tenMa={};
   ROWS.forEach(r=>{
@@ -1153,9 +1186,9 @@ function renderKpi(){
     list.sort((a,b)=>a.t-b.t);
     let kpi=0; list.forEach((e,i)=>{ const k=Number(kpiTheoLoi(e.r[iLoi],i+1)); if(!isNaN(k)) kpi+=k; });
     return {id:cd, ten:NV_MAP[cd]||tenMa[cd]||NAME_BY_CODE[cd]||("Mã "+cd), luot:list.length, kpi, list:list.map(e=>e.r)};
-  }).sort((a,b)=>b.kpi-a.kpi||b.luot-a.luot);
+  }).filter(x=>!laQL(x.ten))                              // bỏ các quản lý khỏi bảng NV
+    .sort((a,b)=>b.kpi-a.kpi||b.luot-a.luot);
   // --- Quản lý nghiệp vụ ---
-  const chuanTen=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   const ql=QL_NGHIEP_VU.map(([key,ten])=>{
     let xm=0,kxm=0; const list=[];
     ROWS.forEach(r=>{
@@ -1168,13 +1201,25 @@ function renderKpi(){
     return {ten,xm,kxm,kpi:Math.round((xm*0.2+kxm*1)*100)/100,list};
   }).filter(q=>q.list.length);
   KPI_DATA={nv,ql,ym};
-  const fmt=v=>{const s=String(Math.round(v*100)/100).replace('.',',');return v>0?`<span class="kpi-neg">−${s}% KPI</span>`:'<span class="kpi-zero">0% KPI</span>';};
-  let h='<table><thead><tr><th>ID</th><th>Họ và tên</th><th>Lượt ghi nhận</th><th>KPI trừ luỹ kế</th></tr></thead><tbody>';
-  h+=nv.map((x,i)=>`<tr data-kpi="nv:${i}" title="Bấm xem các task trong tháng"><td>${esc(x.id)}</td><td><b>${esc(x.ten)}</b></td><td>${x.luot}</td><td>${fmt(x.kpi)}</td></tr>`).join('')
-     ||'<tr><td colspan="4"><div class="empty-row">Không có NV vi phạm trong tháng này.</div></td></tr>';
+  const fmt=v=>{const s=String(Math.round(v*100)/100).replace('.',',');return v>0?`<span class="kpi-neg">−${s}%</span>`:'<span class="kpi-zero">0%</span>';};
+  const maxK=Math.max(...nv.map(x=>x.kpi),0.0001);
+  let h='<table><thead><tr><th class="kpi-rank">#</th><th>ID</th><th>Họ và tên</th><th>Lượt ghi nhận</th><th class="kpi-col-val">KPI trừ luỹ kế</th></tr></thead><tbody>';
+  h+=nv.map((x,i)=>`<tr data-kpi="nv:${i}" class="${i<3?'kpi-top':''}" title="Bấm xem các task trong tháng">
+      <td class="kpi-rank">${i+1}</td>
+      <td class="kpi-id">${esc(x.id)}</td>
+      <td class="kpi-ten">${esc(x.ten)}</td>
+      <td><span class="kpi-pill">${x.luot} lượt</span></td>
+      <td class="kpi-val">${fmt(x.kpi)}<div class="kpi-bar" style="width:${Math.max(6,Math.round(x.kpi/maxK*100))}%"></div></td></tr>`).join('')
+     ||'<tr><td colspan="5"><div class="empty-row">Không có NV vi phạm trong tháng này.</div></td></tr>';
   if(ql.length){
-    h+='<tr class="kpi-sep"><td colspan="4">Quản lý nghiệp vụ — KPI theo trách nhiệm xác minh (−0.2%/lượt xác minh được · −1%/lượt không xác minh được)</td></tr>';
-    h+=ql.map((x,i)=>`<tr data-kpi="ql:${i}" title="Bấm xem các task trong tháng"><td>QL</td><td><b>${esc(x.ten)}</b></td><td>${x.xm+x.kxm} <span class="muted">(${x.xm} XM · ${x.kxm} không XM)</span></td><td>${fmt(x.kpi)}</td></tr>`).join('');
+    h+='<tr class="kpi-sep"><td colspan="5">QUẢN LÝ NGHIỆP VỤ — KPI THEO TRÁCH NHIỆM XÁC MINH <span class="kpi-sep-note">(−0.2%/lượt xác minh được · −1%/lượt không xác minh được)</span></td></tr>';
+    const maxQ=Math.max(...ql.map(x=>x.kpi),0.0001);
+    h+=ql.map((x,i)=>`<tr data-kpi="ql:${i}" title="Bấm xem các task trong tháng">
+      <td class="kpi-rank">QL</td>
+      <td class="kpi-id">—</td>
+      <td class="kpi-ten">${esc(x.ten)}</td>
+      <td><span class="kpi-pill">${x.xm+x.kxm} lượt</span> <span class="muted" style="font-size:12px">${x.xm} XM · ${x.kxm} không XM</span></td>
+      <td class="kpi-val">${fmt(x.kpi)}<div class="kpi-bar" style="width:${Math.max(6,Math.round(x.kpi/maxQ*100))}%"></div></td></tr>`).join('');
   }
   h+='</tbody></table>';
   $('kpiWrap').innerHTML=h;
