@@ -71,6 +71,11 @@
 /* ===== HASAKI: watermark logo bóng mờ + font Inter (CHỈ theme hasaki) ===== */
 #hskMark{position:fixed; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden;}
 [data-theme="hasaki"] #hskMark{display:flex;}
+/* ===== LATTE: watermark NGÔI SAO ĐỎ chìm ở trung tâm (đồng bộ favicon) — tinh tế, không che thông tin ===== */
+#latteMark{position:fixed; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; transform:translateZ(0);}
+[data-theme="latte"] #latteMark{display:flex;}
+#latteMark svg{width:min(38vw,430px); height:auto; opacity:.05; transform:rotate(-8deg); user-select:none;
+  filter:drop-shadow(0 18px 44px rgba(216,30,5,.16));}
 #hskMark img{
   width:min(48vw,560px); height:auto; opacity:.07;
   transform:rotate(-6deg); user-select:none;
@@ -176,8 +181,11 @@ header h1.brand-title{margin:0; min-width:0;}
 .set-field>span.lbl{font-size:12px; color:var(--muted); min-height:0;}
 .set-field select{width:100%;}
 .set-act{width:100%; text-align:left;}
-.set-link{display:block; padding:8px 14px; border:1px solid var(--border); border-radius:8px; color:var(--accent); font-weight:600; font-size:13px;}
-.set-link:hover{border-color:var(--accent); text-decoration:none; background:var(--hover);}
+/* Mục "Dữ liệu": 4 hàng ĐỒNG BỘ — cùng viền/đệm/căn TRÁI, không hàng nào tô nền riêng */
+.set-sec>button, .set-link{display:block; width:100%; text-align:left; padding:8px 14px;
+  background:transparent; border:1px solid var(--border); border-radius:8px;
+  color:var(--text); font-weight:600; font-size:13px;}
+.set-sec>button:hover, .set-link:hover{border-color:var(--accent); color:var(--accent); background:var(--hover); text-decoration:none;}
 
 /* ===== NÚT & INPUT ===== */
 button,select,input{font-family:inherit; font-size:13px; color:var(--text);}
@@ -463,7 +471,8 @@ thead th.c-status, tbody td.c-status{width:150px;}
 thead th.c-bb{width:118px; white-space:nowrap;}
 tbody td.c-bb{width:118px; white-space:normal;}
 .bb-cell{display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap;}
-.bb-thumb{width:30px; height:30px; object-fit:cover; border-radius:5px; border:1px solid var(--border); cursor:zoom-in;}
+/* thumbnail biên bản: cùng cỡ/kiểu với thumbnail cột Hình ảnh */
+.bb-thumb{width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid var(--border); background:var(--surface2); cursor:zoom-in;}
 .bb-up{padding:3px 8px; font-size:12px; line-height:1.3; border-radius:6px; white-space:nowrap;}
 .bb-up:hover{border-color:var(--accent); color:var(--accent);}
 
@@ -504,6 +513,7 @@ tbody td.c-bb{width:118px; white-space:normal;}
 </head>
 <body>
 <div id="hskMark" aria-hidden="true"><img src="hasaki-logo.png" alt="" /></div>
+<div id="latteMark" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="#d81e05"/></svg></div>
 <div class="wrap">
   <header>
     <div>
@@ -542,7 +552,7 @@ tbody td.c-bb{width:118px; white-space:normal;}
           <div class="set-sec">
             <div class="set-h">Dữ liệu</div>
             <button id="btnReload">Tải lại dữ liệu</button>
-            <button id="btnSync" class="primary">Cập nhật ngay (cần PIN)</button>
+            <button id="btnSync">Cập nhật ngay (cần PIN)</button>
             <button id="btnSyncTS">Cập nhật chấm công (cần PIN)</button>
             <a id="lnkSheet" class="set-link" href="#" target="_blank" rel="noopener">Mở Google Sheet nguồn ↗</a>
           </div>
@@ -1300,12 +1310,18 @@ function dongGhiNhan(){ $('ghiModal').classList.remove('show'); }
 
 /* ===== BIÊN BẢN (cột trong 5S-TASKS, sau cùng): tải ảnh -> Apps Script ghi thẳng vào 5S-TASKS ===== */
 let bbLocal={}, bbCode='';   // bbLocal: overlay hiện ngay sau khi tải (sheet cập nhật sau đồng bộ)
+// Drive CHẶN hotlink dạng uc?export=view (icon ảnh rách) -> đổi sang endpoint thumbnail (hiển thị được).
+const bbDriveId=u=>{const m=String(u).match(/[?&]id=([\w-]+)/)||String(u).match(/\/d\/([\w-]+)/);return m?m[1]:null;};
+const bbThumb=u=>{const id=bbDriveId(u);return id?`https://drive.google.com/thumbnail?id=${id}&sz=w160`:u;};
+const bbFull =u=>{const id=bbDriveId(u);return id?`https://drive.google.com/thumbnail?id=${id}&sz=w1600`:u;};
 function bbCell(r){
   const code=String(r[iCode]||'').trim();
   const sheetUrls=(iBienBan>=0?String(r[iBienBan]||''):'').split(/[\n,]/).map(s=>s.trim()).filter(s=>/^https?:/.test(s));
   const imgs=[...new Set([...sheetUrls, ...(bbLocal[code]||[])])];
-  const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(u)}" loading="lazy" data-bb="${esc(u)}" title="Xem biên bản">`).join('');
-  return `<span class="bb-cell">${thumbs}<button class="bb-up" data-code="${esc(code)}" title="Tải biên bản lên">＋ Ảnh</button></span>`;
+  const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(bbThumb(u))}" loading="lazy" decoding="async" data-bb="${esc(bbFull(u))}" title="Xem biên bản">`).join('');
+  // ĐÃ có biên bản -> ẩn nút tải lên (chỉ hiện thumbnail như cột Hình ảnh)
+  const up = imgs.length ? '' : `<button class="bb-up" data-code="${esc(code)}" title="Tải biên bản lên">＋ Ảnh</button>`;
+  return `<span class="bb-cell">${thumbs}${up}</span>`;
 }
 async function taiBienBanLen(files){
   if(!bbCode || !files || !files.length) return;
