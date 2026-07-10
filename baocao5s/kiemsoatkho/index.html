@@ -596,24 +596,48 @@ th.kpi-col-val, td.kpi-val{text-align:right;}
   #lbClose{padding:7px 12px;} #lbCount{top:14px;}
 }
 
-/* ===== NÂNG CẤP CHUYỂN CẢNH & ANIMATION (mượt, tôn trọng reduced-motion) ===== */
-.pane{animation:fadeUp .34s cubic-bezier(.16,1,.3,1) both;}
-@keyframes modalIn{from{opacity:0; transform:translate3d(0,14px,0) scale(.985);} to{opacity:1; transform:none;}}
-#modal.show .modal-box, #statModal.show .modal-box{animation:modalIn .26s cubic-bezier(.16,1,.3,1);}
-#ghiModal.show .gm-box, #hmModal.show .hmm-box{animation:modalIn .26s cubic-bezier(.16,1,.3,1);}
-.tab{transition:color .18s ease, border-color .18s ease, background-color .18s ease;}
-.card,.kb-tile{transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s ease, background-color .3s ease, border-color .3s ease;}
-.card:hover,.kb-tile:hover{transform:translateY(-2px);}
-.bb-thumb,.rm-thumb{transition:transform .18s ease;}
-.bb-thumb:hover,.row-media:hover .rm-thumb{transform:scale(1.06);}
-/* vào cảnh có nhịp: banner -> 4 ô chỉ số lần lượt -> bảng */
-.cb-banner{animation:fadeUp .38s cubic-bezier(.16,1,.3,1) both;}
-.kpi-band .kb-tile{animation:fadeUp .38s cubic-bezier(.16,1,.3,1) both;}
-.kpi-band .kb-tile:nth-child(2){animation-delay:.05s;}
-.kpi-band .kb-tile:nth-child(3){animation-delay:.1s;}
-.kpi-band .kb-tile:nth-child(4){animation-delay:.15s;}
-.cards:not(.collapsed){animation:fadeUp .3s cubic-bezier(.16,1,.3,1);}
-@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none !important; transition:none !important;}}
+/* ===== CHUYỂN CẢNH KIỂU APPLE / macOS =====
+   - Ease chuẩn Apple (nhanh vào, giảm tốc dài) + spring có overshoot rất nhẹ.
+   - Overlay = KÍNH MỜ (frosted glass, backdrop blur + saturate) như sheet macOS.
+   - Nút bấm co nhẹ khi nhấn (phản hồi chạm). Tôn trọng reduced-motion. */
+:root{--ez-apple:cubic-bezier(.32,.72,0,1); --ez-spring:cubic-bezier(.175,.885,.32,1.12);}
+/* chuyển tab: crossfade + trượt + zoom cực nhẹ (đổi Space trên macOS) */
+.pane{animation:paneIn .5s var(--ez-apple) both;}
+@keyframes paneIn{from{opacity:0; transform:translate3d(0,14px,0) scale(.994);} to{opacity:1; transform:none;}}
+/* overlay kính mờ */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)){
+  #modal,#statModal,#hmModal,#ghiModal,#lightbox{backdrop-filter:blur(16px) saturate(160%); -webkit-backdrop-filter:blur(16px) saturate(160%);}
+}
+/* sheet: rơi vào + nảy nhẹ rồi đậu (spring settle) */
+@keyframes sheetIn{0%{opacity:0; transform:translate3d(0,24px,0) scale(.965);}
+  62%{opacity:1; transform:translate3d(0,-3px,0) scale(1.004);}
+  100%{opacity:1; transform:none;}}
+#modal.show .modal-box, #statModal.show .modal-box,
+#ghiModal.show .gm-box, #hmModal.show .hmm-box{animation:sheetIn .52s var(--ez-apple);}
+/* menu cài đặt: bung từ điểm neo (transform-origin đã là top right) */
+.settings-pop{animation:menuIn .34s var(--ez-spring);}
+@keyframes menuIn{from{opacity:0; transform:scale(.88) translateY(-6px);} to{opacity:1; transform:none;}}
+/* lightbox: zoom spring như mở ảnh trong Photos */
+.lb-media,#lightbox img,#lightbox video{animation:lbZoom .45s var(--ez-apple);}
+@keyframes lbZoom{0%{opacity:0; transform:scale(.92);} 62%{opacity:1; transform:scale(1.008);} 100%{opacity:1; transform:scale(1);}}
+/* phản hồi chạm: nút co nhẹ khi nhấn */
+button{transition:background-color .25s var(--ez-apple), border-color .25s var(--ez-apple), color .2s ease, transform .16s var(--ez-apple), box-shadow .25s ease;}
+button:active{transform:scale(.97);}
+.tab{transition:color .2s var(--ez-apple), border-color .2s var(--ez-apple), background-color .2s var(--ez-apple);}
+/* thẻ/ô chỉ số: nâng + phóng rất nhẹ, đổ bóng sâu dần */
+.card,.kb-tile{transition:transform .3s var(--ez-apple), box-shadow .3s var(--ez-apple), background-color .3s ease, border-color .3s ease;}
+.card:hover,.kb-tile:hover{transform:translateY(-3px) scale(1.008); box-shadow:0 10px 28px rgba(0,0,0,.12);}
+.bb-thumb,.rm-thumb{transition:transform .25s var(--ez-spring);}
+.bb-thumb:hover,.row-media:hover .rm-thumb{transform:scale(1.07);}
+/* vào cảnh có nhịp: banner -> 4 ô chỉ số lần lượt (stagger) */
+.cb-banner{animation:paneIn .5s var(--ez-apple) both;}
+.kpi-band .kb-tile{animation:paneIn .5s var(--ez-apple) both;}
+.kpi-band .kb-tile:nth-child(2){animation-delay:.06s;}
+.kpi-band .kb-tile:nth-child(3){animation-delay:.12s;}
+.kpi-band .kb-tile:nth-child(4){animation-delay:.18s;}
+.cards:not(.collapsed){animation:paneIn .4s var(--ez-apple);}
+html{scroll-behavior:smooth;}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none !important; transition:none !important;} html{scroll-behavior:auto;}}
 </style>
 </head>
 <body>
