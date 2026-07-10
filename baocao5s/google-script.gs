@@ -133,6 +133,46 @@ function thietLapSheetRieng() {
   return msg;
 }
 
+/**
+ * ⚙️ CHẠY 1 LẦN (donDepBienBanCu): chuyển biên bản từ tab BIEN-BAN cũ -> cột "Biên bản" của 5S-TASKS
+ *   (khớp theo Mã task), BỎ dòng test, rồi XOÁ tab BIEN-BAN. An toàn chạy lại (idempotent).
+ *   Biên bản đã ở cột 5S-TASKS -> auto-export-sync giữ lại qua mỗi lần đồng bộ.
+ */
+function donDepBienBanCu() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var bb = ss.getSheetByName('BIEN-BAN');
+  if (!bb) return 'Khong co tab BIEN-BAN (co the da xoa).';
+  var tasks = ss.getSheetByName(TEN_SHEET_TASKS);
+  if (!tasks) return 'Khong tim thay 5S-TASKS.';
+  var head = tasks.getRange(1, 1, 1, tasks.getLastColumn()).getValues()[0];
+  var iCode = -1, iBB = -1;
+  for (var c = 0; c < head.length; c++) { var h = String(head[c]).trim().toLowerCase(); if (h === 'task code') iCode = c; if (h === 'biên bản') iBB = c; }
+  if (iCode < 0) for (var c2 = 0; c2 < head.length; c2++) if (/task code/i.test(head[c2])) iCode = c2;
+  if (iCode < 0) return 'Khong tim thay cot Task Code trong 5S-TASKS.';
+  if (iBB < 0) { iBB = tasks.getLastColumn(); tasks.getRange(1, iBB + 1).setValue('Biên bản').setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff'); }
+  var data = bb.getDataRange().getValues();
+  var bh = data.length ? data[0].map(function (x) { return String(x).trim().toLowerCase(); }) : [];
+  var jCode = bh.indexOf('mã task'); if (jCode < 0) jCode = 1;
+  var jUrl = -1; for (var k = 0; k < bh.length; k++) if (/biên bản|url/i.test(bh[k])) jUrl = k; if (jUrl < 0) jUrl = 2;
+  var last = tasks.getLastRow();
+  var codes = last > 1 ? tasks.getRange(2, iCode + 1, last - 1, 1).getValues() : [];
+  var rowByCode = {}; for (var r = 0; r < codes.length; r++) rowByCode[String(codes[r][0]).trim()] = r + 2;
+  var moved = 0, skipped = [];
+  for (var d = 1; d < data.length; d++) {
+    var code = String(data[d][jCode] || '').trim(), url = String(data[d][jUrl] || '').trim();
+    if (!code || !/^https?:/.test(url)) continue;
+    if (/^test/i.test(code)) continue;                        // bo dong test
+    var rr = rowByCode[code];
+    if (!rr) { skipped.push(code + ' (khong co trong 5S-TASKS)'); continue; }
+    var cell = tasks.getRange(rr, iBB + 1); var cur = String(cell.getValue() || '').trim();
+    if (cur.indexOf(url) < 0) { cell.setValue(cur ? (cur + '\n' + url) : url); moved++; }
+  }
+  ss.deleteSheet(bb);
+  var msg = 'XONG. Da chuyen ' + moved + ' bien ban vao 5S-TASKS + xoa tab BIEN-BAN.' + (skipped.length ? (' Bo qua: ' + skipped.join(', ')) : '');
+  Logger.log(msg);
+  return msg;
+}
+
 /** Trả JSONP (cho dashboard gọi cross-origin qua thẻ <script>). */
 function phanHoiJsonp(cb, obj) {
   return ContentService.createTextOutput(cb + '(' + JSON.stringify(obj) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
