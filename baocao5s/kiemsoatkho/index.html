@@ -491,6 +491,27 @@ tbody td.c-bb{width:118px; white-space:normal;}
 .bb-cell{display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap;}
 /* thumbnail biên bản: cùng cỡ/kiểu với thumbnail cột Hình ảnh */
 .bb-thumb{width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid var(--border); background:var(--surface2); cursor:zoom-in;}
+/* task hoàn thành >96h: nút +Ảnh làm mờ/tắt */
+.bb-up.bb-off{opacity:.35; pointer-events:none; cursor:not-allowed;}
+/* ===== CỘT TẦN SUẤT VI PHẠM ===== */
+thead th.c-freq, tbody td.c-freq{white-space:nowrap; vertical-align:middle;}
+.freq-lan{font-weight:600;}
+/* NV/QL/Lỗi cho phép gói dòng -> chừa chỗ cho các cột mới, Trạng thái + Biên bản luôn sát lề phải không tràn ngang */
+thead th.c-nv, tbody td.c-nv{white-space:normal; min-width:140px; max-width:220px;}
+thead th.c-ql, tbody td.c-ql{white-space:normal; min-width:110px; max-width:170px;}
+thead th.c-loi, tbody td.c-loi{max-width:270px;}
+thead th.c-freq{white-space:normal; width:110px;}   /* header "Tần suất vi phạm" gói 2 dòng cho gọn */
+.table-wrap{overflow-x:auto;}                        /* màn quá hẹp -> cuộn ngang thay vì vỡ cột */
+@media (max-width:1300px){                           /* laptop nhỏ: siết cột để đủ 10 cột không tràn */
+  thead th.c-loi, tbody td.c-loi{max-width:185px;}
+  thead th.c-nv, tbody td.c-nv{max-width:155px;}
+  thead th.c-ql, tbody td.c-ql{max-width:125px;}
+  thead th.c-ngay, tbody td.c-ngay{width:94px; white-space:normal;}
+  thead th.c-status, tbody td.c-status{width:106px; white-space:normal;}
+  thead th.c-bb, tbody td.c-bb{width:104px;}
+  thead th.c-anh, tbody td.c-anh{width:56px;}
+  tbody td.c-freq{white-space:normal; max-width:112px;}   /* "Lần n/tháng" + KPI xuống 2 dòng */
+}
 .bb-up{padding:3px 8px; font-size:12px; line-height:1.3; border-radius:6px; white-space:nowrap;}
 .bb-up:hover{border-color:var(--accent); color:var(--accent);}
 
@@ -631,10 +652,10 @@ tbody td.c-bb{width:118px; white-space:normal;}
         <table>
           <thead><tr>
             <th class="c-ngay">Ngày khai báo</th><th class="c-vitri">Vị trí</th><th class="c-loi">Lỗi vi phạm</th><th class="c-nv">Nhân viên vi phạm</th>
-            <th class="c-ql">Quản lý trực tiếp</th><th class="c-anh">Hình ảnh</th><th class="c-status">Trạng thái</th><th class="c-bb">Biên bản</th><th class="c-flex"></th>
+            <th class="c-ql">Quản lý trực tiếp</th><th class="c-anh">Hình ảnh</th><th class="c-freq">Tần suất vi phạm</th><th class="c-flex"></th><th class="c-status">Trạng thái</th><th class="c-bb">Biên bản</th>
           </tr></thead>
           <tbody id="tbody">
-            <tr><td colspan="9"><div class="sk sk-line" style="width:90%"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:80%"></div></td></tr>
+            <tr><td colspan="10"><div class="sk sk-line" style="width:90%"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:80%"></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -971,6 +992,8 @@ function taiDuLieu(){
         const c=codeVP(r), nm=String(r[iB11ND]||"").trim();
         if(c && !NAME_BY_CODE[c] && /\p{L}/u.test(nm)) NAME_BY_CODE[c]=nm;
       });
+      DL_COLS=H.map((h,i)=>i).filter(i=>/deadline/i.test(nhanCuoi(H[i])));   // mốc khoá biên bản 96h
+      tinhTanSuat();                                                          // bộ đếm tần suất vi phạm/tháng
       napLoc(); render();
       const gio = new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
       $('meta').textContent = ROWS.length + " task · cập nhật lúc " + gio + " · tự làm mới mỗi 5 phút · nhấp 1 dòng để xem chi tiết.";
@@ -1028,6 +1051,61 @@ const STATS = {
   huy:   {cap:"Đã huỷ ở tất cả các bước", color:"var(--muted)",
           pick:d=>d.filter(daHuy)},
 };
+/* ===== TẦN SUẤT VI PHẠM: đếm số lần vi phạm CỦA TỪNG NV trong THÁNG (theo Ngày khai báo),
+   luỹ tiến từ sớm -> muộn; KPI trừ tra theo hạng mục (QUY-DINH) + lần tương ứng. ===== */
+let FREQ={};   // chỉ số dòng (trong ROWS) -> {lan}
+function ngayMs(v){
+  const m=String(v).match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)$/);
+  if(m) return new Date(+m[1],+m[2],+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime();
+  const t=Date.parse(v); return isNaN(t)?null:t;
+}
+function tinhTanSuat(){
+  FREQ={};
+  const seq={};   // "mãNV|năm-tháng" -> [{gi,t}]
+  ROWS.forEach((r,gi)=>{
+    const t=ngayMs(r[iNgayVP]); if(t==null) return;
+    const d=new Date(t), ym=d.getFullYear()+'-'+(d.getMonth()+1);
+    codeVP(r).split(',').map(s=>s.trim()).filter(Boolean).forEach(cd=>{
+      (seq[cd+'|'+ym]=seq[cd+'|'+ym]||[]).push({gi,t});
+    });
+  });
+  for(const k in seq){
+    seq[k].sort((a,b)=>a.t-b.t);
+    seq[k].forEach((e,i)=>{ const lan=i+1; if(!FREQ[e.gi]||lan>FREQ[e.gi].lan) FREQ[e.gi]={lan}; });
+  }
+}
+// Tra %KPI trừ của hạng mục theo lần (QUY-DINH: cột 3=lần1, 6=lần2, 9=lần3+); khớp theo text "Lỗi vi phạm".
+const _chuan=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+function kpiTheoLoi(loi,lan){
+  if(!QD.length) return null;
+  const n=_chuan(loi); if(!n) return null;
+  const row=QD.find(r=>{const q=_chuan(r[1]); return q===n||q.startsWith(n.slice(0,60))||n.startsWith(q.slice(0,60));});
+  if(!row) return null;
+  const v=String(row[lan>=3?9:(lan===2?6:3)]).trim();
+  return v===''?null:v;
+}
+function freqCell(gi,r){
+  const f=FREQ[gi];
+  if(!f) return '<span class="row-none">—</span>';
+  const k=kpiTheoLoi(iLoi>=0?r[iLoi]:'',f.lan);
+  const kh = k==null ? '' : (Number(k)===0
+    ? ' · <span class="kpi-zero">0% KPI</span>'
+    : ' · <span class="kpi-neg">−'+esc(k)+'% KPI</span>');
+  return '<span class="freq-lan">Lần '+f.lan+'/tháng</span>'+kh;
+}
+
+/* ===== KHOÁ BIÊN BẢN: task ĐÃ HOÀN THÀNH quá 96h -> làm mờ/tắt nút +Ảnh.
+   Sheet không có cột finished-at -> dùng DEADLINE MUỘN NHẤT của các bước làm mốc (tiệm cận an toàn). ===== */
+let DL_COLS=[];
+const KHOA_BB_MS=96*3600*1000;
+function bbKhoa(r){
+  if(!/^(finished|done|completed)$/i.test(String(r[iStatus]||'').trim())) return false;
+  let max=null;
+  DL_COLS.forEach(c=>{ const t=ngayMs(r[c]); if(t!=null&&(max==null||t>max)) max=t; });
+  if(max==null) max=ngayMs(r[iCreatedAt]);
+  return max!=null && (Date.now()-max)>KHOA_BB_MS;
+}
+
 const STAT_ORDER=["nv","chuaXM","loiCN","koCN","kpDat","kpChua","huy"];
 
 /* ===== RENDER (debounce bằng requestAnimationFrame — mượt, không lag) ===== */
@@ -1056,10 +1134,11 @@ function _render(){
       <td class="c-nv">${esc(nameVP(r)||'—')}</td>
       <td class="c-ql">${iQLTT>=0?esc(r[iQLTT]||'—'):'—'}</td>
       <td class="c-anh">${anh}</td>
+      <td class="c-freq">${freqCell(gi,r)}</td>
+      <td class="c-flex"></td>
       <td class="c-status">${statusCell(r)}</td>
-      <td class="c-bb">${bbCell(r)}</td>
-      <td class="c-flex"></td></tr>`;
-  }).join('') || '<tr><td colspan="9"><div class="empty-row">Không có task khớp bộ lọc.</div></td></tr>';
+      <td class="c-bb">${bbCell(r)}</td></tr>`;
+  }).join('') || '<tr><td colspan="10"><div class="empty-row">Không có task khớp bộ lọc.</div></td></tr>';
 
   // Danh sách thẻ (mobile)
   const kv=(l,v)=> v?`<div class="cl-kv">${l}: <b>${esc(v)}</b></div>`:'';
@@ -1072,6 +1151,7 @@ function _render(){
         <div class="cl-top">${statusBadge(r)}</div>
         <div class="cl-loi">${esc(r[iLoi]||'')}</div>
         ${kv('Vị trí',r[iViTri])}${kv('Ngày khai báo',fmtNgay(r[iNgayVP]))}${kv('NV vi phạm',nameVP(r))}${kv('QL trực tiếp',iQLTT>=0?r[iQLTT]:'')}
+        <div class="cl-kv">Tần suất: ${freqCell(gi,r)}</div>
         <div class="cl-kv" style="margin-top:6px">Biên bản: ${bbCell(r)}</div>
       </div>
     </div>`;
@@ -1148,6 +1228,12 @@ function moChiTiet(i){
       if(f.val===""||f.val==null || isMedia(f.val)) return;
       let disp=fmtNgay(f.val);
       if(/trạng thái|status/i.test(f.label)) disp=dichStatus(f.val);
+      // "Nhân viên vi phạm" / "Nhân viên vi phạm:" trong pop-up: giá trị là mã NV hoặc staff_id
+      // -> đổi sang HỌ TÊN đầy đủ (kèm mã gốc để đối chiếu)
+      if(/^nhân viên vi phạm:?$/i.test(f.label.trim()) && /^[\d\s,]+$/.test(String(f.val))){
+        const nm=nameVP(r);
+        if(nm && nm!=='Chưa rõ tên') disp = nm + ' (' + f.val + ')';
+      }
       fhtml += `<div class="fld"><span class="fld-l">${esc(f.label)}</span><span class="fld-v">${esc(disp)}</span></div>`;
     });
     // Khối hình ảnh/clip
@@ -1288,6 +1374,7 @@ function taiQuyDinh(){
     const rows=((resp.table&&resp.table.rows)||[]).map(r=>(r.c||[]).map(c=>c?(c.v==null?"":c.v):""));
     QD=rows.filter(r=>/^\d+$/.test(String(r[0]).trim()));   // chỉ giữ dòng có STT là số (bỏ header phụ)
     renderQuyDinh();
+    if(ROWS.length) render();   // QD về sau dữ liệu task -> vẽ lại để cột Tần suất có %KPI
   }catch(e){ $('hmWrap').innerHTML='<div class="empty-row">Lỗi đọc QUY-DINH: '+esc(e.message)+'</div>'; } delete window[cb]; };
   const s=document.createElement('script');
   s.src="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?sheet="+encodeURIComponent(TAB_QD)+"&headers=1&tqx=out:json;responseHandler:"+cb;
@@ -1330,6 +1417,28 @@ const _tx=(x,y,t,fs=9,c='#334155',w=700)=>`<text x="${x}" y="${y}" font-size="${
 const _rac=(x,y)=>`<g fill="#94a3b8"><circle cx="${x}" cy="${y}" r="3"/><path d="M${x+9} ${y+2} l4 -5 l3 5 z"/><circle cx="${x+20}" cy="${y-1}" r="2.4"/></g>`;
 const _gio=(x,y)=>`<g stroke="#64748b" stroke-width="2.4" fill="none"><path d="M${x} ${y} L${x+3} ${y+22} H${x+21} L${x+24} ${y}"/><path d="M${x-3} ${y} H${x+27}" stroke-linecap="round"/></g>`;
 const _mt=(x,y,w,h,t)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="#1e293b"/><rect x="${x+3}" y="${y+3}" width="${w-6}" height="${h-6}" rx="2" fill="#38bdf8" opacity=".25"/>${_tx(x+w/2,y+h/2+4,t,11,'#0ea5e9',800)}`;
+// Ly nước (có nắp + ống hút + sọc), hộp cơm (nắp + đũa), chai nước, giấy vo viên
+const _coc=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><path d="M12 5 L17 -9" stroke="#f97316" stroke-width="2.6" stroke-linecap="round"/><path d="M1 6 L4 30 H16 L19 6 Z" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><path d="M-1 6 H21" stroke="#0284c7" stroke-width="2.6" stroke-linecap="round"/><path d="M5 14 H15 M6 22 H14" stroke="#7dd3fc" stroke-width="1.8"/></g>`;
+const _homcom=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><path d="M4 0 L30 -9 M8 1 L34 -7" stroke="#b45309" stroke-width="2.2" stroke-linecap="round"/><rect x="1" y="2" width="32" height="7" rx="3.5" fill="#e2e8f0" stroke="#64748b" stroke-width="1.8"/><rect x="0" y="9" width="34" height="18" rx="4" fill="#fff" stroke="#64748b" stroke-width="2"/><path d="M0 16 H34" stroke="#94a3b8" stroke-width="1.6"/></g>`;
+const _chai=(x,y)=>`<g transform="translate(${x} ${y})"><rect x="2.5" y="-6" width="6" height="4" rx="1" fill="#2563eb"/><path d="M3 -2 L2 4 H9 L8 -2 Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/><rect x="0" y="4" width="11" height="22" rx="3.5" fill="#dbeafe" stroke="#2563eb" stroke-width="1.9"/><path d="M2 12 H9 M2 18 H9" stroke="#93c5fd" stroke-width="1.6"/></g>`;
+const _giayvo=(x,y)=>`<path d="M${x} ${y} l5 -8 l8 1 l5 6 l-3 7 l-9 2 l-6 -4 z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.7" stroke-linejoin="round"/><path d="M${x+6} ${y-3} l5 4 m-6 3 l7 -1" stroke="#94a3b8" stroke-width="1.2"/>`;
+// Xe nâng điện đứng lái (reach truck kiểu Nichiyu FBR15): trụ nâng + càng, thân xanh,
+// khung bảo vệ trên đầu, người đứng lái, bánh tải nhỏ + bánh lái. boxY = độ cao càng.
+const _xenang=(tilt,boxTilt,boxY)=>`<g transform="rotate(${tilt} 100 100)">
+  <path d="M60 30 V116 M69 30 V116" stroke="#475569" stroke-width="3.6"/>
+  <path d="M60 44 H69 M60 62 H69 M60 80 H69 M60 98 H69" stroke="#475569" stroke-width="2"/>
+  <path d="M60 ${boxY+27} H22 v-6" stroke="#334155" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M56 116 H30" stroke="#475569" stroke-width="5" stroke-linecap="round"/>
+  <rect x="71" y="66" width="60" height="48" rx="6" fill="#16a34a" stroke="#15603b" stroke-width="2.6"/>
+  <rect x="75" y="72" width="18" height="14" rx="2" fill="#bbf7d0" opacity=".85"/>
+  ${_tx(101,109,'NICHIYU FBR15',5.4,'#dcfce7',700)}
+  <path d="M78 66 V28 H128 V66" fill="none" stroke="#15603b" stroke-width="3.6"/>
+  <path d="M86 28 v7 M96 28 v7 M106 28 v7 M116 28 v7" stroke="#15603b" stroke-width="2"/>
+  <circle cx="108" cy="43" r="5.6" fill="#334155"/>
+  <path d="M108 49 v15 M108 54 l-9 6 M108 54 l9 5" stroke="#334155" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="36" cy="121" r="4.6" fill="#334155"/><circle cx="52" cy="121" r="4.6" fill="#334155"/>
+  <circle cx="116" cy="119" r="8" fill="#334155"/><circle cx="116" cy="119" r="3" fill="#94a3b8"/>
+ </g>`+_hop(24,boxY,34,26,boxTilt);
 const _canh=n=>`<svg viewBox="0 0 200 140" class="hm-svg" role="img" aria-hidden="true">${n}</svg>`;
 // --- Các cảnh: {sai, dung} ---
 const HM_CANH={
@@ -1345,12 +1454,12 @@ const HM_CANH={
       dung:_san()+_hop(60,54,80,54)+`<rect x="94" y="54" width="12" height="20" fill="#facc15" stroke="#ca8a04"/><rect x="94" y="88" width="12" height="20" fill="#facc15" stroke="#ca8a04"/>`+`<path d="M100 76 v10" stroke="#ef4444" stroke-width="2" stroke-dasharray="3 2"/>`+_tx(100,128,'đã rọc — không cắt nắp',8.5,'#64748b',600)+_V(162,48)},
  nenkho:{sai:_san()+_hop(70,86,54,38)+_tx(97,132,'để trực tiếp dưới nền',8.5,'#64748b',600)+_X(152,70),
          dung:_san()+_pallet(58,112,84)+_hop(72,72,54,38)+_V(160,58)},
- vesinh:{sai:_san()+_ke(104)+`<g fill="#94a3b8"><circle cx="60" cy="96" r="3.4"/><circle cx="86" cy="92" r="2.6"/><path d="M112 98 l5 -6 l4 6 z"/><circle cx="140" cy="95" r="3"/></g>`+_X(164,62),
-         dung:_san()+_ke(104)+_tx(70,92,'✦',15,'#38bdf8')+_tx(120,80,'✦',11,'#38bdf8')+_V(158,60)},
+ vesinh:{sai:_san()+_ke(104)+_giayvo(52,96)+_coc(88,74,.85)+`<ellipse cx="130" cy="100" rx="9" ry="3" fill="#a16207" opacity=".45"/><ellipse cx="152" cy="98" rx="6" ry="2.4" fill="#a16207" opacity=".4"/>`+_tx(100,132,'bàn bẩn, rác + vết bẩn cuối ca',8,'#64748b',600)+_X(170,60),
+         dung:_san()+_ke(104)+_tx(70,92,'✦',15,'#38bdf8')+_tx(120,80,'✦',11,'#38bdf8')+`<path d="M150 100 v-26 M150 74 q12 -6 22 0 v14 q-10 -6 -22 0" fill="#22c55e" stroke="#16a34a" stroke-width="1.6"/>`+_tx(100,132,'vệ sinh sạch hằng ngày vào cuối mỗi ca',7.5,'#64748b',600)+_V(52,60)},
  ccdc:{sai:_san()+_hop(38,92,26,20,22)+`<path d="M84 116 l30 -26" stroke="#64748b" stroke-width="4" stroke-linecap="round"/><circle cx="130" cy="104" r="9" fill="none" stroke="#64748b" stroke-width="3.4"/>`+_X(160,60),
        dung:_san()+_ke(60)+`<g stroke="#94a3b8" stroke-width="2"><rect x="44" y="64" width="26" height="42" rx="3" fill="none"/><rect x="86" y="64" width="26" height="42" rx="3" fill="none"/><rect x="128" y="64" width="26" height="42" rx="3" fill="none"/></g>`+`<path d="M57 68 v34" stroke="#64748b" stroke-width="4" stroke-linecap="round"/><circle cx="99" cy="86" r="8" fill="none" stroke="#64748b" stroke-width="3"/>`+_hop(131,80,20,24)+_V(172,44)},
- racsan:{sai:_san()+_rac(60,112)+_rac(110,116)+_rac(150,110)+_X(170,70),
-         dung:_san()+_gio(140,92)+`<g fill="#94a3b8"><circle cx="150" cy="106" r="2.6"/><circle cx="157" cy="103" r="2.2"/></g>`+_V(60,80)},
+ racsan:{sai:_san()+_giayvo(44,110)+_chai(88,96)+_coc(116,94,.82)+_giayvo(152,112)+_tx(100,136,'ly nước, chai, giấy vụn vứt trên sàn kho',7.5,'#64748b',600)+_X(172,66),
+         dung:_san()+_gio(134,92)+_giayvo(142,104)+_chai(152,88)+_tx(146,132,'nhặt bỏ vào thùng rác gần nhất',7.5,'#64748b',600)+_V(56,76)},
  sku:{sai:_san()+_hop(64,58,72,52)+`<rect x="80" y="72" width="40" height="22" rx="2" fill="#fff" stroke="#cbd5e1"/>`+_tx(100,88,'?',15,'#ef4444',800)+_X(160,50),
       dung:_san()+_hop(64,58,72,52)+`<rect x="78" y="72" width="44" height="22" rx="2" fill="#fff" stroke="#cbd5e1"/><g stroke="#1e293b" stroke-width="1.8"><path d="M84 76 v14 M89 76 v14 M93 76 v14 M99 76 v14 M104 76 v14 M109 76 v14 M114 76 v14"/></g>`+_tx(100,128,'dán mã SKU / barcode',8.5,'#64748b',600)+_V(160,50)},
  thutu:{sai:_san()+_hop(38,76,36,32,0,true)+_hop(82,76,36,32,0,true)+_hop(126,76,36,32,0,true)+`<path d="M56 60 C 90 30, 130 30, 144 62" stroke="#ef4444" stroke-width="3" fill="none" stroke-dasharray="5 4" marker-end="none"/>`+_X(100,44),
@@ -1365,20 +1474,20 @@ const HM_CANH={
         dung:_san()+`<rect x="44" y="52" width="10" height="72" fill="#64748b"/><path d="M54 70 H152" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"/>`+`<rect x="108" y="84" width="30" height="20" rx="3" fill="#fff" stroke="#94a3b8" stroke-width="2"/>`+_tx(123,98,'QL ✓',8.5,'#16a34a',800)+_tx(100,132,'có đồng ý của Quản lý / bảo vệ soát',8,'#64748b',600)+_V(170,48)},
  ro:{sai:_san()+`<path d="M56 78 L64 118 H136 L144 78" fill="#f1f5f9" stroke="#64748b" stroke-width="3" stroke-linejoin="round"/><path d="M52 78 H148" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>`+_hop(72,52,26,22,-8)+_hop(102,46,26,24,10)+_X(160,50),
      dung:_san()+`<path d="M56 78 L64 118 H136 L144 78" fill="#f1f5f9" stroke="#64748b" stroke-width="3" stroke-linejoin="round"/><path d="M52 78 H148" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>`+_hop(74,88,24,20)+_hop(102,88,24,20)+_tx(100,132,'không vượt quá mép rổ',8.5,'#64748b',600)+_V(162,52)},
- phone:{sai:_san()+`<rect x="82" y="52" width="36" height="60" rx="6" fill="#1e293b"/><rect x="87" y="58" width="26" height="42" rx="2" fill="#38bdf8" opacity=".3"/>`+_tx(132,60,'♪',14,'#7c3aed',800)+_tx(142,78,'♪',11,'#7c3aed',800)+_X(100,124,7),
-        dung:_san()+_hop(60,68,50,40)+_tx(85,92,'✓',15,'#16a34a',800)+_tx(85,120,'tập trung làm việc',8.5,'#64748b',600)+`<rect x="130" y="70" width="26" height="40" rx="4" fill="none" stroke="#94a3b8" stroke-width="2.4"/><rect x="136" y="78" width="14" height="24" rx="3" fill="#94a3b8" opacity=".5"/>`+_tx(143,124,'cất tủ',8,'#64748b',600)},
+ phone:{sai:_san()+`<rect x="60" y="52" width="34" height="58" rx="6" fill="#1e293b"/><rect x="65" y="58" width="24" height="40" rx="2" fill="#38bdf8" opacity=".3"/><circle cx="77" cy="104" r="3" fill="#64748b"/>`+`<path d="M120 84 a17 17 0 0 1 34 0" fill="none" stroke="#7c3aed" stroke-width="3.4"/><rect x="116" y="84" width="9" height="15" rx="3.5" fill="#7c3aed"/><rect x="149" y="84" width="9" height="15" rx="3.5" fill="#7c3aed"/>`+_tx(104,60,'♪',13,'#7c3aed',800)+_tx(168,66,'♪',10,'#7c3aed',800)+_tx(100,132,'dùng điện thoại / đeo tai nghe trong kho',7.5,'#64748b',600)+_X(100,120,7),
+        dung:_san()+_hop(52,68,50,40)+_tx(77,92,'✓',15,'#16a34a',800)+_tx(77,124,'tập trung làm việc',8,'#64748b',600)+`<rect x="132" y="64" width="30" height="46" rx="4" fill="none" stroke="#94a3b8" stroke-width="2.6"/><path d="M132 64 l30 0" stroke="#94a3b8" stroke-width="2.6"/><rect x="140" y="76" width="14" height="24" rx="3" fill="#94a3b8" opacity=".55"/><circle cx="158" cy="88" r="1.8" fill="#64748b"/>`+_tx(147,124,'điện thoại cất tủ',8,'#64748b',600)},
  dien:{sai:_san()+_mt(64,56,54,40,'ON')+`<g stroke="#f59e0b" stroke-width="2.6" stroke-linecap="round"><path d="M60 50 l-8 -8 M124 50 l8 -8 M92 46 v-10"/></g>`+_X(154,88),
        dung:_san()+`<rect x="64" y="56" width="54" height="40" rx="3" fill="#334155"/><rect x="67" y="59" width="48" height="34" rx="2" fill="#0f172a"/>`+_tx(91,80,'OFF',10,'#94a3b8',800)+_V(154,84)},
  pe:{sai:_san()+_pallet(52,116,96)+_hop(62,86,34,28,-9)+_hop(100,84,34,30,7)+_hop(80,56,34,28,-5)+`<path d="M30 46 H170" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4"/>`+_X(164,64),
      dung:_san()+_pallet(52,116,96)+_hop(62,88,36,26)+_hop(102,88,36,26)+_hop(62,60,36,26)+_hop(102,60,36,26)+`<g stroke="#38bdf8" stroke-width="2" opacity=".75"><path d="M58 108 L142 66 M58 84 L142 106 M58 62 L142 88"/></g>`+`<path d="M30 46 H170" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4"/>`+_tx(100,40,'≤ 1,3m hàng nặng',8,'#64748b',600)+_V(172,110)},
- anuong:{sai:_san()+_ke(104)+_hop(44,72,34,30)+`<path d="M118 104 v-22 a10 10 0 0 1 20 0 v22" fill="none" stroke="#64748b" stroke-width="3"/><path d="M112 104 h32" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>`+_tx(128,60,'ăn tại khu làm việc',8,'#64748b',600)+_X(166,70),
-         dung:_san()+_ke(104)+_hop(44,72,34,30)+_V(70,56)+_tx(140,80,'ăn đúng nơi,',8.5,'#64748b',600)+_tx(140,92,'đúng giờ quy định',8.5,'#64748b',600)},
+ anuong:{sai:_san()+_ke(104)+_hop(30,74,32,28)+_coc(84,72)+_homcom(116,76)+_tx(92,132,'ăn uống tại khu làm việc',8,'#64748b',600)+_X(172,58),
+         dung:_san()+_ke(104)+_hop(30,74,32,28)+_V(58,58)+`<path d="M104 92 H186" stroke="#8b5e34" stroke-width="4" stroke-linecap="round"/><path d="M112 92 v12 M178 92 v12" stroke="#8b5e34" stroke-width="3"/>`+_coc(118,60)+_homcom(146,64)+_tx(138,132,'khu vực nghỉ — đúng nơi/giờ',7.5,'#64748b',600)},
  loidi:{sai:_san()+`<g stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5"><path d="M60 30 V124 M140 30 V124"/></g>`+_hop(76,72,46,36,6)+_X(100,50),
         dung:_san()+`<g stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5"><path d="M60 30 V124 M140 30 V124"/></g>`+`<path d="M100 110 V44" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/><path d="M93 54 l7 -10 l7 10" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>`+_hop(28,80,26,28)+_hop(150,80,26,28)},
  noise:{sai:_san()+`<path d="M60 50 h56 a8 8 0 0 1 8 8 v18 a8 8 0 0 1 -8 8 h-34 l-12 12 v-12 h-10 a8 8 0 0 1 -8 -8 v-18 a8 8 0 0 1 8 -8z" fill="#fff" stroke="#94a3b8" stroke-width="2.4"/>`+_tx(92,72,'#!@*',12,'#ef4444',800)+_X(156,58),
         dung:_san()+_hop(58,74,38,32)+_V(150,66)+_tx(100,128,'tập trung — nghiêm túc trong giờ làm',8,'#64748b',600)},
- xenang:{sai:_san()+`<g transform="rotate(-9 100 95)"><rect x="70" y="78" width="52" height="30" rx="4" fill="#f59e0b" stroke="#b45309" stroke-width="2.4"/><circle cx="82" cy="114" r="8" fill="#334155"/><circle cx="112" cy="114" r="8" fill="#334155"/><path d="M126 108 V56 h20" fill="none" stroke="#64748b" stroke-width="4"/></g>`+_hop(140,44,26,22,24)+_X(48,54),
-         dung:_san()+`<rect x="62" y="78" width="52" height="30" rx="4" fill="#f59e0b" stroke="#b45309" stroke-width="2.4"/><circle cx="74" cy="114" r="8" fill="#334155"/><circle cx="104" cy="114" r="8" fill="#334155"/><path d="M118 112 V52 h22" fill="none" stroke="#64748b" stroke-width="4"/>`+_hop(122,58,30,24)+_V(46,56)},
+ xenang:{sai:_san()+_xenang(-7,-22,40)+`<path d="M14 52 q6 -8 14 -6 M12 66 q7 -7 15 -5" stroke="#ef4444" stroke-width="2.2" fill="none" stroke-linecap="round"/>`+_tx(100,136,'nâng cao chạy nhanh — hàng nghiêng rơi',7.5,'#64748b',600)+_X(172,40),
+         dung:_san()+_xenang(0,0,82)+_tx(100,136,'càng hạ thấp, hàng cân — vận hành an toàn',7.5,'#64748b',600)+_V(172,40)},
  hethong:{sai:_san()+_mt(42,56,50,38,'3')+_hop(116,72,30,26)+_hop(150,72,30,26)+_tx(148,60,'thực tế: 2',8.5,'#64748b',600)+_X(100,118,7),
           dung:_san()+_mt(42,56,50,38,'2')+_hop(116,72,30,26)+_hop(150,72,30,26)+_tx(148,60,'thực tế: 2',8.5,'#64748b',600)+_V(100,114)},
  kiemke:{sai:_san()+`<rect x="70" y="42" width="60" height="76" rx="5" fill="#fff" stroke="#94a3b8" stroke-width="2.6"/><rect x="88" y="36" width="24" height="12" rx="3" fill="#94a3b8"/>`+`<g stroke="#94a3b8" stroke-width="2" fill="none"><rect x="78" y="58" width="9" height="9"/><rect x="78" y="74" width="9" height="9"/><rect x="78" y="90" width="9" height="9"/></g><g stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"><path d="M92 63 h28 M92 79 h28 M92 95 h28"/></g>`+_X(152,60),
@@ -1450,8 +1559,13 @@ function bbCell(r){
   const sheetUrls=(iBienBan>=0?String(r[iBienBan]||''):'').split(/[\n,]/).map(s=>s.trim()).filter(s=>/^https?:/.test(s));
   const imgs=[...new Set([...sheetUrls, ...(bbLocal[code]||[])])];
   const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(bbThumb(u))}" loading="lazy" decoding="async" data-bb="${esc(bbFull(u))}" title="Xem biên bản">`).join('');
-  // ĐÃ có biên bản -> ẩn nút tải lên (chỉ hiện thumbnail như cột Hình ảnh)
-  const up = imgs.length ? '' : `<button class="bb-up" data-code="${esc(code)}" title="Tải biên bản lên">＋ Ảnh</button>`;
+  // ĐÃ có biên bản -> ẩn nút tải lên; task HOÀN THÀNH >96h -> làm mờ/tắt nút (khoá bổ sung muộn)
+  let up='';
+  if(!imgs.length){
+    up = bbKhoa(r)
+      ? `<button class="bb-up bb-off" disabled title="Task đã hoàn thành quá 96 giờ — khoá tải biên bản">＋ Ảnh</button>`
+      : `<button class="bb-up" data-code="${esc(code)}" title="Tải biên bản lên">＋ Ảnh</button>`;
+  }
   return `<span class="bb-cell">${thumbs}${up}</span>`;
 }
 async function taiBienBanLen(files){
@@ -1608,6 +1722,7 @@ $('btnFilter').addEventListener('click',()=>{
   // Link tới Google Sheet nguồn (tab 5S-TASKS)
   $('lnkSheet').href = "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit#gid=0";
   taiDuLieu();   // biên bản nằm trong cột "Biên bản" của 5S-TASKS -> tải cùng dữ liệu
+  taiQuyDinh();  // nạp QUY-DINH ngay từ đầu -> cột "Tần suất vi phạm" tra được %KPI theo hạng mục
   // Tự làm mới ONLINE mỗi 5 phút + khi quay lại tab (không hiện skeleton lại -> không giật)
   setInterval(()=>{ if(!dangCho) taiDuLieu(); }, 5*60*1000);
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && !dangCho && ROWS.length) taiDuLieu(); });
