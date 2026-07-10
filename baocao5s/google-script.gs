@@ -133,6 +133,24 @@ function thietLapSheetRieng() {
   return msg;
 }
 
+/** Lấy LINK sheet riêng (NHAN-SU/CHAM-CONG). Run trong editor -> link hiện ở kết quả + Nhật ký (Logger). */
+function xemSheetRieng() {
+  var id = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID');
+  if (!id) { Logger.log('Chua co sheet rieng - chay thietLapSheetRieng() truoc.'); return 'Chua co sheet rieng.'; }
+  var url = 'https://docs.google.com/spreadsheets/d/' + id + '/edit';
+  Logger.log(url);
+  return url;
+}
+
+/** Chia sẻ sheet riêng cho 1 EMAIL NỘI BỘ (quyền Xem) — vd để mở từ tài khoản khác. KHÔNG mở công khai. */
+function chiaSeSheetRieng(email) {
+  var id = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID');
+  if (!id) return 'Chua co sheet rieng.';
+  email = email || 'cosmetics@hasakigroup.vn';   // sửa email tại đây nếu cần
+  try { DriveApp.getFileById(id).addViewer(email); } catch (e) { return 'Loi chia se: ' + e.message; }
+  return 'Da chia se (Xem) cho ' + email + ' : https://docs.google.com/spreadsheets/d/' + id + '/edit';
+}
+
 /**
  * ⚙️ CHẠY 1 LẦN (donDepBienBanCu): chuyển biên bản từ tab BIEN-BAN cũ -> cột "Biên bản" của 5S-TASKS
  *   (khớp theo Mã task), BỎ dòng test, rồi XOÁ tab BIEN-BAN. An toàn chạy lại (idempotent).
