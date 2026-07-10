@@ -79,8 +79,8 @@
 [data-theme="latte"] #latteMark{display:flex;}
 #latteMark svg{width:min(100vmin,980px); height:auto; user-select:none;}
 #hskMark img{
-  width:min(48vw,560px); height:auto; opacity:.07;
-  transform:rotate(-6deg); user-select:none;
+  width:min(52vw,600px); height:auto; opacity:.12;   /* dấu chìm nhưng rõ hơn */
+  user-select:none;                                   /* NGAY THẲNG — không nghiêng, giữa trung tâm */
 }
 [data-theme="hasaki"] body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:15px;}
 [data-theme="hasaki"] header h1{font-size:22px; letter-spacing:-.3px;}
@@ -527,26 +527,47 @@ th.kpi-col-val, td.kpi-val{text-align:right;}
 .kpi-sep td{background:var(--surface2); color:var(--text); font-weight:800; font-size:11.5px; letter-spacing:.09em; white-space:normal; padding:11px 16px; border-top:2px solid var(--border);}
 .kpi-sep-note{color:var(--muted); font-weight:600; letter-spacing:.02em; text-transform:none;}
 #kpiThang{max-width:190px; font-weight:600;}
-@media (max-width:560px){
-  .kpi-wrap tbody td{padding:11px 10px;}
-  .kpi-wrap thead th{padding:10px 10px;}
-  .kpi-ten{font-size:14px;}
-  .kpi-val{font-size:15px; min-width:110px;}
-  .kpi-rank{width:32px;}
+/* cột SO VỚI THÁNG TRƯỚC */
+th.kpi-col-prev, td.kpi-col-prev{text-align:right; white-space:nowrap;}
+.kpi-prev{color:var(--muted); font-size:12.5px; font-variant-numeric:tabular-nums;}
+.kpi-up{color:var(--bad); font-weight:800; font-size:12.5px;}
+.kpi-down{color:var(--good); font-weight:800; font-size:12.5px;}
+.kpi-eq{color:var(--muted); font-weight:700;}
+.kpi-prev-non{color:var(--muted); font-size:12px;}
+.th-short{display:none;}
+/* ===== FIT MÀN HẸP: KHÔNG cuộn ngang, KHÔNG xuống dòng dữ liệu =====
+   table-layout:FIXED + ellipsis từng ô (max-width thường bị table auto bỏ qua) + ẩn cột ID. */
+@media (max-width:700px){
+  .kpi-wrap table{table-layout:fixed; width:100%;}
+  .kpi-wrap th, .kpi-wrap td{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .kpi-wrap tbody td{padding:10px 5px;}
+  .kpi-wrap thead th{padding:9px 5px; font-size:9px; letter-spacing:.03em;}
+  .th-full{display:none;} .th-short{display:inline;}
+  th.kpi-id, td.kpi-id{display:none;}                      /* ẩn cột ID (đã có trong pop-up) */
+  th.kpi-rank{width:24px;} .kpi-rank{padding-left:2px; padding-right:2px;}
+  th.kpi-col-luot{width:46px;}
+  th.kpi-col-val{width:62px;}
+  th.kpi-col-prev{width:70px;}
+  .kpi-ten{font-size:12.5px;}
+  .kpi-pill{padding:0; border:0; background:none; font-size:11.5px;}
+  .kpi-xm{display:none;}                                   /* chi tiết XM xem trong pop-up */
+  .kpi-val{font-size:13px; min-width:0;}
+  .kpi-bar{display:none;}
+  .kpi-prev,.kpi-up,.kpi-down,.kpi-prev-non{font-size:10px;}
+  .kb-lbl{font-size:9px;}
 }
 /* ===== 7 THẺ TỔNG KẾT: ẩn trong bộ chọn ===== */
 .btn-cards{display:block; width:100%; text-align:left; margin-bottom:12px;}
 .cards.collapsed{display:none;}
-/* ===== BANNER CẢNH BÁO (tab Tổng quan) — ám thị răn đe ===== */
-.cb-banner{position:relative; overflow:hidden; display:flex; align-items:center; gap:15px; padding:18px 20px 16px;
-  border-radius:14px; margin-bottom:14px; color:#fff; box-shadow:var(--shadow);
-  background:linear-gradient(135deg,#7f1d1d 0%,#b91c1c 55%,#8a1616 100%);}
-.cb-banner::before{content:""; position:absolute; top:0; left:0; right:0; height:6px;
-  background:repeating-linear-gradient(45deg,#fbbf24 0 12px,#1f2937 12px 24px);}   /* sọc cảnh báo vàng-đen */
-.cb-banner svg{width:40px; height:40px; flex:0 0 auto; filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));}
-.cb-t{display:flex; flex-direction:column; gap:3px; min-width:0;}
-.cb-t b{font-size:15px; font-weight:800; letter-spacing:.14em;}
-.cb-t span{font-size:12.5px; opacity:.88; line-height:1.45;}
+/* ===== TAB TỔNG QUAN: nền thẫm đỏ trầm — uy nghiêm, ĐỘC LẬP theme (các tab khác giữ theme) ===== */
+#pane-tong{background:linear-gradient(168deg,#181114 0%,#26141a 48%,#170f12 100%);
+  border:1px solid rgba(190,45,45,.3); border-radius:18px; padding:16px 16px 20px;
+  box-shadow:0 18px 50px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);}
+#pane-tong .foot{color:rgba(255,255,255,.55);}
+#pane-tong .foot b{color:rgba(255,255,255,.78);}
+#pane-tong .btn-cards{color:#efe6e6; border-color:rgba(255,255,255,.16); background:rgba(255,255,255,.04);}
+#pane-tong .btn-cards:hover{border-color:rgba(255,120,100,.55); color:#fff;}
+@media (max-width:560px){ #pane-tong{padding:10px 10px 14px; border-radius:14px;} }
 /* dải 4 chỉ số tháng */
 .kpi-band{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px;}
 .kb-tile{background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--bad);
@@ -629,8 +650,7 @@ button:active{transform:scale(.97);}
 .card:hover,.kb-tile:hover{transform:translateY(-3px) scale(1.008); box-shadow:0 10px 28px rgba(0,0,0,.12);}
 .bb-thumb,.rm-thumb{transition:transform .25s var(--ez-spring);}
 .bb-thumb:hover,.row-media:hover .rm-thumb{transform:scale(1.07);}
-/* vào cảnh có nhịp: banner -> 4 ô chỉ số lần lượt (stagger) */
-.cb-banner{animation:paneIn .5s var(--ez-apple) both;}
+/* vào cảnh có nhịp: 4 ô chỉ số lần lượt (stagger) */
 .kpi-band .kb-tile{animation:paneIn .5s var(--ez-apple) both;}
 .kpi-band .kb-tile:nth-child(2){animation-delay:.06s;}
 .kpi-band .kb-tile:nth-child(3){animation-delay:.12s;}
@@ -709,14 +729,6 @@ html{scroll-behavior:smooth;}
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
   <section id="pane-tong" class="pane">
-    <!-- Banner giám sát 5S (răn đe) -->
-    <div class="cb-banner" role="note">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,2 14.6,8.6 21.8,9 16.2,13.6 18.2,20.6 12,16.6 5.8,20.6 7.8,13.6 2.2,9 9.4,8.6" fill="#ffffff" opacity=".95"/></svg>
-      <div class="cb-t">
-        <b>KHU VỰC GIÁM SÁT 5S — AUDIT HASAKI</b>
-        <span>Mọi vi phạm đều được ghi nhận bằng hình ảnh, quy trách nhiệm đến từng cá nhân và trừ KPI luỹ tiến theo QUY-DINH. Vi phạm lặp lại trong tháng, mức trừ tăng theo số lần.</span>
-      </div>
-    </div>
     <!-- Dải chỉ số tháng -->
     <div class="kpi-band" id="kpiBand">
       <div class="kb-tile"><div class="sk sk-line" style="width:60%"></div></div>
@@ -1254,9 +1266,8 @@ function napKpiThang(){
   if(yms.includes(cur)) $('kpiThang').value=cur;
   renderKpi();
 }
-function renderKpi(){
-  const ym=$('kpiThang').value;
-  if(!ym){ $('kpiWrap').innerHTML='<div class="empty-row">Chưa có dữ liệu.</div>'; return; }
+// Tính luỹ kế KPI của 1 tháng (dùng cho tháng đang chọn + THÁNG TRƯỚC để so sánh)
+function tinhThangKpi(ym){
   const chuanTen=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   // QUẢN LÝ nghiệp vụ KHÔNG nằm trong bảng NV vi phạm (không hiển thị / không tính KPI trừ NV)
   const laQL=t=>{const n=chuanTen(t);return QL_NGHIEP_VU.some(([k])=>n===k||n.indexOf(k)>=0);};
@@ -1289,26 +1300,52 @@ function renderKpi(){
     });
     return {ten,xm,kxm,kpi:Math.round((xm*0.2+kxm*1)*100)/100,list};
   }).filter(q=>q.list.length);
+  return {nv,ql};
+}
+function renderKpi(){
+  const ym=$('kpiThang').value;
+  if(!ym){ $('kpiWrap').innerHTML='<div class="empty-row">Chưa có dữ liệu.</div>'; return; }
+  const {nv,ql}=tinhThangKpi(ym);
+  // Tháng TRƯỚC (liền kề) để so sánh
+  const [yy,mm]=ym.split('-').map(Number);
+  const prevYm=mm===1?(yy-1)+'-12':yy+'-'+String(mm-1).padStart(2,'0');
+  const prev=tinhThangKpi(prevYm);
+  const prevNv=Object.fromEntries(prev.nv.map(x=>[x.id,x.kpi]));
+  const prevQl=Object.fromEntries(prev.ql.map(x=>[x.ten,x.kpi]));
+  // Ô so sánh: tháng trước −x% + mũi tên tăng(đỏ)/giảm(xanh)
+  const soSanh=(cur,pv)=>{
+    if(pv==null) return '<span class="kpi-prev-non"><span class="th-full">— không vi phạm</span><span class="th-short">—</span></span>';
+    const d=Math.round((cur-pv)*100)/100, f=n=>String(n).replace('.',',');
+    const base=`<span class="kpi-prev">−${f(pv)}%</span>`;
+    if(d>0) return base+` <span class="kpi-up">▲ +${f(d)}%</span>`;
+    if(d<0) return base+` <span class="kpi-down">▼ ${f(d)}%</span>`;
+    return base+' <span class="kpi-eq">＝</span>';
+  };
   KPI_DATA={nv,ql,ym};
   const fmt=v=>{const s=String(Math.round(v*100)/100).replace('.',',');return v>0?`<span class="kpi-neg">−${s}%</span>`:'<span class="kpi-zero">0%</span>';};
   const maxK=Math.max(...nv.map(x=>x.kpi),0.0001);
-  let h='<table><thead><tr><th class="kpi-rank">#</th><th>ID</th><th>Họ và tên</th><th>Lượt ghi nhận</th><th class="kpi-col-val">KPI trừ luỹ kế</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th class="kpi-rank">#</th><th class="kpi-id">ID</th><th>Họ và tên</th>'
+   +'<th class="kpi-col-luot"><span class="th-full">Lượt ghi nhận</span><span class="th-short">Lượt</span></th>'
+   +'<th class="kpi-col-val"><span class="th-full">KPI trừ luỹ kế</span><span class="th-short">KPI trừ</span></th>'
+   +'<th class="kpi-col-prev"><span class="th-full">So với tháng trước</span><span class="th-short">So th.trước</span></th></tr></thead><tbody>';
   h+=nv.map((x,i)=>`<tr data-kpi="nv:${i}" class="${i<3?'kpi-top':''}" title="Bấm xem các task trong tháng">
       <td class="kpi-rank">${i+1}</td>
       <td class="kpi-id">${esc(x.id)}</td>
-      <td class="kpi-ten">${esc(x.ten)}</td>
-      <td><span class="kpi-pill">${x.luot} lượt</span></td>
-      <td class="kpi-val">${fmt(x.kpi)}<div class="kpi-bar" style="width:${Math.max(6,Math.round(x.kpi/maxK*100))}%"></div></td></tr>`).join('')
-     ||'<tr><td colspan="5"><div class="empty-row">Không có NV vi phạm trong tháng này.</div></td></tr>';
+      <td class="kpi-ten" title="${esc(x.ten)}">${esc(x.ten)}</td>
+      <td class="kpi-col-luot"><span class="kpi-pill">${x.luot} lượt</span></td>
+      <td class="kpi-val">${fmt(x.kpi)}<div class="kpi-bar" style="width:${Math.max(6,Math.round(x.kpi/maxK*100))}%"></div></td>
+      <td class="kpi-col-prev">${soSanh(x.kpi,prevNv[x.id]!=null?prevNv[x.id]:null)}</td></tr>`).join('')
+     ||'<tr><td colspan="6"><div class="empty-row">Không có NV vi phạm trong tháng này.</div></td></tr>';
   if(ql.length){
-    h+='<tr class="kpi-sep"><td colspan="5">QUẢN LÝ NGHIỆP VỤ — KPI THEO TRÁCH NHIỆM XÁC MINH <span class="kpi-sep-note">(−0.2%/lượt xác minh được · −1%/lượt không xác minh được)</span></td></tr>';
+    h+='<tr class="kpi-sep"><td colspan="6">QUẢN LÝ NGHIỆP VỤ — KPI THEO TRÁCH NHIỆM XÁC MINH <span class="kpi-sep-note">(−0.2%/lượt xác minh được · −1%/lượt không xác minh được)</span></td></tr>';
     const maxQ=Math.max(...ql.map(x=>x.kpi),0.0001);
     h+=ql.map((x,i)=>`<tr data-kpi="ql:${i}" title="Bấm xem các task trong tháng">
       <td class="kpi-rank">QL</td>
       <td class="kpi-id">—</td>
-      <td class="kpi-ten">${esc(x.ten)}</td>
-      <td><span class="kpi-pill">${x.xm+x.kxm} lượt</span> <span class="muted" style="font-size:12px">${x.xm} XM · ${x.kxm} không XM</span></td>
-      <td class="kpi-val">${fmt(x.kpi)}<div class="kpi-bar" style="width:${Math.max(6,Math.round(x.kpi/maxQ*100))}%"></div></td></tr>`).join('');
+      <td class="kpi-ten" title="${esc(x.ten)}">${esc(x.ten)}</td>
+      <td class="kpi-col-luot"><span class="kpi-pill">${x.xm+x.kxm} lượt</span> <span class="muted kpi-xm" style="font-size:12px">${x.xm} XM · ${x.kxm} không XM</span></td>
+      <td class="kpi-val">${fmt(x.kpi)}<div class="kpi-bar" style="width:${Math.max(6,Math.round(x.kpi/maxQ*100))}%"></div></td>
+      <td class="kpi-col-prev">${soSanh(x.kpi,prevQl[x.ten]!=null?prevQl[x.ten]:null)}</td></tr>`).join('');
   }
   h+='</tbody></table>';
   $('kpiWrap').innerHTML=h;
