@@ -632,14 +632,15 @@ th.kpi-col-prev, td.kpi-col-prev{text-align:right; white-space:nowrap;}
 @keyframes paneIn{from{opacity:0; transform:translate3d(0,14px,0) scale(.994);} to{opacity:1; transform:none;}}
 /* overlay kính mờ */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)){
-  #modal,#statModal,#hmModal,#ghiModal,#lightbox{backdrop-filter:blur(16px) saturate(160%); -webkit-backdrop-filter:blur(16px) saturate(160%);}
+  #modal,#statModal,#hmModal,#ghiModal,#lightbox{backdrop-filter:blur(9px); -webkit-backdrop-filter:blur(9px);}
 }
 /* sheet: rơi vào + nảy nhẹ rồi đậu (spring settle) */
 @keyframes sheetIn{0%{opacity:0; transform:translate3d(0,24px,0) scale(.965);}
   62%{opacity:1; transform:translate3d(0,-3px,0) scale(1.004);}
   100%{opacity:1; transform:none;}}
+#modal .modal-box, #statModal .modal-box, #ghiModal .gm-box, #hmModal .hmm-box{will-change:transform,opacity; transform:translateZ(0);}
 #modal.show .modal-box, #statModal.show .modal-box,
-#ghiModal.show .gm-box, #hmModal.show .hmm-box{animation:sheetIn .52s var(--ez-apple);}
+#ghiModal.show .gm-box, #hmModal.show .hmm-box{animation:sheetIn .38s var(--ez-apple);}
 /* menu cài đặt: bung từ điểm neo (transform-origin đã là top right) */
 .settings-pop{animation:menuIn .34s var(--ez-spring);}
 @keyframes menuIn{from{opacity:0; transform:scale(.88) translateY(-6px);} to{opacity:1; transform:none;}}
@@ -1376,7 +1377,7 @@ function moLoiThang(){
   $('stBody').innerHTML='<table class="loi-table"><thead><tr><th style="width:44px">#</th><th>Chi tiết hạng mục</th><th style="width:150px;text-align:right">Số lượt ghi nhận</th></tr></thead><tbody>'+
     KPI_DATA.loi.map(([loi,n],i)=>`<tr><td style="color:var(--muted);font-weight:700">${i+1}</td><td style="white-space:normal;line-height:1.45">${esc(loi)}</td><td style="text-align:right"><span class="kpi-neg">${n} lượt</span></td></tr>`).join('')+
     '</tbody></table>';
-  $('statModal').classList.add('show');
+  hienModal('statModal');
 }
 function moKpiChiTiet(loai,idx){
   if(!KPI_DATA) return;
@@ -1398,7 +1399,7 @@ function moKpiChiTiet(loai,idx){
   }
   $('stTitle').textContent=(loai==='nv'?(x.ten+' ('+x.id+')'):(x.ten+' — Quản lý nghiệp vụ'))+' · tháng '+thang+'/'+nam+' · '+rows.length+' task';
   $('stBody').innerHTML=rowsTableHTML(rows,kpiOf);
-  $('statModal').classList.add('show');
+  hienModal('statModal');
 }
 
 const STAT_ORDER=["nv","chuaXM","loiCN","koCN","kpDat","kpChua","huy"];
@@ -1491,7 +1492,7 @@ function moThongKe(key){
   const donvi = s.group ? (num+" nhân viên · "+rows.length+" task") : (num+" task");
   $('stTitle').innerHTML = esc(s.cap)+`<span class="stat-sub">${donvi}</span>`;
   $('stBody').innerHTML = body;
-  $('statModal').classList.add('show');
+  hienModal('statModal');
 }
 function dongThongKe(){ $('statModal').classList.remove('show'); }
 
@@ -1547,7 +1548,7 @@ function moChiTiet(i){
   }).join('');
 
   $('mBody').innerHTML = `<div class="steps-track">${html}</div>`;
-  $('modal').classList.add('show');
+  hienModal('modal');
 }
 function dongModal(){ $('modal').classList.remove('show'); }
 
@@ -1559,7 +1560,7 @@ function openLB(list, idx){
   $('lbPrev').style.display = multi?'block':'none';
   $('lbNext').style.display = multi?'block':'none';
   renderLB();
-  $('lightbox').classList.add('show');
+  hienModal('lightbox');
 }
 function renderLB(){
   const m=lbList[lbIdx]; if(!m) return;
@@ -1650,6 +1651,10 @@ function setTitle(t){
   $('titleSel').value = t;
   try{ localStorage.setItem('dash5s-title', t); }catch(e){}
 }
+
+/* Mở modal MƯỢT: ép trình duyệt layout+paint nội dung TRƯỚC (offsetHeight), sang frame kế mới
+   chạy animation -> frame đầu không bị việc dựng DOM đè lên, hết khựng. */
+function hienModal(id){ const el=$(id); void el.offsetHeight; requestAnimationFrame(()=>el.classList.add("show")); }
 
 /* ===== TABS ===== */
 function setTab(name){
@@ -1818,7 +1823,7 @@ function moHinhHangMuc(i){
   $('hmmDesc').textContent=r[1];
   $('hmmSai').innerHTML=_canh(c.sai);
   $('hmmDung').innerHTML=_canh(c.dung);
-  $('hmModal').classList.add('show');
+  hienModal('hmModal');
 }
 function dongHinhHangMuc(){ $('hmModal').classList.remove('show'); }
 
@@ -1833,7 +1838,7 @@ function moGhiNhan(){
   const pin=prompt("Nhập PIN để ghi nhận vi phạm 5S:");
   if(pin===null || !pin.trim()) return;
   napFormTruoc();
-  $('ghiModal').classList.add('show');                     // MỞ NGAY — không đợi mạng
+  hienModal('ghiModal');                                   // MỞ NGAY — không đợi mạng
   let daXacThuc=false; try{ daXacThuc=sessionStorage.getItem('ghi5s-ok')==='1'; }catch(e){}
   if(daXacThuc && pin.trim().length>=4) return;            // phiên này đã xác thực đúng PIN -> khỏi chờ server
   const cb="cp_"+Date.now();
