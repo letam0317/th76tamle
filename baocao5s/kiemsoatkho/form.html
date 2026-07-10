@@ -303,7 +303,7 @@
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
         </svg>
         <p class="text-white text-sm" x-text="tienTrinhNen || 'Đang xử lý video...'"></p>
-        <p class="text-white/50 text-xs mt-1">Video lớn (50–100MB) đang được hạ xuống 720p để gửi nhanh & nhẹ Drive.</p>
+        <p class="text-white/50 text-xs mt-1">Đang gắn nhãn thời gian vào video (và hạ ≤720p nếu clip lớn) — mất khoảng bằng thời lượng clip.</p>
       </div>
 
       <!-- ===== Xem lại ảnh/clip đã đính kèm (phóng to / phát) ===== -->
@@ -535,10 +535,19 @@
         // ---- Quay video trong app (1080p) ----
         batDauQuay() {
           if (!this._cameraStream) return;
+          // QUAY QUA CANVAS: vẽ khung hình + NHÃN (Viên nhãn + đồng hồ chạy) từng frame rồi thu canvas
+          // -> nhãn được GHI THẲNG vào video (như ảnh chụp). Giữ âm thanh từ mic.
+          const v = this.$refs.video;
+          const vw = v.videoWidth || 1280, vh = v.videoHeight || 720;
+          const sc = Math.min(1, 1280 / Math.max(vw, vh));
+          const c = document.createElement('canvas'); c.width = Math.round(vw * sc); c.height = Math.round(vh * sc);
+          const ctx = c.getContext('2d');
+          const stream = c.captureStream(30);
+          try { this._cameraStream.getAudioTracks().forEach(t => stream.addTrack(t)); } catch (e) {}
           const mime = ['video/mp4;codecs=h264,aac', 'video/webm;codecs=vp9,opus', 'video/webm']
             .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
           try {
-            this._recorder = new MediaRecorder(this._cameraStream, mime ? { mimeType: mime, videoBitsPerSecond: 4000000 } : undefined);
+            this._recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 4000000 } : undefined);
           } catch (e) { alert('Trình duyệt không hỗ trợ quay video: ' + e); return; }
           this._videoChunks = [];
           this._recorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) this._videoChunks.push(ev.data); };
@@ -550,19 +559,29 @@
             reader.onload = (e) => {
               this.files.push({
                 ten: 'quay_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.' + ext,
-                loai: 'video', mime: type.split(';')[0], preview: e.target.result, base64: e.target.result, tg: Date.now()
+                loai: 'video', mime: type.split(';')[0],
+                preview: URL.createObjectURL(blob),   // objectURL: phát mượt, KHÔNG rách như data: URL lớn
+                base64: e.target.result, tg: Date.now()
               });
               this.soAnhChup++;
             };
             reader.readAsDataURL(blob);
           };
+          const veKhung = () => {
+            if (!this.dangQuay) return;
+            ctx.drawImage(v, 0, 0, c.width, c.height);
+            this._veNhanThoiGian(c);                 // nhãn + đồng hồ CHẠY THEO THỜI GIAN THẬT
+            this._recRaf = requestAnimationFrame(veKhung);
+          };
           this._recorder.start();
           this.dangQuay = true; this.giayQuay = 0;
+          veKhung();
           this._quayTimer = setInterval(() => { this.giayQuay++; }, 1000);
         },
         dungQuay() {
           if (this._recorder && this.dangQuay) { try { this._recorder.stop(); } catch (e) {} }
           this.dangQuay = false;
+          if (this._recRaf) { cancelAnimationFrame(this._recRaf); this._recRaf = null; }
           if (this._quayTimer) { clearInterval(this._quayTimer); this._quayTimer = null; }
         },
 
@@ -736,20 +755,22 @@
             alert('Video nặng ' + mb.toFixed(0) + 'MB, vượt giới hạn ' + this.MAX_VIDEO_MB + 'MB.\nVui lòng quay clip ngắn hơn.');
             return;
           }
+          // LUÔN chạy qua canvas để GẮN NHÃN (Viên nhãn + thời gian quay gốc) vào video tải lên
+          // (đồng thời hạ ≤720p nếu clip lớn). Lỗi -> gửi nguyên gốc (không nhãn) để không chặn người dùng.
           let blob = file;
-          if (mb > this.NGUONG_NEN_MB) {
-            try { this.dangNen = true; blob = await this._nenVideo720(file); }
-            catch (err) { alert('Không nén được video, gửi nguyên gốc. (' + err + ')'); blob = file; }
-            finally { this.dangNen = false; this.tienTrinhNen = ''; }
-          }
+          try { this.dangNen = true; blob = await this._nenVideo720(file, tg); }
+          catch (err) { alert('Không gắn được nhãn video, gửi nguyên gốc. (' + err + ')'); blob = file; }
+          finally { this.dangNen = false; this.tienTrinhNen = ''; }
           const reader = new FileReader();
           reader.onload = (e) => {
-            this.files.push({ ten: file.name || 'video.mp4', loai: 'video', mime: (blob.type || file.type || 'video/mp4').split(';')[0], preview: e.target.result, base64: e.target.result, tg });
+            this.files.push({ ten: file.name || 'video.mp4', loai: 'video', mime: (blob.type || file.type || 'video/mp4').split(';')[0],
+              preview: URL.createObjectURL(blob),    // objectURL: phát mượt, không rách như data: URL lớn
+              base64: e.target.result, tg });
           };
           reader.readAsDataURL(blob);
         },
-        // Transcode -> 720p bằng canvas.captureStream + MediaRecorder (mất ~ thời lượng clip)
-        _nenVideo720(file) {
+        // Transcode qua canvas + GẮN NHÃN thời gian (tg = thời điểm quay gốc) — giữ âm thanh nếu trình duyệt cho phép
+        _nenVideo720(file, tg) {
           return new Promise((resolve, reject) => {
             const v = document.createElement('video');
             v.muted = true; v.playsInline = true; v.src = URL.createObjectURL(file);
@@ -758,13 +779,19 @@
               const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
               const c = document.createElement('canvas'); c.width = w; c.height = h;
               const ctx = c.getContext('2d');
+              const cs = c.captureStream(30);
+              try { const vs = v.captureStream ? v.captureStream() : null; if (vs) vs.getAudioTracks().forEach(t => cs.addTrack(t)); } catch (e) {}
               const mime = ['video/mp4;codecs=h264', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
-              const rec = new MediaRecorder(c.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 2500000 } : undefined);
+              const rec = new MediaRecorder(cs, mime ? { mimeType: mime, videoBitsPerSecond: 2500000 } : undefined);
               const chunks = [];
               rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
               rec.onstop = () => { URL.revokeObjectURL(v.src); resolve(new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] })); };
               let raf;
-              const draw = () => { if (!v.paused && !v.ended) { ctx.drawImage(v, 0, 0, w, h); this.tienTrinhNen = 'Đang nén video 720p... ' + Math.round((v.currentTime / (v.duration || 1)) * 100) + '%'; raf = requestAnimationFrame(draw); } };
+              const draw = () => { if (!v.paused && !v.ended) {
+                ctx.drawImage(v, 0, 0, w, h);
+                this._veNhanThoiGian(c, tg);        // nhãn Viên nhãn + thời gian quay gốc trên từng khung hình
+                this.tienTrinhNen = 'Đang gắn nhãn video... ' + Math.round((v.currentTime / (v.duration || 1)) * 100) + '%';
+                raf = requestAnimationFrame(draw); } };
               rec.start();
               v.play().then(() => draw()).catch(reject);
               v.onended = () => { cancelAnimationFrame(raf); setTimeout(() => { try { rec.stop(); } catch (e) {} }, 200); };
@@ -772,7 +799,11 @@
             v.onerror = () => reject('không mở được video');
           });
         },
-        xoaFile(i) { this.files.splice(i, 1); },
+        xoaFile(i) {
+          const f = this.files[i];
+          if (f && /^blob:/.test(String(f.preview))) { try { URL.revokeObjectURL(f.preview); } catch (e) {} }
+          this.files.splice(i, 1);
+        },
 
         // ---- Gửi báo cáo ----
         async guiBaoCao() {
