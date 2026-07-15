@@ -32,6 +32,9 @@ const SYNC_FROM = process.env.SYNC_FROM || "2026-04-01";   // mốc bắt đầu
 const ROLL_DAYS = Number(process.env.ROLL_DAYS || 45);     // cửa sổ an toàn LUÔN refresh (bắt task mới / task bị mở lại)
 const FULL_RESYNC = process.env.FULL_RESYNC === "1";       // ép đồng bộ TOÀN BỘ từ SYNC_FROM (bỏ qua cache) — chạy tay khi cần
 const CACHE_FILE = path.join(EXPORT_DIR, "tasks-cache.json"); // KHO BỀN VỮNG: task terminal đóng băng ở đây, không export lại
+// MULTI-TENANT (dashboard đa công ty): thư mục file tĩnh trên Pages. Hasaki = "summary" (mặc định, giữ nguyên).
+// Chạy pipeline cho công ty khác: SUMMARY_DIR=summary-factory WORKFLOW_ID=<wf id> node auto-export-sync.js
+const SUMMARY_DIR = process.env.SUMMARY_DIR || "summary";
 // NGUỒN DUY NHẤT trạng thái "đóng" (terminal) — giá trị GỐC tiếng Anh của WF: Finished/Canceled/Cancelled/Failed
 const TERMINAL_STATUSES = ["finished", "canceled", "cancelled", "failed"];
 const chuanTT = (v) => String(v == null ? "" : v).trim().toLowerCase();
@@ -454,7 +457,7 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
       // bỏ apiAt khi so sánh (apiAt đổi mỗi lượt) -> chỉ đẩy khi DỮ LIỆU tháng đổi
       const boApiAt = (s) => s.replace(/"apiAt":\d+,/, "");
       fs.writeFileSync(fLocal, noiDung);
-      if (boApiAt(cu) !== boApiAt(noiDung)) { await dayLenPages("summary/" + th + ".json", noiDung); dayLen++; }
+      if (boApiAt(cu) !== boApiAt(noiDung)) { await dayLenPages(SUMMARY_DIR + "/" + th + ".json", noiDung); dayLen++; }
     }
     // index.json: danh sách tháng + tổng số + apiAt (luôn đẩy, rất nhẹ)
     const index = JSON.stringify({
@@ -463,7 +466,7 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
       soTask: Object.fromEntries(thangSap.map(t => [t, nhomThang[t].length])),
     });
     fs.writeFileSync(path.join(LOCAL_DIR, "index.json"), index);
-    await dayLenPages("summary/index.json", index);
+    await dayLenPages(SUMMARY_DIR + "/index.json", index);
     log("  ✓ Chunk theo tháng → Pages: " + thangSap.length + " tháng, đẩy " + (dayLen + 1) + " file thay đổi (index + " + dayLen + " chunk).");
   } catch (e) { log("  (cảnh báo: không đẩy được chunk theo tháng: " + e.message + " — dashboard tự dùng gviz như cũ)"); }
   // giữ 3 file .xlsx gần nhất
