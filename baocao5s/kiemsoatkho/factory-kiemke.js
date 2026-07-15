@@ -18,8 +18,6 @@ if (window.FKIEMKE) return;
 var SHEET_ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 var TAB = "kiemke-material";
 var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
-var WMS_PC = "https://wms.inshasaki.com/physical-count";     // deep-link đích (mở tab mới)
-var DEV_MODE = /[?&]dev=1/.test(location.search);
 var MODAL_CAP = 400;                                          // trần <tr> trong modal (chống jank)
 var FETCH_TIMEOUT_MS = 4 * 60 * 1000;
 
@@ -39,16 +37,21 @@ var MOCK = (function(){
     ["INV-26011","422502244","Mác dệt chính/Logo Bag12/Lô 2026","F2-C2-04-01","WH - MATERIAL - GARMENT",1000,998,"RQ-6012","SRC-03","Trung bình","Không","Vũ E","Đỗ F","2026-07-13 13:12","2026-07-14"],
     ["INV-26012","422501920","Vải lót/POLY210T/Xám tro/Khổ 1m5","F0-A2-04-01","WH - MATERIAL - GARMENT",140,140,"RQ-6012","SRC-03","Trung bình","Không","Vũ E","Đỗ F","2026-07-09 11:00","2026-07-10"],
   ];
+  var UOMS = ["Mét", "Cái", "Cuộn", "Hộp"], SUB = ["Chờ duyệt", "Đang đếm lại", "Chờ HR"];
   return A.map(function(m, i){
     var inv = m[5], cnt = m[6], dl = cnt == null ? 0 : cnt - inv;
+    var st = cnt == null ? "PENDING" : dl === 0 ? "VERIFIED" : "PROCESSING";
     return { id: m[0], no: i + 1, sku: m[1], pn: m[2], loc: m[3], wh: m[4], inv: inv, cnt: cnt, diffLoc: dl,
       req: m[7], source: m[8], type: m[9], priority: m[10], rfid: m[11], assignTo: m[12], countedBy: m[13],
-      updatedAt: m[14], planDate: m[15] };
+      updatedAt: m[14], planDate: m[15],
+      // CT5: 3 trường WMS nâng cao — MOCK điền đủ để xem UI (data thật chưa có -> để trống)
+      uom: UOMS[i % UOMS.length], price: (i + 1) * 15000, subStatus: st === "PROCESSING" ? SUB[i % SUB.length] : "" };
   });
 })();
 
 /* ===== STATE ===== */
-var ROWS = [], WHS = [], selWh = "", refDay = 0, _giaLap = false;
+var ROWS = [], WHS = [], selWh = "", refDay = 0, dateRange = "all", _giaLap = false;
+var ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M17 7H9M17 7V15"/></svg>';
 var _boot = false, _syncing = false, _lastSyncMs = 0, _deb = null, PANE = null;
 var mFilter = { t: "all" }, mTab = "sku", mLabel = "";
 
@@ -66,6 +69,20 @@ function parseDate(s){
   var t = Date.parse(s); return isNaN(t) ? NaN : t;
 }
 function dayKey(ms){ return isNaN(ms) ? NaN : Math.floor(ms / 86400000); }
+/* CT1: bóc tách chuỗi Google Date "Date(y,M,d,H,m,s)" (Tháng 0-based) -> "DD/MM/YYYY HH:mm".
+   Dùng chung parseDate; dateOnly=true khi chỉ cần ngày (Plan date). Không đọc được -> "—". */
+function fmtDate(s, dateOnly){
+  var ms = parseDate(s); if (isNaN(ms)) return s ? esc(String(s)) : "—";
+  var d = new Date(ms), out = p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear();
+  return dateOnly ? out : out + " " + p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes());
+}
+function fmtTien(v){ return v == null || isNaN(v) ? "—" : (v > 0 ? "+" : "") + Math.round(v).toLocaleString("vi-VN") + " đ"; }
+/* CT3: deep-link kiểu WMS — SKU (tab=sku) / Location (tab=location). Rỗng -> "—". */
+function wmsLink(text, tab){
+  if (text == null || text === "") return "—";
+  return '<a class="wms-link" href="https://wms.inshasaki.com/physical-count/result/list?current_tab=' + tab +
+    '" target="_blank" rel="noopener">' + esc(text) + ICON + "</a>";
+}
 function fmtDMY(dk){ var d = new Date(dk * 86400000); return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1); }
 function statusOf(r){ if (r.cnt == null) return "PENDING"; return r.diffLoc === 0 ? "VERIFIED" : "PROCESSING"; }
 function badgeCls(st){ return st === "VERIFIED" ? "verified" : st === "PROCESSING" ? "processing" : "pending"; }
@@ -78,6 +95,7 @@ var CSS = [
 "#pane-fkiemke select.fk-wh{appearance:none;-webkit-appearance:none;width:100%;padding:10px 38px 10px 14px;min-height:44px;border:1.5px solid var(--line,#d0d7de);border-radius:11px;background:var(--panel,#fff);color:var(--text,#1f2937);font-size:14px;font-weight:700;cursor:pointer;}",
 "#pane-fkiemke select.fk-wh:focus{outline:0;border-color:var(--accent,#2563eb);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#2563eb) 18%,transparent);}",
 "#pane-fkiemke .fk-whsel::after{content:'';position:absolute;right:15px;bottom:16px;width:8px;height:8px;border-right:2px solid var(--muted,#6b7280);border-bottom:2px solid var(--muted,#6b7280);transform:rotate(45deg);pointer-events:none;}",
+"#pane-fkiemke .fk-rangesel{min-width:160px;}",
 "#pane-fkiemke .fk-info{font-size:11.5px;color:var(--muted,#6b7280);}",
 "#pane-fkiemke .fk-gl{color:#b45309;font-weight:700;}",
 "#pane-fkiemke .fk-sync{margin-left:auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-height:44px;background:var(--accent,#1f2937);color:#fff;border:0;border-radius:10px;padding:8px 16px;font-size:12.5px;font-weight:650;cursor:pointer;}",
@@ -149,6 +167,10 @@ var CSS = [
 ".fk-mtbl .loc{font-family:ui-monospace,Consolas,monospace;color:#0f9488;}",
 ".fk-link{color:#2563eb;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:3px;}",
 ".fk-link:hover{text-decoration:underline;} .fk-link svg{width:11px;height:11px;opacity:.8;}",
+/* CT3: deep-link WMS — xanh dương #0056b3, hover gạch chân, icon external 12px */
+".wms-link{color:#0056b3;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:3px;}",
+".wms-link:hover{text-decoration:underline;} .wms-link svg{width:12px;height:12px;opacity:.85;flex:none;}",
+".fk-mtbl .skucell b{font-weight:700;} .fk-mtbl .skucell .pn{display:block;white-space:normal;max-width:300px;color:var(--muted,#6b7280);line-height:1.35;margin-top:2px;}",
 ".fk-mnote{padding:10px 20px;font-size:11.5px;color:var(--muted,#9ca3af);border-top:1px solid var(--line,#e8ecf1);}",
 "#fkToast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:#111827;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 24px 60px rgba(16,24,40,.35);opacity:0;pointer-events:none;z-index:1400;max-width:92vw;text-align:center;transition:opacity .25s,transform .25s;}",
 "#fkToast.show{opacity:1;transform:translate(-50%,0);} #fkToast.ok{background:#0f766e;} #fkToast.warn{background:#b45309;} #fkToast.err{background:#b42318;}",
@@ -158,6 +180,8 @@ var CSS = [
 var KHUNG =
 '<div class="fk-top">' +
 '  <div class="fk-whsel"><label for="fkWh">Kho kiểm kê</label><select id="fkWh" class="fk-wh" aria-label="Chọn kho kiểm kê"></select></div>' +
+'  <div class="fk-whsel fk-rangesel"><label for="fkRange">Khoảng ngày</label><select id="fkRange" class="fk-wh" aria-label="Lọc theo khoảng ngày">' +
+'    <option value="all">Tất cả</option><option value="today">Hôm nay</option><option value="7d">7 ngày qua</option><option value="30d">30 ngày qua</option></select></div>' +
 '  <span id="fkInfo" class="fk-info"></span>' +
 '  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Đồng bộ WMS (test 2 trang/kho)</span><small class="ts" id="fkSyncTs"></small></button>' +
 '</div>' +
@@ -209,7 +233,8 @@ function napSheet(rows){
     var dl = (r[6] === "" || r[6] == null) ? (cnt == null ? 0 : cnt - inv) : Number(r[6]) || 0;
     return { id: "", no: i + 1, sku: String(r[0]), pn: String(r[1] || ""), loc: String(r[2] || ""), wh: String(r[3] || ""),
       inv: inv, cnt: cnt, diffLoc: dl, req: "", source: "", type: "", priority: "", rfid: "", assignTo: "", countedBy: "",
-      updatedAt: String(r[8] || ""), planDate: "" };
+      updatedAt: String(r[8] || ""), planDate: "",
+      uom: "", price: null, subStatus: "" };   // CT5: chỗ trống chờ endpoint kiểm kê thật
   });
   khoiTao();
 }
@@ -225,13 +250,23 @@ function khoiTao(){
 }
 function rowsKho(){ return ROWS.filter(function(r){ return r.wh === selWh; }); }
 function diffBySku(rows){ var m = {}; rows.forEach(function(r){ m[r.sku] = (m[r.sku] || 0) + r.diffLoc; }); return m; }
+/* CT4: khoảng ngày (neo theo refDay = ngày mới nhất trong dữ liệu). Dùng cho CẢ dashboard + modal. */
+function trongKhoang(r){
+  if (dateRange === "all") return true;
+  var dk = dayKey(parseDate(r.updatedAt)); if (isNaN(dk)) return false;
+  if (dateRange === "today") return dk === refDay;
+  if (dateRange === "7d") return dk >= refDay - 6;
+  if (dateRange === "30d") return dk >= refDay - 29;
+  return true;
+}
+function rowsBase(){ return rowsKho().filter(trongKhoang); }
 
 /* ===== DASHBOARD (Chỉ thị 1) ===== */
 function veLai(){
-  var rows = rowsKho();
-  // refDay = ngày mới nhất có trong dữ liệu (mốc "hôm nay" theo dữ liệu, ổn định khi test)
-  refDay = 0; rows.forEach(function(r){ var d = dayKey(parseDate(r.updatedAt)); if (!isNaN(d) && d > refDay) refDay = d; });
+  // refDay = ngày mới nhất trong TOÀN kho (mốc "hôm nay" theo dữ liệu) — tính TRƯỚC khi lọc khoảng
+  refDay = 0; rowsKho().forEach(function(r){ var d = dayKey(parseDate(r.updatedAt)); if (!isNaN(d) && d > refDay) refDay = d; });
   if (!refDay) refDay = Math.floor(Date.now() / 86400000);
+  var rows = rowsBase();   // CT4: dashboard phản ứng ngay theo khoảng ngày
 
   // Velocity: đếm hôm nay vs hôm qua (dòng đã có count & updatedAt thuộc ngày đó)
   var demToday = 0, demYest = 0;
@@ -284,7 +319,7 @@ function veLai(){
 
 /* ===== MODAL (Chỉ thị 2+3) ===== */
 function locFiltered(){
-  var rows = rowsKho();
+  var rows = rowsBase();   // CT4: modal cũng tôn trọng khoảng ngày đang chọn
   var f = mFilter;
   if (f.t === "today") return rows.filter(function(r){ return dayKey(parseDate(r.updatedAt)) === refDay; });
   if (f.t === "day") return rows.filter(function(r){ return dayKey(parseDate(r.updatedAt)) === Number(f.v); });
@@ -302,56 +337,57 @@ function openModal(f, label){
 }
 function closeModal(){ var m = $id("fkModal"); m.classList.remove("show"); setTimeout(function(){ m.style.display = "none"; }, 240); }
 function setTab(t){ mTab = t; document.querySelectorAll(".fk-mpill").forEach(function(x){ x.classList.toggle("active", x.getAttribute("data-mtab") === t); }); renderModal(); }
-function deepLink(val){
-  if (!val) return "—";
-  return '<a class="fk-link" href="' + WMS_PC + "?code=" + encodeURIComponent(val) + '" target="_blank" rel="noopener">' + esc(val) +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M17 7H9M17 7V15"/></svg></a>';
-}
 function renderModal(){
   var base = locFiltered();
   var q = ($id("fkMSearch").value || "").toLowerCase().trim();
-  var dS = diffBySku(rowsKho());
+  var dS = diffBySku(rowsBase());
+  var dcell = function(v){ return '<td class="num ' + (v < 0 ? "d-am" : v > 0 ? "d-duong" : "d-khop") + '">' + (v > 0 ? "+" : "") + nf(v) + "</td>"; };
+  var tien = function(v){ return '<td class="num ' + (v < 0 ? "d-am" : v > 0 ? "d-duong" : "d-khop") + '">' + fmtTien(v) + "</td>"; };
   var html, n;
   if (mTab === "sku"){
+    // CT2: BỎ cột Warehouse (đã có ở tiêu đề). CT5: thêm UOM, Discrepancy Value, Sub-status. CT3: SKU deep-link.
     var rows = base.filter(function(r){ return !q || (r.sku + " " + r.pn + " " + r.loc + " " + r.req + " " + r.assignTo).toLowerCase().indexOf(q) >= 0; });
     n = rows.length;
     var body = rows.slice(0, MODAL_CAP).map(function(r){
-      var st = statusOf(r), dl = r.diffLoc, ds = dS[r.sku] || 0;
+      var st = statusOf(r), ds = dS[r.sku] || 0;
+      var disc = r.price == null ? null : r.diffLoc * r.price;
       return "<tr>" +
-        '<td class="stick">' + deepLink(r.id) + "</td>" +
-        "<td>" + esc(r.wh) + "</td><td><b>" + esc(r.sku) + "</b></td>" +
-        '<td class="num ' + (dl < 0 ? "d-am" : dl > 0 ? "d-duong" : "d-khop") + '">' + (dl > 0 ? "+" : "") + nf(dl) + "</td>" +
-        '<td class="num ' + (ds < 0 ? "d-am" : ds > 0 ? "d-duong" : "d-khop") + '">' + (ds > 0 ? "+" : "") + nf(ds) + "</td>" +
+        '<td class="stick">' + (r.id ? esc(r.id) : "—") + "</td>" +
+        '<td class="skucell">' + wmsLink(r.sku, "sku") + '<small class="pn">' + esc(r.pn) + "</small></td>" +
+        dcell(r.diffLoc) + dcell(ds) +
         '<td class="num">' + nf(r.inv) + '</td><td class="num">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td>" +
-        "<td>" + (r.no || "—") + "</td><td>" + deepLink(r.req) + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
+        "<td>" + (r.uom ? esc(r.uom) : "—") + "</td>" + tien(disc) +
+        "<td>" + (r.no || "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
         "<td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" +
         "<td>" + (r.rfid ? esc(r.rfid) : "—") + "</td><td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td>" +
-        "<td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td><td>" + (r.updatedAt ? esc(r.updatedAt) : "—") + "</td>" +
-        "<td>" + (r.planDate ? esc(r.planDate) : "—") + "</td><td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td></tr>";
+        "<td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td><td>" + fmtDate(r.updatedAt) + "</td>" +
+        "<td>" + fmtDate(r.planDate, true) + "</td><td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td>" +
+        "<td>" + (r.subStatus ? esc(r.subStatus) : "—") + "</td></tr>";
     }).join("");
-    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>Warehouse</th><th>SKU</th><th class="num">Diff by location</th>' +
-      '<th class="num">Diff by SKU</th><th class="num">Inventory</th><th class="num">Quantity count</th><th>No</th><th>Request code</th>' +
-      '<th>Type</th><th>Source code</th><th>Priority</th><th>Is Required RFID</th><th>Assign to</th><th>Counted by</th><th>Updated At</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' +
-      (body || '<tr><td colspan="18" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
+    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>SKU</th><th class="num">Diff by location</th>' +
+      '<th class="num">Diff by SKU</th><th class="num">Inventory</th><th class="num">Quantity count</th><th>UOM</th><th class="num">Discrepancy Value</th>' +
+      '<th>No</th><th>Request code</th><th>Type</th><th>Source code</th><th>Priority</th><th>Is Required RFID</th>' +
+      '<th>Assign to</th><th>Counted by</th><th>Updated At</th><th>Plan date</th><th>Status</th><th>Sub-status</th></tr></thead><tbody>' +
+      (body || '<tr><td colspan="20" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
   } else {
-    // Gom theo Location: 1 dòng/vị trí (diff = tổng lệch, metadata lấy dòng đầu)
-    var g = {}; base.forEach(function(r){ var o = g[r.loc] || (g[r.loc] = { loc: r.loc, wh: r.wh, d: 0, rep: r, n: 0 }); o.d += r.diffLoc; o.n++; });
+    // Gom theo Location. CT2: bỏ Warehouse. CT5: Discrepancy + Sub-status. CT3: Location deep-link.
+    var g = {}; base.forEach(function(r){ var o = g[r.loc] || (g[r.loc] = { loc: r.loc, d: 0, disc: 0, hasP: false, rep: r, n: 0 }); o.d += r.diffLoc; if (r.price != null){ o.disc += r.diffLoc * r.price; o.hasP = true; } o.n++; });
     var arr = Object.keys(g).map(function(k){ return g[k]; }).filter(function(o){ return !q || (o.loc + " " + o.rep.req + " " + o.rep.assignTo).toLowerCase().indexOf(q) >= 0; }).sort(function(a, b){ return Math.abs(b.d) - Math.abs(a.d); });
     n = arr.length;
     var body2 = arr.slice(0, MODAL_CAP).map(function(o){
-      var r = o.rep, st = o.d === 0 ? (o.rep.cnt == null ? "PENDING" : "VERIFIED") : "PROCESSING";
+      var r = o.rep, st = o.d === 0 ? (r.cnt == null ? "PENDING" : "VERIFIED") : "PROCESSING";
       return "<tr>" +
-        '<td class="stick">' + deepLink(r.id) + "</td><td>" + deepLink(r.req) + "</td>" +
-        "<td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + esc(o.wh) + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
-        '<td class="loc">' + esc(o.loc) + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" +
-        '<td class="num ' + (o.d < 0 ? "d-am" : o.d > 0 ? "d-duong" : "d-khop") + '">' + (o.d > 0 ? "+" : "") + nf(o.d) + "</td>" +
+        '<td class="stick">' + (r.id ? esc(r.id) : "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td>" +
+        "<td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
+        "<td>" + wmsLink(o.loc, "location") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" +
+        dcell(o.d) + tien(o.hasP ? o.disc : null) +
         "<td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td>" +
-        "<td>" + (r.updatedAt ? esc(r.updatedAt) : "—") + "</td><td>" + (r.planDate ? esc(r.planDate) : "—") + "</td>" +
-        "<td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td></tr>";
+        "<td>" + fmtDate(r.updatedAt) + "</td><td>" + fmtDate(r.planDate, true) + "</td>" +
+        "<td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td><td>" + (r.subStatus ? esc(r.subStatus) : "—") + "</td></tr>";
     }).join("");
-    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>Request code</th><th>Source code</th><th>Warehouse</th><th>Type</th>' +
-      '<th>Location</th><th>Priority</th><th class="num">Diff</th><th>Assign to</th><th>Counted by</th><th>Updated At</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' +
-      (body2 || '<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
+    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>Request code</th><th>Source code</th><th>Type</th>' +
+      '<th>Location</th><th>Priority</th><th class="num">Diff</th><th class="num">Discrepancy Value</th><th>Assign to</th><th>Counted by</th><th>Updated At</th><th>Plan date</th><th>Status</th><th>Sub-status</th></tr></thead><tbody>' +
+      (body2 || '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
   }
   $id("fkMWrap").innerHTML = html;
   $id("fkMTitle").innerHTML = "Chi tiết kiểm kê — " + esc(selWh) + "<small>Lọc: " + esc(mLabel) + " · " + (mTab === "sku" ? "theo SKU" : "theo Location") + "</small>";
@@ -385,6 +421,8 @@ function init(pane){
     pane.innerHTML = KHUNG;
     var ov = document.createElement("div"); ov.id = "fkOverlays"; ov.innerHTML = MODAL + '<div id="fkToast"></div>'; document.body.appendChild(ov);
     $id("fkWh").addEventListener("change", function(e){ selWh = e.target.value; veLai(); });
+    // CT4: đổi khoảng ngày -> dashboard + modal (nếu đang mở) phản ứng ngay
+    $id("fkRange").addEventListener("change", function(e){ dateRange = e.target.value; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
     // Drill-down: click khối/dòng -> mở modal đã áp filter
     pane.addEventListener("click", function(e){
       var el = e.target.closest("[data-drill]"); if (!el) return;
