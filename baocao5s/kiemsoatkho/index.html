@@ -906,13 +906,21 @@ html{scroll-behavior:smooth;}
 .cty-opt.active .dot{background:currentColor; opacity:.85;}
 /* Mobile: hitbox tối thiểu 44px, chạm thoải mái */
 @media(max-width:640px){ .cty-opt{min-height:44px; padding:10px 16px; font-size:13px;} .cty-switch{padding:3px 4px;} }
-/* Chip giờ dữ liệu 5S là của Hasaki — ẩn khi xem Factory (tab fstock có đồng hồ riêng từ backend) */
-[data-company="factory"] #dataFresh{display:none !important;}
-
-/* ===== HM2: NÚT DROPDOWN "DỮ LIỆU" 2 CỘT (label trái — timestamp phải), không dùng select native ===== */
-.set-sec>button{display:flex; justify-content:space-between; align-items:center; gap:12px;}
-.timestamp-hint{color:var(--muted,#9ca3af); font-size:10.5px; font-weight:500; white-space:nowrap; opacity:.9;}
-.set-sec>button:hover .timestamp-hint{color:inherit; opacity:.75;}
+/* ===== NÚT DROPDOWN "DỮ LIỆU" — VERTICAL STACK 2 TẦNG, kích thước ĐỒNG BỘ (Chỉ thị 2+3) =====
+   Dòng 1 (.act): hành động, đậm, nowrap tuyệt đối không rớt dòng.
+   Dòng 2 (.timestamp-hint): "Mới nhất: HH:MM DD/MM" nhỏ, xám mờ.
+   min-height 56px CHỐT CỨNG cho MỌI nút (kể cả nút không có timestamp như "Mở Google Sheet")
+   + justify-content:center tự căn giữa trục dọc -> danh sách ô vuông vức, chuyên nghiệp. */
+/* Selector .settings-pop .dropdown-action-btn (0-2-0) để THẮNG rule nền .set-sec>button (0-1-1)
+   — nếu chỉ dùng .dropdown-action-btn thì display:block của rule nền đè mất display:flex. */
+.settings-pop .dropdown-action-btn{
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+  width:100%; padding:10px 14px; min-height:56px; box-sizing:border-box; gap:2px;
+}
+.settings-pop .dropdown-action-btn .act{font-weight:600; color:var(--text); white-space:nowrap; font-size:13px; line-height:1.35;}
+.settings-pop .dropdown-action-btn .timestamp-hint{font-size:12px; font-weight:500; color:var(--muted,#888); white-space:nowrap; line-height:1.3;}
+.settings-pop .dropdown-action-btn:hover .act{color:var(--accent);}
+.settings-pop a.dropdown-action-btn{text-decoration:none;}
 
 /* Badge DEV (hiện khi ?dev=1 — nhắc đang ở bản nháp, sync production bị chặn) */
 .dev-badge{background:#b45309; color:#fff; border-radius:6px; padding:3px 8px; font-size:10.5px; font-weight:800; letter-spacing:.6px;}
@@ -954,7 +962,7 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
         <button class="cty-opt" data-cty="hasaki" role="tab"><span class="dot"></span>Hasaki</button>
         <button class="cty-opt" data-cty="factory" role="tab"><span class="dot"></span>Factory</button>
       </div>
-      <span id="dataFresh" class="data-fresh" hidden><span class="df-dot"></span><span class="df-lbl">Dữ liệu</span><span id="dfTxt"></span></span>
+      <!-- (đã bỏ pill "Dữ liệu HH:MM": trùng lặp với timestamp trong menu Dữ liệu — Chỉ thị 1) -->
       <button id="btnGhiNhan" title="Ghi nhận vi phạm 5S (cần PIN)">+ Ghi nhận 5S</button>
       <div class="settings" id="settingsWrap">
         <button id="btnSettings" title="Cài đặt hiển thị & dữ liệu" aria-label="Mở cài đặt"><span class="bars"></span></button>
@@ -985,12 +993,13 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
           </div>
           <div class="set-sec">
             <div class="set-h">Dữ liệu</div>
-            <!-- HM2: nút hành động = flex space-between; timestamp là <small class="timestamp-hint">
-                 (xám mờ, nowrap, căn phải) — KHÔNG dùng select/option native nên không vỡ layout mobile -->
-            <button id="btnReload"><span>Tải lại dữ liệu</span><small class="timestamp-hint" id="tsReload"></small></button>
-            <button id="btnSync"><span>Cập nhật ngay (cần PIN)</span><small class="timestamp-hint" id="tsSync"></small></button>
-            <button id="btnSyncTS"><span>Cập nhật chấm công (cần PIN)</span><small class="timestamp-hint" id="tsSyncTS"></small></button>
-            <a id="lnkSheet" class="set-link" href="#" target="_blank" rel="noopener">Mở Google Sheet nguồn ↗</a>
+            <!-- Nút hành động 2 TẦNG DỌC (vertical stack, học ô "Thời gian" bảng vi phạm):
+                 dòng 1 = hành động (đậm, nowrap không rớt dòng), dòng 2 = timestamp xám mờ.
+                 Tất cả dùng chung .dropdown-action-btn, min-height 56px -> danh sách vuông vức đồng bộ -->
+            <button id="btnReload" class="dropdown-action-btn"><span class="act">Tải lại dữ liệu</span><small class="timestamp-hint" id="tsReload"></small></button>
+            <button id="btnSync" class="dropdown-action-btn"><span class="act">Cập nhật ngay (cần PIN)</span><small class="timestamp-hint" id="tsSync"></small></button>
+            <button id="btnSyncTS" class="dropdown-action-btn"><span class="act">Cập nhật chấm công (cần PIN)</span><small class="timestamp-hint" id="tsSyncTS"></small></button>
+            <a id="lnkSheet" class="set-link dropdown-action-btn" href="#" target="_blank" rel="noopener"><span class="act">Mở Google Sheet nguồn ↗</span></a>
           </div>
         </div>
       </div>
@@ -2710,19 +2719,16 @@ function capNhatGioDuLieu(){
   s.onerror=()=>{ done(); hienGioDuLieu(taiLuc,false); };
   document.body.appendChild(s);
 }
+/* Mốc dữ liệu 5S -> đổ vào DÒNG 2 (timestamp-hint) của các nút menu "Dữ liệu".
+   (Pill "Dữ liệu HH:MM" ở header đã bỏ — thông tin này giờ chỉ nằm 1 nơi, hết trùng lặp.) */
 function hienGioDuLieu(ms,laServer){
-  const el=$('dataFresh'); if(!el) return;
   const p=n=>String(n).padStart(2,'0');
-  const d=new Date(ms), nay=new Date();
-  const cungNgay=d.getFullYear()===nay.getFullYear()&&d.getMonth()===nay.getMonth()&&d.getDate()===nay.getDate();
-  $('dfTxt').textContent=(cungNgay?'':p(d.getDate())+'/'+p(d.getMonth()+1)+' · ')+p(d.getHours())+':'+p(d.getMinutes());
-  el.title=(laServer?'Dữ liệu lấy từ API WMS lúc ':'Dữ liệu tải về trình duyệt lúc ')
-    +p(d.getHours())+':'+p(d.getMinutes())+' ngày '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
-  el.hidden=false;
-  // HM2: đổ timestamp vào dòng phụ của các nút menu "Dữ liệu" (cùng mốc dữ liệu 5S)
+  const d=new Date(ms);
   const hint='Mới nhất: '+p(d.getHours())+':'+p(d.getMinutes())+' '+p(d.getDate())+'/'+p(d.getMonth()+1);
+  const chiTiet=(laServer?'Dữ liệu lấy từ API WMS lúc ':'Dữ liệu tải về trình duyệt lúc ')
+    +p(d.getHours())+':'+p(d.getMinutes())+' ngày '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
   ['tsReload','tsSync'].forEach(id=>{ const e2=$(id); if(e2) e2.textContent=hint; });
-  ['btnReload','btnSync'].forEach(id=>{ const b=$(id); if(b) b.title=hint; });   // accessibility: tooltip + đọc được
+  ['btnReload','btnSync'].forEach(id=>{ const b=$(id); if(b) b.title=chiTiet; });   // accessibility: tooltip chi tiết
 }
 
 /* ===== TOAST không chặn (thay alert) + loading nút Cập nhật ===== */
