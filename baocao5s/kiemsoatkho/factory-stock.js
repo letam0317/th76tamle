@@ -32,6 +32,8 @@ var DIV_ORDER = ["Mastige", "Garment"];
 var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 var META_TAB = "Metadata";
 var COOLDOWN_MS = 4 * 60 * 60 * 1000;        // anti-spam: chỉ được gọi WMS 4 giờ/lần
+var DEV_MODE = /[?&]dev=1/.test(location.search);   // ?dev=1: bản nháp — CHẶN sync thật (không đốt cooldown production)
+var FETCH_TIMEOUT_MS = 4 * 60 * 1000;        // AbortController: ngắt request GAS sau 4 phút (chống nút treo vĩnh viễn)
 var PAL = ["#2563eb", "#0ea5e9", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#10b981", "#ec4899", "#6366f1", "#f43f5e", "#0891b2", "#84cc16"];
 
 /* ===== STATE (đóng trong closure — không rò ra global) ===== */
@@ -430,11 +432,15 @@ function toast(msg, type){
 }
 function syncWms(){
   if (_syncing) return;
+  // DEV FLAG: bản nháp tuyệt đối không kích hoạt sync production (đốt lượt cooldown 4h của cả phòng ban)
+  if (DEV_MODE){ toast("Chế độ Dev: Đã chặn sync thật (force_sync_wms).", "warn"); return; }
   var remain = LAST_SYNC_MS ? (LAST_SYNC_MS + COOLDOWN_MS - Date.now()) : 0;
   if (remain > 0){ toast("Chỉ có thể tải lại dữ liệu sau mỗi 4 giờ. Còn " + Math.ceil(remain / 60000) + " phút nữa.", "warn"); capNhatNut(); return; }
   _syncing = true; capNhatNut();
-  fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "force_sync_wms" }) })
-    .then(function(r){ return r.json(); })
+  var ac = new AbortController();
+  var to = setTimeout(function(){ ac.abort(); }, FETCH_TIMEOUT_MS);
+  fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "force_sync_wms" }), signal: ac.signal })
+    .then(function(r){ clearTimeout(to); return r.json(); })
     .then(function(j){
       _syncing = false;
       if (j.status === "success"){
@@ -451,7 +457,11 @@ function syncWms(){
       }
       capNhatThongTin(); capNhatNut();
     })
-    .catch(function(e){ _syncing = false; toast("Không gọi được máy chủ đồng bộ (" + e.message + ").", "err"); capNhatNut(); });
+    .catch(function(e){
+      clearTimeout(to); _syncing = false;
+      toast(e.name === "AbortError" ? "Quá 4 phút chưa xong — đã ngắt request (GAS/WMS đang nghẽn?)." : "Không gọi được máy chủ đồng bộ (" + e.message + ").", "err");
+      capNhatNut();
+    });
 }
 
 /* ===== KHỞI TẠO (idempotent) — host gọi mỗi lần mở tab; chỉ dựng DOM 1 lần ===== */

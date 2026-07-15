@@ -908,6 +908,14 @@ html{scroll-behavior:smooth;}
 @media(max-width:640px){ .cty-opt{min-height:44px; padding:10px 16px; font-size:13px;} .cty-switch{padding:3px 4px;} }
 /* Chip giờ dữ liệu 5S là của Hasaki — ẩn khi xem Factory (tab fstock có đồng hồ riêng từ backend) */
 [data-company="factory"] #dataFresh{display:none !important;}
+
+/* ===== HM2: NÚT DROPDOWN "DỮ LIỆU" 2 CỘT (label trái — timestamp phải), không dùng select native ===== */
+.set-sec>button{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+.timestamp-hint{color:var(--muted,#9ca3af); font-size:10.5px; font-weight:500; white-space:nowrap; opacity:.9;}
+.set-sec>button:hover .timestamp-hint{color:inherit; opacity:.75;}
+
+/* Badge DEV (hiện khi ?dev=1 — nhắc đang ở bản nháp, sync production bị chặn) */
+.dev-badge{background:#b45309; color:#fff; border-radius:6px; padding:3px 8px; font-size:10.5px; font-weight:800; letter-spacing:.6px;}
 /* NHẬN DIỆN CÔNG TY: Factory đổi màu chủ đạo sang CAM (mọi theme) — biết ngay đang ở dashboard nào */
 [data-company="factory"]{--brand:#c95d0c; --brand-on:#ffffff;}
 [data-company="factory"][data-theme="tokyo"],[data-company="factory"][data-theme="dracula"],
@@ -977,9 +985,11 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
           </div>
           <div class="set-sec">
             <div class="set-h">Dữ liệu</div>
-            <button id="btnReload">Tải lại dữ liệu</button>
-            <button id="btnSync">Cập nhật ngay (cần PIN)</button>
-            <button id="btnSyncTS">Cập nhật chấm công (cần PIN)</button>
+            <!-- HM2: nút hành động = flex space-between; timestamp là <small class="timestamp-hint">
+                 (xám mờ, nowrap, căn phải) — KHÔNG dùng select/option native nên không vỡ layout mobile -->
+            <button id="btnReload"><span>Tải lại dữ liệu</span><small class="timestamp-hint" id="tsReload"></small></button>
+            <button id="btnSync"><span>Cập nhật ngay (cần PIN)</span><small class="timestamp-hint" id="tsSync"></small></button>
+            <button id="btnSyncTS"><span>Cập nhật chấm công (cần PIN)</span><small class="timestamp-hint" id="tsSyncTS"></small></button>
             <a id="lnkSheet" class="set-link" href="#" target="_blank" rel="noopener">Mở Google Sheet nguồn ↗</a>
           </div>
         </div>
@@ -1016,6 +1026,8 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
 
   <!-- ===== TAB TRẠNG THÁI LƯU TRỮ (Factory) — nội dung do factory-stock.js dựng, LAZY ===== -->
   <section id="pane-fstock" class="pane hidden"></section>
+  <!-- ===== TAB KIỂM KÊ (Factory) — factory-kiemke.js, LAZY; data tab riêng kiemke-material ===== -->
+  <section id="pane-fkiemke" class="pane hidden"></section>
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
   <section id="pane-tong" class="pane hidden">
@@ -1237,7 +1249,7 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
    Bổ sung công ty mới = thêm 1 entry ở đây (ten, thư mục summary, sheetId) — không sửa logic. */
 const CTY = {
   hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM", tabs: ["tong","task","hangmuc","kk"] },
-  factory: { ten: "FACTORY", summary: "summary-factory", sheetId: "", tabs: ["fstock"] },   // 5S Factory chưa có nguồn; tab Trạng thái lưu trữ chạy module riêng
+  factory: { ten: "FACTORY", summary: "summary-factory", sheetId: "", tabs: ["fstock","fkiemke"] },   // 5S Factory chưa có nguồn; 2 tab chạy module riêng
 };
 /* Danh bạ TAB (Cấp 2 — Dynamic Contextual Tabs): khung tab render lại theo công ty đang chọn.
    fstock = module cô lập factory-stock.js, LAZY: chỉ nạp khi người dùng thật sự mở tab. */
@@ -1247,7 +1259,9 @@ const TAB_DEFS = {
   hangmuc:{ ten: "Hạng mục 5S" },
   kk:     { ten: "Kiểm kê" },
   fstock: { ten: "Trạng thái lưu trữ" },
+  fkiemke:{ ten: "Kiểm kê" },
 };
+const DEV_MODE = /[?&]dev=1/.test(location.search);   // ?dev=1: bản nháp local — module tự chặn sync production
 const co5S = () => CTY[CTY_ID].tabs.some(t => t !== "fstock");   // công ty có dùng dữ liệu 5S không
 const tabMacDinh = () => CTY[CTY_ID].tabs.includes("task") ? "task" : CTY[CTY_ID].tabs[0];
 /* Ưu tiên đọc: ?company= trên URL (link chia sẻ được) -> localStorage -> mặc định hasaki */
@@ -2468,6 +2482,7 @@ function setTab(name){
   });
   if(name==='hangmuc'){ taiQuyDinh(); }   // đọc lại QUY-DINH mỗi lần mở tab (đồng bộ mới nhất)
   if(name==='fstock'){ moFactoryStock(); }   // LAZY: chỉ lúc này mới nạp module + fetch data Tồn kho
+  if(name==='fkiemke'){ moFactoryKiemke(); } // LAZY: module Kiểm kê (tab kiemke-material riêng biệt)
   // STATE: nhớ tab THEO TỪNG CÔNG TY + deep-link ?company=&tab= (F5/chia sẻ không mất dấu)
   try{ localStorage.setItem('currentTab:'+CTY_ID, name); }catch(e){}
   try{ const u=new URL(location.href); u.searchParams.set('company',CTY_ID); u.searchParams.set('tab',name);
@@ -2490,6 +2505,22 @@ function moFactoryStock(){
   }
   _fsNap.then(()=>window.FSTOCK && window.FSTOCK.init(pane))
     .catch(e=>{ _fsNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
+}
+let _fkNap=null;
+function moFactoryKiemke(){
+  const pane=$('pane-fkiemke');
+  if(!_fkNap){
+    pane.innerHTML='<div class="panel" style="margin-top:14px;padding:18px 16px">'+
+      '<div class="sk sk-line" style="width:66%"></div><div class="sk sk-line" style="width:52%"></div>'+
+      '<div class="sk sk-line" style="width:60%"></div></div>';
+    _fkNap=new Promise((res,rej)=>{
+      const s=document.createElement('script'); s.src='factory-kiemke.js?v=20260715';
+      s.onload=res; s.onerror=()=>rej(new Error('Không tải được module factory-kiemke.js'));
+      document.body.appendChild(s);
+    });
+  }
+  _fkNap.then(()=>window.FKIEMKE && window.FKIEMKE.init(pane))
+    .catch(e=>{ _fkNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
 }
 
 /* ===== TAB HẠNG MỤC 5S — đọc tab QUY-DINH trực tiếp (gviz), đồng bộ thời gian thực ===== */
@@ -2685,6 +2716,10 @@ function hienGioDuLieu(ms,laServer){
   el.title=(laServer?'Dữ liệu lấy từ API WMS lúc ':'Dữ liệu tải về trình duyệt lúc ')
     +p(d.getHours())+':'+p(d.getMinutes())+' ngày '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
   el.hidden=false;
+  // HM2: đổ timestamp vào dòng phụ của các nút menu "Dữ liệu" (cùng mốc dữ liệu 5S)
+  const hint='Mới nhất: '+p(d.getHours())+':'+p(d.getMinutes())+' '+p(d.getDate())+'/'+p(d.getMonth()+1);
+  ['tsReload','tsSync'].forEach(id=>{ const e2=$(id); if(e2) e2.textContent=hint; });
+  ['btnReload','btnSync'].forEach(id=>{ const b=$(id); if(b) b.title=hint; });   // accessibility: tooltip + đọc được
 }
 
 /* ===== TOAST không chặn (thay alert) + loading nút Cập nhật ===== */
@@ -3027,6 +3062,9 @@ document.addEventListener('click', ()=>csDongHet(null));
   // MULTI-TENANT: áp trạng thái công ty (URL ?company= > localStorage > hasaki) lên toàn UI
   capNhatCtyUI();
   renderTabs();
+  // Badge DEV: nhắc đang ở bản nháp (?dev=1) — mọi sync production bị module chặn
+  if(DEV_MODE){ const b=document.createElement('span'); b.className='dev-badge'; b.textContent='DEV';
+    b.title='Bản nháp (?dev=1) — nút sync production bị chặn'; $('ctySwitch').parentNode.insertBefore(b, $('ctySwitch')); }
   // DEEP LINK tab: ?tab= (hợp lệ với công ty) > tab đã lưu của công ty > mặc định
   let tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
   if(!tb || !CTY[CTY_ID].tabs.includes(tb)){ try{ tb=localStorage.getItem('currentTab:'+CTY_ID); }catch(e){} }
