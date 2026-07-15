@@ -55,7 +55,8 @@ var MOCK_SKU = (function(){
 
 /* ===== STATE (CT1: 2 mảng riêng) ===== */
 var rawSkuData = [], rawLocationData = [], activeTab = "sku";
-var WHS = [], selWh = "", selCat = "", selStatus = "", selType = "", dateRange = "all", refDay = 0, _giaLap = false;
+var WHS = [], selWh = "", selCat = "", selStatus = "", selType = "", refDay = 0, _giaLap = false;
+var dateFrom = null, dateTo = null, _fp = null;   // CT2: khoảng ngày THẬT (Date) từ Flatpickr; null = Tất cả
 var _boot = false, _syncing = false, _loaded = 0, _lastSyncMs = 0, _deb = null, PANE = null, _openDD = null;
 var mFilter = { t: "all" }, mTab = "sku", mLabel = "";
 
@@ -75,6 +76,7 @@ function dayKey(ms){ return isNaN(ms) ? NaN : Math.floor(ms / 86400000); }
 function fmtDMY(dk){ var d = new Date(dk * 86400000); return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1); }
 function fmtDate(s, dateOnly){ var ms = parseDate(s); if (isNaN(ms)) return s ? esc(String(s)) : "—"; var d = new Date(ms); var o = p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear(); return dateOnly ? o : o + " " + p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); }
 function catOf(r){ return String(r.category || "").trim() || String(r.pn || "").split("/")[0].trim() || "(Khác)"; }
+function normType(s){ return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }   // CT1: chuẩn hoá so khớp Type
 function countMs(r){ var d = parseDate(r.countedDate); return isNaN(d) ? parseDate(r.updatedAt) : d; }
 function badgeClsStatus(st){ st = String(st || "").toUpperCase();
   if (st === "VERIFIED" || st === "APPROVED") return "verified";
@@ -139,6 +141,24 @@ var CSS = [
 "#pane-fkiemke .hasaki-date-picker .hasaki-head .lbl{flex:1;font-size:13px;font-variant-numeric:tabular-nums;}",
 "#pane-fkiemke .hasaki-date-picker .hasaki-head:hover{border-color:#2f9e6e;} #pane-fkiemke .hasaki-date-picker.open .dropdown-header.hasaki-head{border-color:#2f9e6e;}",
 "[data-theme='hasaki'] #pane-fkiemke .hasaki-date-picker .hasaki-head:hover,[data-theme='hasaki'] #pane-fkiemke .hasaki-date-picker.open .hasaki-head{border-color:#326e51;}",
+/* CT2: Flatpickr — quick-select (top) + footer + theme Hasaki override */
+".flatpickr-calendar.fk-fp,.flatpickr-calendar{box-shadow:0 16px 44px rgba(16,24,40,.22);border-radius:12px;}",
+".fk-fp-top{display:flex;flex-wrap:wrap;gap:8px;padding:12px 12px 4px;}",
+".fk-pill-q{background:#fff;border:1px solid #d9d9d9;border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600;color:#374151;cursor:pointer;transition:border-color .18s,color .18s;}",
+".fk-pill-q:hover{border-color:#2f7a55;color:#2f7a55;}",
+".fk-fp-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid #eef1f5;margin-top:4px;}",
+".fk-fp-sel{font-size:12.5px;color:#6b7280;font-variant-numeric:tabular-nums;}",
+".fk-fp-btns{display:flex;gap:8px;}",
+".fk-fp-clear{background:#fff;border:1px solid #d9d9d9;border-radius:8px;padding:7px 16px;font-size:12.5px;font-weight:600;color:#374151;cursor:pointer;} .fk-fp-clear:hover{border-color:#b42318;color:#b42318;}",
+".fk-fp-apply{background:#2f7a55;border:1px solid #2f7a55;border-radius:8px;padding:7px 18px;font-size:12.5px;font-weight:700;color:#fff;cursor:pointer;} .fk-fp-apply:hover{background:#276646;}",
+/* ngày chọn / range = xanh Hasaki */
+".flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange{background:#2f7a55!important;border-color:#2f7a55!important;color:#fff!important;}",
+".flatpickr-day.inRange{background:#e3f2ea!important;border-color:#e3f2ea!important;box-shadow:-5px 0 0 #e3f2ea,5px 0 0 #e3f2ea!important;}",
+".flatpickr-day.today{border-color:#2f7a55;} .flatpickr-day:hover{background:#eef4f0;}",
+".flatpickr-months .flatpickr-month{color:#1f2937;} .flatpickr-current-month .flatpickr-monthDropdown-months,.flatpickr-current-month input.cur-year{font-weight:700;}",
+/* nút Prev/Next dạng viền bo góc */
+".flatpickr-prev-month,.flatpickr-next-month{top:8px!important;padding:0!important;width:30px;height:26px;border:1px solid #d9d9d9;border-radius:6px;display:flex;align-items:center;justify-content:center;margin:0 8px;}",
+".flatpickr-prev-month:hover,.flatpickr-next-month:hover{border-color:#2f7a55;} .flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#374151;width:11px;}",
 /* fade */
 "#pane-fkiemke .fk-anim{animation:fk-in .4s cubic-bezier(.32,.72,0,1);} @keyframes fk-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}",
 /* hero */
@@ -294,12 +314,22 @@ function dedupLatest(rows, kind){
   return Object.keys(m).map(function(k){ return m[k]; });   // mỗi SKU/Location DUY NHẤT 1 dòng (mới nhất)
 }
 function rowsKho(arr){ return arr.filter(function(r){ return r.wh === selWh; }); }
-function trongKhoang(r){ if (dateRange === "all") return true; var dk = dayKey(countMs(r)); if (isNaN(dk)) return false; if (dateRange === "today") return dk === refDay; if (dateRange === "7d") return dk >= refDay - 6; if (dateRange === "30d") return dk >= refDay - 29; return true; }
+// CT2: lọc theo khoảng ngày THẬT (Counted date). null = Tất cả.
+function trongKhoang(r){
+  if (!dateFrom && !dateTo) return true;
+  var t = countMs(r); if (isNaN(t)) return false;
+  if (dateFrom && t < dateFrom.getTime()) return false;
+  if (dateTo && t > dateTo.getTime()) return false;
+  return true;
+}
+function dayStart(d){ var x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function dayEnd(d){ var x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
 function rowsBase(kind){
   var arr = kind === "loc" ? rawLocationData : rawSkuData;
   return rowsKho(arr).filter(function(r){
     if (selStatus && String(r.status || "").toUpperCase() !== selStatus) return false;
-    if (selType && String(r.type || "") !== selType) return false;   // CT4: lọc theo Loại kiểm kê
+    // CT1: khớp Type BỎ hoa/thường + BỎ dấu phân cách ("sku - factory" == "SKU - Factory" == "SKU_FACTORY")
+    if (selType && normType(r.type) !== normType(selType)) return false;
     if (kind !== "loc" && selCat && catOf(r) !== selCat) return false;
     return trongKhoang(r);
   });
@@ -330,23 +360,73 @@ function buildDropdowns(){
   ddRender("ddCat", catOpts, selCat, function(v){ selCat = v; veLai(); });
   var stOpts = [{ v: "", label: "Tất cả trạng thái" }].concat(STATUSES.map(function(s){ return { v: s, label: s }; }));
   ddRender("ddStatus", stOpts, selStatus, function(v){ selStatus = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
-  renderDatePicker();
+  setupDatePicker();
   $id("fldCat").style.display = activeTab === "loc" ? "none" : "";   // Location không lọc theo nhóm hàng
 }
-function fmtFull(dk){ var d = new Date(dk * 86400000); return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear(); }
-/* CT3: date-picker kiểu Hasaki — icon lịch + "DD/MM/YYYY - DD/MM/YYYY" + mũi tên; list preset khoảng ngày */
-function renderDatePicker(){
+function fmtD(d){ return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear(); }
+function dateLabel(){ if (!dateFrom && !dateTo) return "Tất cả"; return (dateFrom ? fmtD(dateFrom) : "…") + " - " + (dateTo ? fmtD(dateTo) : "…"); }
+
+/* CT2: Advanced Date Range Picker (Flatpickr) — dual calendar + quick-select + footer, theme Hasaki */
+function loadFlatpickr(cb){
+  if (window.flatpickr) return cb();
+  if (!document.getElementById("fp-css")){ var l = document.createElement("link"); l.id = "fp-css"; l.rel = "stylesheet"; l.href = "https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"; document.head.appendChild(l); }
+  var s = document.getElementById("fp-js");
+  if (s){ s.addEventListener("load", cb); return; }
+  s = document.createElement("script"); s.id = "fp-js"; s.src = "https://cdn.jsdelivr.net/npm/flatpickr"; s.onload = cb; s.onerror = function(){ log && 0; };
+  document.body.appendChild(s);
+}
+function setupDatePicker(){
   var el = $id("ddDate"); if (!el) return;
-  var arr = rowsKho(activeTab === "loc" ? rawLocationData : rawSkuData);
-  var mx = -Infinity, mn = Infinity; arr.forEach(function(r){ var d = dayKey(countMs(r)); if (isNaN(d)) return; if (d > mx) mx = d; if (d < mn) mn = d; });
-  if (mx === -Infinity){ mx = Math.floor(Date.now() / 86400000); mn = mx; }
-  var from = mn, to = mx;
-  if (dateRange === "today"){ from = mx; to = mx; } else if (dateRange === "7d"){ from = mx - 6; to = mx; } else if (dateRange === "30d"){ from = mx - 29; to = mx; }
-  var txt = fmtFull(from) + " - " + fmtFull(to);
-  var opts = [{ v: "all", label: "Tất cả" }, { v: "today", label: "Hôm nay" }, { v: "7d", label: "7 ngày qua" }, { v: "30d", label: "30 ngày qua" }];
-  el.innerHTML = '<div class="dropdown-header hasaki-head"><svg class="cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg><span class="lbl">' + esc(txt) + '</span><span class="chev"></span></div>' +
-    '<ul class="dropdown-list">' + opts.map(function(o){ return '<li data-v="' + o.v + '" class="' + (o.v === dateRange ? "sel" : "") + '"><span>' + o.label + '</span><span class="ck">✓</span></li>'; }).join("") + "</ul>";
-  el._cb = function(v){ dateRange = v; renderDatePicker(); veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); };
+  // header kiểu Hasaki + input ẩn cho flatpickr
+  el.innerHTML = '<div class="dropdown-header hasaki-head" id="fkDateHead"><svg class="cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg><span class="lbl" id="fkDateLbl">' + esc(dateLabel()) + '</span><span class="chev"></span></div><input id="fkDateInput" type="text" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;bottom:0;left:0">';
+  loadFlatpickr(function(){ initFlatpickr(); });
+  $id("fkDateHead").onclick = function(){ if (_fp) _fp.open(); };
+}
+function applyRange(from, to){   // from/to là Date (hoặc null)
+  dateFrom = from ? dayStart(from) : null;
+  dateTo = to ? dayEnd(to) : null;
+  var lbl = $id("fkDateLbl"); if (lbl) lbl.textContent = dateLabel();
+  veLai(); if ($id("fkModal").classList.contains("show")) renderModal();
+}
+function initFlatpickr(){
+  if (!window.flatpickr) return;
+  if (_fp){ try { _fp.destroy(); } catch (e) {} _fp = null; }
+  _fp = window.flatpickr($id("fkDateInput"), {
+    mode: "range", showMonths: 2, dateFormat: "Y-m-d", locale: { rangeSeparator: " - " },
+    defaultDate: (dateFrom && dateTo) ? [dateFrom, dateTo] : null, clickOpens: false, closeOnSelect: false,
+    onReady: function(sel, str, fp){ dungKhungHasaki(fp); },
+    onChange: function(sel, str, fp){ capNhatFooter(fp); },
+  });
+}
+function quickRange(kind){
+  var today = new Date(); var from = new Date(), to = new Date();
+  if (kind === "today"){ from = today; to = today; }
+  else if (kind === "7d"){ from = new Date(today.getTime() - 7 * 86400000); to = today; }
+  else if (kind === "30d"){ from = new Date(today.getTime() - 30 * 86400000); to = today; }
+  else if (kind === "month"){ from = new Date(today.getFullYear(), today.getMonth(), 1); to = today; }
+  else { from = null; to = null; }   // Tất cả
+  return { from: from, to: to };
+}
+function capNhatFooter(fp){
+  var box = fp.calendarContainer.querySelector(".fk-fp-sel"); if (!box) return;
+  var d = fp.selectedDates;
+  box.textContent = d.length === 2 ? (fmtD(d[0]) + " → " + fmtD(d[1])) : d.length === 1 ? (fmtD(d[0]) + " → …") : "Chưa chọn";
+}
+function dungKhungHasaki(fp){
+  var c = fp.calendarContainer; if (c.querySelector(".fk-fp-top")) return;
+  // Quick-select (top)
+  var top = document.createElement("div"); top.className = "fk-fp-top";
+  var quicks = [["today", "Hôm nay"], ["7d", "7 ngày"], ["30d", "30 ngày"], ["month", "Tháng này"], ["all", "Tất cả"]];
+  top.innerHTML = quicks.map(function(q){ return '<button type="button" class="fk-pill-q" data-q="' + q[0] + '">' + q[1] + "</button>"; }).join("");
+  top.addEventListener("click", function(e){ var b = e.target.closest("[data-q]"); if (!b) return; var r = quickRange(b.getAttribute("data-q")); if (r.from) fp.setDate([r.from, r.to], true); else fp.clear(); capNhatFooter(fp); });
+  c.insertBefore(top, c.firstChild);
+  // Footer
+  var ft = document.createElement("div"); ft.className = "fk-fp-foot";
+  ft.innerHTML = '<span class="fk-fp-sel">Chưa chọn</span><span class="fk-fp-btns"><button type="button" class="fk-fp-clear">Xoá</button><button type="button" class="fk-fp-apply">Áp dụng</button></span>';
+  ft.querySelector(".fk-fp-clear").onclick = function(){ fp.clear(); applyRange(null, null); fp.close(); };
+  ft.querySelector(".fk-fp-apply").onclick = function(){ var d = fp.selectedDates; applyRange(d[0] || null, d[1] || d[0] || null); fp.close(); };
+  c.appendChild(ft);
+  capNhatFooter(fp);
 }
 function ddRender(mountId, opts, cur, cb){
   var el = $id(mountId); if (!el) return;
