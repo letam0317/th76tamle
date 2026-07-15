@@ -18,8 +18,10 @@ const SHEET_ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 const GW = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklists";
 const GET_ME = "https://wms-gw.inshasaki.com/api/v1/auth/user/get-me";
 const SIZE = 500, CHUNK = 4000;
-// Bộ lọc theo URL bạn gửi (kho 1177 + khoảng ngày ĐẾM)
-const PARAMS = { warehouse_ids: "1177", from_counted_date: "1781456400000", to_counted_date: "1784134799999" };
+// Kéo theo khoảng ngày ĐẾM (bỏ lọc kho) rồi giữ cả 2 kho material — MTG + GARMENT
+const PARAMS = { from_counted_date: "1781456400000", to_counted_date: "1784134799999" };
+const chuanKho = (s) => String(s || "").replace(/\s+/g, " ").trim().toUpperCase();
+const KEEP = new Set(["WH - MATERIAL - MTG", "WH - MATERIAL - GARMENT"].map(chuanKho));
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
@@ -53,20 +55,22 @@ const qs = (o) => Object.keys(o).map((k) => k + "=" + encodeURIComponent(o[k])).
 const getRecs = (j) => j.records || (j.data && (j.data.records || j.data.rows || j.data.content)) || j.rows || [];
 
 async function keoType(token, type) {
-  let recs = [], total = null;
-  for (let page = 1; page <= 300; page++) {
+  let kept = [], seen = 0, total = null;
+  for (let page = 1; page <= 400; page++) {
     const url = GW + "/type-" + type + "?" + qs(PARAMS) + "&page=" + page + "&size=" + SIZE;
     const r = await fetch(url, { headers: { authorization: token } });
     if (r.status !== 200) { if (page === 1) throw new Error("type-" + type + " trả HTTP " + r.status); break; }
     const j = await r.json().catch(() => null); if (!j) break;
     if (total === null) total = j.count ?? j.total ?? (j.data && (j.data.count ?? j.data.total)) ?? null;
     const rr = getRecs(j); if (!rr.length) break;
-    recs = recs.concat(rr);
-    if (total != null && recs.length >= total) break;
+    seen += rr.length;
+    kept = kept.concat(rr.filter((x) => KEEP.has(chuanKho(x.warehouse_name))));   // chỉ giữ 2 kho material
+    if (total != null && seen >= total) break;
     await nghi(400);
   }
-  log("  ✓ type-" + type + ": " + recs.length + (total != null ? "/" + total : "") + " dòng.");
-  return recs;
+  const byKho = {}; kept.forEach((x) => { byKho[x.warehouse_name] = (byKho[x.warehouse_name] || 0) + 1; });
+  log("  ✓ type-" + type + ": giữ " + kept.length + "/" + seen + " (quét) — " + JSON.stringify(byKho));
+  return kept;
 }
 const num = (v) => (v == null || v === "" ? "" : Number(v) || 0);
 function rowSku(r, i) {
@@ -99,13 +103,13 @@ async function ghiTab(tab, header, rows, apiAt) {
   if (!token) { log("⚠ Mở edge-profile đăng nhập lại — SẼ đăng xuất WMS trên Edge bạn đang mở."); token = await getTokenLive(); luuToken(DIR, "wms", token); log("✓ Token mới."); }
 
   const apiAt = Date.now();
-  log("Kéo physical-count (kho " + PARAMS.warehouse_ids + ")...");
+  log("Kéo physical-count (2 kho material MTG + GARMENT, theo khoảng ngày đếm)...");
   const sku = await keoType(token, "sku");
   await nghi(600);
   const loc = await keoType(token, "location");
 
   await ghiTab("kiemke-sku", HEADER_SKU, sku.map(rowSku), apiAt);
   await ghiTab("kiemke-location", HEADER_LOC, loc.map(rowLoc), apiAt);
-  log("✓ HOÀN TẤT — dashboard Kiểm kê giờ đọc dữ liệu physical-count THẬT (kho " + PARAMS.warehouse_ids + ").");
+  log("✓ HOÀN TẤT — dashboard Kiểm kê có dữ liệu physical-count THẬT cả 2 kho MTG + GARMENT.");
   process.exit(0);
 })().catch((e) => { log("✗ " + e.message); process.exit(2); });
