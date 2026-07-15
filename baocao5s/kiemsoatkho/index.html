@@ -900,6 +900,14 @@ html{scroll-behavior:smooth;}
   transition:background-color .28s var(--ez-apple), color .2s ease, transform .16s var(--ez-apple);}
 .cty-opt:hover{color:var(--text,#1f2937);}
 .cty-opt.active{background:var(--brand); color:var(--brand-on); box-shadow:0 2px 8px rgba(0,0,0,.14);}
+/* chấm màu thương hiệu trong nút chọn công ty (nhận diện nhanh) */
+.cty-opt .dot{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:7px; vertical-align:1px;}
+.cty-opt[data-cty="hasaki"] .dot{background:#2f9e6e;} .cty-opt[data-cty="factory"] .dot{background:#f08a24;}
+.cty-opt.active .dot{background:currentColor; opacity:.85;}
+/* Mobile: hitbox tối thiểu 44px, chạm thoải mái */
+@media(max-width:640px){ .cty-opt{min-height:44px; padding:10px 16px; font-size:13px;} .cty-switch{padding:3px 4px;} }
+/* Chip giờ dữ liệu 5S là của Hasaki — ẩn khi xem Factory (tab fstock có đồng hồ riêng từ backend) */
+[data-company="factory"] #dataFresh{display:none !important;}
 /* NHẬN DIỆN CÔNG TY: Factory đổi màu chủ đạo sang CAM (mọi theme) — biết ngay đang ở dashboard nào */
 [data-company="factory"]{--brand:#c95d0c; --brand-on:#ffffff;}
 [data-company="factory"][data-theme="tokyo"],[data-company="factory"][data-theme="dracula"],
@@ -935,8 +943,8 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
     </div>
     <div class="head-right">
       <div class="cty-switch" id="ctySwitch" role="tablist" aria-label="Chọn công ty">
-        <button class="cty-opt" data-cty="hasaki" role="tab">Hasaki</button>
-        <button class="cty-opt" data-cty="factory" role="tab">Factory</button>
+        <button class="cty-opt" data-cty="hasaki" role="tab"><span class="dot"></span>Hasaki</button>
+        <button class="cty-opt" data-cty="factory" role="tab"><span class="dot"></span>Factory</button>
       </div>
       <span id="dataFresh" class="data-fresh" hidden><span class="df-dot"></span><span class="df-lbl">Dữ liệu</span><span id="dfTxt"></span></span>
       <button id="btnGhiNhan" title="Ghi nhận vi phạm 5S (cần PIN)">+ Ghi nhận 5S</button>
@@ -978,12 +986,8 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
       </div>
     </div>
     <!-- 4 tab điều hướng: nằm NGAY TRONG header sticky, cạnh tiêu đề — text thuần, không icon -->
-    <nav class="tabs">
-      <button class="tab" data-tab="tong">Tổng quan</button>
-      <button class="tab active" data-tab="task">Task vi phạm</button>
-      <button class="tab" data-tab="hangmuc">Hạng mục 5S</button>
-      <button class="tab" data-tab="kk">Kiểm kê</button>
-    </nav>
+    <!-- Cấp 2 — Dynamic Contextual Tabs: renderTabs() dựng lại theo CTY[CTY_ID].tabs -->
+    <nav class="tabs" id="tabsNav" role="tablist"></nav>
   </header>
 
   <!-- ===== MULTI-TENANT: skeleton khi chuyển công ty + trạng thái chưa có nguồn dữ liệu ===== -->
@@ -1009,6 +1013,9 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
       </p>
     </div>
   </div>
+
+  <!-- ===== TAB TRẠNG THÁI LƯU TRỮ (Factory) — nội dung do factory-stock.js dựng, LAZY ===== -->
+  <section id="pane-fstock" class="pane hidden"></section>
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
   <section id="pane-tong" class="pane hidden">
@@ -1229,9 +1236,20 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
    TUYỆT ĐỐI không gộp data 2 công ty vào 1 file — tách luồng ngay từ nguồn.
    Bổ sung công ty mới = thêm 1 entry ở đây (ten, thư mục summary, sheetId) — không sửa logic. */
 const CTY = {
-  hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM" },
-  factory: { ten: "FACTORY", summary: "summary-factory", sheetId: "" },   // sheetId trống = chưa có nguồn -> hiện trạng thái trống
+  hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM", tabs: ["tong","task","hangmuc","kk"] },
+  factory: { ten: "FACTORY", summary: "summary-factory", sheetId: "", tabs: ["fstock"] },   // 5S Factory chưa có nguồn; tab Trạng thái lưu trữ chạy module riêng
 };
+/* Danh bạ TAB (Cấp 2 — Dynamic Contextual Tabs): khung tab render lại theo công ty đang chọn.
+   fstock = module cô lập factory-stock.js, LAZY: chỉ nạp khi người dùng thật sự mở tab. */
+const TAB_DEFS = {
+  tong:   { ten: "Tổng quan" },
+  task:   { ten: "Task vi phạm" },
+  hangmuc:{ ten: "Hạng mục 5S" },
+  kk:     { ten: "Kiểm kê" },
+  fstock: { ten: "Trạng thái lưu trữ" },
+};
+const co5S = () => CTY[CTY_ID].tabs.some(t => t !== "fstock");   // công ty có dùng dữ liệu 5S không
+const tabMacDinh = () => CTY[CTY_ID].tabs.includes("task") ? "task" : CTY[CTY_ID].tabs[0];
 /* Ưu tiên đọc: ?company= trên URL (link chia sẻ được) -> localStorage -> mặc định hasaki */
 function docCtyBanDau(){
   try{ const u = new URLSearchParams(location.search).get("company"); if(u && CTY[u]) return u; }catch(e){}
@@ -2407,38 +2425,71 @@ function capNhatCtyUI(){
   setTitle(tt);
   $('lnkSheet').href = SHEET_ID ? ("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit#gid=0") : '#';
 }
-/* HÀM TRUNG TÂM: skeleton -> đổi nguồn dữ liệu -> nạp + render lại, tất cả không F5 */
+/* HÀM TRUNG TÂM: skeleton -> render lại khung tab -> đổi nguồn dữ liệu -> nạp lại, tất cả không F5 */
 async function switchCompany(id){
   if(!CTY[id]) return;
   if(id===CTY_ID){ capNhatCtyUI(); return; }
   CTY_ID = id; SHEET_ID = CTY[id].sheetId;
   try{ localStorage.setItem('currentCompany', id); }catch(e){}                 // F5 vẫn nhớ công ty đang xem
-  try{ const u=new URL(location.href); u.searchParams.set('company', id);      // URL chia sẻ được: ?company=factory
-       history.replaceState(null,'',u); }catch(e){}
   capNhatCtyUI();
-  // Xoá trắng state cũ (không để dữ liệu 2 công ty lẫn nhau) + bật skeleton
+  renderTabs();                                                                // Cấp 2: khung tab đổi theo công ty
+  document.body.classList.remove('cty-trong');
+  // Xoá trắng state 5S cũ (không để dữ liệu 2 công ty lẫn nhau)
   SUMMARY_INDEX=null; CHUNK.clear(); H=[]; ROWS=[]; ANH_KHONG=null; BINH_LUAN=null; firstLoad=true;
-  batCtyLoading(true);
-  taiQuyDinh();                                                                // tab Hạng mục 5S theo sheet công ty
-  const ok = await taiTuTinh();                                                // fetch tự trỏ summary của công ty mới
-  if(ok) batCtyLoading(false);
-  else if(SHEET_ID){ batCtyLoading(false); taiDuLieu(); }                      // fallback gviz nếu có sheet
-  else hienCtyTrong();                                                         // chưa có nguồn -> trạng thái trống
+  // Mở lại đúng tab người dùng xem lần trước Ở CÔNG TY NÀY (setTab tự validate + ghi URL ?company&tab)
+  let tab=null; try{ tab=localStorage.getItem('currentTab:'+id); }catch(e){}
+  setTab(tab || tabMacDinh());
+  if(co5S()){                                                                  // chỉ công ty có tab 5S mới kéo dữ liệu 5S
+    batCtyLoading(true);
+    taiQuyDinh();
+    const ok = await taiTuTinh();
+    if(ok) batCtyLoading(false);
+    else if(SHEET_ID){ batCtyLoading(false); taiDuLieu(); }
+    else hienCtyTrong();
+  } else batCtyLoading(false);                                                 // Factory: tab fstock tự lo dữ liệu (lazy)
 }
 
 /* Mở modal MƯỢT: ép trình duyệt layout+paint nội dung TRƯỚC (offsetHeight), sang frame kế mới
    chạy animation -> frame đầu không bị việc dựng DOM đè lên, hết khựng. */
 function hienModal(id){ const el=$(id); el.style.display=''; void el.offsetHeight; requestAnimationFrame(()=>el.classList.add("show")); }
 
-/* ===== TABS ===== */
+/* ===== TABS (Dynamic Contextual Tabs — khung tab đổi theo công ty) ===== */
+function renderTabs(){
+  $('tabsNav').innerHTML = CTY[CTY_ID].tabs
+    .map(t=>`<button class="tab" data-tab="${t}" role="tab">${TAB_DEFS[t].ten}</button>`).join('');
+}
 function setTab(name){
+  if(!CTY[CTY_ID].tabs.includes(name)) name = tabMacDinh();   // tab không thuộc công ty -> về mặc định
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
-  ['tong','task','hangmuc','kk'].forEach(n=>{
+  Object.keys(TAB_DEFS).forEach(n=>{
     const el=$('pane-'+n); if(!el) return;
     if(n===name){ el.classList.remove('hidden'); el.style.animation='none'; requestAnimationFrame(()=>el.style.animation=''); }
     else el.classList.add('hidden');
   });
   if(name==='hangmuc'){ taiQuyDinh(); }   // đọc lại QUY-DINH mỗi lần mở tab (đồng bộ mới nhất)
+  if(name==='fstock'){ moFactoryStock(); }   // LAZY: chỉ lúc này mới nạp module + fetch data Tồn kho
+  // STATE: nhớ tab THEO TỪNG CÔNG TY + deep-link ?company=&tab= (F5/chia sẻ không mất dấu)
+  try{ localStorage.setItem('currentTab:'+CTY_ID, name); }catch(e){}
+  try{ const u=new URL(location.href); u.searchParams.set('company',CTY_ID); u.searchParams.set('tab',name);
+       history.replaceState(null,'',u); }catch(e){}
+}
+/* LAZY EXECUTION: factory-stock.js chỉ được inject khi người dùng THẬT SỰ đứng ở
+   Factory ▸ Trạng thái lưu trữ — xem Hasaki thì 0 byte, 0 request cho luồng Factory. */
+let _fsNap=null;
+function moFactoryStock(){
+  const pane=$('pane-fstock');
+  if(!_fsNap){
+    pane.innerHTML='<div class="panel" style="margin-top:14px;padding:18px 16px">'+
+      '<div class="sk sk-line" style="width:72%"></div><div class="sk sk-line" style="width:56%"></div>'+
+      '<div class="sk sk-line" style="width:64%"></div><div class="sk sk-line" style="width:48%"></div></div>';
+    _fsNap=new Promise((res,rej)=>{
+      const s=document.createElement('script'); s.src='factory-stock.js?v=20260715';
+      s.onload=res; s.onerror=()=>rej(new Error('Không tải được module factory-stock.js'));
+      document.body.appendChild(s);
+    });
+  }
+  _fsNap.then(()=>window.FSTOCK && window.FSTOCK.init(pane))
+    .catch(e=>{ _fsNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
 }
 
 /* ===== TAB HẠNG MỤC 5S — đọc tab QUY-DINH trực tiếp (gviz), đồng bộ thời gian thực ===== */
@@ -2930,7 +2981,8 @@ function dongCaiDat(){ $('settingsPop').classList.add('hidden'); $('btnSettings'
 $('btnSettings').addEventListener('click', e=>{ e.stopPropagation(); const hid=$('settingsPop').classList.toggle('hidden'); $('btnSettings').classList.toggle('open', !hid); });
 $('settingsPop').addEventListener('click', e=>e.stopPropagation());
 document.addEventListener('click', e=>{ if(!$('settingsPop').classList.contains('hidden') && !e.target.closest('#settingsWrap')) dongCaiDat(); });
-document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+// Tabs render động theo công ty -> dùng UỶ QUYỀN trên nav (không phải bind lại sau mỗi renderTabs)
+$('tabsNav').addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(b) setTab(b.dataset.tab); });
 $('btnFilter').addEventListener('click',()=>{
   const g=$('filterGrid'), dong=g.classList.toggle('collapsed');
   $('btnFilter').textContent = dong ? 'Bộ lọc — chạm để mở' : 'Bộ lọc — chạm để đóng';
@@ -2974,18 +3026,25 @@ document.addEventListener('click', ()=>csDongHet(null));
   setTitle(tt);
   // MULTI-TENANT: áp trạng thái công ty (URL ?company= > localStorage > hasaki) lên toàn UI
   capNhatCtyUI();
+  renderTabs();
+  // DEEP LINK tab: ?tab= (hợp lệ với công ty) > tab đã lưu của công ty > mặc định
+  let tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
+  if(!tb || !CTY[CTY_ID].tabs.includes(tb)){ try{ tb=localStorage.getItem('currentTab:'+CTY_ID); }catch(e){} }
+  setTab(tb || tabMacDinh());
   // Nâng cấp các <select> thành dropdown tuỳ biến animate được (sau khi theme/title đã set giá trị)
   ['themeSel','titleSel','kpiThang','fStatus','fLoi'].forEach(id=>{ const el=$(id); if(el) enhanceSelect(el); });
-  // TĂNG TỐC: hiện trang NGAY từ file tĩnh CDN; gviz chạy NỀN sau 4s để bắt dữ liệu mới nhất
-  taiTuTinh().then(ok=>{ if(ok) return; if(SHEET_ID) taiDuLieu(); else hienCtyTrong(); });   // chunk lỗi -> gviz; chưa có nguồn -> trống
-  taiQuyDinh();  // nạp QUY-DINH ngay từ đầu -> cột "Tần suất vi phạm" tra được %KPI theo hạng mục
-  // NẠP TRƯỚC form Ghi nhận 5S lúc rảnh — nhưng BỎ QUA trên mạng chậm/tiết kiệm dữ liệu
-  // (iframe form kéo ~800KB CDN, không được tranh băng thông với dữ liệu chính trên mobile)
-  const mangCham = navigator.connection && (navigator.connection.saveData || /(^|-)2g|3g/.test(navigator.connection.effectiveType||''));
-  if(!mangCham) (('requestIdleCallback' in window) ? requestIdleCallback(napFormTruoc,{timeout:8000}) : setTimeout(napFormTruoc,5000));
-  // Tự làm mới ONLINE mỗi 5 phút + khi quay lại tab (không hiện skeleton lại -> không giật)
-  setInterval(()=>{ if(!dangCho) lamMoiNen(); }, 5*60*1000);
-  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && !dangCho && ROWS.length) lamMoiNen(); });
+  // LAZY THEO CÔNG TY: chỉ công ty có tab 5S mới kéo dữ liệu 5S; Factory để module fstock tự lo
+  if(co5S()){
+    // TĂNG TỐC: hiện trang NGAY từ file tĩnh CDN; lỗi -> gviz; chưa có nguồn -> trống
+    taiTuTinh().then(ok=>{ if(ok) return; if(SHEET_ID) taiDuLieu(); else hienCtyTrong(); });
+    taiQuyDinh();  // nạp QUY-DINH ngay từ đầu -> cột "Tần suất vi phạm" tra được %KPI theo hạng mục
+    // NẠP TRƯỚC form Ghi nhận 5S lúc rảnh — nhưng BỎ QUA trên mạng chậm/tiết kiệm dữ liệu
+    const mangCham = navigator.connection && (navigator.connection.saveData || /(^|-)2g|3g/.test(navigator.connection.effectiveType||''));
+    if(!mangCham) (('requestIdleCallback' in window) ? requestIdleCallback(napFormTruoc,{timeout:8000}) : setTimeout(napFormTruoc,5000));
+  }
+  // Tự làm mới ONLINE mỗi 5 phút + khi quay lại tab (chỉ luồng 5S; module fstock tự làm mới khi mở lại)
+  setInterval(()=>{ if(!dangCho && co5S()) lamMoiNen(); }, 5*60*1000);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && !dangCho && co5S() && ROWS.length) lamMoiNen(); });
 })();
 </script>
 </body>
