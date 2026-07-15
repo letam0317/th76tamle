@@ -204,6 +204,19 @@ var CSS = [
 ".fk-mnote{padding:10px 20px;font-size:11.5px;color:var(--muted,#9ca3af);border-top:1px solid var(--line,#e8ecf1);}",
 ".fk-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:750;white-space:nowrap;} .fk-badge.verified{background:#d1faf3;color:#0f766e;} .fk-badge.processing{background:#fdecd0;color:#b45309;} .fk-badge.pending{background:color-mix(in srgb,#9ca3af 22%,transparent);color:#6b7280;} .fk-badge.reject{background:#fdecea;color:#b42318;}",
 "#fkToast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:#111827;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 24px 60px rgba(16,24,40,.35);opacity:0;pointer-events:none;z-index:1400;max-width:92vw;text-align:center;transition:opacity .25s,transform .25s;} #fkToast.show{opacity:1;transform:translate(-50%,0);} #fkToast.ok{background:#0f766e;} #fkToast.warn{background:#b45309;} #fkToast.err{background:#b42318;}",
+/* ===== Bộ lọc thu gọn: nút toggle + panel đóng/mở mượt ===== */
+"#pane-fkiemke .fk-filterbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0;}",
+"#pane-fkiemke .fk-filter-toggle{display:inline-flex;align-items:center;gap:8px;min-height:var(--input-height,36px);padding:0 14px;border:1.5px solid var(--line,#d0d7de);border-radius:var(--border-radius,4px);background:var(--panel,#fff);color:var(--text,#1f2937);font-size:13px;font-weight:650;cursor:pointer;transition:border-color var(--transition-speed,.2s);}",
+"#pane-fkiemke .fk-filter-toggle:hover{border-color:var(--primary-color,#2f7a55);}",
+"#pane-fkiemke .fk-filter-toggle svg{width:16px;height:16px;color:var(--muted,#6b7280);}",
+"#pane-fkiemke .fk-filter-toggle .chev{width:7px;height:7px;border:0;border-right:2px solid var(--muted,#6b7280);border-bottom:2px solid var(--muted,#6b7280);transform:rotate(45deg);transition:transform .2s;}",
+"#pane-fkiemke .fk-filter-toggle[aria-expanded='true'] .chev{transform:rotate(-135deg);}",
+"#pane-fkiemke .fk-filter-toggle[aria-expanded='true']{border-color:var(--primary-color,#2f7a55);color:var(--primary-color,#2f7a55);}",
+"#pane-fkiemke .fk-filter-badge{background:var(--primary-color,#2f7a55);color:#fff;border-radius:999px;font-size:10.5px;font-weight:700;padding:1px 7px;min-width:18px;text-align:center;}",
+"#pane-fkiemke .fk-filter-badge.empty{display:none;}",
+"#pane-fkiemke .fk-filter{overflow:hidden;transition:max-height .3s ease,opacity .22s ease;max-height:400px;opacity:1;}",
+"#pane-fkiemke .fk-filter.fk-collapsed{max-height:0;opacity:0;padding-top:0;padding-bottom:0;margin-top:0;margin-bottom:0;border:0;pointer-events:none;}",
+"@media(max-width:768px){#pane-fkiemke .fk-filterbar{flex-direction:column;align-items:stretch;} #pane-fkiemke .fk-filter-toggle{min-height:44px;justify-content:center;} #pane-fkiemke .fk-filter.fk-collapsed{max-height:0;} #pane-fkiemke .fk-filter:not(.fk-collapsed){max-height:900px;}}",
 /* ===== CT2+CT3: CHUẨN HOÁ KÍCH THƯỚC + TƯƠNG TÁC theo design token (override) ===== */
 "#pane-fkiemke select.fk-sel,#pane-fkiemke .dropdown-header{min-height:var(--input-height,36px);border-color:var(--border-color,#d9d9d9);border-radius:var(--border-radius,4px);transition:border-color var(--transition-speed,.2s ease-in-out),box-shadow var(--transition-speed,.2s ease-in-out);}",
 "#pane-fkiemke select.fk-sel:hover,#pane-fkiemke select.fk-sel:focus,#pane-fkiemke .dropdown-header:hover,#pane-fkiemke .custom-dropdown.open .dropdown-header{border-color:var(--primary-color,#2f7a55);}",
@@ -227,13 +240,18 @@ var CSS = [
 
 var KHUNG =
 '<nav class="fk-nav" id="fkNav"></nav>' +
-'<div class="fk-filter">' +
+// Thanh điều khiển: nút Bộ lọc (thu gọn) + nút Tải lại (luôn hiện)
+'<div class="fk-filterbar">' +
+'  <button id="fkFilterToggle" class="fk-filter-toggle" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg><span>Bộ lọc</span><span class="fk-filter-badge empty" id="fkFilterCount"></span><span class="chev"></span></button>' +
+'  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Tải lại dữ liệu</span><small class="ts" id="fkSyncTs"></small></button>' +
+'</div>' +
+// Bộ lọc — MẶC ĐỊNH ĐÓNG (fk-collapsed), mở khi bấm nút Bộ lọc
+'<div class="fk-filter fk-collapsed" id="fkFilter">' +
 '  <div class="fk-fld"><label>Kho</label><div class="custom-dropdown" id="ddWh"></div></div>' +
 '  <div class="fk-fld"><label>Loại kiểm kê</label><div class="custom-dropdown" id="ddType"></div></div>' +
 '  <div class="fk-fld" id="fldCat"><label>Nhóm hàng</label><div class="custom-dropdown" id="ddCat"></div></div>' +
 '  <div class="fk-fld"><label>Trạng thái</label><div class="custom-dropdown" id="ddStatus"></div></div>' +
 '  <div class="fk-fld"><label>Khoảng ngày</label><div class="custom-dropdown hasaki-date-picker" id="ddDate"></div></div>' +
-'  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Tải lại dữ liệu</span><small class="ts" id="fkSyncTs"></small></button>' +
 '</div>' +
 '<div id="fkBody"></div>' +
 '<div id="fkState" class="fk-state"><div class="fk-spin"></div>Đang tải dữ liệu kiểm kê…</div>';
@@ -381,6 +399,9 @@ function buildDropdowns(){
   ddRender("ddStatus", stOpts, selStatus, function(v){ selStatus = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
   setupDatePicker();
   $id("fldCat").style.display = activeTab === "loc" ? "none" : "";   // Location không lọc theo nhóm hàng
+  // Badge số bộ lọc đang áp dụng (để biết có lọc dù panel đang đóng)
+  var n = (selType ? 1 : 0) + (selStatus ? 1 : 0) + ((activeTab !== "loc" && selCat) ? 1 : 0) + ((dateFrom || dateTo) ? 1 : 0);
+  var bd = $id("fkFilterCount"); if (bd){ bd.textContent = n; bd.className = "fk-filter-badge" + (n ? "" : " empty"); }
 }
 function fmtD(d){ return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear(); }
 function dateLabel(){ if (!dateFrom && !dateTo) return "Tất cả"; return (dateFrom ? fmtD(dateFrom) : "…") + " - " + (dateTo ? fmtD(dateTo) : "…"); }
@@ -604,6 +625,9 @@ function init(pane){
     pane.innerHTML = KHUNG;
     var ov = document.createElement("div"); ov.id = "fkOverlays"; ov.innerHTML = MODAL + '<div id="fkToast"></div>'; document.body.appendChild(ov);
     pane.addEventListener("click", function(e){
+      // Bộ lọc: đóng/mở
+      var tg = e.target.closest("#fkFilterToggle");
+      if (tg){ var f = $id("fkFilter"), open = f.classList.toggle("fk-collapsed") === false; tg.setAttribute("aria-expanded", open ? "true" : "false"); return; }
       // nav tab
       var nv = e.target.closest("[data-nav]");
       if (nv){ activeTab = nv.getAttribute("data-nav"); renderNav(); buildDropdowns(); veLai(); return; }
