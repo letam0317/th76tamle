@@ -26,7 +26,6 @@ var STATUSES = ["PENDING", "CANCELED", "PROCESSING", "VERIFIED", "REJECTED", "AP
 var NAVTABS = [
   { k: "loc", label: "Location count result", on: true },
   { k: "sku", label: "SKU", on: true },
-  { k: "daily", label: "Daily checklist" }, { k: "rfid", label: "RFID" }, { k: "asset", label: "Asset reconciliation" },
 ];
 
 /* ===== MOCK (đủ key, status chuẩn WMS) ===== */
@@ -80,7 +79,13 @@ function badgeClsStatus(st){ st = String(st || "").toUpperCase();
   if (st === "REJECTED" || st === "CANCELED") return "reject";
   if (st === "NOT COUNT" || st === "PENDING") return "pending";
   return "processing"; }
-function wmsLink(text, tab){ if (text == null || text === "") return "—"; return '<a class="wms-link" href="https://wms.inshasaki.com/physical-count/result/list?current_tab=' + tab + '" target="_blank" rel="noopener">' + esc(text) + ICON + "</a>"; }
+/* CT4: DEEP-LINK QUA ID — chìa khoá định tuyến DUY NHẤT (không dùng SKU/Request code).
+   SKU: .../result/sku/detail/{ID}?page=1&size=20 · Location: .../result/location/detail/{ID}?... */
+function idLink(id, kind){
+  if (id == null || id === "") return "—";
+  var seg = kind === "loc" ? "location" : "sku";
+  return '<a class="wms-link" href="https://wms.inshasaki.com/physical-count/result/' + seg + '/detail/' + encodeURIComponent(id) + '?page=1&size=20" target="_blank" rel="noopener">' + esc(id) + ICON + "</a>";
+}
 
 /* ===== CT3: ĐÁNH GIÁ CHÊNH LỆCH (độc lập với Status) ===== */
 function evaluateDiff(inventory, qtyCount){
@@ -120,7 +125,7 @@ var CSS = [
 "#pane-fkiemke .custom-dropdown.open .dropdown-header{border-color:var(--accent,#2563eb);}",
 "#pane-fkiemke .dropdown-header .chev{width:7px;height:7px;border-right:2px solid var(--muted,#6b7280);border-bottom:2px solid var(--muted,#6b7280);transform:rotate(45deg);transition:transform .2s;flex:none;}",
 "#pane-fkiemke .custom-dropdown.open .dropdown-header .chev{transform:rotate(-135deg);}",
-"#pane-fkiemke .dropdown-list{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;list-style:none;margin:0;padding:5px;background:var(--panel,#fff);border:1px solid var(--line,#e8ecf1);border-radius:11px;box-shadow:0 16px 40px rgba(16,24,40,.18);max-height:280px;overflow-y:auto;opacity:0;visibility:hidden;transform:translateY(-10px);transition:all .2s ease;}",
+"#pane-fkiemke .dropdown-list{position:absolute;top:calc(100% + 6px);left:0;z-index:40;list-style:none;margin:0;padding:5px;background:var(--panel,#fff);border:1px solid var(--line,#e8ecf1);border-radius:11px;box-shadow:0 16px 40px rgba(16,24,40,.18);max-height:280px;overflow-y:auto;white-space:nowrap;min-width:max-content;overflow-x:hidden;opacity:0;visibility:hidden;transform:translateY(-10px);transition:all .2s ease;}",
 "#pane-fkiemke .custom-dropdown.open .dropdown-list{opacity:1;visibility:visible;transform:translateY(0);}",
 "#pane-fkiemke .dropdown-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:8px;font-size:12.5px;color:var(--text,#1f2937);cursor:pointer;white-space:nowrap;}",
 "#pane-fkiemke .dropdown-list li:hover{background:#f3f4f6;} #pane-fkiemke .dropdown-list li.sel{font-weight:750;color:var(--accent,#2563eb);} #pane-fkiemke .dropdown-list li .ck{opacity:0;} #pane-fkiemke .dropdown-list li.sel .ck{opacity:1;}",
@@ -176,6 +181,7 @@ var KHUNG =
 '  <div class="fk-fld"><label>Kho</label><div class="custom-dropdown" id="ddWh"></div></div>' +
 '  <div class="fk-fld" id="fldCat"><label>Nhóm hàng</label><div class="custom-dropdown" id="ddCat"></div></div>' +
 '  <div class="fk-fld"><label>Trạng thái</label><div class="custom-dropdown" id="ddStatus"></div></div>' +
+'  <div class="fk-fld"><label>Khoảng ngày</label><div class="custom-dropdown" id="ddDate"></div></div>' +
 '  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Đồng bộ WMS</span><small class="ts" id="fkSyncTs"></small></button>' +
 '</div>' +
 '<div id="fkBody"></div>' +
@@ -260,6 +266,16 @@ function loadTs(){ window.fkgv_ts = function(resp){ var ts = resp && resp.status
 
 /* ===== active array + filters ===== */
 function rawActive(){ return activeTab === "loc" ? rawLocationData : rawSkuData; }
+/* CT3: GỘP cho KPI Dashboard — 1 SKU/Location kiểm nhiều lần trong khoảng ngày -> giữ BẢN GHI MỚI NHẤT
+   (theo Counted date/Updated At). Dùng cho hero/velocity/discrepancy/chart/top. Modal KHÔNG gọi hàm này. */
+function dedupLatest(rows, kind){
+  var m = {}; rows.forEach(function(r){
+    var k = kind === "loc" ? r.loc : r.sku; if (!k) return;
+    var t = countMs(r); t = isNaN(t) ? -Infinity : t;
+    if (!m[k] || t >= m[k]._t){ r._t = t; m[k] = r; }
+  });
+  return Object.keys(m).map(function(k){ return m[k]; });   // mỗi SKU/Location DUY NHẤT 1 dòng (mới nhất)
+}
 function rowsKho(arr){ return arr.filter(function(r){ return r.wh === selWh; }); }
 function trongKhoang(r){ if (dateRange === "all") return true; var dk = dayKey(countMs(r)); if (isNaN(dk)) return false; if (dateRange === "today") return dk === refDay; if (dateRange === "7d") return dk >= refDay - 6; if (dateRange === "30d") return dk >= refDay - 29; return true; }
 function rowsBase(kind){
@@ -293,6 +309,8 @@ function buildDropdowns(){
   ddRender("ddCat", catOpts, selCat, function(v){ selCat = v; veLai(); });
   var stOpts = [{ v: "", label: "Tất cả trạng thái" }].concat(STATUSES.map(function(s){ return { v: s, label: s }; }));
   ddRender("ddStatus", stOpts, selStatus, function(v){ selStatus = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
+  var dOpts = [{ v: "all", label: "Tất cả" }, { v: "today", label: "Hôm nay" }, { v: "7d", label: "7 ngày qua" }, { v: "30d", label: "30 ngày qua" }];
+  ddRender("ddDate", dOpts, dateRange, function(v){ dateRange = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
   $id("fldCat").style.display = activeTab === "loc" ? "none" : "";   // Location không lọc theo nhóm hàng
 }
 function ddRender(mountId, opts, cur, cb){
@@ -318,7 +336,7 @@ function veLai(){
   var all = rowsKho(kind === "loc" ? rawLocationData : rawSkuData);
   refDay = 0; all.forEach(function(r){ var d = dayKey(countMs(r)); if (!isNaN(d) && d > refDay) refDay = d; });
   if (!refDay) refDay = Math.floor(Date.now() / 86400000);
-  var rows = rowsBase(kind);
+  var rows = dedupLatest(rowsBase(kind), kind);   // CT3: KPI dashboard GỘP unique (modal dùng raw)
 
   // KPI qua metric() (CT3)
   var v = 0, p = 0, pd = 0, neg = 0, pos = 0, sNeg = 0, sPos = 0;
@@ -342,11 +360,11 @@ function veLai(){
     topTitle = "Top 10 SKU lệch"; topDrill = "allsku";
     var agg = {}, pnBy = {}; rows.forEach(function(r){ agg[r.sku] = (agg[r.sku] || 0) + r.diffLoc; if (!pnBy[r.sku]) pnBy[r.sku] = r.pn; });
     var top = Object.keys(agg).map(function(k){ return { sku: k, pn: pnBy[k], d: agg[k] }; }).filter(function(x){ return x.d !== 0; }).sort(function(a, b){ return Math.abs(b.d) - Math.abs(a.d); }).slice(0, 10);
-    topHtml = top.length ? '<div class="fk-mini"><table><tbody>' + top.map(function(x, i){ return '<tr data-drill="sku" data-v="' + esc(x.sku) + '"><td class="rank">' + (i + 1) + '</td><td>' + wmsLink(x.sku, "sku") + '</td><td class="pn">' + esc(x.pn) + '</td><td class="num ' + (x.d < 0 ? "d-am" : "d-duong") + '">' + (x.d > 0 ? "+" : "") + nf(x.d) + '</td></tr>'; }).join("") + "</tbody></table></div>" : EMPTY;
+    topHtml = top.length ? '<div class="fk-mini"><table><tbody>' + top.map(function(x, i){ return '<tr data-drill="sku" data-v="' + esc(x.sku) + '"><td class="rank">' + (i + 1) + '</td><td><b>' + esc(x.sku) + '</b></td><td class="pn">' + esc(x.pn) + '</td><td class="num ' + (x.d < 0 ? "d-am" : "d-duong") + '">' + (x.d > 0 ? "+" : "") + nf(x.d) + '</td></tr>'; }).join("") + "</tbody></table></div>" : EMPTY;
   } else {
     topTitle = "Top 10 Location lệch"; topDrill = "allloc";
     var top2 = rows.filter(function(r){ return (Number(r.diff) || 0) !== 0; }).sort(function(a, b){ return Math.abs(b.diff) - Math.abs(a.diff); }).slice(0, 10);
-    topHtml = top2.length ? '<div class="fk-mini"><table><tbody>' + top2.map(function(x, i){ return '<tr data-drill="loc" data-v="' + esc(x.loc) + '"><td class="rank">' + (i + 1) + '</td><td>' + wmsLink(x.loc, "location") + '</td><td class="num ' + (x.diff < 0 ? "d-am" : "d-duong") + '">' + (x.diff > 0 ? "+" : "") + nf(x.diff) + '</td></tr>'; }).join("") + "</tbody></table></div>" : EMPTY;
+    topHtml = top2.length ? '<div class="fk-mini"><table><tbody>' + top2.map(function(x, i){ return '<tr data-drill="loc" data-v="' + esc(x.loc) + '"><td class="rank">' + (i + 1) + '</td><td class="loc">' + esc(x.loc) + '</td><td class="num ' + (x.diff < 0 ? "d-am" : "d-duong") + '">' + (x.diff > 0 ? "+" : "") + nf(x.diff) + '</td></tr>'; }).join("") + "</tbody></table></div>" : EMPTY;
   }
 
   $id("fkBody").innerHTML =
@@ -394,8 +412,8 @@ function renderModal(){
     var rows = base.filter(function(r){ return !q || (r.sku + " " + r.pn + " " + r.loc + " " + r.req + " " + r.assignTo).toLowerCase().indexOf(q) >= 0; });
     n = rows.length;
     var body = rows.slice(0, MODAL_CAP).map(function(r){ var ds = r.diffSku != null ? r.diffSku : (agg[r.sku] || 0);
-      return "<tr><td class='stick'>" + (r.id ? esc(r.id) : "—") + "</td>" +
-        '<td class="skucell">' + wmsLink(r.sku, "sku") + '<small class="pn">' + esc(r.pn) + "</small></td>" +
+      return "<tr><td class='stick'>" + idLink(r.id, "sku") + "</td>" +
+        '<td class="skucell"><b>' + esc(r.sku) + '</b><small class="pn">' + esc(r.pn) + "</small></td>" +
         "<td>" + (catOf(r) || "—") + "</td>" + dcell(r.diffLoc) + dcell(ds) + '<td class="num">' + nf(r.inv) + '</td><td class="num">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td>" +
         "<td>" + (r.no || "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td><td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
         "<td>" + (r.vat ? esc(r.vat) : "—") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td><td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td>" +
@@ -407,8 +425,8 @@ function renderModal(){
     var baseL = locFiltered("loc").filter(function(r){ return !q || (r.loc + " " + r.req + " " + r.assignTo).toLowerCase().indexOf(q) >= 0; }).sort(function(a, b){ return Math.abs(b.diff) - Math.abs(a.diff); });
     n = baseL.length;
     var body2 = baseL.slice(0, MODAL_CAP).map(function(r){
-      return "<tr><td class='stick'>" + (r.id ? esc(r.id) : "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td><td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
-        "<td>" + wmsLink(r.loc, "location") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" + dcell(r.diff) +
+      return "<tr><td class='stick'>" + idLink(r.id, "location") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td><td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
+        '<td class="loc">' + esc(r.loc) + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" + dcell(r.diff) +
         "<td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td><td>" + fmtDate(r.countedDate) + "</td><td>" + fmtDate(r.updatedAt) + "</td><td>" + fmtDate(r.planDate, true) + "</td>" +
         "<td><span class='fk-badge " + badgeClsStatus(r.status) + "'>" + (r.status ? esc(r.status) : "—") + "</span></td></tr>";
     }).join("");
