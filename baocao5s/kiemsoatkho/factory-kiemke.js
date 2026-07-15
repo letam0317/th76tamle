@@ -26,9 +26,27 @@ var DEV_MODE = /[?&]dev=1/.test(location.search);
 var MAX_DOM = 150;                              // trần số <tr> render mỗi lượt (chống jank)
 var FETCH_TIMEOUT_MS = 4 * 60 * 1000;           // AbortController: ngắt request GAS sau 4 phút
 
+/* ===== MOCK DATA (10 dòng, nằm ngay trong FE) =====
+   Dùng khi sheet kiemke-material CHƯA có dữ liệu (GAS chưa đẩy xuống) — render trước
+   UI bảng + 4 thẻ KPI để duyệt giao diện. Phủ đủ 4 trạng thái: Khớp / Lệch âm /
+   Lệch dương / Chưa đếm, trải trên cả 2 kho. Cột khớp y hệt sheet thật:
+   [SKU, ProductName, Location, Warehouse, SystemQty, CountedQty, Diff, Status, Updated] */
+var MOCK_10 = [
+  ["422490737", "Thân áo/CMTS0028/82.6% Cotton/205gsm/Trắng Brilliant White/XL", "F1-A2-01-03", "WH - MATERIAL - MTG",     120, 120, 0,  "Khớp",       "2026-07-15 08:00:00"],
+  ["422490812", "Vải chính/CMTS0031/100% Cotton Twill/240gsm/Đen/Khổ 1m6",       "F1-A3-02-01", "WH - MATERIAL - MTG",     300, 288, -12, "Lệch âm",    "2026-07-15 08:00:00"],
+  ["422491055", "Dây kéo YKK 5VS/56cm/Đồng rêu",                                  "F2-B1-04-02", "WH - MATERIAL - MTG",     850, 862, 12, "Lệch dương", "2026-07-15 08:00:00"],
+  ["422491203", "Nút dập 15mm/Antique Brass/Bịch 500 cái",                        "F2-B2-01-05", "WH - MATERIAL - MTG",      40, null, 0,  "Chưa đếm",   "2026-07-15 08:00:00"],
+  ["422491374", "Chỉ may Coats Epic 120/5000m/Trắng ngà",                          "F3-C1-02-02", "WH - MATERIAL - MTG",     215, 215, 0,  "Khớp",       "2026-07-15 08:00:00"],
+  ["422501854", "Thân chính dưới đã thêu/Bag 12/100% Cotton Canvas/One Size",      "F0-A1-01-01", "WH - MATERIAL - GARMENT", 500, 495, -5, "Lệch âm",    "2026-07-15 08:00:00"],
+  ["422501920", "Vải lót/POLY210T/Xám tro/Khổ 1m5",                                "F0-A2-03-04", "WH - MATERIAL - GARMENT", 160, 171, 11, "Lệch dương", "2026-07-15 08:00:00"],
+  ["422502088", "Khoá móc kim loại 25mm/Nickel mờ",                                "F1-B4-02-02", "WH - MATERIAL - GARMENT", 720, 720, 0,  "Khớp",       "2026-07-15 08:00:00"],
+  ["422502135", "Webbing PP 30mm/Đen/Cuộn 50m",                                    "F1-B5-01-03", "WH - MATERIAL - GARMENT",  95, null, 0,  "Chưa đếm",   "2026-07-15 08:00:00"],
+  ["422502244", "Mác dệt chính/Logo Bag12/Lô 2026",                                "F2-C2-04-01", "WH - MATERIAL - GARMENT", 1000, 998, -2, "Lệch âm",    "2026-07-15 08:00:00"],
+];
+
 /* ===== STATE (closure) =====
    ROWS: [sku, productName, location, warehouse, sysQty, countedQty, diff, status, updated] */
-var ROWS = [], _boot = false, _syncing = false, _lastSyncMs = 0, _deb = null, PANE = null;
+var ROWS = [], _boot = false, _syncing = false, _lastSyncMs = 0, _deb = null, PANE = null, _giaLap = false;
 var view = "location";                          // sub-tab: 'location' | 'sku'
 var fStatus = "";                               // '', 'am', 'duong', 'chuadem'
 
@@ -114,6 +132,7 @@ var KHUNG =
 
 /* ===== ĐỌC DỮ LIỆU (gviz JSONP — miễn nhiễm CORS, chạy được cả localhost) ===== */
 function loadData(){
+  _giaLap = false;
   $id("fkState").style.display = "block";
   $id("fkState").innerHTML = '<div class="fk-spin"></div>Đang tải dữ liệu kiểm kê…';
   window.fkgv_data = function(resp){
@@ -122,6 +141,7 @@ function loadData(){
       var rows = ((resp.table && resp.table.rows) || []).map(function(r){
         return (r.c || []).map(function(c){ return c ? (c.v == null ? "" : c.v) : ""; });
       });
+      if (!rows.length) throw new Error("Tab " + TAB + " đang rỗng");
       napRows(rows);
     }catch(e){ hienTrong(); }
   };
@@ -153,12 +173,12 @@ function napRows(rows){
   $id("fkState").style.display = "none";
   renderKpis(); renderTable();
 }
+/* Sheet chưa có dữ liệu -> KHÔNG hiện trang trống nữa: tự render 10 dòng MOCK inline
+   (đánh dấu rõ GIẢ LẬP) để duyệt UI bảng + 4 KPI. Sync thành công sẽ thay bằng data thật. */
 function hienTrong(){
-  $id("fkState").style.display = "block";
-  $id("fkState").innerHTML = "Chưa có dữ liệu kiểm kê (tab <code>" + TAB + "</code> chưa được đồng bộ lần nào).<br>" +
-    'Bấm <b>"Đồng bộ WMS (test 2 trang/kho)"</b> phía trên để kéo dữ liệu.' +
-    (DEV_MODE ? '<br><br><button class="fk-devbtn" onclick="FKIEMKE.mock()">⚙ DEV: Nạp dữ liệu mẫu (không gọi mạng)</button>' : "");
-  $id("fkKpis").innerHTML = ""; $id("fkTbl").innerHTML = ""; $id("fkNote").textContent = "";
+  _giaLap = true;
+  napRows(MOCK_10.map(function(r){ return r.slice(); }));
+  toast("Sheet " + TAB + " chưa có dữ liệu — đang hiển thị 10 dòng GIẢ LẬP để xem trước UI.", "warn");
 }
 
 /* ===== KPI: TÍNH TRÊN MẢNG JS (reduce) — không đụng DOM khi tính ===== */
@@ -174,7 +194,7 @@ function renderKpis(){
     '<div class="fk-kpi k2"><div class="n">' + nf(k.chuadem) + '</div><div class="t">Chưa kiểm đếm (not count)</div></div>' +
     '<div class="fk-kpi k3"><div class="n">' + nf(k.am) + '</div><div class="t">Lệch âm (negative)</div></div>' +
     '<div class="fk-kpi k4"><div class="n">' + nf(k.duong) + '</div><div class="t">Lệch dương (positive)</div></div>';
-  $id("fkInfo").textContent = "· " + nf(ROWS.length) + " dòng";
+  $id("fkInfo").textContent = "· " + nf(ROWS.length) + " dòng" + (_giaLap ? " · ⚠ DỮ LIỆU GIẢ LẬP (sheet chưa đồng bộ)" : "");
 }
 
 /* ===== BẢNG: lọc trên mảng, render TỐI ĐA MAX_DOM dòng ===== */
@@ -255,8 +275,9 @@ function sync(){
     });
 }
 
-/* ===== DEV: dữ liệu mẫu để dựng UI không cần mạng/backend ===== */
+/* ===== DEV: dữ liệu mẫu SỐ LƯỢNG LỚN (2.400 dòng) để stress-test cap DOM — gọi tay FKIEMKE.mock() ===== */
 function mock(){
+  _giaLap = true;
   var khoList = ["WH - MATERIAL - MTG", "WH - MATERIAL - GARMENT"];
   var rows = [];
   for (var i = 0; i < 2400; i++){
