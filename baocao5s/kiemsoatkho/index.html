@@ -15,6 +15,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
 <title>AUDIT</title>
 <style>
+/* ===== CHỈ THỊ 1: DESIGN TOKENS DÙNG CHUNG (cả Hasaki lẫn Factory tham chiếu 1 nguồn) ===== */
+:root{
+  --primary-color:#2f7a55;      /* Xanh Hasaki */
+  --primary-hover:#245c40;
+  --border-color:#d9d9d9;
+  --border-radius:4px;
+  --input-height:36px;          /* chiều cao chuẩn form control (mobile giãn ≥44px) */
+  --transition-speed:.2s ease-in-out;
+}
 /* ===== HỆ MÀU (CSS VARIABLES) — CÁC THEME ĐƯỢC ĐÁNH GIÁ CAO ===== */
 /* Tokyo Night (mặc định) */
 :root, [data-theme="tokyo"]{

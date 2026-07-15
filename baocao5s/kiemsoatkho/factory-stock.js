@@ -153,6 +153,21 @@ var CSS = [
 "#fsToast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:#111827;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 24px 60px rgba(16,24,40,.35);opacity:0;pointer-events:none;z-index:1300;max-width:92vw;text-align:center;transition:opacity .25s,transform .25s;}",
 "#fsToast.show{opacity:1;transform:translate(-50%,0);}",
 "#fsToast.ok{background:#0f766e;} #fsToast.warn{background:#b45309;} #fsToast.err{background:#b42318;}",
+/* ===== CT2+CT3+CT5: đồng bộ design token + responsive cho tab Trạng thái lưu trữ ===== */
+"#pane-fstock #fsReload{min-height:var(--input-height,36px);border-radius:var(--border-radius,4px);transition:background var(--transition-speed,.2s ease-in-out);}",
+"#pane-fstock .fs-srcbar a{transition:color var(--transition-speed,.2s ease-in-out);}",
+/* tablet: 5 thẻ KPI -> 2 cột */
+"@media(min-width:769px) and (max-width:1100px){#pane-fstock .fs-cards{grid-template-columns:repeat(2,1fr)!important;}}",
+/* mobile: KPI 1 cột, touch ≥44px, modal tràn màn hình */
+"@media(max-width:768px){",
+"  #pane-fstock .fs-cards{grid-template-columns:1fr!important;}",
+"  #pane-fstock .fs-srcbar{gap:8px;} #fsReload{min-height:44px;width:100%;}",
+"  #pane-fstock .fs-whnum,#pane-fstock .fs-wtbl tbody tr{min-height:44px;}",
+"  .fs-modal{padding:0;align-items:stretch;justify-content:stretch;}",
+"  .fs-modalbox{width:100vw !important;max-height:100vh !important;height:100vh;border-radius:0;}",
+"  .fs-mclose{font-size:30px;min-width:48px;min-height:48px;}",
+"  .fs-tab{min-height:44px;} .fs-mfilters input{min-height:44px;}",
+"}",
 ].join("\n");
 
 /* ===== KHUNG HTML của tab (bơm vào pane) ===== */
