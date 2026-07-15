@@ -233,7 +233,7 @@ var KHUNG =
 '  <div class="fk-fld" id="fldCat"><label>Nhóm hàng</label><div class="custom-dropdown" id="ddCat"></div></div>' +
 '  <div class="fk-fld"><label>Trạng thái</label><div class="custom-dropdown" id="ddStatus"></div></div>' +
 '  <div class="fk-fld"><label>Khoảng ngày</label><div class="custom-dropdown hasaki-date-picker" id="ddDate"></div></div>' +
-'  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Đồng bộ WMS</span><small class="ts" id="fkSyncTs"></small></button>' +
+'  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Tải lại dữ liệu</span><small class="ts" id="fkSyncTs"></small></button>' +
 '</div>' +
 '<div id="fkBody"></div>' +
 '<div id="fkState" class="fk-state"><div class="fk-spin"></div>Đang tải dữ liệu kiểm kê…</div>';
@@ -587,18 +587,12 @@ function renderModal(){
 }
 
 /* ===== SYNC / TOAST / INIT ===== */
+/* "Tải lại dữ liệu" = ĐỌC LẠI từ Google Sheet (nguồn được máy trạm đồng bộ từ WMS mỗi sáng/theo yêu cầu).
+   KHÔNG gọi GAS→WMS trực tiếp vì WMS chặn IP ngoài (firewall) — GAS không với tới được. */
 function sync(){
-  if (_syncing) return; _syncing = true; var btn = $id("fkSync"); btn.disabled = true; btn.firstElementChild.textContent = "Đang đồng bộ…";
-  var ac = new AbortController(), to = setTimeout(function(){ ac.abort(); }, FETCH_TIMEOUT_MS);
-  fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "force_sync_kiemke" }), signal: ac.signal })
-    .then(function(r){ return r.json(); })
-    .then(function(j){ if (j.status === "success"){ toast("Đã đồng bộ (" + nf(j.written || 0) + " dòng).", "ok"); loadData(); }
-      else if (j.code === 401) toast("Token WMS đã hết hạn. Đang chờ luồng chạy ngầm cập nhật Token mới.", "err");
-      else if (j.code === 429) toast(j.message || "Đang trong thời gian chờ.", "warn");
-      else if (j.code === 502) toast("Máy chủ Google không gọi được WMS (firewall). Đồng bộ từ máy trạm.", "err");
-      else toast("Đồng bộ thất bại: " + (j.message || "?"), "err"); })
-    .catch(function(e){ toast(e.name === "AbortError" ? "Quá 4 phút — đã ngắt." : "Không gọi được máy chủ (" + e.message + ").", "err"); })
-    .finally(function(){ clearTimeout(to); _syncing = false; btn.disabled = false; btn.firstElementChild.textContent = "Đồng bộ WMS"; });
+  if (_syncing) return; _syncing = true; var btn = $id("fkSync"); btn.disabled = true; btn.firstElementChild.textContent = "Đang tải…";
+  loadData();
+  setTimeout(function(){ _syncing = false; btn.disabled = false; btn.firstElementChild.textContent = "Tải lại dữ liệu"; toast("Đã tải lại dữ liệu mới nhất từ Sheet.", "ok"); }, 1200);
 }
 function toast(msg, type){ var el = $id("fkToast"); el.className = type || ""; el.textContent = msg; requestAnimationFrame(function(){ el.classList.add("show"); }); clearTimeout(toast._t); toast._t = setTimeout(function(){ el.classList.remove("show"); }, 6000); }
 

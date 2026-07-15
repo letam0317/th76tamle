@@ -428,15 +428,8 @@ function capNhatThongTin(){
 }
 function capNhatNut(){
   var btn = $id("fsReload"); if (!btn) return;
-  if (_syncing){ btn.disabled = true; btn.textContent = "Đang đồng bộ WMS..."; btn.title = "Đang kéo dữ liệu từ WMS — có thể mất 1–3 phút."; return; }
-  btn.textContent = "Tải lại dữ liệu";
-  var remain = LAST_SYNC_MS ? (LAST_SYNC_MS + COOLDOWN_MS - Date.now()) : 0;
-  if (remain > 0){
-    btn.disabled = true;
-    btn.title = "Chỉ có thể tải lại dữ liệu sau mỗi 4 giờ. Mở khoá lúc " + fmtTime(LAST_SYNC_MS + COOLDOWN_MS) + ".";
-    clearTimeout(_unlockTimer);
-    _unlockTimer = setTimeout(capNhatNut, Math.min(remain + 1000, 2147000000));
-  } else { btn.disabled = false; btn.title = "Kéo dữ liệu mới trực tiếp từ WMS"; }
+  if (_syncing){ btn.disabled = true; btn.textContent = "Đang tải…"; btn.title = "Đang đọc lại dữ liệu từ Sheet."; return; }
+  btn.disabled = false; btn.textContent = "Tải lại dữ liệu"; btn.title = "Đọc lại dữ liệu mới nhất từ Sheet (máy trạm đồng bộ WMS mỗi sáng).";
 }
 function toast(msg, type){
   var el = $id("fsToast");
@@ -445,38 +438,13 @@ function toast(msg, type){
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 6000);
 }
+/* "Tải lại dữ liệu" = ĐỌC LẠI từ Google Sheet (nguồn được máy trạm đồng bộ từ WMS mỗi sáng/theo yêu cầu).
+   KHÔNG gọi GAS→WMS trực tiếp: WMS chặn IP ngoài (firewall) nên máy chủ Google không với tới được. */
 function syncWms(){
   if (_syncing) return;
-  // DEV FLAG: bản nháp tuyệt đối không kích hoạt sync production (đốt lượt cooldown 4h của cả phòng ban)
-  if (DEV_MODE){ toast("Chế độ Dev: Đã chặn sync thật (force_sync_wms).", "warn"); return; }
-  var remain = LAST_SYNC_MS ? (LAST_SYNC_MS + COOLDOWN_MS - Date.now()) : 0;
-  if (remain > 0){ toast("Chỉ có thể tải lại dữ liệu sau mỗi 4 giờ. Còn " + Math.ceil(remain / 60000) + " phút nữa.", "warn"); capNhatNut(); return; }
   _syncing = true; capNhatNut();
-  var ac = new AbortController();
-  var to = setTimeout(function(){ ac.abort(); }, FETCH_TIMEOUT_MS);
-  fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "force_sync_wms" }), signal: ac.signal })
-    .then(function(r){ clearTimeout(to); return r.json(); })
-    .then(function(j){
-      _syncing = false;
-      if (j.status === "success"){
-        LAST_SYNC_MS = j.at || LAST_SYNC_MS;
-        toast("Đã đồng bộ WMS thành công!", "ok");
-        loadData();
-      } else if (j.code === 401){
-        toast("Token WMS đã hết hạn. Đang chờ luồng chạy ngầm cập nhật Token mới.", "err");
-      } else if (j.code === 429){
-        if (j.lastSync) LAST_SYNC_MS = j.lastSync;
-        toast(j.message || "Chỉ có thể tải lại dữ liệu sau mỗi 4 giờ.", "warn");
-      } else {
-        toast("Đồng bộ thất bại: " + (j.message || "lỗi không xác định."), "err");
-      }
-      capNhatThongTin(); capNhatNut();
-    })
-    .catch(function(e){
-      clearTimeout(to); _syncing = false;
-      toast(e.name === "AbortError" ? "Quá 4 phút chưa xong — đã ngắt request (GAS/WMS đang nghẽn?)." : "Không gọi được máy chủ đồng bộ (" + e.message + ").", "err");
-      capNhatNut();
-    });
+  loadData();
+  setTimeout(function(){ _syncing = false; capNhatNut(); toast("Đã tải lại dữ liệu mới nhất từ Sheet.", "ok"); }, 1200);
 }
 
 /* ===== KHỞI TẠO (idempotent) — host gọi mỗi lần mở tab; chỉ dựng DOM 1 lần ===== */

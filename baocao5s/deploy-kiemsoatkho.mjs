@@ -28,6 +28,8 @@ const BRANCH = process.env.GH_BRANCH || "main";
 const FILES = [
   ["kiemsoatkho/index.html", "index.html"],
   ["kiemsoatkho/form.html", "form.html"],
+  ["kiemsoatkho/factory-stock.js", "factory-stock.js"],     // module tab Trạng thái lưu trữ (lazy-load)
+  ["kiemsoatkho/factory-kiemke.js", "factory-kiemke.js"],   // module tab Kiểm kê (lazy-load)
 ];
 
 if (!TOKEN) {
