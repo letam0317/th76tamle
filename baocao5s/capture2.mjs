@@ -28,7 +28,7 @@ const edge = spawn(EDGE, [
 edge.unref();
 
 let ws = null;
-for (let i=0;i<30;i++){ try{ ws = await getWS(); if(ws) break; }catch(e){} await new Promise(r=>setTimeout(r,1000)); }
+for (let i=0;i<30;i++){ try{ ws = await getWS(); if(ws) break; }catch{} await new Promise(r=>setTimeout(r,1000)); }
 if(!ws){ console.log('NO_WS: khong mo duoc debug port'); process.exit(2); }
 console.log('connected WS ok');
 
@@ -55,12 +55,12 @@ page.on('requestfinished', async (req) => {
           if(Array.isArray(arr)&&arr.length){ rec.respFirstRowKeys=Object.keys(arr[0]); rec.respSample=arr[0];
             rec.total=(j.total ?? (j.data&&(j.data.total ?? j.data.total_count)) ?? j.total_count ?? null);
             if(DATA_HINT.test(url)) dataCaptured=true; }
-        }catch(e){}
+        }catch{}
       }
     }
     calls.push(rec);
     console.log(`[cap] ${rec.method} ${url.split('?')[0]} status=${rec.status} rows=${rec.respFirstRowKeys?rec.respFirstRowKeys.length+'cols':'-'} auth=${rec.authHeader==='none'?'no':'yes'}`);
-  }catch(e){}
+  }catch{}
 });
 
 try{ await page.goto(REPORT_URL,{waitUntil:'networkidle2',timeout:120000}); }catch(e){ console.log('goto note:',e.message); }
@@ -69,5 +69,5 @@ while(Date.now()-t0<WAIT_MS){ if(dataCaptured){ console.log('>>> got data endpoi
 
 fs.writeFileSync(OUT, JSON.stringify({capturedAt:new Date().toISOString(),reportUrl:REPORT_URL,dataCaptured,calls},null,2),'utf8');
 console.log(`>>> luu ${calls.length} request -> ${OUT} | dataCaptured=${dataCaptured}`);
-try{ await browser.disconnect(); }catch(e){}
+try{ await browser.disconnect(); }catch{}
 process.exit(0);

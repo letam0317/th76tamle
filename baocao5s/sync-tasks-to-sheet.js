@@ -105,6 +105,7 @@ const tenNguoi = (t) => (t && t.staff && (t.staff.full_name || t.staff.name)) ||
   }
   log("  Cha (task vi phạm): " + soCha + " | Bước con: " + soBuoc);
 
+  if (!rows.length) { log("✗ 0 dòng — BỎ QUA POST (không xoá trắng 5S-TASKS)."); process.exit(0); }
   const res = await fetch(APPSCRIPT_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },

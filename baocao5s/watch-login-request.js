@@ -20,7 +20,9 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 if (!KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
-const hoi = async (act) => { const r = await fetch(APPSCRIPT_URL + "?action=" + act + "&key=" + encodeURIComponent(KEY)).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
+// SECRET đi trong POST body (không qua query → không lọt access-log)
+const apiPost = async (act, extra) => { const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: act, key: KEY, ...(extra || {}) }) }).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
+const hoi = (act) => apiPost(act);
 const chay = (file) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };   // GUI (login): chạy nền, không chờ
 const chayCho = (file) => new Promise((res) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, stdio: "ignore" }); c.on("exit", res); c.on("error", res); });   // nền (auto-export): CHỜ xong
 
@@ -28,7 +30,7 @@ const chayCho = (file) => new Promise((res) => { const c = spawn(process.execPat
 const s = await hoi("syncStatus");
 if (s && s.requested) {
   log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export (chờ xong)...");
-  await fetch(APPSCRIPT_URL + "?action=clearSync&key=" + encodeURIComponent(KEY)).catch(() => {});
+  await apiPost("clearSync");
   await chayCho("auto-export-sync.js");   // chờ hoàn tất; auto-export có khoá chống chạy chồng
   log("Auto-export xong.");
 } else log("Không có yêu cầu cập nhật.");
@@ -37,7 +39,7 @@ if (s && s.requested) {
 const tsq = await hoi("timesheetStatus");
 if (tsq && tsq.requested) {
   log("⚡ Có yêu cầu cập nhật chấm công! Chạy pull-timesheet (chờ xong)...");
-  await fetch(APPSCRIPT_URL + "?action=clearTimesheet&key=" + encodeURIComponent(KEY)).catch(() => {});
+  await apiPost("clearTimesheet");
   await chayCho("pull-timesheet.js");
   log("Pull-timesheet xong.");
 } else log("Không có yêu cầu chấm công.");
@@ -52,7 +54,7 @@ if (!boQuaLogin) {
   const d = await hoi("loginStatus");
   if (d && d.requested) {
     log("⚡ Có yêu cầu đăng nhập! Mở màn hình login...");
-    await fetch(APPSCRIPT_URL + "?action=clearLogin&key=" + encodeURIComponent(KEY)).catch(() => {});
+    await apiPost("clearLogin");
     chay("login-hasaki.js");   // login-hasaki.js tự quản lock
   } else log("Không có yêu cầu đăng nhập.");
 }

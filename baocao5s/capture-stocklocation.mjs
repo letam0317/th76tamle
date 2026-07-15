@@ -53,17 +53,17 @@ page.on('requestfinished', async (req) => {
             rec.total = (j.total ?? (j.data && (j.data.total ?? j.data.total_count)) ?? j.total_count ?? null);
             if(DATA_HINT.test(url)) dataCaptured = true;
           }
-        }catch(e){}
+        }catch{}
       }
     }
     calls.push(rec);
     console.log(`[capture] ${rec.method} ${url.split('?')[0]}  status=${rec.status}  rows=${rec.respFirstRowKeys?rec.respFirstRowKeys.length+' cols':'-'}`);
-  }catch(e){}
+  }catch{}
 });
 
 console.log('\n>>> Cửa sổ Chrome đã mở. Nếu chưa đăng nhập, hãy ĐĂNG NHẬP WMS trong cửa sổ đó.');
 console.log('>>> Script sẽ tự ghi lại API. Xong tự lưu capture-out.json (hoặc đóng cửa sổ để kết thúc sớm).\n');
-try{ await page.goto(REPORT_URL, { waitUntil: 'networkidle2', timeout: 120000 }); }catch(e){}
+try{ await page.goto(REPORT_URL, { waitUntil: 'networkidle2', timeout: 120000 }); }catch{}
 
 const t0 = Date.now();
 while(Date.now() - t0 < WAIT_MS){
@@ -74,4 +74,4 @@ while(Date.now() - t0 < WAIT_MS){
 
 fs.writeFileSync(OUT, JSON.stringify({ capturedAt: new Date().toISOString(), reportUrl: REPORT_URL, calls }, null, 2), 'utf8');
 console.log(`\n>>> Đã lưu ${calls.length} request vào: ${OUT}`);
-try{ await browser.close(); }catch(e){}
+try{ await browser.close(); }catch{}

@@ -198,6 +198,30 @@ async function tick() {
 }
 const nhip = setInterval(tick, 1000);
 
+/* ---------- PHÁT HIỆN SAI MẬT KHẨU TỨC THÌ (quét 200ms) ----------
+   IdP (auth-idp.inshasaki.com / SSO) hiện thông báo lỗi -> thoát NGAY exit(1),
+   không ngồi chờ hết hạn 4 phút. Chỉ bật khi script TỰ điền mật khẩu (.env);
+   đăng nhập tay thì không bật — người dùng còn gõ lại. */
+const RE_SAI_MK = /sai mật khẩu|mật khẩu không (chính xác|đúng)|không chính xác|thông tin đăng nhập không (đúng|hợp lệ)|invalid (username or )?password|incorrect password|wrong password|đăng nhập thất bại|login failed|invalid credentials/i;
+let baoSaiMK = null;
+if (PASSWORD) baoSaiMK = setInterval(async () => {
+  try {
+    const loi = await page.evaluate(() => {
+      const sel = '[role="alert"], .error, .alert, .alert-danger, .text-danger, .invalid-feedback, .ant-form-item-explain-error, .MuiFormHelperText-root, [class*="error" i], [class*="invalid" i]';
+      return [...document.querySelectorAll(sel)]
+        .map(e => (e.innerText || "").trim()).filter(Boolean).join(" | ").slice(0, 400);
+    }).catch(() => "");
+    if (loi && RE_SAI_MK.test(loi)) {
+      clearInterval(baoSaiMK); clearInterval(nhip); clearInterval(theoDoi);
+      log("✗ SAI MẬT KHẨU — IdP báo: " + loi.slice(0, 140));
+      log("  → Dừng NGAY (không chờ hết hạn). Kiểm tra lại HASAKI_PASSWORD trong .env.");
+      xoaLock();
+      try { await browser.close(); } catch {}
+      process.exit(1);
+    }
+  } catch { /* trang đang chuyển hướng */ }
+}, 200);
+
 const HAN = AUTO ? 4 * 60 * 1000 : 15 * 60 * 1000;
 const t0 = Date.now();
 // Sau khi đăng nhập OK: chụp LUÔN token hr.hasaki (session đã có) → nạp kho CẢ work + hr,
@@ -205,7 +229,7 @@ const t0 = Date.now();
 let dangKetThuc = false;
 async function ketThucThanhCong() {
   if (dangKetThuc) return; dangKetThuc = true;
-  clearInterval(theoDoi); clearInterval(nhip);
+  clearInterval(theoDoi); clearInterval(nhip); if (baoSaiMK) clearInterval(baoSaiMK);
   log("✅ Đăng nhập thành công.");
   try {
     if (!tokHr) {
@@ -219,7 +243,7 @@ async function ketThucThanhCong() {
 const theoDoi = setInterval(() => {
   if (ok) { ketThucThanhCong(); }
   else if (Date.now() - t0 > HAN) {
-    clearInterval(theoDoi); clearInterval(nhip);
+    clearInterval(theoDoi); clearInterval(nhip); if (baoSaiMK) clearInterval(baoSaiMK);
     log("⏰ Quá hạn chưa đăng nhập được (Turnstile/OTP?). Đóng.");
     browser.close().catch(() => {});
   }

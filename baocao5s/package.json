@@ -6,12 +6,14 @@
   "private": true,
   "scripts": {
     "push": "node push-5s-to-workflow.js",
+    "lint": "npx --yes eslint .",
     "login": "node login-hasaki.js",
     "setup": "node -e \"import('node:fs').then(fs=>{if(!fs.existsSync('.env')){fs.copyFileSync('.env.example','.env');console.log('✅ Đã tạo .env từ .env.example — hãy mở .env và điền thông tin thật.');}else{console.log('ℹ️  .env đã tồn tại, không ghi đè.');}})\""
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "googleapis": "^144.0.0",
+    "jimp": "^1.6.1",
     "otpauth": "^9.3.4",
     "puppeteer": "^23.0.0",
     "xlsx": "^0.18.5"

@@ -30,7 +30,7 @@ function pageHook() {
     try { for (const [k, v] of fd.entries()) {
       if (v && typeof v === "object" && "name" in v && "size" in v) out.push({ key: k, kind: "file", filename: v.name, type: v.type, size: v.size });
       else out.push({ key: k, kind: "value", value: String(v).slice(0, 500) });
-    } } catch (e) {}
+    } } catch {}
     return out;
   };
   const describe = (body) => {
@@ -52,7 +52,7 @@ function pageHook() {
         p.then((res) => res.clone().text().then((t) => window.__cap && window.__cap(JSON.stringify({ src: "fetch-res", url, status: res.status, responseBody: t.slice(0, 3000) }))).catch(() => {})).catch(() => {});
         return p;
       }
-    } catch (e) {}
+    } catch {}
     return _fetch.apply(this, arguments);
   };
   // Hook XHR (axios mặc định dùng XHR)
@@ -64,10 +64,10 @@ function pageHook() {
       if (this.__u && MATCH.test(this.__u)) {
         window.__cap && window.__cap(JSON.stringify({ src: "xhr", method: this.__m, url: this.__u, requestBody: describe(body) }));
         this.addEventListener("load", () => {
-          try { window.__cap && window.__cap(JSON.stringify({ src: "xhr-res", url: this.__u, status: this.status, responseBody: String(this.responseText || "").slice(0, 3000) })); } catch (e) {}
+          try { window.__cap && window.__cap(JSON.stringify({ src: "xhr-res", url: this.__u, status: this.status, responseBody: String(this.responseText || "").slice(0, 3000) })); } catch {}
         });
       }
-    } catch (e) {}
+    } catch {}
     return _send.apply(this, arguments);
   };
 }
@@ -96,7 +96,7 @@ function pageHook() {
           } else if (/wshr\.hasaki\.vn/.test(ev.url || "")) {
             log("· wshr", ev.src, String(ev.url).replace(/^https?:\/\//, "").slice(0, 80));
           }
-        } catch (e) {}
+        } catch {}
       });
       await page.evaluateOnNewDocument(pageHook);
     } catch (e) { log("attach loi:", e.message); }

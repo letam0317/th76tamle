@@ -76,6 +76,7 @@ function fileExportMoiNhat() {
       return out;
     });
 
+  if (!rows.length) { log("✗ 0 task — BỎ QUA POST (không xoá trắng 5S-TASKS)."); process.exit(0); }
   log("→ " + rows.length + " task, " + header.length + " cột. Đang ghi tab 5S-TASKS...");
   const res = await fetch(APPSCRIPT_URL, {
     method: "POST",

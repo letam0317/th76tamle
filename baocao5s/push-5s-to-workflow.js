@@ -89,22 +89,21 @@ function matchType00(hangMuc, options) {
   return score >= MATCH_THRESHOLD ? best : null;
 }
 
-/* ------------------------- 3) Gọi Apps Script ------------------------- */
+/* ------------------------- 3) Gọi Apps Script (SECRET trong POST body, không qua query) ------------------------- */
+const apiPost = (act, extra) => fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: act, key: APPSCRIPT_KEY, ...(extra || {}) }) });
 async function getPending() {
-  const res = await fetch(APPSCRIPT_URL + "?action=pending&key=" + encodeURIComponent(APPSCRIPT_KEY));
+  const res = await apiPost("pending");
   const j = await res.json();
   if (j.status !== "success") throw new Error("Apps Script pending lỗi: " + JSON.stringify(j));
   return j.rows || [];
 }
 async function markDone(row, code) {
-  const u = APPSCRIPT_URL + "?action=mark&key=" + encodeURIComponent(APPSCRIPT_KEY) + "&row=" + row + "&code=" + encodeURIComponent(code);
-  await fetch(u).catch(() => {});
+  await apiPost("mark", { row, code }).catch(() => {});
 }
 /** Gửi cảnh báo qua Apps Script (gửi email) — dùng khi phiên hết hạn / sự cố. Best-effort. */
 async function sendAlert(msg) {
-  const u = APPSCRIPT_URL + "?action=alert&key=" + encodeURIComponent(APPSCRIPT_KEY) + "&msg=" + encodeURIComponent(msg);
   try {
-    const r = await fetch(u);
+    const r = await apiPost("alert", { msg });
     const j = await r.json().catch(() => ({}));
     if (j.sent) log("  ✉ Đã gửi email cảnh báo.");
     else if (j.skipped) log("  ✉ (Đã cảnh báo gần đây, bỏ qua gửi lại.)");

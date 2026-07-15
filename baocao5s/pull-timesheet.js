@@ -79,7 +79,7 @@ async function keoTimesheet(token, majorId, from, to) {
 
 (async () => {
   if (!DRY) {
-    const caps = await fetch(APPSCRIPT_URL + "?action=caps&key=" + encodeURIComponent(APPSCRIPT_KEY)).then(r => r.json()).catch(() => null);
+    const caps = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) }).then(r => r.json()).catch(() => null);
     if (!caps || caps.timesheet !== true) { log("✗ Apps Script chưa redeploy (chưa hỗ trợ ghi tab). BỎ QUA."); process.exit(3); }
   }
   const token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
@@ -123,6 +123,19 @@ async function keoTimesheet(token, majorId, from, to) {
     }
     log("  ✓ Seed lịch sử: thêm " + n + " NV vào kho.");
   }
+
+  // 3a') Merge danh sách khai báo TAY (nhansu-manual.json): mã -> họ tên.
+  //      Chỉ THÊM mã còn thiếu / điền tên đang trống — thông tin từ WMS luôn được ưu tiên ở 3c.
+  try {
+    const manual = JSON.parse(fs.readFileSync(path.join(DIR, "nhansu-manual.json"), "utf8")).byCode || {};
+    let them = 0, dienTen = 0;
+    for (const code in manual) {
+      const ten = String(manual[code] || "").trim(); if (!ten) continue;
+      if (!cache[code]) { cache[code] = { staff_id: "", code, staff_name: ten, staff_email: "", staff_title: "", staff_dept: "", staff_major: "", chinhanh: "", diadiem: "" }; them++; }
+      else if (!cache[code].staff_name) { cache[code].staff_name = ten; dienTen++; }
+    }
+    if (them || dienTen) log("  ✓ Danh sách tay: thêm " + them + " NV, điền tên " + dienTen + " NV.");
+  } catch { /* chưa có nhansu-manual.json thì bỏ qua */ }
 
   // 3b) Cập nhật/thêm NV đang trong danh bạ (phạm vi 2 nghiệp vụ, kho 398) — thông tin đầy đủ
   for (const s of dir) {
@@ -168,12 +181,16 @@ async function keoTimesheet(token, majorId, from, to) {
 
   // 5) Dựng bảng
   const header = ["staff_id", "code", "staff_name", "staff_email", "staff_title", "staff_dept", "staff_major", "Chi nhánh làm việc", "Địa điểm", "Giờ vào", "Giờ ra", "Lịch làm việc", "Trạng thái làm việc"];
+  // Ưu tiên NV CÒN LÀM VIỆC lên trên, NV đã nghỉ xuống cuối
+  const uuTien = (t) => t === "Đang làm việc" ? 0 : t === "Thử việc" ? 1 : t === "Chờ kích hoạt" ? 2 : t === "Nghỉ chế độ (thai sản)" ? 3 : 4;
   const rows = Object.values(cache)
-    .sort((a, b) => (a.trangthai || "").localeCompare(b.trangthai || "") || (a.staff_major || "").localeCompare(b.staff_major || "", "vi") || (a.staff_name || "").localeCompare(b.staff_name || "", "vi"))
+    .sort((a, b) => uuTien(a.trangthai) - uuTien(b.trangthai) || (a.staff_major || "").localeCompare(b.staff_major || "", "vi") || (a.staff_name || "").localeCompare(b.staff_name || "", "vi"))
     .map(s => { const a = att[s.code] || {}; return [s.staff_id || "", s.code || "", s.staff_name || "", s.staff_email || "", s.staff_title || "", s.staff_dept || "", s.staff_major || "", s.chinhanh || "", s.diadiem || "", gio(a.ci), gio(a.co), a.lich || "", s.trangthai || ""]; });
   log("→ Tổng " + rows.length + " nhân sự (" + soConLam + " còn làm, " + (rows.length - soConLam) + " đã nghỉ; " + soCC + " có chấm công hôm nay).");
 
   if (DRY) { fs.writeFileSync(path.join(DIR, ".exports", "nhansu-out.json"), JSON.stringify({ header, rows }, null, 0)); log("(DRY) Đã lưu .exports/nhansu-out.json."); process.exit(0); }
+  // CHẶN GHI RỖNG: 0 nhân sự -> KHÔNG POST (tránh xoá trắng tab NHAN-SU)
+  if (!rows.length) { log("✗ 0 nhân sự — BỎ QUA POST (không xoá trắng " + TAB + ")."); process.exit(0); }
 
   const body = JSON.stringify({ action: "syncTasks", tab: TAB, key: APPSCRIPT_KEY, header, rows });
   let ok = false, written = 0;

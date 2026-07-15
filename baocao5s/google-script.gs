@@ -27,7 +27,8 @@ var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
 // 🔑 Mã bí mật bảo vệ endpoint đọc/đánh dấu. Bộ đẩy phải gửi ?key=... trùng giá trị này.
 //    ĐẶT GIÁ TRỊ THẬT KHI DÁN VÀO APPS SCRIPT (giống APPSCRIPT_KEY trong .env, không lưu vào git).
 var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';
-var SYNC_PIN = 'DAT_PIN_RIENG_O_DAY';   // PIN cho nút "Cập nhật ngay" trên dashboard (chỉ người biết PIN mới ép refresh được)
+var SYNC_PIN = 'DAT_PIN_RIENG_O_DAY';        // PIN chung: form Ghi nhận 5S + Cập nhật chấm công
+var SYNC_PIN_DATA = 'DAT_PIN_TAI_DU_LIEU';  // PIN RIÊNG cho "Cập nhật ngay" (ép tải dữ liệu 5S)
 // Cụm mở đầu của hạng mục "đạt" (không tạo task)
 var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
 // Cột (1-based): 1 Ngày | 2 Hiện trạng | 3 Vị trí | 4 Hạng mục | 5 Ảnh | 6 Mã task | 7 Thời gian vi phạm
@@ -53,6 +54,10 @@ function doPost(e) {
     var duLieu = JSON.parse(e.postData.contents);
     if (duLieu && duLieu.action === 'syncTasks') return apiSyncTasks(duLieu);   // nhánh đồng bộ dashboard
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
+    // Tồn mã vị trí: nút dashboard (public, cooldown tự bảo vệ) + 2 action máy-gọi-máy (cần SECRET)
+    if (duLieu && duLieu.action === 'force_sync_wms') return apiForceSyncWms();
+    if (duLieu && duLieu.action === 'saveWmsToken') return ((duLieu.key || '') === SECRET) ? apiSaveWmsToken(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'setStockMeta') return ((duLieu.key || '') === SECRET) ? apiSetStockMeta(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     var sheet = layHoacTaoSheet();
     var chuoiHinhAnh = '';
     if (duLieu.hinhAnh && duLieu.hinhAnh.length > 0) {
@@ -87,11 +92,12 @@ function doGet(e) {
   if (action === 'requestSync') return apiRequestSync(e);     // nút "Cập nhật ngay" trên dashboard (cần PIN)
   if (action === 'syncStatus') return apiSyncStatus(e);       // máy PC hỏi có yêu cầu cập nhật không
   if (action === 'clearSync') return apiClearSync(e);         // máy PC báo đã cập nhật xong
-  if (action === 'caps') return phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true }); // bản hỗ trợ ghi tab + chấm công + kiểm PIN máy chủ
+  if (action === 'caps') return phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true }); // + sheet ngoài & đồng bộ WMS trực tiếp (Tồn mã vị trí)
   if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (cần PIN)
   if (action === 'timesheetStatus') return apiTimesheetStatus(e);   // máy PC hỏi có yêu cầu chấm công không
   if (action === 'clearTimesheet') return apiClearTimesheet(e);     // máy PC báo đã kéo chấm công xong
   if (action === 'checkPin') return apiCheckPin(e);                 // form "Ghi nhận 5S" kiểm PIN phía máy chủ (không lộ PIN ra front-end)
+  if (action === 'lastSync') return apiLastSync(e);                 // dashboard hỏi lần ghi 5S-TASKS gần nhất (chip giờ dữ liệu)
   return phanHoiJson({ status: 'success', message: 'Web App đang hoạt động bình thường.' });
 }
 
@@ -201,7 +207,7 @@ function phanHoiJsonp(cb, obj) {
  *  Bảo vệ bằng SYNC_PIN (không phải SECRET) để không lộ key hệ thống trên trang public. */
 function apiRequestSync(e) {
   var cb = e.parameter.callback || 'cb';
-  if ((e.parameter.pin || '') !== SYNC_PIN) return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' });
+  if ((e.parameter.pin || '') !== SYNC_PIN_DATA) return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' });
   PropertiesService.getScriptProperties().setProperty('SYNC_REQUESTED', String(new Date().getTime()));
   return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật. Dữ liệu sẽ mới sau vài phút.' });
 }
@@ -374,15 +380,25 @@ function apiInfo(e) {
   return phanHoiJson({ status: 'success', sheetId: ss.getId(), sheetUrl: ss.getUrl(), tabTasks: TEN_SHEET_TASKS });
 }
 
-/** Ghi đè tab 5S-TASKS bằng dữ liệu task workflow do bộ sync gửi lên (cho dashboard). */
+/** Ghi đè tab 5S-TASKS bằng dữ liệu task workflow do bộ sync gửi lên (cho dashboard).
+ *  Mở rộng:
+ *   - duLieu.sheetId : ghi sang SPREADSHEET NGOÀI (vd Tồn mã vị trí — stocklocationfactory) thay vì sheet 5S.
+ *   - duLieu.append  : true = ghi NỐI TIẾP sau dòng cuối (bộ sync chia dữ liệu lớn thành nhiều POST;
+ *                      gói ĐẦU append=false sẽ XOÁ SẠCH tab trước khi ghi — chống rác data cũ). */
 function apiSyncTasks(duLieu) {
   if ((duLieu.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   var header = duLieu.header || [];
   var rows = duLieu.rows || [];
+  // CHẶN XOÁ TRẮNG: rows rỗng -> KHÔNG clear+ghi (tránh mất sạch dữ liệu tab khi 1 lượt sync lỗi ra 0 dòng)
+  if (!rows.length) return phanHoiJson({ status: 'error', message: 'rows rỗng — bỏ qua, không ghi đè tab.' });
   var tenTab = duLieu.tab || TEN_SHEET_TASKS;   // tab đích (mặc định 5S-TASKS; vd NHAN-SU)
+  var noiTiep = duLieu.append === true;
   // Tab PII (NHAN-SU/CHAM-CONG) -> ghi vào SHEET RIÊNG (không công khai) nếu đã cấu hình.
   var ss;
-  if (PII_TABS.indexOf(tenTab) >= 0 && PRIVATE_SHEET_ID) {
+  if (duLieu.sheetId) {
+    try { ss = SpreadsheetApp.openById(String(duLieu.sheetId)); }
+    catch (eX) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet ngoài (sheetId): ' + eX.message }); }
+  } else if (PII_TABS.indexOf(tenTab) >= 0 && PRIVATE_SHEET_ID) {
     try { ss = SpreadsheetApp.openById(PRIVATE_SHEET_ID); }
     catch (e) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet riêng (PRIVATE_SHEET_ID): ' + e.message }); }
   } else {
@@ -390,15 +406,34 @@ function apiSyncTasks(duLieu) {
   }
   var sheet = ss.getSheetByName(tenTab);
   if (!sheet) sheet = ss.insertSheet(tenTab);
-  sheet.clearContents();
-  try { sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart(); } catch (e) {}
-  var all = [header].concat(rows);
-  if (all.length && header.length) {
-    sheet.getRange(1, 1, all.length, header.length).setValues(all);
-    sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
-    try { sheet.setFrozenRows(1); } catch (e) {}
+  if (noiTiep) {
+    if (header.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, header.length).setValues(rows);
+  } else {
+    sheet.clearContents();
+    try { sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart(); } catch (e) {}
+    var all = [header].concat(rows);
+    if (all.length && header.length) {
+      sheet.getRange(1, 1, all.length, header.length).setValues(all);
+      sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
+      try { sheet.setFrozenRows(1); } catch (e) {}
+    }
   }
-  return phanHoiJson({ status: 'success', written: rows.length, at: Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss') });
+  // Mốc "dữ liệu mới nhất" cho dashboard (chip giờ dữ liệu) — ƯU TIÊN apiAt (lúc LẤY DỮ LIỆU từ API WMS,
+  // do bộ đồng bộ gửi kèm); thiếu thì mới lấy giờ ghi Sheet
+  try {
+    var apiAt = Number(duLieu.apiAt || 0) || new Date().getTime();
+    PropertiesService.getScriptProperties().setProperty('LAST_SYNC_' + tenTab, String(apiAt));
+  } catch (e) {}
+  return phanHoiJson({ status: 'success', written: rows.length, append: noiTiep, at: Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss') });
+}
+
+/** Dashboard hỏi lần ghi dữ liệu gần nhất (mặc định tab 5S-TASKS) — JSONP {status, ts}. Không lộ gì nhạy cảm. */
+function apiLastSync(e) {
+  var cb = e.parameter.callback || 'cb';
+  var tab = e.parameter.tab || TEN_SHEET_TASKS;
+  if (PII_TABS.indexOf(tab) >= 0) return phanHoiJsonp(cb, { status: 'error', message: 'Tab riêng tư' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('LAST_SYNC_' + tab) || 0);
+  return phanHoiJsonp(cb, { status: 'success', ts: ts });
 }
 
 /** Tải biên bản (ảnh) cho 1 task -> lưu Drive + ghi tab BIEN-BAN. duLieu={code,files:[{name,mime,base64}]} */
@@ -434,6 +469,191 @@ function apiUploadBienBan(duLieu) {
     }
   }
   return phanHoiJson({ status: 'success', urls: urls });
+}
+
+/* ================== TỒN MÃ VỊ TRÍ (stocklocationfactory) ==================
+ *  - apiSaveWmsToken : Node (sync-stocklocation.js, lịch 7h) đẩy Bearer token WMS
+ *    mới nhất lên. LƯU Ở SCRIPT PROPERTIES, KHÔNG ghi vào Sheet — sheet stocklocation
+ *    công khai (dashboard đọc gviz), ghi token vào đó là LỘ credential.
+ *  - apiSetStockMeta : Node báo "đã ghi data xong lúc <at>" → ghi mốc vào tab Metadata
+ *    (A1 = giờ hiển thị, B1 = epoch ms) để dashboard đọc qua gviz + làm mốc cooldown.
+ *  - apiForceSyncWms : nút "Tải lại dữ liệu" trên dashboard → GAS TỰ gọi API WMS
+ *    (phân trang + lọc kho hardcode) và ghi đè 2 tab. Cooldown 4h kiểm ở MÁY CHỦ
+ *    (đọc lại Metadata) để chặn bypass UI; vi phạm trả code 429 trong JSON
+ *    (Apps Script không đặt được HTTP status thật). Token chết trả code 401.
+ * ========================================================================== */
+var STOCKLOC_SHEET_ID = '1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs';
+var STOCKLOC_META_TAB = 'Metadata';
+var STOCKLOC_COOLDOWN_MS = 4 * 60 * 60 * 1000;   // 4 giờ / lần gọi WMS
+var STOCKLOC_API = 'https://wms-gw.inshasaki.com/api/v1/wms/report-management/stock-locations/bins/count/v3';
+var STOCKLOC_HEADER = ['SKU', 'Barcode', 'ProductName', 'LocationDescription', 'BrandName', 'CategoryName', 'Warehouse',
+  'InbinQuantity', 'PicklistedQuantity', 'PickingQuantity', 'NotfoundQuantity', 'PackedQuantity', 'Total',
+  'Created Date', 'Updated Date', 'StorageTypeName', 'ClassifyName', 'Shelf Life (month)'];
+// Hardcode List kho đã chốt (khớp sync-stocklocation.js — sửa 1 nơi thì sửa cả 2)
+var STOCKLOC_BO = [
+  { tab: 'mastige', company: '1002', warehouses: '1458,1441,1307,1250,1179,1178,1177,1151',
+    khoGiuLai: ['WH - MATERIAL - MTG', 'OFFICE - 130 AP CHANH - MTG', 'WH - SEMI PRODUCT - MTG',
+      'SAMPLE - 130 AP CHANH - MTG', 'NG - MATERIAL - 130 AP CHANH - MTG',
+      'NG - OFFICE - 130 AP CHANH - MTG', 'GARMENT - 130 AP CHANH - MTG', 'WH - FINISHED GOODS - MTG'] },
+  { tab: 'garment', company: '1005', warehouses: '1458,1441,1307,1250,1179,1178,1177,1151,1516,1341,1340,1339,1266',
+    khoGiuLai: ['WH - MATERIAL - GARMENT', 'SHOP - 130 AP CHANH - GARMENT',
+      'NG - 130 AP CHANH - GARMENT', 'WH - SEMI PRODUCT - GARMENT'] },
+];
+
+function apiSaveWmsToken(duLieu) {
+  var tk = String(duLieu.token || '').trim();
+  if (!tk) return phanHoiJson({ status: 'error', message: 'Thiếu token' });
+  var p = PropertiesService.getScriptProperties();
+  p.setProperty('WMS_TOKEN', tk);
+  p.setProperty('WMS_TOKEN_AT', String(new Date().getTime()));
+  return phanHoiJson({ status: 'success' });
+}
+
+/** Ghi mốc đồng bộ WMS cuối vào tab Metadata của sheet stocklocation (+ Script Properties). */
+function ghiStockMeta_(atMs) {
+  try {
+    var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
+    var sh = ss.getSheetByName(STOCKLOC_META_TAB) || ss.insertSheet(STOCKLOC_META_TAB);
+    sh.getRange(1, 1, 1, 3).setValues([[
+      Utilities.formatDate(new Date(atMs), 'GMT+7', 'HH:mm:ss dd/MM/yyyy'),
+      atMs,
+      'Mốc đồng bộ WMS cuối — dashboard đọc B1 (epoch ms), đừng sửa tay',
+    ]]);
+  } catch (e) { /* không chặn luồng chính vì lỗi metadata */ }
+  PropertiesService.getScriptProperties().setProperty('STOCKLOC_LAST_MS', String(atMs));
+}
+function docStockMetaMs_() {
+  var ms = Number(PropertiesService.getScriptProperties().getProperty('STOCKLOC_LAST_MS') || 0);
+  if (!ms) {
+    try { ms = Number(SpreadsheetApp.openById(STOCKLOC_SHEET_ID).getSheetByName(STOCKLOC_META_TAB).getRange(1, 2).getValue()) || 0; } catch (e) {}
+  }
+  return ms;
+}
+function apiSetStockMeta(duLieu) {
+  var at = Number(duLieu.at || 0) || new Date().getTime();
+  ghiStockMeta_(at);
+  // Node vừa ghi xong toàn bộ (đây là bước chốt) → cắt gọt lưới các tab tồn kho cho file nhẹ
+  try {
+    var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
+    for (var i = 0; i < STOCKLOC_BO.length; i++) {
+      var sh = ss.getSheetByName(STOCKLOC_BO[i].tab);
+      if (sh) catGonSheet_(sh, sh.getLastRow(), STOCKLOC_HEADER.length);
+    }
+    var mt = ss.getSheetByName(STOCKLOC_META_TAB);
+    if (mt) catGonSheet_(mt, 1, 3);
+  } catch (e) { /* cắt gọt lỗi không chặn luồng chính */ }
+  return phanHoiJson({ status: 'success', at: at });
+}
+
+/** Kéo trọn 1 công ty từ WMS (phân trang size 5000) + LỌC theo khoGiuLai. Trả {rows} hoặc {code,message}. */
+function keoWmsBo_(token, cfg) {
+  var auth = /^Bearer /i.test(token) ? token : 'Bearer ' + token;
+  var giu = {};
+  for (var g = 0; g < cfg.khoGiuLai.length; g++) giu[cfg.khoGiuLai[g].replace(/\s+/g, ' ').trim().toUpperCase()] = 1;
+  var rows = [], size = 5000, count = null, daLay = 0;
+  for (var page = 1; page <= 40; page++) {
+    var url = STOCKLOC_API + '?company_ids=' + cfg.company + '&warehouse_ids=' + encodeURIComponent(cfg.warehouses) +
+      '&ignore_zero_total=1&page=' + page + '&size=' + size;
+    var resp;
+    try { resp = UrlFetchApp.fetch(url, { headers: { Authorization: auth }, muteHttpExceptions: true }); }
+    catch (e) { return { code: 502, message: 'Không gọi được WMS: ' + e.message }; }
+    var http = resp.getResponseCode();
+    if (http === 401 || http === 403) return { code: 401 };
+    if (http >= 400) return { code: http, message: 'WMS trả lỗi HTTP ' + http + ' (trang ' + page + ', cty ' + cfg.company + ').' };
+    var j; try { j = JSON.parse(resp.getContentText()); } catch (e) { return { code: 502, message: 'WMS trả dữ liệu không phải JSON.' }; }
+    var recs = j.records || (j.data && j.data.records) || [];
+    if (count === null) count = (j.count != null ? j.count : (j.total != null ? j.total : null));
+    for (var r = 0; r < recs.length; r++) {
+      var it = recs[r];
+      var kho = String(it.warehouse_name || '').replace(/\s+/g, ' ').trim().toUpperCase();
+      if (!giu[kho]) continue;   // BỘ LỌC KHO CHUYÊN BIỆT — chỉ giữ kho trong hardcode list
+      rows.push([it.sku || '', it.barcode || '', it.product_name || '', it.location_description || '', it.brand_name || '',
+        it.category_name || '', it.warehouse_name || '', (it.count_inbin == null ? '' : Number(it.count_inbin)), '', '', '', '',
+        (it.quantity == null ? '' : Number(it.quantity)), it.created_at || '', it.updated_at || '',
+        it.storage_type_name || '', it.product_type_name || '', it.shelf_life || '']);
+    }
+    daLay += recs.length;
+    if (!recs.length) break;
+    if (count !== null && daLay >= count) break;
+    Utilities.sleep(500);   // nghỉ 0.5s giữa các trang — kéo tuần tự, không dội request lên WMS
+  }
+  return { rows: rows };
+}
+
+/** Cắt gọt sheet về đúng kích thước dữ liệu (xoá dòng/cột trống thừa cuối lưới) → file export/tải nhẹ nhất. */
+function catGonSheet_(sh, soDongGiu, soCotGiu) {
+  try {
+    var canRows = Math.max(Number(soDongGiu) || 1, 1);
+    if (sh.getMaxRows() > canRows) sh.deleteRows(canRows + 1, sh.getMaxRows() - canRows);
+    if (soCotGiu && sh.getMaxColumns() > soCotGiu) sh.deleteColumns(soCotGiu + 1, sh.getMaxColumns() - soCotGiu);
+  } catch (e) { /* sheet đang bị khoá/bảo vệ thì bỏ qua */ }
+}
+
+/**
+ * ⚙️ DỌN DẸP 1 LẦN (chạy tay trong editor: chọn donDepSheetTonKho → Run):
+ *  1) XOÁ tab MTG — bản dữ liệu CŨ của luồng GitHub Actions đã gỡ (đóng băng từ 8/7);
+ *     mọi code hiện hành (Node + GAS + dashboard) chỉ đọc/ghi mastige & garment.
+ *  2) Cắt gọt lưới các tab tồn kho + Metadata về đúng kích thước dữ liệu.
+ *  Chạy lại an toàn (idempotent).
+ */
+function donDepSheetTonKho() {
+  var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
+  var log = [];
+  var mtg = ss.getSheetByName('MTG');
+  if (mtg && ss.getSheets().length > 1) { ss.deleteSheet(mtg); log.push('MTG: ĐÃ XOÁ (dữ liệu cũ của luồng GitHub Actions đã gỡ).'); }
+  else log.push('MTG: không thấy (có thể đã xoá trước đó).');
+  for (var i = 0; i < STOCKLOC_BO.length; i++) {
+    var sh = ss.getSheetByName(STOCKLOC_BO[i].tab);
+    if (!sh) { log.push(STOCKLOC_BO[i].tab + ': chưa có tab.'); continue; }
+    var truoc = sh.getMaxRows() + 'x' + sh.getMaxColumns();
+    catGonSheet_(sh, sh.getLastRow(), STOCKLOC_HEADER.length);
+    log.push(STOCKLOC_BO[i].tab + ': lưới ' + truoc + ' → ' + sh.getMaxRows() + 'x' + sh.getMaxColumns() + '.');
+  }
+  var mt = ss.getSheetByName(STOCKLOC_META_TAB);
+  if (mt) { catGonSheet_(mt, 1, 3); log.push('Metadata: gọn 1x3.'); }
+  var msg = log.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
+/** Nút "Tải lại dữ liệu" trên dashboard — public (không cần SECRET), tự bảo vệ bằng cooldown máy chủ. */
+function apiForceSyncWms() {
+  var last = docStockMetaMs_(), now = new Date().getTime();
+  if (last && now - last < STOCKLOC_COOLDOWN_MS) {
+    var cho = STOCKLOC_COOLDOWN_MS - (now - last);
+    return phanHoiJson({ status: 'error', code: 429, message: 'Chỉ có thể tải lại dữ liệu sau mỗi 4 giờ. Còn ' + Math.ceil(cho / 60000) + ' phút nữa.', retryAfterMs: cho, lastSync: last });
+  }
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return phanHoiJson({ status: 'error', code: 429, message: 'Đang có một lượt đồng bộ khác chạy — thử lại sau ít phút.' });
+  try {
+    var token = PropertiesService.getScriptProperties().getProperty('WMS_TOKEN') || '';
+    if (!token) return phanHoiJson({ status: 'error', code: 401, message: 'Token WMS đã hết hạn. Đang chờ luồng chạy ngầm cập nhật Token mới.' });
+    // KÉO HẾT 2 công ty TRƯỚC, GHI SAU — lỗi giữa chừng thì data cũ trên Sheet còn nguyên
+    var duLieuBo = [];
+    for (var b = 0; b < STOCKLOC_BO.length; b++) {
+      var kq = keoWmsBo_(token, STOCKLOC_BO[b]);
+      if (kq.code === 401) return phanHoiJson({ status: 'error', code: 401, message: 'Token WMS đã hết hạn. Đang chờ luồng chạy ngầm cập nhật Token mới.' });
+      if (kq.code) return phanHoiJson({ status: 'error', code: kq.code, message: kq.message });
+      duLieuBo.push(kq.rows);
+    }
+    var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
+    var ketQua = {};
+    for (var b2 = 0; b2 < STOCKLOC_BO.length; b2++) {
+      var cfg = STOCKLOC_BO[b2], rows = duLieuBo[b2];
+      if (!rows.length) { ketQua[cfg.tab] = 0; continue; }   // 0 dòng sau lọc = bất thường → giữ data cũ
+      var sh = ss.getSheetByName(cfg.tab) || ss.insertSheet(cfg.tab);
+      sh.clearContents();
+      var all = [STOCKLOC_HEADER].concat(rows);
+      sh.getRange(1, 1, all.length, STOCKLOC_HEADER.length).setValues(all);
+      sh.getRange(1, 1, 1, STOCKLOC_HEADER.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
+      try { sh.setFrozenRows(1); } catch (e) {}
+      catGonSheet_(sh, all.length, STOCKLOC_HEADER.length);   // xoá dòng trống thừa cuối lưới
+      ketQua[cfg.tab] = rows.length;
+    }
+    var at = new Date().getTime();
+    ghiStockMeta_(at);   // bắt đầu chu kỳ cooldown 4h mới
+    return phanHoiJson({ status: 'success', at: at, written: ketQua });
+  } finally { lock.releaseLock(); }
 }
 
 /* ------------------------------- Tiện ích ------------------------------- */

@@ -194,7 +194,7 @@
                 <img :src="f.preview" class="w-full h-24 object-cover rounded-xl border border-slate-200" />
               </template>
               <template x-if="f.loai === 'video'">
-                <video :src="f.preview" class="w-full h-24 object-cover rounded-xl border border-slate-200"></video>
+                <video :src="f.preview" playsinline webkit-playsinline muted preload="metadata" class="w-full h-24 object-cover rounded-xl border border-slate-200"></video>
               </template>
               <!-- Nút xoá -->
               <button
@@ -219,7 +219,8 @@
             class="rounded-full px-4 py-1.5 text-sm font-medium transition">🎥 Video</button>
         </div>
 
-        <video x-ref="video" autoplay playsinline muted class="w-full max-w-md rounded-2xl bg-black"></video>
+        <!-- playsinline + webkit-playsinline + muted: khoá iOS không cho nhảy Fullscreen Player đè mất nút Chụp/Xong -->
+        <video x-ref="video" playsinline webkit-playsinline autoplay muted class="w-full max-w-md rounded-2xl bg-black"></video>
         <canvas x-ref="canvas" class="hidden"></canvas>
 
         <!-- Đồng hồ khi đang quay -->
@@ -399,6 +400,7 @@
 
         // ---- Mục 4: Chụp ảnh trực tiếp bằng camera (getUserMedia) ----
         async moChupAnh() {
+          await this.dongCamera();              // nhả camera quét mã (nếu đang bật) — iOS chỉ cho 1 luồng camera
           this.dangChupAnh = true;
           this.soAnhChup = 0;
           await this.$nextTick();
@@ -406,22 +408,57 @@
         },
         async _batCamera() {
           if (this._cameraStream) { this._cameraStream.getTracks().forEach(t => t.stop()); this._cameraStream = null; }
-          try {
-            this._cameraStream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: this.cameraSau ? { ideal: 'environment' } : 'user',
-                width: { ideal: 1920 }, height: { ideal: 1080 }   // ~1080p (~2K) để clip gọn
-              },
-              audio: this.cheDoVideo            // bật mic khi quay video
-            });
-            const v = this.$refs.video;
-            v.srcObject = this._cameraStream;
-            v.muted = true;
-            await v.play().catch(() => {});
-          } catch (err) {
-            this.dangChupAnh = false;
-            alert("Không mở được camera. Hãy cho phép quyền camera/mic và mở trang qua HTTPS.\n" + err);
+          const KT = { width: { ideal: 1920 }, height: { ideal: 1080 } };   // ~1080p (~2K) để clip gọn
+          // Thử LẦN LƯỢT chặt -> lỏng: chỉ dùng "ideal" thì trình duyệt được phép
+          // tự rơi về cam trước, nên phải thử "exact" trước rồi mới nới dần.
+          const huong = this.cameraSau ? 'environment' : 'user';
+          const cacRangBuoc = [
+            { facingMode: { exact: huong }, ...KT },
+            { facingMode: { ideal: huong }, ...KT },
+            KT,
+          ];
+          let stream = null, loiCuoi = null;
+          for (const video of cacRangBuoc) {
+            try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: this.cheDoVideo }); break; }
+            catch (err) { loiCuoi = err; }
           }
+          // Muốn cam sau nhưng vẫn bị trả về cam trước -> chọn ĐÍCH DANH deviceId cam sau
+          // (enumerateDevices chỉ có nhãn sau khi đã được cấp quyền ở stream trên).
+          if (stream && this.cameraSau) {
+            try {
+              const track = stream.getVideoTracks()[0];
+              const st = track.getSettings ? track.getSettings() : {};
+              const dangTruoc = st.facingMode === 'user' || /front|user|trước|truoc/i.test(track.label || '');
+              if (dangTruoc) {
+                const dsCam = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+                const camSau = dsCam.find(d => /back|rear|environment|sau/i.test(d.label || ''));
+                if (camSau) {
+                  const s2 = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: camSau.deviceId }, ...KT },
+                    audio: this.cheDoVideo
+                  });
+                  stream.getTracks().forEach(t => t.stop());
+                  stream = s2;
+                }
+              }
+            } catch { /* không chọn được đích danh thì giữ stream đang có */ }
+          }
+          if (!stream) {
+            this.dangChupAnh = false;
+            alert("Không mở được camera. Hãy cho phép quyền camera/mic và mở trang qua HTTPS.\n" + loiCuoi);
+            return;
+          }
+          this._cameraStream = stream;
+          const v = this.$refs.video;
+          // Khoá chạy INLINE trên iOS (đặt cả property lẫn attribute NGAY TRƯỚC play():
+          // thiếu là Safari ép nhảy Fullscreen Player native, đè mất nút Chụp/Xong)
+          v.muted = true;
+          v.playsInline = true;
+          v.setAttribute('muted', '');
+          v.setAttribute('playsinline', '');
+          v.setAttribute('webkit-playsinline', '');
+          v.srcObject = stream;
+          await v.play().catch(() => {});
         },
         async doiCamera() {
           if (this.dangQuay) return;            // đang quay thì không đổi
