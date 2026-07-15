@@ -22,6 +22,8 @@ var MODAL_CAP = 400, FETCH_TIMEOUT_MS = 4 * 60 * 1000;
 var ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M17 7H9M17 7V15"/></svg>';
 // CT2: 8 trạng thái chuẩn WMS
 var STATUSES = ["PENDING", "CANCELED", "PROCESSING", "VERIFIED", "REJECTED", "APPROVED", "NOT COUNT", "WAITING FOR APPROVE"];
+// CT4: Loại kiểm kê (Physical Count Type) chuẩn WMS
+var TYPES = ["Location", "Full location", "SKU", "Daily", "Location - Factory", "Full location - Factory", "SKU - Factory"];
 // CT2: nav tab chuẩn WMS (loc/sku có tính năng; 3 tab sau '#')
 var NAVTABS = [
   { k: "loc", label: "Location count result", on: true },
@@ -53,7 +55,7 @@ var MOCK_SKU = (function(){
 
 /* ===== STATE (CT1: 2 mảng riêng) ===== */
 var rawSkuData = [], rawLocationData = [], activeTab = "sku";
-var WHS = [], selWh = "", selCat = "", selStatus = "", dateRange = "all", refDay = 0, _giaLap = false;
+var WHS = [], selWh = "", selCat = "", selStatus = "", selType = "", dateRange = "all", refDay = 0, _giaLap = false;
 var _boot = false, _syncing = false, _loaded = 0, _lastSyncMs = 0, _deb = null, PANE = null, _openDD = null;
 var mFilter = { t: "all" }, mTab = "sku", mLabel = "";
 
@@ -131,6 +133,12 @@ var CSS = [
 "#pane-fkiemke .dropdown-list li:hover{background:#f3f4f6;} #pane-fkiemke .dropdown-list li.sel{font-weight:750;color:var(--accent,#2563eb);} #pane-fkiemke .dropdown-list li .ck{opacity:0;} #pane-fkiemke .dropdown-list li.sel .ck{opacity:1;}",
 "#pane-fkiemke .dropdown-list li .cnt{color:var(--muted,#9ca3af);font-size:11px;font-variant-numeric:tabular-nums;}",
 "[data-theme] #pane-fkiemke .dropdown-list li:hover{background:color-mix(in srgb,var(--accent,#2563eb) 12%,transparent);}",
+/* CT3: Hasaki date picker component */
+"#pane-fkiemke .hasaki-date-picker .dropdown-header.hasaki-head{gap:8px;border:1px solid #d9d9d9;border-radius:4px;padding:4px 11px;min-height:44px;background:#fff;color:#1f2937;font-weight:500;}",
+"#pane-fkiemke .hasaki-date-picker .hasaki-head .cal{width:16px;height:16px;color:#8c8c8c;flex:none;}",
+"#pane-fkiemke .hasaki-date-picker .hasaki-head .lbl{flex:1;font-size:13px;font-variant-numeric:tabular-nums;}",
+"#pane-fkiemke .hasaki-date-picker .hasaki-head:hover{border-color:#2f9e6e;} #pane-fkiemke .hasaki-date-picker.open .dropdown-header.hasaki-head{border-color:#2f9e6e;}",
+"[data-theme='hasaki'] #pane-fkiemke .hasaki-date-picker .hasaki-head:hover,[data-theme='hasaki'] #pane-fkiemke .hasaki-date-picker.open .hasaki-head{border-color:#326e51;}",
 /* fade */
 "#pane-fkiemke .fk-anim{animation:fk-in .4s cubic-bezier(.32,.72,0,1);} @keyframes fk-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}",
 /* hero */
@@ -146,7 +154,10 @@ var CSS = [
 /* widgets */
 "#pane-fkiemke .fk-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;}",
 "#pane-fkiemke .fk-w{background:var(--panel,#fff);border:1px solid var(--line,#e8ecf1);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;}",
-"#pane-fkiemke .fk-w-disc{grid-column:span 4;} #pane-fkiemke .fk-w-vel{grid-column:span 4;} #pane-fkiemke .fk-w-trend{grid-column:span 4;} #pane-fkiemke .fk-w-top{grid-column:span 12;}",
+"#pane-fkiemke .fk-w-cov{grid-column:span 3;} #pane-fkiemke .fk-w-disc{grid-column:span 3;} #pane-fkiemke .fk-w-vel{grid-column:span 3;} #pane-fkiemke .fk-w-trend{grid-column:span 3;} #pane-fkiemke .fk-w-top{grid-column:span 12;}",
+"#pane-fkiemke .fk-covnum{font-size:24px;font-weight:800;color:var(--text,#1f2937);font-variant-numeric:tabular-nums;margin-bottom:10px;} #pane-fkiemke .fk-covnum b{color:#2563eb;}",
+"#pane-fkiemke .fk-covbar{height:10px;border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--muted,#9ca3af) 18%,transparent);margin-bottom:8px;} #pane-fkiemke .fk-covbar i{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#0ea5e9);transition:width 1s cubic-bezier(.4,0,.2,1);}",
+"#pane-fkiemke .fk-covpct{font-size:12px;font-weight:650;color:var(--muted,#6b7280);}",
 "@media(max-width:900px){#pane-fkiemke .fk-grid{grid-template-columns:1fr;} #pane-fkiemke .fk-w{grid-column:1/-1 !important;}}",
 "#pane-fkiemke .fk-wh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;} #pane-fkiemke .fk-wt{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted,#9ca3af);}",
 "#pane-fkiemke .fk-see{background:transparent;border:1px solid var(--line,#d0d7de);color:var(--accent,#2563eb);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:650;cursor:pointer;} #pane-fkiemke .fk-see:hover{background:color-mix(in srgb,var(--accent,#2563eb) 8%,transparent);}",
@@ -179,9 +190,10 @@ var KHUNG =
 '<nav class="fk-nav" id="fkNav"></nav>' +
 '<div class="fk-filter">' +
 '  <div class="fk-fld"><label>Kho</label><div class="custom-dropdown" id="ddWh"></div></div>' +
+'  <div class="fk-fld"><label>Loại kiểm kê</label><div class="custom-dropdown" id="ddType"></div></div>' +
 '  <div class="fk-fld" id="fldCat"><label>Nhóm hàng</label><div class="custom-dropdown" id="ddCat"></div></div>' +
 '  <div class="fk-fld"><label>Trạng thái</label><div class="custom-dropdown" id="ddStatus"></div></div>' +
-'  <div class="fk-fld"><label>Khoảng ngày</label><div class="custom-dropdown" id="ddDate"></div></div>' +
+'  <div class="fk-fld"><label>Khoảng ngày</label><div class="custom-dropdown hasaki-date-picker" id="ddDate"></div></div>' +
 '  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Đồng bộ WMS</span><small class="ts" id="fkSyncTs"></small></button>' +
 '</div>' +
 '<div id="fkBody"></div>' +
@@ -220,7 +232,12 @@ function xong(){ if (++_loaded < 2) return;
   else if (!rawLocationData.length) rawLocationData = deriveLoc(rawSkuData);   // suy Location từ SKU nếu chưa có sheet loc
   khoiTao();
 }
-function idx(header, names){ var H = header.map(function(h){ return String(h || "").toLowerCase().trim(); }); for (var i = 0; i < names.length; i++){ var j = H.indexOf(names[i].toLowerCase()); if (j >= 0) return j; } return -1; }
+// CT1: khớp cột theo tên đã CHUẨN HOÁ (bỏ khoảng trắng thừa + thường hoá) -> bắt mọi biến thể "ID"/"id"/"ID "/" Id"
+function idx(header, names){
+  var H = header.map(function(h){ return String(h || "").replace(/\s+/g, " ").trim().toLowerCase(); });
+  for (var i = 0; i < names.length; i++){ var key = String(names[i]).replace(/\s+/g, " ").trim().toLowerCase(); var j = H.indexOf(key); if (j >= 0) return j; }
+  return -1;
+}
 function mapSku(header, rows){
   var c = { no: idx(header, ["No.", "No", "STT"]), id: idx(header, ["ID"]), req: idx(header, ["Request code"]), source: idx(header, ["Source code"]),
     wh: idx(header, ["Warehouse"]), sku: idx(header, ["SKU"]), pn: idx(header, ["Product Name", "ProductName"]), category: idx(header, ["Category", "CategoryName"]),
@@ -282,6 +299,7 @@ function rowsBase(kind){
   var arr = kind === "loc" ? rawLocationData : rawSkuData;
   return rowsKho(arr).filter(function(r){
     if (selStatus && String(r.status || "").toUpperCase() !== selStatus) return false;
+    if (selType && String(r.type || "") !== selType) return false;   // CT4: lọc theo Loại kiểm kê
     if (kind !== "loc" && selCat && catOf(r) !== selCat) return false;
     return trongKhoang(r);
   });
@@ -303,15 +321,32 @@ function renderNav(){ $id("fkNav").innerHTML = NAVTABS.map(function(t){ return '
 function buildDropdowns(){
   var whOpts = WHS.map(function(w){ return { v: w, label: w }; });
   ddRender("ddWh", whOpts, selWh, function(v){ selWh = v; selCat = ""; veLai(); });
+  // CT4: Loại kiểm kê
+  var typeOpts = [{ v: "", label: "Tất cả" }].concat(TYPES.map(function(t){ return { v: t, label: t }; }));
+  ddRender("ddType", typeOpts, selType, function(v){ selType = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
   // Category: theo SKU của kho đang chọn
   var cats = {}; rowsKho(rawSkuData).forEach(function(r){ var c = catOf(r); cats[c] = (cats[c] || 0) + 1; });
   var catOpts = [{ v: "", label: "Tất cả nhóm" }].concat(Object.keys(cats).sort().map(function(c){ return { v: c, label: c, cnt: cats[c] }; }));
   ddRender("ddCat", catOpts, selCat, function(v){ selCat = v; veLai(); });
   var stOpts = [{ v: "", label: "Tất cả trạng thái" }].concat(STATUSES.map(function(s){ return { v: s, label: s }; }));
   ddRender("ddStatus", stOpts, selStatus, function(v){ selStatus = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
-  var dOpts = [{ v: "all", label: "Tất cả" }, { v: "today", label: "Hôm nay" }, { v: "7d", label: "7 ngày qua" }, { v: "30d", label: "30 ngày qua" }];
-  ddRender("ddDate", dOpts, dateRange, function(v){ dateRange = v; veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); });
+  renderDatePicker();
   $id("fldCat").style.display = activeTab === "loc" ? "none" : "";   // Location không lọc theo nhóm hàng
+}
+function fmtFull(dk){ var d = new Date(dk * 86400000); return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear(); }
+/* CT3: date-picker kiểu Hasaki — icon lịch + "DD/MM/YYYY - DD/MM/YYYY" + mũi tên; list preset khoảng ngày */
+function renderDatePicker(){
+  var el = $id("ddDate"); if (!el) return;
+  var arr = rowsKho(activeTab === "loc" ? rawLocationData : rawSkuData);
+  var mx = -Infinity, mn = Infinity; arr.forEach(function(r){ var d = dayKey(countMs(r)); if (isNaN(d)) return; if (d > mx) mx = d; if (d < mn) mn = d; });
+  if (mx === -Infinity){ mx = Math.floor(Date.now() / 86400000); mn = mx; }
+  var from = mn, to = mx;
+  if (dateRange === "today"){ from = mx; to = mx; } else if (dateRange === "7d"){ from = mx - 6; to = mx; } else if (dateRange === "30d"){ from = mx - 29; to = mx; }
+  var txt = fmtFull(from) + " - " + fmtFull(to);
+  var opts = [{ v: "all", label: "Tất cả" }, { v: "today", label: "Hôm nay" }, { v: "7d", label: "7 ngày qua" }, { v: "30d", label: "30 ngày qua" }];
+  el.innerHTML = '<div class="dropdown-header hasaki-head"><svg class="cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg><span class="lbl">' + esc(txt) + '</span><span class="chev"></span></div>' +
+    '<ul class="dropdown-list">' + opts.map(function(o){ return '<li data-v="' + o.v + '" class="' + (o.v === dateRange ? "sel" : "") + '"><span>' + o.label + '</span><span class="ck">✓</span></li>'; }).join("") + "</ul>";
+  el._cb = function(v){ dateRange = v; renderDatePicker(); veLai(); if ($id("fkModal").classList.contains("show")) renderModal(); };
 }
 function ddRender(mountId, opts, cur, cb){
   var el = $id(mountId); if (!el) return;
@@ -337,6 +372,15 @@ function veLai(){
   refDay = 0; all.forEach(function(r){ var d = dayKey(countMs(r)); if (!isNaN(d) && d > refDay) refDay = d; });
   if (!refDay) refDay = Math.floor(Date.now() / 86400000);
   var rows = dedupLatest(rowsBase(kind), kind);   // CT3: KPI dashboard GỘP unique (modal dùng raw)
+
+  // CT2 ĐỘ PHỦ (Coverage): Total = SKU/Location DUY NHẤT thuộc Kho+Nhóm+Loại (KHÔNG lọc status/ngày);
+  // Counted = số DUY NHẤT có Status ≠ NOT COUNT hoặc đã có Quantity Count.
+  var arrCov = kind === "loc" ? rawLocationData : rawSkuData;
+  var covRows = rowsKho(arrCov).filter(function(r){ if (selType && String(r.type || "") !== selType) return false; if (kind !== "loc" && selCat && catOf(r) !== selCat) return false; return true; });
+  var totSet = {}, cntSet = {};
+  covRows.forEach(function(r){ var k = kind === "loc" ? r.loc : r.sku; if (!k) return; totSet[k] = 1; var st = String(r.status || "").toUpperCase(); if (r.cnt != null || (st !== "" && st !== "NOT COUNT")) cntSet[k] = 1; });
+  var covTot = Object.keys(totSet).length, covCnt = Object.keys(cntSet).length, covPct = covTot ? covCnt / covTot * 100 : 0;
+  var covUnit = kind === "loc" ? "Location" : "SKU";
 
   // KPI qua metric() (CT3)
   var v = 0, p = 0, pd = 0, neg = 0, pos = 0, sNeg = 0, sPos = 0;
@@ -377,6 +421,11 @@ function veLai(){
       '<span><i class="dot" style="background:#f59e0b"></i>Có lệch <b>' + nf(p) + '</b> · ' + pP.toFixed(0) + '%</span>' +
       '<span><i class="dot" style="background:#9ca3af"></i>Chưa đếm <b>' + nf(pd) + '</b></span></div></div>' +
     '<div class="fk-grid">' +
+    // CT2: thẻ Độ phủ kiểm kê (Coverage)
+    '<div class="fk-w fk-w-cov"><div class="fk-wh"><span class="fk-wt">Độ phủ kiểm kê (Coverage)</span></div>' +
+      '<div class="fk-covnum"><b><span data-count="' + covCnt + '">0</span></b> / ' + nf(covTot) + ' ' + covUnit + '</div>' +
+      '<div class="fk-covbar"><i style="width:' + covPct.toFixed(1) + '%"></i></div>' +
+      '<div class="fk-covpct"><span data-count="' + covPct.toFixed(1) + '" data-dec="1" data-suf="%">0%</span> đã kiểm kê</div></div>' +
     '<div class="fk-w fk-w-disc"><div class="fk-wh"><span class="fk-wt">Chênh lệch (evaluateDiff)</span><button class="fk-see" data-drill="lech">Xem chi tiết</button></div>' +
       '<div class="fk-discrows"><div class="row"><span class="lbl"><b class="d-am"><span data-count="' + neg + '">0</span></b> Lệch âm</span><span class="val d-am">Tổng SL lệch: ' + nf(sNeg) + '</span></div>' +
       '<div class="row"><span class="lbl"><b class="d-duong"><span data-count="' + pos + '">0</span></b> Lệch dương</span><span class="val d-duong">Tổng SL lệch: ' + (sPos > 0 ? "+" : "") + nf(sPos) + '</span></div></div></div>' +

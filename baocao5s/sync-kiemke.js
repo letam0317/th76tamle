@@ -92,7 +92,9 @@ async function getWmsToken() {
         const sys = Number(it.quantity) || 0;
         const dem = (it.count_inbin == null || it.count_inbin === "") ? "" : Number(it.count_inbin) || 0;
         const diff = dem === "" ? 0 : dem - sys;
-        skuRows.push({ wh: it.warehouse_name || "", sku: it.sku || "", pn: it.product_name || "",
+        // Bắt mọi biến thể ID nếu endpoint có trả (physical-count id / bin / stock-location id)
+        var recId = it.id || it.physical_count_id || it.stock_location_id || it.bin_id || it.location_id || "";
+        skuRows.push({ id: recId, wh: it.warehouse_name || "", sku: it.sku || "", pn: it.product_name || "",
           cat: it.category_name || "", loc: it.location_description || "", inv: sys, cnt: dem, diff, upd: it.updated_at || "" });
         skuKey.set(it.sku, (skuKey.get(it.sku) || 0) + (diff || 0));
         const la = locAgg.get(it.location_description) || { wh: it.warehouse_name || "", d: 0, upd: it.updated_at || "" };
@@ -105,7 +107,7 @@ async function getWmsToken() {
   if (!skuRows.length) { log("✗ 0 dòng — không ghi."); process.exit(2); }
 
   // Bảng SKU: 21 cột theo HEADER_SKU (trường workflow chưa có -> "")
-  const rowsSku = skuRows.map((x) => [++stt, "", "", "", x.wh, x.sku, x.pn, x.cat, "", "", "",
+  const rowsSku = skuRows.map((x) => [++stt, x.id, "", "", x.wh, x.sku, x.pn, x.cat, "", "", "",
     x.diff, skuKey.get(x.sku) || 0, x.inv, x.cnt, "", "", "", x.upd, "", ""]);
   // Bảng Location: gom theo vị trí, 15 cột theo HEADER_LOC
   let l = 0; const rowsLoc = [...locAgg.entries()].map(([loc, o]) => [++l, "", "", "", o.wh, "", loc, "", o.d, "", "", "", o.upd, "", ""]);
