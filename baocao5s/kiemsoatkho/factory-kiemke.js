@@ -39,12 +39,12 @@ var MOCK = (function(){
     ["INV-26011","422502244","Nhãn Mác/Logo Bag12/Lô 2026","F2-C2-04-01","WH - MATERIAL - GARMENT",1000,998,"RQ-6012","SRC-03","Trung bình","Không","Vũ E","Đỗ F","2026-07-13 13:12","2026-07-14"],
     ["INV-26012","422501920","Vải Lót/POLY210T/Xám tro/Khổ 1m5","F0-A2-04-01","WH - MATERIAL - GARMENT",140,140,"RQ-6012","SRC-03","Trung bình","Không","Vũ E","Đỗ F","2026-07-09 11:00","2026-07-10"],
   ];
-  var UOMS = ["Mét","Cái","Cuộn","Hộp"], SUB = ["Chờ duyệt","Đang đếm lại","Chờ HR"];
   return A.map(function(m, i){
-    var inv = m[5], cnt = m[6], dl = cnt == null ? 0 : cnt - inv, st = cnt == null ? "PENDING" : dl === 0 ? "VERIFIED" : "PROCESSING";
-    return { id: m[0], no: i + 1, sku: m[1], pn: m[2], loc: m[3], wh: m[4], inv: inv, cnt: cnt, diffLoc: dl,
-      req: m[7], source: m[8], type: m[9], priority: m[10], rfid: m[11], assignTo: m[12], countedBy: m[13], updatedAt: m[14], planDate: m[15],
-      uom: UOMS[i % UOMS.length], price: (i + 1) * 15000, subStatus: st === "PROCESSING" ? SUB[i % SUB.length] : "" };
+    var inv = m[5], cnt = m[6], dl = cnt == null ? 0 : cnt - inv;
+    return { no: i + 1, id: m[0], req: m[7], source: m[8], wh: m[4], sku: m[1], pn: m[2],
+      category: m[2].split("/")[0].trim(), type: m[9], vat: m[11] === "Có" ? "Có" : "Không", priority: m[10],
+      inv: inv, cnt: cnt, diffLoc: dl, diffSku: null, loc: m[3],
+      assignTo: m[12], countedBy: m[13], countedDate: cnt == null ? "" : m[14], updatedAt: m[14], planDate: m[15] };
   });
 })();
 
@@ -68,10 +68,12 @@ function parseDate(s){
 function dayKey(ms){ return isNaN(ms) ? NaN : Math.floor(ms / 86400000); }
 function fmtDMY(dk){ var d = new Date(dk * 86400000); return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1); }
 function fmtDate(s, dateOnly){ var ms = parseDate(s); if (isNaN(ms)) return s ? esc(String(s)) : "—"; var d = new Date(ms); var o = p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear(); return dateOnly ? o : o + " " + p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); }
-function fmtTien(v){ return v == null || isNaN(v) ? "—" : (v > 0 ? "+" : "") + Math.round(v).toLocaleString("vi-VN") + " đ"; }
 function statusOf(r){ if (r.cnt == null) return "PENDING"; return r.diffLoc === 0 ? "VERIFIED" : "PROCESSING"; }
 function badgeCls(st){ return st === "VERIFIED" ? "verified" : st === "PROCESSING" ? "processing" : "pending"; }
-function catOf(r){ var s = String(r.pn || "").split("/")[0].trim(); return s || "(Khác)"; }
+// CT1: Nhóm hàng dùng trực tiếp key Category; thiếu Category thì suy từ Product Name (đoạn trước "/")
+function catOf(r){ var s = String(r.category || "").trim() || String(r.pn || "").split("/")[0].trim(); return s || "(Khác)"; }
+// CT1: ngày đếm ưu tiên Counted date, fallback Updated At
+function countMs(r){ var d = parseDate(r.countedDate); return isNaN(d) ? parseDate(r.updatedAt) : d; }
 function wmsLink(text, tab){ if (text == null || text === "") return "—"; return '<a class="wms-link" href="https://wms.inshasaki.com/physical-count/result/list?current_tab=' + tab + '" target="_blank" rel="noopener">' + esc(text) + ICON + "</a>"; }
 
 /* ===== CSS ===== */
@@ -97,7 +99,7 @@ var CSS = [
 "#pane-fkiemke .fk-hlabel{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted,#9ca3af);}",
 "#pane-fkiemke .fk-hpct{font-size:44px;font-weight:820;line-height:.9;font-variant-numeric:tabular-nums;color:var(--text,#1f2937);}",
 "#pane-fkiemke .fk-hsub{font-size:13px;color:var(--muted,#6b7280);font-weight:600;}",
-"#pane-fkiemke .fk-hbar{display:flex;height:20px;border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--muted,#9ca3af) 20%,transparent);}",
+"#pane-fkiemke .fk-hbar{display:flex;height:16px;border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--muted,#9ca3af) 18%,transparent);}",
 "#pane-fkiemke .fk-hbar i{display:block;height:100%;transition:width 1s cubic-bezier(.4,0,.2,1);}",
 "#pane-fkiemke .fk-hbar .v{background:linear-gradient(90deg,#0f766e,#14b8a6);} #pane-fkiemke .fk-hbar .p{background:linear-gradient(90deg,#d97706,#f59e0b);}",
 "#pane-fkiemke .fk-hleg{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;}",
@@ -113,15 +115,25 @@ var CSS = [
 "#pane-fkiemke .fk-wt{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted,#9ca3af);}",
 "#pane-fkiemke .fk-see{background:transparent;border:1px solid var(--line,#d0d7de);color:var(--accent,#2563eb);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:650;cursor:pointer;}",
 "#pane-fkiemke .fk-see:hover{background:color-mix(in srgb,var(--accent,#2563eb) 8%,transparent);}",
-"#pane-fkiemke .fk-disc2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}",
-"#pane-fkiemke .fk-disc2 .b{border-radius:12px;padding:12px;} #pane-fkiemke .fk-disc2 .neg{background:color-mix(in srgb,#dc2626 8%,transparent);} #pane-fkiemke .fk-disc2 .pos{background:color-mix(in srgb,#2563eb 8%,transparent);}",
-"#pane-fkiemke .fk-disc2 .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;} #pane-fkiemke .fk-disc2 .neg .n{color:#dc2626;} #pane-fkiemke .fk-disc2 .pos .n{color:#2563eb;}",
-"#pane-fkiemke .fk-disc2 .t{font-size:11px;color:var(--muted,#6b7280);margin-top:4px;} #pane-fkiemke .fk-disc2 .s{font-size:11.5px;font-weight:600;margin-top:6px;color:var(--text,#374151);}",
+/* CT2: Card Chênh lệch — 2 hàng ngang space-between (thay 2 ô màu khổng lồ) */
+"#pane-fkiemke .fk-discrows{display:flex;flex-direction:column;gap:12px;flex:1;justify-content:center;}",
+"#pane-fkiemke .fk-discrows .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line,#eef1f5);}",
+"#pane-fkiemke .fk-discrows .row:last-child{border-bottom:0;padding-bottom:0;}",
+"#pane-fkiemke .fk-discrows .lbl{font-size:13px;color:var(--text,#374151);} #pane-fkiemke .fk-discrows .lbl b{font-size:22px;font-weight:800;margin-right:5px;font-variant-numeric:tabular-nums;}",
+"#pane-fkiemke .fk-discrows .val{font-size:12.5px;font-weight:700;white-space:nowrap;}",
+/* CT2: Card Tốc độ — căn giữa dọc, số cực đại + badge delta */
+"#pane-fkiemke .fk-velbody{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;}",
+"#pane-fkiemke .fk-velnum{font-size:3.5rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--text,#1f2937);}",
+"#pane-fkiemke .fk-velbadge{padding:5px 13px;border-radius:999px;font-size:12px;font-weight:700;}",
+"#pane-fkiemke .fk-velbadge.fk-up{background:#d1faf3;color:#0f766e;} #pane-fkiemke .fk-velbadge.fk-down{background:#fdecea;color:#b42318;} #pane-fkiemke .fk-velbadge.fk-flat{background:color-mix(in srgb,var(--muted,#9ca3af) 20%,transparent);color:var(--muted,#6b7280);}",
+/* CT4: empty-state tích cực */
+"#pane-fkiemke .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:26px 14px;text-align:center;min-height:150px;}",
+"#pane-fkiemke .empty-state svg{width:42px;height:42px;} #pane-fkiemke .empty-state p{margin:0;color:var(--muted,#9ca3af);font-style:italic;font-size:13px;}",
 "#pane-fkiemke .fk-big{font-size:34px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--text,#1f2937);}",
 "#pane-fkiemke .fk-sub{font-size:12px;margin-top:8px;font-weight:600;} #pane-fkiemke .fk-up{color:#0f9488;} #pane-fkiemke .fk-down{color:#dc2626;} #pane-fkiemke .fk-flat{color:var(--muted,#9ca3af);}",
 "#pane-fkiemke .fk-chart{display:flex;align-items:flex-end;gap:7px;height:96px;margin-top:auto;padding-top:6px;}",
 "#pane-fkiemke .fk-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;height:100%;justify-content:flex-end;}",
-"#pane-fkiemke .fk-colbar{width:70%;min-height:3px;background:linear-gradient(180deg,var(--accent,#2563eb),color-mix(in srgb,var(--accent,#2563eb) 55%,#14b8a6));border-radius:5px 5px 0 0;transition:height .7s cubic-bezier(.4,0,.2,1);}",
+"#pane-fkiemke .fk-colbar{width:70%;min-height:3px;background:linear-gradient(180deg,#5eead4,#2dd4bf);border-radius:4px 4px 0 0;transition:height .7s cubic-bezier(.4,0,.2,1);}",
 "#pane-fkiemke .fk-col:hover .fk-colbar{filter:brightness(1.12);} #pane-fkiemke .fk-collab{font-size:9.5px;color:var(--muted,#9ca3af);} #pane-fkiemke .fk-colval{font-size:10px;font-weight:700;color:var(--text,#374151);}",
 "#pane-fkiemke .fk-mini{overflow-x:auto;-webkit-overflow-scrolling:touch;} #pane-fkiemke .fk-mini table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:320px;}",
 "#pane-fkiemke .fk-mini td{padding:7px 8px;border-top:1px solid var(--line,#eef1f5);white-space:nowrap;} #pane-fkiemke .fk-mini tr{cursor:pointer;} #pane-fkiemke .fk-mini tr:hover td{background:color-mix(in srgb,var(--accent,#2563eb) 6%,transparent);}",
@@ -175,8 +187,9 @@ function loadData(){
   $id("fkState").style.display = "block"; $id("fkState").innerHTML = '<div class="fk-spin"></div>Đang tải dữ liệu kiểm kê…'; $id("fkBody").innerHTML = "";
   window.fkgv_data = function(resp){
     try{ if (resp.status === "error") throw 0;
+      var header = ((resp.table && resp.table.cols) || []).map(function(c){ return String((c && c.label) || "").trim(); });
       var rows = ((resp.table && resp.table.rows) || []).map(function(r){ return (r.c || []).map(function(c){ return c ? (c.v == null ? "" : c.v) : ""; }); });
-      if (!rows.length) throw 0; napSheet(rows);
+      if (!rows.length) throw 0; napSheet(header, rows);
     }catch(e){ hienTrong(); }
   };
   var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:fkgv_data&sheet=" + encodeURIComponent(TAB) + "&headers=1";
@@ -188,13 +201,37 @@ function loadTs(){
   window.fkgv_ts = function(resp){ var ts = resp && resp.status === "success" ? Number(resp.ts || 0) : 0; if (ts > 0){ _lastSyncMs = ts; var d = new Date(ts); $id("fkSyncTs").textContent = "Mới nhất: " + p2(d.getHours()) + ":" + p2(d.getMinutes()) + " " + p2(d.getDate()) + "/" + p2(d.getMonth() + 1); } };
   var sc = document.createElement("script"); sc.src = APPSCRIPT_URL + "?action=lastSync&tab=" + encodeURIComponent(TAB) + "&callback=fkgv_ts"; document.body.appendChild(sc); setTimeout(function(){ sc.remove(); }, 15000);
 }
-function napSheet(rows){
-  ROWS = rows.filter(function(r){ return String(r[0] || "") !== ""; }).map(function(r, i){
-    var inv = Number(r[4]) || 0, cnt = (r[5] === "" || r[5] == null) ? null : Number(r[5]) || 0;
-    var dl = (r[6] === "" || r[6] == null) ? (cnt == null ? 0 : cnt - inv) : Number(r[6]) || 0;
-    return { id: "", no: i + 1, sku: String(r[0]), pn: String(r[1] || ""), loc: String(r[2] || ""), wh: String(r[3] || ""),
-      inv: inv, cnt: cnt, diffLoc: dl, req: "", source: "", type: "", priority: "", rfid: "", assignTo: "", countedBy: "",
-      updatedAt: String(r[8] || ""), planDate: "", uom: "", price: null, subStatus: "" };
+/* CT1: MAP THEO TÊN CỘT (khớp 100% key WMS thật; alias để tương thích sheet 9-cột cũ).
+   Key WMS: No. / ID / Request code / Source code / Warehouse / SKU / Product Name / Category /
+   Type / Required VAT / Priority / Diff By Location / Diff By Sku / Inventory / Quantity Count /
+   Assign to / Counted by / Counted date / Updated At / Plan Date / Status. */
+function napSheet(header, rows){
+  var H = header.map(function(h){ return String(h || "").toLowerCase().trim(); });
+  var col = function(){ for (var i = 0; i < arguments.length; i++){ var j = H.indexOf(String(arguments[i]).toLowerCase()); if (j >= 0) return j; } return -1; };
+  var IX = {
+    no: col("No.", "No", "STT"), id: col("ID"), req: col("Request code"), source: col("Source code"),
+    wh: col("Warehouse"), sku: col("SKU"), pn: col("Product Name", "ProductName"), category: col("Category", "CategoryName"),
+    type: col("Type"), vat: col("Required VAT"), priority: col("Priority"),
+    diffLoc: col("Diff By Location", "Diff"), diffSku: col("Diff By Sku", "Diff By SKU"),
+    inv: col("Inventory", "SystemQty"), cnt: col("Quantity Count", "CountedQty"),
+    assignTo: col("Assign to"), countedBy: col("Counted by"), countedDate: col("Counted date"),
+    updatedAt: col("Updated At", "Updated"), planDate: col("Plan Date"), status: col("Status"),
+  };
+  var g = function(r, i){ return i >= 0 && r[i] != null ? r[i] : ""; };
+  var num = function(v){ return v === "" || v == null ? null : (Number(v) || 0); };
+  ROWS = rows.filter(function(r){ return String(g(r, IX.sku) || "") !== "" || String(g(r, IX.loc) || "") !== ""; }).map(function(r, i){
+    var inv = num(g(r, IX.inv)) || 0, cnt = num(g(r, IX.cnt));
+    var dl = IX.diffLoc >= 0 && g(r, IX.diffLoc) !== "" ? (Number(g(r, IX.diffLoc)) || 0) : (cnt == null ? 0 : cnt - inv);
+    var ds = IX.diffSku >= 0 && g(r, IX.diffSku) !== "" ? (Number(g(r, IX.diffSku)) || 0) : null;
+    return {
+      no: IX.no >= 0 ? g(r, IX.no) : i + 1, id: String(g(r, IX.id) || ""), req: String(g(r, IX.req) || ""),
+      source: String(g(r, IX.source) || ""), wh: String(g(r, IX.wh) || ""), sku: String(g(r, IX.sku) || ""),
+      pn: String(g(r, IX.pn) || ""), loc: String(g(r, col("Location", "LocationDescription")) || ""),
+      category: String(g(r, IX.category) || ""), type: String(g(r, IX.type) || ""), vat: String(g(r, IX.vat) || ""),
+      priority: String(g(r, IX.priority) || ""), inv: inv, cnt: cnt, diffLoc: dl, diffSku: ds,
+      assignTo: String(g(r, IX.assignTo) || ""), countedBy: String(g(r, IX.countedBy) || ""),
+      countedDate: String(g(r, IX.countedDate) || ""), updatedAt: String(g(r, IX.updatedAt) || ""), planDate: String(g(r, IX.planDate) || ""),
+    };
   });
   khoiTao();
 }
@@ -216,7 +253,7 @@ function napCategory(){
   $id("fkCat").innerHTML = '<option value="">Tất cả nhóm</option>' + list.map(function(c){ return '<option value="' + esc(c) + '"' + (c === selCat ? " selected" : "") + ">" + esc(c) + " (" + cats[c] + ")</option>"; }).join("");
 }
 function rowsKho(){ return ROWS.filter(function(r){ return r.wh === selWh; }); }
-function trongKhoang(r){ if (dateRange === "all") return true; var dk = dayKey(parseDate(r.updatedAt)); if (isNaN(dk)) return false; if (dateRange === "today") return dk === refDay; if (dateRange === "7d") return dk >= refDay - 6; if (dateRange === "30d") return dk >= refDay - 29; return true; }
+function trongKhoang(r){ if (dateRange === "all") return true; var dk = dayKey(countMs(r)); if (isNaN(dk)) return false; if (dateRange === "today") return dk === refDay; if (dateRange === "7d") return dk >= refDay - 6; if (dateRange === "30d") return dk >= refDay - 29; return true; }
 function rowsBase(){ return rowsKho().filter(function(r){ return (!selCat || catOf(r) === selCat) && trongKhoang(r); }); }
 function diffBySku(rows){ var m = {}; rows.forEach(function(r){ m[r.sku] = (m[r.sku] || 0) + r.diffLoc; }); return m; }
 // Gom theo Location -> trạng thái + tổng lệch (dùng cho mode Location + hero)
@@ -237,7 +274,7 @@ function runCount(){ PANE.querySelectorAll("[data-count]").forEach(countUp); }
 
 /* ===== DASHBOARD ===== */
 function veLai(){
-  refDay = 0; rowsKho().forEach(function(r){ var d = dayKey(parseDate(r.updatedAt)); if (!isNaN(d) && d > refDay) refDay = d; });
+  refDay = 0; rowsKho().forEach(function(r){ var d = dayKey(countMs(r)); if (!isNaN(d) && d > refDay) refDay = d; });
   if (!refDay) refDay = Math.floor(Date.now() / 86400000);
   var rows = rowsBase();
 
@@ -251,8 +288,8 @@ function veLai(){
   // Discrepancy (theo bản ghi)
   var neg = 0, pos = 0, sNeg = 0, sPos = 0; rows.forEach(function(r){ if (r.diffLoc < 0){ neg++; sNeg += r.diffLoc; } else if (r.diffLoc > 0){ pos++; sPos += r.diffLoc; } });
 
-  // Velocity
-  var demT = 0, demY = 0; rows.forEach(function(r){ if (r.cnt == null) return; var d = dayKey(parseDate(r.updatedAt)); if (d === refDay) demT++; else if (d === refDay - 1) demY++; });
+  // Velocity (theo Counted date, fallback Updated At)
+  var demT = 0, demY = 0; rows.forEach(function(r){ if (r.cnt == null) return; var d = dayKey(countMs(r)); if (d === refDay) demT++; else if (d === refDay - 1) demY++; });
   var delta = demY ? (demT - demY) / demY * 100 : (demT ? 100 : 0);
   var dTxt = demY ? ((delta >= 0 ? "▲ +" : "▼ ") + Math.abs(delta).toFixed(0) + "% so với hôm qua") : (demT ? "▲ mới có hôm nay" : "—");
   var dCls = !demY ? "fk-flat" : delta > 0 ? "fk-up" : delta < 0 ? "fk-down" : "fk-flat";
@@ -263,10 +300,11 @@ function veLai(){
   var laAll = aggLoc(rows); var topLoc = laAll.filter(function(o){ return o.d !== 0; }).sort(function(a, b){ return Math.abs(b.d) - Math.abs(a.d); }).slice(0, 5);
 
   // 7 ngày
-  var days = [], maxD = 1; for (var i = 6; i >= 0; i--){ var dk = refDay - i, c = 0; rows.forEach(function(r){ if (r.cnt != null && dayKey(parseDate(r.updatedAt)) === dk) c++; }); days.push({ dk: dk, c: c }); if (c > maxD) maxD = c; }
+  var days = [], maxD = 1; for (var i = 6; i >= 0; i--){ var dk = refDay - i, c = 0; rows.forEach(function(r){ if (r.cnt != null && dayKey(countMs(r)) === dk) c++; }); days.push({ dk: dk, c: c }); if (c > maxD) maxD = c; }
 
-  var miniSku = topSku.length ? topSku.map(function(x, i){ return '<tr data-drill="sku" data-v="' + esc(x.sku) + '"><td class="rank">' + (i + 1) + '</td><td>' + wmsLink(x.sku, "sku") + '</td><td class="pn">' + esc(x.pn) + '</td><td class="num ' + (x.d < 0 ? "d-am" : "d-duong") + '">' + (x.d > 0 ? "+" : "") + nf(x.d) + '</td></tr>'; }).join("") : '<tr><td colspan="4" style="color:var(--muted);padding:14px;text-align:center">Không có SKU lệch</td></tr>';
-  var miniLoc = topLoc.length ? topLoc.map(function(x, i){ return '<tr data-drill="loc" data-v="' + esc(x.loc) + '"><td class="rank">' + (i + 1) + '</td><td>' + wmsLink(x.loc, "location") + '</td><td class="num">' + x.n + '</td><td class="num ' + (x.d < 0 ? "d-am" : "d-duong") + '">' + (x.d > 0 ? "+" : "") + nf(x.d) + '</td></tr>'; }).join("") : '<tr><td colspan="4" style="color:var(--muted);padding:14px;text-align:center">Không có Location lệch</td></tr>';
+  var EMPTY = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="#0f9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5 5-5.5"/></svg><p>Tuyệt vời! Không phát hiện sai lệch nào.</p></div>';
+  var miniSku = topSku.length ? '<div class="fk-mini"><table><tbody>' + topSku.map(function(x, i){ return '<tr data-drill="sku" data-v="' + esc(x.sku) + '"><td class="rank">' + (i + 1) + '</td><td>' + wmsLink(x.sku, "sku") + '</td><td class="pn">' + esc(x.pn) + '</td><td class="num ' + (x.d < 0 ? "d-am" : "d-duong") + '">' + (x.d > 0 ? "+" : "") + nf(x.d) + '</td></tr>'; }).join("") + '</tbody></table></div>' : EMPTY;
+  var miniLoc = topLoc.length ? '<div class="fk-mini"><table><tbody>' + topLoc.map(function(x, i){ return '<tr data-drill="loc" data-v="' + esc(x.loc) + '"><td class="rank">' + (i + 1) + '</td><td>' + wmsLink(x.loc, "location") + '</td><td class="num">' + x.n + '</td><td class="num ' + (x.d < 0 ? "d-am" : "d-duong") + '">' + (x.d > 0 ? "+" : "") + nf(x.d) + '</td></tr>'; }).join("") + '</tbody></table></div>' : EMPTY;
   var chart = days.map(function(d){ var h = Math.round(d.c / maxD * 100); return '<div class="fk-col" data-drill="day" data-v="' + d.dk + '" title="' + fmtDMY(d.dk) + ': ' + d.c + '"><div class="fk-colval">' + (d.c || "") + '</div><div class="fk-colbar" style="height:' + h + '%"></div><div class="fk-collab">' + fmtDMY(d.dk) + '</div></div>'; }).join("");
 
   $id("fkBody").innerHTML =
@@ -283,14 +321,16 @@ function veLai(){
       '</div></div>' +
     // WIDGETS
     '<div class="fk-grid">' +
+    // CT2: Card Chênh lệch = 2 hàng ngang (số | tổng), text rõ ràng
     '<div class="fk-w fk-w-disc"><div class="fk-wh"><span class="fk-wt">Chênh lệch</span><button class="fk-see" data-drill="lech">Xem chi tiết</button></div>' +
-      '<div class="fk-disc2"><div class="b neg"><div class="n"><span data-count="' + neg + '">0</span></div><div class="t">bản ghi Lệch âm</div><div class="s d-am">Σ ' + nf(sNeg) + '</div></div>' +
-      '<div class="b pos"><div class="n"><span data-count="' + pos + '">0</span></div><div class="t">bản ghi Lệch dương</div><div class="s d-duong">+' + nf(sPos) + '</div></div></div></div>' +
+      '<div class="fk-discrows"><div class="row"><span class="lbl"><b class="d-am"><span data-count="' + neg + '">0</span></b> bản ghi Lệch âm</span><span class="val d-am">Tổng SL lệch: ' + nf(sNeg) + '</span></div>' +
+      '<div class="row"><span class="lbl"><b class="d-duong"><span data-count="' + pos + '">0</span></b> bản ghi Lệch dương</span><span class="val d-duong">Tổng SL lệch: ' + (sPos > 0 ? "+" : "") + nf(sPos) + '</span></div></div></div>' +
+    // CT2: Card Tốc độ = căn giữa dọc, số cực đại + badge delta
     '<div class="fk-w fk-w-vel"><div class="fk-wh"><span class="fk-wt">Tốc độ · ' + fmtDMY(refDay) + '</span><button class="fk-see" data-drill="today">Xem chi tiết</button></div>' +
-      '<div class="fk-big"><span data-count="' + demT + '">0</span></div><div class="fk-sub ' + dCls + '">' + dTxt + '</div></div>' +
+      '<div class="fk-velbody"><div class="fk-velnum"><span data-count="' + demT + '">0</span></div><span class="fk-velbadge ' + dCls + '">' + dTxt + '</span></div></div>' +
     '<div class="fk-w fk-w-trend"><div class="fk-wh"><span class="fk-wt">Số dòng đếm · 7 ngày</span></div><div class="fk-chart">' + chart + '</div></div>' +
-    '<div class="fk-w fk-w-sku"><div class="fk-wh"><span class="fk-wt">Top 5 SKU lệch</span><button class="fk-see" data-drill="allsku">Xem tất cả</button></div><div class="fk-mini"><table><tbody>' + miniSku + '</tbody></table></div></div>' +
-    '<div class="fk-w fk-w-loc"><div class="fk-wh"><span class="fk-wt">Top 5 Location lệch</span><button class="fk-see" data-drill="allloc">Xem tất cả</button></div><div class="fk-mini"><table><tbody>' + miniLoc + '</tbody></table></div></div>' +
+    '<div class="fk-w fk-w-sku"><div class="fk-wh"><span class="fk-wt">Top 5 SKU lệch</span><button class="fk-see" data-drill="allsku">Xem tất cả</button></div>' + miniSku + '</div>' +
+    '<div class="fk-w fk-w-loc"><div class="fk-wh"><span class="fk-wt">Top 5 Location lệch</span><button class="fk-see" data-drill="allloc">Xem tất cả</button></div>' + miniLoc + '</div>' +
     '</div></div>';
   requestAnimationFrame(runCount);
 }
@@ -298,8 +338,8 @@ function veLai(){
 /* ===== MODAL (giữ 20 cột SKU / 14 cột Location, deep-link, sticky) ===== */
 function locFiltered(){
   var rows = rowsBase(), f = mFilter;
-  if (f.t === "today") return rows.filter(function(r){ return dayKey(parseDate(r.updatedAt)) === refDay; });
-  if (f.t === "day") return rows.filter(function(r){ return dayKey(parseDate(r.updatedAt)) === Number(f.v); });
+  if (f.t === "today") return rows.filter(function(r){ return dayKey(countMs(r)) === refDay; });
+  if (f.t === "day") return rows.filter(function(r){ return dayKey(countMs(r)) === Number(f.v); });
   if (f.t === "status") return rows.filter(function(r){ return statusOf(r) === f.v; });
   if (f.t === "lech") return rows.filter(function(r){ return r.diffLoc !== 0; });
   if (f.t === "sku") return rows.filter(function(r){ return r.sku === f.v; });
@@ -318,36 +358,37 @@ function setTab(t){ mTab = t; document.querySelectorAll(".fk-mpill").forEach(fun
 function renderModal(){
   var base = locFiltered(), q = ($id("fkMSearch").value || "").toLowerCase().trim(), dS = diffBySku(rowsBase());
   var dcell = function(v){ return '<td class="num ' + (v < 0 ? "d-am" : v > 0 ? "d-duong" : "d-khop") + '">' + (v > 0 ? "+" : "") + nf(v) + "</td>"; };
-  var tien = function(v){ return '<td class="num ' + (v < 0 ? "d-am" : v > 0 ? "d-duong" : "d-khop") + '">' + fmtTien(v) + "</td>"; };
   var html, n;
   if (mTab === "sku"){
     var rows = base.filter(function(r){ return !q || (r.sku + " " + r.pn + " " + r.loc + " " + r.req + " " + r.assignTo).toLowerCase().indexOf(q) >= 0; });
     n = rows.length;
     var body = rows.slice(0, MODAL_CAP).map(function(r){
-      var st = statusOf(r), ds = dS[r.sku] || 0, disc = r.price == null ? null : r.diffLoc * r.price;
+      var st = statusOf(r), ds = r.diffSku != null ? r.diffSku : (dS[r.sku] || 0);
       return "<tr><td class='stick'>" + (r.id ? esc(r.id) : "—") + "</td>" +
         '<td class="skucell">' + wmsLink(r.sku, "sku") + '<small class="pn">' + esc(r.pn) + "</small></td>" +
-        dcell(r.diffLoc) + dcell(ds) + '<td class="num">' + nf(r.inv) + '</td><td class="num">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td>" +
-        "<td>" + (r.uom ? esc(r.uom) : "—") + "</td>" + tien(disc) + "<td>" + (r.no || "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td>" +
-        "<td>" + (r.type ? esc(r.type) : "—") + "</td><td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" +
-        "<td>" + (r.rfid ? esc(r.rfid) : "—") + "</td><td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td>" +
-        "<td>" + fmtDate(r.updatedAt) + "</td><td>" + fmtDate(r.planDate, true) + "</td><td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td><td>" + (r.subStatus ? esc(r.subStatus) : "—") + "</td></tr>";
+        "<td>" + (catOf(r) || "—") + "</td>" + dcell(r.diffLoc) + dcell(ds) +
+        '<td class="num">' + nf(r.inv) + '</td><td class="num">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td>" +
+        "<td>" + (r.no || "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td><td>" + (r.source ? esc(r.source) : "—") + "</td>" +
+        "<td>" + (r.type ? esc(r.type) : "—") + "</td><td>" + (r.vat ? esc(r.vat) : "—") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" +
+        "<td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td>" +
+        "<td>" + fmtDate(r.countedDate) + "</td><td>" + fmtDate(r.updatedAt) + "</td><td>" + fmtDate(r.planDate, true) + "</td>" +
+        "<td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td></tr>";
     }).join("");
-    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>SKU</th><th class="num">Diff by location</th><th class="num">Diff by SKU</th><th class="num">Inventory</th><th class="num">Quantity count</th><th>UOM</th><th class="num">Discrepancy Value</th><th>No</th><th>Request code</th><th>Type</th><th>Source code</th><th>Priority</th><th>Is Required RFID</th><th>Assign to</th><th>Counted by</th><th>Updated At</th><th>Plan date</th><th>Status</th><th>Sub-status</th></tr></thead><tbody>' +
-      (body || '<tr><td colspan="20" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
+    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>SKU</th><th>Category</th><th class="num">Diff By Location</th><th class="num">Diff By Sku</th><th class="num">Inventory</th><th class="num">Quantity Count</th><th>No.</th><th>Request code</th><th>Source code</th><th>Type</th><th>Required VAT</th><th>Priority</th><th>Assign to</th><th>Counted by</th><th>Counted date</th><th>Updated At</th><th>Plan Date</th><th>Status</th></tr></thead><tbody>' +
+      (body || '<tr><td colspan="19" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
   } else {
-    var g = {}; base.forEach(function(r){ var o = g[r.loc] || (g[r.loc] = { loc: r.loc, d: 0, disc: 0, hasP: false, rep: r, n: 0 }); o.d += r.diffLoc; if (r.price != null){ o.disc += r.diffLoc * r.price; o.hasP = true; } o.n++; });
+    var g = {}; base.forEach(function(r){ var o = g[r.loc] || (g[r.loc] = { loc: r.loc, d: 0, rep: r, n: 0 }); o.d += r.diffLoc; o.n++; });
     var arr = Object.keys(g).map(function(k){ return g[k]; }).filter(function(o){ return !q || (o.loc + " " + o.rep.req + " " + o.rep.assignTo).toLowerCase().indexOf(q) >= 0; }).sort(function(a, b){ return Math.abs(b.d) - Math.abs(a.d); });
     n = arr.length;
     var body2 = arr.slice(0, MODAL_CAP).map(function(o){
       var r = o.rep, st = o.d === 0 ? (r.cnt == null ? "PENDING" : "VERIFIED") : "PROCESSING";
       return "<tr><td class='stick'>" + (r.id ? esc(r.id) : "—") + "</td><td>" + (r.req ? esc(r.req) : "—") + "</td><td>" + (r.source ? esc(r.source) : "—") + "</td><td>" + (r.type ? esc(r.type) : "—") + "</td>" +
-        "<td>" + wmsLink(o.loc, "location") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" + dcell(o.d) + tien(o.hasP ? o.disc : null) +
-        "<td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td><td>" + fmtDate(r.updatedAt) + "</td><td>" + fmtDate(r.planDate, true) + "</td>" +
-        "<td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td><td>" + (r.subStatus ? esc(r.subStatus) : "—") + "</td></tr>";
+        "<td>" + wmsLink(o.loc, "location") + "</td><td>" + (r.priority ? esc(r.priority) : "—") + "</td>" + dcell(o.d) +
+        "<td>" + (r.assignTo ? esc(r.assignTo) : "—") + "</td><td>" + (r.countedBy ? esc(r.countedBy) : "—") + "</td><td>" + fmtDate(r.countedDate) + "</td><td>" + fmtDate(r.updatedAt) + "</td><td>" + fmtDate(r.planDate, true) + "</td>" +
+        "<td><span class='fk-badge " + badgeCls(st) + "'>" + st + "</span></td></tr>";
     }).join("");
-    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>Request code</th><th>Source code</th><th>Type</th><th>Location</th><th>Priority</th><th class="num">Diff</th><th class="num">Discrepancy Value</th><th>Assign to</th><th>Counted by</th><th>Updated At</th><th>Plan date</th><th>Status</th><th>Sub-status</th></tr></thead><tbody>' +
-      (body2 || '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
+    html = '<table class="fk-mtbl"><thead><tr><th class="stick">ID</th><th>Request code</th><th>Source code</th><th>Type</th><th>Location</th><th>Priority</th><th class="num">Diff</th><th>Assign to</th><th>Counted by</th><th>Counted date</th><th>Updated At</th><th>Plan Date</th><th>Status</th></tr></thead><tbody>' +
+      (body2 || '<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:24px">Không có dòng phù hợp</td></tr>') + "</tbody></table>";
   }
   $id("fkMWrap").innerHTML = html;
   $id("fkMTitle").innerHTML = "Chi tiết kiểm kê — " + esc(selWh) + "<small>Lọc: " + esc(mLabel) + " · " + (mTab === "sku" ? "theo SKU" : "theo Location") + "</small>";
