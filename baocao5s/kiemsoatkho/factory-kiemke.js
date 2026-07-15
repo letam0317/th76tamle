@@ -225,6 +225,42 @@ var CSS = [
 /* CT5: tablet — KPI 4 cột -> 2 cột */
 "@media(min-width:769px) and (max-width:1100px){#pane-fkiemke .fk-grid{grid-template-columns:repeat(2,1fr);} #pane-fkiemke .fk-w-cov,#pane-fkiemke .fk-w-disc,#pane-fkiemke .fk-w-vel,#pane-fkiemke .fk-w-trend{grid-column:span 1;} #pane-fkiemke .fk-w-top{grid-column:1/-1;}}",
 /* CT5: mobile — filter xếp dọc, KPI 1 cột, touch target ≥44px, modal tràn màn hình */
+/* ========================================================================
+ * ĐẠI PHẪU UI — chuẩn SaaS hiện đại (Vercel/Linear/Stripe). Override sau cùng.
+ * Factory dùng bảng màu sáng cố định (không theo 7 theme tối) cho sạch/cool.
+ * ======================================================================== */
+"#pane-fkiemke{--fkcard:#ffffff;--fkborder:#e5e7eb;--fktext:#1f2937;--fkmuted:#9ca3af;--fkmuted2:#6b7280;--fkgreen:#2f7a55;--fkbg:#f9fafb;",
+"  font-family:system-ui,-apple-system,'Inter','Segoe UI',Roboto,sans-serif;}",
+/* CT1: card trắng, viền mảnh, bo mềm, soft shadow */
+"#pane-fkiemke .fk-hero,#pane-fkiemke .fk-w{background:var(--fkcard)!important;border:1px solid var(--fkborder)!important;border-radius:16px!important;box-shadow:0 1px 3px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.025)!important;}",
+"#pane-fkiemke .fk-panel{background:var(--fkcard)!important;border:1px solid var(--fkborder)!important;border-radius:16px!important;box-shadow:0 1px 3px rgba(0,0,0,.05)!important;}",
+/* CT4: typography — nhãn card uppercase mờ; số lớn đậm đen */
+"#pane-fkiemke .fk-hlabel,#pane-fkiemke .fk-wt{font-size:11px!important;letter-spacing:.05em!important;text-transform:uppercase!important;color:var(--fkmuted)!important;font-weight:700!important;}",
+"#pane-fkiemke .fk-hpct{font-size:32px!important;font-weight:700!important;color:var(--fktext)!important;letter-spacing:-.02em!important;}",
+"#pane-fkiemke .fk-hsub{color:var(--fkmuted2)!important;} #pane-fkiemke .fk-big,#pane-fkiemke .fk-velnum,#pane-fkiemke .fk-covnum{color:var(--fktext)!important;letter-spacing:-.02em!important;}",
+/* CT5: progress bar mảnh, bo tròn tuyệt đối; legend chấm tròn gọn */
+"#pane-fkiemke .fk-hbar{height:12px!important;border-radius:999px!important;background:#eef1f5!important;}",
+"#pane-fkiemke .fk-hbar .v{background:#2f7a55!important;} #pane-fkiemke .fk-hbar .p{background:#f59e0b!important;}",
+"#pane-fkiemke .fk-hleg{gap:18px!important;} #pane-fkiemke .fk-hleg span{font-size:12px!important;color:#4b5563!important;font-weight:500;} #pane-fkiemke .fk-hleg .dot{width:8px!important;height:8px!important;border-radius:50%!important;}",
+"#pane-fkiemke .fk-covbar{height:10px!important;border-radius:999px!important;}",
+/* CT2: thanh nút 1 hàng — Bộ lọc outline + Tải lại ghost icon nhỏ */
+"#pane-fkiemke .fk-filterbar{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:space-between!important;align-items:center!important;gap:8px!important;}",
+"#pane-fkiemke .fk-filter-toggle{background:#fff!important;border:1px solid var(--fkborder)!important;border-radius:10px!important;color:#374151!important;box-shadow:0 1px 2px rgba(0,0,0,.04);white-space:nowrap!important;}",
+"#pane-fkiemke .fk-filter-toggle:hover{border-color:#d1d5db!important;background:#f9fafb!important;}",
+"#pane-fkiemke .fk-filter-toggle[aria-expanded='true']{border-color:var(--fkgreen)!important;color:var(--fkgreen)!important;}",
+"#pane-fkiemke .fk-sync{margin-left:0!important;background:transparent!important;border:1px solid transparent!important;color:var(--fkmuted2)!important;box-shadow:none!important;min-height:36px!important;padding:7px 10px!important;border-radius:9px!important;display:inline-flex;align-items:center;gap:6px;}",
+"#pane-fkiemke .fk-sync:hover{background:#f3f4f6!important;color:#374151!important;}",
+"#pane-fkiemke .fk-sync .fk-refresh{width:16px;height:16px;} #pane-fkiemke .fk-sync .ts{display:none!important;} #pane-fkiemke .fk-sync .fk-sync-tx{font-size:12.5px;font-weight:600;}",
+"#pane-fkiemke .fk-sync.spinning .fk-refresh{animation:fk-spin .7s linear infinite;} @keyframes fk-spin{to{transform:rotate(360deg)}}",
+/* CT3 tầng 2: fk-nav = Segmented Control iOS */
+"#pane-fkiemke .fk-nav{display:inline-flex!important;gap:2px!important;background:#f3f4f6!important;border:0!important;border-radius:10px!important;padding:3px!important;margin:12px 0 14px!important;}",
+"#pane-fkiemke .fk-navt{border:0!important;border-radius:8px!important;padding:7px 18px!important;font-size:13px!important;font-weight:600!important;color:#6b7280!important;}",
+"#pane-fkiemke .fk-navt:hover{color:#374151!important;} #pane-fkiemke .fk-navt.active{background:#fff!important;color:var(--fkgreen)!important;box-shadow:0 1px 2px rgba(0,0,0,.1)!important;}",
+"#pane-fkiemke .fk-navt.off::after{content:''!important;}",
+/* dropdown & control viền theo palette sáng */
+"#pane-fkiemke select.fk-sel,#pane-fkiemke .dropdown-header{border-color:var(--fkborder)!important;border-radius:10px!important;}",
+/* mobile: số hero nhỏ lại chút, nút Tải lại ẩn chữ chỉ còn icon */
+"@media(max-width:768px){#pane-fkiemke .fk-hpct{font-size:28px!important;} #pane-fkiemke .fk-sync .fk-sync-tx{display:none;} #pane-fkiemke .fk-sync{padding:8px!important;min-width:40px;justify-content:center;}}",
 "@media(max-width:768px){",
 "  #pane-fkiemke .fk-filter{flex-direction:column;align-items:stretch;gap:10px;}",
 "  #pane-fkiemke .fk-fld,#pane-fkiemke .custom-dropdown{width:100%;min-width:0;} #pane-fkiemke .fk-sync{margin-left:0;width:100%;align-items:center;}",
@@ -243,7 +279,7 @@ var KHUNG =
 // Thanh điều khiển: nút Bộ lọc (thu gọn) + nút Tải lại (luôn hiện)
 '<div class="fk-filterbar">' +
 '  <button id="fkFilterToggle" class="fk-filter-toggle" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg><span>Bộ lọc</span><span class="fk-filter-badge empty" id="fkFilterCount"></span><span class="chev"></span></button>' +
-'  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()"><span>Tải lại dữ liệu</span><small class="ts" id="fkSyncTs"></small></button>' +
+'  <button id="fkSync" class="fk-sync" onclick="FKIEMKE.sync()" title="Tải lại dữ liệu"><svg class="fk-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg><span class="fk-sync-tx">Tải lại</span><small class="ts" id="fkSyncTs"></small></button>' +
 '</div>' +
 // Bộ lọc — MẶC ĐỊNH ĐÓNG (fk-collapsed), mở khi bấm nút Bộ lọc
 '<div class="fk-filter fk-collapsed" id="fkFilter">' +
@@ -611,9 +647,10 @@ function renderModal(){
 /* "Tải lại dữ liệu" = ĐỌC LẠI từ Google Sheet (nguồn được máy trạm đồng bộ từ WMS mỗi sáng/theo yêu cầu).
    KHÔNG gọi GAS→WMS trực tiếp vì WMS chặn IP ngoài (firewall) — GAS không với tới được. */
 function sync(){
-  if (_syncing) return; _syncing = true; var btn = $id("fkSync"); btn.disabled = true; btn.firstElementChild.textContent = "Đang tải…";
+  if (_syncing) return; _syncing = true; var btn = $id("fkSync"); btn.disabled = true; btn.classList.add("spinning");
+  var tx = btn.querySelector(".fk-sync-tx"); if (tx) tx.textContent = "Đang tải…";
   loadData();
-  setTimeout(function(){ _syncing = false; btn.disabled = false; btn.firstElementChild.textContent = "Tải lại dữ liệu"; toast("Đã tải lại dữ liệu mới nhất từ Sheet.", "ok"); }, 1200);
+  setTimeout(function(){ _syncing = false; btn.disabled = false; btn.classList.remove("spinning"); if (tx) tx.textContent = "Tải lại"; toast("Đã tải lại dữ liệu mới nhất từ Sheet.", "ok"); }, 1200);
 }
 function toast(msg, type){ var el = $id("fkToast"); el.className = type || ""; el.textContent = msg; requestAnimationFrame(function(){ el.classList.add("show"); }); clearTimeout(toast._t); toast._t = setTimeout(function(){ el.classList.remove("show"); }, 6000); }
 

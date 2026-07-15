@@ -24,6 +24,10 @@
   --input-height:36px;          /* chiều cao chuẩn form control (mobile giãn ≥44px) */
   --transition-speed:.2s ease-in-out;
 }
+/* ĐẠI PHẪU UI Factory: nền xám nhạt sạch (xoá nền vàng kem theo theme) + tab tầng-1 tối giản */
+:root[data-company="factory"] body{background:#f9fafb !important;}
+:root[data-company="factory"] .tabs .tab{color:#6b7280;}
+:root[data-company="factory"] .tabs .tab.active{color:#111827; border-bottom-color:#111827;}
 /* ===== HỆ MÀU (CSS VARIABLES) — CÁC THEME ĐƯỢC ĐÁNH GIÁ CAO ===== */
 /* Tokyo Night (mặc định) */
 :root, [data-theme="tokyo"]{
@@ -2535,7 +2539,7 @@ function moFactoryKiemke(){
       '<div class="sk sk-line" style="width:66%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _fkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='factory-kiemke.js?v=20260715c';
+      const s=document.createElement('script'); s.src='factory-kiemke.js?v=20260715d';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module factory-kiemke.js'));
       document.body.appendChild(s);
     });
