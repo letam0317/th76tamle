@@ -980,9 +980,9 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
       <h1 class="brand-title" id="brandTitle"></h1>
     </div>
     <div class="head-right">
-      <div class="cty-switch" id="ctySwitch" role="tablist" aria-label="Chọn công ty">
+      <!-- Chỉ còn công ty Hasaki -> bỏ nút chuyển đổi công ty (giữ DOM ẩn để không vỡ tham chiếu JS) -->
+      <div class="cty-switch" id="ctySwitch" role="tablist" aria-label="Chọn công ty" hidden style="display:none">
         <button class="cty-opt" data-cty="hasaki" role="tab"><span class="dot"></span>Hasaki</button>
-        <button class="cty-opt" data-cty="factory" role="tab"><span class="dot"></span>Factory</button>
       </div>
       <!-- (đã bỏ pill "Dữ liệu HH:MM": trùng lặp với timestamp trong menu Dữ liệu — Chỉ thị 1) -->
       <button id="btnGhiNhan" title="Ghi nhận vi phạm 5S (cần PIN)">+ Ghi nhận 5S</button>
@@ -1298,10 +1298,8 @@ const DEV_MODE = /[?&]dev=1/.test(location.search);   // ?dev=1: bản nháp loc
    Factory bị coi là "có 5S" -> host chạy pipeline 5S -> fail -> overlay trống đè lên cả 2 tab module.) */
 const co5S = () => CTY[CTY_ID].tabs.some(t => !TAB_DEFS[t].module);
 const tabMacDinh = () => CTY[CTY_ID].tabs.includes("task") ? "task" : CTY[CTY_ID].tabs[0];
-/* Ưu tiên đọc: ?company= trên URL (link chia sẻ được) -> localStorage -> mặc định hasaki */
+/* Hệ thống chỉ còn 1 công ty HASAKI -> khoá cứng, bỏ qua ?company= / localStorage (không còn Factory) */
 function docCtyBanDau(){
-  try{ const u = new URLSearchParams(location.search).get("company"); if(u && CTY[u]) return u; }catch(e){}
-  try{ const s = localStorage.getItem("currentCompany"); if(s && CTY[s]) return s; }catch(e){}
   return "hasaki";
 }
 let CTY_ID = docCtyBanDau();
