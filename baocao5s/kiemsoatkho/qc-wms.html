@@ -84,6 +84,30 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;back
 .theme-opt:hover{background:#f3f4f6;} .theme-opt.sel{font-weight:700;color:var(--tx);}
 .theme-opt .sw{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #fff,0 0 0 3px var(--border);} .theme-opt .ck{margin-left:auto;color:var(--primary);opacity:0;} .theme-opt.sel .ck{opacity:1;}
 
+/* ===== CT2: DYNAMIC PAGE TITLE + 8 HEADER STYLES ENGINE ===== */
+#dynamic-page-title{min-width:0;}
+#dynamic-page-title h1{margin:0;font-size:20px;font-weight:750;letter-spacing:-.02em;line-height:1.15;color:var(--tx);}
+#dynamic-page-title span{font-size:12.5px;color:var(--mut);}
+.style-1-stacked{display:flex;flex-direction:column;align-items:flex-start;gap:1px;}
+.style-2-pill{display:inline-flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--primary) 13%,#fff);border-radius:99px;padding:5px 15px;}
+.style-2-pill h1{font-size:16px;color:var(--primary-h);} .style-2-pill span{color:var(--primary);font-weight:600;}
+.style-3-inline-divider{display:inline-flex;align-items:center;gap:12px;}
+.style-3-inline-divider span{border-left:2px solid var(--border);padding-left:12px;line-height:1.2;}
+.style-4-dual-weight{display:inline-flex;align-items:baseline;gap:9px;}
+.style-4-dual-weight h1{font-weight:800;} .style-4-dual-weight span{font-weight:300;font-size:17px;color:var(--tx2);}
+.style-5-accent-underline{display:inline-flex;flex-direction:column;align-items:flex-start;gap:5px;}
+.style-5-accent-underline h1{border-bottom:4px solid var(--primary);padding-bottom:4px;}
+.style-6-red-star-monogram{display:flex;align-items:center;flex-wrap:wrap;gap:2px 12px;}
+.style-6-red-star-monogram::before{content:"\2605";color:#e11d48;font-size:30px;line-height:1;order:-1;}
+.style-6-red-star-monogram span{flex-basis:100%;padding-left:42px;margin-top:-2px;}
+.style-7-outline-text{display:inline-flex;flex-direction:column;align-items:flex-start;}
+.style-7-outline-text h1{-webkit-text-stroke:1px var(--primary);color:transparent;}
+.style-8-inline-red-star{display:inline-flex;align-items:center;gap:8px;}
+.style-8-inline-red-star span::before{content:"\2605";color:#e11d48;margin-right:6px;font-size:13px;}
+/* dropdown chọn kiểu tiêu đề */
+#header-style-selector{height:36px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--tx2);font-size:13px;font-weight:650;padding:0 30px 0 12px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;transition:border-color .2s var(--ease);}
+#header-style-selector:hover{border-color:#d1d5db;} #header-style-selector:focus{outline:0;border-color:var(--primary);}
+
 /* sub-tabs */
 .subtabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;white-space:nowrap;}
 .subtabs::-webkit-scrollbar{display:none;}
@@ -192,8 +216,18 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
     <iframe id="frame5s" class="frame5s" title="Dashboard 5S"></iframe>
     <div class="content" id="viewPc">
       <div class="page-head">
-        <div><h1>Physical Count Result</h1><div class="sub" id="phSub">Kết quả kiểm kê theo phiếu (checklist)</div></div>
+        <div id="dynamic-page-title" class="style-1-stacked"><h1>AUDIT HASAKI</h1><span>Kiểm soát kho</span></div>
         <div class="actions">
+          <select id="header-style-selector" title="Kiểu tiêu đề">
+            <option value="1">Tiêu đề · Xếp chồng</option>
+            <option value="2">Tiêu đề · Viên nhãn</option>
+            <option value="3">Tiêu đề · Vạch dọc</option>
+            <option value="4">Tiêu đề · Đậm/mảnh</option>
+            <option value="5">Tiêu đề · Gạch chân</option>
+            <option value="6">Tiêu đề · Sao đỏ (dọc)</option>
+            <option value="7">Tiêu đề · Chữ viền</option>
+            <option value="8">Tiêu đề · Sao đỏ (ngang)</option>
+          </select>
           <button class="btn" id="btnReload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Tải lại</button>
           <a class="btn primary" id="btnWms" target="_blank" rel="noopener" href="https://wms.inshasaki.com/physical-count/result/list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>Mở WMS</a>
           <div class="setwrap">
@@ -384,7 +418,7 @@ document.addEventListener("click",function(e){
   // company selector
   if(e.target.closest("#cHead")){var s=$("cSel");var o=s.classList.contains("open");closeAllFc();if(!o){s.classList.add("open");setTimeout(function(){$("cSearch").focus()},50)}return}
   var ci=e.target.closest(".csel-item");
-  if(ci){curCompany=ci.getAttribute("data-c");selWh="";$("cSel").classList.remove("open");$("cSearch").value="";renderCompanies("");initFilters();render();return}
+  if(ci){curCompany=ci.getAttribute("data-c");selWh="";$("cSel").classList.remove("open");$("cSearch").value="";renderCompanies("");updateTitle();initFilters();render();return}
   // filter dropdowns
   var head=e.target.closest(".fc-head");
   if(head){var f=head.parentNode;var op=f.classList.contains("open");closeAllFc();if(!op)f.classList.add("open");return}
@@ -413,7 +447,7 @@ document.querySelectorAll(".sb-nav a").forEach(function(a){a.addEventListener("c
 $("hamb").addEventListener("click",function(){$("app").classList.add("drawer-open");$("backdrop").classList.add("show")});
 $("backdrop").addEventListener("click",function(){$("app").classList.remove("drawer-open");$("backdrop").classList.remove("show")});
 // sub-tabs
-$("subtabs").addEventListener("click",function(e){var t=e.target.closest("[data-tab]");if(!t)return;curTab=t.getAttribute("data-tab");document.querySelectorAll(".subtab").forEach(function(b){b.classList.toggle("active",b===t)});$("phSub").textContent=curTab==="loc"?"Kết quả kiểm kê theo Location":"Kết quả kiểm kê theo SKU (checklist)";selWh="";initFilters();render()});
+$("subtabs").addEventListener("click",function(e){var t=e.target.closest("[data-tab]");if(!t)return;curTab=t.getAttribute("data-tab");document.querySelectorAll(".subtab").forEach(function(b){b.classList.toggle("active",b===t)});selWh="";initFilters();render()});
 // reload
 $("btnReload").addEventListener("click",loadAll);
 $("quick").addEventListener("input",function(){});
@@ -443,10 +477,22 @@ $("btnSet").addEventListener("click",function(e){e.stopPropagation();$("btnSet")
 $("setMenu").addEventListener("click",function(e){var o=e.target.closest(".theme-opt");if(o){setTheme(o.getAttribute("data-t"));$("btnSet").parentNode.classList.remove("open")}});
 document.addEventListener("click",function(e){if(!e.target.closest(".setwrap")){var w=document.querySelector(".setwrap.open");if(w)w.classList.remove("open")}});
 
+/* ===== CT2/CT3/CT4: TIÊU ĐỀ ĐỘNG + 8 KIỂU ===== */
+var HSTYLES={"1":"style-1-stacked","2":"style-2-pill","3":"style-3-inline-divider","4":"style-4-dual-weight","5":"style-5-accent-underline","6":"style-6-red-star-monogram","7":"style-7-outline-text","8":"style-8-inline-red-star"};
+function applyHeaderStyle(n){n=String(n);var el=$("dynamic-page-title");if(!el)return;
+  el.className=el.className.split(/\s+/).filter(function(c){return c&&c.indexOf("style-")!==0}).join(" ");
+  el.classList.add(HSTYLES[n]||HSTYLES["1"]); try{localStorage.setItem("qc-hstyle",n)}catch(e){}}
+function titleForCompany(){return curCompany==="hasaki"?"AUDIT HASAKI":"AUDIT FACTORY";}   // Hasaki VN -> HASAKI; Mastige/Garment -> FACTORY
+function updateTitle(){var h=document.querySelector("#dynamic-page-title h1");if(h)h.textContent=titleForCompany();}
+$("header-style-selector").addEventListener("change",function(){applyHeaderStyle(this.value)});
+
 /* boot */
 setTheme(curTheme());
 renderThemeList();
 renderCompanies("");
+updateTitle();
+var savedHs=(function(){try{return localStorage.getItem("qc-hstyle")||"1"}catch(e){return "1"}})();
+$("header-style-selector").value=savedHs; applyHeaderStyle(savedHs);
 loadAll();
 </script>
 </body>
