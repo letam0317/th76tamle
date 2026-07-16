@@ -129,7 +129,7 @@ var CSS = [
 "#pane-fkiemke .custom-dropdown.open .dropdown-header{border-color:var(--accent,#2563eb);}",
 "#pane-fkiemke .dropdown-header .chev{width:7px;height:7px;border-right:2px solid var(--muted,#6b7280);border-bottom:2px solid var(--muted,#6b7280);transform:rotate(45deg);transition:transform .2s;flex:none;}",
 "#pane-fkiemke .custom-dropdown.open .dropdown-header .chev{transform:rotate(-135deg);}",
-"#pane-fkiemke .dropdown-list{position:absolute;top:calc(100% + 6px);left:0;z-index:40;list-style:none;margin:0;padding:5px;background:var(--panel,#fff);border:1px solid var(--line,#e8ecf1);border-radius:11px;box-shadow:0 16px 40px rgba(16,24,40,.18);max-height:280px;overflow-y:auto;white-space:nowrap;min-width:max-content;overflow-x:hidden;opacity:0;visibility:hidden;transform:translateY(-10px);transition:all .2s ease;}",
+"#pane-fkiemke .dropdown-list{position:absolute;top:100%;left:0;z-index:9999;list-style:none;margin:6px 0 0;padding:5px;background:#fff;border:1px solid #e5e7eb;border-radius:11px;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.08);max-height:280px;overflow-y:auto;white-space:nowrap;min-width:max-content;overflow-x:hidden;opacity:0;visibility:hidden;transform:translateY(-10px);transition:all .2s ease;}",
 "#pane-fkiemke .custom-dropdown.open .dropdown-list{opacity:1;visibility:visible;transform:translateY(0);}",
 "#pane-fkiemke .dropdown-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:8px;font-size:12.5px;color:var(--text,#1f2937);cursor:pointer;white-space:nowrap;}",
 "#pane-fkiemke .dropdown-list li:hover{background:#f3f4f6;} #pane-fkiemke .dropdown-list li.sel{font-weight:750;color:var(--accent,#2563eb);} #pane-fkiemke .dropdown-list li .ck{opacity:0;} #pane-fkiemke .dropdown-list li.sel .ck{opacity:1;}",
@@ -214,8 +214,9 @@ var CSS = [
 "#pane-fkiemke .fk-filter-toggle[aria-expanded='true']{border-color:var(--primary-color,#2f7a55);color:var(--primary-color,#2f7a55);}",
 "#pane-fkiemke .fk-filter-badge{background:var(--primary-color,#2f7a55);color:#fff;border-radius:999px;font-size:10.5px;font-weight:700;padding:1px 7px;min-width:18px;text-align:center;}",
 "#pane-fkiemke .fk-filter-badge.empty{display:none;}",
-"#pane-fkiemke .fk-filter{overflow:hidden;transition:max-height .3s ease,opacity .22s ease;max-height:400px;opacity:1;}",
-"#pane-fkiemke .fk-filter.fk-collapsed{max-height:0;opacity:0;padding-top:0;padding-bottom:0;margin-top:0;margin-bottom:0;border:0;pointer-events:none;}",
+/* CT1: mở -> overflow VISIBLE để dropdown không bị clip; chỉ clip khi đang thu gọn */
+"#pane-fkiemke .fk-filter{overflow:visible;transition:max-height .3s ease,opacity .22s ease;max-height:400px;opacity:1;}",
+"#pane-fkiemke .fk-filter.fk-collapsed{overflow:hidden;max-height:0;opacity:0;padding-top:0;padding-bottom:0;margin-top:0;margin-bottom:0;border:0;pointer-events:none;}",
 "@media(max-width:768px){#pane-fkiemke .fk-filterbar{flex-direction:column;align-items:stretch;} #pane-fkiemke .fk-filter-toggle{min-height:44px;justify-content:center;} #pane-fkiemke .fk-filter.fk-collapsed{max-height:0;} #pane-fkiemke .fk-filter:not(.fk-collapsed){max-height:900px;}}",
 /* ===== CT2+CT3: CHUẨN HOÁ KÍCH THƯỚC + TƯƠNG TÁC theo design token (override) ===== */
 "#pane-fkiemke select.fk-sel,#pane-fkiemke .dropdown-header{min-height:var(--input-height,36px);border-color:var(--border-color,#d9d9d9);border-radius:var(--border-radius,4px);transition:border-color var(--transition-speed,.2s ease-in-out),box-shadow var(--transition-speed,.2s ease-in-out);}",
@@ -239,9 +240,13 @@ var CSS = [
 "#pane-fkiemke .fk-hpct{font-size:32px!important;font-weight:700!important;color:var(--fktext)!important;letter-spacing:-.02em!important;}",
 "#pane-fkiemke .fk-hsub{color:var(--fkmuted2)!important;} #pane-fkiemke .fk-big,#pane-fkiemke .fk-velnum,#pane-fkiemke .fk-covnum{color:var(--fktext)!important;letter-spacing:-.02em!important;}",
 /* CT5: progress bar mảnh, bo tròn tuyệt đối; legend chấm tròn gọn */
-"#pane-fkiemke .fk-hbar{height:12px!important;border-radius:999px!important;background:#eef1f5!important;}",
-"#pane-fkiemke .fk-hbar .v{background:#2f7a55!important;} #pane-fkiemke .fk-hbar .p{background:#f59e0b!important;}",
-"#pane-fkiemke .fk-hleg{gap:18px!important;} #pane-fkiemke .fk-hleg span{font-size:12px!important;color:#4b5563!important;font-weight:500;} #pane-fkiemke .fk-hleg .dot{width:8px!important;height:8px!important;border-radius:50%!important;}",
+/* CT4 palette pastel + CT5 sleek + CT3 clickable */
+"#pane-fkiemke .fk-hbar{height:14px!important;border-radius:999px!important;background:#eef1f5!important;}",
+"#pane-fkiemke .fk-hbar .v{background:#10b981!important;} #pane-fkiemke .fk-hbar .p{background:#f59e0b!important;}",
+"#pane-fkiemke .fk-hbar i[data-drill]{cursor:pointer;transition:opacity .2s;} #pane-fkiemke .fk-hbar i[data-drill]:hover{opacity:.8;}",
+"#pane-fkiemke .fk-hleg{gap:18px!important;} #pane-fkiemke .fk-hleg span{font-size:12px!important;color:#4b5563!important;font-weight:500;cursor:pointer;transition:opacity .2s;} #pane-fkiemke .fk-hleg span:hover{opacity:.7;} #pane-fkiemke .fk-hleg .dot{width:8px!important;height:8px!important;border-radius:50%!important;}",
+/* CT2: số liệu sắc nét đen tuyền */
+"#pane-fkiemke .fk-hpct,#pane-fkiemke .fk-big,#pane-fkiemke .fk-velnum,#pane-fkiemke .fk-covnum{color:#111827!important;font-weight:700!important;}",
 "#pane-fkiemke .fk-covbar{height:10px!important;border-radius:999px!important;}",
 /* CT2: thanh nút 1 hàng — Bộ lọc outline + Tải lại ghost icon nhỏ */
 "#pane-fkiemke .fk-filterbar{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:space-between!important;align-items:center!important;gap:8px!important;}",
@@ -572,10 +577,10 @@ function veLai(){
     '<div class="fk-hero"><div class="fk-herotop"><div><div class="fk-hlabel">Tiến độ kiểm kê · ' + unit + '</div>' +
       '<div class="fk-hpct"><span data-count="' + pct.toFixed(1) + '" data-dec="1" data-suf="%">0%</span></div></div>' +
       '<div class="fk-hsub">Đã đếm <b>' + nf(counted) + '</b> / ' + nf(tot) + ' ' + unit + (_giaLap ? ' · <span class="fk-gl">⚠ GIẢ LẬP</span>' : "") + '</div></div>' +
-      '<div class="fk-hbar"><i class="v" style="width:' + pV.toFixed(1) + '%"></i><i class="p" style="width:' + pP.toFixed(1) + '%"></i></div>' +
-      '<div class="fk-hleg"><span><i class="dot" style="background:#14b8a6"></i>Khớp <b>' + nf(v) + '</b> · ' + pV.toFixed(0) + '%</span>' +
-      '<span><i class="dot" style="background:#f59e0b"></i>Có lệch <b>' + nf(p) + '</b> · ' + pP.toFixed(0) + '%</span>' +
-      '<span><i class="dot" style="background:#9ca3af"></i>Chưa đếm <b>' + nf(pd) + '</b></span></div></div>' +
+      '<div class="fk-hbar"><i class="v" data-drill="metric" data-v="khop" title="Khớp — xem chi tiết" style="width:' + pV.toFixed(1) + '%"></i><i class="p" data-drill="metric" data-v="lech" title="Có lệch — xem chi tiết" style="width:' + pP.toFixed(1) + '%"></i></div>' +
+      '<div class="fk-hleg"><span data-drill="metric" data-v="khop"><i class="dot" style="background:#10b981"></i>Khớp <b>' + nf(v) + '</b> · ' + pV.toFixed(0) + '%</span>' +
+      '<span data-drill="metric" data-v="lech"><i class="dot" style="background:#f59e0b"></i>Có lệch <b>' + nf(p) + '</b> · ' + pP.toFixed(0) + '%</span>' +
+      '<span data-drill="metric" data-v="chuadem"><i class="dot" style="background:#cbd5e1"></i>Chưa đếm <b>' + nf(pd) + '</b></span></div></div>' +
     '<div class="fk-grid">' +
     // CT2: thẻ Độ phủ kiểm kê (Coverage)
     '<div class="fk-w fk-w-cov"><div class="fk-wh"><span class="fk-wt">Độ phủ kiểm kê (Coverage)</span></div>' +
@@ -599,6 +604,16 @@ function locFiltered(kind){
   if (f.t === "today") return rows.filter(function(r){ return dayKey(countMs(r)) === refDay; });
   if (f.t === "day") return rows.filter(function(r){ return dayKey(countMs(r)) === Number(f.v); });
   if (f.t === "lech") return rows.filter(function(r){ return metric(r).counted && metric(r).label !== "khop"; });
+  // CT3: lọc theo đánh giá chênh lệch từ thanh tiến độ (khop / lech / chuadem)
+  if (f.t === "metric") return rows.filter(function(r){
+    var st = String(r.status || "").toUpperCase();
+    var diff = activeTab === "loc" ? (Number(r.diff) || 0) : (r.cnt == null ? null : (Number(r.cnt) || 0) - (Number(r.inv) || 0));
+    var chuadem = st === "NOT COUNT" || (activeTab !== "loc" && r.cnt == null) || (activeTab === "loc" && (st === "PENDING" || st === ""));
+    if (f.v === "chuadem") return chuadem;
+    if (f.v === "khop") return !chuadem && diff === 0;
+    if (f.v === "lech") return !chuadem && diff !== 0;
+    return true;
+  });
   if (f.t === "sku") return rows.filter(function(r){ return r.sku === f.v; });
   if (f.t === "loc") return rows.filter(function(r){ return r.loc === f.v; });
   return rows;
@@ -676,7 +691,8 @@ function init(pane){
       if (e.target.closest(".wms-link")) return;
       var el = e.target.closest("[data-drill]"); if (!el) return;
       var t = el.getAttribute("data-drill"), val = el.getAttribute("data-v");
-      if (t === "today") openModal({ t: "today" }, "Đã đếm " + fmtDMY(refDay));
+      if (t === "metric"){ var lbl = val === "khop" ? "Khớp (diff = 0)" : val === "lech" ? "Có lệch (diff ≠ 0)" : "Chưa đếm (NOT COUNT)"; openModal({ t: "metric", v: val }, lbl); }
+      else if (t === "today") openModal({ t: "today" }, "Đã đếm " + fmtDMY(refDay));
       else if (t === "day") openModal({ t: "day", v: val }, "Ngày " + fmtDMY(Number(val)));
       else if (t === "lech") openModal({ t: "lech" }, "Có chênh lệch");
       else if (t === "sku") openModal({ t: "sku", v: val }, "SKU " + val, "sku");
