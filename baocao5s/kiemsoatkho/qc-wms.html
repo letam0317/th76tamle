@@ -12,6 +12,14 @@
   --tx:#111827; --tx2:#374151; --mut:#6b7280; --mut2:#9ca3af; --radius:8px; --ease:cubic-bezier(.4,0,.2,1);
   --am:#dc2626; --duong:#2563eb; --sidebar-w:250px;
 }
+/* CT3+CT4: 7 THEME — chỉ đổi ACCENT (--primary) + tông sidebar; NỘI DUNG luôn sáng/đọc tốt */
+:root[data-theme="hasaki"]{--primary:#2f7a55;--primary-h:#245c40;}
+:root[data-theme="tokyo"]{--primary:#3b6fd6;--primary-h:#2f5bb0;--sidebar:#1a1b26;--sidebar-2:#13141c;}
+:root[data-theme="dracula"]{--primary:#7c3aed;--primary-h:#6528d4;--sidebar:#282a36;--sidebar-2:#1e2029;}
+:root[data-theme="nord"]{--primary:#5e81ac;--primary-h:#4c6f96;--sidebar:#2e3440;--sidebar-2:#272c37;}
+:root[data-theme="mocha"]{--primary:#4c6ef5;--primary-h:#3b5bdb;--sidebar:#1e1e2e;--sidebar-2:#181825;}
+:root[data-theme="latte"]{--primary:#1e66f5;--primary-h:#1552cc;--sidebar:#4c4f69;--sidebar-2:#3e4054;}
+:root[data-theme="solar"]{--primary:#268bd2;--primary-h:#1e6fa8;--sidebar:#073642;--sidebar-2:#052a33;}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;-webkit-font-smoothing:antialiased;}
@@ -28,9 +36,10 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;back
 .backdrop.show{display:block;opacity:1;}
 
 /* ===== Sidebar content ===== */
-.sb-brand{padding:18px 18px 12px;display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em;font-size:16px;}
-.sb-brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--primary),#3aa66f);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;}
-.sb-brand small{display:block;font-weight:500;font-size:10.5px;color:var(--sidebar-mut);letter-spacing:.04em;}
+.sb-brand{padding:18px 16px 14px;display:flex;align-items:center;gap:11px;}
+.sb-brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--primary),#3aa66f);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.sb-brand .brand-tx{display:flex;flex-direction:column;line-height:1.05;font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--sidebar-mut);}
+.sb-brand .brand-tx b{font-size:15.5px;font-weight:800;letter-spacing:.01em;color:#fff;margin-top:1px;}
 .sb-sec{padding:6px 14px 4px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sidebar-mut);}
 /* CT2: company selector */
 .csel{position:relative;margin:6px 12px 10px;}
@@ -65,6 +74,15 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;back
 .btn:hover{border-color:#d1d5db;background:#f9fafb;}
 .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;} .btn.primary:hover{background:var(--primary-h);}
 .btn svg{width:15px;height:15px}
+.btn.ic{width:36px;padding:0;justify-content:center;}
+/* CT3: hamburger/settings -> theme menu */
+.setwrap{position:relative;}
+.setmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:50;width:210px;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.14);padding:8px;opacity:0;visibility:hidden;transform:translateY(-8px);transition:all .18s var(--ease);}
+.setwrap.open .setmenu{opacity:1;visibility:visible;transform:none;}
+.set-h{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut2);padding:4px 8px 8px;}
+.theme-opt{display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--tx2);}
+.theme-opt:hover{background:#f3f4f6;} .theme-opt.sel{font-weight:700;color:var(--tx);}
+.theme-opt .sw{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #fff,0 0 0 3px var(--border);} .theme-opt .ck{margin-left:auto;color:var(--primary);opacity:0;} .theme-opt.sel .ck{opacity:1;}
 
 /* sub-tabs */
 .subtabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;white-space:nowrap;}
@@ -140,7 +158,7 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
 <div class="app" id="app">
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sb-brand"><span class="logo">W</span><div>Hasaki WMS<small>Physical Count</small></div></div>
+    <div class="sb-brand"><span class="logo">A</span><div class="brand-tx">AUDIT<b>KIỂM SOÁT KHO</b></div></div>
     <div class="sb-sec">Công ty</div>
     <div class="csel" id="cSel">
       <div class="csel-head" id="cHead"><span class="co-dot"></span><span class="co-name" id="cName">—</span><span class="chev"></span></div>
@@ -178,6 +196,10 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
         <div class="actions">
           <button class="btn" id="btnReload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Tải lại</button>
           <a class="btn primary" id="btnWms" target="_blank" rel="noopener" href="https://wms.inshasaki.com/physical-count/result/list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>Mở WMS</a>
+          <div class="setwrap">
+            <button class="btn ic" id="btnSet" title="Giao diện (theme)" aria-label="Cài đặt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+            <div class="setmenu" id="setMenu"><div class="set-h">Giao diện (Theme)</div><div id="themeList"></div></div>
+          </div>
         </div>
       </div>
 
@@ -373,12 +395,12 @@ document.addEventListener("click",function(e){
 $("cSearch").addEventListener("input",function(){renderCompanies(this.value)});
 $("cSearch").addEventListener("click",function(e){e.stopPropagation()});
 /* ===== SIDEBAR NAV: Physical Count (native) vs tab 5S (iframe live) ===== */
-var LIVE_BASE="https://letam0317.github.io/kiemsoatkho/";
+var LIVE_BASE="index.html";   // cùng thư mục (localhost) -> same-origin, nhận embed=1
 function setNavActive(a){document.querySelectorAll(".sb-nav a").forEach(function(x){x.classList.toggle("active",x===a)})}
 function openView(a){
   var src=a.getAttribute("data-src");
-  if(src){ // tab 5S / Trạng thái lưu trữ -> nhúng iframe bản live
-    var fr=$("frame5s"); if(fr.getAttribute("data-src")!==src){fr.src=LIVE_BASE+src;fr.setAttribute("data-src",src);}
+  if(src){ // tab 5S / Trạng thái lưu trữ -> nhúng dashboard (embed=1 để ẩn tab ngang)
+    var fr=$("frame5s"); if(fr.getAttribute("data-src")!==src){fr.src=LIVE_BASE+src+"&embed=1";fr.setAttribute("data-src",src);}
     $("main").classList.add("mode-5s"); $("tbTitle").textContent=a.textContent.trim();
   }else{ // Physical Count native
     $("main").classList.remove("mode-5s"); $("tbTitle").textContent="Physical Count";
@@ -410,7 +432,20 @@ $("backdrop").addEventListener("click",closeSheet);
 
 window.QC={quick:function(){clearTimeout(window._qd);window._qd=setTimeout(function(){quickTerm=($("quick").value||"").toLowerCase().trim();render()},200)}};
 
+/* ===== CT3: 7 THEME (chọn qua hamburger, lưu localStorage) ===== */
+var THEMES=[["hasaki","Hasaki","#2f7a55"],["tokyo","Tokyo Night","#3b6fd6"],["dracula","Dracula","#7c3aed"],["nord","Nord","#5e81ac"],["mocha","Catppuccin Mocha","#4c6ef5"],["latte","Catppuccin Latte","#1e66f5"],["solar","Solarized","#268bd2"]];
+function curTheme(){try{return localStorage.getItem("qc-theme")||"hasaki"}catch(e){return "hasaki"}}
+function setTheme(t){if(!THEMES.some(function(x){return x[0]===t}))t="hasaki";document.documentElement.setAttribute("data-theme",t);try{localStorage.setItem("qc-theme",t)}catch(e){}renderThemeList();
+  // đồng bộ theme vào iframe 5S (cùng origin) nếu đang mở
+  try{var fr=$("frame5s");if(fr&&fr.contentWindow&&typeof fr.contentWindow.setTheme==="function")fr.contentWindow.setTheme(t)}catch(e){}}
+function renderThemeList(){var cur=curTheme();$("themeList").innerHTML=THEMES.map(function(x){return '<div class="theme-opt'+(x[0]===cur?" sel":"")+'" data-t="'+x[0]+'"><span class="sw" style="background:'+x[2]+'"></span>'+x[1]+'<span class="ck">✓</span></div>'}).join("")}
+$("btnSet").addEventListener("click",function(e){e.stopPropagation();$("btnSet").parentNode.classList.toggle("open")});
+$("setMenu").addEventListener("click",function(e){var o=e.target.closest(".theme-opt");if(o){setTheme(o.getAttribute("data-t"));$("btnSet").parentNode.classList.remove("open")}});
+document.addEventListener("click",function(e){if(!e.target.closest(".setwrap")){var w=document.querySelector(".setwrap.open");if(w)w.classList.remove("open")}});
+
 /* boot */
+setTheme(curTheme());
+renderThemeList();
 renderCompanies("");
 loadAll();
 </script>
