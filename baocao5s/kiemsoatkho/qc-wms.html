@@ -151,6 +151,47 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
 .b-ok{background:#d1faf3;color:#0f766e;} .b-proc{background:#fdecd0;color:#b45309;} .b-pend{background:#eceff3;color:#6b7280;} .b-rej{background:#fdecea;color:#b42318;}
 .state{padding:48px;text-align:center;color:var(--mut);} .spin{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;margin:0 auto 12px;animation:sp .8s linear infinite;} @keyframes sp{to{transform:rotate(360deg)}}
 .tnote{padding:9px 14px;font-size:11.5px;color:var(--mut2);border-top:1px solid var(--border);}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle;}
+
+/* ===== CT2/CT3: SHARED — view switch + sticky footer + progress + modal (component chung) ===== */
+.view{display:flex;flex-direction:column;gap:14px;}
+.view[hidden]{display:none;}
+/* CT1: thanh footer thứ cấp — dính đáy, mỏng */
+.footbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px clamp(14px,2.5vw,28px);background:var(--card);border-top:1px solid var(--border);font-size:12.5px;position:sticky;bottom:0;z-index:35;box-shadow:0 -2px 10px rgba(16,24,40,.05);}
+.footbar .fb-chip{background:color-mix(in srgb,var(--primary) 13%,#fff);color:var(--primary-h);border-radius:999px;padding:4px 12px;font-weight:650;font-size:11.5px;}
+.footbar .fb-link{color:var(--primary);text-decoration:none;font-weight:600;} .footbar .fb-link:hover{text-decoration:underline;}
+.footbar .fb-info{color:var(--mut2);font-variant-numeric:tabular-nums;}
+.footbar .fb-reload{margin-left:auto;height:32px;}
+/* progress bar (tái sử dụng) */
+.pbar-wrap{display:flex;flex-direction:column;gap:8px;}
+.pbar-hdr{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.pbar-tag{font-size:12px;font-weight:650;padding:4px 12px;border-radius:999px;}
+.pbar-tag.sh{background:#d1faf3;color:#0f766e;} .pbar-tag.rem{background:#fdf0d5;color:#b45309;}
+.pbar{display:flex;height:26px;border-radius:9px;overflow:hidden;background:#eef1f4;}
+.pbar .seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;width:0;transition:width 1s var(--ease);white-space:nowrap;overflow:hidden;min-width:0;}
+.pbar .seg.sh{background:linear-gradient(90deg,#0f766e,#14b8a6);} .pbar .seg.rem{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+tbody tr.click{cursor:pointer;} .go{color:var(--primary);font-weight:600;font-size:11.5px;opacity:0;} tbody tr.click:hover .go{opacity:1;}
+/* modal shell (tái sử dụng token/bo góc/shadow) */
+.modal{display:none;position:fixed;inset:0;background:rgba(17,24,39,.55);backdrop-filter:blur(5px);z-index:120;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .22s var(--ease);}
+.modal.show{opacity:1;}
+.modal-box{background:var(--card);border-radius:16px;width:min(1180px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(16,24,40,.3);transform:translateY(12px) scale(.985);transition:transform .24s var(--ease);}
+.modal.show .modal-box{transform:none;}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--border);}
+.modal-hd .mt{font-weight:750;font-size:15px;} .modal-hd .mtsub{font-size:11.5px;color:var(--mut);margin-top:2px;}
+.mclose{background:0;border:0;font-size:24px;line-height:1;cursor:pointer;color:var(--mut2);padding:4px 10px;border-radius:8px;} .mclose:hover{color:var(--am);}
+.modal-tabs{display:flex;gap:6px;padding:12px 18px 0;}
+.mtab{border:1px solid var(--border);background:#fff;border-radius:8px 8px 0 0;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;color:var(--mut);}
+.mtab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.modal-filters{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 18px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.modal-filters input{height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:#fff;color:var(--tx);}
+.modal-filters input:focus{outline:0;border-color:var(--primary);}
+.modal-sum{padding:8px 18px;font-size:12px;color:var(--mut);border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;}
+.modal-body{overflow:auto;padding:0 18px 18px;-webkit-overflow-scrolling:touch;}
+.modal-body table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
+.modal-body thead th{position:sticky;top:0;background:var(--primary);color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:600;white-space:nowrap;z-index:1;}
+.modal-body td{padding:7px 10px;border-bottom:1px solid #f1f4f8;white-space:nowrap;vertical-align:top;}
+.modal-body td.pn{white-space:normal;color:var(--mut);min-width:300px;word-break:break-word;}
+.modal-body .mono{font-family:ui-monospace,Consolas,monospace;color:#0f766e;}
 
 /* ===== CT1/CT3/CT5: MOBILE ===== */
 @media(max-width:768px){
@@ -174,8 +215,10 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
 @media(min-width:769px){ .fsheet,.fbtn-mobile{display:none!important;} }
 /* iframe nhúng dashboard 5S (bản live) — chiếm trọn main content */
 .frame5s{display:none;width:100%;flex:1;border:0;background:var(--bg);}
-.main.mode-5s .frame5s{display:block;} .main.mode-5s #viewPc{display:none;}
-.main.mode-5s .topbar .tb-title{}
+.main.mode-5s .frame5s{display:block;}
+.main.mode-5s #contentNative,.main.mode-5s .footbar{display:none;}
+/* mobile: stock filters (ít) hiển thị inline, không cần bottom sheet */
+@media(max-width:768px){ #viewStock .filterbar .fctrl{display:inline-flex;} }
 </style>
 </head>
 <body>
@@ -194,7 +237,7 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
     <div class="sb-sec">WMS · Kiểm kê kho</div>
     <nav class="sb-nav" id="navWms">
       <a class="active" data-view="pc" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>Physical Count</a>
-      <a data-src="?company=factory&tab=fstock" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L9 18l-5-5"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg>Trạng thái lưu trữ</a>
+      <a data-view="stock" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L9 18l-5-5"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg>Trạng thái lưu trữ</a>
     </nav>
     <div class="sb-sec">Kiểm soát kho 5S</div>
     <nav class="sb-nav" id="nav5s">
@@ -214,7 +257,8 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
       <span class="tb-title" id="tbTitle">Physical Count</span>
     </div>
     <iframe id="frame5s" class="frame5s" title="Dashboard 5S"></iframe>
-    <div class="content" id="viewPc">
+    <!-- ===== CT2: MASTER LAYOUT — header DÙNG CHUNG cho mọi native module (không giật khi đổi tab) ===== -->
+    <div class="content" id="contentNative">
       <div class="page-head">
         <div id="dynamic-page-title" class="style-1-stacked"><h1>AUDIT HASAKI</h1><span>Kiểm soát kho</span></div>
         <div class="actions">
@@ -228,8 +272,6 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
             <option value="7">Tiêu đề · Chữ viền</option>
             <option value="8">Tiêu đề · Sao đỏ (ngang)</option>
           </select>
-          <button class="btn" id="btnReload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Tải lại</button>
-          <a class="btn primary" id="btnWms" target="_blank" rel="noopener" href="https://wms.inshasaki.com/physical-count/result/list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>Mở WMS</a>
           <div class="setwrap">
             <button class="btn ic" id="btnSet" title="Giao diện (theme)" aria-label="Cài đặt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
             <div class="setmenu" id="setMenu"><div class="set-h">Giao diện (Theme)</div><div id="themeList"></div></div>
@@ -237,25 +279,47 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
         </div>
       </div>
 
-      <div class="subtabs" id="subtabs">
-        <button class="subtab active" data-tab="sku">SKU</button>
-        <button class="subtab" data-tab="loc">Location count result</button>
+      <!-- VIEW: Physical Count -->
+      <div class="view" id="viewPc">
+        <div class="subtabs" id="subtabs">
+          <button class="subtab active" data-tab="sku">SKU</button>
+          <button class="subtab" data-tab="loc">Location count result</button>
+        </div>
+        <div class="filterbar" id="filterbar">
+          <input class="fquick always" id="quick" placeholder="Tìm nhanh SKU / tên / vị trí…" oninput="QC.quick()">
+          <button class="btn fbtn-mobile" id="fbtnMobile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Bộ lọc</button>
+          <div class="fctrl" id="fKho"></div>
+          <div class="fctrl" id="fDate"></div>
+          <div class="fctrl" id="fStatus"></div>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="card">
+          <div class="table-responsive" id="tblWrap"><div class="state"><div class="spin"></div>Đang tải dữ liệu kiểm kê…</div></div>
+          <div class="tnote" id="tnote"></div>
+        </div>
       </div>
 
-      <div class="filterbar" id="filterbar">
-        <input class="fquick always" id="quick" placeholder="Tìm nhanh SKU / tên / vị trí…" oninput="QC.quick()">
-        <button class="btn fbtn-mobile" id="fbtnMobile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Bộ lọc</button>
-        <div class="fctrl" id="fKho"></div>
-        <div class="fctrl" id="fDate"></div>
-        <div class="fctrl" id="fStatus"></div>
+      <!-- VIEW: Trạng thái lưu trữ (native — dùng chung component với Physical Count) -->
+      <div class="view" id="viewStock" hidden>
+        <div class="filterbar">
+          <input class="fquick always" id="stQuick" placeholder="Tìm nhanh kho / category…" oninput="QC.stQuick()">
+          <div class="fctrl" id="stDivF"></div>
+        </div>
+        <div class="summary" id="stSummary"></div>
+        <div class="pbar-wrap" id="stRate"></div>
+        <div class="card">
+          <div class="table-responsive" id="stWrap"><div class="state"><div class="spin"></div>Đang tải tồn mã vị trí…</div></div>
+          <div class="tnote" id="stNote"></div>
+        </div>
       </div>
+    </div>
 
-      <div class="summary" id="summary"></div>
-
-      <div class="card">
-        <div class="table-responsive" id="tblWrap"><div class="state"><div class="spin"></div>Đang tải dữ liệu kiểm kê…</div></div>
-        <div class="tnote" id="tnote"></div>
-      </div>
+    <!-- ===== CT1: THÔNG TIN THỨ CẤP -> STICKY FOOTER ở đáy ===== -->
+    <div class="footbar" id="footbar">
+      <span class="fb-chip" id="fbChip">Physical Count · WMS</span>
+      <a class="fb-link" id="fbLink" target="_blank" rel="noopener" href="https://wms.inshasaki.com/physical-count/result/list">Mở WMS</a>
+      <span class="fb-info" id="fbInfo"></span>
+      <button class="btn fb-reload" id="fbReload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Tải lại dữ liệu</button>
     </div>
   </div>
 </div>
@@ -265,6 +329,28 @@ td.stick,th.stick{position:sticky;left:0;background:#fff;z-index:2;} thead th.st
   <div class="fs-h">Bộ lọc<button class="fs-x" id="fsX">&times;</button></div>
   <div id="fsBody"></div>
   <button class="fs-apply" id="fsApply">Áp dụng</button>
+</div>
+
+<!-- Modal chi tiết SKU theo kho (tab Trạng thái lưu trữ) — dùng chung style shell -->
+<div class="modal" id="stModal">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <div><div class="mt" id="stmTitle"></div><div class="mtsub">Chi tiết SKU theo mã vị trí — lọc theo cột bên dưới</div></div>
+      <button class="mclose" id="stmClose" aria-label="Đóng">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="mtab active" data-mt="shelf" id="stmTabSh">Đã lên kệ (<span id="stmCSh">0</span>)</button>
+      <button class="mtab" data-mt="pend" id="stmTabPe">Chưa lên kệ (<span id="stmCPe">0</span>)</button>
+    </div>
+    <div class="modal-filters">
+      <input id="stmFCat" placeholder="Category…" autocomplete="off">
+      <input id="stmFLoc" placeholder="Mã vị trí…" autocomplete="off">
+      <input id="stmFSku" placeholder="SKU…" autocomplete="off">
+      <input id="stmFName" placeholder="Product name…" autocomplete="off">
+    </div>
+    <div class="modal-sum" id="stmSum"></div>
+    <div class="modal-body"><table><thead><tr><th>Category</th><th>Mã vị trí</th><th>SKU</th><th>Product name</th><th class="num">Số lượng</th></tr></thead><tbody id="stmBody"></tbody></table></div>
+  </div>
 </div>
 
 <script>
@@ -406,6 +492,7 @@ function render(){
     $("tblWrap").innerHTML="<table><thead><tr><th class='stick'>ID</th><th>Location</th><th>Warehouse</th><th>Type</th><th>Priority</th><th class='num'>Diff</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>"+(out.join("")||empty(11))+"</tbody></table>";
   }
   $("tnote").textContent=rs.length>CAP?("Hiển thị "+nf(CAP)+" / "+nf(rs.length)+" dòng — lọc để thu hẹp."):(nf(rs.length)+" dòng.");
+  if(curMode==="pc"){var fi=$("fbInfo");if(fi)fi.textContent="· "+nf(rs.length)+" dòng"+(loaded>=2?" · đã tải từ Sheet":"");}
 }
 function dcell(d){return "<td class='num "+(d<0?"d-am":d>0?"d-duong":"d-khop")+"'>"+(d>0?"+":"")+nf(d)+"</td>"}
 function dash(v){return v?esc(v):"—"}
@@ -418,27 +505,42 @@ document.addEventListener("click",function(e){
   // company selector
   if(e.target.closest("#cHead")){var s=$("cSel");var o=s.classList.contains("open");closeAllFc();if(!o){s.classList.add("open");setTimeout(function(){$("cSearch").focus()},50)}return}
   var ci=e.target.closest(".csel-item");
-  if(ci){curCompany=ci.getAttribute("data-c");selWh="";$("cSel").classList.remove("open");$("cSearch").value="";renderCompanies("");updateTitle();initFilters();render();return}
+  if(ci){curCompany=ci.getAttribute("data-c");selWh="";stDiv="";$("cSel").classList.remove("open");$("cSearch").value="";renderCompanies("");updateTitle();initFilters();render();if(ST.groups&&ST.groups.length)stRender();return}
   // filter dropdowns
   var head=e.target.closest(".fc-head");
   if(head){var f=head.parentNode;var op=f.classList.contains("open");closeAllFc();if(!op)f.classList.add("open");return}
   var it=e.target.closest(".fctrl .fc-item");
-  if(it&&!e.target.closest(".fsheet")){var dd=it.closest(".fctrl");dd.classList.remove("open");if(dd._cb){dd._cb(it.getAttribute("data-v"));initFilters()}return}
+  if(it&&!e.target.closest(".fsheet")){var dd=it.closest(".fctrl");dd.classList.remove("open");if(dd._cb)dd._cb(it.getAttribute("data-v"));if(!(dd.id&&dd.id.indexOf("st")===0))initFilters();return}
   if(!e.target.closest(".csel")&&!e.target.closest(".fctrl"))closeAllFc();
 });
 $("cSearch").addEventListener("input",function(){renderCompanies(this.value)});
 $("cSearch").addEventListener("click",function(e){e.stopPropagation()});
 /* ===== SIDEBAR NAV: Physical Count (native) vs tab 5S (iframe live) ===== */
 var LIVE_BASE="index.html";   // cùng thư mục (localhost) -> same-origin, nhận embed=1
+var curMode="pc";             // pc | stock | 5s  (native pc/stock DÙNG CHUNG khung; 5s là iframe)
 function setNavActive(a){document.querySelectorAll(".sb-nav a").forEach(function(x){x.classList.toggle("active",x===a)})}
+/* CT1: footer thứ cấp đổi nội dung theo module (nguồn dữ liệu + link + cập nhật + Tải lại) */
+function setFoot(mode){
+  if(mode==="pc"){ $("fbChip").textContent="Physical Count · WMS"; $("fbLink").style.display=""; $("fbLink").textContent="Mở WMS";
+    $("fbLink").href="https://wms.inshasaki.com/physical-count/result/list"; render(); }
+  else if(mode==="stock"){ $("fbChip").textContent="Tồn mã vị trí · WMS Factory"; $("fbLink").style.display="";
+    $("fbLink").textContent="Mở Google Sheet"; $("fbLink").href="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit"; stFoot(); }
+}
+/* CT2: chỉ đổi NỘI DUNG main content; khung/header/footer đứng im */
+function showView(mode){
+  curMode=mode;
+  if(mode==="5s"){ $("main").classList.add("mode-5s"); return; }
+  $("main").classList.remove("mode-5s");
+  $("viewPc").hidden=(mode!=="pc");
+  $("viewStock").hidden=(mode!=="stock");
+  setFoot(mode);
+  if(mode==="stock"){ if(!ST.booted){ST.booted=true;stLoad();} else if(Date.now()-ST.loadedAt>3e5){stLoad();} else {stRender();stFoot();} }
+}
 function openView(a){
-  var src=a.getAttribute("data-src");
-  if(src){ // tab 5S / Trạng thái lưu trữ -> nhúng dashboard (embed=1 để ẩn tab ngang)
-    var fr=$("frame5s"); if(fr.getAttribute("data-src")!==src){fr.src=LIVE_BASE+src+"&embed=1";fr.setAttribute("data-src",src);}
-    $("main").classList.add("mode-5s"); $("tbTitle").textContent=a.textContent.trim();
-  }else{ // Physical Count native
-    $("main").classList.remove("mode-5s"); $("tbTitle").textContent="Physical Count";
-  }
+  var src=a.getAttribute("data-src"), view=a.getAttribute("data-view");
+  if(src){ var fr=$("frame5s"); if(fr.getAttribute("data-src")!==src){fr.src=LIVE_BASE+src+"&embed=1";fr.setAttribute("data-src",src);} showView("5s"); }
+  else { showView(view||"pc"); }
+  $("tbTitle").textContent=a.textContent.trim();
   setNavActive(a);
   if(window.innerWidth<=768){$("app").classList.remove("drawer-open");$("backdrop").classList.remove("show")}
 }
@@ -448,8 +550,8 @@ $("hamb").addEventListener("click",function(){$("app").classList.add("drawer-ope
 $("backdrop").addEventListener("click",function(){$("app").classList.remove("drawer-open");$("backdrop").classList.remove("show")});
 // sub-tabs
 $("subtabs").addEventListener("click",function(e){var t=e.target.closest("[data-tab]");if(!t)return;curTab=t.getAttribute("data-tab");document.querySelectorAll(".subtab").forEach(function(b){b.classList.toggle("active",b===t)});selWh="";initFilters();render()});
-// reload
-$("btnReload").addEventListener("click",loadAll);
+// CT1: footer reload theo module
+$("fbReload").addEventListener("click",function(){ if(curMode==="stock")stLoad(); else loadAll(); });
 $("quick").addEventListener("input",function(){});
 // mobile filter bottom sheet: clone filter controls
 $("fbtnMobile").addEventListener("click",function(){
@@ -464,7 +566,116 @@ $("fsX").addEventListener("click",closeSheet);$("fsApply").addEventListener("cli
 function closeSheet(){$("fsheet").classList.remove("show");$("backdrop").classList.remove("show")}
 $("backdrop").addEventListener("click",closeSheet);
 
-window.QC={quick:function(){clearTimeout(window._qd);window._qd=setTimeout(function(){quickTerm=($("quick").value||"").toLowerCase().trim();render()},200)}};
+window.QC={
+  quick:function(){clearTimeout(window._qd);window._qd=setTimeout(function(){quickTerm=($("quick").value||"").toLowerCase().trim();render()},200)},
+  stQuick:function(){clearTimeout(window._sd);window._sd=setTimeout(function(){stQuick=($("stQuick").value||"").toLowerCase().trim();stRender()},200)}
+};
+
+/* ===== MODULE: TRẠNG THÁI LƯU TRỮ (native — dùng chung component shell) ===== */
+var ST_TABS=[{sheet:"mastige",div:"Mastige"},{sheet:"garment",div:"Garment"}], ST_META="Metadata";
+var ST_PAL=["#2f7a55","#2563eb","#0ea5e9","#f59e0b","#8b5cf6","#ef4444","#14b8a6","#ec4899","#6366f1","#f43f5e"];
+var ST={raw:[],pending:0,failed:0,syncMs:0,loadedAt:0,booted:false,whData:{},whColor:{},whDiv:{},groups:[],curWh:null,mTab:"shelf"};
+var stQuick="", stDiv="";
+function isShelf(loc){var s=String(loc||"").trim().toUpperCase();return !(s.indexOf("F0-A0")===0||s.indexOf("F00-A00")===0)}
+function fmtClock(ms){var d=new Date(ms);return p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds())+" "+p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()}
+function stDivForCompany(){return curCompany==="mastige"?"Mastige":curCompany==="garment"?"Garment":""}
+function stLoad(){
+  ST.raw=[];ST.pending=ST_TABS.length;ST.failed=0;ST.loadedAt=Date.now();
+  $("stWrap").innerHTML='<div class="state"><div class="spin"></div>Đang tải tồn mã vị trí…</div>';$("stSummary").innerHTML="";$("stRate").innerHTML="";
+  ST_TABS.forEach(function(t,i){
+    var cb="stgv_"+i;window[cb]=function(resp){stOnTab(resp,t.div)};
+    var url="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:json;responseHandler:"+cb+"&sheet="+encodeURIComponent(t.sheet)+"&tq="+encodeURIComponent("select A,C,D,F,G,M");
+    var old=$("st_sc_"+i);if(old)old.remove();var sc=document.createElement("script");sc.id="st_sc_"+i;sc.src=url;
+    sc.onerror=function(){ST.failed++;ST.pending--;stCheck()};document.body.appendChild(sc);
+  });
+  window.stgv_meta=function(resp){try{var c=resp.table.rows[0].c;var ms=(c[1]&&c[1].v!=null)?Number(c[1].v):0;if(ms>0)ST.syncMs=ms}catch(e){}stFoot()};
+  var mu="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:json;responseHandler:stgv_meta&sheet="+encodeURIComponent(ST_META)+"&headers=0&range=A1:B1";
+  var om=$("st_sc_meta");if(om)om.remove();var scm=document.createElement("script");scm.id="st_sc_meta";scm.src=mu;document.body.appendChild(scm);
+}
+function stOnTab(resp,div){try{var rows=(resp&&resp.table&&resp.table.rows)||[];for(var i=0;i<rows.length;i++){var c=rows[i].c;if(c)ST.raw.push([c,div])}}catch(e){ST.failed++}ST.pending--;stCheck()}
+function stCheck(){if(ST.pending>0)return;if(!ST.raw.length){$("stWrap").innerHTML='<div class="state">⚠ Không tải được dữ liệu tồn mã vị trí.</div>';stFoot();return}stAggregate();stRender();stFoot()}
+function stAggregate(){
+  var agg={},detail={},whset={},whDiv={};
+  for(var i=0;i<ST.raw.length;i++){var c=ST.raw[i][0],div=ST.raw[i][1];
+    var sku=(c[0]&&c[0].v!=null)?String(c[0].v):"",pn=(c[1]&&c[1].v!=null)?String(c[1].v):"",loc=(c[2]&&c[2].v!=null)?String(c[2].v):"";
+    var cat=(c[3]&&c[3].v!=null)?String(c[3].v):"(trống)",wh=(c[4]&&c[4].v!=null)?String(c[4].v):"",tot=(c[5]&&c[5].v!=null)?Number(c[5].v):0;
+    if(sku===""&&loc===""&&wh==="")continue;
+    if(!agg[wh])agg[wh]={};if(!agg[wh][cat])agg[wh][cat]={sh:{},pe:{},ts:0,tp:0};if(!detail[wh])detail[wh]={shelf:[],pend:[]};
+    whset[wh]=1;whDiv[wh]=div;var a=agg[wh][cat];
+    if(isShelf(loc)){a.sh[sku]=1;a.ts+=tot;detail[wh].shelf.push([sku,pn,loc,cat,tot])}
+    else{a.pe[sku]=1;a.tp+=tot;detail[wh].pend.push([sku,pn,loc,cat,tot])}
+  }
+  var groups=[];for(var w in agg)for(var ct in agg[w]){var g=agg[w][ct];groups.push([w,ct,Object.keys(g.sh).length,g.ts,Object.keys(g.pe).length,g.tp,whDiv[w]])}
+  ST.whData=detail;ST.groups=groups;ST.whDiv=whDiv;var ci=0;Object.keys(whset).forEach(function(w){ST.whColor[w]=ST_PAL[ci++%ST_PAL.length]});
+}
+function stFilteredWh(){
+  var divCo=stDivForCompany(),wh={};
+  ST.groups.forEach(function(d){var div=d[6];
+    if(divCo&&div!==divCo)return; if(stDiv&&div!==stDiv)return;
+    if(stQuick&&((d[0]+" "+d[1]).toLowerCase().indexOf(stQuick)<0))return;
+    if(!wh[d[0]])wh[d[0]]=[0,0,0,0,0,div]; var v=wh[d[0]];
+    v[0]+=d[2];v[1]+=d[3];v[2]+=d[4];v[3]+=1;v[4]+=d[5];
+  });
+  return wh;
+}
+function stInitFilters(){
+  var divCo=stDivForCompany(),divs=divCo?[divCo]:["Mastige","Garment"];
+  if(stDiv&&divs.indexOf(stDiv)<0)stDiv="";
+  var opts=[{v:"",label:"Tất cả division"}].concat(divs.map(function(d){return{v:d,label:d}}));
+  fcDropdown("stDivF","Division",opts,stDiv,function(v){stDiv=v;stRender()});
+}
+function stRender(){
+  var wh=stFilteredWh(),keys=Object.keys(wh).sort(function(a,b){return wh[b][0]-wh[a][0]});
+  var gSh=0,gPe=0,gQty=0,ng=0;keys.forEach(function(w){var v=wh[w];gSh+=v[0];gPe+=v[2];gQty+=v[1]+v[4];ng+=v[3]});
+  var rate=(gSh+gPe)?gSh/(gSh+gPe)*100:0;
+  $("stSummary").innerHTML=
+    '<div class="sm-item c-ok"><div class="k">'+nf(gSh)+'</div><div class="l">SKU đã lên kệ</div></div>'+
+    '<div class="sm-item c-neg"><div class="k">'+nf(gPe)+'</div><div class="l">SKU còn cần lên kệ</div></div>'+
+    '<div class="sm-item c-pos"><div class="k">'+rate.toFixed(1)+'%</div><div class="l">Tỷ lệ đã lên kệ</div></div>'+
+    '<div class="sm-item"><div class="k">'+nf(keys.length)+'</div><div class="l">Kho (warehouse)</div></div>'+
+    '<div class="sm-item c-mut"><div class="k">'+nf(ng)+'</div><div class="l">Nhóm Kho × Cate</div></div>';
+  $("stRate").innerHTML=
+    '<div class="pbar-hdr"><span class="pbar-tag sh">Đã lên kệ '+rate.toFixed(1)+'% ('+nf(gSh)+' SKU)</span>'+
+    '<span class="pbar-tag rem">Còn lại '+(100-rate).toFixed(1)+'% ('+nf(gPe)+' SKU)</span></div>'+
+    '<div class="pbar"><div class="seg sh" data-w="'+rate.toFixed(2)+'">'+rate.toFixed(0)+'%</div>'+
+    '<div class="seg rem" data-w="'+(100-rate).toFixed(2)+'">'+(100-rate).toFixed(0)+'%</div></div>';
+  var body=keys.map(function(w){var v=wh[w],rt=(v[0]+v[2])?v[0]/(v[0]+v[2])*100:0,qty=v[1]+v[4];
+    return "<tr class='click' data-wh='"+esc(w)+"'><td class='stick'><span class='dot' style='background:"+ST.whColor[w]+"'></span><b>"+esc(w)+"</b></td>"+
+      "<td>"+dash(v[5])+"</td><td class='num'>"+nf(v[0])+" / "+nf(v[0]+v[2])+"</td><td class='num d-am'>"+nf(v[2])+"</td>"+
+      "<td class='num'><b>"+nf(qty)+"</b></td><td class='num'>"+rt.toFixed(0)+"% <span class='go'>Chi tiết →</span></td></tr>";
+  }).join("");
+  $("stWrap").innerHTML="<table><thead><tr><th class='stick'>Kho (stock)</th><th>Division</th><th class='num'>SKU lên kệ / tổng</th><th class='num'>Còn cần lên kệ</th><th class='num'>Số lượng total</th><th class='num'>Tỷ lệ</th></tr></thead><tbody>"+(body||empty(6))+"</tbody></table>";
+  $("stNote").textContent=nf(keys.length)+" kho.";
+  stInitFilters();
+  requestAnimationFrame(function(){requestAnimationFrame(function(){document.querySelectorAll("#stRate .seg[data-w]").forEach(function(el){el.style.width=el.getAttribute("data-w")+"%"})})});
+}
+function stFoot(){ if(curMode!=="stock")return; var t="",n=ST.raw?ST.raw.length:0;
+  if(n)t="· "+nf(n)+" dòng"; if(ST.syncMs)t+=(t?" ":"")+"· cập nhật "+fmtClock(ST.syncMs); if(ST.failed)t+=" · "+ST.failed+" tab lỗi";
+  var el=$("fbInfo");if(el)el.textContent=t; }
+/* modal chi tiết */
+function stOpenModal(w){if(!ST.whData[w])return;ST.curWh=w;
+  $("stmTitle").textContent=w;$("stmCSh").textContent=nf(ST.whData[w].shelf.length);$("stmCPe").textContent=nf(ST.whData[w].pend.length);
+  ["stmFCat","stmFLoc","stmFSku","stmFName"].forEach(function(id){$(id).value=""});
+  stModalTab("shelf");var m=$("stModal");m.style.display="flex";requestAnimationFrame(function(){m.classList.add("show")});}
+function stCloseModal(){var m=$("stModal");m.classList.remove("show");setTimeout(function(){m.style.display="none"},240)}
+function stModalTab(t){ST.mTab=t;$("stmTabSh").classList.toggle("active",t==="shelf");$("stmTabPe").classList.toggle("active",t==="pend");stModalRows()}
+function stModalRows(){
+  var fc=$("stmFCat").value.toLowerCase(),fl=$("stmFLoc").value.toLowerCase(),fs=$("stmFSku").value.toLowerCase(),fn=$("stmFName").value.toLowerCase();
+  var rows=ST.whData[ST.curWh][ST.mTab],out=[],cnt=0,q=0;
+  for(var i=0;i<rows.length;i++){var r=rows[i];
+    if(fc&&r[3].toLowerCase().indexOf(fc)<0)continue;if(fl&&r[2].toLowerCase().indexOf(fl)<0)continue;
+    if(fs&&r[0].toLowerCase().indexOf(fs)<0)continue;if(fn&&r[1].toLowerCase().indexOf(fn)<0)continue;
+    cnt++;q+=r[4];if(out.length<3000)out.push("<tr><td>"+esc(r[3])+"</td><td class='mono'>"+esc(r[2])+"</td><td>"+esc(r[0])+"</td><td class='pn'>"+esc(r[1])+"</td><td class='num'>"+nf(r[4])+"</td></tr>");}
+  if(cnt>3000)out.push("<tr><td colspan='5' style='text-align:center;padding:20px;color:var(--mut)'>Hiển thị 3.000 / "+nf(cnt)+" — lọc để thu hẹp.</td></tr>");
+  $("stmBody").innerHTML=out.length?out.join(""):"<tr><td colspan='5' style='text-align:center;padding:24px;color:var(--mut)'>Không có dữ liệu phù hợp</td></tr>";
+  $("stmSum").textContent=nf(cnt)+" dòng · tổng số lượng "+nf(q);
+}
+/* sự kiện stock */
+$("stWrap").addEventListener("click",function(e){var tr=e.target.closest("tr.click");if(tr)stOpenModal(tr.getAttribute("data-wh"))});
+$("stmClose").addEventListener("click",stCloseModal);
+$("stModal").addEventListener("click",function(e){ if(e.target===$("stModal"))return stCloseModal(); var t=e.target.closest(".mtab"); if(t)stModalTab(t.getAttribute("data-mt")); });
+["stmFCat","stmFLoc","stmFSku","stmFName"].forEach(function(id){$(id).addEventListener("input",function(){clearTimeout(window._md);window._md=setTimeout(stModalRows,110)})});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&$("stModal").classList.contains("show"))stCloseModal()});
 
 /* ===== CT3: 7 THEME (chọn qua hamburger, lưu localStorage) ===== */
 var THEMES=[["hasaki","Hasaki","#2f7a55"],["tokyo","Tokyo Night","#3b6fd6"],["dracula","Dracula","#7c3aed"],["nord","Nord","#5e81ac"],["mocha","Catppuccin Mocha","#4c6ef5"],["latte","Catppuccin Latte","#1e66f5"],["solar","Solarized","#268bd2"]];
