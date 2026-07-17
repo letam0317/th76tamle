@@ -692,6 +692,10 @@ tbody td.c-bb{width:118px; white-space:normal;}
 .bb-thumb{width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid var(--border); background:var(--surface2); cursor:zoom-in;}
 /* task hoàn thành >96h: nút +Ảnh làm mờ/tắt */
 .bb-up.bb-off{opacity:.35; pointer-events:none; cursor:not-allowed;}
+/* Khoá tầng UI: nút bị vô hiệu (task đã huỷ / đã đóng) — chặn mọi click bằng CSS */
+.btn-disabled{opacity:.4; cursor:not-allowed; pointer-events:none; background-color:#f3f4f6; color:#9ca3af;}
+/* Dòng "Đã huỷ" không có biên bản: gạch ngang mờ giữ form bảng đồng đều */
+.bb-none{color:#9ca3af;}
 /* ===== CỘT TẦN SUẤT VI PHẠM ===== */
 thead th.c-freq, tbody td.c-freq{white-space:nowrap; vertical-align:middle;}
 .freq-lan{font-weight:600;}
@@ -2863,18 +2867,26 @@ function bbCell(r){
   const sheetUrls=(iBienBan>=0?String(r[iBienBan]||''):'').split(/[\n,]/).map(s=>s.trim()).filter(s=>/^https?:/.test(s));
   const imgs=[...new Set([...sheetUrls, ...(bbLocal[code]||[])])];
   const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(bbThumb(u))}" loading="lazy" decoding="async" data-bb="${esc(bbFull(u))}" title="Xem biên bản">`).join('');
-  // ĐÃ có biên bản -> ẩn nút tải lên; task HOÀN THÀNH >96h -> làm mờ/tắt nút (khoá bổ sung muộn)
+  // ĐÃ có biên bản -> ẩn nút tải lên; task ĐÃ HUỶ -> KHÔNG render nút (mọi cổng tương tác bị khoá);
+  // task HOÀN THÀNH >96h -> nút disabled (khoá bổ sung muộn)
   let up='';
   if(!imgs.length){
-    up = bbKhoa(r)
-      ? `<button class="bb-up bb-off" disabled title="Task đã hoàn thành quá 96 giờ — khoá tải biên bản">＋ Ảnh</button>`
-      : `<button class="bb-up" data-code="${esc(code)}" title="Tải biên bản lên">＋ Ảnh</button>`;
+    if(daHuy(r)){
+      up = `<span class="bb-none" title="Task đã huỷ — khoá biên bản">—</span>`;
+    } else if(bbKhoa(r)){
+      up = `<button class="bb-up bb-off btn-disabled" disabled title="Task đã hoàn thành quá 96 giờ — khoá tải biên bản">＋ Ảnh</button>`;
+    } else {
+      up = `<button class="bb-up" data-code="${esc(code)}" title="Tải biên bản lên">＋ Ảnh</button>`;
+    }
   }
   return `<span class="bb-cell">${thumbs}${up}</span>`;
 }
 async function taiBienBanLen(files){
   if(!bbCode || !files || !files.length) return;
   const code=bbCode; const arr=[];
+  // Chốt chặn cuối: dò lại dòng theo mã — task ĐÃ HUỶ thì từ chối tải, kể cả khi nút bị ép click qua DOM
+  const rHuy=ROWS.find(r=>String(r[iCode]||'').trim()===code);
+  if(rHuy && daHuy(rHuy)){ toast("Task đã huỷ — biên bản đã bị khoá, không thể tải lên.", 'loi'); return; }
   for(const f of files){ if(!/^image\//.test(f.type)) continue;
     if(f.size>5*1024*1024){ toast("Ảnh "+(f.name||'')+" vượt 5MB — bỏ qua.", 'loi'); continue; }
     const b64=await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result).split(',')[1]); fr.readAsDataURL(f); });
@@ -2939,7 +2951,10 @@ document.addEventListener('click', e=>{
   if(rm){ e.preventDefault(); e.stopPropagation(); const g=rowGal[rm.dataset.mg]||[]; if(g.length) openLB(g,0); return; }
   // Cột Biên bản: nút tải lên / xem ảnh biên bản
   const bbu=e.target.closest('.bb-up');
-  if(bbu){ e.preventDefault(); e.stopPropagation(); bbCode=bbu.dataset.code; $('bbFile').value=''; $('bbFile').click(); return; }
+  if(bbu){ e.preventDefault(); e.stopPropagation();
+    // Khoá tầng JS: nút disabled/bb-off (task đã huỷ / đã đóng) -> bỏ qua mọi click lọt qua CSS
+    if(bbu.disabled || bbu.classList.contains('bb-off') || bbu.classList.contains('btn-disabled')) return;
+    bbCode=bbu.dataset.code; $('bbFile').value=''; $('bbFile').click(); return; }
   const bbt=e.target.closest('.bb-thumb');
   if(bbt){ e.preventDefault(); e.stopPropagation(); openLB([{url:bbt.dataset.bb,type:'img'}],0); return; }
   // Hạng mục 5S: bấm 1 hạng mục -> pop-up minh hoạ SAI/ĐÚNG
