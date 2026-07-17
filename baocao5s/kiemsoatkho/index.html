@@ -1532,6 +1532,9 @@ let dpView = {y:0,m:0}, selStart='', selEnd='', dpDragging=false;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// BẢO MẬT: chỉ cho phép URL http/https vào href/src (chặn javascript:, data:, ... từ dữ liệu Sheet).
+// Trả '' nếu không hợp lệ -> link/ảnh trỏ rỗng thay vì chạy mã. Luôn bọc trong esc() khi nhúng.
+const safeUrl = u => { const s=String(u==null?"":u).trim(); return /^https?:\/\//i.test(s) ? s : ""; };
 const isMedia = v => typeof v==="string" && v.indexOf("https://hr-media")===0;
 const isVideo = u => /\.(mp4|webm|mov|m4v|3gp)(\?|$)/i.test(u);
 const idxOf = kw => H.findIndex(h => (h||"").toLowerCase().includes(kw.toLowerCase()));
@@ -1551,14 +1554,14 @@ const statusHienThi = r => daHuy(r) ? "Đã huỷ" : dichStatus(r[iStatus]);
 const statusCell = r => {
   const txt = esc(statusHienThi(r));
   return r[iLink]
-    ? `<a class="status-link" href="${esc(r[iLink])}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">${txt}</a>`
+    ? `<a class="status-link" href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">${txt}</a>`
     : txt;
 };
 // Bản "badge" cho thẻ mobile
 const statusBadge = r => {
   const txt = esc(statusHienThi(r));
   return r[iLink]
-    ? `<a class="badge badge-link" href="${esc(r[iLink])}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">${txt}</a>`
+    ? `<a class="badge badge-link" href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">${txt}</a>`
     : `<span class="badge">${txt}</span>`;
 };
 
@@ -1646,7 +1649,7 @@ function thumbCell(r, gi, cls){
   const first = media[0];
   const thumb = first.type==='vid'
     ? `<span class="rm-thumb rm-vid"></span><span class="rm-play"></span>`   // ô CSS, KHÔNG tải video (mượt khi cuộn); bấm mới mở clip
-    : `<img class="rm-thumb" loading="lazy" decoding="async" src="${esc(first.url)}">`;
+    : `<img class="rm-thumb" loading="lazy" decoding="async" src="${esc(safeUrl(first.url))}">`;
   const badge = media.length>1 ? `<span class="media-badge">${media.length}</span>` : '';
   return `<span class="row-media rm-${cls}${media.length>1?' multi':''}" data-mg="${gi}" title="${media.length>1?'Có '+media.length+' ảnh/clip — bấm để xem':'Bấm để xem'}">${thumb}${badge}</span>`;
 }
@@ -2290,7 +2293,7 @@ function dongThongKe(){ $('statModal').classList.remove('show'); }
 /* ===== MODAL CHI TIẾT — HORIZONTAL STEPPER ===== */
 function moChiTiet(i){
   const r=ROWS[i];
-  $('mTitle').innerHTML = esc(r[iCode])+' — '+esc(r[iName]) + (r[iLink]?` · <a href="${esc(r[iLink])}" target="_blank" rel="noopener">mở task</a>`:'');
+  $('mTitle').innerHTML = esc(r[iCode])+' — '+esc(r[iName]) + (safeUrl(r[iLink])?` · <a href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener">mở task</a>`:'');
 
   // Gom cột theo bước (tiền tố trước "▸"), giữ thứ tự xuất hiện
   const order=[], groups={};
@@ -2337,8 +2340,8 @@ function moChiTiet(i){
     }
     // Khối hình ảnh/clip
     const mhtml = media.map((m,mi)=> m.type==='vid'
-      ? `<video class="thumb" src="${esc(m.url)}" preload="metadata" data-g="${si}" data-i="${mi}"></video>`
-      : `<img class="thumb" loading="lazy" src="${esc(m.url)}" data-g="${si}" data-i="${mi}">`).join('');
+      ? `<video class="thumb" src="${esc(safeUrl(m.url))}" preload="metadata" data-g="${si}" data-i="${mi}"></video>`
+      : `<img class="thumb" loading="lazy" src="${esc(safeUrl(m.url))}" data-g="${si}" data-i="${mi}">`).join('');
 
     const hasData = fields.some(f=>f.val!=="" && f.val!=null);
     const cls = !hasData ? 'empty' : 'done';
@@ -2389,8 +2392,8 @@ function openLB(list, idx){
 function renderLB(){
   const m=lbList[lbIdx]; if(!m) return;
   $('lbContent').innerHTML = m.type==='vid'
-    ? `<video src="${esc(m.url)}" controls autoplay></video>`
-    : `<img src="${esc(m.url)}" alt="">`;
+    ? `<video src="${esc(safeUrl(m.url))}" controls autoplay></video>`
+    : `<img src="${esc(safeUrl(m.url))}" alt="">`;
   $('lbCount').textContent = lbList.length>1 ? (lbIdx+1)+" / "+lbList.length : "";
 }
 function lbMove(step){ if(lbList.length<2) return; lbIdx=(lbIdx+step+lbList.length)%lbList.length; renderLB(); }
@@ -2887,7 +2890,7 @@ function bbCell(r){
   const code=String(r[iCode]||'').trim();
   const sheetUrls=(iBienBan>=0?String(r[iBienBan]||''):'').split(/[\n,]/).map(s=>s.trim()).filter(s=>/^https?:/.test(s));
   const imgs=[...new Set([...sheetUrls, ...(bbLocal[code]||[])])];
-  const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(bbThumb(u))}" loading="lazy" decoding="async" data-bb="${esc(bbFull(u))}" title="Xem biên bản">`).join('');
+  const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(safeUrl(bbThumb(u)))}" loading="lazy" decoding="async" data-bb="${esc(safeUrl(bbFull(u)))}" title="Xem biên bản">`).join('');
   // ĐÃ có biên bản -> ẩn nút tải lên; task ĐÃ HUỶ -> nút mờ/tắt NGAY (không có 96h ân hạn);
   // task HOÀN THÀNH >96h -> nút disabled (khoá bổ sung muộn)
   let up='';

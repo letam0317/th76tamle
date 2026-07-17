@@ -175,12 +175,16 @@ async function createTask(token, row, type00) {
   const options = await getType00Options(token);
   log("✓ Workflow có " + options.length + " lựa chọn 'Lỗi vi phạm'.");
 
-  let ok = 0, skip = 0, fail = 0;
+  const nghi = (ms) => new Promise((res) => setTimeout(res, ms));
+  let ok = 0, skip = 0, fail = 0, daTao = 0;
   for (const row of rows) {
     const type00 = matchType00(row.hangMuc, options);
     if (!type00) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": không khớp hạng mục «" + row.hangMuc.slice(0, 40) + "...»"); continue; }
     const coAnh = (row.images || []).some((m) => !/^video\//i.test(m.mime || "image/jpeg"));
     if (!coAnh) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": thiếu ẢNH (IMA00 bắt buộc; chỉ có video không tạo được task)."); continue; }
+    // THROTTLE: giãn 300ms giữa các lần createTask để không dội POST create-task khi tồn đọng lớn
+    if (daTao > 0) await nghi(300);
+    daTao++;
     try {
       const r = await createTask(token, row, type00);
       if (r.ok) { ok++; log("  ✓ Hàng " + row.row + " → task " + r.code + " (ảnh:" + (row._soAnh||0) + " video:" + (row._soVideo||0) + ")"); await markDone(row.row, r.code); }

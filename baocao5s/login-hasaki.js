@@ -172,8 +172,8 @@ async function tick() {
       if (conLai < 10) { if (!st.otpWaitLogged) { log("  … chờ mã OTP mới (còn " + conLai + "s)"); st.otpWaitLogged = true; } return; }
       const code = genOTP(); if (!code) return;
       await goOTP(code); st.otpDone = true;
-      if (DRY_OTP) { log("  ✓ [DRY-OTP] đã GÕ OTP " + code + " nhưng KHÔNG nộp. Kết thúc test."); setTimeout(() => browser.close().catch(() => {}), 800); return; }
-      log("  ✓ gõ OTP " + code + " (còn " + conLai + "s)");
+      if (DRY_OTP) { log("  ✓ [DRY-OTP] đã GÕ OTP (6 số, ẩn) nhưng KHÔNG nộp. Kết thúc test."); setTimeout(() => browser.close().catch(() => {}), 800); return; }
+      log("  ✓ gõ OTP (còn " + conLai + "s)");
       return;
     }
     // 5) Trang identifier (chỉ email) → bấm "Tiếp tục" khi Turnstile bật (bamNut chỉ trả nút ĐANG BẬT)

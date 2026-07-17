@@ -1,1 +1,34 @@
+# Danh bạ nhân sự khai tay — có PII, không commit
 nhansu-manual.json
+
+# ===== Bảo vệ secret KỂ CẢ KHI thư mục này bị tách thành repo riêng =====
+# (Trước đây chỉ dựa vào .gitignore của repo cha — copy đủ rule xuống đây để không mất bảo vệ.)
+
+# Bí mật — TUYỆT ĐỐI không đẩy lên git
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+*.secret
+credentials.json
+service-account*.json
+.wms-token.json
+
+# Crawler — sản phẩm gỡ lỗi (có thể lộ dữ liệu / phiên đăng nhập)
+debug-*.png
+debug-*.html
+.wms-session/
+wms_*.json
+ck_*.json
+*.xlsx
+node_modules/
+ui_*.png
+
+# Log & lockfile & marker chạy ngầm theo lịch (không commit)
+*.log
+*.lock
+.last-sync.json
+.exports/
+
+# Bản deploy Apps Script có SECRET thật — KHÔNG commit
+google-script-DEPLOY.gs

@@ -54,9 +54,10 @@ function doPost(e) {
     var duLieu = JSON.parse(e.postData.contents);
     if (duLieu && duLieu.action === 'syncTasks') return apiSyncTasks(duLieu);   // nhánh đồng bộ dashboard
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
-    // Tồn mã vị trí: nút dashboard (public, cooldown tự bảo vệ) + 2 action máy-gọi-máy (cần SECRET)
-    if (duLieu && duLieu.action === 'force_sync_wms') return apiForceSyncWms();
-    if (duLieu && duLieu.action === 'force_sync_kiemke') return apiForceSyncKiemke();   // Kiểm kê: tab riêng, cap 2 trang test, cooldown 15'
+    // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu — BẮT BUỘC SECRET (không để khách vô danh
+    // kích GAS gọi WMS "mượn" token). Frontend không gọi 2 action này → siết SECRET không đổi thao tác.
+    if (duLieu && duLieu.action === 'force_sync_wms') return ((duLieu.key || '') === SECRET) ? apiForceSyncWms() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'force_sync_kiemke') return ((duLieu.key || '') === SECRET) ? apiForceSyncKiemke() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'saveWmsToken') return ((duLieu.key || '') === SECRET) ? apiSaveWmsToken(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'setStockMeta') return ((duLieu.key || '') === SECRET) ? apiSetStockMeta(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     var sheet = layHoacTaoSheet();
@@ -441,13 +442,21 @@ function apiLastSync(e) {
 function apiUploadBienBan(duLieu) {
   var code = String(duLieu.code || '').trim();
   if (!code) return phanHoiJson({ status: 'error', message: 'Thiếu mã task' });
+  // BẢO MẬT: bắt buộc đúng PIN + giới hạn số/loại/kích thước ảnh (trước đây công khai → ai cũng nhồi tệp).
+  if (String(duLieu.pin || '') !== SYNC_PIN) return phanHoiJson({ status: 'error', message: 'Sai PIN' });
   var files = duLieu.files || [];
+  if (!files.length) return phanHoiJson({ status: 'error', message: 'Không có ảnh' });
+  if (files.length > 10) return phanHoiJson({ status: 'error', message: 'Tối đa 10 ảnh/lần' });
   var it = DriveApp.getFoldersByName('WMS-5S-BIENBAN');
   var folder = it.hasNext() ? it.next() : DriveApp.createFolder('WMS-5S-BIENBAN');
   var urls = [];
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
-    var blob = Utilities.newBlob(Utilities.base64Decode(f.base64), f.mime || 'image/jpeg', f.name || ('bienban_' + code + '_' + new Date().getTime() + '.jpg'));
+    var mime = String(f.mime || 'image/jpeg');
+    if (!/^image\//.test(mime)) return phanHoiJson({ status: 'error', message: 'Chỉ chấp nhận tệp ảnh (' + mime + ')' });
+    var b64 = String(f.base64 || '');
+    if (b64.length * 3 / 4 > 5 * 1024 * 1024) return phanHoiJson({ status: 'error', message: 'Ảnh vượt 5MB' });
+    var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, f.name || ('bienban_' + code + '_' + new Date().getTime() + '.jpg'));
     var file = folder.createFile(blob);
     try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
     urls.push('https://drive.google.com/uc?export=view&id=' + file.getId());
