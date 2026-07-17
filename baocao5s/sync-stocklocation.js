@@ -186,6 +186,35 @@ const toRow = (r) => [r.sku ?? "", r.barcode ?? "", r.product_name ?? "", r.loca
   r.category_name ?? "", r.warehouse_name ?? "", num(r.count_inbin), "", "", "", "", num(r.quantity),
   fmtNgay(r.created_at), fmtNgay(r.updated_at), r.storage_type_name ?? "", r.product_type_name ?? "", r.shelf_life ?? ""];
 
+/* ---------- Snapshot lịch sử (tab "history"): mỗi ngày 1 bộ dòng theo kho ----------
+   Dashboard vẽ chart "SKU đã lên kệ theo ngày" từ tab này; cùng ngày có nhiều lần sync
+   thì dashboard tự lấy dòng ghi SAU CÙNG (không cần xoá dòng cũ). */
+const HIST_HEADER = ["Date", "Division", "Warehouse", "SkuShelf", "SkuPend", "ApiAt"];
+const laPend = (loc) => { const s = String(loc || "").trim().toUpperCase(); return s.indexOf("F0-A0") === 0 || s.indexOf("F00-A00") === 0; };
+function tinhLichSu(ketQua, apiAt) {
+  const ngay = new Date(apiAt).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });   // yyyy-mm-dd
+  const rows = [];
+  for (const { cfg, rows: rs } of ketQua) {
+    const kho = {};   // warehouse -> {sh:Set SKU đã lên kệ, pe:Set SKU chưa lên kệ}
+    for (const r of rs) {   // toRow: 0 SKU, 3 LocationDescription, 6 Warehouse
+      const wh = r[6] || "";
+      if (!kho[wh]) kho[wh] = { sh: new Set(), pe: new Set() };
+      (laPend(r[3]) ? kho[wh].pe : kho[wh].sh).add(r[0]);
+    }
+    for (const wh of Object.keys(kho)) rows.push([ngay, cfg.ten, wh, kho[wh].sh.size, kho[wh].pe.size, apiAt]);
+  }
+  return rows;
+}
+async function ghiLichSu(ketQua, apiAt) {
+  const rows = tinhLichSu(ketQua, apiAt);
+  if (!rows.length) return;
+  const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: "history", sheetId: SHEET_ID, header: HIST_HEADER, rows, append: true, apiAt });
+  const r = await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body });
+  const j = JSON.parse(await r.text());
+  if (j.status !== "success") throw new Error(j.message || "?");
+  log("  ✓ history: đã ghi snapshot " + rows.length + " dòng (" + rows[0][0] + ").");
+}
+
 /* ---------- Ghi 1 tab: gói đầu clear + header, các gói sau append ---------- */
 async function ghiTab(tab, rows, apiAt) {
   for (let i = 0; i < rows.length; i += CHUNK) {
@@ -249,6 +278,11 @@ async function ghiTab(tab, rows, apiAt) {
     if (!rows.length) { log("✗ " + cfg.ten + ": 0 dòng sau lọc — BỎ QUA ghi tab " + cfg.tab + " (không xoá trắng)."); loi++; continue; }
     try { await ghiTab(cfg.tab, rows, apiAt); }
     catch (e) { log("✗ " + cfg.ten + ": " + e.message); loi++; }
+  }
+  // Snapshot lịch sử theo ngày (best-effort — lỗi không tính vào `loi`, không chặn Metadata)
+  if (!loi) {
+    try { await ghiLichSu(ketQua, apiAt); }
+    catch (e) { log("  ⚠ Không ghi được snapshot history: " + e.message); }
   }
   // Ghi mốc đồng bộ vào tab Metadata (dashboard hiển thị "cập nhật lúc" + mốc cooldown 4h của nút Tải lại)
   if (!loi) {
