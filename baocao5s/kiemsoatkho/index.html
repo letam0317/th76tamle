@@ -1788,16 +1788,37 @@ function napLoc(){
   if(iLoi>=0) $('fLoi').innerHTML='<option value="">Tất cả</option>'+uniq(iLoi).map(v=>`<option>${esc(v)}</option>`).join('');
 }
 
+/* ===== LỌC LIÊN HOÀN (chain-filtering): Data gốc -> Ngày -> Trạng thái -> Lỗi -> Search -> Bảng.
+   Mỗi bước ở giá trị mặc định ("Tất cả"/rỗng) thì return true (bỏ qua bước đó).
+   Search: case-insensitive + đa trường (vị trí, mã task, lỗi, mã/tên NV, QL trực tiếp, TRẠNG THÁI). ===== */
 function loc(){
-  const st=$('fStatus').value, lo=$('fLoi').value;
+  const st =$('fStatus').value.trim();
+  const lo =$('fLoi').value.trim();
   const tim=$('fTim').value.toLowerCase().trim();
-  return ROWS.filter(r=>{
+
+  // Bước 1 — Ngày (gFrom/gTo do date-picker chốt)
+  const locNgay = r => {
+    if(!gFrom && !gTo) return true;
     const ng=ngayISO(r[iNgayVP]);
-    if(gFrom&&ng&&ng<gFrom)return false; if(gTo&&ng&&ng>gTo)return false;
-    if(st&&statusHienThi(r)!==st)return false; if(lo&&r[iLoi]!==lo)return false;
-    if(tim&&!((String(r[iViTri])+" "+r[iCode]+" "+r[iLoi]+" "+codeVP(r)+" "+nameVP(r)+" "+(iQLTT>=0?r[iQLTT]:"")).toLowerCase().includes(tim)))return false;
+    if(!ng) return true;                       // dòng không có ngày: không loại oan
+    if(gFrom && ng<gFrom) return false;
+    if(gTo   && ng>gTo)   return false;
     return true;
-  });
+  };
+  // Bước 2 — Trạng thái (so trên statusHienThi: đã quy đổi cancel-Điều-hướng -> "Đã huỷ")
+  const locStatus = r => !st || statusHienThi(r)===st;
+  // Bước 3 — Lỗi vi phạm
+  const locLoi = r => !lo || String(r[iLoi]||'').trim()===lo;
+  // Bước 4 — Search text đa trường, không phân biệt hoa thường
+  const locTim = r => {
+    if(!tim) return true;
+    const hay=[ r[iViTri], r[iCode], r[iLoi], codeVP(r), nameVP(r),
+                (iQLTT>=0?r[iQLTT]:''), statusHienThi(r) ]
+      .map(v=>String(v==null?'':v).toLowerCase()).join(' ');
+    return hay.includes(tim);
+  };
+
+  return ROWS.filter(r => locNgay(r) && locStatus(r) && locLoi(r) && locTim(r));
 }
 
 const the=(cap,num,cls,stat)=>`<div class="card clickable" data-stat="${stat}" title="Bấm để xem chi tiết"><div class="num" ${cls?`style="color:${cls}"`:''}>${num}</div><div class="cap">${cap}</div></div>`;
@@ -3016,7 +3037,12 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='ArrowRight') lbMove(1);
 });
 
-['fStatus','fLoi','fTim'].forEach(id=>$(id).addEventListener('input',render));
+// Bộ lọc Task vi phạm: nghe CẢ 'input' lẫn 'change' — custom dropdown (enhanceSelect) bắn 'change',
+// gõ phím bắn 'input'; render() debounce qua rAF nên trùng event không vẽ 2 lần.
+['fStatus','fLoi','fTim'].forEach(id=>{
+  const el=$(id);
+  ['input','change'].forEach(ev=>el.addEventListener(ev,render));
+});
 $('hmTim').addEventListener('input',renderQuyDinh);
 $('btnGhiNhan').addEventListener('click',moGhiNhan);
 $('gmClose').addEventListener('click',dongGhiNhan);
@@ -3081,7 +3107,10 @@ function enhanceSelect(sel){
   const dongBo=()=>{ const o=sel.options[sel.selectedIndex]; lab.textContent=o?o.text:''; };
   const dung=()=>{ list.innerHTML=''; [...sel.options].forEach((o,i)=>{
     const li=document.createElement('li'); li.className='cs-opt'+(i===sel.selectedIndex?' sel':''); li.textContent=o.text; li.setAttribute('role','option');
-    li.addEventListener('click', ev=>{ ev.stopPropagation(); sel.selectedIndex=i; dongBo(); sel.dispatchEvent(new Event('change',{bubbles:true})); dong(); });
+    li.addEventListener('click', ev=>{ ev.stopPropagation(); sel.selectedIndex=i; dongBo();
+      // Mô phỏng đúng select native: bắn 'input' TRƯỚC rồi 'change' — mọi listener đều nhận được
+      sel.dispatchEvent(new Event('input',{bubbles:true}));
+      sel.dispatchEvent(new Event('change',{bubbles:true})); dong(); });
     list.appendChild(li); }); };
   const mo=()=>{ csDongHet(wrap); dung(); wrap.classList.add('show'); trig.setAttribute('aria-expanded','true'); };
   const dong=()=>{ wrap.classList.remove('show'); trig.setAttribute('aria-expanded','false'); };
