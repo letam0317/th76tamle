@@ -32,3 +32,5 @@ ui_*.png
 
 # Bản deploy Apps Script có SECRET thật — KHÔNG commit
 google-script-DEPLOY.gs
+# Thư mục làm việc clasp (chứa code kéo về từ script live + có secret) — KHÔNG commit
+.clasp-deploy/
