@@ -2867,12 +2867,12 @@ function bbCell(r){
   const sheetUrls=(iBienBan>=0?String(r[iBienBan]||''):'').split(/[\n,]/).map(s=>s.trim()).filter(s=>/^https?:/.test(s));
   const imgs=[...new Set([...sheetUrls, ...(bbLocal[code]||[])])];
   const thumbs=imgs.map(u=>`<img class="bb-thumb" src="${esc(bbThumb(u))}" loading="lazy" decoding="async" data-bb="${esc(bbFull(u))}" title="Xem biên bản">`).join('');
-  // ĐÃ có biên bản -> ẩn nút tải lên; task ĐÃ HUỶ -> KHÔNG render nút (mọi cổng tương tác bị khoá);
+  // ĐÃ có biên bản -> ẩn nút tải lên; task ĐÃ HUỶ -> nút mờ/tắt NGAY (không có 96h ân hạn);
   // task HOÀN THÀNH >96h -> nút disabled (khoá bổ sung muộn)
   let up='';
   if(!imgs.length){
     if(daHuy(r)){
-      up = `<span class="bb-none" title="Task đã huỷ — khoá biên bản">—</span>`;
+      up = `<button class="bb-up bb-off btn-disabled" disabled title="Task đã huỷ — khoá tải biên bản">＋ Ảnh</button>`;
     } else if(bbKhoa(r)){
       up = `<button class="bb-up bb-off btn-disabled" disabled title="Task đã hoàn thành quá 96 giờ — khoá tải biên bản">＋ Ảnh</button>`;
     } else {
