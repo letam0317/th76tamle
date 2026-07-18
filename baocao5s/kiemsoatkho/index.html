@@ -690,6 +690,13 @@ tbody td.c-bb{width:118px; white-space:normal;}
 .bb-cell{display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap;}
 /* thumbnail biên bản: cùng cỡ/kiểu với thumbnail cột Hình ảnh */
 .bb-thumb{width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid var(--border); background:var(--surface2); cursor:zoom-in;}
+/* Clip đính kèm trong bình luận: khung giống ảnh + dấu ▶ báo là video */
+.bb-vid{position:relative;}
+.bb-thumbwrap{position:relative; display:inline-block; line-height:0;}
+.bb-thumbwrap::after{content:"▶"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); pointer-events:none;}
+/* File không hiển thị trực tiếp (HEIC…): chip nhấn để mở/tải */
+.bb-file{display:inline-flex; align-items:center; justify-content:center; gap:4px; width:44px; height:44px; border-radius:6px; border:1px dashed var(--border); background:var(--surface2); color:var(--muted); font-size:10px; font-weight:700; text-decoration:none; cursor:pointer;}
+.bb-file:hover{border-color:var(--accent); color:var(--accent);}
 /* task hoàn thành >96h: nút +Ảnh làm mờ/tắt */
 .bb-up.bb-off{opacity:.35; pointer-events:none; cursor:not-allowed;}
 /* Khoá tầng UI: nút bị vô hiệu (task đã huỷ / đã đóng) — chặn mọi click bằng CSS */
@@ -2361,7 +2368,12 @@ function moChiTiet(i){
     cmtBody=cmtL.map(c=>`<div class="cmt">
       <div class="cmt-h"><b>${esc(c.ten)}</b>${c.ma?` <span class="muted">(${esc(c.ma)})</span>`:''}<span class="cmt-luc">${esc(fmtNgay(c.luc))}</span></div>
       ${String(c.nd||'').trim()?`<div class="cmt-nd">${esc(c.nd)}</div>`:''}
-      ${(c.files&&c.files.length)?`<div class="thumbs">${c.files.map(f=>`<img class="bb-thumb" loading="lazy" src="${MB}${esc(f)}" data-bb="${MB}${esc(f)}" title="Xem ảnh đính kèm">`).join('')}</div>`:''}
+      ${(c.files&&c.files.length)?`<div class="thumbs">${c.files.map(f=>{
+        const u=MB+f;                                   // f là path tương đối trên hr-media (host cố định https)
+        if(isVideo(f)) return `<span class="bb-thumbwrap"><video class="bb-thumb bb-vid" preload="metadata" muted playsinline src="${esc(u)}#t=0.1" data-bb="${esc(u)}" title="Xem clip đính kèm"></video></span>`;
+        if(/\.heic(\?|$)/i.test(f)) return `<a class="bb-file" href="${esc(u)}" target="_blank" rel="noopener" title="Ảnh HEIC — trình duyệt không hiển thị trực tiếp, nhấn để mở/tải">HEIC ⇱</a>`;
+        return `<img class="bb-thumb" loading="lazy" src="${esc(u)}" data-bb="${esc(u)}" title="Xem ảnh đính kèm">`;
+      }).join('')}</div>`:''}
     </div>`).join('');
   } else {
     // dự phòng: cột "bình luận/comment" trong dữ liệu export (nếu sau này có)
@@ -2980,7 +2992,7 @@ document.addEventListener('click', e=>{
     if(bbu.disabled || bbu.classList.contains('bb-off') || bbu.classList.contains('btn-disabled')) return;
     bbCode=bbu.dataset.code; $('bbFile').value=''; $('bbFile').click(); return; }
   const bbt=e.target.closest('.bb-thumb');
-  if(bbt){ e.preventDefault(); e.stopPropagation(); openLB([{url:bbt.dataset.bb,type:'img'}],0); return; }
+  if(bbt){ e.preventDefault(); e.stopPropagation(); openLB([{url:bbt.dataset.bb,type:isVideo(bbt.dataset.bb)?'vid':'img'}],0); return; }
   // Hạng mục 5S: bấm 1 hạng mục -> pop-up minh hoạ SAI/ĐÚNG
   const hm=e.target.closest('[data-hm]');
   if(hm){ moHinhHangMuc(+hm.dataset.hm); return; }

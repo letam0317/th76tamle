@@ -30,7 +30,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenTuPhucHoi } from "./auto-login.js";
+import { layTokenTuPhucHoi, coSecret, chayAutoLogin } from "./auto-login.js";
 import { voiKhoa, luuToken } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -96,12 +96,26 @@ async function getWmsToken() {
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE_PATH, userDataDir: PROFILE_DIR, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());
-    let token = null;
-    page.on("request", (req) => { const a = req.headers()["authorization"]; if (a && /wms-gw\.inshasaki\.com/.test(req.url()) && !token) token = a; });
+    // App WMS có thể còn giữ JWT CŨ trong localStorage → request đầu tiên mang token chết.
+    // Vì vậy token chụp được chỉ là ỨNG VIÊN: kiểm sống bằng get-me NGAY TRONG VÒNG LẶP;
+    // chết thì đưa vào sổ loại, xoá phiên WMS cũ và ép đi lại luồng SSO (/auth/login).
+    let token = null, ungVien = null;
+    const daLoai = new Set();
+    page.on("request", (req) => { const a = req.headers()["authorization"]; if (a && /wms-gw\.inshasaki\.com/.test(req.url()) && !ungVien && !token && !daLoai.has(a)) ungVien = a; });
     const trang = "https://wms.inshasaki.com/report/beta/stock-location?company_ids=1002&ignore_zero_total=1&page=1&size=20&warehouse_ids=" + encodeURIComponent(BO[0].warehouses);
     await page.goto(trang, { waitUntil: "networkidle2", timeout: 90000 }).catch(() => {});
     let lanBam = 0, lanXacNhan = 0;
-    for (let i = 0; i < 75 && !token; i++) {
+    for (let i = 0; i < 90 && !token; i++) {
+      if (ungVien) {
+        const thu = /^Bearer /i.test(ungVien) ? ungVien : "Bearer " + ungVien;
+        const me = await fetch(GET_ME, { headers: { authorization: thu } }).catch(() => null);
+        if (me && me.ok) { token = thu; break; }
+        daLoai.add(ungVien); ungVien = null;
+        log("  ⚠ Token chụp được đã chết (get-me " + (me ? me.status : "lỗi mạng") + ") — xoá phiên WMS cũ, đi lại luồng SSO...");
+        await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* bỏ qua */ } }).catch(() => {});
+        await page.goto("https://wms.inshasaki.com/auth/login", { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+        continue;
+      }
       const url = page.url();
       if (/wms\.inshasaki\.com\/auth\/login/.test(url) && Date.now() - lanBam > 5000) {
         const bam = await page.evaluate(() => {
@@ -120,19 +134,19 @@ async function getWmsToken() {
         if (bam) { lanXacNhan = Date.now(); log("  → xác nhận đăng nhập thiết bị này (đăng xuất thiết bị kia): bấm '" + bam + "'"); }
       } else if (/wms\.inshasaki\.com/.test(url) && !/\/auth\//.test(url)) {
         // Đã vào app mà request chưa bắt được → dự phòng đọc JWT trong localStorage.auth_store
+        // (cũng chỉ là ỨNG VIÊN — vòng lặp trên sẽ kiểm sống trước khi dùng)
         try {
           const raw = await page.evaluate(() => localStorage.getItem("auth_store") || "");
           const jwt = String(raw).match(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g);
-          if (jwt && jwt.length) token = "Bearer " + jwt.sort((a, b) => b.length - a.length)[0];
+          if (jwt && jwt.length) {
+            const t = "Bearer " + jwt.sort((a, b) => b.length - a.length)[0];
+            if (!daLoai.has(t)) ungVien = t;
+          }
         } catch { /* trang đang chuyển hướng OIDC */ }
       }
       await new Promise((r) => setTimeout(r, 1000));
     }
-    if (!token) throw new Error("Phiên WMS (wms.inshasaki.com) đã hết hạn — không chụp được token (kẹt ở " + page.url().slice(0, 80) + ").");
-    token = /^Bearer /i.test(token) ? token : "Bearer " + token;
-    // Kiểm sống TRƯỚC khi trả về/cache — auth_store có thể còn giữ JWT cũ đã hết hạn
-    const me = await fetch(GET_ME, { headers: { authorization: token } }).catch(() => null);
-    if (!me || me.status === 401 || me.status === 403) throw new Error("Token WMS chụp được nhưng bị từ chối (get-me " + (me ? me.status : "lỗi mạng") + ").");
+    if (!token) throw new Error("Phiên WMS (wms.inshasaki.com) đã hết hạn — không chụp được token sống (kẹt ở " + page.url().slice(0, 80) + ").");
     return token;
   } finally { await browser.close().catch(() => {}); }
 }
@@ -160,6 +174,11 @@ async function keoTatCa(token, cfg) {
     if (count != null && records.length >= count) break;
     await nghi(500);   // nghỉ 0.5s giữa các trang — kéo tuần tự, không dội request lên WMS
     const r = await fetchRetry(urlBo(cfg, page, size), { headers: { authorization: token } });
+    if (r.status === 401 || r.status === 403) {
+      // WMS giới hạn 1 phiên/thiết bị — ai đó đăng nhập giữa chừng là token bị đá ngay.
+      const e = new Error("Token WMS bị đá giữa chừng (trang " + page + ", HTTP " + r.status + ", cty " + cfg.company + ").");
+      e.auth = true; throw e;
+    }
     if (!r.ok) throw new Error("Trang " + page + " lỗi HTTP " + r.status + " (cty " + cfg.company + ").");
     const recs = layRecords(await r.json().catch(() => null)) || [];
     if (!recs.length) break;
@@ -234,13 +253,29 @@ async function ghiTab(tab, rows, apiAt) {
     if (!caps || caps.extSheet !== true) { log("✗ Apps Script chưa redeploy bản hỗ trợ sheetId ngoài (caps.extSheet). Dán google-script-DEPLOY.gs và Triển khai lại. BỎ QUA."); process.exit(3); }
   }
 
+  // Chụp token mới dưới khoá; getWmsToken thất bại (phiên IdP cũng chết) mà có secret
+  // thì tự đăng nhập lại ĐƠN LƯỢT rồi chụp lần cuối — không bỏ cuộc chỉ vì token đầu chết.
+  async function lamTuoiToken() {
+    let t;
+    try { t = await voiKhoa(DIR, getWmsToken, { log }); }
+    catch (e) {
+      if (!coSecret()) throw e;
+      log("  ⚠ " + e.message);
+      log("  ⚠ Chụp token thất bại — tự đăng nhập lại rồi chụp lần cuối...");
+      const ok = await chayAutoLogin(DIR);
+      if (!ok) throw new Error("Tự đăng nhập lại thất bại. " + e.message);
+      t = await voiKhoa(DIR, getWmsToken, { log });
+    }
+    luuToken(DIR, "wms", t);
+    return t;
+  }
+
   // 1) Token WMS: ưu tiên kho token (app "wms"); chết thì auto-login đơn lượt lo phần đăng nhập
   let token = await layTokenTuPhucHoi(getWmsToken, DIR, log, "wms").catch((e) => { log("✗ " + e.message); process.exit(2); });
   const me = await fetchRetry(GET_ME, { headers: { authorization: token } });
   if (me.status === 401 || me.status === 403) {
     log("  ⚠ Token wms trong kho đã cũ — chụp lại từ phiên Edge...");
-    token = await voiKhoa(DIR, getWmsToken, { log });
-    luuToken(DIR, "wms", token);
+    token = await lamTuoiToken();
   }
   log("✓ Token WMS sẵn sàng.");
   // Đẩy token mới nhất lên GAS (Script Properties) — nút "Tải lại dữ liệu" trên dashboard
@@ -257,7 +292,15 @@ async function ghiTab(tab, rows, apiAt) {
   const ketQua = [];
   for (const cfg of BO) {
     if (ketQua.length) await nghi(1000);   // nghỉ 1s giữa 2 công ty
-    const tho = await keoTatCa(token, cfg);
+    let tho;
+    try { tho = await keoTatCa(token, cfg); }
+    catch (e) {
+      if (!e.auth) throw e;
+      // Token bị đá giữa chừng (WMS 1 phiên/thiết bị) → lấy token mới rồi kéo lại TRỌN bộ này
+      log("  ⚠ " + e.message + " Lấy token mới rồi kéo lại từ đầu bộ " + cfg.ten + "...");
+      token = await lamTuoiToken();
+      tho = await keoTatCa(token, cfg);
+    }
     const giu = new Set(cfg.khoGiuLai.map(chuanKho));
     const loc = tho.filter((r) => giu.has(chuanKho(r.warehouse_name)));
     const khoLa = [...new Set(tho.map((r) => chuanKho(r.warehouse_name)))].filter((k) => !giu.has(k));
