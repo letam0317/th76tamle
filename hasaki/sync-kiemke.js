@@ -17,7 +17,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
 const SHEET_ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 // CT1 KIẾN TRÚC KÉP: 2 sheet tách biệt cho Kiểm kê SKU và Kiểm kê Location
 const TAB_SKU = "kiemke-sku";

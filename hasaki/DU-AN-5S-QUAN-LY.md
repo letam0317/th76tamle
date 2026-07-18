@@ -244,7 +244,7 @@ HASAKI_EMAIL=<bí mật — xem .env>         # email SSO Hasaki
 HASAKI_PASSWORD=<bí mật — xem .env>      # đổi mật khẩu công ty thì chỉ sửa dòng này
 
 # (tuỳ chọn)
-# EDGE_PROFILE_DIR=C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile
+# EDGE_PROFILE_DIR=C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile
 # DOWNLOADS_DIR=C:/Users/lechitam/Downloads
 ```
 

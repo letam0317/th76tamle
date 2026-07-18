@@ -29,3 +29,9 @@ ui_*.png
 .exports/
 # Ban deploy Apps Script co SECRET that — KHONG commit
 google-script-DEPLOY.gs
+
+# Backup on dinh (chua .env + GAS secret + task XML) — khong commit
+_backup*/
+
+# Repo Pages doc lap (nested git) — khong theo doi trong repo ngoai
+factory/

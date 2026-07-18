@@ -27,7 +27,7 @@ const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/ma
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const WORKFLOW_ID = process.env.WORKFLOW_ID || "591";
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
 const SYNC_FROM = process.env.SYNC_FROM || "2026-04-01";   // mốc bắt đầu (workflow 5S khởi động ~4/2026) — chỉ dùng khi FULL
 const ROLL_DAYS = Number(process.env.ROLL_DAYS || 45);     // cửa sổ an toàn LUÔN refresh (bắt task mới / task bị mở lại)
 const FULL_RESYNC = process.env.FULL_RESYNC === "1";       // ép đồng bộ TOÀN BỘ từ SYNC_FROM (bỏ qua cache) — chạy tay khi cần

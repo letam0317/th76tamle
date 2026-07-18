@@ -31,7 +31,7 @@ const LOCK = path.join(DIR, ".login-open.lock");
 const xoaLock = () => { try { fs.rmSync(LOCK, { force: true }); } catch {} };
 
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
 const EMAIL = process.env.HASAKI_EMAIL || "";
 const PASSWORD = process.env.HASAKI_PASSWORD || "";
 const SECRET = (process.env.HASAKI_2FA_SECRET || "").replace(/\s+/g, "");

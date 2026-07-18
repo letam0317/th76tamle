@@ -32,7 +32,7 @@ if (!APPSCRIPT_KEY) {
 }
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 // Profile Edge ổn định (gitignore qua .wms-session/) — KHÔNG để trong Temp để lịch chạy ngầm khỏi mất phiên.
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
 const API_CREATE = "https://wshr.hasaki.vn/api/hr/projects/create-task-workflow";
 const API_WORKFLOW = "https://wshr.hasaki.vn/api/hr/workflows/" + WORKFLOW_ID;
 const MATCH_THRESHOLD = 0.55;                        // ngưỡng khớp hạng mục

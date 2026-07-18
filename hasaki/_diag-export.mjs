@@ -3,7 +3,7 @@
 import puppeteer from "puppeteer";
 import "dotenv/config";
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile";
+const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
 const WFID = process.env.WORKFLOW_ID || "591";
 const API = "https://wshr.hasaki.vn/api/hr/excel-io";
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);

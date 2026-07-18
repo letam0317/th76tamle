@@ -8,8 +8,8 @@
 
 ```bash
 # 1.1 Clone repo (hoặc tải về)
-git clone <repo> baocao5s
-cd baocao5s
+git clone <repo> hasaki
+cd hasaki
 
 # 1.2 Copy .env.example → .env
 node -e "import('node:fs').then(fs=>{
@@ -45,7 +45,7 @@ WORKFLOW_ID=591
 STAFF_ID=17312              # Mặc định giao cho ai (Lê Chí Tâm)
 
 # Đường dẫn Edge (Windows)
-EDGE_PROFILE_DIR=C:/Users/lechitam/New folder/baocao5s/.wms-session/edge-profile
+EDGE_PROFILE_DIR=C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile
 
 # Mốc đồng bộ
 SYNC_FROM=2026-04-01
@@ -102,7 +102,7 @@ Script: C:\path\to\DAY-BAO-CAO-5S.bat
 **Nội dung DAY-BAO-CAO-5S.bat:**
 ```batch
 @echo off
-cd /d "C:\Users\lechitam\New folder\baocao5s"
+cd /d "C:\Users\lechitam\New folder\hasaki"
 node push-5s-to-workflow.js >> day-bao-cao-5s.log 2>&1
 exit /b 0
 ```
@@ -131,7 +131,7 @@ Script: C:\path\to\DONG-BO-TASK.bat
 **Nội dung DONG-BO-TASK.bat:**
 ```batch
 @echo off
-cd /d "C:\Users\lechitam\New folder\baocao5s"
+cd /d "C:\Users\lechitam\New folder\hasaki"
 node auto-export-sync.js >> dong-bo-task.log 2>&1
 exit /b 0
 ```
