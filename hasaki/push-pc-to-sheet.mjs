@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { tokenCon, luuToken } from "./token-store.js";
+import { tokenCon, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -18,8 +18,16 @@ const SHEET_ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 const GW = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklists";
 const GET_ME = "https://wms-gw.inshasaki.com/api/v1/auth/user/get-me";
 const SIZE = 500, CHUNK = 4000;
-// Kéo theo khoảng ngày ĐẾM (bỏ lọc kho) rồi giữ cả 2 kho material — MTG + GARMENT
-const PARAMS = { from_counted_date: "1781456400000", to_counted_date: "1784134799999" };
+// Kéo theo khoảng ngày ĐẾM (bỏ lọc kho) rồi giữ cả 2 kho material — MTG + GARMENT.
+// KHOẢNG NGÀY ĐỘNG để chạy theo lịch hằng ngày: [hôm nay - PC_TU_NGAY .. hết hôm nay] giờ VN (+07).
+// Override khi cần chạy tay: PC_TU_NGAY=180 (số ngày) hoặc PC_FROM_MS / PC_TO_MS (epoch ms tuyệt đối).
+const _vn = new Date(Date.now() + 7 * 3600 * 1000);
+const _d0 = Date.UTC(_vn.getUTCFullYear(), _vn.getUTCMonth(), _vn.getUTCDate()) - 7 * 3600 * 1000;   // 00:00 hôm nay giờ VN
+const PC_TU_NGAY = Number(process.env.PC_TU_NGAY || 90);
+const PARAMS = {
+  from_counted_date: process.env.PC_FROM_MS || String(_d0 - PC_TU_NGAY * 86400000),
+  to_counted_date: process.env.PC_TO_MS || String(_d0 + 86400000 - 1),
+};
 const chuanKho = (s) => String(s || "").replace(/\s+/g, " ").trim().toUpperCase();
 const KEEP = new Set(["WH - MATERIAL - MTG", "WH - MATERIAL - GARMENT"].map(chuanKho));
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -31,8 +39,8 @@ const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Ty
 
 async function getTokenLive() {
   const puppeteer = (await import("puppeteer")).default;
-  const EDGE = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-  const PROFILE = process.env.EDGE_PROFILE_DIR || path.join(DIR, ".wms-session", "edge-profile");
+  const EDGE = EDGE_PATH;
+  const PROFILE = duongDanProfile(DIR);
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE, userDataDir: PROFILE, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());
