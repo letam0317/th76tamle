@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { tokenCon, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { chanReLoginNgoaiKhung, layBridgeToken, thoatTheoLoi } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -38,6 +39,9 @@ const HEADER_SKU = ["No.", "ID", "Request code", "Source code", "Warehouse", "SK
 const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Type", "Location", "Priority", "Diff", "Assign to", "Counted by", "Counted date", "Updated At", "Plan Date", "Status"];
 
 async function getTokenLive() {
+  // LUẬT 1 (session-rules): token BRIDGE trước — phiên đang sống của operator, không đá ai.
+  const quaBridge = await layBridgeToken(log);
+  if (quaBridge) return quaBridge;
   const puppeteer = (await import("puppeteer")).default;
   const EDGE = EDGE_PATH;
   const PROFILE = duongDanProfile(DIR);
@@ -50,7 +54,7 @@ async function getTokenLive() {
     let b = 0, x = 0;
     for (let i = 0; i < 90 && !good; i++) {
       const u = page.url();
-      if (/auth\/login/.test(u) && Date.now() - b > 5000) { const ok = await page.evaluate(() => { const e = [...document.querySelectorAll("button,[role=button],a")].find((z) => /SSO/i.test(z.innerText || "")); if (e) { e.click(); return 1; } }).catch(() => 0); if (ok) { b = Date.now(); log("  → bấm SSO..."); } }
+      if (/auth\/login/.test(u) && Date.now() - b > 5000) { chanReLoginNgoaiKhung(log); const ok = await page.evaluate(() => { const e = [...document.querySelectorAll("button,[role=button],a")].find((z) => /SSO/i.test(z.innerText || "")); if (e) { e.click(); return 1; } }).catch(() => 0); if (ok) { b = Date.now(); log("  → bấm SSO..."); } }
       else if (/sso\/callback/.test(u) && Date.now() - x > 5000) { const t = await page.evaluate(() => { const c = [...document.querySelectorAll("button,[role=button]")].filter((z) => z.offsetParent !== null && !z.disabled); const e = c.find((z) => /đồng ý|dong y|tiếp tục|xác nhận|đăng nhập|^ok$|confirm|yes/i.test((z.innerText || "").trim()) && !/hủy|cancel|đóng|không/i.test((z.innerText || "").trim())); if (e) { e.click(); return (e.innerText || "").trim(); } }).catch(() => null); if (t) { x = Date.now(); log("  → xác nhận thiết bị: " + t); } }
       if (token) { const me = await fetch(GET_ME, { headers: { authorization: token } }).catch(() => null); if (me && me.status === 200) { good = token; break; } }
       await nghi(1000);
@@ -120,4 +124,4 @@ async function ghiTab(tab, header, rows, apiAt) {
   await ghiTab("kiemke-location", HEADER_LOC, loc.map(rowLoc), apiAt);
   log("✓ HOÀN TẤT — dashboard Kiểm kê có dữ liệu physical-count THẬT cả 2 kho MTG + GARMENT.");
   process.exit(0);
-})().catch((e) => { log("✗ " + e.message); process.exit(2); });
+})().catch((e) => { thoatTheoLoi(e, log, 2); });

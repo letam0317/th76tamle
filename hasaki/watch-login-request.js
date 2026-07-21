@@ -25,6 +25,7 @@ const apiPost = async (act, extra) => { const r = await fetch(APPSCRIPT_URL, { m
 const hoi = (act) => apiPost(act);
 const chay = (file) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };   // GUI (login): chạy nền, không chờ
 const chayCho = (file) => new Promise((res) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, stdio: "ignore" }); c.on("exit", res); c.on("error", res); });   // nền (auto-export): CHỜ xong
+const chayGuard = () => new Promise((res) => { const c = spawn("cmd.exe", ["/c", "node sync-guard.js --force >> sync-guard.log 2>&1"], { cwd: DIR, stdio: "ignore", windowsHide: true }); c.on("exit", res); c.on("error", res); });   // guard --force: CHỜ xong, log riêng
 
 // 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
 const s = await hoi("syncStatus");
@@ -43,6 +44,20 @@ if (tsq && tsq.requested) {
   await chayCho("pull-timesheet.js");
   log("Pull-timesheet xong.");
 } else log("Không có yêu cầu chấm công.");
+
+// 1c) Yêu cầu TẢI LẠI TỒN KHO FACTORY (nút "Tải lại dữ liệu" dashboard đặt cờ qua GAS).
+// CHỈ hỏi khi backend đã có action này (caps.stockFlag) — hỏi action lạ trên GAS bản cũ
+// sẽ rơi vào nhánh appendRow mặc định và ghi rác vào sheet 5S.
+const caps = await hoi("caps");
+if (caps && caps.stockFlag) {
+  const sk = await hoi("stockSyncStatus");
+  if (sk && sk.requested) {
+    log("⚡ Có yêu cầu tải lại tồn kho factory! Chạy sync-guard --force (chờ xong, log: sync-guard.log)...");
+    await apiPost("clearStockSync");
+    await chayGuard();   // guard tự lo luật phiên (bridge/khung an toàn) — không đá ai trong giờ làm
+    log("Sync-guard xong.");
+  } else log("Không có yêu cầu tồn kho.");
+}
 
 // 2) Yêu cầu ĐĂNG NHẬP (nút trong email). Bỏ qua nếu cửa sổ login đang mở (<15').
 let boQuaLogin = false;

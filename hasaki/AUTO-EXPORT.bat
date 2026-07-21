@@ -10,25 +10,7 @@ node auto-export-sync.js >> auto-export.log 2>&1
 echo [%date% %time%] Ket thuc. >> auto-export.log
 echo. >> auto-export.log
 
-REM --- NOI LUONG: Ton ma vi tri (stock-location) WMS -> Sheet stocklocationfactory ---
-REM Chay NGAY SAU auto-export: phien SSO + kho token vua duoc lam tuoi -> lay token WMS
-REM im lang, khong dang nhap lai. Log rieng: stocklocation.log
-echo [%date% %time%] Dong bo Ton ma vi tri (stock-location)... >> stocklocation.log
-node sync-stocklocation.js >> stocklocation.log 2>&1
-echo [%date% %time%] Ket thuc. >> stocklocation.log
-echo. >> stocklocation.log
-
-REM --- NOI LUONG: Kiem ke physical-count THAT (type-sku + type-location) -> tab kiemke-* ---
-REM Dung lai token "wms" vua nap o buoc tren (TTL 40') -> KHONG mo Edge, KHONG dang nhap them.
-REM Khoang ngay dem DONG: 90 ngay gan nhat (override PC_TU_NGAY / PC_FROM_MS / PC_TO_MS).
-echo [%date% %time%] Dong bo Kiem ke (physical-count)... >> kiemke.log
-node push-pc-to-sheet.mjs >> kiemke.log 2>&1
-echo [%date% %time%] Ket thuc. >> kiemke.log
-echo. >> kiemke.log
-
-REM --- NOI LUONG: Ton kho bat thuong (stock-inventories) -> tab stock-inventory-beta ---
-REM Cung dung token "wms" trong kho -> van chi 1 lan dang nhap cho ca cum 7h.
-echo [%date% %time%] Dong bo Ton kho bat thuong... >> tonbatthuong.log
-node sync-tonbatthuong.js >> tonbatthuong.log 2>&1
-echo [%date% %time%] Ket thuc. >> tonbatthuong.log
-echo. >> tonbatthuong.log
+REM --- NOI LUONG: cum dong bo ton kho factory (stock-location + kiem ke + ton bat thuong) ---
+REM Da tach ra SYNC-STOCK.bat de watchdog sync-guard.js goi lai duoc khi that bai
+REM (may tat luc 7h / restart giua chung / token chet). Log rieng tung buoc nhu cu.
+call "%~dp0SYNC-STOCK.bat"

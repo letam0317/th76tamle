@@ -60,6 +60,7 @@ export async function layTokenTuPhucHoi(getToken, DIR, log = () => {}, app = "wo
       luuToken(DIR, app, t);
       return t;
     } catch (e) {
+      if (e && e.defer) throw e;  // session-rules hoãn re-login (ngoài khung an toàn) → KHÔNG auto-login (cũng đá phiên)
       if (!coSecret()) throw e;   // không có secret → giữ hành vi cũ (báo lỗi để người xử lý)
       const ok = await dangNhapMotLan(DIR, log);
       if (!ok) throw new Error("Tự đăng nhập lại thất bại. " + e.message);

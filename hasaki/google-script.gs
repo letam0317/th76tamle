@@ -1,65 +1,103 @@
 /**
  * ============================================================================
- *  BACKEND: Form Audit - Kiểm soát kho 5S  (Google Apps Script)  — BẢN 2
- * ============================================================================
- *
- *  CHỨC NĂNG:
- *   - doPost: nhận dữ liệu form web, tự tạo tab "WMS-5S-AUDIT", lưu ảnh lên
- *     Drive, chèn 1 hàng mới. (giữ nguyên như bản 1)
- *   - doGet?action=pending : trả về các báo cáo CHƯA đẩy sang workflow
- *     (cột "Mã task" còn trống) và KHÔNG phải loại "Không phát sinh vi phạm",
- *     kèm ảnh dạng base64 — để bộ đẩy (push-5s-to-workflow.js) tạo task.
- *   - doGet?action=mark&row=N&code=XXX : ghi mã task vào hàng đã đẩy xong.
- *   - doGet?action=alert&msg=... : gửi email cảnh báo (vd phiên work.hasaki.vn hết hạn),
- *     có chống spam (tối đa 1 mail / ALERT_THROTTLE_GIO giờ).
- *   * Các action trên yêu cầu tham số ?key=<SECRET> để bảo vệ dữ liệu.
- *
- *  ====== KHI CẬP NHẬT BẢN NÀY: nhớ TRIỂN KHAI LẠI ======
- *   ⚠ ĐẶT LẠI biến SECRET = giá trị thật (trùng APPSCRIPT_KEY trong .env) — trong file
- *     này nó đang là placeholder để không lộ bí mật lên git.
- *   Sau khi dán đè code: Triển khai → Quản lý bản triển khai (Manage deployments)
- *   → bấm bút chì ✎ Sửa → Version: New version → Triển khai. URL /exec giữ nguyên.
+ *  BẢN GIT-SAFE (secret đã thay bằng placeholder) — nguồn sự thật là google-script-DEPLOY.gs.
+ *  ⚠ KHI DÁN VÀO APPS SCRIPT: dùng google-script-DEPLOY.gs (đã điền secret thật, không commit).
+ *  Có thêm hàm testGuiMail() để cấp quyền gửi mail + test ngay trong editor.
+ *  Cập nhật: thêm cột "Thời gian vi phạm" (cột 7), lưu video, đấu nối Mô tả/Video.
  * ============================================================================
  */
 
 var TEN_SHEET = 'WMS-5S-AUDIT';
 var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
-// 🔑 Mã bí mật bảo vệ endpoint đọc/đánh dấu. Bộ đẩy phải gửi ?key=... trùng giá trị này.
-//    ĐẶT GIÁ TRỊ THẬT KHI DÁN VÀO APPS SCRIPT (giống APPSCRIPT_KEY trong .env, không lưu vào git).
-var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';
+var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';   // ⚠ ĐẶT GIÁ TRỊ THẬT (= APPSCRIPT_KEY trong .env) khi dán vào Apps Script
 var SYNC_PIN = 'DAT_PIN_RIENG_O_DAY';        // PIN chung: form Ghi nhận 5S + Cập nhật chấm công
 var SYNC_PIN_DATA = 'DAT_PIN_TAI_DU_LIEU';  // PIN RIÊNG cho "Cập nhật ngay" (ép tải dữ liệu 5S)
-// Cụm mở đầu của hạng mục "đạt" (không tạo task)
 var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
-// Cột (1-based): 1 Ngày | 2 Hiện trạng | 3 Vị trí | 4 Hạng mục | 5 Ảnh | 6 Mã task | 7 Thời gian vi phạm
 var COL_MA_TASK = 6;
-var COL_TG_VI_PHAM = 7;   // thời gian lấy từ ảnh/video (client gửi); thiếu thì để trống -> bộ đẩy dùng cột Ngày
+var COL_TG_VI_PHAM = 7;
 var SO_COT = 7;
-var MAX_PENDING = 25; // số báo cáo trả về mỗi lần gọi (tránh quá tải)
-// 📧 Email nhận cảnh báo khi phiên đăng nhập work.hasaki.vn hết hạn (bộ đẩy không lấy được token).
+var MAX_PENDING = 25;
 var ALERT_EMAIL = 'th76tamle02@gmail.com';
-var ALERT_THROTTLE_GIO = 12; // chỉ gửi tối đa 1 mail mỗi 12 giờ (tránh spam mỗi lần lịch chạy)
+var ALERT_THROTTLE_GIO = 12;
 
-var TEN_SHEET_TASKS = '5S-TASKS';   // tab mirror toàn bộ task workflow (cho dashboard) — TÁCH khỏi inbox
+var TEN_SHEET_TASKS = '5S-TASKS';
 
-// 🔒 BẢO MẬT DỮ LIỆU CÁ NHÂN: các tab chứa PII (họ tên/email/chấm công) ghi sang 1 SHEET RIÊNG
-//    KHÔNG chia sẻ công khai. Dashboard KHÔNG đọc các tab này nên không ảnh hưởng.
-//    ID sheet riêng được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng() 1 lần.
+// 🔒 BẢO MẬT PII: tab NHAN-SU/CHAM-CONG ghi sang SHEET RIÊNG (không chia sẻ công khai).
+// Dashboard KHÔNG đọc các tab này. ID được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng().
 var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
-var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];         // tab nhạy cảm -> ghi vào PRIVATE_SHEET_ID
+var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];
+
+/* ---------- BẢO MẬT: đọc SECRET & PIN không qua query; chống brute-force & spam ---------- */
+// Apps Script KHÔNG đọc được custom header → SECRET đi trong POST body (an toàn hơn query,
+// không lọt vào access-log/history). Query key chỉ còn dùng cho link email GET (requestLogin).
+function layKeyBody_(duLieu) { return String((duLieu && (duLieu.key || duLieu.secret)) || ''); }
+function keyBodyOK_(duLieu) { return layKeyBody_(duLieu) === SECRET; }
+
+// Chống brute-force PIN: đếm số lần sai theo "định danh" (mã NV / obj), khoá 15' sau 5 lần.
+function pinBiKhoa_(dinhDanh) {
+  var c = CacheService.getScriptCache();
+  var n = Number(c.get('pinfail_' + dinhDanh) || 0);
+  return n >= 5;
+}
+function ghiNhanSaiPin_(dinhDanh) {
+  var c = CacheService.getScriptCache();
+  var n = Number(c.get('pinfail_' + dinhDanh) || 0) + 1;
+  c.put('pinfail_' + dinhDanh, String(n), 15 * 60);   // TTL 15 phút
+  return n;
+}
+function xoaSaiPin_(dinhDanh) { CacheService.getScriptCache().remove('pinfail_' + dinhDanh); }
 
 /* ----------------------------- POST: lưu form / sync ----------------------------- */
 function doPost(e) {
   try {
     var duLieu = JSON.parse(e.postData.contents);
-    if (duLieu && duLieu.action === 'syncTasks') return apiSyncTasks(duLieu);   // nhánh đồng bộ dashboard
+    // Endpoint máy-gọi-máy dạng POST (SECRET trong body, KHÔNG qua query)
+    if (duLieu && duLieu.action === 'syncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'clearSync') return keyBodyOK_(duLieu) ? xoaCo_('SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'timesheetStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('TS_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'clearTimesheet') return keyBodyOK_(duLieu) ? xoaCo_('TS_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'loginStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('LOGIN_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'clearLogin') return keyBodyOK_(duLieu) ? xoaCo_('LOGIN_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true }) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pending') return keyBodyOK_(duLieu) ? apiPendingData_() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'mark') return keyBodyOK_(duLieu) ? apiMarkData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'alert') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); apiAlert({ parameter: { key: SECRET, msg: String(duLieu.msg || '') } }); return phanHoiJson({ status: 'success' }); }
+    if (duLieu && (duLieu.action === 'syncTasks')) { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiSyncTasks(duLieu); }
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
-    // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu — BẮT BUỘC SECRET (không để khách vô danh
-    // kích GAS gọi WMS "mượn" token). Frontend không gọi 2 action này → siết SECRET không đổi thao tác.
-    if (duLieu && duLieu.action === 'force_sync_wms') return ((duLieu.key || '') === SECRET) ? apiForceSyncWms() : phanHoiJson({ status: 'error', message: 'Sai key' });
-    if (duLieu && duLieu.action === 'force_sync_kiemke') return ((duLieu.key || '') === SECRET) ? apiForceSyncKiemke() : phanHoiJson({ status: 'error', message: 'Sai key' });
-    if (duLieu && duLieu.action === 'saveWmsToken') return ((duLieu.key || '') === SECRET) ? apiSaveWmsToken(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
-    if (duLieu && duLieu.action === 'setStockMeta') return ((duLieu.key || '') === SECRET) ? apiSetStockMeta(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu. BẮT BUỘC SECRET (trước đây public →
+    // khách vô danh kích được GAS gọi WMS, "cho mượn" token nội bộ). Frontend hiện KHÔNG gọi (nút "Tải
+    // lại" chỉ đọc lại Sheet vì WMS chặn IP ngoài) → siết SECRET không ảnh hưởng thao tác nào.
+    // force_sync_wms KHÔNG key (dashboard bản cũ / portal kiemsoatkho) → chuyển êm sang cơ chế ĐẶT CỜ
+    // (không trả "Sai key" nữa; máy trạm kéo dữ liệu theo luật phiên, GAS không tự gọi WMS cho khách vô danh).
+    if (duLieu && duLieu.action === 'force_sync_wms') return keyBodyOK_(duLieu) ? apiForceSyncWms() : apiRequestStockSync(duLieu);
+    if (duLieu && duLieu.action === 'force_sync_kiemke') return keyBodyOK_(duLieu) ? apiForceSyncKiemke() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'saveWmsToken') return keyBodyOK_(duLieu) ? apiSaveWmsToken(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'setStockMeta') return keyBodyOK_(duLieu) ? apiSetStockMeta(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    // Tồn kho factory — cơ chế CỜ + TOKEN BRIDGE (thêm 21/07/2026, xem chú thích khối STOCKLOC bên dưới):
+    if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
+    if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'bridgeToken') return apiBridgeToken(duLieu);             // extension wms-bridge đẩy token PHIÊN SỐNG của operator — public, validate dạng JWT + throttle
+    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
+    // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
+    if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
+    if (duLieu && duLieu.action === 'requestSync') return apiRequestSyncPost(duLieu);
+    if (duLieu && duLieu.action === 'requestTimesheet') return apiRequestTimesheetPost(duLieu);
+    // CHẶN TẬN GỐC "ghi rác do lệch phiên bản": chỉ FORM THẬT (không có 'action') mới được xuống appendRow.
+    // Payload CÓ 'action' mà không khớp danh sách trên (vd Node mới POST action lạ khi backend chưa redeploy)
+    // -> TỪ CHỐI, KHÔNG rơi xuống ghi dòng trống. (Đây chính là nguồn 48 dòng rác 13/7.)
+    if (duLieu && duLieu.action) {
+      return phanHoiJson({ status: 'error', message: 'Action không hỗ trợ: ' + duLieu.action + ' (không ghi dòng nào).' });
+    }
+    // CHẶN GHI RÁC: form ghi nhận PHẢI có ít nhất Hạng mục HOẶC Vị trí/Hiện trạng.
+    // Không có trường lõi nào -> return, KHÔNG ghi dòng chỉ có mỗi timestamp.
+    var _viTri = String((duLieu && duLieu.viTri) || '').trim();
+    var _hienTrang = String((duLieu && duLieu.hienTrang) || '').trim();
+    var _hangMuc = String((duLieu && duLieu.hangMuc) || '').trim();
+    if (!_hangMuc && !_viTri && !_hienTrang) {
+      return phanHoiJson({ status: 'error', message: 'Dữ liệu rỗng — bỏ qua (không ghi dòng trống).' });
+    }
     var sheet = layHoacTaoSheet();
     var chuoiHinhAnh = '';
     if (duLieu.hinhAnh && duLieu.hinhAnh.length > 0) {
@@ -71,8 +109,8 @@ function doPost(e) {
       duLieu.viTri || '',
       duLieu.hangMuc || '',
       chuoiHinhAnh,
-      '',                          // 6 Mã task: để trống = chưa đẩy
-      duLieu.thoiGianViPham || '', // 7 Thời gian vi phạm (lấy từ ảnh/video; thiếu thì trống)
+      '',                          // 6 Mã task
+      duLieu.thoiGianViPham || '', // 7 Thời gian vi phạm
       duLieu.maSanPham || ''       // 8 Mã sản phẩm (không bắt buộc)
     ]);
     return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
@@ -81,33 +119,187 @@ function doPost(e) {
   }
 }
 
-/* ------------------ GET: pending / mark / kiểm tra hoạt động ------------------ */
+/* ------------------ GET: pending / mark / alert / kiểm tra ------------------ */
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || '';
-  if (action === 'pending') return apiPending(e);
-  if (action === 'mark') return apiMark(e);
-  if (action === 'alert') return apiAlert(e);
-  if (action === 'info') return apiInfo(e);
-  if (action === 'requestLogin') return apiRequestLogin(e);   // link trong email (điện thoại/web bấm được)
-  if (action === 'loginStatus') return apiLoginStatus(e);     // máy PC hỏi có yêu cầu login không
-  if (action === 'clearLogin') return apiClearLogin(e);       // máy PC báo đã xử lý
-  if (action === 'requestSync') return apiRequestSync(e);     // nút "Cập nhật ngay" trên dashboard (cần PIN)
-  if (action === 'syncStatus') return apiSyncStatus(e);       // máy PC hỏi có yêu cầu cập nhật không
-  if (action === 'clearSync') return apiClearSync(e);         // máy PC báo đã cập nhật xong
-  if (action === 'caps') return phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true }); // + sheet ngoài, đồng bộ WMS trực tiếp, kiểm kê material
-  if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (cần PIN)
-  if (action === 'timesheetStatus') return apiTimesheetStatus(e);   // máy PC hỏi có yêu cầu chấm công không
-  if (action === 'clearTimesheet') return apiClearTimesheet(e);     // máy PC báo đã kéo chấm công xong
-  if (action === 'checkPin') return apiCheckPin(e);                 // form "Ghi nhận 5S" kiểm PIN phía máy chủ (không lộ PIN ra front-end)
-  if (action === 'lastSync') return apiLastSync(e);                 // dashboard hỏi lần ghi 5S-TASKS gần nhất (chip giờ dữ liệu)
+  // Probe CÔNG KHAI cho extension/máy trạm biết bản GAS này đã có kênh bridge + cờ tồn kho chưa
+  // (client PHẢI probe trước khi POST action mới — POST action lạ lên bản GAS cũ sẽ rơi vào
+  //  nhánh appendRow mặc định và ghi rác vào sheet 5S).
+  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, stockFlag: true });
+  // GET công khai bằng PIN (không chứa SECRET): dashboard/form gọi qua JSONP <script>
+  if (action === 'requestSync') return apiRequestSync(e);           // nút "Cập nhật ngay" (PIN)
+  if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (PIN)
+  if (action === 'checkPin') return apiCheckPin(e);                 // form Ghi nhận 5S kiểm PIN
+  if (action === 'lastSync') return apiLastSync(e);                 // chip giờ dữ liệu
+  if (action === 'requestLogin') return apiRequestLogin(e);         // link email GET (chỉ đặt cờ, không lộ dữ liệu)
+  // Các action chứa SECRET đã CHUYỂN sang POST (body.key) — không còn nhận qua query để SECRET không lọt access-log.
+  if (['caps','pending','mark','syncStatus','clearSync','timesheetStatus','clearTimesheet','loginStatus','clearLogin'].indexOf(action) >= 0)
+    return phanHoiJson({ status: 'error', message: 'Endpoint này đã chuyển sang POST (key trong body).' });
   return phanHoiJson({ status: 'success', message: 'Web App đang hoạt động bình thường.' });
+}
+
+/** Người dùng bấm nút trong email (từ ĐIỆN THOẠI hoặc WEB bất kỳ) → đặt cờ yêu cầu đăng nhập. */
+function apiRequestLogin(e) {
+  if ((e.parameter.key || '') !== SECRET) {
+    return HtmlService.createHtmlOutput('<h2>Sai mã bảo mật.</h2>').setTitle('5S - Lỗi');
+  }
+  PropertiesService.getScriptProperties().setProperty('LOGIN_REQUESTED', String(new Date().getTime()));
+  var html =
+    '<div style="font-family:Arial;max-width:460px;margin:40px auto;text-align:center;color:#222">' +
+    '<div style="font-size:56px">✅</div>' +
+    '<h2 style="color:#1a7f37">Đã gửi yêu cầu đăng nhập</h2>' +
+    '<p style="font-size:15px;line-height:1.6">Máy tính chạy bộ đẩy 5S sẽ <b>tự mở màn hình đăng nhập</b> trong vòng ~2 phút.</p>' +
+    '<p style="font-size:15px;line-height:1.6">Hãy tới máy tính đó, <b>gõ mã OTP 6 số</b> và bấm Đăng nhập (email &amp; mật khẩu đã tự điền sẵn).</p>' +
+    '<p style="color:#888;font-size:12px">Có thể đóng trang này.</p>' +
+    '</div>';
+  return HtmlService.createHtmlOutput(html).setTitle('5S - Yêu cầu đăng nhập');
+}
+
+/** Máy PC hỏi: có ai vừa yêu cầu đăng nhập không? (cờ còn hiệu lực trong 15 phút). */
+function apiLoginStatus(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('LOGIN_REQUESTED') || 0);
+  var conHieuLuc = ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000;
+  return phanHoiJson({ status: 'success', requested: conHieuLuc, ts: ts });
+}
+
+/** Máy PC báo đã mở màn hình đăng nhập → xoá cờ để khỏi mở lại. */
+function apiClearLogin(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  PropertiesService.getScriptProperties().deleteProperty('LOGIN_REQUESTED');
+  return phanHoiJson({ status: 'success', cleared: true });
+}
+
+/** Trả JSONP (cho dashboard gọi cross-origin qua thẻ <script>). */
+function phanHoiJsonp(cb, obj) {
+  return ContentService.createTextOutput(cb + '(' + JSON.stringify(obj) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+/* ---- Lõi dùng chung cho các endpoint máy-gọi-máy (gọi từ doPost sau khi đã verify key body) ---- */
+function trangThaiCo_(prop) {
+  var ts = Number(PropertiesService.getScriptProperties().getProperty(prop) || 0);
+  return { status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts };
+}
+function xoaCo_(prop) {
+  PropertiesService.getScriptProperties().deleteProperty(prop);
+  return phanHoiJson({ status: 'success', cleared: true });
+}
+function apiPendingData_() {
+  var sheet = layHoacTaoSheet();
+  var last = sheet.getLastRow();
+  if (last < 2) return phanHoiJson({ status: 'success', rows: [] });
+  var values = sheet.getRange(2, 1, last - 1, SO_COT).getValues();
+  var rows = [];
+  for (var i = 0; i < values.length && rows.length < MAX_PENDING; i++) {
+    var r = values[i], rowIndex = i + 2;
+    var maTask = String(r[COL_MA_TASK - 1] || '').trim();
+    var hangMuc = String(r[3] || '').trim();
+    if (maTask) continue;
+    if (!hangMuc) continue;
+    if (hangMuc.indexOf(KHONG_VI_PHAM_PREFIX) === 0) { sheet.getRange(rowIndex, COL_MA_TASK).setValue('(không vi phạm - bỏ qua)'); continue; }
+    rows.push({ row: rowIndex, ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), images: layAnhBase64(String(r[4] || '')) });
+  }
+  return phanHoiJson({ status: 'success', rows: rows });
+}
+function apiMarkData_(duLieu) {
+  var row = parseInt(duLieu.row, 10), code = duLieu.code || '';
+  if (!row) return phanHoiJson({ status: 'error', message: 'Thiếu row' });
+  layHoacTaoSheet().getRange(row, COL_MA_TASK).setValue(code);
+  return phanHoiJson({ status: 'success' });
+}
+
+/** Dashboard bấm "Cập nhật ngay" + nhập PIN → đặt cờ để máy PC tự chạy auto-export. */
+function apiRequestSync(e) {
+  var cb = e.parameter.callback || 'cb';
+  if (pinBiKhoa_('sync')) return phanHoiJsonp(cb, { status: 'error', message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
+  if ((e.parameter.pin || '') !== SYNC_PIN_DATA) { ghiNhanSaiPin_('sync'); return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' }); }
+  xoaSaiPin_('sync');
+  // Chống SPAM: chặn 2 lần requestSync cách nhau < 60 giây (đỡ nã máy PC/WMS liên tục)
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty('LAST_SYNC_REQUEST_MS') || 0), now = new Date().getTime();
+  if (now - last < 60 * 1000) return phanHoiJsonp(cb, { status: 'error', code: 429, message: 'Vừa gửi yêu cầu cách đây <60s. Vui lòng đợi rồi thử lại.' });
+  props.setProperty('LAST_SYNC_REQUEST_MS', String(now));
+  props.setProperty('SYNC_REQUESTED', String(now));
+  return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật. Dữ liệu sẽ mới sau vài phút.' });
+}
+
+/** Máy PC hỏi: có ai vừa bấm "Cập nhật ngay" không? (cờ hiệu lực 15 phút). */
+function apiSyncStatus(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('SYNC_REQUESTED') || 0);
+  return phanHoiJson({ status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts });
+}
+
+/** Máy PC báo đã chạy auto-export → xoá cờ. */
+function apiClearSync(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  PropertiesService.getScriptProperties().deleteProperty('SYNC_REQUESTED');
+  return phanHoiJson({ status: 'success', cleared: true });
+}
+
+/** Dashboard bấm "Cập nhật chấm công" + PIN → đặt cờ để máy PC chạy pull-timesheet. */
+function apiRequestTimesheet(e) {
+  var cb = e.parameter.callback || 'cb';
+  if (pinBiKhoa_('ts')) return phanHoiJsonp(cb, { status: 'error', message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
+  if ((e.parameter.pin || '') !== SYNC_PIN) { ghiNhanSaiPin_('ts'); return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' }); }
+  xoaSaiPin_('ts');
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty('LAST_TS_REQUEST_MS') || 0), now = new Date().getTime();
+  if (now - last < 60 * 1000) return phanHoiJsonp(cb, { status: 'error', code: 429, message: 'Vừa gửi yêu cầu cách đây <60s. Vui lòng đợi rồi thử lại.' });
+  props.setProperty('LAST_TS_REQUEST_MS', String(now));
+  props.setProperty('TS_REQUESTED', String(now));
+  return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật chấm công. Dữ liệu sẽ mới sau vài phút.' });
+}
+/** Máy PC hỏi: có ai vừa bấm "Cập nhật chấm công" không? (cờ hiệu lực 15 phút). */
+function apiTimesheetStatus(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('TS_REQUESTED') || 0);
+  return phanHoiJson({ status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts });
+}
+/** Máy PC báo đã kéo chấm công → xoá cờ. */
+function apiClearTimesheet(e) {
+  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  PropertiesService.getScriptProperties().deleteProperty('TS_REQUESTED');
+  return phanHoiJson({ status: 'success', cleared: true });
 }
 
 /** Kiểm PIN cho form Ghi nhận 5S — trả JSONP {status,ok}. PIN KHÔNG còn nằm trong mã front-end. */
 function apiCheckPin(e) {
   var cb = e.parameter.callback || 'cb';
+  if (pinBiKhoa_('checkpin')) return phanHoiJsonp(cb, { status: 'error', ok: false, message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
   var ok = (e.parameter.pin || '') === SYNC_PIN;
+  if (ok) xoaSaiPin_('checkpin'); else ghiNhanSaiPin_('checkpin');
   return phanHoiJsonp(cb, { status: 'success', ok: ok });
+}
+
+/* ---- Biến thể POST (PIN trong body, trả JSON thường) — dùng chung logic brute-force/cooldown ---- */
+function apiCheckPinPost(duLieu) {
+  if (pinBiKhoa_('checkpin')) return phanHoiJson({ status: 'error', ok: false, message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
+  var ok = String(duLieu.pin || '') === SYNC_PIN;
+  if (ok) xoaSaiPin_('checkpin'); else ghiNhanSaiPin_('checkpin');
+  return phanHoiJson({ status: 'success', ok: ok });
+}
+function apiRequestSyncPost(duLieu) {
+  if (pinBiKhoa_('sync')) return phanHoiJson({ status: 'error', message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
+  if (String(duLieu.pin || '') !== SYNC_PIN_DATA) { ghiNhanSaiPin_('sync'); return phanHoiJson({ status: 'error', message: 'Sai PIN' }); }
+  xoaSaiPin_('sync');
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty('LAST_SYNC_REQUEST_MS') || 0), now = new Date().getTime();
+  if (now - last < 60 * 1000) return phanHoiJson({ status: 'error', code: 429, message: 'Vừa gửi yêu cầu cách đây <60s. Vui lòng đợi rồi thử lại.' });
+  props.setProperty('LAST_SYNC_REQUEST_MS', String(now));
+  props.setProperty('SYNC_REQUESTED', String(now));
+  return phanHoiJson({ status: 'success', message: 'Đã gửi yêu cầu cập nhật. Dữ liệu sẽ mới sau vài phút.' });
+}
+function apiRequestTimesheetPost(duLieu) {
+  if (pinBiKhoa_('ts')) return phanHoiJson({ status: 'error', message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
+  if (String(duLieu.pin || '') !== SYNC_PIN) { ghiNhanSaiPin_('ts'); return phanHoiJson({ status: 'error', message: 'Sai PIN' }); }
+  xoaSaiPin_('ts');
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty('LAST_TS_REQUEST_MS') || 0), now = new Date().getTime();
+  if (now - last < 60 * 1000) return phanHoiJson({ status: 'error', code: 429, message: 'Vừa gửi yêu cầu cách đây <60s. Vui lòng đợi rồi thử lại.' });
+  props.setProperty('LAST_TS_REQUEST_MS', String(now));
+  props.setProperty('TS_REQUESTED', String(now));
+  return phanHoiJson({ status: 'success', message: 'Đã gửi yêu cầu cập nhật chấm công. Dữ liệu sẽ mới sau vài phút.' });
 }
 
 /**
@@ -163,7 +355,6 @@ function chiaSeSheetRieng(email) {
 /**
  * ⚙️ CHẠY 1 LẦN (donDepBienBanCu): chuyển biên bản từ tab BIEN-BAN cũ -> cột "Biên bản" của 5S-TASKS
  *   (khớp theo Mã task), BỎ dòng test, rồi XOÁ tab BIEN-BAN. An toàn chạy lại (idempotent).
- *   Biên bản đã ở cột 5S-TASKS -> auto-export-sync giữ lại qua mỗi lần đồng bộ.
  */
 function donDepBienBanCu() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -188,7 +379,7 @@ function donDepBienBanCu() {
   for (var d = 1; d < data.length; d++) {
     var code = String(data[d][jCode] || '').trim(), url = String(data[d][jUrl] || '').trim();
     if (!code || !/^https?:/.test(url)) continue;
-    if (/^test/i.test(code)) continue;                        // bo dong test
+    if (/^test/i.test(code)) continue;
     var rr = rowByCode[code];
     if (!rr) { skipped.push(code + ' (khong co trong 5S-TASKS)'); continue; }
     var cell = tasks.getRange(rr, iBB + 1); var cur = String(cell.getValue() || '').trim();
@@ -200,87 +391,6 @@ function donDepBienBanCu() {
   return msg;
 }
 
-/** Trả JSONP (cho dashboard gọi cross-origin qua thẻ <script>). */
-function phanHoiJsonp(cb, obj) {
-  return ContentService.createTextOutput(cb + '(' + JSON.stringify(obj) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-}
-
-/** Dashboard bấm "Cập nhật ngay" + nhập PIN → đặt cờ để máy PC tự chạy auto-export.
- *  Bảo vệ bằng SYNC_PIN (không phải SECRET) để không lộ key hệ thống trên trang public. */
-function apiRequestSync(e) {
-  var cb = e.parameter.callback || 'cb';
-  if ((e.parameter.pin || '') !== SYNC_PIN_DATA) return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' });
-  PropertiesService.getScriptProperties().setProperty('SYNC_REQUESTED', String(new Date().getTime()));
-  return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật. Dữ liệu sẽ mới sau vài phút.' });
-}
-
-/** Máy PC hỏi: có ai vừa bấm "Cập nhật ngay" không? (cờ hiệu lực 15 phút). */
-function apiSyncStatus(e) {
-  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
-  var ts = Number(PropertiesService.getScriptProperties().getProperty('SYNC_REQUESTED') || 0);
-  return phanHoiJson({ status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts });
-}
-
-/** Máy PC báo đã chạy auto-export → xoá cờ. */
-function apiClearSync(e) {
-  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
-  PropertiesService.getScriptProperties().deleteProperty('SYNC_REQUESTED');
-  return phanHoiJson({ status: 'success', cleared: true });
-}
-
-/** Dashboard bấm "Cập nhật chấm công" + PIN → đặt cờ để máy PC chạy pull-timesheet. */
-function apiRequestTimesheet(e) {
-  var cb = e.parameter.callback || 'cb';
-  if ((e.parameter.pin || '') !== SYNC_PIN) return phanHoiJsonp(cb, { status: 'error', message: 'Sai PIN' });
-  PropertiesService.getScriptProperties().setProperty('TS_REQUESTED', String(new Date().getTime()));
-  return phanHoiJsonp(cb, { status: 'success', message: 'Đã gửi yêu cầu cập nhật chấm công. Dữ liệu sẽ mới sau vài phút.' });
-}
-function apiTimesheetStatus(e) {
-  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
-  var ts = Number(PropertiesService.getScriptProperties().getProperty('TS_REQUESTED') || 0);
-  return phanHoiJson({ status: 'success', requested: ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000, ts: ts });
-}
-function apiClearTimesheet(e) {
-  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
-  PropertiesService.getScriptProperties().deleteProperty('TS_REQUESTED');
-  return phanHoiJson({ status: 'success', cleared: true });
-}
-
-/** Người dùng bấm nút trong email (từ ĐIỆN THOẠI hoặc WEB bất kỳ) → đặt cờ yêu cầu đăng nhập.
- *  Máy PC sẽ thấy cờ này (qua ?action=loginStatus) và tự mở màn hình đăng nhập.
- *  Trả về trang HTML thân thiện thay vì JSON. */
-function apiRequestLogin(e) {
-  if ((e.parameter.key || '') !== SECRET) {
-    return HtmlService.createHtmlOutput('<h2>Sai mã bảo mật.</h2>').setTitle('5S - Lỗi');
-  }
-  PropertiesService.getScriptProperties().setProperty('LOGIN_REQUESTED', String(new Date().getTime()));
-  var html =
-    '<div style="font-family:Arial;max-width:460px;margin:40px auto;text-align:center;color:#222">' +
-    '<div style="font-size:56px">✅</div>' +
-    '<h2 style="color:#1a7f37">Đã gửi yêu cầu đăng nhập</h2>' +
-    '<p style="font-size:15px;line-height:1.6">Máy tính chạy bộ đẩy 5S sẽ <b>tự mở màn hình đăng nhập</b> trong vòng ~2 phút.</p>' +
-    '<p style="font-size:15px;line-height:1.6">Hãy tới máy tính đó, <b>gõ mã OTP 6 số</b> và bấm Đăng nhập (email &amp; mật khẩu đã tự điền sẵn).</p>' +
-    '<p style="color:#888;font-size:12px">Có thể đóng trang này.</p>' +
-    '</div>';
-  return HtmlService.createHtmlOutput(html).setTitle('5S - Yêu cầu đăng nhập');
-}
-
-/** Máy PC hỏi: có ai vừa yêu cầu đăng nhập không? (cờ còn hiệu lực trong 15 phút). */
-function apiLoginStatus(e) {
-  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
-  var ts = Number(PropertiesService.getScriptProperties().getProperty('LOGIN_REQUESTED') || 0);
-  var conHieuLuc = ts > 0 && (new Date().getTime() - ts) < 15 * 60 * 1000;
-  return phanHoiJson({ status: 'success', requested: conHieuLuc, ts: ts });
-}
-
-/** Máy PC báo đã mở màn hình đăng nhập → xoá cờ để khỏi mở lại. */
-function apiClearLogin(e) {
-  if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
-  PropertiesService.getScriptProperties().deleteProperty('LOGIN_REQUESTED');
-  return phanHoiJson({ status: 'success', cleared: true });
-}
-
-/** Trả về các báo cáo chưa đẩy (chưa có mã task) + ảnh base64. */
 function apiPending(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   var sheet = layHoacTaoSheet();
@@ -293,9 +403,9 @@ function apiPending(e) {
     var rowIndex = i + 2;
     var maTask = String(r[COL_MA_TASK - 1] || '').trim();
     var hangMuc = String(r[3] || '').trim();
-    if (maTask) continue;                                   // đã đẩy rồi
-    if (!hangMuc) continue;                                 // thiếu hạng mục
-    if (hangMuc.indexOf(KHONG_VI_PHAM_PREFIX) === 0) {      // "đạt" -> bỏ qua, đánh dấu để khỏi xét lại
+    if (maTask) continue;
+    if (!hangMuc) continue;
+    if (hangMuc.indexOf(KHONG_VI_PHAM_PREFIX) === 0) {
       sheet.getRange(rowIndex, COL_MA_TASK).setValue('(không vi phạm - bỏ qua)');
       continue;
     }
@@ -305,14 +415,13 @@ function apiPending(e) {
       hienTrang: String(r[1] || ''),
       viTri: String(r[2] || ''),
       hangMuc: hangMuc,
-      thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]),     // thời gian vi phạm (nếu có)
+      thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]),
       images: layAnhBase64(String(r[4] || ''))
     });
   }
   return phanHoiJson({ status: 'success', rows: rows });
 }
 
-/** Ghi mã task vào 1 hàng (sau khi đẩy thành công). */
 function apiMark(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   var row = parseInt(e.parameter.row, 10);
@@ -322,7 +431,7 @@ function apiMark(e) {
   return phanHoiJson({ status: 'success' });
 }
 
-/** Gửi email cảnh báo (vd: phiên work.hasaki.vn hết hạn). Có chống spam theo ALERT_THROTTLE_GIO. */
+/** Gửi email cảnh báo (vd: phiên work.hasaki.vn hết hạn). Chống spam theo ALERT_THROTTLE_GIO. */
 function apiAlert(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   var msg = e.parameter.msg || 'Bộ đẩy báo cáo 5S gặp sự cố.';
@@ -375,6 +484,14 @@ function apiAlert(e) {
   }
 }
 
+/** CHẠY TAY 1 LẦN trong editor để cấp quyền gửi mail + test ngay (gửi mail mẫu về ALERT_EMAIL). */
+function testGuiMail() {
+  MailApp.sendEmail(ALERT_EMAIL, '[5S] TEST email cảnh báo',
+    'Đây là email TEST từ hệ thống 5S. Nếu bạn nhận được mail này nghĩa là luồng cảnh báo đã hoạt động.\n' +
+    'Thời điểm: ' + Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss'));
+  Logger.log('Đã gửi email test tới ' + ALERT_EMAIL);
+}
+
 /** Trả về ID/URL spreadsheet (để cấu hình dashboard gviz). */
 function apiInfo(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -382,7 +499,7 @@ function apiInfo(e) {
   return phanHoiJson({ status: 'success', sheetId: ss.getId(), sheetUrl: ss.getUrl(), tabTasks: TEN_SHEET_TASKS });
 }
 
-/** Ghi đè tab 5S-TASKS bằng dữ liệu task workflow do bộ sync gửi lên (cho dashboard).
+/** Ghi đè 1 tab bằng dữ liệu do bộ sync gửi lên (mặc định 5S-TASKS; có thể chỉ định tab khác, vd CHAM-CONG).
  *  Mở rộng:
  *   - duLieu.sheetId : ghi sang SPREADSHEET NGOÀI (vd Tồn mã vị trí — stocklocationfactory) thay vì sheet 5S.
  *   - duLieu.append  : true = ghi NỐI TIẾP sau dòng cuối (bộ sync chia dữ liệu lớn thành nhiều POST;
@@ -395,7 +512,6 @@ function apiSyncTasks(duLieu) {
   if (!rows.length) return phanHoiJson({ status: 'error', message: 'rows rỗng — bỏ qua, không ghi đè tab.' });
   var tenTab = duLieu.tab || TEN_SHEET_TASKS;   // tab đích (mặc định 5S-TASKS; vd NHAN-SU)
   var noiTiep = duLieu.append === true;
-  // Tab PII (NHAN-SU/CHAM-CONG) -> ghi vào SHEET RIÊNG (không công khai) nếu đã cấu hình.
   var ss;
   if (duLieu.sheetId) {
     try { ss = SpreadsheetApp.openById(String(duLieu.sheetId)); }
@@ -412,12 +528,12 @@ function apiSyncTasks(duLieu) {
     if (header.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, header.length).setValues(rows);
   } else {
     sheet.clearContents();
-    try { sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart(); } catch (e) {}
+    try { sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart(); } catch (e) {}  // gỡ ô hợp nhất -> ghi không lệch
     var all = [header].concat(rows);
     if (all.length && header.length) {
       sheet.getRange(1, 1, all.length, header.length).setValues(all);
       sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
-      try { sheet.setFrozenRows(1); } catch (e) {}
+      try { sheet.setFrozenRows(1); } catch (e) {}  // bỏ qua nếu còn vướng ô hợp nhất
     }
   }
   // Mốc "dữ liệu mới nhất" cho dashboard (chip giờ dữ liệu) — ƯU TIÊN apiAt (lúc LẤY DỮ LIỆU từ API WMS,
@@ -438,12 +554,14 @@ function apiLastSync(e) {
   return phanHoiJsonp(cb, { status: 'success', ts: ts });
 }
 
-/** Tải biên bản (ảnh) cho 1 task -> lưu Drive + ghi tab BIEN-BAN. duLieu={code,files:[{name,mime,base64}]} */
+/** Tải biên bản (ảnh) cho 1 task -> lưu Drive + ghi tab BIEN-BAN. duLieu={key,code,files:[{name,mime,base64}]} */
 function apiUploadBienBan(duLieu) {
   var code = String(duLieu.code || '').trim();
   if (!code) return phanHoiJson({ status: 'error', message: 'Thiếu mã task' });
-  // BẢO MẬT: bắt buộc đúng PIN + giới hạn số/loại/kích thước ảnh (trước đây công khai → ai cũng nhồi tệp).
-  if (String(duLieu.pin || '') !== SYNC_PIN) return phanHoiJson({ status: 'error', message: 'Sai PIN' });
+  // BẢO MẬT: bắt buộc đúng PIN mới cho ghi (trước đây công khai → ai cũng nhồi ảnh vào Drive/Sheet).
+  if (pinBiKhoa_('bienban')) return phanHoiJson({ status: 'error', message: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.' });
+  if (String(duLieu.pin || '') !== SYNC_PIN) { ghiNhanSaiPin_('bienban'); return phanHoiJson({ status: 'error', message: 'Sai PIN' }); }
+  xoaSaiPin_('bienban');
   var files = duLieu.files || [];
   if (!files.length) return phanHoiJson({ status: 'error', message: 'Không có ảnh' });
   if (files.length > 10) return phanHoiJson({ status: 'error', message: 'Tối đa 10 ảnh/lần' });
@@ -452,6 +570,7 @@ function apiUploadBienBan(duLieu) {
   var urls = [];
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
+    // Chỉ nhận ẢNH và < 5MB (base64 dài ~4/3 lần dung lượng thật)
     var mime = String(f.mime || 'image/jpeg');
     if (!/^image\//.test(mime)) return phanHoiJson({ status: 'error', message: 'Chỉ chấp nhận tệp ảnh (' + mime + ')' });
     var b64 = String(f.base64 || '');
@@ -461,6 +580,7 @@ function apiUploadBienBan(duLieu) {
     try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
     urls.push('https://drive.google.com/uc?export=view&id=' + file.getId());
   }
+  // Ghi URL vào cột "Biên bản" (cuối) của tab 5S-TASKS, tại dòng có Task Code == code
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName('5S-TASKS');
   if (sh) {
@@ -553,6 +673,50 @@ function apiSetStockMeta(duLieu) {
     if (mt) catGonSheet_(mt, 1, 3);
   } catch (e) { /* cắt gọt lỗi không chặn luồng chính */ }
   return phanHoiJson({ status: 'success', at: at });
+}
+
+/* ================== CỜ TẢI LẠI + TOKEN BRIDGE (thêm 21/07/2026) ==================
+ * Sự cố nền: WMS 1 phiên/tài khoản — GAS/bot re-login là đá văng người đang làm việc.
+ * Kiến trúc mới cho nút "Tải lại dữ liệu": GAS KHÔNG tự gọi WMS theo yêu cầu khách nữa,
+ * chỉ ĐẶT CỜ STOCK_SYNC_REQUESTED; máy trạm (watch-login-request.js → sync-guard.js) thấy
+ * cờ thì kéo dữ liệu theo LUẬT PHIÊN (ưu tiên token bridge, chỉ re-login trong khung an toàn).
+ * Token bridge: extension wms-bridge đẩy token phiên ĐANG SỐNG của operator lên đây
+ * (bridgeToken — public, chỉ nhận đúng dạng JWT + throttle 30s; token rác vô hại vì máy
+ * trạm luôn kiểm get-me trước khi dùng). Máy trạm lấy lại bằng getBridgeToken (SECRET).
+ * ================================================================================= */
+function apiRequestStockSync(duLieu) {
+  var last = docStockMetaMs_(), now = new Date().getTime();
+  if (last && now - last < STOCKLOC_COOLDOWN_MS) {
+    var cho = STOCKLOC_COOLDOWN_MS - (now - last);
+    return phanHoiJson({ status: 'error', code: 429, message: 'Chỉ có thể tải lại dữ liệu sau mỗi 4 giờ. Còn ' + Math.ceil(cho / 60000) + ' phút nữa.', retryAfterMs: cho, lastSync: last });
+  }
+  var P = PropertiesService.getScriptProperties();
+  var lanTruoc = Number(P.getProperty('LAST_STOCK_REQUEST_MS') || 0);
+  if (now - lanTruoc >= 60 * 1000) {   // chống spam cờ: 60s chỉ ghi 1 lần, các lượt sau coi như đã xếp hàng
+    P.setProperty('LAST_STOCK_REQUEST_MS', String(now));
+    P.setProperty('STOCK_SYNC_REQUESTED', String(now));
+  }
+  return phanHoiJson({ status: 'success', queued: true, message: 'Đã gửi yêu cầu tới máy trạm — dữ liệu sẽ được cập nhật trong ít phút (trong giờ làm cần trình duyệt có extension wms-bridge đang mở WMS).', lastSync: last || 0 });
+}
+function apiBridgeToken(duLieu) {
+  var tk = String(duLieu.token || '').replace(/^Bearer\s+/i, '').trim();
+  if (tk.length < 100 || !/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(tk)) return phanHoiJson({ status: 'error', message: 'Token không hợp lệ' });
+  var P = PropertiesService.getScriptProperties();
+  var truoc = Number(P.getProperty('BRIDGE_TOKEN_AT') || 0), now = new Date().getTime();
+  if (now - truoc < 30 * 1000) return phanHoiJson({ status: 'success', throttled: true });
+  P.setProperty('BRIDGE_TOKEN', tk);
+  P.setProperty('BRIDGE_TOKEN_AT', String(now));
+  P.setProperty('BRIDGE_TOKEN_EXP', String(Number(duLieu.exp || 0) || 0));
+  return phanHoiJson({ status: 'success', saved: true });
+}
+function apiGetBridgeToken() {
+  var P = PropertiesService.getScriptProperties();
+  var tk = P.getProperty('BRIDGE_TOKEN') || '';
+  var at = Number(P.getProperty('BRIDGE_TOKEN_AT') || 0);
+  var exp = Number(P.getProperty('BRIDGE_TOKEN_EXP') || 0);
+  var now = new Date().getTime();
+  var song = tk && (now - at < 30 * 60 * 1000) && (!exp || now < exp - 15000);   // tươi <30' và chưa quá hạn JWT
+  return phanHoiJson(song ? { status: 'success', token: tk, at: at, exp: exp } : { status: 'success', token: '', at: 0 });
 }
 
 /** Kéo trọn 1 công ty từ WMS (phân trang size 5000) + LỌC theo khoGiuLai. Trả {rows} hoặc {code,message}. */
@@ -745,19 +909,45 @@ function apiForceSyncKiemke() {
   } finally { lock.releaseLock(); }
 }
 
+/* ============================================================================
+ *  DỌN TAB DƯ THỪA — chạy 1 LẦN trong editor (chọn donDepTabThua → Run).
+ *  Tab 'kiemke-material' bỏ hoang từ 2026-05-04 do apiForceSyncKiemke nạp (endpoint
+ *  không chạy thật: WMS chặn IP ngoài) và FE chỉ dùng làm fallback. Kiểm kê LIVE ở
+ *  kiemke-sku / kiemke-location. An toàn: chỉ xoá đúng tab trong DANH_SACH_XOA,
+ *  bỏ qua nếu không thấy, không xoá tab cuối cùng; in log trước/sau.
+ * ========================================================================== */
+function donDepTabThua() {
+  var DANH_SACH_XOA = ['kiemke-material'];
+  var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
+  var truoc = ss.getSheets().map(function (s) { return s.getName(); });
+  Logger.log('Tab trước khi dọn (' + truoc.length + '): ' + truoc.join(', '));
+  var daXoa = [];
+  for (var i = 0; i < DANH_SACH_XOA.length; i++) {
+    var ten = DANH_SACH_XOA[i];
+    var sh = ss.getSheetByName(ten);
+    if (!sh) { Logger.log('• Bỏ qua "' + ten + '" — không tồn tại.'); continue; }
+    if (ss.getSheets().length <= 1) { Logger.log('• Dừng: không xoá tab cuối cùng.'); break; }
+    ss.deleteSheet(sh);
+    daXoa.push(ten);
+    Logger.log('✓ Đã xoá tab "' + ten + '".');
+  }
+  var sau = ss.getSheets().map(function (s) { return s.getName(); });
+  Logger.log('Tab sau khi dọn (' + sau.length + '): ' + sau.join(', '));
+  return { daXoa: daXoa, conLai: sau };
+}
+
 /* ------------------------------- Tiện ích ------------------------------- */
 function formatNgay(v) {
   if (v instanceof Date) return Utilities.formatDate(v, 'GMT+7', 'yyyy-MM-dd HH:mm:ss');
   return String(v || '');
 }
 
-/** Từ chuỗi link Drive (mỗi dòng 1 link) -> mảng {filename, mime, base64}. */
 function layAnhBase64(chuoi) {
   var out = [];
   if (!chuoi) return out;
   var lines = chuoi.split(/\s*\n\s*/);
   for (var i = 0; i < lines.length; i++) {
-    var m = lines[i].match(/[-\w]{25,}/); // ID file Drive
+    var m = lines[i].match(/[-\w]{25,}/);
     if (!m) continue;
     try {
       var file = DriveApp.getFileById(m[0]);
@@ -766,6 +956,29 @@ function layAnhBase64(chuoi) {
     } catch (err) { /* bỏ qua file lỗi */ }
   }
   return out;
+}
+
+/**
+ * DỌN RÁC THỦ CÔNG (chạy 1 lần trong editor): xoá các dòng chỉ có Cột A (Ngày giờ)
+ * mà Cột B (Hiện trạng) và Cột C (Vị trí) đều TRỐNG. Quét từ DƯỚI LÊN để deleteRow không lệch index.
+ * KHÔNG gắn trigger — gọi tay khi cần dọn sheet WMS-5S-AUDIT.
+ */
+function cleanEmptyRowsWMS() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(TEN_SHEET);
+  if (!sheet) { Logger.log('Không thấy sheet ' + TEN_SHEET); return; }
+  var last = sheet.getLastRow();
+  if (last < 2) { Logger.log('Sheet trống, không có gì để dọn.'); return; }
+  var data = sheet.getRange(2, 1, last - 1, 3).getValues();   // A,B,C của các dòng dữ liệu
+  var xoa = 0;
+  for (var i = data.length - 1; i >= 0; i--) {                // DƯỚI LÊN
+    var a = String(data[i][0] || '').trim();
+    var b = String(data[i][1] || '').trim();
+    var c = String(data[i][2] || '').trim();
+    if (a && !b && !c) { sheet.deleteRow(i + 2); xoa++; }      // A có, B & C trống -> rác
+  }
+  Logger.log('Đã xoá ' + xoa + ' dòng rác (chỉ có Ngày giờ, thiếu Hiện trạng & Vị trí).');
+  return xoa;
 }
 
 function layHoacTaoSheet() {
@@ -778,11 +991,11 @@ function layHoacTaoSheet() {
     sheet.setFrozenRows(1);
     sheet.setColumnWidth(2, 280); sheet.setColumnWidth(4, 320); sheet.setColumnWidth(5, 320); sheet.setColumnWidth(6, 160); sheet.setColumnWidth(7, 170);
   } else {
-    if (!sheet.getRange(1, COL_MA_TASK).getValue()) {        // sheet cũ chưa có cột Mã task
+    if (!sheet.getRange(1, COL_MA_TASK).getValue()) {
       sheet.getRange(1, COL_MA_TASK).setValue('Mã task workflow').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
       sheet.setColumnWidth(6, 160);
     }
-    if (!sheet.getRange(1, COL_TG_VI_PHAM).getValue()) {      // sheet cũ chưa có cột Thời gian vi phạm
+    if (!sheet.getRange(1, COL_TG_VI_PHAM).getValue()) {
       sheet.getRange(1, COL_TG_VI_PHAM).setValue('Thời gian vi phạm').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
       sheet.setColumnWidth(7, 170);
     }
@@ -796,8 +1009,12 @@ function luuHinhAnhLenDrive(danhSachAnh, viTri) {
   var thoiGian = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
   for (var i = 0; i < danhSachAnh.length; i++) {
     var anh = danhSachAnh[i];
-    var phan = anh.base64.split(',');
-    var blob = Utilities.newBlob(Utilities.base64Decode(phan[1] || phan[0]), anh.mime, anh.ten);
+    // Cắt SAU dấu hiệu 'base64,' thay vì split(',') — mime clip quay trực tiếp có dấu phẩy
+    // (vd data:video/mp4;codecs=h264,aac;base64,...) làm split lấy nhầm đoạn 'aac;base64' -> lỗi giải mã.
+    var b64 = String(anh.base64 || '');
+    var vt = b64.indexOf('base64,');
+    if (vt >= 0) b64 = b64.slice(vt + 7);
+    var blob = Utilities.newBlob(Utilities.base64Decode(b64), anh.mime, anh.ten);
     blob.setName(thoiGian + '_' + (viTri || 'vitri') + '_' + (i + 1));
     var file = thuMuc.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -813,4 +1030,7 @@ function layHoacTaoThuMuc() {
 
 function phanHoiJson(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}function testQuyenFetch() {
+  var r = UrlFetchApp.fetch('https://www.google.com');
+  Logger.log('HTTP ' + r.getResponseCode());
 }

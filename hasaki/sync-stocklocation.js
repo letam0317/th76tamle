@@ -31,13 +31,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi, coSecret, chayAutoLogin } from "./auto-login.js";
-import { voiKhoa, luuToken } from "./token-store.js";
+import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { chanReLoginNgoaiKhung, layBridgeToken, thoatTheoLoi } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);
 const SHEET_ID = process.env.STOCKLOC_SHEET_ID || "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 const API = "https://wms-gw.inshasaki.com/api/v1/wms/report-management/stock-locations/bins/count/v3";
 const GET_ME = "https://wms-gw.inshasaki.com/api/v1/auth/user/get-me";
@@ -93,6 +93,10 @@ async function fetchRetry(url, opt, n = 3) {
    bấm nút đó → OIDC (auth-gateway → auth-idp) đi IM LẶNG bằng phiên IdP sẵn có (login-hasaki 7h vừa
    làm tươi) → quay lại report kèm token. KHÔNG gõ email/mật khẩu/OTP ở đây. */
 async function getWmsToken() {
+  // LUẬT 1 (session-rules): thử token BRIDGE trước — phiên đang sống của operator,
+  // không mở Edge, không tạo phiên mới, không đá ai. Chỉ khi không có mới đi đường Edge/SSO.
+  const quaBridge = await layBridgeToken(log);
+  if (quaBridge) return quaBridge;
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE_PATH, userDataDir: PROFILE_DIR, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());
@@ -118,6 +122,9 @@ async function getWmsToken() {
       }
       const url = page.url();
       if (/wms\.inshasaki\.com\/auth\/login/.test(url) && Date.now() - lanBam > 5000) {
+        // LUẬT 2 (session-rules): sắp bấm SSO = sắp ĐÁ PHIÊN người khác → chỉ cho phép
+        // trong khung giờ an toàn; trong giờ làm việc thì ném DeferError (exit 75, guard thử lại).
+        chanReLoginNgoaiKhung(log);
         const bam = await page.evaluate(() => {
           const el = [...document.querySelectorAll("button,[role=button],a")].find((e) => /SSO/i.test(e.innerText || ""));
           if (el) { el.click(); return true; } return false;
@@ -259,6 +266,7 @@ async function ghiTab(tab, rows, apiAt) {
     let t;
     try { t = await voiKhoa(DIR, getWmsToken, { log }); }
     catch (e) {
+      if (e.defer) throw e;   // ngoài khung an toàn → hoãn, KHÔNG leo thang sang auto-login (cũng đá phiên)
       if (!coSecret()) throw e;
       log("  ⚠ " + e.message);
       log("  ⚠ Chụp token thất bại — tự đăng nhập lại rồi chụp lần cuối...");
@@ -271,7 +279,7 @@ async function ghiTab(tab, rows, apiAt) {
   }
 
   // 1) Token WMS: ưu tiên kho token (app "wms"); chết thì auto-login đơn lượt lo phần đăng nhập
-  let token = await layTokenTuPhucHoi(getWmsToken, DIR, log, "wms").catch((e) => { log("✗ " + e.message); process.exit(2); });
+  let token = await layTokenTuPhucHoi(getWmsToken, DIR, log, "wms").catch((e) => { thoatTheoLoi(e, log, 2); });
   const me = await fetchRetry(GET_ME, { headers: { authorization: token } });
   if (me.status === 401 || me.status === 403) {
     log("  ⚠ Token wms trong kho đã cũ — chụp lại từ phiên Edge...");
@@ -336,4 +344,4 @@ async function ghiTab(tab, rows, apiAt) {
   }
   log(loi ? "⚠ Hoàn tất nhưng có " + loi + " bộ lỗi/bỏ qua." : "✓ Hoàn tất đồng bộ Tồn mã vị trí (2 tab mastige/garment).");
   process.exit(loi ? 2 : 0);
-})().catch((e) => { log("✗ " + e.message); process.exit(2); });
+})().catch((e) => { thoatTheoLoi(e, log, 2); });
