@@ -3,14 +3,19 @@
  *  Google Sheet 1eY_oo… tab kiemke-sku / kiemke-location (đúng tab dashboard đọc).
  *  Ưu tiên token cache (không mở Edge); hết hạn mới đăng nhập lại (đăng xuất WMS ở Edge của bạn).
  *
+ *  BỔ SUNG HASAKI (22/07/2026): kéo thêm 2 kho 170 QL1A (warehouse_ids 863,874 — cùng bộ
+ *  sync-tonbatthuong) ghi tab kiemke-sku-hasaki / kiemke-location-hasaki trên Sheet 5S
+ *  (tab Kiểm kê của portal kiemsoatkho ▸ HASAKI đọc). Luồng Hasaki lỗi KHÔNG làm fail
+ *  luồng factory — chỉ cảnh báo, giữ data cũ.
+ *
  *  node push-pc-to-sheet.mjs
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { tokenCon, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { chanReLoginNgoaiKhung, layBridgeToken, thoatTheoLoi } from "./session-rules.js";
+import { luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -29,8 +34,22 @@ const PARAMS = {
   from_counted_date: process.env.PC_FROM_MS || String(_d0 - PC_TU_NGAY * 86400000),
   to_counted_date: process.env.PC_TO_MS || String(_d0 + 86400000 - 1),
 };
+// PHIẾU CHƯA ĐẾM (PENDING/PROCESSING…) không có counted date -> LỌT LƯỚI bộ lọc from_counted_date
+// (sự cố 24/07/2026: plan 243605 có 212 dòng PENDING location kho GARMENT mà dashboard không thấy).
+// Kéo BỔ SUNG theo PLAN DATE, giới hạn warehouse_ids cho nhẹ, rồi gộp khử trùng checklist_id.
+const PC_PLAN_TU_NGAY = Number(process.env.PC_PLAN_TU_NGAY || 45);    // plan quá khứ: 45 ngày
+const PC_PLAN_TOI_NGAY = Number(process.env.PC_PLAN_TOI_NGAY || 45);  // plan tương lai: 45 ngày
+const PARAMS_PLAN = {
+  from_plan_date: String(_d0 - PC_PLAN_TU_NGAY * 86400000),
+  to_plan_date: String(_d0 + PC_PLAN_TOI_NGAY * 86400000 - 1),
+};
+const WH_IDS_FACTORY = "1177,1339";   // WH - MATERIAL - MTG (1177) + WH - MATERIAL - GARMENT (1339) — id hệ checklists/báo cáo
 const chuanKho = (s) => String(s || "").replace(/\s+/g, " ").trim().toUpperCase();
 const KEEP = new Set(["WH - MATERIAL - MTG", "WH - MATERIAL - GARMENT"].map(chuanKho));
+// HASAKI: kéo RIÊNG theo warehouse_ids (không dựa mặc định company của token) -> ghi sheet 5S
+const SHEET_HASAKI = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";   // sheet 5S (dashboard kiemsoatkho · công ty HASAKI)
+const WH_IDS_HASAKI = "863,874";                                        // SHOP - 170 QUOC LO 1A (863) + WH - 170 QUOC LO 1A (874)
+const KEEP_HASAKI = new Set(["SHOP - 170 QUOC LO 1A", "WH - 170 QUOC LO 1A"].map(chuanKho));
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
@@ -39,9 +58,7 @@ const HEADER_SKU = ["No.", "ID", "Request code", "Source code", "Warehouse", "SK
 const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Type", "Location", "Priority", "Diff", "Assign to", "Counted by", "Counted date", "Updated At", "Plan Date", "Status"];
 
 async function getTokenLive() {
-  // LUẬT 1 (session-rules): token BRIDGE trước — phiên đang sống của operator, không đá ai.
-  const quaBridge = await layBridgeToken(log);
-  if (quaBridge) return quaBridge;
+  // layTokenSongWms (kho + bridge) đã được thử ở caller — tới đây là đường Edge/SSO thuần.
   const puppeteer = (await import("puppeteer")).default;
   const EDGE = EDGE_PATH;
   const PROFILE = duongDanProfile(DIR);
@@ -66,17 +83,17 @@ async function getTokenLive() {
 const qs = (o) => Object.keys(o).map((k) => k + "=" + encodeURIComponent(o[k])).join("&");
 const getRecs = (j) => j.records || (j.data && (j.data.records || j.data.rows || j.data.content)) || j.rows || [];
 
-async function keoType(token, type) {
+async function keoType(token, type, params = PARAMS, keep = KEEP) {
   let kept = [], seen = 0, total = null;
   for (let page = 1; page <= 400; page++) {
-    const url = GW + "/type-" + type + "?" + qs(PARAMS) + "&page=" + page + "&size=" + SIZE;
+    const url = GW + "/type-" + type + "?" + qs(params) + "&page=" + page + "&size=" + SIZE;
     const r = await fetch(url, { headers: { authorization: token } });
     if (r.status !== 200) { if (page === 1) throw new Error("type-" + type + " trả HTTP " + r.status); break; }
     const j = await r.json().catch(() => null); if (!j) break;
     if (total === null) total = j.count ?? j.total ?? (j.data && (j.data.count ?? j.data.total)) ?? null;
     const rr = getRecs(j); if (!rr.length) break;
     seen += rr.length;
-    kept = kept.concat(rr.filter((x) => KEEP.has(chuanKho(x.warehouse_name))));   // chỉ giữ 2 kho material
+    kept = kept.concat(rr.filter((x) => keep.has(chuanKho(x.warehouse_name))));   // chỉ giữ đúng kho chỉ định
     if (total != null && seen >= total) break;
     await nghi(400);
   }
@@ -84,6 +101,8 @@ async function keoType(token, type) {
   log("  ✓ type-" + type + ": giữ " + kept.length + "/" + seen + " (quét) — " + JSON.stringify(byKho));
   return kept;
 }
+// Gộp 2 lượt kéo (counted-date + plan-date), phiếu trùng checklist_id lấy bản lượt ĐẦU (counted có đủ số liệu đếm)
+const gopPhieu = (a, b) => { const co = new Set(a.map((x) => String(x.checklist_id))); return a.concat(b.filter((x) => !co.has(String(x.checklist_id)))); };
 const num = (v) => (v == null || v === "" ? "" : Number(v) || 0);
 function rowSku(r, i) {
   return [i + 1, r.checklist_id || "", r.plan_id || "", r.source_code || "", r.warehouse_name || "", r.plan_object_code || "",
@@ -98,11 +117,11 @@ function rowLoc(r, i) {
     r.plan_object_code || "", r.priority_name || "", diff, r.created_by_name || "", r.checklist_by_name || "",
     r.checklist_at || "", r.updated_at || "", r.plan_date || "", r.status_name || ""];
 }
-async function ghiTab(tab, header, rows, apiAt) {
+async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   if (!rows.length) { log("  (⚠ " + tab + ": 0 dòng — bỏ qua, giữ data cũ)"); return; }
   for (let i = 0; i < rows.length; i += CHUNK) {
     const phan = rows.slice(i, i + CHUNK);
-    const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId: SHEET_ID, header, rows: phan, append: i > 0, apiAt });
+    const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId, header, rows: phan, append: i > 0, apiAt });
     const j = await (await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
     if (j.status !== "success") throw new Error(tab + ": " + (j.message || "?"));
     log("  ✓ " + tab + ": ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + (i === 0 ? " (xoá data cũ trước)" : " (nối tiếp)"));
@@ -110,18 +129,35 @@ async function ghiTab(tab, header, rows, apiAt) {
 }
 
 (async () => {
-  let token = tokenCon(DIR, "wms");
-  if (token) { const me = await fetch(GET_ME, { headers: { authorization: token } }).catch(() => null); if (!me || me.status !== 200) { log("Token cache hết hạn."); token = null; } else log("✓ Dùng token cache (không mở Edge)."); }
+  // Token sống (kho bất kể tuổi + get-me → bridge) — cải tiến 22/07/2026, không vứt token theo tuổi.
+  let token = await layTokenSongWms(DIR, log);
   if (!token) { log("⚠ Mở edge-profile đăng nhập lại — SẼ đăng xuất WMS trên Edge bạn đang mở."); token = await getTokenLive(); luuToken(DIR, "wms", token); log("✓ Token mới."); }
 
   const apiAt = Date.now();
-  log("Kéo physical-count (2 kho material MTG + GARMENT, theo khoảng ngày đếm)...");
-  const sku = await keoType(token, "sku");
+  log("Kéo physical-count (2 kho material MTG + GARMENT, ngày đếm + BỔ SUNG theo plan date)...");
+  const planF = { ...PARAMS_PLAN, warehouse_ids: WH_IDS_FACTORY };
+  const sku = gopPhieu(await keoType(token, "sku"), await keoType(token, "sku", planF));
   await nghi(600);
-  const loc = await keoType(token, "location");
+  const loc = gopPhieu(await keoType(token, "location"), await keoType(token, "location", planF));
+  log("  → sau gộp khử trùng: sku " + sku.length + " dòng, location " + loc.length + " dòng.");
 
   await ghiTab("kiemke-sku", HEADER_SKU, sku.map(rowSku), apiAt);
   await ghiTab("kiemke-location", HEADER_LOC, loc.map(rowLoc), apiAt);
-  log("✓ HOÀN TẤT — dashboard Kiểm kê có dữ liệu physical-count THẬT cả 2 kho MTG + GARMENT.");
+  log("✓ Factory xong — dashboard Kiểm kê có dữ liệu physical-count THẬT cả 2 kho MTG + GARMENT.");
+
+  // HASAKI (2 kho 170 QL1A) -> sheet 5S: lỗi ở đây KHÔNG làm fail lượt factory phía trên
+  try {
+    const paramsH = { ...PARAMS, warehouse_ids: WH_IDS_HASAKI };
+    const planH = { ...PARAMS_PLAN, warehouse_ids: WH_IDS_HASAKI };
+    log("Kéo physical-count HASAKI (SHOP + WH 170 QL1A, warehouse_ids=" + WH_IDS_HASAKI + ", ngày đếm + plan date)...");
+    const skuH = gopPhieu(await keoType(token, "sku", paramsH, KEEP_HASAKI), await keoType(token, "sku", planH, KEEP_HASAKI));
+    await nghi(600);
+    const locH = gopPhieu(await keoType(token, "location", paramsH, KEEP_HASAKI), await keoType(token, "location", planH, KEEP_HASAKI));
+    await ghiTab("kiemke-sku-hasaki", HEADER_SKU, skuH.map(rowSku), apiAt, SHEET_HASAKI);
+    await ghiTab("kiemke-location-hasaki", HEADER_LOC, locH.map(rowLoc), apiAt, SHEET_HASAKI);
+    log("✓ Hasaki xong — tab Kiểm kê portal kiemsoatkho (?company=hasaki&tab=kk) có dữ liệu.");
+  } catch (e) { log("⚠ Hasaki lỗi (bỏ qua, giữ data cũ): " + e.message); }
+
+  log("✓ HOÀN TẤT.");
   process.exit(0);
 })().catch((e) => { thoatTheoLoi(e, log, 2); });
