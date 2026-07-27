@@ -26,6 +26,7 @@ var TEN_SHEET_TASKS = '5S-TASKS';
 // Dashboard KHÔNG đọc các tab này. ID được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng().
 var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
 var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];
+var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-NHATKY', 'VESINH-AI'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
 
 /* ---------- BẢO MẬT: đọc SECRET & PIN không qua query; chống brute-force & spam ---------- */
 // Apps Script KHÔNG đọc được custom header → SECRET đi trong POST body (an toàn hơn query,
@@ -58,11 +59,12 @@ function doPost(e) {
     if (duLieu && duLieu.action === 'clearTimesheet') return keyBodyOK_(duLieu) ? xoaCo_('TS_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'loginStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('LOGIN_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearLogin') return keyBodyOK_(duLieu) ? xoaCo_('LOGIN_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
-    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true }) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true, touchTabs: true }) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pending') return keyBodyOK_(duLieu) ? apiPendingData_() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'mark') return keyBodyOK_(duLieu) ? apiMarkData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'alert') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); apiAlert({ parameter: { key: SECRET, msg: String(duLieu.msg || '') } }); return phanHoiJson({ status: 'success' }); }
     if (duLieu && (duLieu.action === 'syncTasks')) { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiSyncTasks(duLieu); }
+    if (duLieu && duLieu.action === 'purgeTab') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiPurgeTab(duLieu); }
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
     // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu. BẮT BUỘC SECRET (trước đây public →
     // khách vô danh kích được GAS gọi WMS, "cho mượn" token nội bộ). Frontend hiện KHÔNG gọi (nút "Tải
@@ -73,12 +75,22 @@ function doPost(e) {
     if (duLieu && duLieu.action === 'force_sync_kiemke') return keyBodyOK_(duLieu) ? apiForceSyncKiemke() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'saveWmsToken') return keyBodyOK_(duLieu) ? apiSaveWmsToken(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'setStockMeta') return keyBodyOK_(duLieu) ? apiSetStockMeta(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'touchTabs') return keyBodyOK_(duLieu) ? apiTouchTabs(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 26/07/2026: hash-skip vẫn chạm mốc chip giờ
     // Tồn kho factory — cơ chế CỜ + TOKEN BRIDGE (thêm 21/07/2026, xem chú thích khối STOCKLOC bên dưới):
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeToken') return apiBridgeToken(duLieu);             // extension wms-bridge đẩy token PHIÊN SỐNG của operator — public, validate dạng JWT + throttle
     if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    // Bộ pc_* (PhysicalCountImport.gs — dashboard factory "Tạo lệnh kiểm kê" + "SL điều chỉnh"):
+    // khoá RIÊNG PC_KEY (không dùng SECRET 5S — tránh lộ khoá chủ cho operator dashboard public).
+    // Các dòng này trước đây chỉ được thêm TAY trên bản deploy (sa.js) — nay nối vào nguồn để dán nguyên file là đủ.
+    if (duLieu && duLieu.action === 'pc_import') return pcJson_(pcKeyOK_(duLieu) ? pcImport_(duLieu) : pcKeyErr_());
+    if (duLieu && duLieu.action === 'pc_token') return pcJson_(pcKeyOK_(duLieu) ? pcToken_() : pcKeyErr_());
+    if (duLieu && duLieu.action === 'pc_save_whcode') return pcJson_(pcKeyOK_(duLieu) ? pcSaveWhcode_(duLieu) : pcKeyErr_());
+    if (duLieu && duLieu.action === 'pc_sync_whcode') return pcJson_(pcKeyOK_(duLieu) ? pcSyncWarehouses() : pcKeyErr_());
+    if (duLieu && duLieu.action === 'pc_set_key') return pcJson_(pcSetKey_(duLieu));
+    if (duLieu && duLieu.action === 'pc_adjust') return pcJson_(pcKeyOK_(duLieu) ? pcAdjust_(duLieu) : pcKeyErr_());   // 27/07/2026: lưu SL điều chỉnh Physical Count Detail vào tab kiemke-adjust
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -131,6 +143,7 @@ function doGet(e) {
   if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (PIN)
   if (action === 'checkPin') return apiCheckPin(e);                 // form Ghi nhận 5S kiểm PIN
   if (action === 'lastSync') return apiLastSync(e);                 // chip giờ dữ liệu
+  if (action === 'readTab') return apiReadTab(e);                   // dashboard đọc tab PRIVATE (whitelist SERVE_PRIVATE_TABS)
   if (action === 'requestLogin') return apiRequestLogin(e);         // link email GET (chỉ đặt cờ, không lộ dữ liệu)
   // Các action chứa SECRET đã CHUYỂN sang POST (body.key) — không còn nhận qua query để SECRET không lọt access-log.
   if (['caps','pending','mark','syncStatus','clearSync','timesheetStatus','clearTimesheet','loginStatus','clearLogin'].indexOf(action) >= 0)
@@ -516,7 +529,7 @@ function apiSyncTasks(duLieu) {
   if (duLieu.sheetId) {
     try { ss = SpreadsheetApp.openById(String(duLieu.sheetId)); }
     catch (eX) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet ngoài (sheetId): ' + eX.message }); }
-  } else if (PII_TABS.indexOf(tenTab) >= 0 && PRIVATE_SHEET_ID) {
+  } else if ((PII_TABS.indexOf(tenTab) >= 0 || SERVE_PRIVATE_TABS.indexOf(tenTab) >= 0) && PRIVATE_SHEET_ID) {
     try { ss = SpreadsheetApp.openById(PRIVATE_SHEET_ID); }
     catch (e) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet riêng (PRIVATE_SHEET_ID): ' + e.message }); }
   } else {
@@ -552,6 +565,42 @@ function apiLastSync(e) {
   if (PII_TABS.indexOf(tab) >= 0) return phanHoiJsonp(cb, { status: 'error', message: 'Tab riêng tư' });
   var ts = Number(PropertiesService.getScriptProperties().getProperty('LAST_SYNC_' + tab) || 0);
   return phanHoiJsonp(cb, { status: 'success', ts: ts });
+}
+
+/** Dashboard đọc 1 tab nằm ở SHEET PRIVATE (chỉ whitelist SERVE_PRIVATE_TABS) — JSONP {status, header, rows, ts}.
+ *  Sheet gốc không public; dữ liệu chỉ ra ngoài qua endpoint này (đủ cho dashboard vốn public, nhưng file gốc kín). */
+function apiReadTab(e) {
+  var cb = e.parameter.callback || 'cb';
+  var tab = e.parameter.tab || '';
+  if (SERVE_PRIVATE_TABS.indexOf(tab) < 0) return phanHoiJsonp(cb, { status: 'error', message: 'Tab không được phục vụ' });
+  var ts = Number(PropertiesService.getScriptProperties().getProperty('LAST_SYNC_' + tab) || 0);
+  var ss = PRIVATE_SHEET_ID ? SpreadsheetApp.openById(PRIVATE_SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(tab);
+  if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return phanHoiJsonp(cb, { status: 'success', header: [], rows: [], ts: ts });
+  var tz = ss.getSpreadsheetTimeZone() || 'GMT+7';
+  var vals = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues();
+  var header = (vals.shift() || []).map(function (h) { return String(h); });
+  var rows = vals.map(function (r) {
+    return r.map(function (v) {
+      if (v instanceof Date) {   // Sheets tự nhận "07:52" thành GIỜ (Date năm 1899) → HH:mm; ngày → yyyy-MM-dd; NGÀY+GIỜ (vd Executed At) → giữ cả giờ
+        if (v.getFullYear() <= 1900) return Utilities.formatDate(v, tz, 'HH:mm');
+        return Utilities.formatDate(v, tz, (v.getHours() || v.getMinutes() || v.getSeconds()) ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd');
+      }
+      return v;
+    });
+  });
+  return phanHoiJsonp(cb, { status: 'success', header: header, rows: rows, ts: ts });
+}
+
+/** Xoá 1 tab whitelist khỏi SHEET PUBLIC (dọn bản sao cũ sau khi đã chuyển ghi sang sheet private). Cần key. */
+function apiPurgeTab(duLieu) {
+  var tab = String(duLieu.tab || '');
+  if (SERVE_PRIVATE_TABS.indexOf(tab) < 0) return phanHoiJson({ status: 'error', message: 'Chỉ purge tab trong whitelist' });
+  var ss = SpreadsheetApp.getActiveSpreadsheet();   // sheet PUBLIC (5S)
+  var sh = ss.getSheetByName(tab);
+  if (!sh) return phanHoiJson({ status: 'success', deleted: null, message: 'Không có tab trên sheet public' });
+  ss.deleteSheet(sh);
+  return phanHoiJson({ status: 'success', deleted: tab });
 }
 
 /** Tải biên bản (ảnh) cho 1 task -> lưu Drive + ghi tab BIEN-BAN. duLieu={key,code,files:[{name,mime,base64}]} */
@@ -659,6 +708,24 @@ function docStockMetaMs_() {
   }
   return ms;
 }
+/** 26/07/2026 (nhịp phân tầng): bộ sync báo "vừa KIỂM TRA nguồn WMS/work/planogram lúc apiAt
+ *  nhưng dữ liệu KHÔNG đổi (hash-skip, không ghi lại tab)" → chỉ chạm mốc LAST_SYNC_<tab>
+ *  để chip "cập nhật lúc" trên các dashboard vẫn chạy đúng giờ kiểm tra thật.
+ *  KHÔNG đụng tab Metadata — Metadata giữ nguyên ngữ nghĩa "lần đồng bộ tồn-vị-trí cuối"
+ *  (mốc cooldown 4h của nút Tải lại + mốc sync-guard đọc). */
+function apiTouchTabs(duLieu) {
+  var tabs = Array.isArray(duLieu.tabs) ? duLieu.tabs : [];
+  var at = Number(duLieu.apiAt || 0) || new Date().getTime();
+  var p = PropertiesService.getScriptProperties();
+  var ok = 0;
+  for (var i = 0; i < tabs.length; i++) {
+    var t = String(tabs[i] || '').trim();
+    if (!t || t.length > 64) continue;
+    try { p.setProperty('LAST_SYNC_' + t, String(at)); ok++; } catch (e) { /* best-effort từng tab */ }
+  }
+  return phanHoiJson({ status: 'success', touched: ok, at: at });
+}
+
 function apiSetStockMeta(duLieu) {
   var at = Number(duLieu.at || 0) || new Date().getTime();
   ghiStockMeta_(at);
