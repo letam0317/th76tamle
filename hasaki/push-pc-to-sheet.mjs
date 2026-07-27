@@ -87,6 +87,7 @@ const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Ty
 const HEADER_UIDGR = ["No.", "Kind", "Checklist ID", "Tracking ID", "Request code", "Warehouse", "Type", "Location", "SKU", "Product Name", "Line Qty Count", "Line Inventory", "Line Diff", "Line Status", "UID Group", "Group Status", "Qty Count", "Qty System", "Expiration Date", "Counted date", "Updated At"];
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
 const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 300);   // cap số PHIẾU kéo tracking mỗi lượt (lượt đầu nhiều, sau đó cache gánh)
+const UIDGR_V = 3;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v3: CHỈ nhóm lệch, quét cả dòng diff=0 bù trừ)
 
 async function getTokenLive() {
   // layTokenSongWms (kho + bridge) đã được thử ở caller — tới đây là đường Edge/SSO thuần.
@@ -217,10 +218,10 @@ function uidRowsCuaLine(rec) {
   gop(ujParse(rec.exp_by_sys), "qtyS");
   const out = [];
   for (const [uid, o] of m) {
-    const st = o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : (o.qtyU === o.qtyS ? "Matched" : "Diff qty");
+    // Từ ngữ khớp WMS Detail UIDgr (chỉ thị 27/07): có mặt cả 2 phía = Available (lệch hay không nhìn cột SL đếm/Tồn HT của nhóm)
+    const st = o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : "Available";
     out.push({ uid, st, qtyU: o.qtyU, qtyS: o.qtyS, exp: o.exp || "", dat: o.dat || "" });
   }
-  if (!out.length) out.push({ uid: "", st: "", qtyU: null, qtyS: null, exp: "", dat: "" });   // dòng lệch không kèm group -> vẫn ghi 1 dòng ngữ cảnh
   return out;
 }
 async function buocUidgr(sku, loc, uidgrCu) {
@@ -228,30 +229,49 @@ async function buocUidgr(sku, loc, uidgrCu) {
   for (const [kind, arr] of [["sku", sku], ["loc", loc]]) for (const r of arr) if (phieuLech(r))
     want.set(String(r.checklist_id), { kind, req: r.plan_id || "", wh: r.warehouse_name || "", type: r.plan_type || "",
       cdate: r.checklist_at || "", upd: String(r.updated_at || r.checklist_at || "") });
-  const moi = {}; let hit = 0, keo = 0, treo = 0;
+  const moi = {}; let hit = 0, treo = 0;
+  const canKeo = [];
   for (const [cid, meta] of want) {
     const cu = uidgrCu[cid];
     if (cu && cu.u === meta.upd) { moi[cid] = cu; hit++; continue; }
-    if (keo >= UIDGR_MAX) { treo++; if (cu) moi[cid] = cu; continue; }   // quá cap: giữ bản cũ (nếu có), lượt sau kéo bù
-    const recs = await keoTracking(cid); keo++;
-    const rows = [];
-    for (const rec of recs) {
-      const cnt = rec.qty_by_user == null ? null : Number(rec.qty_by_user) || 0;
-      const inv = rec.qty_by_sys == null ? null : Number(rec.qty_by_sys) || 0;
-      const diff = rec.qty_diff != null ? Number(rec.qty_diff) || 0 : (cnt || 0) - (inv || 0);
-      if (!diff) continue;   // chỉ ghi dòng LỆCH — tab gọn, đúng mục đích pop-up lệch âm/dương
-      for (const u of uidRowsCuaLine(rec))
-        rows.push([meta.kind, cid, String(rec.tracking_id || ""), meta.req, meta.wh, meta.type,
-          rec.bin_location || "", rec.sku || "", rec.product_name || "",
-          cnt == null ? "" : cnt, inv == null ? "" : inv, diff, lineStatus(rec.status_id),
-          u.uid, u.st, u.qtyU == null ? "" : u.qtyU, u.qtyS == null ? "" : u.qtyS, u.exp, u.dat || meta.cdate || "", meta.upd]);
-    }
-    moi[cid] = { u: meta.upd, rows };
-    await nghi(350);
+    if (canKeo.length >= UIDGR_MAX) { treo++; if (cu) moi[cid] = cu; continue; }   // quá cap: giữ bản cũ (nếu có), lượt sau kéo bù
+    canKeo.push([cid, meta]);
   }
+  // 4 luồng song song (27/07/2026 — "cần nhanh hơn"): ≤4 request cùng lúc + nghỉ 120ms/phiếu,
+  // vẫn hiền với WMS hơn 1 người bấm trang; token bị đá thì worker đầu làm tươi, các worker sau hưởng chung.
+  let idx = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = idx++; if (i >= canKeo.length) return;
+      const [cid, meta] = canKeo[i];
+      const recs = await keoTracking(cid);
+      const rows = [];
+      for (const rec of recs) {
+        const cnt = rec.qty_by_user == null ? null : Number(rec.qty_by_user) || 0;
+        const inv = rec.qty_by_sys == null ? null : Number(rec.qty_by_sys) || 0;
+        const diff = rec.qty_diff != null ? Number(rec.qty_diff) || 0 : (cnt || 0) - (inv || 0);
+        /* CHỈ ghi NHÓM LỆCH (đếm ≠ tồn của chính nhóm) — nhóm khớp bỏ hẳn (chỉ thị 27/07).
+           QUÉT CẢ dòng diff=0: bên trong vẫn có thể có nhóm bù trừ (New +x và Not found -x). */
+        const groups = uidRowsCuaLine(rec).filter((u) => (Number(u.qtyU) || 0) !== (Number(u.qtyS) || 0));
+        if (!groups.length) {
+          if (!diff) continue;   // dòng khớp hẳn -> bỏ
+          groups.push({ uid: "", st: "", qtyU: cnt, qtyS: inv, exp: "", dat: "" });   // hàng thường không quản UID group -> 1 dòng đại diện số của dòng
+        }
+        for (const u of groups)
+          rows.push([meta.kind, cid, String(rec.tracking_id || ""), meta.req, meta.wh, meta.type,
+            rec.bin_location || "", rec.sku || "", rec.product_name || "",
+            cnt == null ? "" : cnt, inv == null ? "" : inv, diff, lineStatus(rec.status_id),
+            u.uid ? "'" + u.uid : "",   // dấu nháy đầu = ép TEXT trên Sheets — mã UID 16 số không bị đổi thành 1.02826E+15
+            u.st, u.qtyU == null ? "" : u.qtyU, u.qtyS == null ? "" : u.qtyS, u.exp, u.dat || meta.cdate || "", meta.upd]);
+      }
+      moi[cid] = { u: meta.upd, rows };
+      await nghi(120);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, canKeo.length) }, worker));
   const out = [];
   for (const cid of want.keys()) if (moi[cid]) for (const r of moi[cid].rows) out.push([out.length + 1].concat(r));
-  log("  ✓ UID group lệch: " + want.size + " phiếu lệch (cache " + hit + ", kéo mới " + keo + (treo ? ", quá cap giữ cũ " + treo : "") + ") → " + out.length + " dòng.");
+  log("  ✓ UID group lệch: " + want.size + " phiếu lệch (cache " + hit + ", kéo mới " + canKeo.length + (treo ? ", quá cap giữ cũ " + treo : "") + ") → " + out.length + " dòng.");
   return { rows: out, cache: moi };
 }
 async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
@@ -300,8 +320,10 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   // UID group lệch (factory): lỗi ở bước này KHÔNG làm fail lượt chính — giữ tab cũ, cache cũ.
   let uidgrKq = null;
   try {
-    let uidgrCu = (cache && cache.uidgr) || null;   // DELTA: cache đã đọc sẵn
-    if (!uidgrCu) { try { uidgrCu = JSON.parse(fs.readFileSync(PC_CACHE, "utf8")).uidgr || {}; } catch { uidgrCu = {}; } }   // FULL: tận dụng cache lượt trước
+    let uidgrCu = null, uidgrVCu = null;
+    if (cache) { uidgrCu = cache.uidgr || null; uidgrVCu = cache.uidgrV; }   // DELTA: cache đã đọc sẵn
+    if (!uidgrCu) { try { const cu = JSON.parse(fs.readFileSync(PC_CACHE, "utf8")); uidgrCu = cu.uidgr || {}; uidgrVCu = cu.uidgrV; } catch { uidgrCu = {}; } }   // FULL: tận dụng cache lượt trước
+    if (uidgrVCu !== UIDGR_V) { uidgrCu = {}; }   // đổi định dạng cột -> vứt cache, kéo lại toàn bộ (4 luồng nên chỉ ~1-2 phút)
     log("Kéo UID group của phiếu lệch (tab kiemke-uidgr)...");
     uidgrKq = await buocUidgr(sku, loc, uidgrCu);
     if (uidgrKq.rows.length) await ghiTab("kiemke-uidgr", HEADER_UIDGR, uidgrKq.rows, apiAt);
@@ -333,7 +355,7 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   // (mốc fullAt là đồng hồ nâng-cấp-full 20h — delta không được phép trẻ hoá nó).
   try {
     let uidgrLuu = uidgrKq ? uidgrKq.cache : ((cache && cache.uidgr) || undefined);   // bước uidgr lỗi -> giữ cache cũ, không mất công kéo lại
-    fs.writeFileSync(PC_CACHE, JSON.stringify({ fullAt: DELTA ? cache.fullAt : apiAt, fSku: sku, fLoc: loc, hSku: skuH, hLoc: locH, uidgr: uidgrLuu }));
+    fs.writeFileSync(PC_CACHE, JSON.stringify({ fullAt: DELTA ? cache.fullAt : apiAt, fSku: sku, fLoc: loc, hSku: skuH, hLoc: locH, uidgr: uidgrLuu, uidgrV: uidgrKq ? UIDGR_V : (cache && cache.uidgrV) }));
   } catch (e) { log("  ⚠ Không lưu được cache delta: " + e.message); }
 
   ghiMocBuoc(DIR, "kiemke");   // mốc thành công cho sync-guard (phần factory đã ghi xong là đạt)

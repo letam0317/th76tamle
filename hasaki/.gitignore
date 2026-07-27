@@ -43,3 +43,5 @@ ui_*.png
 google-script-DEPLOY.gs
 # Thư mục làm việc clasp (chứa code kéo về từ script live + có secret) — KHÔNG commit
 .clasp-deploy/
+# Cache tracking cua doi-soat-kiemke (co du lieu ton kho)
+.doi-soat-cache.json
