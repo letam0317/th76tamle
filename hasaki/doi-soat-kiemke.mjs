@@ -235,20 +235,27 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
       if (Math.abs(t - k) < k * 0.001) return "Nghi gõ " + nhan;
     return "";
   };
-  const sku = [...theoSku.values()].map((o) => {
+  const skuTatCa = [...theoSku.values()].map((o) => {
     const net = o.cnt - o.sys;
     const tThieu = o.thieu.reduce((s, d) => s + (-d.diff), 0);
     const tThua = o.thua.reduce((s, d) => s + d.diff, 0);
     const buTruViTri = Math.min(tThieu, tThua);   // phần tự triệt tiêu giữa các vị trí của CÙNG sku
     let ketLuan;
     if (tThieu === 0 && tThua === 0) ketLuan = "Khớp";
-    else if (net === 0) ketLuan = "Chỉ SAI VỊ TRÍ (tổng kho khớp)";
     else if (net < 0) ketLuan = buTruViTri > 0 ? "THIẾU thật (đã trừ phần sai vị trí)" : "THIẾU thật";
     else ketLuan = buTruViTri > 0 ? "THỪA thật (đã trừ phần sai vị trí)" : "THỪA thật";
     const typo = o.thieu.concat(o.thua).map((d) => nghiTypo(d.sys, d.cnt)).find(Boolean) || "";
     return { ...o, net, netQd: qd(net, o.factor), tThieu, tThua, buTruViTri, ketLuan, typo };
   }).filter((o) => o.tThieu || o.tThua)
     .sort((a, b) => Math.abs(b.netQd) - Math.abs(a.netQd) || Math.abs(b.net) - Math.abs(a.net));
+
+  /* QUY TẮC 27/07 (chỉ thị nghiệp vụ): CÙNG SKU thiếu chỗ này – thừa chỗ khác ĐÚNG BẰNG NHAU
+     thì hàng vẫn còn nguyên trong kho, chỉ nằm sai ô → COI NHƯ KHÔNG LỆCH, không đưa vào báo cáo.
+     Chỉ giữ phần dư sau khi đã bù trừ hết (net ≠ 0) — đó mới là thứ phải đi tìm. */
+  const skuBuTruHet = skuTatCa.filter((o) => o.net === 0);
+  const sku = skuTatCa.filter((o) => o.net !== 0);
+  const conLech = new Set(sku.map((o) => o.sku));
+  const lechGhi = lech.filter((d) => conLech.has(d.sku));
 
   const dsVt = (arr) => arr.sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff)).slice(0, 6).map((d) => d.loc + " (" + (d.diff > 0 ? "+" : "") + d.diff + ")").join(" · ");
   const noiKiem = (o) => {
@@ -258,14 +265,13 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
   };
 
   /* ---------------- 7) Tổng kết ra console ---------------- */
-  const tThieuThat = sku.filter((o) => o.net < 0), tThuaThat = sku.filter((o) => o.net > 0), tSaiVt = sku.filter((o) => o.net === 0);
+  const tThieuThat = sku.filter((o) => o.net < 0), tThuaThat = sku.filter((o) => o.net > 0);
   const nghiTypoDs = sku.filter((o) => o.typo);
   log("");
   log("══ KẾT QUẢ ĐỐI SOÁT ══");
-  log("  SKU đã đếm                  : " + theoSku.size + " · có lệch: " + sku.length);
-  log("  → chỉ SAI VỊ TRÍ (net = 0)  : " + tSaiVt.length + " SKU — bù trừ giữa các vị trí là hết, chỉ cần dời hàng");
-  log("  → THIẾU thật                : " + tThieuThat.length + " SKU");
-  log("  → THỪA thật                 : " + tThuaThat.length + " SKU");
+  log("  SKU đã đếm                  : " + theoSku.size + " · có chênh lệch thô: " + skuTatCa.length);
+  log("  → BÙ TRỪ HẾT, coi như KHÔNG LỆCH: " + skuBuTruHet.length + " SKU (thiếu chỗ này = thừa chỗ khác, chỉ dời hàng)");
+  log("  → CÒN LỆCH THẬT             : " + sku.length + " SKU  |  THIẾU " + tThieuThat.length + " · THỪA " + tThuaThat.length);
   log("  Cặp nghi NHẦM MÃ cùng vị trí: " + cap.filter((c) => c.khop).length + " cặp khớp số lượng / " + cap.length + " cặp bù trừ");
   log("  Nghi LỖI GÕ SỐ 0            : " + nghiTypoDs.length + " SKU (sửa số liệu, không phải mất hàng)");
   log("  Vị trí trong kế hoạch CHƯA ĐẾM: " + boQua.filter((p) => !TT_BO_QUA.has(String(p.status_name || "").toUpperCase())).length + " (vùng mù)");
@@ -307,37 +313,16 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
       qd(o.tThieu, o.factor), qd(o.tThua, o.factor), qd(o.buTruViTri, o.factor),
       o.ketLuan, o.typo, noiKiem(o)]));
 
+  // Chi tiết chỉ giữ dòng của SKU CÒN LỆCH — SKU đã bù trừ hết không đưa vào (coi như không lệch).
   await ghiTab("DS-ChiTietLech",
-    ["No.", "Checklist", "Plan", "Ngày plan", "Trạng thái phiếu", "Vị trí", "SKU", "Tên sản phẩm", "Hệ số",
-      "Tồn HT (đv đếm)", "Đã đếm (đv đếm)", "LỆCH (đv đếm)", "Lệch (số gốc)", "Số lần đếm lại",
+    ["No.", "SKU", "Tên sản phẩm", "Vị trí", "Hệ số", "Tồn HT (đv đếm)", "Đã đếm (đv đếm)", "LỆCH (đv đếm)",
+      "Lệch (số gốc)", "Checklist", "Ngày plan", "Trạng thái phiếu", "Số lần đếm lại",
       "UID group đếm", "UID group hệ thống", "Người đếm", "Giờ đếm"],
-    lech.sort((a, b) => Math.abs(qd(b.diff, b.factor)) - Math.abs(qd(a.diff, a.factor))).map((d, i) =>
-      [i + 1, d.cid, d.plan, d.ngay, d.ttPhieu, d.loc, "'" + d.sku, d.ten, d.factor,
-        qd(d.sys, d.factor), qd(d.cnt, d.factor), qd(d.diff, d.factor), d.diff, d.soLanDem,
+    lechGhi.sort((a, b) => (a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : 0) || Math.abs(b.diff) - Math.abs(a.diff)).map((d, i) =>
+      [i + 1, "'" + d.sku, d.ten, d.loc, d.factor,
+        qd(d.sys, d.factor), qd(d.cnt, d.factor), qd(d.diff, d.factor), d.diff,
+        d.cid, d.ngay, d.ttPhieu, d.soLanDem,
         d.uidU ? "'" + d.uidU : "", d.uidS ? "'" + d.uidS : "", d.nguoi, d.gio]));
-
-  await ghiTab("DS-CapNghiNhamMa",
-    ["No.", "Vị trí", "SKU thiếu", "Tên SKU thiếu", "SKU thừa", "Tên SKU thừa", "SL bù trừ", "Khớp đúng số lượng?", "Ghi chú"],
-    cap.sort((a, b) => (b.khop ? 1 : 0) - (a.khop ? 1 : 0) || b.q - a.q).map((c, i) =>
-      [i + 1, c.loc, "'" + c.thieu.sku, c.thieu.ten, "'" + c.thua.sku, c.thua.ten, c.q, c.khop ? "CÓ — nghi nhầm mã" : "Một phần",
-        c.khop ? "Ra vị trí đối chiếu tem 2 mã này" : "Bù trừ một phần, cần xem cả vị trí"]));
-
-  await ghiTab("DS-TheoViTri",
-    ["No.", "Vị trí", "Số dòng lệch", "Tổng thiếu", "Tổng thừa", "Tự triệt tiêu trong vị trí", "Lệch ròng còn lại", "Ngày plan", "Trạng thái phiếu", "Người đếm"],
-    [...theoVt.values()].sort((a, b) => Math.abs(b.rong) - Math.abs(a.rong) || b.trietTieu - a.trietTieu).map((o, i) =>
-      [i + 1, o.loc, o.ds.length, o.tongThieu, o.tongThua, o.trietTieu, o.rong, o.ngay, o.ttPhieu, o.nguoi]));
-
-  if (chuaDem.length) await ghiTab("DS-ChuaDem",
-    ["No.", "Checklist", "Ngày plan", "Trạng thái phiếu", "Vị trí", "SKU", "Tên sản phẩm", "Tồn HT", "Trạng thái dòng"],
-    chuaDem.map((d, i) => [i + 1, d.cid, d.ngay, d.ttPhieu, d.loc, "'" + d.sku, d.ten, d.sys, d.ttDong]));
-
-  /* Vị trí NẰM TRONG KẾ HOẠCH NHƯNG CHƯA ĐẾM — cũng là câu trả lời cho "kiểm tra ở đâu":
-     chưa đếm thì không thể kết luận đủ/thiếu, đây là vùng mù của đợt kiểm kê. */
-  const vtChuaDem = boQua.filter((p) => !TT_BO_QUA.has(String(p.status_name || "").toUpperCase()));
-  if (vtChuaDem.length) await ghiTab("DS-ViTriChuaDem",
-    ["No.", "Checklist", "Plan", "Ngày plan", "Vị trí", "Trạng thái", "Người tạo", "Cập nhật lúc"],
-    vtChuaDem.map((p, i) => [i + 1, p.checklist_id, p.plan_id, p.plan_date || "", p.plan_object_code || "",
-      p.status_name || "", p.created_by_name || "", p.updated_at || ""]));
 
   log("✓ HOÀN TẤT — mở Sheet " + SHEET_ID + " xem 4-5 tab DS-*");
   process.exit(0);
