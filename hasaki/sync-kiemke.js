@@ -11,13 +11,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
-import { voiKhoa, luuToken } from "./token-store.js";
+import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);
 const SHEET_ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 // CT1 KIẾN TRÚC KÉP: 2 sheet tách biệt cho Kiểm kê SKU và Kiểm kê Location
 const TAB_SKU = "kiemke-sku";
@@ -36,7 +35,7 @@ const BO = [
   { company: "1002", warehouses: "1458,1441,1307,1250,1179,1178,1177,1151", kho: "WH - MATERIAL - MTG" },
   { company: "1005", warehouses: "1458,1441,1307,1250,1179,1178,1177,1151,1516,1341,1340,1339,1266", kho: "WH - MATERIAL - GARMENT" },
 ];
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 const chuanKho = (s) => String(s || "").replace(/\s+/g, " ").trim().toUpperCase();
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }

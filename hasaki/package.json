@@ -11,11 +11,13 @@
     "setup": "node -e \"import('node:fs').then(fs=>{if(!fs.existsSync('.env')){fs.copyFileSync('.env.example','.env');console.log('✅ Đã tạo .env từ .env.example — hãy mở .env và điền thông tin thật.');}else{console.log('ℹ️  .env đã tồn tại, không ghi đè.');}})\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "dotenv": "^16.4.5",
     "googleapis": "^144.0.0",
     "jimp": "^1.6.1",
     "otpauth": "^9.3.4",
     "puppeteer": "^23.0.0",
+    "sharp": "^0.35.3",
     "xlsx": "^0.18.5"
   },
   "engines": {

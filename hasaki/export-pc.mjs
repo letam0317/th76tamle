@@ -10,13 +10,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { tokenCon, luuToken } from "./token-store.js";
+import { tokenCon, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const GW = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklists";
 const GET_ME = "https://wms-gw.inshasaki.com/api/v1/auth/user/get-me";
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 
 // Bộ lọc lấy từ URL bạn gửi
 const TAB = "sku";                          // type-sku | type-location
@@ -26,8 +26,8 @@ const SIZE = 500;
 async function getTokenLive() {
   // Chỉ gọi khi cache hỏng — mở edge-profile headless, bấm SSO im lặng (SẼ đăng xuất WMS ở Edge của bạn)
   const puppeteer = (await import("puppeteer")).default;
-  const EDGE = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-  const PROFILE = process.env.EDGE_PROFILE_DIR || path.join(DIR, ".wms-session", "edge-profile");
+  const EDGE = EDGE_PATH;
+  const PROFILE = duongDanProfile(DIR);
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE, userDataDir: PROFILE, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());

@@ -19,7 +19,7 @@ const MAX_WAIT_MS = 15 * 60 * 1000;
 
 const events = [];
 let gotTarget = false;
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 const save = () => { try { fs.writeFileSync(OUT_FILE, JSON.stringify({ capturedAt: new Date().toISOString(), events }, null, 2)); } catch (e) { log("Loi ghi:", e.message); } };
 
 // Mã chạy BÊN TRONG trang để móc fetch + XHR và đọc body (kể cả FormData)

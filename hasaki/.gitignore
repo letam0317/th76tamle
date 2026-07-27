@@ -29,6 +29,15 @@ ui_*.png
 *.lock
 .last-sync.json
 .exports/
+.sync-ok-*
+.sync-guard.last-run
+.session-ledger-state.json
+# State/cache của nhịp phân tầng (sync-poller 26/07/2026)
+.poller-state.json
+.sheet-hash.json
+.pc-cache.json
+# Cache danh bạ wshr — CÓ PII, tuyệt đối không commit
+.cache-danhba.json
 
 # Bản deploy Apps Script có SECRET thật — KHÔNG commit
 google-script-DEPLOY.gs

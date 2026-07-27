@@ -17,6 +17,7 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
+import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,14 +31,13 @@ if (!APPSCRIPT_KEY) {
   console.error("✗ Thiếu APPSCRIPT_KEY trong .env. Hãy copy .env.example -> .env rồi điền APPSCRIPT_KEY (trùng SECRET trong google-script.gs).");
   process.exit(3);
 }
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 // Profile Edge ổn định (gitignore qua .wms-session/) — KHÔNG để trong Temp để lịch chạy ngầm khỏi mất phiên.
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);
 const API_CREATE = "https://wshr.hasaki.vn/api/hr/projects/create-task-workflow";
 const API_WORKFLOW = "https://wshr.hasaki.vn/api/hr/workflows/" + WORKFLOW_ID;
 const MATCH_THRESHOLD = 0.55;                        // ngưỡng khớp hạng mục
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 
 /* --------------------- 1) Lấy token từ phiên Edge --------------------- */
 async function getToken() {

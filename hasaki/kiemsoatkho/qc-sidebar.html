@@ -2630,7 +2630,7 @@ let _hpcNap=null;
 function napHasakiPC(){
   if(!_hpcNap){
     _hpcNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-pc.js?v=20260726b';
+      const s=document.createElement('script'); s.src='hasaki-pc.js?v=20260723d';
       s.onload=res; s.onerror=()=>rej(new Error('hasaki-pc.js'));
       document.body.appendChild(s);
     }).then(()=>{ if(window.HPC) window.HPC.init(); }).catch(()=>{});
@@ -2645,7 +2645,7 @@ function moHasakiTonbat(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _htNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-tonbatthuong.js?v=20260726b';
+      const s=document.createElement('script'); s.src='hasaki-tonbatthuong.js?v=20260724e';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-tonbatthuong.js'));
       document.body.appendChild(s);
     });
@@ -2661,7 +2661,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260726e';
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260725j';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -2677,7 +2677,7 @@ function moHasakiKiemke(){
       '<div class="sk sk-line" style="width:68%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _hkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20260726b';
+      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20260724e';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-kiemke.js'));
       document.body.appendChild(s);
     });

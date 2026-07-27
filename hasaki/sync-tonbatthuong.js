@@ -17,7 +17,7 @@ import puppeteer from "puppeteer";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { voiKhoa, luuToken } from "./token-store.js";
-import { chanReLoginNgoaiKhung, layBridgeToken, thoatTheoLoi } from "./session-rules.js";
+import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
@@ -41,7 +41,7 @@ const BO = [
   { ten: "Garment", company: "1005", warehouses: "1458,1441,1307,1250,1179,1178,1177,1151,1516,1341,1340,1339,1266", tab: "stock-inventory-beta", sheetId: SHEET_FACTORY },
   { ten: "Hasaki 170 QL1A", company: "1001", warehouses: "863,874", tab: "stock-inventory-hasaki", sheetId: SHEET_HASAKI },
 ];
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
@@ -49,10 +49,10 @@ if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); pr
    ỨNG VIÊN (SPA có thể bắn request đầu bằng JWT CŨ trong localStorage), phải kiểm sống get-me ngay
    trong vòng lặp; chết thì loại + xoá phiên WMS cũ + ép đi lại luồng SSO. */
 async function getWmsToken() {
-  // LUẬT 1 (session-rules): token BRIDGE trước — dùng lại phiên đang sống của operator,
+  // LUẬT 1 (session-rules): token SỐNG trước — kho bất kể tuổi (get-me trọng tài) rồi bridge;
   // không mở Edge, không đá phiên. Nhờ vậy 401 giữa chừng trong giờ làm tự lành không cần SSO.
-  const quaBridge = await layBridgeToken(log);
-  if (quaBridge) return quaBridge;
+  const song = await layTokenSongWms(DIR, log);
+  if (song) return song;
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE_PATH, userDataDir: PROFILE_DIR, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());
@@ -122,6 +122,8 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
   "In Stock", "Available", "Committed", "Committed Outbound", "Unsuitable Product", "UID Temp", "Conflict", "Not Found"];
 
 (async () => {
+  // Lượt guard chạy VÁ bước khác mà tonbatthuong hôm nay đã xong → thoát sớm (mốc .sync-ok-tonbatthuong).
+  if (boQuaNeuDaTuoi(DIR, "tonbatthuong", log)) process.exit(0);
   let token = await layTokenTuPhucHoi(getWmsToken, DIR, log, "wms").catch((e) => { thoatTheoLoi(e, log, 2); });
   const me = await fetch(GET_ME, { headers: { authorization: token } });
   if (me.status === 401 || me.status === 403) { token = await voiKhoa(DIR, getWmsToken, { log }); luuToken(DIR, "wms", token); }
@@ -131,7 +133,7 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
   let API = null;
   for (const cand of API_CANDS) {
     const u = cand + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=5";
-    const r = await fetch(u, { headers: { authorization: token } }).catch(() => null);
+    const r = await fetchThuLai(u, { headers: { authorization: token } }).catch(() => null);
     if (r && r.ok) { const j = await r.json().catch(() => null); const recs = j && (j.records || (j.data && j.data.records)); if (Array.isArray(recs)) { API = cand; log("✓ Endpoint: " + cand + " (mẫu " + recs.length + " dòng)"); if (recs[0]) log("  keys mẫu: " + Object.keys(recs[0]).slice(0, 24).join(",")); break; } }
     log("  … " + cand + " -> " + (r ? "HTTP " + r.status : "không gọi được"));
   }
@@ -142,7 +144,7 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
   // (nếu nhận nhầm, điều kiện dừng recs.length < SIZE sẽ cắt cụt dữ liệu ngay trang đầu).
   let size = SIZE;
   for (const thu of [2000, 1000]) {
-    const r = await fetch(API + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=" + thu, { headers: { authorization: token } }).catch(() => null);
+    const r = await fetchThuLai(API + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=" + thu, { headers: { authorization: token } }).catch(() => null);
     if (r && r.ok) { const j = await r.json().catch(() => null); const recs = (j && (j.records || (j.data && j.data.records))) || []; if (recs.length > 500) { size = thu; break; } }
   }
   log("✓ Cỡ trang: " + size + " dòng/lần.");
@@ -150,13 +152,14 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
   // Token WMS sống ngắn (~vài phút) — 401/403 giữa chừng thì ĐĂNG NHẬP LẠI rồi thử lại đúng trang đó
   let lanDoiToken = 0;
   const fetchTrang = async (u) => {
-    let r = await fetch(u, { headers: { authorization: token } });
+    // fetchThuLai (vá 25/07/2026): chống "fetch failed" thoáng qua giết cả bước như kiemke 24/07
+    let r = await fetchThuLai(u, { headers: { authorization: token } });
     if ((r.status === 401 || r.status === 403) && lanDoiToken < 5) {
       lanDoiToken++;
       log("  … token hết hạn giữa chừng — đăng nhập lại (" + lanDoiToken + "/5)...");
       token = await voiKhoa(DIR, getWmsToken, { log });
       luuToken(DIR, "wms", token);
-      r = await fetch(u, { headers: { authorization: token } });
+      r = await fetchThuLai(u, { headers: { authorization: token } });
     }
     return r;
   };
@@ -199,14 +202,19 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
     const rows = dich.rows;
     // GAS chặn ghi rows rỗng (chống xoá trắng) — 0 dòng thì bỏ qua, giữ dữ liệu cũ trên tab
     if (!rows.length) { log("  ⚠ " + tab + ": 0 dòng bất thường — bỏ qua (giữ dữ liệu cũ)."); continue; }
+    // Chạy 3 lần/ngày (8h40 + 2 slot poller): dữ liệu không đổi thì khỏi ghi lại ~50k dòng, chỉ chạm mốc chip giờ.
+    const hash = hashTab(HEADER, rows);
+    if (tabKhongDoi(DIR, tab, hash)) { log("  = " + tab + ": dữ liệu KHÔNG đổi — bỏ qua ghi (" + rows.length + " dòng, tiết kiệm GAS)."); await chamMocTabs([tab], apiAt, log); continue; }
     for (let i = 0; i < rows.length; i += CHUNK) {
       const phan = rows.slice(i, i + CHUNK);
       const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: tab, sheetId: dich.sheetId, header: HEADER, rows: phan, append: i > 0, apiAt });
-      const j = await (await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+      const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
       if (j.status !== "success") { log("✗ Ghi " + tab + " lỗi: " + (j.message || "?")); process.exit(2); }
       log("  ✓ " + tab + ": ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + (i === 0 ? " (xoá data cũ trước)" : " (nối tiếp)"));
     }
+    luuHashTab(DIR, tab, hash);
   }
+  ghiMocBuoc(DIR, "tonbatthuong");   // mốc thành công cho sync-guard
   log("✓ HOÀN TẤT — các tab Tồn kho bất thường đã có dữ liệu mới.");
   process.exit(0);
 })().catch((e) => { thoatTheoLoi(e, log, 2); });

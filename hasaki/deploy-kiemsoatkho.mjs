@@ -18,6 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import "dotenv/config";   // đọc GH_TOKEN từ .env (đã gitignore) — khỏi phải set biến môi trường mỗi lần
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_PAT;
@@ -30,6 +31,10 @@ const FILES = [
   ["kiemsoatkho/form.html", "form.html"],
   ["kiemsoatkho/factory-stock.js", "factory-stock.js"],     // module tab Trạng thái lưu trữ (lazy-load)
   ["kiemsoatkho/factory-kiemke.js", "factory-kiemke.js"],   // module tab Kiểm kê (lazy-load)
+  ["kiemsoatkho/hasaki-tonbatthuong.js", "hasaki-tonbatthuong.js"], // module tab Tồn kho bất thường HASAKI (lazy-load)
+  ["kiemsoatkho/hasaki-planogram.js", "hasaki-planogram.js"], // module tab Planogram HASAKI (lazy-load, đọc tab PHU-TRACH-QUAY-KE)
+  ["kiemsoatkho/hasaki-kiemke.js", "hasaki-kiemke.js"],     // module tab Kiểm kê HASAKI (lazy-load, nhân bản từ Audit Factory)
+  ["kiemsoatkho/hasaki-pc.js", "hasaki-pc.js"],             // module DÙNG CHUNG: giỏ chọn SKU -> tạo lệnh kiểm kê .xlsx + Kế hoạch chờ push (lazy-load)
 ];
 
 if (!TOKEN) {

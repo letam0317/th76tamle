@@ -13,15 +13,18 @@
  */
 import puppeteer from "puppeteer";
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 
+const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const WORKFLOW_ID = process.env.WORKFLOW_ID || "591";
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);
 const FROM_DATE = process.env.SYNC_FROM || "2026-01-01";   // mốc bắt đầu kéo task
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
 // Nhãn trạng thái (chỉnh lại nếu đối chiếu UI thấy khác)

@@ -1,0 +1,152 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QC · Gom tab — 3 phương án</title>
+<style>
+:root{
+  --bg:#eef3f0; --surface:#ffffff; --surface2:#e7efe9; --border:#d7e3db;
+  --text:#20302a; --muted:#6b7c73; --accent:#326e51; --accent-hover:#295b42; --accent-text:#ffffff;
+  --hover:#e8f4ec; --shadow:0 1px 2px rgba(20,50,36,.05),0 8px 24px rgba(20,50,36,.09);
+  --brand:#326e51; --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.45;padding:26px 22px 60px;}
+.qc-h{max-width:1180px;margin:0 auto 20px;}
+.qc-h h1{font-size:19px;margin:0 0 4px;letter-spacing:-.2px;}
+.qc-h p{margin:0;color:var(--muted);font-size:13px;}
+.frame{max-width:1180px;margin:0 auto 26px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;}
+.frame-lbl{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.frame-lbl .tag{background:var(--accent);color:#fff;font-weight:750;font-size:12px;border-radius:999px;padding:3px 11px;}
+.frame-lbl .t{font-weight:700;font-size:14px;} .frame-lbl .s{color:var(--muted);font-size:12.5px;}
+/* ===== khung app dùng chung ===== */
+.app{padding:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 20px 0;}
+.brand{display:flex;align-items:center;gap:10px;color:var(--brand);font-weight:800;font-size:19px;letter-spacing:-.2px;}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800;}
+.brand small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.16em;color:var(--muted);margin-top:1px;}
+.btn5s{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 15px;font-weight:650;font-size:13px;cursor:pointer;}
+.tabs{display:flex;gap:2px;padding:6px 20px 0;border-bottom:1px solid var(--border);}
+.tab{border:0;border-bottom:1.5px solid transparent;background:transparent;padding:9px 14px;font-size:13.5px;font-weight:600;color:var(--text);opacity:.55;cursor:pointer;transition:opacity .18s,border-color .18s;font-family:inherit;}
+.tab:hover{opacity:.85;} .tab.active{opacity:1;font-weight:700;border-bottom-color:var(--accent);}
+.content{padding:26px 20px;min-height:150px;color:var(--muted);font-size:13.5px;}
+.ph{display:flex;flex-wrap:wrap;gap:10px;}
+.ph i{height:64px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);flex:1 1 150px;}
+/* ===== A — segmented sub-tabs ===== */
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:var(--surface);margin:0;}
+.seg button{border:0;background:transparent;padding:7px 15px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;transition:background .16s,color .16s;}
+.seg button:hover{background:var(--hover);} .seg button.on{background:var(--accent);color:#fff;}
+.subrow{display:flex;align-items:center;gap:10px;padding:12px 20px;background:color-mix(in srgb,var(--surface2) 55%,var(--surface));border-bottom:1px solid var(--border);}
+.subrow .lbl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+/* ===== B — dropdown ===== */
+.catwrap{position:relative;display:inline-block;}
+.catbtn{border:0;border-bottom:1.5px solid transparent;background:transparent;padding:9px 14px;font-size:13.5px;font-weight:600;color:var(--text);opacity:.55;cursor:pointer;font-family:inherit;}
+.catbtn.active{opacity:1;font-weight:700;border-bottom-color:var(--accent);}
+.menu{position:absolute;top:calc(100% + 6px);left:8px;z-index:5;min-width:210px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;}
+.menu .mi{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:8px;font-size:13px;color:var(--text);cursor:pointer;}
+.menu .mi:hover{background:var(--hover);} .menu .mi.on{background:var(--hover);color:var(--accent);font-weight:700;}
+.menu .mi .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:0;} .menu .mi.on .dot{opacity:1;}
+/* ===== C — sidebar ===== */
+.side-app{display:grid;grid-template-columns:216px 1fr;min-height:340px;}
+.sidebar{background:var(--surface2);border-right:1px solid var(--border);padding:16px 12px;display:flex;flex-direction:column;gap:4px;}
+.sidebar .brand{padding:2px 8px 14px;font-size:17px;}
+.side-grp{font-size:10.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:12px 12px 5px;}
+.side-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--text);opacity:.8;cursor:pointer;border-left:3px solid transparent;transition:background .16s,opacity .16s;}
+.side-item:hover{background:var(--hover);opacity:1;}
+.side-item.on{background:var(--surface);opacity:1;color:var(--accent);border-left-color:var(--accent);box-shadow:0 1px 3px rgba(20,50,36,.06);}
+.side-item .ic{width:17px;height:17px;border-radius:5px;background:currentColor;opacity:.5;flex:none;}
+.side-item.on .ic{opacity:1;}
+.side-main{padding:20px 22px;}
+.side-main .crumb{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.side-main .crumb b{color:var(--accent);}
+</style></head>
+<body>
+<div class="qc-h"><h1>Gom tab theo hạng mục — 3 phương án (bản QC, không đụng dashboard thật)</h1>
+<p>Ngôn ngữ thiết kế đồng bộ theme Hasaki (xanh #326e51, font Inter). Nội dung 5S: Tổng quan · Task vi phạm · Quy định · Planogram — Tồn kho: Kiểm kê · Tồn kho bất thường.</p></div>
+
+<!-- ===== A ===== -->
+<div class="frame"><div class="frame-lbl"><span class="tag">A</span><span class="t">Hạng mục = tab lớn · tab con = segmented</span><span class="s">2 hàng · thấy hết tab con · ít click — hợp desktop</span></div>
+<div class="app">
+  <div class="topbar"><div class="brand"><span class="logo">H</span><div>AUDIT HASAKI<small>KIỂM SOÁT KHO</small></div></div><button class="btn5s">+ Ghi nhận 5S</button></div>
+  <div class="tabs"><button class="tab active">5S</button><button class="tab">Tồn kho</button></div>
+  <div class="subrow"><span class="lbl">5S</span><span class="seg"><button class="on">Tổng quan</button><button>Task vi phạm</button><button>Quy định</button><button>Planogram</button></span></div>
+  <div class="content"><div class="ph"><i></i><i></i><i></i><i></i></div></div>
+</div></div>
+
+<!-- ===== B ===== -->
+<div class="frame"><div class="frame-lbl"><span class="tag">B</span><span class="t">Hạng mục = tab lớn · tab con = menu xổ</span><span class="s">1 hàng · nav rất gọn · thêm 1 click để mở menu</span></div>
+<div class="app">
+  <div class="topbar"><div class="brand"><span class="logo">H</span><div>AUDIT HASAKI<small>KIỂM SOÁT KHO</small></div></div><button class="btn5s">+ Ghi nhận 5S</button></div>
+  <div class="tabs" style="padding-bottom:0;overflow:visible;">
+    <span class="catwrap"><button class="catbtn active">5S ▾</button>
+      <div class="menu"><div class="mi on"><span class="dot"></span>Tổng quan</div><div class="mi"><span class="dot"></span>Task vi phạm</div><div class="mi"><span class="dot"></span>Quy định</div><div class="mi"><span class="dot"></span>Planogram</div></div>
+    </span>
+    <span class="catwrap"><button class="catbtn">Tồn kho ▾</button></span>
+  </div>
+  <div class="content" style="padding-top:70px;"><div class="ph"><i></i><i></i><i></i><i></i></div></div>
+</div></div>
+
+<!-- ===== C ===== -->
+<div class="frame"><div class="frame-lbl"><span class="tag">C</span><span class="t">Thanh bên (sidebar) gom nhóm</span><span class="s">Thấy toàn bộ cấu trúc · sang trọng · hợp khi nhiều tab · desktop rộng</span></div>
+<div class="app side-app">
+  <div class="sidebar">
+    <div class="brand"><span class="logo">H</span><div>AUDIT HASAKI<small>KIỂM SOÁT KHO</small></div></div>
+    <div class="side-grp">Hạng mục 5S</div>
+    <div class="side-item on"><span class="ic"></span>Tổng quan</div>
+    <div class="side-item"><span class="ic"></span>Task vi phạm</div>
+    <div class="side-item"><span class="ic"></span>Quy định</div>
+    <div class="side-item"><span class="ic"></span>Planogram</div>
+    <div class="side-grp">Hạng mục Tồn kho</div>
+    <div class="side-item"><span class="ic"></span>Kiểm kê</div>
+    <div class="side-item"><span class="ic"></span>Tồn kho bất thường</div>
+  </div>
+  <div class="side-main">
+    <div class="topbar" style="padding:0 0 14px;"><div class="crumb"><b>5S</b> › Tổng quan</div><button class="btn5s">+ Ghi nhận 5S</button></div>
+    <div class="content" style="padding:0;"><div class="ph"><i></i><i></i><i></i><i></i></div></div>
+  </div>
+</div></div>
+
+<script>
+var CAT = { '5S': ['Tổng quan','Task vi phạm','Quy định','Planogram'], 'Tồn kho': ['Kiểm kê','Tồn kho bất thường'] };
+/* A */
+(function(){
+  var f = document.querySelectorAll('.frame')[0];
+  var cats = f.querySelectorAll('.tabs .tab'), sub = f.querySelector('.subrow');
+  function veSub(cat){
+    var items = CAT[cat];
+    sub.innerHTML = '<span class="lbl">'+cat+'</span><span class="seg">'+items.map(function(t,i){return '<button'+(i===0?' class="on"':'')+'>'+t+'</button>';}).join('')+'</span>';
+    sub.querySelectorAll('.seg button').forEach(function(b){ b.onclick=function(){ sub.querySelectorAll('.seg button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); }; });
+  }
+  cats.forEach(function(c){ c.onclick=function(){ cats.forEach(function(x){x.classList.remove('active');}); c.classList.add('active'); veSub(c.textContent.trim()); }; });
+})();
+/* B */
+(function(){
+  var f = document.querySelectorAll('.frame')[1];
+  f.querySelectorAll('.catwrap').forEach(function(w){
+    var btn = w.querySelector('.catbtn'), cat = btn.textContent.replace(' ▾','').trim();
+    btn.onclick=function(e){ e.stopPropagation();
+      var open = w.querySelector('.menu');
+      f.querySelectorAll('.menu').forEach(function(m){ if(m!==open) m.remove(); });
+      f.querySelectorAll('.catbtn').forEach(function(x){x.classList.remove('active');}); btn.classList.add('active');
+      if(open){ open.remove(); return; }
+      var items = CAT[cat];
+      var mn = document.createElement('div'); mn.className='menu';
+      mn.innerHTML = items.map(function(t,i){return '<div class="mi'+(i===0?' on':'')+'"><span class="dot"></span>'+t+'</div>';}).join('');
+      mn.querySelectorAll('.mi').forEach(function(mi){ mi.onclick=function(){ mn.querySelectorAll('.mi').forEach(function(x){x.classList.remove('on');}); mi.classList.add('on'); mn.remove(); }; });
+      w.appendChild(mn);
+    };
+  });
+  document.addEventListener('click', function(){ f.querySelectorAll('.menu').forEach(function(m){m.remove();}); });
+})();
+/* C */
+(function(){
+  var f = document.querySelectorAll('.frame')[2], crumb = f.querySelector('.crumb');
+  var grp = '5S';
+  f.querySelectorAll('.side-grp').forEach(function(g,gi){ /* track nothing */ });
+  f.querySelectorAll('.side-item').forEach(function(it){
+    it.onclick=function(){ f.querySelectorAll('.side-item').forEach(function(x){x.classList.remove('on');}); it.classList.add('on');
+      var prev = it; while(prev && !prev.classList.contains('side-grp')) prev = prev.previousElementSibling;
+      var cat = prev ? prev.textContent.replace('Hạng mục ','') : '5S';
+      crumb.innerHTML = '<b>'+cat+'</b> › '+it.textContent.trim();
+    };
+  });
+})();
+</script>
+</body></html>

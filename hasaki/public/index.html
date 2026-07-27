@@ -656,7 +656,13 @@
             viTri: this.form.viTri.trim(),
             hangMuc: this.form.hangMuc.trim(),
             thoiGianViPham: thoiGianViPham,
-            hinhAnh: this.files.map(f => ({ ten: f.ten, mime: f.mime, base64: f.base64 }))
+            // CHỈ gửi phần base64 THUẦN (cắt tiền tố data:...;base64,) — mime clip quay trực tiếp
+            // có dấu phẩy (vd video/mp4;codecs=h264,aac) làm máy chủ split(',') giải mã sai chuỗi.
+            hinhAnh: this.files.map(f => {
+              const b64 = String(f.base64 || '');
+              const v = b64.indexOf('base64,');
+              return { ten: f.ten, mime: f.mime, base64: v >= 0 ? b64.slice(v + 7) : b64 };
+            })
           };
 
           try {

@@ -11,12 +11,17 @@
  *
  *  Thuật toán:
  *   1) Khoá đơn lượt (.sync-guard.lock) + né khi cụm sync khác đang chạy.
- *   2) Đọc mốc đồng bộ (Metadata!B1 của Sheet, qua gviz công khai).
- *      CŨ = mốc < 07:00 hôm nay VÀ bây giờ ≥ 07:45 (nhường task 7h chạy trước).
+ *   2) Đọc mốc đồng bộ (Metadata!B1 của Sheet, qua gviz công khai) + mốc TỪNG BƯỚC
+ *      (.sync-ok-<bước>, vá 25/07/2026 — trước chỉ nhìn Metadata do riêng stocklocation ghi,
+ *      nên kiemke chết vì "fetch failed" 24/07 mà guard vẫn tưởng mới, trơ dữ liệu 3 tiếng).
+ *      CŨ = mốc CŨ NHẤT của cụm < 08:40 hôm nay VÀ bây giờ ≥ 09:25 (nhường task 8h40 chạy
+ *      trước — lịch "5S Dong bo dashboard" dời 7h00→8h40 ngày 22/07/2026 vì máy hay bật muộn).
  *      --force = bỏ kiểm tra cũ/mới (cooldown 4h đã kiểm ở GAS khi đặt cờ).
- *   3) Chọn nguồn token theo session-rules (KHÔNG bao giờ đá phiên trong giờ làm):
- *      token kho còn sống → chạy · token BRIDGE sống → nạp vào kho rồi chạy ·
- *      trong khung giờ an toàn → chạy (cho phép re-login) · còn lại → HOÃN (exit 75).
+ *      Lượt VÁ (không --force) đặt SYNC_SKIP_FRESH=1: bước đã tươi hôm nay tự thoát sớm,
+ *      chỉ bước còn cũ chạy lại — không kéo trùng cả cụm ~25 phút.
+ *   3) Chọn nguồn token qua layTokenSongWms (session-rules, 22/07/2026): kho BẤT KỂ tuổi
+ *      + get-me trọng tài → bridge GAS → còn sống là chạy, KHÔNG đăng nhập mới.
+ *      Hết cả hai: chỉ re-login trong khung an toàn (<07:45 / ≥18:00) · còn lại HOÃN (exit 75).
  *   4) Gọi SYNC-STOCK.bat (3 bước, log riêng từng bước) rồi đọc lại Metadata để kết luận.
  *
  *  Exit: 0 = đã mới / chạy xong · 75 = hoãn (sẽ tự thử lại ở tick sau) · 2 = lỗi.
@@ -26,15 +31,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { tokenCon, luuToken } from "./token-store.js";
-import { duocPhepReLogin, layBridgeToken, DEFER_EXIT } from "./session-rules.js";
+import { duocPhepReLogin, layTokenSongWms, DEFER_EXIT, docMocBuoc, CAC_BUOC_SYNC } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SHEET_ID = process.env.STOCKLOC_SHEET_ID || "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
-const GET_ME = "https://wms-gw.inshasaki.com/api/v1/auth/user/get-me";
 const LOCK = path.join(DIR, ".sync-guard.lock");
+const LAN_VA = path.join(DIR, ".sync-guard.last-run");   // mốc lượt VÁ gần nhất (backoff 20' — tick 2' không được spam cụm khi 1 bước hỏng kéo dài)
+const VA_BACKOFF_MS = 20 * 60 * 1000;
 const FORCE = process.argv.includes("--force");
-const log = (...a) => console.log(new Date().toISOString().replace("T", " ").slice(0, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 
 /* ---- 1) Khoá đơn lượt: lock < 45' coi như đang có guard khác chạy ---- */
 function giuKhoa() {
@@ -54,7 +59,7 @@ function cumDangChay() {
       { windowsHide: true, timeout: 30000 },
       (err, out) => {
         if (err || !out) return res(false);
-        const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
+        const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-ai\.mjs|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
         res(out.split(/\r?\n/).some((l) => dau.test(l)));
       });
   });
@@ -80,26 +85,35 @@ async function main() {
 
   const now = new Date();
   const bayGio = now.getTime();
-  const homNay7h = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 0, 0).getTime();
-  const homNay745 = homNay7h + 45 * 60 * 1000;
-  const cu = FORCE || ((moc || 0) < homNay7h && bayGio >= homNay745);
+  const homNay840 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 40, 0).getTime();
+  const homNay925 = homNay840 + 45 * 60 * 1000;
+  // Mốc CŨ NHẤT của cả cụm (vá 25/07/2026): Metadata!B1 + mốc từng bước .sync-ok-* —
+  // 1 bước chết (như kiemke "fetch failed" 24/07) là cả cụm bị coi CŨ để guard chạy vá.
+  const buocCu = () => CAC_BUOC_SYNC.filter((b) => docMocBuoc(DIR, b) < homNay840);
+  const mocCum = () => Math.min(moc || 0, ...CAC_BUOC_SYNC.map((b) => docMocBuoc(DIR, b)));
+  const mocMin = mocCum();
+  const cu = FORCE || (mocMin < homNay840 && bayGio >= homNay925);
   if (!cu) {
-    log("✓ Dữ liệu đã mới (mốc " + (moc ? fmtVN(moc) : "—") + ") — không cần làm gì.");
+    if (mocMin < homNay840) log("… Mốc còn cũ (" + (buocCu().join(", ") || "Metadata") + ") nhưng chưa tới 09:25 — nhường task 8h40 chạy trước.");
+    else log("✓ Dữ liệu đã mới (Metadata " + (moc ? fmtVN(moc) : "—") + ", đủ mốc " + CAC_BUOC_SYNC.length + " bước hôm nay) — không cần làm gì.");
     return 0;
   }
-  log((FORCE ? "⚡ Có yêu cầu tải lại (--force)" : "⚠ Dữ liệu CŨ (mốc " + (moc ? fmtVN(moc) : "chưa có") + ")") + " — chuẩn bị chạy cụm đồng bộ...");
+  log((FORCE ? "⚡ Có yêu cầu tải lại (--force)" : "⚠ Dữ liệu CŨ (Metadata " + (moc ? fmtVN(moc) : "chưa có") + " · bước cũ: " + (buocCu().join(", ") || "—") + ")") + " — chuẩn bị chạy cụm đồng bộ...");
+
+  /* ---- 2b) BACKOFF lượt vá: tick 2' chỉ được spawn cụm tối đa mỗi 20' (1 bước hỏng kéo dài
+     không thành dội API cả ngày). Chỉ tính khi cụm THẬT SỰ được spawn — lượt hoãn vì thiếu token
+     không ghi mốc, nên sáng sớm vẫn dò token mỗi 2' và bắt được operator login ngay. ---- */
+  if (!FORCE) {
+    let lanTruoc = 0; try { lanTruoc = fs.statSync(LAN_VA).mtimeMs; } catch { /* chưa vá lần nào */ }
+    if (Date.now() - lanTruoc < VA_BACKOFF_MS) {
+      log("… Lượt vá trước mới chạy " + Math.round((Date.now() - lanTruoc) / 60000) + "' trước — chờ đủ backoff 20' rồi vá tiếp.");
+      return DEFER_EXIT;
+    }
+  }
 
   /* ---- 3) Nguồn token theo session-rules — quyết định chạy hay hoãn ---- */
   let nguon = null;
-  const cache = tokenCon(DIR, "wms");
-  if (cache) {
-    const me = await fetch(GET_ME, { headers: { authorization: cache } }).catch(() => null);
-    if (me && me.ok) nguon = "token kho còn sống";
-  }
-  if (!nguon) {
-    const bridge = await layBridgeToken(log);
-    if (bridge) { luuToken(DIR, "wms", bridge); nguon = "token BRIDGE của operator (đã nạp vào kho)"; }
-  }
+  if (await layTokenSongWms(DIR, log)) nguon = "token sống (kho/bridge — get-me OK, không tạo phiên mới)";
   if (!nguon) {
     if (duocPhepReLogin(now)) nguon = "khung giờ an toàn (cho phép re-login SSO)";
     else {
@@ -109,18 +123,23 @@ async function main() {
   }
   log("→ Nguồn: " + nguon + ". Chạy SYNC-STOCK.bat...");
 
-  /* ---- 4) Chạy cụm rồi kết luận bằng chính Metadata ---- */
+  /* ---- 4) Chạy cụm rồi kết luận bằng Metadata + mốc từng bước ---- */
+  try { fs.writeFileSync(LAN_VA, new Date().toISOString()); } catch { /* mốc backoff best-effort */ }
   const ma = await new Promise((res) => {
-    const c = spawn("cmd.exe", ["/c", path.join(DIR, "SYNC-STOCK.bat")], { cwd: DIR, stdio: "ignore", windowsHide: true });
+    // Lượt VÁ (không --force): SYNC_SKIP_FRESH=1 — bước đã tươi hôm nay tự thoát sớm trong script.
+    const env = { ...process.env, SYNC_SKIP_FRESH: FORCE ? "" : "1" };
+    const c = spawn("cmd.exe", ["/c", path.join(DIR, "SYNC-STOCK.bat")], { cwd: DIR, stdio: "ignore", windowsHide: true, env });
     c.on("exit", (code) => res(code == null ? -1 : code));
     c.on("error", () => res(-1));
   });
   const mocMoi = await docMocMeta();
-  if (mocMoi && mocMoi > (moc || 0)) {
-    log("✓ XONG — Metadata đã sang mốc mới: " + fmtVN(mocMoi) + " (bat exit " + ma + ").");
+  const mocMinMoi = Math.min(mocMoi || 0, ...CAC_BUOC_SYNC.map((b) => docMocBuoc(DIR, b)));
+  const daDu = FORCE ? ((mocMoi || 0) > (moc || 0) || mocMinMoi > mocMin) : mocMinMoi >= homNay840;
+  if (daDu) {
+    log("✓ XONG — Metadata " + fmtVN(mocMoi || 0) + ", mốc bước cũ nhất " + fmtVN(mocMinMoi) + " (bat exit " + ma + ").");
     return 0;
   }
-  log("⚠ Cụm chạy xong (bat exit " + ma + ") nhưng Metadata CHƯA đổi — nhiều khả năng các bước bị hoãn (ngoài khung an toàn) hoặc lỗi; xem stocklocation.log. Guard sẽ thử lại tick sau.");
+  log("⚠ Cụm chạy xong (bat exit " + ma + ") nhưng còn CŨ: " + (buocCu().join(", ") || "Metadata") + " — nhiều khả năng bước bị hoãn (ngoài khung an toàn) hoặc lỗi; xem log từng bước. Guard sẽ thử lại tick sau.");
   return DEFER_EXIT;
 }
 

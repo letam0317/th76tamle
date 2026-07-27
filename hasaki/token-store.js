@@ -17,6 +17,16 @@ import path from "node:path";
 
 const CACHE = (DIR) => path.join(DIR, ".wms-session", "token-cache.json");
 const KHOA = (DIR) => path.join(DIR, ".wms-session", ".capture.lock");
+
+// ===== Đường dẫn dùng chung (khả chuyển giữa các máy — không hardcode C:/Users/...) =====
+// Edge cài mặc định ở Program Files (x86) trên Win64; bản 64-bit mới có thể ở Program Files.
+// Máy nào khác lạ thì đặt biến EDGE_PATH trong .env.
+export const EDGE_PATH = process.env.EDGE_PATH
+  || ["C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+      "C:/Program Files/Microsoft/Edge/Application/msedge.exe"].find((p) => fs.existsSync(p))
+  || "msedge.exe";
+// Profile Edge dùng chung (phiên SSO) — luôn nằm trong thư mục dự án, theo DIR của script gọi.
+export const duongDanProfile = (DIR) => process.env.EDGE_PROFILE_DIR || path.join(DIR, ".wms-session", "edge-profile");
 const TTL_MS = Number(process.env.TOKEN_TTL_PHUT || 40) * 60 * 1000;
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,6 +36,13 @@ const ghi = (DIR, o) => { try { fs.mkdirSync(path.dirname(CACHE(DIR)), { recursi
 export function tokenCon(DIR, app) {
   const e = doc(DIR)[app];
   return (e && e.token && Date.now() - (e.at || 0) < TTL_MS) ? e.token : null;
+}
+/** Token đã lưu BẤT KỂ TUỔI ({token, at} hoặc null) — cho WMS, nơi get-me là trọng tài duy nhất:
+ *  token WMS sống hàng chục giờ và chỉ chết khi có người ĐĂNG NHẬP đè; vứt theo tuổi 40'
+ *  là vứt phí token còn tốt → ép re-login vô ích (= đá phiên người đang làm việc). */
+export function docTokenCu(DIR, app) {
+  const e = doc(DIR)[app];
+  return (e && e.token) ? e : null;
 }
 export function luuToken(DIR, app, token) {
   if (!token) return;

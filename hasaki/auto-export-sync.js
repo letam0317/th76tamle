@@ -20,14 +20,14 @@ import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
+import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXPORT_DIR = path.join(DIR, ".exports");
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const WORKFLOW_ID = process.env.WORKFLOW_ID || "591";
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);
 const SYNC_FROM = process.env.SYNC_FROM || "2026-04-01";   // mốc bắt đầu (workflow 5S khởi động ~4/2026) — chỉ dùng khi FULL
 const ROLL_DAYS = Number(process.env.ROLL_DAYS || 45);     // cửa sổ an toàn LUÔN refresh (bắt task mới / task bị mở lại)
 const FULL_RESYNC = process.env.FULL_RESYNC === "1";       // ép đồng bộ TOÀN BỘ từ SYNC_FROM (bỏ qua cache) — chạy tay khi cần
@@ -45,7 +45,7 @@ const MEDIA_BASE = "https://hr-media.hasaki.vn/production/hr/";       // ảnh/c
 const FILE_BASE = "https://wshr.hasaki.vn/production/hr/";            // file Excel export (công khai)
 const API = "https://wshr.hasaki.vn/api/hr/excel-io";
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
 const fmt = (d) => d.toISOString().slice(0, 10);

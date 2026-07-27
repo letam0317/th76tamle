@@ -2,7 +2,7 @@
  * ============================================================================
  *  ĐỒNG BỘ "TỒN MÃ VỊ TRÍ" (stock-location) WMS → Google Sheet stocklocationfactory
  * ============================================================================
- *  Chạy NỐI SAU auto-export-sync.js trong AUTO-EXPORT.bat (lịch 7h00) — lúc đó
+ *  Chạy NỐI SAU auto-export-sync.js trong AUTO-EXPORT.bat (lịch 8h40) — lúc đó
  *  phiên Hasaki SSO trong Edge profile vừa được làm tươi, nên bước lấy token WMS
  *  bên dưới diễn ra IM LẶNG (không đăng nhập lại, không OTP).
  *
@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi, coSecret, chayAutoLogin } from "./auto-login.js";
 import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { chanReLoginNgoaiKhung, layBridgeToken, thoatTheoLoi } from "./session-rules.js";
+import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -71,7 +71,7 @@ const HEADER = ["SKU", "Barcode", "ProductName", "LocationDescription", "BrandNa
   "InbinQuantity", "PicklistedQuantity", "PickingQuantity", "NotfoundQuantity", "PackedQuantity", "Total",
   "Created Date", "Updated Date", "StorageTypeName", "ClassifyName", "Shelf Life (month)"];
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!APPSCRIPT_KEY && !DRY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
@@ -93,10 +93,10 @@ async function fetchRetry(url, opt, n = 3) {
    bấm nút đó → OIDC (auth-gateway → auth-idp) đi IM LẶNG bằng phiên IdP sẵn có (login-hasaki 7h vừa
    làm tươi) → quay lại report kèm token. KHÔNG gõ email/mật khẩu/OTP ở đây. */
 async function getWmsToken() {
-  // LUẬT 1 (session-rules): thử token BRIDGE trước — phiên đang sống của operator,
+  // LUẬT 1 (session-rules): token SỐNG trước — kho bất kể tuổi (get-me trọng tài) rồi bridge;
   // không mở Edge, không tạo phiên mới, không đá ai. Chỉ khi không có mới đi đường Edge/SSO.
-  const quaBridge = await layBridgeToken(log);
-  if (quaBridge) return quaBridge;
+  const song = await layTokenSongWms(DIR, log);
+  if (song) return song;
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE_PATH, userDataDir: PROFILE_DIR, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());
@@ -243,6 +243,9 @@ async function ghiLichSu(ketQua, apiAt) {
 
 /* ---------- Ghi 1 tab: gói đầu clear + header, các gói sau append ---------- */
 async function ghiTab(tab, rows, apiAt) {
+  // Chạy 3 lần/ngày (8h40 + 2 slot poller): tồn không đổi thì khỏi ghi lại ~40k dòng, chỉ chạm mốc chip giờ.
+  const hash = hashTab(HEADER, rows);
+  if (tabKhongDoi(DIR, tab, hash)) { log("  = " + tab + ": dữ liệu KHÔNG đổi — bỏ qua ghi (" + rows.length + " dòng, tiết kiệm GAS)."); await chamMocTabs([tab], apiAt, log); return; }
   for (let i = 0; i < rows.length; i += CHUNK) {
     const phan = rows.slice(i, i + CHUNK);
     const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId: SHEET_ID, header: HEADER, rows: phan, append: i > 0, apiAt });
@@ -251,9 +254,12 @@ async function ghiTab(tab, rows, apiAt) {
     if (j.status !== "success") throw new Error("Apps Script từ chối (" + tab + "): " + (j.message || "?"));
     log("  ✓ " + tab + ": đã ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + " dòng" + (i === 0 ? " (đã xoá sạch dữ liệu cũ trước khi ghi)" : " (nối tiếp)"));
   }
+  luuHashTab(DIR, tab, hash);
 }
 
 (async () => {
+  // Lượt guard chạy VÁ bước khác mà stocklocation hôm nay đã xong → thoát sớm (mốc .sync-ok-stocklocation).
+  if (!DRY && boQuaNeuDaTuoi(DIR, "stocklocation", log)) process.exit(0);
   // 0) Backend phải là bản hỗ trợ ghi sheet NGOÀI (extSheet) — chưa redeploy thì dừng sớm, không ghi bậy
   if (!DRY) {
     const caps = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) }).then((r) => r.json()).catch(() => null);
@@ -339,9 +345,11 @@ async function ghiTab(tab, rows, apiAt) {
   if (!loi) {
     try {
       const j = await (await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "setStockMeta", key: APPSCRIPT_KEY, at: apiAt }) })).json();
-      log(j.status === "success" ? "  ✓ Đã ghi mốc đồng bộ (Metadata) cho dashboard." : "  ⚠ Không ghi được Metadata: " + (j.message || "?"));
-    } catch (e) { log("  ⚠ Không ghi được Metadata: " + e.message); }
+      if (j.status === "success") log("  ✓ Đã ghi mốc đồng bộ (Metadata) cho dashboard.");
+      else { loi++; log("  ⚠ Không ghi được Metadata: " + (j.message || "?") + " — TÍNH LÀ LỖI (dashboard hiện mốc cũ, guard sẽ chạy vá)."); }
+    } catch (e) { loi++; log("  ⚠ Không ghi được Metadata: " + e.message + " — TÍNH LÀ LỖI (dashboard hiện mốc cũ, guard sẽ chạy vá)."); }
   }
+  if (!loi) ghiMocBuoc(DIR, "stocklocation");   // mốc thành công cho sync-guard
   log(loi ? "⚠ Hoàn tất nhưng có " + loi + " bộ lỗi/bỏ qua." : "✓ Hoàn tất đồng bộ Tồn mã vị trí (2 tab mastige/garment).");
   process.exit(loi ? 2 : 0);
 })().catch((e) => { thoatTheoLoi(e, log, 2); });

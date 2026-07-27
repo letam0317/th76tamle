@@ -40,6 +40,11 @@ async function dangNhapMotLan(DIR, log) {
     return true;   // lượt login kia lo phần đăng nhập; ta chỉ cần lấy token lại
   }
   log("  ⚠ Phiên hết hạn — tự đăng nhập lại (ĐƠN LƯỢT)...");
+  if (await chayAutoLogin(DIR)) return true;
+  // Trượt lượt 1 (Turnstile chậm / IdP trả trang lạ 1 nhịp) → nghỉ 25s thử ĐÚNG 1 lượt nữa rồi thôi
+  // (mỗi lượt login-hasaki chỉ nộp OTP 1 lần nên 2 lượt vẫn an toàn khoá tài khoản, không spam IdP).
+  log("  ⚠ Lượt đăng nhập 1 trượt — nghỉ 25s, thử lượt 2 (lượt CUỐI)...");
+  await nghi(25000);
   return await chayAutoLogin(DIR);
 }
 

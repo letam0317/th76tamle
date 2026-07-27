@@ -248,10 +248,10 @@
           <div class="flex gap-1 mb-2 bg-white/10 rounded-full p-1" :class="dangQuay ? 'opacity-40 pointer-events-none' : ''">
             <button type="button" @click="datCheDo(false)"
               :class="!cheDoVideo ? 'bg-white text-slate-800' : 'text-white'"
-              class="rounded-full px-4 py-1.5 text-sm font-medium transition">📷 Ảnh</button>
+              class="rounded-full px-4 py-1.5 text-sm font-medium transition">Ảnh</button>
             <button type="button" @click="datCheDo(true)"
               :class="cheDoVideo ? 'bg-white text-slate-800' : 'text-white'"
-              class="rounded-full px-4 py-1.5 text-sm font-medium transition">🎥 Video</button>
+              class="rounded-full px-4 py-1.5 text-sm font-medium transition">Video</button>
           </div>
         </div>
 
@@ -304,7 +304,7 @@
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
         </svg>
         <p class="text-white text-sm" x-text="tienTrinhNen || 'Đang xử lý video...'"></p>
-        <p class="text-white/50 text-xs mt-1">Đang gắn nhãn thời gian vào video (và hạ ≤720p nếu clip lớn) — mất khoảng bằng thời lượng clip.</p>
+        <p class="text-white/50 text-xs mt-1">Clip lớn (>50MB) đang được nén về ≤720p cho nhẹ đường truyền — mất khoảng bằng thời lượng clip.</p>
       </div>
 
       <!-- ===== Xem lại ảnh/clip đã đính kèm (phóng to / phát) ===== -->
@@ -350,7 +350,7 @@
        PHẦN LOGIC (Alpine.js)
        =========================================================== -->
   <script>
-    // 👉 BƯỚC QUAN TRỌNG: Dán đường link Google Web App của bạn vào đây
+    // BƯỚC QUAN TRỌNG: Dán đường link Google Web App của bạn vào đây
     const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
 
     // Nguồn hạng mục 5S: ĐỌC TRỰC TIẾP tab QUY-DINH (cột "QUY ĐỊNH CHI TIẾT") của Google Sheet
@@ -784,20 +784,21 @@
           };
           reader.readAsDataURL(file);
         },
-        // Video: <=50MB giữ nguyên; 50-100MB tự hạ 720p; >100MB chặn. Nhãn = thời gian QUAY gốc (mvhd) nếu đọc được.
+        // Video THƯ VIỆN: KHÔNG gắn nhãn (giữ nguyên gốc) — nhãn thời gian chỉ ghi đè lên
+        // ảnh/clip ghi nhận TRỰC TIẾP và ẢNH tải từ thư viện. <=50MB gửi nguyên; 50-100MB hạ 720p; >100MB chặn.
         async _themVideo(file) {
-          const tg = await this._thoiGianChup(file);
+          const tg = await this._thoiGianChup(file);   // vẫn đọc mvhd để tính "Thời gian vi phạm"
           const mb = file.size / (1024 * 1024);
           if (mb > this.MAX_VIDEO_MB) {
             alert('Video nặng ' + mb.toFixed(0) + 'MB, vượt giới hạn ' + this.MAX_VIDEO_MB + 'MB.\nVui lòng quay clip ngắn hơn.');
             return;
           }
-          // LUÔN chạy qua canvas để GẮN NHÃN (Viên nhãn + thời gian quay gốc) vào video tải lên
-          // (đồng thời hạ ≤720p nếu clip lớn). Lỗi -> gửi nguyên gốc (không nhãn) để không chặn người dùng.
           let blob = file;
-          try { this.dangNen = true; blob = await this._nenVideo720(file, tg); }
-          catch (err) { alert('Không gắn được nhãn video, gửi nguyên gốc. (' + err + ')'); blob = file; }
-          finally { this.dangNen = false; this.tienTrinhNen = ''; }
+          if (mb > this.NGUONG_NEN_MB) {
+            try { this.dangNen = true; blob = await this._nenVideo720(file); }
+            catch (err) { alert('Không nén được video, gửi nguyên gốc. (' + err + ')'); blob = file; }
+            finally { this.dangNen = false; this.tienTrinhNen = ''; }
+          }
           const reader = new FileReader();
           reader.onload = (e) => {
             this.files.push({ ten: file.name || 'video.mp4', loai: 'video', mime: (blob.type || file.type || 'video/mp4').split(';')[0],
@@ -806,8 +807,8 @@
           };
           reader.readAsDataURL(blob);
         },
-        // Transcode qua canvas + GẮN NHÃN thời gian (tg = thời điểm quay gốc) — giữ âm thanh nếu trình duyệt cho phép
-        _nenVideo720(file, tg) {
+        // Hạ ≤720p bằng canvas (chỉ dùng cho clip thư viện >50MB) — KHÔNG gắn nhãn, giữ âm thanh nếu trình duyệt cho phép
+        _nenVideo720(file) {
           return new Promise((resolve, reject) => {
             const v = document.createElement('video');
             v.muted = true; v.playsInline = true; v.src = URL.createObjectURL(file);
@@ -826,8 +827,7 @@
               let raf;
               const draw = () => { if (!v.paused && !v.ended) {
                 ctx.drawImage(v, 0, 0, w, h);
-                this._veNhanThoiGian(c, tg);        // nhãn Viên nhãn + thời gian quay gốc trên từng khung hình
-                this.tienTrinhNen = 'Đang gắn nhãn video... ' + Math.round((v.currentTime / (v.duration || 1)) * 100) + '%';
+                this.tienTrinhNen = 'Đang nén video... ' + Math.round((v.currentTime / (v.duration || 1)) * 100) + '%';
                 raf = requestAnimationFrame(draw); } };
               rec.start();
               v.play().then(() => draw()).catch(reject);
@@ -881,7 +881,13 @@
             maSanPham: this.form.maSanPham.trim(),
             hangMuc: this.form.hangMuc.trim(),
             thoiGianViPham: thoiGianViPham,
-            hinhAnh: this.files.map(f => ({ ten: f.ten, mime: f.mime, base64: f.base64 }))
+            // CHỈ gửi phần base64 THUẦN (cắt tiền tố data:...;base64,) — mime clip quay trực tiếp
+            // có dấu phẩy (vd video/mp4;codecs=h264,aac) làm máy chủ split(',') giải mã sai chuỗi.
+            hinhAnh: this.files.map(f => {
+              const b64 = String(f.base64 || '');
+              const v = b64.indexOf('base64,');
+              return { ten: f.ten, mime: f.mime, base64: v >= 0 ? b64.slice(v + 7) : b64 };
+            })
           };
 
           try {

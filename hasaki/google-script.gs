@@ -91,6 +91,7 @@ function doPost(e) {
     if (duLieu && duLieu.action === 'pc_sync_whcode') return pcJson_(pcKeyOK_(duLieu) ? pcSyncWarehouses() : pcKeyErr_());
     if (duLieu && duLieu.action === 'pc_set_key') return pcJson_(pcSetKey_(duLieu));
     if (duLieu && duLieu.action === 'pc_adjust') return pcJson_(pcKeyOK_(duLieu) ? pcAdjust_(duLieu) : pcKeyErr_());   // 27/07/2026: lưu SL điều chỉnh Physical Count Detail vào tab kiemke-adjust
+    if (duLieu && duLieu.action === 'pc_uidgr_edit') return pcJson_(pcUidgrEdit_(duLieu));   // 27/07/2026: Action trên dòng UID group lệch — KHÔNG PC_KEY, gác bằng email @hasaki.vn (kiểm server-side trong PhysicalCountImport)
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);

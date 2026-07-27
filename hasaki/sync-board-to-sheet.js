@@ -12,16 +12,17 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import XLSX from "xlsx";
 import "dotenv/config";
 
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
-const DOWNLOADS = process.env.DOWNLOADS_DIR || "C:/Users/lechitam/Downloads";
+const DOWNLOADS = process.env.DOWNLOADS_DIR || path.join(os.homedir(), "Downloads");
 const MEDIA_BASE = "https://hr-media.hasaki.vn/production/hr/";
 const WORKFLOW_ID = process.env.WORKFLOW_ID || "591";
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
 // Path media -> URL hr-media (giữ nguyên nếu không phải media)

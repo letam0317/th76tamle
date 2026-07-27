@@ -1,0 +1,323 @@
+# 🔎 NGHIÊN CỨU — Tab "Báo cáo vệ sinh SHOP 170" (CHƯA THỰC THI)
+
+> Mục tiêu: 1 tab MỚI trong dashboard audit Hasaki (`kiemsoatkho/index.html`), đặt **giữa
+> tab "Task vi phạm" và "Hạng mục 5S"**, theo dõi việc báo cáo **vệ sinh tủ quầy kệ**
+> (Shelf & counter) + **vệ sinh không gian làm việc** (Workspace) của **KHO SHOP - 170
+> QUOC LO 1A**, đối chiếu **chấm công** để biết ai đi làm nhưng chưa vệ sinh.
+> Nguồn tham chiếu: `planogram.hasaki.vn/asset-management/request-of-declaration/details/23632957`.
+>
+> **Tất cả endpoint dưới đây đã kiểm chứng THẬT bằng token phiên sống (bridge), CHỈ GET,
+> không đăng nhập, không tạo phiên → không đá ai.** (24/07/2026)
+
+---
+
+## 0. PHÁT HIỆN QUYẾT ĐỊNH (feasibility)
+
+- **Planogram nằm SAU CÙNG cổng auth WMS + LUẬT 1-PHIÊN.** Bot thử SSO login planogram →
+  precheck trả `need_confirm:true` ("Tài khoản đã đăng nhập trên thiết bị khác… sẽ đăng
+  xuất thiết bị còn lại"). ⇒ **Tuyệt đối KHÔNG login planogram bằng bot** (đá operator).
+- **NHƯNG token phiên SỐNG của operator (kênh bridge hiện có, cổng `wms-gw.inshasaki.com`)
+  ĐƯỢC cổng `wms-gw-external.hasaki.vn` chấp nhận** — `get-me` external trả `200`. ⇒ Đọc
+  được toàn bộ dữ liệu planogram **bằng đúng cơ chế bridge sẵn có**, không login mới, không đá ai.
+- ⇒ Kiến trúc y hệt `sync-tonbatthuong.js` / `sync-stocklocation.js`: **Node bot dùng
+  `layTokenSongWms()` (session-rules.js) → GET planogram → ghi Google Sheet → module đọc Sheet.**
+  Module trình duyệt KHÔNG gọi thẳng planogram (CORS + không có token + luật phiên).
+
+---
+
+## 1. NGUỒN DỮ LIỆU — API planogram (đã kiểm chứng)
+
+Base: `https://wms-gw-external.hasaki.vn/api/v1` · Header: `Authorization: Bearer <token bridge>`,
+`Company-Ids: 1001`.
+
+### 1a. Danh sách report vệ sinh (endpoint CHÍNH của tab)
+```
+GET /planogram/schedule-requests
+    ?company_ids=1001
+    &warehouse_ids=863              # 863 = SHOP - 170 QUOC LO 1A (trùng id WMS)
+    &from_date=<epoch MILLISECONDS> # mốc 00:00 giờ VN
+    &to_date=<epoch MILLISECONDS>   # mốc 23:59 giờ VN  (⚠ ms, KHÔNG phải YYYY-MM-DD)
+    &purpose_types=1|2              # 1 = quầy kệ, 2 = workspace (bỏ trống = cả hai)
+    &page=1&size=...
+```
+Kiểm chứng 24/07: SHOP-170 có **179** task/ngày = **160 quầy kệ (purpose 1) + 19 workspace (purpose 2)**.
+
+Mỗi record:
+| Field | Ý nghĩa |
+|---|---|
+| `request_id` | id report (vd 23632957) — mở chi tiết |
+| `warehouse_id` / `warehouse_name` | 863 / "SHOP - 170 QUOC LO 1A" |
+| `schedule_id` | lịch gốc (join sang location-schedules) |
+| `purpose_type` | **1 = Vệ sinh tủ quầy kệ · 2 = Vệ sinh không gian làm việc** (3 Spa,4 Kho tổng,5 Nhà máy,6 Thời trang) |
+| `location_description` | mã vị trí (vd F0-A1-516-10-04-01) |
+| `status_id` / `status_name` | **1=chưa làm** (executed rỗng) · **3=Waiting For Approve** (đã báo cáo) · 4=Approved · rejected/cancelled… |
+| `executed_by_name` | **AI vệ sinh** (email, vd duonglt@hasaki.vn) — RỖNG nếu chưa làm |
+| `executed_at` | **LÚC NÀO** báo cáo (vd 2026-07-24 16:19:35) — rỗng nếu chưa làm |
+| `request_time` / `day_of_month` | ngày phát sinh task |
+| `start_at` / `end_at` | khung giờ đăng ký (vd 08:00–23:00) |
+
+### 1b. Chi tiết 1 report (pop-up)
+```
+GET /planogram/schedule-requests/{request_id}?page=1&size=20&is_schedule_group=false
+GET /planogram/standard-evaluates/list?mapping_id={schedule_id}&source_type=SCHEDULE_DECLARATION
+GET /planogram/schedule-requests/next-request/{request_id}?ignore_request_ids=&anchor_status_id=3
+```
+`{request_id}` trả `item{...}` (đủ field trên) + `standard_image[]` = **các ảnh chuẩn bắt buộc**
+kèm mô tả 3 tiêu chuẩn (trưng bày / vệ sinh / báo cáo) + ảnh mẫu.
+
+### 1c. Master (tra cứu bộ lọc)
+```
+GET /planogram/config/planogram-config?config_types=SCHEDULE_PURPOSE_TYPE   # bảng purpose_type
+GET /wms/master-data/warehouse/by-user?types=SPA,WH,SHOP                    # danh sách kho
+GET /planogram/schedule/location-schedules/detail/{schedule_id}            # lịch gốc + purpose_type
+```
+
+---
+
+## 2. ĐỐI CHIẾU CHẤM CÔNG ("đi làm nhưng chưa vệ sinh")
+
+- Nguồn chấm công **đã có sẵn**: `pull-timesheet.js` → tab **NHAN-SU** (Sheet riêng PII).
+  Có `staff_email`, `staff_name`, **Giờ vào / Giờ ra hôm nay**, trạng thái làm việc.
+- Join theo **email**: `schedule-requests.executed_by_name` (email) ↔ `NHAN-SU.staff_email`.
+- Chỉ số đề xuất:
+  - **Tỉ lệ hoàn thành** quầy kệ / workspace (done = status ≥ 3) hôm nay.
+  - **Đã báo cáo vệ sinh** = tập hợp email `executed_by_name` distinct hôm nay.
+  - **"Đi làm nhưng chưa vệ sinh"** = NV có Giờ vào hôm nay (NHAN-SU) **NHƯNG** không xuất
+    hiện trong tập đã báo cáo → danh sách nhắc việc.
+- ⚠ Giới hạn: task khi CHƯA làm không gắn người phụ trách (executed_by rỗng) → không suy ra
+  "vị trí X thuộc NV Y" trước khi làm. Vì vậy chỉ đo được ở mức **NV có/không báo cáo vệ sinh nào**,
+  không phải mức từng vị trí. (Nếu cần mức vị trí phải có bảng phân công riêng — chưa thấy trong API.)
+
+---
+
+## 3. NGÔN NGỮ THIẾT KẾ — nhân theo khuôn dự án (BẮT BUỘC đồng bộ)
+
+Khớp 100% các module HASAKI hiện có (`hasaki-kiemke.js`, `hasaki-tonbatthuong.js`):
+- **Tab**: thêm vào `TAB_DEFS` + `CTY.hasaki.tabs`, chèn `"vesinh"` **giữa `"task"` và `"hangmuc"`**:
+  `["tong","task","vesinh","hangmuc","kk","htonbat"]`.
+- **Pane**: `<section id="pane-vesinh" class="pane hidden"></section>`.
+- **Lazy-load**: trong `setTab()` thêm `if(name==='vesinh'){ moHasakiVeSinh(); }`; hàm này inject
+  `hasaki-vesinh.js?v=...` rồi gọi `window.HVESINH.init(pane)` (idempotent, refresh nếu dữ liệu >5').
+- **Module cô lập** (đúng khuôn): closure kín, chỉ lộ `window.HVESINH`; DOM/CSS tiền tố `hv-`;
+  CSS bơm 1 lần neo dưới `#pane-vesinh` + `.hv-modal`; **màu dùng CSS variables portal**
+  (`--panel/--text/--muted/--line/--accent`) để tự ăn 7 theme sáng/tối.
+- **Thành phần UI tái dùng khuôn Kiểm kê**: dải chỉ số bấm được (KPI cross-filter), thanh
+  trạng thái %, chart theo ngày, pop-up chain-filter (mở chi tiết report + ảnh chuẩn), bộ lọc
+  quầy kệ/workspace + trạng thái + khoảng ngày. Hiệu ứng/độ mượt (`--ease`, animation pane) giữ nguyên.
+
+---
+
+## 4. LUỒNG TRIỂN KHAI ĐỀ XUẤT (khi được duyệt)
+
+1. **`sync-vesinh.js`** (nhân bản `sync-tonbatthuong.js`): `layTokenSongWms()` → GET
+   `/planogram/schedule-requests` (SHOP-170, cả 2 purpose, cửa sổ ngày) → chuẩn hoá → POST GAS
+   ghi tab **`vesinh-shop170`** trên Sheet 5S. Tuân luật phiên (bridge trước, khung an toàn).
+   Gắn vào cụm 8h40 + `sync-guard` + `SYNC-STOCK.bat`.
+2. **GAS**: thêm route đọc tab `vesinh-shop170` (giống các tab module khác) — hoặc dùng gviz công khai.
+3. **`hasaki-vesinh.js`** + 4 điểm chỉnh trong `index.html` (mục 3).
+4. Join NHAN-SU (đã có) cho khối "đi làm nhưng chưa vệ sinh".
+
+---
+
+## 4b. ✅ ĐÃ LÀM — Yêu cầu 1: sheet "Phụ trách quầy kệ" (LIVE 24/07/2026)
+
+- **Bộ sync:** `sync-phutrach-quayke.js` (khuôn `sync-tonbatthuong.js`).
+  - Token phiên sống (`layTokenSongWms`) → quét `planogram/schedule-requests` SHOP-170 (wh 863),
+    cửa sổ **45 ngày** (`PHUTRACH_DAYS`), lọc vị trí `^F0-A1|^F0-A8`.
+  - Mỗi vị trí gắn **người phụ trách = executor GẦN NHẤT** (executed_at mới nhất; rỗng nếu chưa ai báo cáo).
+  - Join `executed_by_name`(email) → **Code + Name** qua danh bạ `wshr` (token bridge dùng được trên
+    `wshr.hasaki.vn/api/news/staff/search-for-dropdown`; join 47/47 executor khớp).
+  - Ghi Sheet 5S tab **`PHU-TRACH-QUAY-KE`** (GAS `syncTasks`, chặn ghi rỗng), cột đúng thứ tự
+    **Location | Executed By | Code | Name**.
+- **Kết quả 24/07:** 224 vị trí (163 F0-A1 + 61 F0-A8) — 115 đã có người phụ trách, 109 chưa báo cáo.
+  Tab public, đọc được qua gviz (dashboard đọc được).
+- **Tự cập nhật:** đã thêm vào `SYNC-STOCK.bat` (cụm 8h40) + regex cụm trong `sync-guard.js`
+  → chạy hằng ngày + watchdog + nút "Cập nhật ngay". Chạy tay: `node sync-phutrach-quayke.js`
+  (thêm `--dry` để không ghi Sheet).
+- ⚠ **PII:** tab chứa email/mã/tên NV (theo đúng yêu cầu). Đặt ở sheet public để dashboard đọc —
+  nhất quán với việc dự án đã hiển thị tên NV ("Counted by") công khai. Nếu cần siết, thêm
+  `PHU-TRACH-QUAY-KE` vào `PII_TABS` (GAS) + đọc qua GAS action thay vì gviz.
+
+## 4c. ✅ ĐÃ LÀM — 25/07/2026: ẢNH BÁO CÁO + tab Planogram thiết kế lại theo HÀNH ĐỘNG
+
+### Phát hiện ẢNH (probe-vesinh-anh.mjs — chỉ GET, token bridge)
+- Record **LIST** `/planogram/schedule-requests` có sẵn **`request_image[]`** (ảnh NV chụp từng ô
+  khi báo cáo, mỗi request ~16 ảnh) + `standard_image[]` (ảnh chuẩn) — **không cần gọi detail**.
+- URL ảnh (`.../filesmanagement/planogram/standard/<uuid><tên>.jpg`) **CÔNG KHAI — tải được
+  KHÔNG cần token** (test 200/1.4MB có lẫn không Bearer) ⇒ dashboard hotlink `<img>` thẳng,
+  không cần proxy/token. Bằng chứng: `.exports/probe-vesinh-anh.json`, `anh-vesinh-test.png`.
+
+### Dữ liệu mới (sync-vesinh-all.js — vẫn 1 lượt quét, thêm 2 tab)
+- **`VESINH-YEUCAU`**: từng yêu cầu HÔM NAY — Request ID | Ngày | Location | Khu vực | Status ID
+  | Trạng thái | Executed By | Executed At | Phụ trách (executor gần nhất 45n) | PT Code | PT Name
+  | PT đi làm (join timesheet) | PT giờ vào | Ảnh (URL nối " | ").
+- **`VESINH-NHATKY`**: Ngày | Email | Code | Name | Khu vực | Số vị trí | Vị trí (45 ngày) —
+  nguồn "tra cứu 1 NV làm ở đâu theo ngày".
+- GAS: `SERVE_PRIVATE_TABS` += 2 tab trên (ghi sheet PRIVATE + đọc qua readTab); `apiReadTab`
+  giữ nguyên giờ cho ô NGÀY+GIỜ (`yyyy-MM-dd HH:mm`).
+
+### Tab Planogram mới (hasaki-planogram.js — v20260725a)
+- **Hero "Vệ sinh hôm nay"**: 4 thẻ = Tổng yêu cầu / **Đã vệ sinh** / **Chưa vệ sinh (phụ trách
+  CÓ chấm công — cần nhắc)** / **Không có ca làm việc** (phụ trách nghỉ hoặc chưa có người nhận)
+  + thanh tiến độ xếp chồng. Phân nhóm: done = status 3|4; còn lại xét PT × chấm công.
+- **Pop-up yêu cầu** (khuôn combo chain-filter): trạng thái thật (Chưa vệ sinh/Chờ duyệt/Đã duyệt
+  /Bị từ chối), người thực hiện + giờ, phụ trách × chấm công, **thumbnail ảnh (lazy) → lightbox
+  carousel của host (openLB)**, link `↗` sang planogram từng request + link list đúng ngày/khu.
+- **"Theo nhân viên phụ trách" thu gọn** thành nút **"Tra cứu theo nhân viên"** → pop-up 2 cột:
+  danh sách NV (tìm kiếm) + nhật ký THEO NGÀY (chip vị trí bấm mở planogram đúng ngày+vị trí).
+  Bấm 1 dòng ở bảng "Đối chiếu chấm công" cũng mở nhật ký NV đó.
+- Test render THẬT (chặn JSONP, bơm dữ liệu --dry): `capture-planogram-tab.mjs` →
+  `.exports/shot-pg-new-*.png` (main / modal ×2 / lightbox / tra cứu NV / mobile).
+
+## 4d. ✅ ĐÃ LÀM — 25/07/2026 (đợt 2): AI XÉT DUYỆT ẢNH + kích hoạt trọn gói
+
+### Bộ AI xét duyệt (`sync-vesinh-ai.mjs`) — 2 nhà cung cấp, tự chọn theo key trong .env
+- **GEMINI_API_KEY** (aistudio.google.com/apikey — **MIỄN PHÍ, không cần thẻ**; key định dạng mới
+  `AQ.`, mặc định `gemini-3.5-flash`): ảnh tải về + thu nhỏ 1024px (sharp) gửi inline; structured
+  output responseSchema; đi tuần tự nhịp ~9 req/phút. **CHUỖI MODEL DỰ PHÒNG** (mỗi model 1 quota
+  ngày riêng): 3.5-flash → 3.5-flash-lite → 3-flash-preview → 2.5-flash-lite → 2.0-flash — hết quota
+  model trước tự nhảy model sau; hết cả chuỗi mới dừng, lượt sau chấm tiếp. Thực chiến 25/07: chấm
+  129 request/ngày (flash 18 + flash-lite 111, ~928K token) — 0 đồng.
+  ⚠ Khối "AI xét duyệt ảnh" trên dashboard (v20260725d): 5 thẻ + bảng lý do + model + link planogram.
+
+### Sơ đồ mặt bằng khu Đóng gói F0-A8 (v20260725f — theo bản vẽ BDG.pdf 25/07)
+- **Quy tắc mã (operator xác nhận):** 4 cụm, mỗi cụm 2 DÃY BÀN kẹp 1 BĂNG CHUYỀN:
+  501|502|503 · 504|505|506 · 507|508|509 · 510|511|512. Ô bàn = `F0-A8-<dãy>-<ô 01..08>-01-01`
+  (8 ô/dãy, ghép cặp 01-02/03-04/05-06/07-08). Dãy giữa 502/505/508/511 chính là băng chuyền,
+  MỖI BĂNG = 1 mã duy nhất: `F0-A8-502-01-01-01 / 505…-02 / 508…-03 / 511…-04`.
+- Dashboard render sơ đồ tương tác: ô tô màu theo trạng thái NGÀY ĐANG XEM, rê chuột = phụ trách +
+  giờ làm + kết luận AI. Hằng số `MAP_A8` trong hasaki-planogram.js.
+
+### SIDEBAR LIVE + RÀ SOÁT TOÀN DỰ ÁN (26/07) — v20260726a
+- **Sidebar phương án C đã ghép vào index.html production** (Planogram trong Hạng mục 5S). Kỹ thuật:
+  chèn 3 khối (style qc-side-css + aside/toggle/backdrop + script) vào index.html — KHÔNG sửa
+  setTab/pane/module. Drawer trượt cả web+mobile (ẩn mặc định, nút ›/‹ nhỏ góc trên trái ngang
+  tiêu đề, mở thì GHIM đẩy nội dung, chọn tab KHÔNG tự đóng, mobile phủ+nền mờ). Nhóm có ô màu
+  accent + sub-tab thụt vào có đường dẫn dọc. Bỏ brand lặp trong sidebar (header giữ tiêu đề).
+- **Rà soát 2 agent (design consistency + UI/UX). ĐÃ SỬA:**
+  · factory-stock/factory-kiemke: `--panel`→`--surface`, `--line`→`--border` (31 chỗ token không
+    tồn tại → vỡ theme tối). (Factory hiện khoá, không live — sửa để future-proof.)
+  · ESC đóng pop-up cho cả 3 module hasaki (trước chỉ đóng bằng click nền/×) — nhường lightbox host.
+  · Cột "Trạng thái"→"Trạng thái duyệt" ở pop-up yêu cầu (tách khỏi nhãn Đã/Chưa vệ sinh — hết mơ hồ).
+  · colspan loading 7→8/6 theo mode; hp-badge thêm max-width+ellipsis (chống tràn); nf() en-US→vi-VN
+    cả 3 module (12.345); empty-state khi khoảng ngày 0 yêu cầu; footer/note rút gọn (đẩy chi tiết
+    vào tooltip); bỏ &amp;nbsp; thừa ở legend kiemke.
+### CHUẨN HOÁ THẨM MỸ ĐỒNG BỘ (26/07, "thực thi cải tiến") — v20260726b
+- **Thẻ KPI 1 mẫu duy nhất:** Kiểm kê (`hk-strip .ks`) từ "dải số mỏng weight-300" CHUYỂN sang thẻ
+  KPI giống Planogram/Tồn bất thường (grid auto-fit, thẻ surface + viền trái accent 4px, số 20px/780,
+  hover nhấc) — chỉ đổi CSS, giữ nguyên HTML/onclick/forecast card. Nay 3 tab đồng nhất.
+- **Header bảng (thead th) thống nhất:** 11px / weight 600 / KHÔNG uppercase / nowrap — kéo Kiểm kê
+  (trước 10.5px/700/UPPERCASE) và giỏ PC (10.5px→11px) về chuẩn của Planogram/Tồn bất thường.
+- **Badge thống nhất:** 11px / weight 650 (kéo hk-badge 10px/750 về chuẩn hp).
+- **Số kiểu Việt Nam:** nf() → vi-VN toàn bộ 6 module (12.345 thay vì 12,345). 0 chỗ còn en-US.
+- **Fallback màu accent thống nhất = #326e51** (brand green): thay 86 chỗ lẫn lộn #1f2937/#2563eb/
+  #1e40af; accent-hover → #295b42. (Không đổi hiển thị khi token sống, nhưng hết code-smell + an toàn.)
+- **CHƯA đụng:** palette `--fk*` cố định của factory-kiemke (factory khoá, không live) — để lại
+  nguyên; nếu bật lại Factory sẽ map sau.
+
+### QC · GOM TAB PHƯƠNG ÁN C (SIDEBAR) — bản nghiệm thu riêng (25/07 khuya)
+- **File QC (KHÔNG đụng production):** `kiemsoatkho/qc-sidebar.html` = CLONE index.html + LỚP sidebar.
+  URL: letam0317.github.io/kiemsoatkho/**qc-sidebar.html** (so sánh 3 phương án: **qc-nav.html**).
+- **Nguyên tắc bất di bất dịch (user nhấn nhiều lần):** chỉ đổi LỚP ĐIỀU HƯỚNG, TUYỆT ĐỐI không đổi
+  hiển thị nội dung tab. Cách làm: KHÔNG sửa `setTab`/pane/module — chèn `<aside id="sideNav">` dạng
+  `position:fixed` + `.wrap{padding-left:214px}` (đẩy nội dung sang phải, nội dung y hệt); ẩn `#tabsNav`
+  + `#brandTitle`. Script chèn cuối body: dựng sidebar từ `CTY[CTY_ID].tabs` (tên trần — const không
+  lên window), click → gọi `setTab` gốc; bọc `setTab` để đồng bộ active; MutationObserver #tabsNav để
+  dựng lại khi đổi công ty. Gom: **Hạng mục 5S** {Tổng quan, Task vi phạm, Quy định(=hangmuc đổi nhãn),
+  Planogram} · **Hạng mục Tồn kho** {Kiểm kê, Tồn kho bất thường}.
+- **Web + Mobile:** desktop sidebar cố định 214px; **mobile (≤940px) sidebar KHÔNG cố định** — trượt
+  ra/thu vào bằng nút mũi tên ›(mở)/‹(thu) ở mép trái + backdrop mờ (body.side-open). Đã QC 4 ảnh
+  (.exports/qc-side-*.png): nội dung Task/Planogram render y hệt bản gốc.
+- Khi user duyệt phương án → ghép vào index.html thật (cùng kỹ thuật, thêm ~60 dòng), giữ ?embed=1 cũ.
+
+### HỆ MÀU ĐA TRẠNG THÁI + CẢNH BÁO QUÁ HẠN + fix bug lightbox — v20260725j (25/07 khuya)
+- **Bug lightbox → lòi pop-up "workflow vi phạm" (ĐÃ FIX):** thumbnail ảnh trong pop-up mang thuộc
+  tính `data-i` (chỉ số ảnh) trùng selector `e.target.closest('[data-i]')` của host (index.html:3055
+  → moChiTiet mở modal task). Đổi `data-i`→`data-idx`, `data-id`→`data-rid` + `event.stopPropagation()`
+  trên mọi onclick ảnh. Click ảnh giờ chỉ mở lightbox, tắt xong về đúng pop-up vị trí.
+- **Hệ trạng thái ô sơ đồ (CELLST)** — palette status kiểm CVD/tương phản bằng dataviz validator
+  (green/red/orange đạt; slate cố ý xám = trung tính). Mỗi màu 1 nghĩa + LUÔN kèm nhãn (chú giải)
+  + tooltip; chất lượng AI phân biệt thêm bằng HÌNH DẠNG badge (chấm = cần xem, tam giác = làm lại):
+  · Đã VS (đạt/chờ AI) = xanh #059669 · Đã VS·cần xem = xanh + chấm hổ phách · Đã VS·không đạt = cam
+  #ea580c (làm lại) · Chưa VS·có người đi làm = đỏ #dc2626 (nhắc ngay) · Chưa VS·nghỉ = slate #64748b
+  · Không có yêu cầu = nét đứt. Ngày quá khứ gộp Đã/Chưa. Khoảng nhiều ngày: xanh=đủ, cam=có ngày fail,
+  đỏ=có ngày chưa.
+- **Cảnh báo quá hạn (tinhCanhBao):** mỗi vị trí đếm số NGÀY YÊU CẦU gần nhất liên tiếp không báo cáo
+  (bỏ qua ngày không có yêu cầu → A1 tuần/A8 ngày đều đúng); ≥3 → viền đỏ tĩnh + ⚠ trên ô + banner
+  đỏ nhấp nháy đầu sơ đồ ("N vị trí quá 3 ngày…") bấm mở danh sách xử lý. Chỉ banner nhấp nháy (ô tĩnh
+  — tránh alert fatigue khi nhiều ô). Ngưỡng NGUONG_CANHBAO=3 (chỉnh được). ⚠ Nếu A1 phát yêu cầu
+  hằng ngày nhưng vệ sinh theo tuần → có thể over-fire, cần theo dõi thực tế để tinh chỉnh ngưỡng/theo khu.
+
+### HOÀN THIỆN UI/UX theo góp ý cuối — v20260725i (25/07 tối)
+- **Bộ lọc ngày = MENU CHỌN KHOẢNG** (khuôn hp-combo-menu mượt của dự án): Hôm nay · Hôm qua ·
+  3 ngày · 7 ngày gần nhất · hoặc từng ngày. Chế độ KHOẢNG: KPI 3 thẻ (Tổng/Đã/Chưa) gộp nhiều
+  ngày; sơ đồ xanh = đủ mọi ngày, đỏ = có ngày chưa (tooltip liệt kê từng ngày); bảng yêu cầu
+  thêm ngày vào cột Lúc. State S.dTu→S.dDen; đúng-1-ngày-hôm-nay mới chia 3 nhóm hành động.
+- Pop-up vị trí: hyperlink DUY NHẤT "Yêu cầu #… ↗" ở góc phải trên (bỏ nút Mở planogram + bỏ
+  ghi chú #id trùng ở hàng Trạng thái); AI đã chấm theo Display description TỪNG Ô từ trước.
+- Panel "Danh sách theo dõi": bộ chuyển chế độ thành SEGMENTED CONTROL (hp-seg) đặt góc phải
+  tiêu đề — tách bạch với chips lọc. Sơ đồ: bỏ ghi chú lặp ở sub-header, hint rút còn 1 câu.
+
+### SƠ ĐỒ QUẦY KỆ A1 + chỉnh theo góp ý operator — v20260725h (25/07 tối)
+- **Quy tắc mã A1 (operator xác nhận):** `F0-A1-<dãy>-<kệ>-<mâm>-<bin>` — dãy 501-516, mỗi dãy
+  ~10 kệ (bản vẽ "HƯỚNG DẪN ĐƯỜNG ĐI SOẠN HÀNG_A0.pdf", Drive folder 1RWbvGgMozb9…: 4 cụm ×
+  4 dãy; kệ 01-05 khối trên, 06-10 khối dưới, lối đi giữa). Mỗi kệ 4 mâm × 6 bin; YÊU CẦU VỆ SINH
+  planogram tính THEO KỆ (mã ổn định dạng F0-A1-<dãy>-<kệ>-04-01). Sơ đồ data-driven qua `keA1()`
+  (gom prefix dãy|kệ từ PHU-TRACH 45n + YEUCAU 7n) — dãy/kệ mới tự xuất hiện.
+- Mục sơ đồ đổi tên "Sơ đồ khu vực — Quầy kệ (A1) & Bàn đóng gói/băng chuyền (A8)", lọc khu vực
+  ẩn/hiện từng phần; bấm ô kệ → cùng pop-up chi tiết vị trí (tiêu đề "Kệ KK · dãy DDD").
+- Góp ý đã sửa: thanh điều khiển KHU VỰC trước → NGÀY sau, ngày = Ô CHỌN (không xổ 7 chips);
+  pop-up vị trí bỏ trùng lặp (1 badge nhóm — badge hệ thống chỉ thêm khi khác nghĩa; 1 link
+  planogram duy nhất ở đầu pop-up).
+
+### TÁI CẤU TRÚC BÁO CÁO v20260725g (yêu cầu "gọn, không trùng lặp", 25/07 chiều)
+- **VESINH-YEUCAU giữ 7 NGÀY** (`VS_YC_DAYS`; ảnh chỉ đính 3 ngày gần — `VS_ANH_NGAY`) → toàn tab
+  có TRỤC THỜI GIAN: chips Ngày (7 ngày) trên thanh điều khiển đổi cả KPI + sơ đồ + pop-up.
+- Bố cục 4 khối, KHÔNG trùng số liệu: (1) Thanh điều khiển: Ngày · Khu vực · Tra cứu nhân viên ·
+  Toàn bộ vị trí; (2) KPI ngày đang xem (hôm nay 4 thẻ, ngày cũ 3 thẻ Tổng/Đã/Chưa — chấm công
+  quá khứ không lưu) + chip AI; (3) SƠ ĐỒ F0-A8 theo ngày — **bấm ô mở pop-up chi tiết vị trí**:
+  dải lịch sử 7 ngày bấm chuyển ngày, trạng thái + badge hệ thống, người báo cáo + giờ, kết luận
+  AI + lý do, ảnh báo cáo (lightbox), phụ trách gần nhất, link planogram; (4) "Danh sách theo dõi"
+  1 panel 2 chế độ: AI xét duyệt ảnh · Nhân viên hôm nay (đã bỏ: panel Theo khu vực, panel Phụ
+  trách vị trí, hàng thẻ AI, hàng thẻ chấm công — số liệu trùng).
+- **ANTHROPIC_API_KEY** → **Claude Opus 4.8** (vision mạnh nhất, trả phí, Batch API -50%) +
+  adaptive thinking + structured output json_schema — SDK `@anthropic-ai/sdk` đã cài.
+- `AI_PROVIDER=gemini|claude` ép chọn; `AI_MODEL`/`--model` đổi model. Prompt KHÔNG chứa email NV.
+- Quét planogram (token bridge, chỉ GET) các yêu cầu **Chờ duyệt (status 3)** cửa sổ `--days` (mặc định 3),
+  ảnh truyền bằng **URL công khai** (API tự tải — không cần download).
+- **Chốt cứng cục bộ đúng 100% (không tốn AI):** ảnh **DÙNG LẠI** (trùng URL với request khác — cùng đợt
+  hoặc mọi request 14 ngày trước, cache `.exports/ai-vesinh-cache.json`) → KHÔNG ĐẠT; **thiếu ảnh bắt buộc**
+  (so `image_name` với `standard_image.is_required`) → KHÔNG ĐẠT.
+- AI chấm từng request theo **TIÊU CHUẨN TỪNG Ô** (image_description) đính ngay trước từng ảnh; rubric
+  nêu rõ chỉ bắt lỗi nhìn thấy, không suy diễn; **tin cậy < 75 → ép CẦN XEM** (không tự đạt/rớt khi mơ hồ);
+  AI refuse/lỗi → CẦN XEM. Kết quả: ĐẠT / KHÔNG ĐẠT / CẦN XEM + điểm + lý do + ô lỗi.
+- **Batch API (-50% chi phí)** khi >5 request; ≤5 hoặc `--live N` gọi trực tiếp; batch dở dang tự thu ở lần
+  chạy sau (`.exports/ai-vesinh-batch.json`). Ước lượng ~26K token vào/request (16 ảnh) ⇒ **~0,08 USD/request
+  (batch, Opus)**; ngày full 179 request ≈ 13-14 USD — đổi `AI_MODEL=claude-haiku-4-5` nếu cần rẻ (~1/25 giá,
+  kém chính xác hơn).
+- Ghi tab **`VESINH-AI`** (sheet PRIVATE, giữ 14 ngày) — dashboard join theo Request ID: cột "AI xét duyệt"
+  + bộ lọc trong pop-up, chip **Đạt/Không đạt/Cần xem** ở hero (bấm mở danh sách lọc sẵn).
+- Guard: thiếu `ANTHROPIC_API_KEY` → thoát nhẹ exit 0 (không chặn cụm); GAS chưa whitelist → giữ cache cục
+  bộ, KHÔNG ghi. Đã gắn vào `SYNC-STOCK.bat` (sau sync-vesinh-all) + regex sync-guard.
+
+### Chốt an toàn PII tự động (25/07)
+`sync-vesinh-all.js` probe `readTab` trước khi ghi VESINH-YEUCAU/NHATKY: **GAS cũ → tự BỎ QUA 2 tab mới**
+(không ghi email NV vào sheet public) và in hướng dẫn. `sync-vesinh-ai.mjs` cũng vậy với VESINH-AI.
+⇒ lịch 8h40 chạy trước khi deploy GAS vẫn an toàn.
+
+### ⚠ KÍCH HOẠT — còn đúng 2 việc tay (còn lại đã tự động)
+1. **Dán `google-script.gs` mới vào Apps Script editor + Deploy** (whitelist VESINH-YEUCAU/NHATKY/AI).
+   (clasp đăng nhập letam0317@gmail.com không thấy script 5S → không tự đẩy được.)
+2. **Thêm `ANTHROPIC_API_KEY=sk-ant-...` vào `hasaki/.env`** (console.anthropic.com) — cho bộ AI.
+Sau đó: bấm "Cập nhật ngay" trên dashboard (hoặc chờ 8h40) — sync tự ghi tab mới, AI tự chấm.
+Dashboard MỚI **đã deploy sẵn** lên Pages (v20260725b) — thiếu dữ liệu chỉ hiện gợi ý, không vỡ.
+- Nhịp dữ liệu: 1 lần/ngày 8h40 + nút "Cập nhật ngay". Nếu muốn tươi hơn có thể tách "quét hôm nay"
+  (1 trang) chạy mỗi giờ — CHƯA làm, chờ quyết định (tải WMS thấp, ~1 request/giờ).
+
+## 5. Công cụ nghiên cứu đã tạo (read-only, tôn trọng luật phiên)
+`.exports/` chứa bằng chứng: `probe-planogram*.json`, `captured-planogram-authed.json`.
+Script: `capture-planogram.mjs`, `capture-planogram-authed.mjs` (nạp token bridge vào
+`localStorage.auth_store` để SPA tự gọi API — KHÔNG login), `probe-planogram-token.mjs`,
+`probe-planogram2/3/4.mjs`, `probe-vesinh-anh.mjs` (kiểm chứng request_image + tải ảnh),
+`capture-planogram-tab.mjs` (test render tab mới bằng dữ liệu --dry, không đụng GAS).
+Tất cả CHỈ GET; dùng làm nền cho `sync-vesinh-all.js`.

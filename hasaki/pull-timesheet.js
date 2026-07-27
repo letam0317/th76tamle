@@ -25,14 +25,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
+import { EDGE_PATH, duongDanProfile, tokenCon } from "./token-store.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);
 const TAB = "NHAN-SU";
-const SHEET_ID = process.env.SHEET_ID || "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";
 const CACHE_FILE = path.join(DIR, ".exports", "nhansu-cache.json");
 const DEPARTMENT_ID = 121, LOCATION_ID = 398;
 const SEED_FROM = process.env.SEED_FROM || "2026-04-01";     // workflow bắt đầu đầu tháng 4
@@ -41,26 +40,41 @@ const MAJOR_IDS = Object.keys(MAJOR_NAME).map(Number);
 const DRY = process.argv.includes("--dry");
 const FULL_SEED = process.env.FULL_SEED === "1";
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 if (!APPSCRIPT_KEY && !DRY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const homNay = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
 const gio = (ts) => ts ? new Date(ts * 1000).toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" }) : "";
 
+/* wshr có CHẤP NHẬN token này không? — trọng tài duy nhất, giống luật get-me bên WMS.
+   Hasaki ID v2 (27/07/2026): capture "header authorization đầu tiên" dễ dính id_token OIDC
+   của IdP (scope openid/profile/email) — wshr trả 500 "Token Signature could not be verified"
+   → mọi API sau đó lặng lẽ rỗng, danh bạ 0 NV, cả sheet bị ghi "đã nghỉ" oan. */
+async function tokenWshrOk(tk) {
+  try { return (await fetch("https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=1", { headers: { authorization: tk } })).ok; }
+  catch { return false; }
+}
+
 async function getToken() {
   const browser = await puppeteer.launch({ headless: true, executablePath: EDGE_PATH, userDataDir: PROFILE_DIR, args: ["--disable-blink-features=AutomationControlled"] });
   try {
     const page = (await browser.pages())[0] || (await browser.newPage());
-    let token = null;
-    page.on("request", (req) => { const a = req.headers()["authorization"]; if (a && /wshr\.hasaki\.vn/.test(req.url()) && !token) token = a; });
+    // Gom MỌI token ứng viên rồi kiểm từng cái với wshr — không nhận mù token đầu tiên.
+    const ungVien = [], daThay = new Set();
+    page.on("request", (req) => { const a = req.headers()["authorization"]; if (a && /wshr\.hasaki\.vn/.test(req.url()) && !daThay.has(a)) { daThay.add(a); ungVien.push(a); } });
     await page.goto("https://hr.hasaki.vn/auth/login", { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
     if (/auth\/login/.test(page.url())) {
       await page.evaluate(() => { const el = [...document.querySelectorAll("a,button")].find(e => /Hasaki SSO|Đăng nhập với/i.test(e.textContent)); el && el.click(); }).catch(() => {});
       await page.waitForFunction(() => !/auth\/(login|callback)/.test(location.href), { timeout: 25000 }).catch(() => {});
     }
     await page.goto("https://hr.hasaki.vn/", { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
-    for (let i = 0; i < 15 && !token; i++) await new Promise((r) => setTimeout(r, 1000));
+    let token = null, loai = 0;
+    for (let i = 0; i < 20 && !token; i++) {
+      while (ungVien.length && !token) { const t = ungVien.shift(); if (await tokenWshrOk(t)) token = t; else loai++; }
+      if (!token) await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (loai) log("  … đã loại " + loai + " token bị wshr từ chối (id_token OIDC).");
     if (/auth\/(login|callback)/.test(page.url()) || !token) throw new Error("Phiên hr.hasaki.vn đã hết hạn.");
     return token;
   } finally { await browser.close().catch(() => {}); }
@@ -82,7 +96,18 @@ async function keoTimesheet(token, majorId, from, to) {
     const caps = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) }).then(r => r.json()).catch(() => null);
     if (!caps || caps.timesheet !== true) { log("✗ Apps Script chưa redeploy (chưa hỗ trợ ghi tab). BỎ QUA."); process.exit(3); }
   }
-  const token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
+  let token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
+  // Token trong kho có thể là id_token OIDC dính từ lượt trước (Hasaki ID v2) — kiểm lại với wshr;
+  // hỏng thì mượn token work (cùng audience wshr, dùng tốt cho API hr — kiểm chứng 27/07/2026).
+  if (!(await tokenWshrOk(token))) {
+    log("  ⚠ Token hr bị wshr từ chối (Token Signature could not be verified) — thử token work thay thế...");
+    const w = tokenCon(DIR, "work");
+    if (w && await tokenWshrOk(w)) { token = w; log("  ✓ Dùng token work cho API hr (wshr chấp nhận)."); }
+    else {
+      token = await getToken().catch(e => { log("✗ " + e.message); process.exit(2); });
+      if (!(await tokenWshrOk(token))) { log("✗ Không lấy được token nào wshr chấp nhận — DỪNG (không ghi dữ liệu rỗng)."); process.exit(2); }
+    }
+  }
   const today = homNay();
   log("✓ Token hr.hasaki.vn. Ngày chấm công: " + today);
 
@@ -105,6 +130,9 @@ async function keoTimesheet(token, majorId, from, to) {
     if (st == null) return "Đã nghỉ việc (đóng hồ sơ)";   // không còn trong danh bạ = nghỉ hẳn
     return TT_STATUS[st] || ("Trạng thái " + st);
   };
+  // Danh bạ RỖNG = API lỗi/token bị từ chối, KHÔNG BAO GIỜ là thật (WMS luôn có ~5600 NV) —
+  // dừng ngay kẻo ghi "cả kho đã nghỉ việc" đè lên dữ liệu tốt (sự cố 27/07/2026).
+  if (!dir.length) { log("✗ Danh bạ WMS trả 0 NV — DỪNG, không ghi đè tab NHAN-SU."); process.exit(2); }
   log("  ✓ Danh bạ WMS: " + dir.length + " NV; Địa điểm: " + Object.keys(locMap).length + " chi nhánh.");
 
   // 3) Kho tích luỹ
@@ -196,10 +224,8 @@ async function keoTimesheet(token, majorId, from, to) {
   let ok = false, written = 0;
   try { const j = JSON.parse(await (await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).text()); ok = j.status === "success"; written = j.written || 0; }
   catch (e) { log("  ⚠ POST lỗi (" + e.message + ") — kiểm tra lại qua gviz..."); }
-  if (!ok) {
-    await new Promise(r => setTimeout(r, 4000));
-    try { const t = await (await fetch("https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?sheet=" + encodeURIComponent(TAB) + "&tqx=out:json&headers=1")).text(); const n = (JSON.parse(t.match(/\{[\s\S]*\}/)[0]).table.rows || []).length; if (n >= Math.floor(rows.length * 0.9)) { ok = true; written = n; log("  ✓ Xác minh qua gviz: " + n + " dòng."); } } catch {}
-  }
+  // (Bỏ xác minh gviz dự phòng: tab NHAN-SU đã dời sang SHEET RIÊNG bảo mật — Apps Script tự định tuyến
+  //  theo PII_TABS — nên sheet public không còn tab này để đối chiếu; tin kết quả POST là đủ.)
   log(ok ? "✓ Đã ghi " + written + " dòng vào tab " + TAB + "." : "✗ Ghi tab " + TAB + " thất bại.");
   process.exit(ok ? 0 : 2);
 })().catch(e => { log("✗ " + e.message); process.exit(2); });
