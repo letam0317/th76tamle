@@ -112,11 +112,35 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
 
 (async () => {
   if (WRITE && !APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env (hoặc chạy DS_WRITE=0)."); process.exit(3); }
+  let cache = {}; try { cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8")); } catch {}
   token = await layTokenSongWms(DIR, log);
-  if (!token) { log("✗ Không có token WMS còn sống. Trong giờ làm KHÔNG tự đăng nhập (tránh đá phiên) — chạy lại sau 18h hoặc mở WMS trên trình duyệt trước."); process.exit(2); }
 
   log("Kho " + WH + " · plan " + new Date(Number(FROM_MS)).toLocaleDateString("vi-VN") + " → " + new Date(Number(TO_MS)).toLocaleDateString("vi-VN"));
-  const phieu = await keoPhieu();
+
+  /* KHÔNG có token sống (operator vừa đăng nhập WMS — 1 phiên/tài khoản): TUYỆT ĐỐI không
+     tự đăng nhập trong giờ làm. Vẫn dựng lại được báo cáo từ dữ liệu đã kéo:
+       · danh sách phiếu  ← .doi-soat-cache.json (__phieu) hoặc .pc-cache.json của push-pc-to-sheet
+       · tracking từng phiếu ← .doi-soat-cache.json
+     Chỉ thiếu phiếu phát sinh sau lần kéo cuối — có cảnh báo mốc giờ để người đọc tự cân nhắc. */
+  let phieu = null, ngoaiTuyen = false, mocCache = 0;
+  if (token) {
+    phieu = await keoPhieu();
+    cache.__phieu = { at: Date.now(), list: phieu };
+  } else {
+    if (cache.__phieu && cache.__phieu.list) { phieu = cache.__phieu.list; mocCache = cache.__phieu.at; }
+    else {
+      try {   // đường lùi 2: mượn danh sách phiếu của bộ push-pc-to-sheet (cùng kho, cùng nguồn API)
+        const pc = JSON.parse(fs.readFileSync(path.join(DIR, ".pc-cache.json"), "utf8"));
+        const trongKhoang = (d) => { const t = Date.parse(String(d || "") + "T00:00:00+07:00"); return t >= Number(FROM_MS) && t <= Number(TO_MS); };
+        phieu = (pc.fLoc || []).filter((r) => String(r.warehouse_id) === String(WH) && trongKhoang(r.plan_date));
+        mocCache = pc.fullAt || 0;
+      } catch { phieu = null; }
+    }
+    if (!phieu || !phieu.length) { log("✗ Không có token WMS sống và cũng không có cache để dựng lại. Chạy lại sau 18h."); process.exit(2); }
+    ngoaiTuyen = true;
+    log("⚠ CHẠY NGOÀI TUYẾN: token WMS đã bị đá (operator đang dùng) — KHÔNG đăng nhập mới.");
+    log("  Dựng báo cáo từ cache lúc " + (mocCache ? new Date(mocCache).toLocaleString("vi-VN") : "?") + " — phiếu phát sinh sau mốc này chưa có.");
+  }
   const tt = {}; phieu.forEach((p) => { tt[p.status_name || "?"] = (tt[p.status_name || "?"] || 0) + 1; });
   log("✓ " + phieu.length + " phiếu vị trí — trạng thái: " + JSON.stringify(tt));
 
@@ -126,22 +150,26 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
   log("  → đưa vào đối soát: " + dung.length + " phiếu đã đếm; bỏ qua " + boQua.length + " phiếu chưa đếm/huỷ."
     + (laLa.length ? "  ⚠ trạng thái chưa phân loại: " + laLa.join(", ") : ""));
 
-  let cache = {}; try { cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8")); } catch {}
   const canKeo = dung.filter((p) => !(cache[p.checklist_id] && cache[p.checklist_id].u === String(p.updated_at || "")));
-  log("Kéo tracking: " + canKeo.length + " phiếu mới/đổi (cache dùng lại " + (dung.length - canKeo.length) + ")...");
-
-  let idx = 0, xong = 0;
-  const worker = async () => {
-    for (;;) {
-      const i = idx++; if (i >= canKeo.length) return;
-      const p = canKeo[i];
-      cache[p.checklist_id] = { u: String(p.updated_at || ""), recs: await keoTracking(p.checklist_id) };
-      if (++xong % 50 === 0) log("  … " + xong + "/" + canKeo.length);
-      await nghi(120);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(4, canKeo.length) }, worker));
-  try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache)); } catch (e) { log("  ⚠ không lưu được cache: " + e.message); }
+  if (ngoaiTuyen) {
+    const thieu = dung.filter((p) => !cache[p.checklist_id]).length;
+    log("  Ngoài tuyến: dùng tracking trong cache cho " + (dung.length - thieu) + "/" + dung.length + " phiếu"
+      + (thieu ? " — THIẾU " + thieu + " phiếu chưa từng kéo, không có trong báo cáo này." : "."));
+  } else {
+    log("Kéo tracking: " + canKeo.length + " phiếu mới/đổi (cache dùng lại " + (dung.length - canKeo.length) + ")...");
+    let idx = 0, xong = 0;
+    const worker = async () => {
+      for (;;) {
+        const i = idx++; if (i >= canKeo.length) return;
+        const p = canKeo[i];
+        cache[p.checklist_id] = { u: String(p.updated_at || ""), recs: await keoTracking(p.checklist_id) };
+        if (++xong % 50 === 0) log("  … " + xong + "/" + canKeo.length);
+        await nghi(120);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, canKeo.length) }, worker));
+    try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache)); } catch (e) { log("  ⚠ không lưu được cache: " + e.message); }
+  }
 
   /* ---------------- 3) Dựng bảng dòng chi tiết ---------------- */
   const tho = [], chuaDem = [];
@@ -302,28 +330,36 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
     log("  ✓ " + tab + ": " + rows.length + " dòng.");
   }
 
+  /* ---- MỘT TAB DUY NHẤT, ƯU TIÊN THEO SKU, VỊ TRÍ LỒNG BÊN TRONG ----
+     Cấu trúc: [dòng bối cảnh] → mục LỆCH DƯƠNG → mục LỆCH ÂM.
+     Mỗi SKU 1 dòng tổng (đã bù trừ hết các vị trí), ngay dưới là các vị trí CÓ LỆCH
+     của chính SKU đó (thừa xếp trước, thiếu xếp sau) để thấy A bù cho B ra sao.
+     Số hiển thị là SỐ GỐC ĐÚNG NHƯ WMS để người đi kiểm đối chiếu thẳng trên màn hình;
+     cột quy đổi chỉ điền khi SKU có hệ số (cuộn/kiện). */
+  const HEADER1 = ["Nhóm", "SKU", "Tên sản phẩm", "Vị trí", "Đơn vị", "Tồn HT", "Đã đếm", "LỆCH", "Hệ số", "Lệch quy đổi", "Ghi chú"];
+  const trong = (n) => Array(n).fill("");
+  const duong = sku.filter((o) => o.net > 0).sort((a, b) => b.net - a.net);
+  const am = sku.filter((o) => o.net < 0).sort((a, b) => a.net - b.net);
+  const rows1 = [];
+  rows1.push(["ĐỐI SOÁT KIỂM KÊ · kho " + WH + " · plan " + new Date(Number(FROM_MS)).toLocaleDateString("vi-VN") +
+    "–" + new Date(Number(TO_MS)).toLocaleDateString("vi-VN") + " · " + dung.length + " phiếu đã đếm · " + theoSku.size + " SKU" +
+    " · QUY TẮC: SKU thiếu ở bin A mà thừa ĐÚNG BẰNG NHAU ở bin B ⇒ KHÔNG lệch (" + skuBuTruHet.length + " SKU đã loại)",
+    ...trong(10)]);
+  for (const [nhan, ds] of [["LỆCH DƯƠNG", duong], ["LỆCH ÂM", am]]) {
+    rows1.push([...trong(11)]);
+    rows1.push(["■ " + nhan + " — " + ds.length + " SKU (tổng lệch mọi vị trí " + (nhan === "LỆCH DƯƠNG" ? "> 0" : "< 0") + ")", ...trong(10)]);
+    for (const o of ds) {
+      rows1.push([nhan, "'" + o.sku, o.ten, o.soVt + " vị trí lệch", donViCua(o.ten), o.sys, o.cnt, o.net,
+        o.factor > 1 ? o.factor : "", o.factor > 1 ? o.netQd : "",
+        o.ketLuan + (o.typo ? " · " + o.typo : "") + (o.buTruViTri > 0 ? " · đã bù trừ " + o.buTruViTri + " giữa các vị trí" : "")]);
+      for (const d of o.thua.concat(o.thieu).sort((a, b) => b.diff - a.diff))
+        rows1.push(["", "", "", "    └ " + d.loc, "", d.sys, d.cnt, d.diff, "", "",
+          (d.diff > 0 ? "thừa tại bin này" : "thiếu tại bin này") + (d.soLanDem > 1 ? " · đếm lại " + d.soLanDem + " lần, lấy lần mới nhất " + d.gio : "")]);
+    }
+  }
   log("\nGhi Google Sheet...");
-  await ghiTab("DS-TongHopSKU",
-    ["No.", "SKU", "Tên sản phẩm", "Đơn vị gốc", "Hệ số quy đổi", "Số vị trí lệch",
-      "Tồn HT (đv đếm)", "Đã đếm (đv đếm)", "LỆCH RÒNG (đv đếm)", "Lệch ròng (số gốc)",
-      "Tổng thiếu (đv đếm)", "Tổng thừa (đv đếm)", "Bù trừ giữa các vị trí (đv đếm)",
-      "KẾT LUẬN", "Cảnh báo", "KIỂM TRA Ở ĐÂU"],
-    sku.map((o, i) => [i + 1, "'" + o.sku, o.ten, donViCua(o.ten), o.factor, o.soVt,
-      qd(o.sys, o.factor), qd(o.cnt, o.factor), o.netQd, o.net,
-      qd(o.tThieu, o.factor), qd(o.tThua, o.factor), qd(o.buTruViTri, o.factor),
-      o.ketLuan, o.typo, noiKiem(o)]));
+  await ghiTab("DOI-SOAT-LECH", HEADER1, rows1);
 
-  // Chi tiết chỉ giữ dòng của SKU CÒN LỆCH — SKU đã bù trừ hết không đưa vào (coi như không lệch).
-  await ghiTab("DS-ChiTietLech",
-    ["No.", "SKU", "Tên sản phẩm", "Vị trí", "Hệ số", "Tồn HT (đv đếm)", "Đã đếm (đv đếm)", "LỆCH (đv đếm)",
-      "Lệch (số gốc)", "Checklist", "Ngày plan", "Trạng thái phiếu", "Số lần đếm lại",
-      "UID group đếm", "UID group hệ thống", "Người đếm", "Giờ đếm"],
-    lechGhi.sort((a, b) => (a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : 0) || Math.abs(b.diff) - Math.abs(a.diff)).map((d, i) =>
-      [i + 1, "'" + d.sku, d.ten, d.loc, d.factor,
-        qd(d.sys, d.factor), qd(d.cnt, d.factor), qd(d.diff, d.factor), d.diff,
-        d.cid, d.ngay, d.ttPhieu, d.soLanDem,
-        d.uidU ? "'" + d.uidU : "", d.uidS ? "'" + d.uidS : "", d.nguoi, d.gio]));
-
-  log("✓ HOÀN TẤT — mở Sheet " + SHEET_ID + " xem 4-5 tab DS-*");
+  log("✓ HOÀN TẤT — tab DOI-SOAT-LECH trên Sheet " + SHEET_ID + (ngoaiTuyen ? "  (dữ liệu từ cache, không phải vừa kéo)" : ""));
   process.exit(0);
 })().catch((e) => { log("✗ " + (e && e.message ? e.message : e)); process.exit(2); });

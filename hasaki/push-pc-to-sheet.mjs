@@ -87,7 +87,7 @@ const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Ty
 const HEADER_UIDGR = ["No.", "Kind", "Checklist ID", "Tracking ID", "Request code", "Warehouse", "Type", "Location", "SKU", "Product Name", "Line Qty Count", "Line Inventory", "Line Diff", "Line Status", "UID Group", "Group Status", "Qty Count", "Qty System", "Expiration Date", "Counted date", "Updated At"];
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
 const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 300);   // cap số PHIẾU kéo tracking mỗi lượt (lượt đầu nhiều, sau đó cache gánh)
-const UIDGR_V = 3;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v3: CHỈ nhóm lệch, quét cả dòng diff=0 bù trừ)
+const UIDGR_V = 4;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v4: loc lấy MỌI phiếu đã đếm — SKU bù trừ chéo vị trí)
 
 async function getTokenLive() {
   // layTokenSongWms (kho + bridge) đã được thử ở caller — tới đây là đường Edge/SSO thuần.
@@ -173,8 +173,15 @@ function rowLoc(r, i) {
     r.plan_object_code || "", r.priority_name || "", diff, r.created_by_name || "", r.checklist_by_name || "",
     r.checklist_at || "", r.updated_at || "", r.plan_date || "", r.status_name || ""];
 }
-/* ===== UID GROUP LỆCH — tracking chi tiết của phiếu lệch → tab kiemke-uidgr ===== */
-const phieuLech = (r) => r.qty_by_user != null && ((Number(r.qty_by_user) || 0) - (Number(r.qty_by_sys) || 0)) !== 0;
+/* ===== UID GROUP LỆCH — tracking chi tiết của phiếu → tab kiemke-uidgr =====
+   v4 (chỉ thị 27/07 — bù trừ vị trí theo SKU): khối VỊ TRÍ lấy MỌI phiếu ĐÃ ĐẾM kể cả net=0,
+   vì phiếu net 0 vẫn chứa SKU thiếu bin này thừa bin kia (dashboard tự bù trừ theo SKU);
+   khối SKU giữ như cũ (diff phiếu = net của chính SKU đó, net 0 là không lệch thật). */
+const phieuLech = (kind, r) => {
+  if (r.qty_by_user == null) return false;   // chưa đếm
+  if (kind === "loc") return true;
+  return ((Number(r.qty_by_user) || 0) - (Number(r.qty_by_sys) || 0)) !== 0;
+};
 const ujParse = (s) => { try { const a = JSON.parse(s || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
 const lineStatus = (sid) => (sid === 4 ? "Counted" : sid === 2 ? "Count cancelled" : "Not counted");
 async function keoTracking(cid) {
@@ -226,7 +233,7 @@ function uidRowsCuaLine(rec) {
 }
 async function buocUidgr(sku, loc, uidgrCu) {
   const want = new Map();   // cid -> meta phiếu (kind + ngữ cảnh header)
-  for (const [kind, arr] of [["sku", sku], ["loc", loc]]) for (const r of arr) if (phieuLech(r))
+  for (const [kind, arr] of [["sku", sku], ["loc", loc]]) for (const r of arr) if (phieuLech(kind, r))
     want.set(String(r.checklist_id), { kind, req: r.plan_id || "", wh: r.warehouse_name || "", type: r.plan_type || "",
       cdate: r.checklist_at || "", upd: String(r.updated_at || r.checklist_at || "") });
   const moi = {}; let hit = 0, treo = 0;
