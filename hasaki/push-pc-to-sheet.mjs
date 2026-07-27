@@ -87,7 +87,7 @@ const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Ty
 const HEADER_UIDGR = ["No.", "Kind", "Checklist ID", "Tracking ID", "Request code", "Warehouse", "Type", "Location", "SKU", "Product Name", "Line Qty Count", "Line Inventory", "Line Diff", "Line Status", "UID Group", "Group Status", "Qty Count", "Qty System", "Expiration Date", "Counted date", "Updated At"];
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
 const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 300);   // cap số PHIẾU kéo tracking mỗi lượt (lượt đầu nhiều, sau đó cache gánh)
-const UIDGR_V = 4;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v4: loc lấy MỌI phiếu đã đếm — SKU bù trừ chéo vị trí)
+const UIDGR_V = 5;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v5: chọn phiếu theo STATUS — API list XOÁ qty_by_user sau khi APPROVED)
 
 async function getTokenLive() {
   // layTokenSongWms (kho + bridge) đã được thử ở caller — tới đây là đường Edge/SSO thuần.
@@ -175,10 +175,15 @@ function rowLoc(r, i) {
 }
 /* ===== UID GROUP LỆCH — tracking chi tiết của phiếu → tab kiemke-uidgr =====
    v4 (chỉ thị 27/07 — bù trừ vị trí theo SKU): khối VỊ TRÍ lấy MỌI phiếu ĐÃ ĐẾM kể cả net=0,
-   vì phiếu net 0 vẫn chứa SKU thiếu bin này thừa bin kia (dashboard tự bù trừ theo SKU);
-   khối SKU giữ như cũ (diff phiếu = net của chính SKU đó, net 0 là không lệch thật). */
+   vì phiếu net 0 vẫn chứa SKU thiếu bin này thừa bin kia (dashboard tự bù trừ theo SKU).
+   v5 (bệnh phát hiện 27/07 trên dữ liệu thật): API LIST XOÁ qty_by_user sau khi phiếu APPROVED
+   (187/279 phiếu vị trí đã đếm bị null qty — chọn theo qty là sót gần hết) -> chọn theo STATUS:
+   VERIFIED/APPROVED/WAITING FOR APPROVE/REJECTED/PROCESSING = đã/đang đếm; PENDING/NOT COUNT/
+   CANCELED bỏ. Khối SKU: có qty thì chỉ kéo phiếu lệch (net phiếu = net SKU), mất qty kéo luôn. */
+const ST_DEM = /VERIFIED|APPROVED|WAITING FOR APPROVE|REJECTED|PROCESSING/i;
 const phieuLech = (kind, r) => {
-  if (r.qty_by_user == null) return false;   // chưa đếm
+  if (!ST_DEM.test(String(r.status_name || ""))) return false;
+  if (r.qty_by_user == null) return true;    // APPROVED bị xoá qty trên list -> phải kéo tracking mới biết lệch hay không
   if (kind === "loc") return true;
   return ((Number(r.qty_by_user) || 0) - (Number(r.qty_by_sys) || 0)) !== 0;
 };
