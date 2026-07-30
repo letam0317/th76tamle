@@ -1029,6 +1029,81 @@ function soatTabTatCa() {
   return msg;
 }
 
+/* ============================================================================
+ *  CHUẨN HOÁ TÊN TAB + DỌN TAB RỖNG — chạy 1 LẦN trong editor (chọn chuanHoaTenTab → Run).
+ *  Vì sao đổi được mà không phải sửa code: cả `getSheetByName` (Apps Script) và `?sheet=`
+ *  (gviz mà dashboard dùng) đều khớp tên KHÔNG phân biệt hoa/thường — đã kiểm chứng thật:
+ *  bộ sync ghi tab 'garment' vào tab tên 'Garment' vẫn chạy, và gviz gọi 'quy-dinh' trả
+ *  đúng dữ liệu 'QUY-DINH'. Nên đây CHỈ đổi hoa/thường, KHÔNG đổi ký tự nào khác.
+ *  ⚠ Muốn đổi cả dấu cách/gạch nối (vd 'WAREHOUSE CODE' -> 'WAREHOUSE-CODE') thì phải sửa
+ *  code song song — đừng thêm vào bảng dưới.
+ *  CHỐT AN TOÀN: bỏ qua tab không tồn tại · bỏ qua nếu tên mới đã có tab khác giữ ·
+ *  CHỈ xoá tab RỖNG (≤1 dòng) và không bao giờ xoá tab cuối cùng · in log trước/sau.
+ * ========================================================================== */
+var CHUANHOA_DOI_CONGKHAI = {
+  'kiemke-location-hasaki': 'KIEMKE-LOCATION-HASAKI',
+  'kiemke-sku-hasaki': 'KIEMKE-SKU-HASAKI',
+  'stock-inventory-hasaki': 'STOCK-INVENTORY-HASAKI'
+};
+var CHUANHOA_DOI_FACTORY = {
+  'Metadata': 'METADATA',
+  'history': 'HISTORY',
+  'mastige': 'MASTIGE',
+  'Garment': 'GARMENT',
+  'kiemke-sku': 'KIEMKE-SKU',
+  'kiemke-location': 'KIEMKE-LOCATION',
+  'kiemke-adjust': 'KIEMKE-ADJUST',
+  'kiemke-uidgr': 'KIEMKE-UIDGR',
+  'kiemke-uidgr-edit': 'KIEMKE-UIDGR-EDIT',
+  'stock-inventory-beta': 'STOCK-INVENTORY-BETA',
+  'Warehouse code': 'WAREHOUSE CODE'
+};
+var CHUANHOA_XOA_RIENG = ['Trang tính1', 'Sheet1'];   // tab mặc định Google tạo, còn sót vì tên bản địa hoá
+
+function chuanHoaTenTab() {
+  var ra = [];
+  function xuLy(nhan, ss, doi, xoa) {
+    if (!ss) { ra.push('— ' + nhan + ': KHÔNG mở được, bỏ qua.'); return; }
+    ra.push('— ' + nhan + ' (' + ss.getName() + ')');
+    ra.push('   TRƯỚC: ' + ss.getSheets().map(function (s) { return s.getName(); }).join(', '));
+    // 1) XOÁ tab rỗng
+    (xoa || []).forEach(function (ten) {
+      var sh = ss.getSheetByName(ten);
+      if (!sh) return;                                        // không có thì thôi, không ồn ào
+      if (ss.getSheets().length <= 1) { ra.push('   ⛔ giữ "' + ten + '": là tab cuối cùng.'); return; }
+      if (sh.getLastRow() > 1) { ra.push('   ⛔ KHÔNG xoá "' + ten + '": có ' + sh.getLastRow() + ' dòng dữ liệu.'); return; }
+      ss.deleteSheet(sh);
+      ra.push('   ✓ đã xoá tab rỗng "' + ten + '".');
+    });
+    // 2) ĐỔI TÊN (chỉ hoa/thường)
+    Object.keys(doi || {}).forEach(function (cu) {
+      var moi = doi[cu], sh = ss.getSheetByName(cu);
+      if (!sh) { ra.push('   · bỏ qua "' + cu + '": không tồn tại.'); return; }
+      if (sh.getName() === moi) { ra.push('   = "' + moi + '": đã đúng chuẩn.'); return; }
+      if (String(cu).toLowerCase() !== String(moi).toLowerCase()) {
+        ra.push('   ⛔ TỪ CHỐI "' + cu + '" -> "' + moi + '": khác nhau hơn cả hoa/thường, phải sửa code song song.');
+        return;
+      }
+      var vuong = ss.getSheets().filter(function (s) {
+        return s.getSheetId() !== sh.getSheetId() && s.getName().toLowerCase() === String(moi).toLowerCase();
+      });
+      if (vuong.length) { ra.push('   ⛔ bỏ qua "' + cu + '": đã có tab khác tên "' + vuong[0].getName() + '".'); return; }
+      var truoc = sh.getName();
+      sh.setName(moi);
+      ra.push('   ✓ "' + truoc + '"  ->  "' + moi + '"');
+    });
+    ra.push('   SAU:   ' + ss.getSheets().map(function (s) { return s.getName(); }).join(', '));
+  }
+  xuLy('CÔNG KHAI (5S)', SpreadsheetApp.getActiveSpreadsheet(), CHUANHOA_DOI_CONGKHAI, null);
+  var idP = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID');
+  xuLy('RIÊNG (nhân sự/PII)', idP ? SpreadsheetApp.openById(idP) : null, null, CHUANHOA_XOA_RIENG);
+  try { xuLy('FACTORY (stock-location)', SpreadsheetApp.openById(STOCKLOC_SHEET_ID), CHUANHOA_DOI_FACTORY, null); }
+  catch (e) { ra.push('— FACTORY: ' + e.message); }
+  var msg = ra.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
 function donDepTabThua() {
   var DANH_SACH_XOA = ['kiemke-material'];
   var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
