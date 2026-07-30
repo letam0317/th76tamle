@@ -1072,8 +1072,8 @@ function chuanHoaTenTab() {
       if (!sh) return;                                        // không có thì thôi, không ồn ào
       if (ss.getSheets().length <= 1) { ra.push('   ⛔ giữ "' + ten + '": là tab cuối cùng.'); return; }
       if (sh.getLastRow() > 1) { ra.push('   ⛔ KHÔNG xoá "' + ten + '": có ' + sh.getLastRow() + ' dòng dữ liệu.'); return; }
-      ss.deleteSheet(sh);
-      ra.push('   ✓ đã xoá tab rỗng "' + ten + '".');
+      try { ss.deleteSheet(sh); ra.push('   ✓ đã xoá tab rỗng "' + ten + '".'); }
+      catch (e) { ra.push('   ⛔ xoá "' + ten + '" thất bại: ' + e.message); }
     });
     // 2) ĐỔI TÊN (chỉ hoa/thường)
     Object.keys(doi || {}).forEach(function (cu) {
@@ -1089,8 +1089,23 @@ function chuanHoaTenTab() {
       });
       if (vuong.length) { ra.push('   ⛔ bỏ qua "' + cu + '": đã có tab khác tên "' + vuong[0].getName() + '".'); return; }
       var truoc = sh.getName();
-      sh.setName(moi);
-      ra.push('   ✓ "' + truoc + '"  ->  "' + moi + '"');
+      /* ĐỔI 2 NHỊP khi cần: Google coi tên tab là trùng KHÔNG phân biệt hoa/thường, nên
+       * setName('MASTIGE') trên tab đang tên 'mastige' có thể bị từ chối vì "đã tồn tại" —
+       * trùng với chính nó. Vòng qua một tên tạm rồi đặt tên đích là thoát được.
+       * Bọc try/catch từng tab: một tab lỗi thì bỏ qua tab đó, KHÔNG làm gãy cả lượt chạy. */
+      try {
+        sh.setName(moi);
+        ra.push('   ✓ "' + truoc + '"  ->  "' + moi + '"');
+      } catch (e1) {
+        var tam = 'ZZTMP-' + new Date().getTime();
+        try {
+          sh.setName(tam); sh.setName(moi);
+          ra.push('   ✓ "' + truoc + '"  ->  "' + moi + '"  (đổi 2 nhịp qua tên tạm)');
+        } catch (e2) {
+          try { if (sh.getName() === tam) sh.setName(truoc); } catch (e3) {}   // trả lại tên cũ, không để tab mang tên tạm
+          ra.push('   ⛔ đổi "' + truoc + '" -> "' + moi + '" THẤT BẠI: ' + e2.message);
+        }
+      }
     });
     ra.push('   SAU:   ' + ss.getSheets().map(function (s) { return s.getName(); }).join(', '));
   }
