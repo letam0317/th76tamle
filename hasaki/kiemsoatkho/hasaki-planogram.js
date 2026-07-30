@@ -48,6 +48,11 @@ var TAB_CC = "CHAMCONG-VESINH";     // đối chiếu chấm công × vệ sinh 
 var TAB_YC = "VESINH-YEUCAU";       // từng yêu cầu vệ sinh hôm nay (trạng thái + ảnh)
 var TAB_NK = "VESINH-NHATKY";       // nhật ký NV × ngày × khu vực (45 ngày)
 var TAB_AI = "VESINH-AI";           // AI xét duyệt ảnh (sync-vesinh-ai.mjs — Claude chấm từng yêu cầu)
+/* Bảng phân công phụ trách theo vị trí (sync-phancong.mjs): g-sheet phân công gốc của bộ phận,
+ * vị trí nào g-sheet bỏ trống thì bù bằng người báo cáo gần nhất 30 ngày → LUÔN có người.
+ * Đây là nguồn CHÍNH THỨC cho "ai phụ trách ô này", thay cho suy đoán "executor gần nhất":
+ * đối chiếu 7 ngày báo cáo thật cho thấy 205/205 lượt đều do đúng người được giao làm. */
+var TAB_PC = "VESINH-PHANCONG";
 var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 var PG_BASE = "https://planogram.hasaki.vn/asset-management/request-of-declaration";
 var STALE_MS = 5 * 60 * 1000;
@@ -249,6 +254,16 @@ var AIST = [
   { k: "CAN_XEM",   lb: "AI: Cần xem",   c: "#d97706" }
 ];
 function aiMeta(k){ for (var i = 0; i < AIST.length; i++) if (AIST[i].k === k) return AIST[i]; return null; }
+/* Cột tab VESINH-PHANCONG (Location đã ở dạng khoá ô: A1 = mức KỆ, A8 = mã đầy đủ) */
+var COLS_PC = {
+  loc:   ["location", "vị trí", "vi tri"],
+  em:    ["responsible by", "responsible", "email", "phụ trách"],
+  code:  ["code", "msnv", "mã nv"],
+  ten:   ["name", "tên", "họ và tên"],
+  nguon: ["nguồn", "nguon", "source"],
+  bc:    ["bằng chứng", "bang chung"],
+  gc:    ["ghi chú", "ghi chu", "note"]
+};
 /* Cột tab VESINH-NHATKY */
 var COLS_NK = {
   ngay:  ["ngày", "ngay", "date"],
@@ -322,6 +337,7 @@ var S = { ok: false, dangPT: false, all: [], area: "", lastAt: 0, tsData: 0,
   yc: { ok: false, dang: false, rows: [], ts: 0, ngay: "" },
   nk: { ok: false, dang: false, rows: [], ts: 0 },
   ai: { ok: false, dang: false, by: {}, rows: [], ts: 0 }, aiKl: "", aiQ: "",
+  pc: { ok: false, dang: false, by: {}, ts: 0 },   // by[khoá ô] = { em, code, ten, nguon, bc, gc }
   dTu: "", dDen: "", listMode: "ai", ptHi: "", ptOpen: false };   // dTu→dDen = KHOẢNG NGÀY đang xem; listMode = panel danh sách (ai | nv); ptHi = email NV đang SOI; ptOpen = panel cần-nhắc đang xổ
 var MODAL = { base: [], preset: null, mode: "loc" };
 var NK = { email: "", q: "" };
@@ -761,6 +777,9 @@ var NGUON = [
   { tab: TAB_YC, cb: "hpgv_yc",
     build: function(H, rows, ts){ if (ts > 0){ S.yc.ts = ts; if (!S.tsData) S.tsData = ts; } clearTimeout(_ycTO); S.yc.dang = false; buildYC(H, rows); },
     fail: function(){ clearTimeout(_ycTO); S.yc.ok = false; S.yc.dang = false; renderToday(); renderMap(); } },
+  { tab: TAB_PC, cb: "hpgv_pc",
+    build: function(H, rows, ts){ if (ts > 0) S.pc.ts = ts; S.pc.dang = false; buildPC(H, rows); },
+    fail: function(){ S.pc.ok = false; S.pc.dang = false; } },
   { tab: TAB, cb: "hpgv_pt",
     build: function(H, rows, ts){ if (ts > 0) S.tsData = ts; S.dangPT = false; buildMain(H, rows); if (!ts) loadMeta(); capNhatInfo(); },
     fail: function(){ S.ok = false; S.dangPT = false; render(); } },
@@ -790,6 +809,7 @@ function tuCache(tab){   // vẽ ngay từ cache nếu còn hạn → true khi m
 function bac1(){
   goiNguon(TAB_YC);
   setTimeout(function(){
+    goiNguon(TAB_PC);   // nhẹ (~20KB) mà quyết định tên người phụ trách hiện ở tooltip + pop-up
     goiNguon(TAB); goiNguon(TAB_AI);
     if (S.cc.ok || S.cc.dang) goiNguon(TAB_CC);   // đang mở sẵn danh sách NV / pop-up thì làm mới luôn
     if (S.nk.ok || S.nk.dang) goiNguon(TAB_NK);
@@ -811,11 +831,11 @@ function loadData(){
   var st = $id("hpState"); if (!st) return;
   var btn = $id("hpReload"); if (btn) btn.disabled = true;
   _daGoi = {}; S.lastAt = Date.now();
-  S.yc.dang = true; S.dangPT = true; S.ai.dang = true;
+  S.yc.dang = true; S.dangPT = true; S.ai.dang = true; S.pc.dang = true;
   /* 1) VẼ TỪ CACHE trước (đồng bộ): có cache là màn hình đủ dữ liệu ngay từ khung hình đầu —
         không spinner, không skeleton, không animation vào (tránh chớp trên nội dung đang có). */
   var coYc = tuCache(TAB_YC);
-  tuCache(TAB); tuCache(TAB_AI);
+  tuCache(TAB); tuCache(TAB_AI); tuCache(TAB_PC);
   if (S.cc.ok || S.cc.dang) tuCache(TAB_CC);
   if (S.nk.ok || S.nk.dang) tuCache(TAB_NK);
   if (!coYc){
@@ -957,6 +977,25 @@ function buildAI(H, rows2d){
   renderAI();      // khối "AI xét duyệt ảnh"
 }
 function aiOf(r){ return S.ai.ok ? (S.ai.by[String(r.id)] || null) : null; }
+function buildPC(H, rows2d){
+  var hl = H.map(function(h){ return String(h).replace(/\s+/g, " ").trim().toLowerCase(); });
+  var idx = {}; Object.keys(COLS_PC).forEach(function(k){ idx[k] = idxOf(hl, COLS_PC[k]); });
+  if (idx.loc < 0 || idx.em < 0){ S.pc.ok = false; S.pc.by = {}; return; }
+  var by = {};
+  rows2d.forEach(function(row){
+    function gv(i){ return (i >= 0 && row[i] != null) ? String(row[i]).trim() : ""; }
+    var loc = gv(idx.loc); if (!loc) return;
+    var o = { em: gv(idx.em).toLowerCase(), code: gv(idx.code), ten: gv(idx.ten),
+      nguon: gv(idx.nguon), bc: gv(idx.bc), gc: gv(idx.gc) };
+    ghiNhoNm(o.em, o.code, o.ten);   // để mọi chỗ khác hiện được TÊN thay vì email
+    by[khoaO(loc)] = o;
+  });
+  S.pc.ok = true; S.pc.by = by;
+  renderMap();      // tooltip ô + panel cần nhắc dùng tên phụ trách
+  renderToday();
+}
+/** Người phụ trách CHÍNH THỨC của 1 vị trí (theo bảng phân công) — null nếu chưa nạp/không có */
+function pcCua(loc){ return S.pc.ok ? (S.pc.by[khoaO(loc)] || null) : null; }
 /* --- KHỐI 1b: PANEL DANH SÁCH — 1 panel duy nhất, 2 chế độ: AI XÉT DUYỆT · NHÂN VIÊN --- */
 function aiSetKl(k){ if (S.aiKl === k) k = ""; S.aiKl = k; renderList(); }
 var _aiDeb = null;
@@ -1416,6 +1455,13 @@ function renderMap(){
   function tinhTT(loc, list){
     var kk = khoaO(loc);
     var head = alert[kk] ? "⚠ QUÁ HẠN: " + alert[kk] + " ngày yêu cầu liên tiếp chưa báo cáo\n" : "";
+    /* Phụ trách theo BẢNG PHÂN CÔNG — hiện ở MỌI ô, kể cả ô chưa ai báo cáo bao giờ.
+       Trước đây tooltip chỉ suy từ báo cáo cũ nên ô im lặng không ra được tên ai. */
+    var pcO = pcCua(loc);
+    var pcT = pcO && pcO.em
+      ? "\nPhụ trách: " + (pcO.ten || pcO.em) + (pcO.code ? " (" + pcO.code + ")" : "") +
+        (/g-sheet/i.test(pcO.nguon) ? "" : " — suy từ báo cáo gần nhất, g-sheet chưa phân công")
+      : "";
     if (!list || !list.length){
       var mi = thieuBy[kk], vs = "";
       if (mi){
@@ -1428,7 +1474,7 @@ function renderMap(){
           ? "\n   vệ sinh gần nhất: " + ngayVN(mi.vsCuoi) + (mi.name || mi.email ? " — " + (mi.name || mi.email) : "")
           : "\n   chưa ai từng vệ sinh vị trí này";
       }
-      return head + loc + "\nKhông có yêu cầu vệ sinh trong khoảng đang xem" + vs + "\n(bấm xem lịch sử 7 ngày)";
+      return head + loc + pcT + "\nKhông có yêu cầu vệ sinh trong khoảng đang xem" + vs + "\n(bấm xem lịch sử 7 ngày)";
     }
     if (mot){
       var r = repCua(list), st = cellMeta(cellState1(r)), ai = aiOf(r), aim = ai && aiMeta(ai.kl);
@@ -1439,7 +1485,7 @@ function renderMap(){
           if (r.ptAt) ptTxt += "\n   theo báo cáo gần nhất " + ngayVN(r.ptAt) + (ptKhongChac(r) ? " — ⚠ " + ptTuoi(r) + " ngày trước, CHƯA CHẮC còn phụ trách" : "");
         } else ptTxt = "\nChưa có người phụ trách";
       }
-      return head + loc + "\nTrạng thái: " + st.lb +
+      return head + loc + pcT + "\nTrạng thái: " + st.lb +
         (r.email ? "\nNgười làm: " + (tenNm(r.email) || r.email) + (r.at ? " lúc " + String(r.at).slice(11, 16) : "") : ptTxt) +
         (aim ? "\nAI: " + aim.lb.replace("AI: ", "") + (ai.diem ? " · " + ai.diem + " điểm" : "") : "") +
         "\n(bấm xem chi tiết + lịch sử 7 ngày)";
@@ -1447,7 +1493,7 @@ function renderMap(){
     var dong = list.slice().sort(function(a, b){ return a.ngay < b.ngay ? -1 : 1; }).map(function(r){
       return ngayVN(r.ngay) + ": " + (r.bk === "da" ? "Đã vệ sinh" + (r.email ? " — " + (tenNm(r.email) || r.email) : "") : "Chưa vệ sinh");
     });
-    return head + loc + "\n" + dong.join("\n") + "\n(bấm xem chi tiết từng ngày)";
+    return head + loc + pcT + "\n" + dong.join("\n") + "\n(bấm xem chi tiết từng ngày)";
   }
   function cell(loc, label){
     var kk = khoaO(loc), list = byL[kk], st = stateCua(list), m = cellMeta(st);
@@ -1664,13 +1710,32 @@ function renderVt(){
   } else {
     rows.push(["Trạng thái", '<span class="hp-hint">Ngày ' + ngayVN(d) + ' vị trí này KHÔNG có yêu cầu vệ sinh trên planogram.</span>']);
   }
+  /* PHỤ TRÁCH — nguồn CHÍNH THỨC là bảng phân công (VESINH-PHANCONG), luôn có người.
+     Tách hẳn khỏi "Báo cáo gần nhất" bên dưới: trước đây gộp hai thứ vào một dòng nên vị trí
+     chưa ai báo cáo thì hiện "chưa từng có người báo cáo (45 ngày)" — đọc ra như thể vị trí
+     không có ai phụ trách, trong khi bảng phân công có ghi rõ tên. */
+  var pc = pcCua(loc);
+  if (pc && pc.em){
+    var tuGS = /g-sheet/i.test(pc.nguon);
+    var mauNg = tuGS ? "#059669" : "#d97706";
+    rows.push(["Phụ trách",
+      '<b>' + esc(pc.ten || pc.em) + '</b>' + (pc.code ? ' <span class="hp-hint">' + esc(pc.code) + '</span>' : "") +
+      '<div class="hp-hint" style="margin-top:3px">' + esc(pc.em) + '</div>' +
+      '<div style="margin-top:5px"><span class="hp-badge" style="background:color-mix(in srgb,' + mauNg + ' 14%,transparent);color:' + mauNg + '">' +
+        esc(tuGS ? "Bảng phân công của bộ phận" : "Suy từ báo cáo gần nhất (g-sheet chưa phân công)") + '</span>' +
+        (pc.bc ? ' <span class="hp-hint">· bằng chứng ' + esc(ngayVN(pc.bc)) + '</span>' : "") + '</div>' +
+      (pc.gc ? '<div class="hp-hint" style="margin-top:4px;line-height:1.5">' + esc(pc.gc) + '</div>' : "")]);
+  } else if (S.pc.dang){
+    rows.push(["Phụ trách", '<span class="hp-hint">đang tải bảng phân công…</span>']);
+  } else {
+    rows.push(["Phụ trách", '<span class="hp-hint">không có trong bảng phân công' + (S.pc.ok ? "" : " (chưa đọc được tab " + esc(TAB_PC) + ")") + '</span>']);
+  }
+
   var ptTuoiVt = ptAll ? tuoiNgay(ptAll.at) : (r ? ptTuoi(r) : null);
-  var ptCu = ptTuoiVt != null && ptTuoiVt > NGUONG_PT_CU;
-  rows.push(["Phụ trách gần nhất",
+  rows.push(["Báo cáo gần nhất",
     (ptAll && ptAll.name ? esc(ptAll.name) + (ptAll.code ? ' <span class="hp-hint">' + esc(ptAll.code) + '</span>' : "")
-      : (r && r.ptName ? esc(r.ptName) : '<span class="hp-hint">chưa từng có người báo cáo vị trí này (45 ngày)</span>')) +
-    (ptTuoiVt != null ? ' <span class="hp-hint">· theo báo cáo gần nhất ' + esc(ngayVN((ptAll && ptAll.at) || (r && r.ptAt))) + (ptTuoiVt > 0 ? " (" + ptTuoiVt + " ngày trước)" : " (hôm nay)") + '</span>' : "") +
-    (ptCu ? '<div style="margin-top:4px"><span class="hp-badge" style="background:color-mix(in srgb,#d97706 15%,transparent);color:#d97706">? Chưa chắc — báo cáo cuối đã ' + ptTuoiVt + ' ngày, người phụ trách có thể đã đổi</span></div>' : "")]);
+      : (r && r.ptName ? esc(r.ptName) : '<span class="hp-hint">chưa ai báo cáo vị trí này trong 45 ngày</span>')) +
+    (ptTuoiVt != null ? ' <span class="hp-hint">· ' + esc(ngayVN((ptAll && ptAll.at) || (r && r.ptAt))) + (ptTuoiVt > 0 ? " (" + ptTuoiVt + " ngày trước)" : " (hôm nay)") + '</span>' : "")]);
 
   $id("hpVtBody").innerHTML =
     '<div class="hp-vthistrow">' + hist + '</div>' +
