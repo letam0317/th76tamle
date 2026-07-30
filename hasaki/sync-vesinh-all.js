@@ -48,6 +48,11 @@ const AREA_RE = /^F0-A1|^F0-A8/i;
 const WINDOW_DAYS = Number(process.env.PHUTRACH_DAYS || 45);
 const YC_DAYS = Number(process.env.VS_YC_DAYS || 7);        // VESINH-YEUCAU giữ N ngày (xem lại lịch sử trên sơ đồ)
 const YC_ANH_NGAY = Number(process.env.VS_ANH_NGAY || 3);   // chỉ đính URL ảnh cho N ngày gần nhất (giảm payload)
+/* MỌI url ảnh planogram dùng chung 76 ký tự đầu — đúng một nửa độ dài trung bình (đo 30/07:
+ * 1000 ảnh × 154 ký tự). Ghi phần ĐUÔI thôi, dashboard ghép lại tiền tố (urlAnh trong
+ * hasaki-planogram.js) → tab VESINH-YEUCAU nhẹ đi ~74KB mỗi lượt người dùng mở trang. */
+const ANH_PREFIX = "https://wms-gw-external.hasaki.vn/api/v1/filesmanagement/planogram/standard/";
+const gonAnh = (u) => { const s = String(u || ""); return s.startsWith(ANH_PREFIX) ? s.slice(ANH_PREFIX.length) : s; };
 const SIZE = 500, MAX_PAGE = 300;
 const DRY = process.argv.includes("--dry");
 const HEADER_PT = ["Location", "Executed By", "Code", "Name", "Executed At"];
@@ -70,6 +75,33 @@ async function gasPhucVuTab(tab){
     const r = await fetchThuLai(APPSCRIPT_URL + "?action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb");
     return !/không được phục vụ/i.test(await r.text());
   } catch { return false; }
+}
+/** Khoá ô GIỐNG dashboard (khoaO): A1 gom về mức KỆ (1 kệ nhiều mã mâm-bin), A8 giữ mã đầy đủ. */
+function khoaO(loc){ const m = String(loc).match(/^F0-A1-(\d{3})-(\d{2})-/); return m ? `F0-A1-${m[1]}-${m[2]}` : String(loc).toUpperCase(); }
+/** Bảng phân công VESINH-PHANCONG (sync-phancong.mjs ghi) = nguồn CHÍNH THỨC "ai phụ trách ô này".
+ *  Thay cho suy đoán "executor gần nhất" chỉ phủ ~1/3 ô: đối chiếu 7 ngày báo cáo thật cho thấy
+ *  205/205 lượt đều do đúng người được giao làm. Chưa có bảng (GAS cũ / chưa chạy) → trả {} và
+ *  luồng cũ giữ nguyên. Lưu ý thứ tự: bộ này chạy TRƯỚC sync-phancong nên đọc bảng của lượt trước
+ *  — phân công đổi rất thưa nên lệch tối đa 1 nhịp poller (15'), chấp nhận được. */
+async function docPhanCong(){
+  try {
+    const r = await fetchThuLai(APPSCRIPT_URL + "?action=readTab&tab=VESINH-PHANCONG&callback=cb&_=" + Date.now());
+    const txt = await r.text();
+    if (/không được phục vụ/i.test(txt)) return {};
+    const m = txt.match(/^\s*(?:\/\*\*\/)?cb\(([\s\S]*)\)\s*;?\s*$/);
+    if (!m) return {};
+    const j = JSON.parse(m[1]);
+    if (!j || j.status !== "success" || !j.header) return {};
+    const hl = j.header.map((h) => String(h).trim().toLowerCase());
+    const iL = hl.indexOf("location"), iE = hl.indexOf("responsible by"), iC = hl.indexOf("code"), iN = hl.indexOf("name");
+    if (iL < 0 || iE < 0) return {};
+    const by = {};
+    for (const row of (j.rows || [])) {
+      const L = String(row[iL] || "").trim(), em = String(row[iE] || "").trim().toLowerCase();
+      if (L && em) by[khoaO(L)] = { em, code: String(row[iC] || "").trim(), ten: String(row[iN] || "").trim() };
+    }
+    return by;
+  } catch { return {}; }
 }
 async function ghiTab(tab, header, rows){
   if (DRY){ fs.mkdirSync(path.join(DIR, ".exports"), { recursive: true }); fs.writeFileSync(path.join(DIR, ".exports", tab + "-out.json"), JSON.stringify({ header, rows }, null, 2)); log("  (DRY) " + tab + ": " + rows.length + " dòng → .exports/" + tab + "-out.json"); return; }
@@ -160,7 +192,7 @@ async function ghiTab(tab, header, rows){
           id: it.request_id, ngay: ngayYC, loc: L, khu: khuOf(L),
           stId: it.status_id, stName: it.status_name || "",
           email: email, at: at,
-          anh: ngayYC >= mocAnh ? (it.request_image || []).map((x) => x && x.image).filter(Boolean).join(" | ") : ""
+          anh: ngayYC >= mocAnh ? (it.request_image || []).map((x) => gonAnh(x && x.image)).filter(Boolean).join(" | ") : ""
         });
       }
     }
@@ -195,6 +227,12 @@ async function ghiTab(tab, header, rows){
   const coNguoi = rowsPT.filter(r => r[1]).length;
   log("→ PHU-TRACH: " + rowsPT.length + " vị trí (" + coNguoi + " có người, " + (rowsPT.length - coNguoi) + " chưa báo cáo).");
 
+  // Bảng phân công (nguồn chính thức chủ vị trí) — dùng cho cả 4b và 4c
+  const pcBy = await docPhanCong();
+  const nPc = Object.keys(pcBy).length;
+  log(nPc ? "✓ Bảng phân công VESINH-PHANCONG: " + nPc + " vị trí có chủ (dùng thay suy đoán executor gần nhất)."
+          : "  ⚠ Chưa đọc được VESINH-PHANCONG — tạm suy phụ trách theo executor gần nhất như cũ.");
+
   // 4b) Bảng CHAMCONG-VESINH (gộp đội theo mã NV)
   const byCode = {};
   for (const k in team) {
@@ -205,6 +243,34 @@ async function ghiTab(tab, header, rows){
     if (t.todayLoc > e.todayLoc) e.todayLoc = t.todayLoc;
     if (t.lastAt > e.lastAt) e.lastAt = t.lastAt;
   }
+  /* BỔ SUNG NGƯỜI ĐƯỢC GIAO MÀ CHƯA TỪNG VỆ SINH.
+   * `team` chỉ gồm người CÓ báo cáo trong 45 ngày, nên đúng nhóm cần quản lý nhất — người được
+   * giao vị trí mà im lặng suốt — lại KHÔNG có dòng chấm công nào. Dashboard vì thế xếp họ vào
+   * "không có ca làm việc" dù thực tế đang đi làm, và không ai nhắc. Gộp thêm mọi email trong
+   * bảng phân công (todayCount = 0) để nhóm này hiện đúng là "Đi làm - chưa vệ sinh". */
+  /* Gộp theo EMAIL, không theo mã: `team` khoá bằng `m.code || email`, nên NV mà danh bạ wshr
+     không tra được mã sẽ nằm dưới khoá email — thêm bằng khoá mã sẽ nhân đôi đúng người đó
+     (đã gặp: trinhthk@, nhuhtq3@). Nhân dịp này vá luôn Code/Name rỗng bằng dữ liệu bảng phân công. */
+  const khoaTheoEmail = {};
+  for (const idk in byCode) khoaTheoEmail[String(byCode[idk].email || "").toLowerCase()] = idk;
+  let nThemPC = 0, nVa = 0;
+  for (const kk in pcBy) {
+    const c = pcBy[kk], em = c.em, m = byEmail[em] || {};
+    const daCo = khoaTheoEmail[em];
+    if (daCo){
+      const e = byCode[daCo];
+      if (!e.code && (c.code || m.code)){ e.code = c.code || m.code; nVa++; }
+      if (!e.name && (c.ten || m.name)) e.name = c.ten || m.name;
+      continue;
+    }
+    const idk = c.code || m.code || em;
+    byCode[idk] = { code: c.code || m.code || "", name: c.ten || m.name || "", email: em,
+      major: m.major || "", todayCount: 0, todayLoc: "", lastAt: "" };
+    khoaTheoEmail[em] = idk;
+    nThemPC++;
+  }
+  if (nThemPC || nVa) log("  + CHAMCONG: thêm " + nThemPC + " NV được giao vị trí nhưng chưa từng báo cáo" +
+    (nVa ? " · vá Code/Name cho " + nVa + " NV danh bạ không tra được" : "") + ".");
   const rowsCC = Object.values(byCode).map((e) => {
     const a = (e.code && att[e.code]) || {};
     const ci = hhmm(a.ci), co = hhmm(a.co);
@@ -222,8 +288,13 @@ async function ghiTab(tab, header, rows){
   const rowsYC = reqToday
     .sort((a, b) => String(b.ngay).localeCompare(String(a.ngay)) || String(a.loc).localeCompare(String(b.loc)))
     .map((r) => {
-      const ptEmail = (loc[r.loc] || {}).email || "";
-      const pt = ptEmail ? (byEmail[ptEmail.toLowerCase()] || {}) : {};
+      /* CHỦ VỊ TRÍ: bảng phân công trước, không có mới suy theo executor gần nhất như cũ.
+         Nhờ vậy cột "PT đi làm" là chấm công của ĐÚNG người được giao → nhóm "Chưa vệ sinh,
+         phụ trách CÓ chấm công (cần nhắc)" trên dashboard mới đếm đúng người. */
+      const chu = pcBy[khoaO(r.loc)];
+      const ptEmail = chu ? chu.em : ((loc[r.loc] || {}).email || "");
+      const dbo = ptEmail ? (byEmail[ptEmail.toLowerCase()] || {}) : {};
+      const pt = chu ? { code: chu.code || dbo.code || "", name: chu.ten || dbo.name || "" } : dbo;
       const a = (pt.code && att[pt.code]) || {};
       const ptDiLam = (a.ci || a.co) ? 1 : 0;   // chấm công CHỈ của hôm nay — dashboard chỉ dùng cho ngày hôm nay
       // "PT lần cuối" = NGÀY của bằng chứng phụ trách (executed_at gần nhất 45n) — dashboard đo TUỔI

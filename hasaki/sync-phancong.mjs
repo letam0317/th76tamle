@@ -194,6 +194,7 @@ async function ghiTab(tab, header, rows){
   /* --- 2) dự phòng: người báo cáo gần nhất trong NGAY_DU_PHONG ngày (planogram) --- */
   const pt = await docTab(TAB_PT);
   const duPhong = new Map();   // viTri -> { em, code, ten, ngay }
+  const viTriPT = new Set();   // MỌI vị trí planogram phát yêu cầu trong 45 ngày (kể cả chưa ai làm)
   let mocMoiNhat = "";
   if (!pt) log("  ⚠ Không đọc được " + TAB_PT + " — bảng sẽ chỉ có phần g-sheet.");
   else {
@@ -206,6 +207,10 @@ async function ghiTab(tab, header, rows){
     pt.rows.forEach(r => { const at = String(r[iAt] || "").slice(0, 10); if (at > mocMoiNhat) mocMoiNhat = at; });
     const gioiHan = mocMoiNhat ? new Date(new Date(mocMoiNhat + "T00:00:00Z").getTime() - NGAY_DU_PHONG * 86400000).toISOString().slice(0, 10) : "";
     pt.rows.forEach(r => {
+      /* Ghi nhận vị trí TRƯỚC khi lọc người: có ô planogram vẫn phát yêu cầu nhưng g-sheet
+         chưa phân công VÀ chưa ai từng báo cáo (vd F0-A8-503-03-01-01) — không gom vào đây thì
+         ô đó vắng hẳn khỏi bảng, dashboard hiện "không có trong bảng phân công" mà không rõ vì sao. */
+      viTriTrong(r[iLoc]).forEach(v => viTriPT.add(v));
       const em = String(r[iEm] || "").trim().toLowerCase(); if (!em) return;
       const at = String(r[iAt] || "").slice(0, 10); if (!at || at < gioiHan) return;   // quá cũ → không dùng
       viTriTrong(r[iLoc]).forEach(v => {
@@ -236,7 +241,7 @@ async function ghiTab(tab, header, rows){
   function vaThieu(o){ const d = danhBa.get(o.em) || {}; return { ...o, code: o.code || d.code || "", ten: o.ten || d.ten || "" }; }
 
   /* --- 4) gộp: g-sheet trước, thiếu thì lấy dự phòng; hàng = mọi vị trí của CẢ HAI nguồn --- */
-  const moiViTri = [...new Set([...giao.keys(), ...duPhong.keys()])].sort();
+  const moiViTri = [...new Set([...giao.keys(), ...duPhong.keys(), ...viTriPT])].sort();
   const header = ["Location", "Responsible by", "Code", "Name", "Nguồn", "Bằng chứng", "Ghi chú"];
   let nGoc = 0, nBu = 0, nTrong = 0;
   const canhBaoMail = new Map();   // "tên|mail" -> { mota, goiY, viTri: [] } — lệch mà KHÔNG chữa được
