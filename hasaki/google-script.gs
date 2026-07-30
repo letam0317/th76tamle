@@ -26,7 +26,10 @@ var TEN_SHEET_TASKS = '5S-TASKS';
 // Dashboard KHÔNG đọc các tab này. ID được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng().
 var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
 var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];
-var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-NHATKY', 'VESINH-AI'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
+var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
+// VESINH-PHANCONG (30/07/2026, sync-phancong.mjs): bảng phân công phụ trách theo vị trí —
+// kéo từ g-sheet phân công gốc của bộ phận, vị trí nào g-sheet bỏ trống thì bù bằng người
+// BÁO CÁO gần nhất trong 30 ngày (planogram). Có email + tên NV nên BẮT BUỘC nằm sheet private.
 
 /* ---------- BẢO MẬT: đọc SECRET & PIN không qua query; chống brute-force & spam ---------- */
 // Apps Script KHÔNG đọc được custom header → SECRET đi trong POST body (an toàn hơn query,
@@ -81,7 +84,7 @@ function doPost(e) {
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeToken') return apiBridgeToken(duLieu);             // extension wms-bridge đẩy token PHIÊN SỐNG của operator — public, validate dạng JWT + throttle
-    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken(duLieu.kind) : phanHoiJson({ status: 'error', message: 'Sai key' });
     // Bộ pc_* (PhysicalCountImport.gs — dashboard factory "Tạo lệnh kiểm kê" + "SL điều chỉnh"):
     // khoá RIÊNG PC_KEY (không dùng SECRET 5S — tránh lộ khoá chủ cho operator dashboard public).
     // Các dòng này trước đây chỉ được thêm TAY trên bản deploy (sa.js) — nay nối vào nguồn để dán nguyên file là đủ.
@@ -138,7 +141,9 @@ function doGet(e) {
   // Probe CÔNG KHAI cho extension/máy trạm biết bản GAS này đã có kênh bridge + cờ tồn kho chưa
   // (client PHẢI probe trước khi POST action mới — POST action lạ lên bản GAS cũ sẽ rơi vào
   //  nhánh appendRow mặc định và ghi rác vào sheet 5S).
-  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, stockFlag: true });
+  // bridgeWshr: bản này CÓ khe token work/hr riêng (kind='wshr'). Extension PHẢI thấy cờ này mới
+  // đẩy token wshr — bản GAS cũ bỏ qua `kind` nên đẩy mù sẽ ghi đè token WMS bằng token wshr.
+  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, bridgeWshr: true, stockFlag: true });
   // GET công khai bằng PIN (không chứa SECRET): dashboard/form gọi qua JSONP <script>
   if (action === 'requestSync') return apiRequestSync(e);           // nút "Cập nhật ngay" (PIN)
   if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (PIN)
@@ -766,25 +771,40 @@ function apiRequestStockSync(duLieu) {
   }
   return phanHoiJson({ status: 'success', queued: true, message: 'Đã gửi yêu cầu tới máy trạm — dữ liệu sẽ được cập nhật trong ít phút (trong giờ làm cần trình duyệt có extension wms-bridge đang mở WMS).', lastSync: last || 0 });
 }
+/* v1.4.0 extension (30/07/2026) — HAI KHE: kind='wms' (mặc định, giữ nguyên khoá cũ) và
+ * kind='wshr' (work/hr). Khe wshr lưu vào khoá RIÊNG để không ghi đè token WMS.
+ * Tương thích ngược: payload KHÔNG có `kind` vẫn được hiểu là 'wms' đúng như bản cũ. */
+function khoaBridge_(kind) {
+  return String(kind || 'wms') === 'wshr'
+    ? { tk: 'BRIDGE_WSHR_TOKEN', at: 'BRIDGE_WSHR_TOKEN_AT', exp: 'BRIDGE_WSHR_TOKEN_EXP' }
+    : { tk: 'BRIDGE_TOKEN', at: 'BRIDGE_TOKEN_AT', exp: 'BRIDGE_TOKEN_EXP' };
+}
 function apiBridgeToken(duLieu) {
+  var K = khoaBridge_(duLieu.kind);
   var tk = String(duLieu.token || '').replace(/^Bearer\s+/i, '').trim();
   if (tk.length < 100 || !/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(tk)) return phanHoiJson({ status: 'error', message: 'Token không hợp lệ' });
   var P = PropertiesService.getScriptProperties();
-  var truoc = Number(P.getProperty('BRIDGE_TOKEN_AT') || 0), now = new Date().getTime();
+  var truoc = Number(P.getProperty(K.at) || 0), now = new Date().getTime();
   if (now - truoc < 30 * 1000) return phanHoiJson({ status: 'success', throttled: true });
-  P.setProperty('BRIDGE_TOKEN', tk);
-  P.setProperty('BRIDGE_TOKEN_AT', String(now));
-  P.setProperty('BRIDGE_TOKEN_EXP', String(Number(duLieu.exp || 0) || 0));
+  P.setProperty(K.tk, tk);
+  P.setProperty(K.at, String(now));
+  P.setProperty(K.exp, String(Number(duLieu.exp || 0) || 0));
   return phanHoiJson({ status: 'success', saved: true });
 }
-function apiGetBridgeToken() {
+function apiGetBridgeToken(kind) {
+  var K = khoaBridge_(kind);
   var P = PropertiesService.getScriptProperties();
-  var tk = P.getProperty('BRIDGE_TOKEN') || '';
-  var at = Number(P.getProperty('BRIDGE_TOKEN_AT') || 0);
-  var exp = Number(P.getProperty('BRIDGE_TOKEN_EXP') || 0);
+  var tk = P.getProperty(K.tk) || '';
+  var at = Number(P.getProperty(K.at) || 0);
+  var exp = Number(P.getProperty(K.exp) || 0);
   var now = new Date().getTime();
   var song = tk && (now - at < 30 * 60 * 1000) && (!exp || now < exp - 15000);   // tươi <30' và chưa quá hạn JWT
-  return phanHoiJson(song ? { status: 'success', token: tk, at: at, exp: exp } : { status: 'success', token: '', at: 0 });
+  // `at` LUÔN trả về (kể cả khi hết tươi) — máy trạm cần TUỔI để tính "cửa im lặng" của luật
+  // "chỉ login khi không có phiên sống"; bản cũ trả at:0 nên không phân biệt được "chưa từng có
+  // bridge" với "bridge vừa im 5 phút" hay "im 3 tiếng".
+  return phanHoiJson(song
+    ? { status: 'success', token: tk, at: at, exp: exp }
+    : { status: 'success', token: '', at: at, coTungCo: !!tk });
 }
 
 /** Kéo trọn 1 công ty từ WMS (phân trang size 5000) + LỌC theo khoGiuLai. Trả {rows} hoặc {code,message}. */
@@ -984,6 +1004,31 @@ function apiForceSyncKiemke() {
  *  kiemke-sku / kiemke-location. An toàn: chỉ xoá đúng tab trong DANH_SACH_XOA,
  *  bỏ qua nếu không thấy, không xoá tab cuối cùng; in log trước/sau.
  * ========================================================================== */
+/* ============================================================================
+ *  SOÁT TAB — chạy trong editor (chọn soatTabTatCa → Run), CHỈ ĐỌC, không sửa gì.
+ *  Vì sao cần: sheet PRIVATE không public nên máy trạm/dashboard không liệt kê được
+ *  tab của nó; muốn biết tab nào thừa/đặt tên lệch chuẩn thì phải hỏi từ trong GAS.
+ *  Kết quả in ở Nhật ký (Ctrl+Enter) — dán lại cho bên phát triển để chốt danh sách xoá.
+ * ========================================================================== */
+function soatTabTatCa() {
+  var ra = [];
+  function soat(nhan, ss) {
+    if (!ss) { ra.push('— ' + nhan + ': KHÔNG mở được'); return; }
+    ra.push('— ' + nhan + ' (' + ss.getName() + ') — ' + ss.getSheets().length + ' tab:');
+    ss.getSheets().forEach(function (s) {
+      ra.push('    ' + s.getName() + '  [' + s.getLastRow() + ' dòng × ' + s.getLastColumn() + ' cột]' +
+        (s.getLastRow() <= 1 ? '   ← RỖNG' : ''));
+    });
+  }
+  soat('CÔNG KHAI (5S)', SpreadsheetApp.getActiveSpreadsheet());
+  var idP = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID');
+  soat('RIÊNG (nhân sự/PII)', idP ? SpreadsheetApp.openById(idP) : null);
+  try { soat('FACTORY (stock-location)', SpreadsheetApp.openById(STOCKLOC_SHEET_ID)); } catch (e) { ra.push('— FACTORY: ' + e.message); }
+  var msg = ra.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
 function donDepTabThua() {
   var DANH_SACH_XOA = ['kiemke-material'];
   var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);

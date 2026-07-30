@@ -916,7 +916,9 @@ button:active{transform:scale(.97);}
 .kpi-band .kb-tile:nth-child(3){animation-delay:.12s;}
 .kpi-band .kb-tile:nth-child(4){animation-delay:.18s;}
 .cards:not(.collapsed){animation:paneIn .4s var(--ez-apple);}
-html{scroll-behavior:smooth;}
+/* scrollbar-gutter stable: thanh cuộn dọc xuất hiện/biến mất KHÔNG đổi bề rộng trang —
+   hết cảnh nội dung căn giữa (sơ đồ planogram…) bị "đá ngang" 8-10px khi đổi bộ lọc. */
+html{scroll-behavior:smooth;scrollbar-gutter:stable;}
 
 /* ===== MULTI-TENANT: bộ chuyển công ty (Hasaki / Factory) ===== */
 .cty-switch{display:inline-flex; gap:2px; background:var(--panel,#fff); border:1.5px solid var(--line,#d0d7de);
@@ -2661,7 +2663,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260726e';
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260730e';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });

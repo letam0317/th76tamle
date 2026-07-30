@@ -30,6 +30,14 @@ node sync-vesinh-all.js >> vesinh.log 2>&1
 echo [%date% %time%] Ket thuc. >> vesinh.log
 echo. >> vesinh.log
 
+REM Bang phan cong phu trach (g-sheet goc + bu bang bao cao gan nhat 30 ngay).
+REM Chay SAU sync-vesinh-all vi lay PHU-TRACH-QUAY-KE lam nguon bu. Chi doc Google,
+REM khong can token WMS. GAS chua whitelist VESINH-PHANCONG thi tu thoat, khong ghi gi.
+echo [%date% %time%] Dong bo BANG PHAN CONG (g-sheet phu trach goc + bu tu planogram)... >> vesinh.log
+node sync-phancong.mjs >> vesinh.log 2>&1
+echo [%date% %time%] Ket thuc phan cong. >> vesinh.log
+echo. >> vesinh.log
+
 echo [%date% %time%] AI xet duyet anh ve sinh (Claude cham request Cho duyet — tu bo qua neu thieu ANTHROPIC_API_KEY)... >> vesinh.log
 node sync-vesinh-ai.mjs >> vesinh.log 2>&1
 echo [%date% %time%] Ket thuc AI. >> vesinh.log

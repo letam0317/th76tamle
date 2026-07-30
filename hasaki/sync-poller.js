@@ -136,6 +136,11 @@ async function main() {
     log("→ vệ sinh: mốc cũ " + Math.round(tuoi("vesinh") / PHUT) + "' — chạy sync-vesinh-all.js...");
     const ma = await chayBuoc("poller: vệ sinh (nhịp " + Math.round(VESINH_MIN / PHUT) + "')", "node sync-vesinh-all.js", "vesinh.log");
     log(ma === 0 ? "  ✓ vệ sinh xong." : "  ⚠ vệ sinh exit " + ma + (ma === 75 ? " (hoãn — mất token giữa chừng)" : " — xem vesinh.log"));
+    /* Bảng phân công đi kèm ngay sau: g-sheet gốc do đội sửa liên tục nên phải bám nhịp này,
+       và nguồn bù (PHU-TRACH-QUAY-KE) vừa được bước trên làm mới. Chỉ đọc Google, không cần
+       token WMS → chạy được cả khi bước trên hoãn vì mất token. */
+    const maPC = await chayBuoc("poller: bảng phân công", "node sync-phancong.mjs", "vesinh.log");
+    log(maPC === 0 ? "  ✓ phân công xong." : "  ⚠ phân công exit " + maPC + " — xem vesinh.log");
   }
 
   // 4) AI xét ảnh mỗi ≥30' (tự thoát nhanh khi không có request Chờ duyệt).
