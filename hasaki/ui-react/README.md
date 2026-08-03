@@ -66,3 +66,25 @@ trong component đã là arbitrary value nên chạy được ngay.
 
 Muốn đổi kích thước nút: sửa `width/height` của `#sideToggle` và `padding-left` của `.wrap>header`
 cùng lúc (header chừa chỗ cho nút = `left + width + 3px`).
+
+## 3. Làm mượt chuyển động (bài học 03/08)
+
+Bản đầu animate `padding-left` của `.wrap` → **reflow cả trang mỗi frame**. Đo trên DOM nặng
+(1200 dòng bảng + 700 ô lưới): layout **320ms/lượt, 7/44 frame vượt 20ms**.
+
+Cách chữa — FLIP, đúng thủ pháp mà `.cs-list` / `.date-pop` đang dùng (chỉ `opacity` + `transform`):
+
+1. Đổi `padding-left` **tức thì** (1 reflow duy nhất) thay vì transition nó.
+2. Bù lại bằng `@keyframes wrapVao/wrapRa` chạy `transform:translate3d()` → compositor lo.
+3. Ép flush layout ngay trong handler click (`void document.body.offsetWidth`) rồi mới bật
+   `.side-anim` → cú reflow rơi vào task click, không rơi vào frame đầu của chuyển động.
+4. Nút dùng thuộc tính `translate` riêng, **không** dùng `transform` — để `button:active{scale(.97)}`
+   khỏi tranh chấp (gộp chung là nút nhảy về chỗ cũ khi nhấn).
+5. Stagger mục điều hướng chỉ animate `transform`, fill `backwards`. **Đừng** nhét `opacity` vào
+   keyframe: animation fill thắng khai báo thường → `.s-item{opacity:.72}` và hover sẽ mất tác dụng.
+
+Sau khi chữa: layout **42ms/lượt, 1/44 frame vượt 20ms**.
+
+> ⚠️ `Sidebar.tsx` (bản React) hiện animate `width` — cũng là thuộc tính layout, cùng loại vấn đề.
+> Với trang nhẹ thì không thấy; trang nặng nên đổi sang FLIP như trên (đo `layout` bằng CDP
+> `Performance.getMetrics` → `LayoutDuration`, đừng tin cảm giác).

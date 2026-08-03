@@ -970,7 +970,8 @@ body.cty-trong .pane{display:none !important;}  body.cty-trong #ctyEmpty{display
 /* ============ QC · SIDEBAR (phương án C) — DRAWER trượt (web + mobile), CHỈ đổi lớp điều hướng ============
    Ẩn mặc định · nút ›(mở)/‹(thu) mép trái · nền mờ · bấm nút HOẶC nền đều đóng · nội dung full-width, KHÔNG đổi. */
 #sideNav{position:fixed;top:0;left:0;bottom:0;width:186px;background:var(--surface2);border-right:1px solid var(--border);z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:1px;padding:52px 8px 18px;
-  transform:translateX(-100%);transition:transform .3s cubic-bezier(.32,.72,0,1);box-shadow:0 14px 46px rgba(0,0,0,.2);}
+  transform:translate3d(-100%,0,0);transition:transform .32s var(--ez-apple);box-shadow:0 14px 46px rgba(0,0,0,.2);
+  will-change:transform;backface-visibility:hidden;}   /* will-change: cùng thủ pháp .date-pop -> có layer sẵn, không giật frame đầu */
 body.side-open #sideNav{transform:none;}
 #sideNav .s-brand{display:flex;align-items:center;gap:9px;padding:2px 6px 11px;margin-bottom:3px;border-bottom:1px solid var(--border);color:var(--brand);font-weight:800;font-size:14.5px;letter-spacing:-.2px;}
 #sideNav .s-brand .lg{width:24px;height:24px;border-radius:6px;background:var(--brand);color:var(--brand-on,#fff);display:grid;place-items:center;font-size:13px;font-weight:800;flex:none;}
@@ -993,10 +994,17 @@ body.side-open #sideNav{transform:none;}
 #sideToggle{display:flex;align-items:center;justify-content:center;position:fixed;top:14px;left:7px;z-index:61;width:30px;height:30px;
   background:var(--accent);color:var(--accent-text,#fff);border:0;border-radius:10px;line-height:0;padding:0;cursor:pointer;
   box-shadow:0 2px 8px rgba(0,0,0,.14);
-  transition:left .3s var(--ez-apple),background-color .2s var(--ez-apple),box-shadow .2s var(--ez-apple),transform .16s var(--ez-apple);}
+  /* Trượt bằng thuộc tính `translate` RIÊNG, không dùng `transform` — để dành `transform` cho
+     button:active{scale(.97)} (2 thuộc tính độc lập, khỏi tranh nhau như khi gộp chung). */
+  translate:0 0;
+  transition:translate .32s var(--ez-apple),background-color .2s var(--ez-apple),box-shadow .2s var(--ez-apple),transform .16s var(--ez-apple);}
 #sideToggle:hover{background:var(--accent-hover,var(--accent));box-shadow:0 4px 14px rgba(0,0,0,.2);}
 #sideToggle:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent),0 2px 8px rgba(0,0,0,.14);}
-body.side-open #sideToggle{left:193px;}
+body.side-open #sideToggle{translate:186px 0;}
+@supports not (translate:1px 0){   /* trình duyệt cũ: quay về `left` (có giật nhẹ nhưng không lệch chỗ) */
+  #sideToggle{transition:left .32s var(--ez-apple),background-color .2s var(--ez-apple),box-shadow .2s var(--ez-apple);}
+  body.side-open #sideToggle{left:193px;}
+}
 /* Icon: .st-ico = khung thanh bên (bất động), .st-arrow = mũi tên (xoay + nhích) */
 #sideToggle .st-ico{width:17px;height:17px;display:block;overflow:visible;}
 #sideToggle .st-arrow{transform-box:fill-box;transform-origin:center;transform:rotate(180deg);   /* đóng -> mũi tên chỉ SANG PHẢI */
@@ -1022,16 +1030,41 @@ body.side-open #sideToggle:hover .st-arrow{transform:translateX(-1.6px);}       
   #sideToggle::before{inset:-7px;width:auto;height:auto;border:0;transform:none;opacity:1;visibility:visible;
     background:transparent;transition:none;pointer-events:auto;}
 }
-#sideBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:58;opacity:0;visibility:hidden;transition:opacity .26s ease,visibility .26s ease;}
-/* ===== WEB (≥769px): mở ra thì GHIM CỐ ĐỊNH — đẩy nội dung sang phải, KHÔNG nền mờ ===== */
+#sideBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:58;opacity:0;visibility:hidden;
+  transition:opacity .32s var(--ez-apple),visibility .32s;}
+/* Mục điều hướng vào có nhịp (stagger) như danh sách iOS.
+   CỐ Ý chỉ animate `transform`, KHÔNG animate opacity: .s-item có opacity .72 (và 1 khi hover/.on),
+   mà animation fill thắng khai báo thường -> nhét opacity vào keyframe là mất luôn hiệu ứng hover.
+   fill `backwards` để giữ vị trí lệch trong lúc chờ delay, hết animation thì nhả về style gốc. */
+body.side-open #sideNav .s-grp,body.side-open #sideNav .s-item{animation:sideVao .34s var(--ez-apple) backwards;}
+@keyframes sideVao{from{transform:translate3d(-12px,0,0);} to{transform:none;}}
+body.side-open #sideNav .s-sub .s-item:nth-child(1){animation-delay:.03s;}
+body.side-open #sideNav .s-sub .s-item:nth-child(2){animation-delay:.06s;}
+body.side-open #sideNav .s-sub .s-item:nth-child(3){animation-delay:.09s;}
+body.side-open #sideNav .s-sub .s-item:nth-child(4){animation-delay:.12s;}
+body.side-open #sideNav .s-grp:nth-of-type(2){animation-delay:.05s;}
+
+/* ===== WEB (≥769px): mở ra thì GHIM CỐ ĐỊNH — đẩy nội dung sang phải, KHÔNG nền mờ =====
+   CÁCH LÀM (FLIP): KHÔNG transition `padding-left` — animate padding là reflow CẢ TRANG mỗi frame
+   (đo được 19-20 reflow/lượt). Thay vào đó đặt padding TỨC THÌ (1 reflow duy nhất) rồi bù lại bằng
+   transform chạy trên compositor -> mắt vẫn thấy nội dung trượt, GPU lo phần còn lại. */
 @media(min-width:769px){
-  .wrap{transition:padding-left .3s cubic-bezier(.32,.72,0,1);}
   body.side-open .wrap{padding-left:186px;}
+  body.side-anim .wrap{will-change:transform;}
+  body.side-anim.side-open .wrap{animation:wrapVao .32s var(--ez-apple);}
+  body.side-anim:not(.side-open) .wrap{animation:wrapRa .32s var(--ez-apple);}
+  @keyframes wrapVao{from{transform:translate3d(-186px,0,0);} to{transform:none;}}
+  @keyframes wrapRa{from{transform:translate3d(186px,0,0);} to{transform:none;}}
 }
+/* Trong lúc trượt, nội dung lấn ra ngoài -> clip ngang (clip KHÔNG tạo scroll container nên
+   header sticky vẫn dính bình thường, khác overflow:hidden). */
+body.side-anim{overflow-x:clip;}
 /* ===== MOBILE (≤768px): phủ lên nội dung + nền mờ (không đủ chỗ để đẩy) ===== */
 @media(max-width:768px){
   #sideNav{width:80vw;max-width:300px;}
-  body.side-open #sideToggle{left:calc(80vw + 7px);}
+  /* min(80vw,300px) khớp đúng mép drawer — bản cũ dùng calc(80vw+7px) nên máy rộng >375px nút bị lệch ~19px */
+  body.side-open #sideToggle{translate:min(80vw,300px) 0;}
+  @supports not (translate:1px 0){ body.side-open #sideToggle{left:calc(min(80vw,300px) + 7px);} }
   body.side-open #sideBackdrop{opacity:1;visibility:visible;}
 }
 </style>
@@ -3339,8 +3372,26 @@ document.addEventListener('click', ()=>csDongHet(null));
     tg.setAttribute("aria-expanded", open ? "true" : "false");
     tg.setAttribute("aria-label", t); tg.setAttribute("data-tip", t);
   }
-  function mo(){ document.body.classList.add("side-open"); nhan(true); }
-  function dong(){ document.body.classList.remove("side-open"); nhan(false); }
+  /* .side-anim: chỉ bật trong lúc trượt (~320ms) để mở khoá animation FLIP của .wrap
+     + will-change + clip ngang. Bật/tắt theo lượt nên KHÔNG giữ layer thừa khi đứng yên. */
+  var hetAnim = null;
+  function nhipAnim(){
+    document.body.classList.add("side-anim");
+    clearTimeout(hetAnim);
+    hetAnim = setTimeout(function(){ document.body.classList.remove("side-anim"); }, 360);
+  }
+  /* Thứ tự CÓ CHỦ Ý: đổi .side-open -> ép flush layout NGAY trong handler click -> rồi mới bật
+     .side-anim. Cú reflow duy nhất (đổi padding) vì vậy nằm trong task click, không rơi vào frame
+     đầu của chuyển động; các frame trượt sau đó chỉ còn việc composite. Không frame nào được vẽ
+     giữa 2 bước nên mắt không thấy nhảy. */
+  function nhipDoi(open){
+    document.body.classList.toggle("side-open", open);
+    nhan(open);
+    void document.body.offsetWidth;   // cố tình đọc layout để flush — ĐỪNG xoá coi như code chết
+    nhipAnim();
+  }
+  function mo(){ nhipDoi(true); }
+  function dong(){ nhipDoi(false); }
   function daoChieu(){ document.body.classList.contains("side-open") ? dong() : mo(); }
   tg.addEventListener("click", daoChieu);
   bd.addEventListener("click", dong);
