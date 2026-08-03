@@ -3378,7 +3378,15 @@ document.addEventListener('click', ()=>csDongHet(null));
   function nhipAnim(){
     document.body.classList.add("side-anim");
     clearTimeout(hetAnim);
-    hetAnim = setTimeout(function(){ document.body.classList.remove("side-anim"); }, 360);
+    hetAnim = setTimeout(function(){
+      document.body.classList.remove("side-anim");
+      /* Bề rộng nội dung vừa đổi 186px, NHƯNG đổi padding không bắn window.resize -> fitMaps của tab
+         Planogram (hasaki-planogram.js, debounce 120ms) và applyLayout của Factory kiểm kê không tự
+         chạy, sơ đồ giữ nguyên hệ số zoom cũ tới khi người dùng đổi cỡ cửa sổ. Bắn resize SAU khi
+         trượt xong: chỉnh lại đúng 1 lần, không cướp frame của chuyển động.
+         Mobile bỏ qua — drawer phủ lên nội dung, bề rộng không đổi nên không có gì phải tính lại. */
+      if (window.matchMedia("(min-width:769px)").matches) window.dispatchEvent(new Event("resize"));
+    }, 360);
   }
   /* Thứ tự CÓ CHỦ Ý: đổi .side-open -> ép flush layout NGAY trong handler click -> rồi mới bật
      .side-anim. Cú reflow duy nhất (đổi padding) vì vậy nằm trong task click, không rơi vào frame
