@@ -26,6 +26,8 @@ ui_*.png
 
 # Log & lockfile & marker chạy ngầm theo lịch (không commit)
 *.log
+*.log.1
+.watch-nhiptim
 *.lock
 .last-sync.json
 .exports/
@@ -34,10 +36,18 @@ ui_*.png
 .session-ledger-state.json
 # State/cache của nhịp phân tầng (sync-poller 26/07/2026)
 .poller-state.json
+# Cầu dao chống khoá tài khoản (login-hasaki 31/07/2026) — trạng thái theo máy
+.login-that-bai.json
 .sheet-hash.json
 .pc-cache.json
 # Cache danh bạ wshr — CÓ PII, tuyệt đối không commit
 .cache-danhba.json
+# Lịch sử báo cáo vệ sinh 60 ngày (sync-vesinh-all) — CÓ PII (email/tên NV), không commit
+.lichsu-vesinh.json
+# Chấm công theo ngày 60 ngày (sync-vesinh-all) — CÓ PII, không commit
+.chamcong-ngay.json
+# Danh mục vị trí cộng dồn (sync-vesinh-all 03/08/2026) — không PII nhưng là state theo máy
+.danhmuc-vitri.json
 
 # Bản deploy Apps Script có SECRET thật — KHÔNG commit
 google-script-DEPLOY.gs

@@ -16,14 +16,22 @@ const WEB = path.join(DIR, "kiemsoatkho");
 const OUT = path.join(DIR, ".exports");
 const PORT = 8931;
 
+/* Nạp MỌI tab có bản DRY. Thiếu tab nào thì bỏ qua (in cảnh báo) — bản dry của VESINH-PHANCONG
+   do sync-phancong.mjs --dry sinh ra, không phải sync-vesinh-all. */
 const TABS = {};
-for (const t of ["PHU-TRACH-QUAY-KE", "CHAMCONG-VESINH", "VESINH-YEUCAU", "VESINH-NHATKY"]) {
-  const j = JSON.parse(fs.readFileSync(path.join(OUT, t + "-out.json"), "utf8"));
+for (const t of ["PHU-TRACH-QUAY-KE", "CHAMCONG-VESINH", "VESINH-YEUCAU", "VESINH-ANH",
+                 "VESINH-NHATKY", "VESINH-LICHSU", "VESINH-CHAMCONG-NGAY", "VESINH-PHANCONG"]) {
+  const f = path.join(OUT, t + "-out.json");
+  if (!fs.existsSync(f)) { console.log("⚠ thiếu " + t + "-out.json — tab này sẽ trả rỗng"); continue; }
+  const j = JSON.parse(fs.readFileSync(f, "utf8"));
   TABS[t] = { status: "success", header: j.header, rows: j.rows, ts: Date.now() };
 }
 // Mock VESINH-AI từ các dòng status 3 của VESINH-YEUCAU (giả lập verdict để test UI)
 {
-  const yc = TABS["VESINH-YEUCAU"].rows.filter((r) => Number(r[4]) === 3);
+  const hY = TABS["VESINH-YEUCAU"].header.map((h) => String(h).trim().toLowerCase());
+  const cSt = hY.indexOf("status id"), cId = hY.indexOf("request id"), cNg = hY.indexOf("ngày"),
+        cLo = hY.indexOf("location"), cEx = hY.indexOf("executed by"), cAt = hY.indexOf("executed at");
+  const yc = TABS["VESINH-YEUCAU"].rows.filter((r) => Number(r[cSt]) === 3);
   const VD = [
     ["DAT", 92, 88, "Các ô sạch, hàng xếp gọn đúng tiêu chuẩn.", ""],
     ["KHONG_DAT", 45, 90, "Ô F0-A8-505: còn thùng carton rỗng trên sàn.", "F0-A8-505-01-01-02: thùng rỗng chưa dọn"],
@@ -32,7 +40,7 @@ for (const t of ["PHU-TRACH-QUAY-KE", "CHAMCONG-VESINH", "VESINH-YEUCAU", "VESIN
   TABS["VESINH-AI"] = {
     status: "success",
     header: ["Request ID", "Ngày", "Location", "Executor", "Executed At", "Kết luận", "Điểm", "Tin cậy", "Lý do", "Ảnh lỗi", "Model", "Judged At"],
-    rows: yc.map((r, i) => { const v = VD[i % 3]; return [r[0], r[1], r[2], r[6], r[7], v[0], v[1], v[2], v[3], v[4], "claude-opus-4-8", new Date().toISOString()]; }),
+    rows: yc.map((r, i) => { const v = VD[i % 3]; return [r[cId], r[cNg], r[cLo], r[cEx], r[cAt], v[0], v[1], v[2], v[3], v[4], "claude-opus-4-8", new Date().toISOString()]; }),
     ts: Date.now(),
   };
 }
@@ -123,6 +131,28 @@ if (coTog) {
 // Pop-up danh sách quá hạn (nếu có banner cảnh báo)
 const coAlert = await page.evaluate(() => { const b = document.querySelector('.hp-alertbar'); if (b) { b.click(); return true; } return false; });
 if (coAlert) { await new Promise((r) => setTimeout(r, 1400)); await page.screenshot({ path: path.join(OUT, "shot-pg-canhbao.png") }); await page.evaluate(() => HPLANOGRAM.closeModal()); await new Promise((r) => setTimeout(r, 300)); }
+
+/* ===== NGÀY QUÁ KHỨ: "đi làm mà không báo cáo" (03/08/2026) ==================================
+   Trước bản này, soi 1 ngày cũ chỉ còn 2 thẻ Đã/Chưa và không có panel gom theo NV — muốn biết
+   hôm đó ai đi làm mà im lặng thì phải bấm từng ô. Kiểm: chọn ngày cũ nhất trong tab yêu cầu,
+   phải ra ĐỦ 3 thẻ hành động + panel "Đi làm mà không báo cáo". */
+{
+  // "hqua" = ngày liền trước trong tập ngày của tab yêu cầu → chắc chắn là NGÀY QUÁ KHỨ
+  await page.evaluate(() => HPLANOGRAM.chonNgay("hqua"));
+  await new Promise((r) => setTimeout(r, 2500));
+  const doc = await page.evaluate(() => {
+    var tiles = [].map.call(document.querySelectorAll("#hpToday .hp-tile"), function (t) {
+      return (t.querySelector(".l") || {}).textContent + "=" + (t.querySelector(".k") || {}).textContent + " (" + ((t.querySelector(".s") || {}).textContent || "") + ")";
+    });
+    var tog = document.querySelector(".hp-ptnhac .hp-ptchip.tog");
+    var chip = document.querySelector("#hpWhBar .hp-chip, #hpToday .hp-chip");
+    return { ngay: chip ? chip.textContent : "?", tiles: tiles, panel: tog ? tog.textContent.trim() : null };
+  });
+  console.log("   ngày đang xem:", doc.ngay);
+  doc.tiles.forEach((t) => console.log("   thẻ:", t));
+  console.log("   panel gom theo NV:", doc.panel || "KHÔNG CÓ");
+  await page.screenshot({ path: path.join(OUT, "shot-pg-ngaycu-khongbaocao.png") });
+}
 
 // Mobile
 await page.evaluate(() => { HPLANOGRAM.closeNk(); });

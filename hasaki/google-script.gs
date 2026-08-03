@@ -26,10 +26,19 @@ var TEN_SHEET_TASKS = '5S-TASKS';
 // Dashboard KHÔNG đọc các tab này. ID được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng().
 var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
 var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];
-var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
+var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-ANH', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG', 'VESINH-LICHSU', 'VESINH-CHAMCONG-NGAY'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
 // VESINH-PHANCONG (30/07/2026, sync-phancong.mjs): bảng phân công phụ trách theo vị trí —
 // kéo từ g-sheet phân công gốc của bộ phận, vị trí nào g-sheet bỏ trống thì bù bằng người
 // BÁO CÁO gần nhất trong 30 ngày (planogram). Có email + tên NV nên BẮT BUỘC nằm sheet private.
+// VESINH-LICHSU (01/08/2026, sync-vesinh-all.js): lịch sử TỪNG LƯỢT báo cáo theo vị trí + GIỜ,
+// cửa sổ trượt 60 ngày (sang ngày thứ 61 thì sync tự xoá dòng đó). Nguồn duy nhất trả lời
+// "ô này ai đã làm, lúc mấy giờ" quá 45 ngày quét. Có email + tên NV → sheet private.
+// VESINH-ANH (03/08/2026, sync-vesinh-all.js): Request ID | Ngày | Ảnh — tách cột Ảnh khỏi
+// VESINH-YEUCAU (tab nặng nhất lúc mở dashboard, 44/246KB là ảnh) để dashboard nạp nó ở BẬC 3.
+// Không có PII, nhưng để chung sheet private cho khỏi phải nhớ tab nào nằm sheet nào.
+// VESINH-CHAMCONG-NGAY (01/08/2026, sync-vesinh-all.js): chấm công THEO NGÀY (giờ vào ca + giờ ra
+// cuối) của bộ phận, cửa sổ trượt 60 ngày, gói theo người. Để pop-up ô sơ đồ xem NGÀY CŨ biết được
+// "hôm đó phụ trách có đi làm mà không báo cáo, hay nghỉ". Có tên + email NV → sheet private.
 
 /* ---------- BẢO MẬT: đọc SECRET & PIN không qua query; chống brute-force & spam ---------- */
 // Apps Script KHÔNG đọc được custom header → SECRET đi trong POST body (an toàn hơn query,
