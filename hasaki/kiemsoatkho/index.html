@@ -986,13 +986,42 @@ body.side-open #sideNav{transform:none;}
 #sideNav .s-item .di{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.4;flex:none;}
 #sideNav .s-item.on .di{opacity:1;}
 #tabsNav{display:none !important;}
-/* Nút mũi tên ›/‹ — NHỎ, góc trên trái NGANG HÀNG tiêu đề */
-.wrap>header{padding-left:38px;}
-#sideToggle{display:flex;align-items:center;justify-content:center;position:fixed;top:15px;left:7px;z-index:61;width:28px;height:28px;
-  background:var(--accent);color:var(--accent-text,#fff);border:0;border-radius:8px;font-size:15px;font-weight:700;line-height:1;cursor:pointer;
-  box-shadow:0 2px 8px rgba(0,0,0,.14);transition:left .3s cubic-bezier(.32,.72,0,1),background .16s ease;}
-#sideToggle:hover{background:var(--accent-hover,var(--accent));}
+/* ===== NÚT ĐÓNG/MỞ THANH BÊN — kiểu Gemini =====
+   Khung panel ĐỨNG YÊN, chỉ MŨI TÊN xoay 180° (mắt bám được vật thể) + nhích nhẹ khi hover.
+   Tooltip trễ 300ms để rê chuột ngang qua không bị nhấp nháy. Vẫn dùng token/ease chung của dashboard. */
+.wrap>header{padding-left:40px;}
+#sideToggle{display:flex;align-items:center;justify-content:center;position:fixed;top:14px;left:7px;z-index:61;width:30px;height:30px;
+  background:var(--accent);color:var(--accent-text,#fff);border:0;border-radius:10px;line-height:0;padding:0;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.14);
+  transition:left .3s var(--ez-apple),background-color .2s var(--ez-apple),box-shadow .2s var(--ez-apple),transform .16s var(--ez-apple);}
+#sideToggle:hover{background:var(--accent-hover,var(--accent));box-shadow:0 4px 14px rgba(0,0,0,.2);}
+#sideToggle:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent),0 2px 8px rgba(0,0,0,.14);}
 body.side-open #sideToggle{left:193px;}
+/* Icon: .st-ico = khung thanh bên (bất động), .st-arrow = mũi tên (xoay + nhích) */
+#sideToggle .st-ico{width:17px;height:17px;display:block;overflow:visible;}
+#sideToggle .st-arrow{transform-box:fill-box;transform-origin:center;transform:rotate(180deg);   /* đóng -> mũi tên chỉ SANG PHẢI */
+  transition:transform .26s var(--ez-apple);}
+body.side-open #sideToggle .st-arrow{transform:none;}                                            /* mở  -> chỉ SANG TRÁI */
+#sideToggle:hover .st-arrow{transform:translateX(1.6px) rotate(180deg);}                          /* gợi ý: đẩy ra */
+body.side-open #sideToggle:hover .st-arrow{transform:translateX(-1.6px);}                         /* gợi ý: thu về */
+/* Tooltip (nội dung lấy từ data-tip, JS đổi theo trạng thái) — hiện sau 300ms */
+#sideToggle::after{content:attr(data-tip);position:absolute;left:calc(100% + 9px);top:50%;
+  transform:translateY(-50%) translateX(-4px) scale(.94);transform-origin:left center;
+  background:var(--text);color:var(--bg);font-size:11.5px;font-weight:650;letter-spacing:.1px;
+  padding:5px 9px;border-radius:7px;white-space:nowrap;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.22);
+  opacity:0;visibility:hidden;transition:opacity .16s var(--ez-apple),transform .16s var(--ez-apple),visibility .16s;}
+#sideToggle::before{content:"";position:absolute;left:calc(100% + 3px);top:50%;width:0;height:0;pointer-events:none;
+  transform:translateY(-50%);border:5px solid transparent;border-right-color:var(--text);
+  opacity:0;visibility:hidden;transition:opacity .16s var(--ez-apple),visibility .16s;}
+#sideToggle:hover::after,#sideToggle:focus-visible::after{opacity:1;visibility:visible;
+  transform:translateY(-50%) translateX(0) scale(1);transition-delay:.3s;}
+#sideToggle:hover::before,#sideToggle:focus-visible::before{opacity:1;visibility:visible;transition-delay:.3s;}
+/* Cảm ứng: bỏ tooltip, đổi ::before thành vùng chạm 44x44 (không đụng bố cục) */
+@media (hover:none){
+  #sideToggle::after{display:none;}
+  #sideToggle::before{inset:-7px;width:auto;height:auto;border:0;transform:none;opacity:1;visibility:visible;
+    background:transparent;transition:none;pointer-events:auto;}
+}
 #sideBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:58;opacity:0;visibility:hidden;transition:opacity .26s ease,visibility .26s ease;}
 /* ===== WEB (≥769px): mở ra thì GHIM CỐ ĐỊNH — đẩy nội dung sang phải, KHÔNG nền mờ ===== */
 @media(min-width:769px){
@@ -1009,7 +1038,11 @@ body.side-open #sideToggle{left:193px;}
 </head>
 <body>
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
-<button id="sideToggle" aria-label="Mở/thu thanh bên" title="Mở/thu thanh bên">›</button>
+<button id="sideToggle" type="button" aria-controls="sideNav" aria-expanded="false"
+  aria-label="Mở rộng thanh bên" data-tip="Mở rộng thanh bên"><svg class="st-ico" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"
+  ><rect x="3" y="4" width="18" height="16" rx="2.6"></rect><line x1="9" y1="4" x2="9" y2="20"></line
+  ><path class="st-arrow" d="M16.6 9.4 13.9 12l2.7 2.6"></path></svg></button>
 <div id="sideBackdrop" aria-hidden="true"></div>
 <div id="hskMark" aria-hidden="true"><img src="hasaki-logo.png" alt="" /></div>
 <!-- latteMark (nền sao đỏ theme Latte) đã bỏ theo yêu cầu 23/07 -->
@@ -1100,7 +1133,7 @@ body.side-open #sideToggle{left:193px;}
   <section id="pane-fkiemke" class="pane hidden"></section>
   <!-- ===== TAB TỒN KHO BẤT THƯỜNG (Hasaki) — hasaki-tonbatthuong.js, LAZY; data tab stock-inventory-hasaki ===== -->
   <section id="pane-htonbat" class="pane hidden"></section>
-  <!-- ===== TAB PLANOGRAM (Hasaki) — hasaki-planogram.js, LAZY; data 4 tab: VESINH-YEUCAU (yêu cầu hôm nay + ảnh) / VESINH-NHATKY (NV theo ngày) / PHU-TRACH-QUAY-KE / CHAMCONG-VESINH ===== -->
+  <!-- ===== TAB PLANOGRAM (Hasaki) — hasaki-planogram.js, LAZY; data 6 tab: VESINH-YEUCAU (yêu cầu hôm nay + ảnh) / VESINH-NHATKY (NV theo ngày) / PHU-TRACH-QUAY-KE / CHAMCONG-VESINH / VESINH-PHANCONG (chủ vị trí) / VESINH-LICHSU (lịch sử báo cáo 60 ngày) / VESINH-CHAMCONG-NGAY (chấm công theo ngày 60 ngày — 2 tab này nạp khi mở pop-up ô) ===== -->
   <section id="pane-planogram" class="pane hidden"></section>
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
@@ -2663,7 +2696,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260730f';
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260801d';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -3299,10 +3332,27 @@ document.addEventListener('click', ()=>csDongHet(null));
     });
     sync();
   }
-  function mo(){ document.body.classList.add("side-open"); tg.textContent = "‹"; }
-  function dong(){ document.body.classList.remove("side-open"); tg.textContent = "›"; }
-  tg.addEventListener("click", function(){ document.body.classList.contains("side-open") ? dong() : mo(); });
+  /* Nút là SVG (không còn ký tự ›/‹) -> KHÔNG ghi textContent nữa, chỉ đổi trạng thái + nhãn.
+     Hướng mũi tên do CSS lo theo body.side-open; nhãn = HÀNH ĐỘNG sắp xảy ra (chuẩn Gemini). */
+  function nhan(open){
+    var t = open ? "Thu gọn thanh bên" : "Mở rộng thanh bên";
+    tg.setAttribute("aria-expanded", open ? "true" : "false");
+    tg.setAttribute("aria-label", t); tg.setAttribute("data-tip", t);
+  }
+  function mo(){ document.body.classList.add("side-open"); nhan(true); }
+  function dong(){ document.body.classList.remove("side-open"); nhan(false); }
+  function daoChieu(){ document.body.classList.contains("side-open") ? dong() : mo(); }
+  tg.addEventListener("click", daoChieu);
   bd.addEventListener("click", dong);
+  /* Phím tắt Ctrl/⌘+B — bỏ qua khi đang gõ trong ô nhập. (Esc để nguyên cho modal/lightbox.) */
+  document.addEventListener("keydown", function(e){
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.key !== "b" && e.key !== "B") return;
+    var t = e.target;
+    if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+    e.preventDefault(); daoChieu();
+  });
+  nhan(document.body.classList.contains("side-open"));
   /* Bọc setTab gốc để đồng bộ trạng thái active của sidebar (kể cả khi gọi từ deep-link) */
   if (typeof window.setTab === "function"){ var _st = window.setTab; window.setTab = function(n){ _st(n); sync(); }; }
   build();
