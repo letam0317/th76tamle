@@ -1126,7 +1126,6 @@ body.side-anim{overflow-x:clip;}
             <button id="btnReload" class="dropdown-action-btn"><span class="act">Tải lại dữ liệu</span><small class="timestamp-hint" id="tsReload"></small></button>
             <button id="btnSync" class="dropdown-action-btn"><span class="act">Cập nhật ngay (cần PIN)</span><small class="timestamp-hint" id="tsSync"></small></button>
             <button id="btnSyncTS" class="dropdown-action-btn"><span class="act">Cập nhật chấm công (cần PIN)</span><small class="timestamp-hint" id="tsSyncTS"></small></button>
-            <a id="lnkSheet" class="set-link dropdown-action-btn" href="#" target="_blank" rel="noopener"><span class="act">Mở Google Sheet nguồn ↗</span></a>
           </div>
         </div>
       </div>
@@ -2604,7 +2603,9 @@ function capNhatCtyUI(){
   document.querySelectorAll('#ctySwitch .cty-opt').forEach(b=>b.classList.toggle('active', b.dataset.cty===CTY_ID));
   let tt='1'; try{ tt=localStorage.getItem('dash5s-title')||'1'; }catch(e){}
   setTitle(tt);
-  $('lnkSheet').href = SHEET_ID ? ("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit#gid=0") : '#';
+  /* KHÔNG có mục "Sheet nguồn" trong menu: dashboard là trang công khai, không phơi file gốc.
+     Link Sheet nằm ở bookmark của người quản trị. Muốn xem tại chỗ thì mở footer nguồn của
+     module với ?src=1 (hasaki-kiemke / hasaki-planogram / hasaki-tonbatthuong / factory-stock). */
 }
 /* HÀM TRUNG TÂM: skeleton -> render lại khung tab -> đổi nguồn dữ liệu -> nạp lại, tất cả không F5 */
 async function switchCompany(id){

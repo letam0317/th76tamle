@@ -415,6 +415,8 @@ tbody tr.click{cursor:pointer;} .go{color:var(--primary);font-weight:600;font-si
 <script>
 "use strict";
 var SHEET_ID="1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
+/* ?src=1: chỉ quản trị mới thấy link Sheet nguồn — trang này công khai. */
+var SHOW_SRC = /[?&]src=1/.test(location.search);
 var TABS={sku:"kiemke-sku",loc:"kiemke-location"};
 var ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M17 7H9M17 7V15"/></svg>';
 /* CT2/CT4: công ty -> tên kho (Warehouse) mà công ty đó sở hữu; [] = tất cả */
@@ -583,7 +585,9 @@ function setFoot(mode){
   if(mode==="pc"){ $("fbChip").textContent="Physical Count · WMS"; $("fbLink").style.display=""; $("fbLink").textContent="Mở WMS";
     $("fbLink").href="https://wms.inshasaki.com/physical-count/result/list"; render(); }
   else if(mode==="stock"){ $("fbChip").textContent="Tồn mã vị trí · WMS Factory"; $("fbLink").style.display="";
-    $("fbLink").textContent="Mở Google Sheet"; $("fbLink").href="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit"; stFoot(); }
+    if(SHOW_SRC){ $("fbLink").textContent="Mở Google Sheet"; $("fbLink").href="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit"; }
+    else $("fbLink").style.display="none";
+    stFoot(); }
 }
 /* CT2: chỉ đổi NỘI DUNG main content; khung/header/footer đứng im */
 function showView(mode){

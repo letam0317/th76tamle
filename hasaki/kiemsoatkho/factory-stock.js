@@ -27,6 +27,8 @@ if (window.FSTOCK) return;   // đã nạp rồi thì thôi (inject 2 lần vô 
 /* ===== CẤU HÌNH (độc lập với host) ===== */
 var SHEET_ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 var SHEET_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/edit";
+/* ?src=1: chỉ quản trị mới thấy link Sheet nguồn — dashboard là trang công khai. */
+var SHOW_SRC = /[?&]src=1/.test(location.search);
 var TABS = [{ sheet: "mastige", div: "Mastige" }, { sheet: "garment", div: "Garment" }];
 var DIV_ORDER = ["Mastige", "Garment"];
 var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -180,7 +182,7 @@ var KHUNG =
 '<div class="fs-srcfoot">' +
 '  <div class="fs-srcbar">' +
 '    <span class="fs-chip">Tồn mã vị trí — WMS Factory</span>' +
-'    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' +
+(SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
 '    <span id="fsLoadinfo" class="fs-hint"></span>' +
 '    <button id="fsReload" onclick="FSTOCK.syncWms()" title="Kéo dữ liệu mới trực tiếp từ WMS">Tải lại dữ liệu</button>' +
 '  </div>' +

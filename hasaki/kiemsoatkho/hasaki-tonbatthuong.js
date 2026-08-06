@@ -27,6 +27,8 @@ if (window.HTONBAT) return;
 /* ===== CẤU HÌNH ===== */
 var SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";   // Sheet 5S (kiemsoatkho)
 var SHEET_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/edit";
+/* ?src=1: chỉ quản trị mới thấy link Sheet nguồn — dashboard là trang công khai. */
+var SHOW_SRC = /[?&]src=1/.test(location.search);
 var TAB = "stock-inventory-hasaki";
 var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 var STALE_MS = 5 * 60 * 1000;      // init lại: dữ liệu cũ hơn 5' mới tự refresh
@@ -178,7 +180,7 @@ var KHUNG =
 '<div class="ht-srcfoot">' +
 '  <div class="ht-srcbar">' +
 '    <span class="ht-chip">Tồn kho bất thường — Hasaki Vietnam · SHOP + WH 170 QL1A</span>' +
-'    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' +
+(SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
 '    <span id="htLoadinfo" class="ht-hint"></span>' +
 '    <button id="htReload" onclick="HTONBAT.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
 '  </div>' +

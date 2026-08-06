@@ -54,6 +54,8 @@ if (window.HPLANOGRAM) return;
 /* ===== CẤU HÌNH ===== */
 var SHEET_ID = "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM";   // Sheet 5S (kiemsoatkho)
 var SHEET_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/edit";
+/* ?src=1: chỉ quản trị mới thấy link Sheet nguồn — dashboard là trang công khai. */
+var SHOW_SRC = /[?&]src=1/.test(location.search);
 var TAB = "PHU-TRACH-QUAY-KE";
 var TAB_CC = "CHAMCONG-VESINH";     // đối chiếu chấm công × vệ sinh hôm nay
 var TAB_YC = "VESINH-YEUCAU";       // từng yêu cầu vệ sinh hôm nay (trạng thái, KHÔNG còn ảnh)
@@ -839,7 +841,7 @@ var KHUNG =
 '<div class="hp-srcfoot">' +
 '  <div class="hp-srcbar">' +
 '    <span class="hp-chip">Vệ sinh — SHOP - 170 QUOC LO 1A · khu vực F0-A1 &amp; F0-A8</span>' +
-'    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' +
+(SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
 '    <span id="hpLoadinfo" class="hp-hint"></span>' +
 '    <button id="hpReload" onclick="HPLANOGRAM.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
 '  </div>' +
