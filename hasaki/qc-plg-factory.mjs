@@ -32,7 +32,8 @@ const do_ = await p.evaluate(() => {
   return {
     soO: cells.length,
     soDoanNen: document.querySelectorAll("#plgContent .pg-wall path").length,
-    soNhanVe: document.querySelectorAll("#plgContent .pg-lbl text").length,
+    soChipDay: document.querySelectorAll("#plgContent .pg-dchip g").length,
+    soNhanKhu: document.querySelectorAll("#plgContent .pg-khu text").length,
     viewBox: svg ? svg.getAttribute("viewBox") : "",
     khungPx: svg ? Math.round(svg.getBoundingClientRect().width) + "x" + Math.round(svg.getBoundingClientRect().height) : "",
     trong: cells.filter((c) => c.classList.contains("trong")).length,

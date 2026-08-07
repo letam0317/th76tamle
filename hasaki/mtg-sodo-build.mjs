@@ -137,13 +137,46 @@ DAY.forEach((r) => {
   console.log(`   ${("F0-KHO-" + r.d).padEnd(12)} ${String(bs.length).padStart(2)} ô · rộng ${Math.min(...bs.map((b) => b.w)).toFixed(0)}–${Math.max(...bs.map((b) => b.w)).toFixed(0)} · cao ${Math.min(...bs.map((b) => b.h)).toFixed(0)}–${Math.max(...bs.map((b) => b.h)).toFixed(0)}`);
 });
 
-/* ---------- xuất ---------- */
-/* chu: BỎ các nhãn số cột của bản vẽ — dashboard tự in số vào giữa ô (số bản vẽ có lỗi lặp, và
-   chữ phải đổi màu theo nền ô đã tô). Giữ nguyên nhãn tên dãy + KHU PO + Phòng kiểm soát kho. */
-const chuGiu = chu.filter((t) => !/^\d{2}$/.test(t.s.trim()));
+/* ---------- xuất ----------
+ * KHÔNG xuất lại nhãn chữ của bản vẽ. Dashboard tự vẽ chữ vì 3 lý do:
+ *   · số cột trong bản vẽ có lỗi lặp (509/510) và phải đổi màu theo nền ô đã tô;
+ *   · tên dãy trong bản vẽ là "F0-KHO-501-" dài loằng ngoằng — trên dashboard chỉ cần "501";
+ *   · chữ phải theo font + màu mực của theme, không phải Times New Roman đỏ của bản in.
+ * Thay vào đó xuất MỐC NEO: chỗ đặt nhãn dãy (day[]) và hộp khu chức năng (khu[]). */
 const o = O.map((x) => ({ loc: "F0-KHO-" + x.day + "-" + x.cot, d: x.day, c: x.cot,
   x: x.x, y: x.y, w: x.w, h: x.h })).sort((a, b) => a.loc.localeCompare(b.loc));
-fs.writeFileSync(path.join(DIR, ".exports", "mtg-sodo.json"), JSON.stringify({ W, H, nen, chu: chuGiu, o }));
+
+/* Nhãn dãy: neo vào KHỐI TRÁI của dãy (dãy 501–507 có 2 khối cách nhau lối đi ngang; nhãn trong
+   bản vẽ luôn nằm cạnh khối trái). lx = mép trái khối, ly = tâm dọc của khối. */
+const dayNeo = DAY.map((r) => {
+  const bs = theoDay[r.d];
+  const minX = Math.min(...bs.map((b) => b.x));
+  const khoi = bs.filter((b) => b.x < minX + 40);           // khối trái = các ô sát mép trái nhất
+  const y0 = Math.min(...khoi.map((b) => b.y)), y1 = Math.max(...khoi.map((b) => b.y + b.h));
+  return { d: r.d, lx: +minX.toFixed(1), ly: +((y0 + y1) / 2).toFixed(1) };
+});
+
+/* Khu chức năng: CHỈ xuất mốc đặt nhãn, KHÔNG dò hộp.
+ * Đã thử hop() ở tâm chữ: "Phòng kiểm soát kho" ra hộp 156×1623 — ray-cast ăn cả dải trống dọc
+ * mép phải chứ không phải cái phòng, vì đoạn đó không có nét ngang nào cắt qua. Tường thật của 2
+ * khu này vốn đã nằm trong lớp nền (1.275 đoạn) nên không cần vẽ lại hộp: chỉ cần biết đặt CHỮ
+ * ở đâu. doc=1 khi bản vẽ xếp chữ theo chiều DỌC (phòng hẹp và cao) → dashboard quay nhãn 90°. */
+const KHU = [
+  { lb: "Khu PO · Đồng kiểm", tu: ["KHU PO", "ĐỒNG KIỂM"] },
+  { lb: "Phòng kiểm soát kho", tu: ["Phòng", "kiểm", "soát", "kho"] },
+];
+const khu = KHU.map((k) => {
+  const ts = chu.filter((t) => k.tu.indexOf(t.s.trim()) >= 0);
+  if (!ts.length) return null;
+  const cx = ts.reduce((a, t) => a + t.x, 0) / ts.length, cy = ts.reduce((a, t) => a + t.y, 0) / ts.length;
+  const rx = Math.max(...ts.map((t) => t.x)) - Math.min(...ts.map((t) => t.x));
+  const ry = Math.max(...ts.map((t) => t.y)) - Math.min(...ts.map((t) => t.y));
+  return { lb: k.lb, x: +cx.toFixed(1), y: +cy.toFixed(1), doc: ry > rx * 1.5 ? 1 : 0 };
+}).filter(Boolean);
+console.log("  khu chức năng: " + khu.map((k) => k.lb + (k.doc ? " (nhãn dọc)" : "")).join(" · "));
+
+fs.writeFileSync(path.join(DIR, ".exports", "mtg-sodo.json"), JSON.stringify({ W, H, nen, o, day: dayNeo, khu }));
+const chuGiu = chu.filter((t) => !/^\d{2}$/.test(t.s.trim()));   // chỉ dùng cho bản .svg soi mắt
 
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 fs.writeFileSync(path.join(DIR, ".exports", "mtg-sodo.svg"),
@@ -173,7 +206,8 @@ const R = (n) => Math.round(n);
   });
   const js = "var PLG_GEO={W:" + R(W) + ",H:" + R(H) + ",nen:\"" + L.join(",") + "\"," +
     "o:\"" + o.map((c) => [c.d, c.c, R(c.x), R(c.y), R(c.w), R(c.h)].join(" ")).join(",") + "\"," +
-    "chu:\"" + chuGiu.map((t) => [t.s, R(t.x), R(t.y), Math.round(t.sz)].join("|")).join(",") + "\"};";
+    "day:\"" + dayNeo.map((d) => [d.d, R(d.lx), R(d.ly)].join(" ")).join(",") + "\"," +
+    "khu:\"" + khu.map((k) => [k.lb, R(k.x), R(k.y), k.doc].join("|")).join(",") + "\"};";
   fs.writeFileSync(path.join(DIR, ".exports", "plg-geo.js"), js);
   console.log(`Snippet nhúng: .exports/plg-geo.js — ${(js.length / 1024).toFixed(1)}KB · ${L.length} đoạn (gộp từ ${nen.length})`);
 }
