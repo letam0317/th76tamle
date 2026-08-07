@@ -16,12 +16,11 @@ import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
-import { voiKhoa, luuToken } from "./token-store.js";
+import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+const PROFILE_DIR = duongDanProfile(DIR);   // EDGE_PATH + profile lấy từ token-store (khả chuyển máy)
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const SHEET_FACTORY = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";   // sheet stocklocationfactory (dashboard factory)
@@ -126,7 +125,7 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
   if (boQuaNeuDaTuoi(DIR, "tonbatthuong", log)) process.exit(0);
   let token = await layTokenTuPhucHoi(getWmsToken, DIR, log, "wms").catch((e) => { thoatTheoLoi(e, log, 2); });
   const me = await fetch(GET_ME, { headers: { authorization: token } });
-  if (me.status === 401 || me.status === 403) { token = await voiKhoa(DIR, getWmsToken, { log }); luuToken(DIR, "wms", token); }
+  if (me.status === 401 || me.status === 403) { token = await voiKhoa(DIR, getWmsToken, { log }); luuToken(DIR, "wms", token, "bot"); }
   log("✓ Token WMS sẵn sàng.");
 
   // Chốt endpoint: thử từng ứng viên trên trang 1 của bộ đầu tiên
@@ -158,7 +157,7 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
       lanDoiToken++;
       log("  … token hết hạn giữa chừng — đăng nhập lại (" + lanDoiToken + "/5)...");
       token = await voiKhoa(DIR, getWmsToken, { log });
-      luuToken(DIR, "wms", token);
+      luuToken(DIR, "wms", token, "bot");
       r = await fetchThuLai(u, { headers: { authorization: token } });
     }
     return r;

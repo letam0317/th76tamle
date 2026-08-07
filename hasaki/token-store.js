@@ -44,12 +44,36 @@ export function docTokenCu(DIR, app) {
   const e = doc(DIR)[app];
   return (e && e.token) ? e : null;
 }
-export function luuToken(DIR, app, token) {
-  if (!token) return;
-  const o = doc(DIR); o[app] = { token, at: Date.now() }; ghi(DIR, o);
+/* NHÃN `nguon` (30/07/2026 — thiết kế Phần F "dữ liệu luôn tươi"):
+ *   "bridge" = token của PHIÊN NGƯỜI THẬT (extension đẩy qua GAS) → CÓ NGƯỜI ĐANG LÀM.
+ *   "bot"    = token do chính bot login SSO mà có → không ai bị đá khi phiên này chết.
+ * Không có nhãn thì không phân biệt được "phiên của người" với "phiên của chính mình", mà đó
+ * chính là cửa an toàn duy nhất của luật "chỉ login khi KHÔNG có phiên sống". Tham số thêm ở
+ * cuối nên mọi chỗ gọi cũ (3 tham số) vẫn chạy — chỉ là không có nhãn (coi như "khongro"). */
+/* VÁ 30/07/2026 (rà sự cố "bị đá 18h16"): lưu lại CÙNG MỘT token thì KHÔNG được đổi gốc gác.
+ * layTokenTuPhucHoi/lamTuoiToken gọi getWmsToken — hàm này ưu tiên trả token BRIDGE (phiên NGƯỜI)
+ * đang có sẵn, nhưng call site dán nhãn "bot" đồng loạt → nhãn "bridge" bị ghi đè thành "bot"
+ * (bắt quả tang 17:00:27 30/07), làm trangThaiPhien tưởng phiên người là phiên bot: khi phiên đó
+ * chết, luật phiên coi như "không ai bị đá" → mở cửa login trong khi người có thể đang làm.
+ * Luật: token TRÙNG → giữ nhãn cũ; riêng nhãn "bridge" luôn thắng (token đi qua kênh bridge
+ * là bằng chứng chắc chắn đó là phiên người thật). */
+function nhanGiuGoc(cu, token, nguon) {
+  return (cu && cu.token === token && nguon !== "bridge" && cu.nguon) ? cu.nguon : nguon;
 }
-export function luuNhieu(DIR, obj) {
-  const o = doc(DIR); for (const k in obj) if (obj[k]) o[k] = { token: obj[k], at: Date.now() }; ghi(DIR, o);
+export function luuToken(DIR, app, token, nguon) {
+  if (!token) return;
+  const o = doc(DIR); const nhan = nhanGiuGoc(o[app], token, nguon);
+  o[app] = { token, at: Date.now(), ...(nhan ? { nguon: nhan } : {}) }; ghi(DIR, o);
+}
+export function luuNhieu(DIR, obj, nguon) {
+  const o = doc(DIR);
+  for (const k in obj) if (obj[k]) { const nhan = nhanGiuGoc(o[k], obj[k], nguon); o[k] = { token: obj[k], at: Date.now(), ...(nhan ? { nguon: nhan } : {}) }; }
+  ghi(DIR, o);
+}
+/** Nhãn nguồn của token đang lưu: "bridge" | "bot" | "khongro". */
+export function nguonToken(DIR, app) {
+  const e = doc(DIR)[app];
+  return (e && e.nguon) ? String(e.nguon) : "khongro";
 }
 
 /**

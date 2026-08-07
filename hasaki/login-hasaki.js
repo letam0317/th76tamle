@@ -25,10 +25,36 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { luuNhieu, EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { trangThaiPhien, DEFER_EXIT } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCK = path.join(DIR, ".login-open.lock");
 const xoaLock = () => { try { fs.rmSync(LOCK, { force: true }); } catch {} };
+
+/* ===== CẦU DAO CHỐNG KHOÁ TÀI KHOẢN (31/07/2026) ==============================
+ * IdP đếm lượt đăng nhập SAI theo TÀI KHOẢN: "You have N attempts left before your
+ * account is locked" → hết thì "Bạn đã thử quá nhiều lần, vui lòng thử lại sau".
+ * Đo được: 30/07 15:27 còn 8 lượt → 31/07 08:51 còn 6 ⇒ mỗi lượt bot nộp sai ăn 2 slot.
+ * Nguy hiểm ở chỗ CẤP SỐ NHÂN: 3 cửa gọi login (auto-export · cham-cong · day-bao-cao
+ * mỗi 15') × 2 lượt/lần, mà một đêm mất phiên là bot được phép login liên tục ⇒ đủ khoá
+ * tài khoản, và khoá thì NGƯỜI THẬT cũng không đăng nhập được — đúng triệu chứng hôm nay.
+ * LUẬT: nộp sai MỘT lần → cấm mọi lượt sau cho tới khi người xử lý. Dữ liệu cũ vài giờ
+ * sửa được; tài khoản bị khoá thì cả người lẫn bot đứng. */
+const MOC_SAI = path.join(DIR, ".login-that-bai.json");
+const KHOA_GIO = Number(process.env.LOGIN_KHOA_GIO || 12);
+const BO_KHOA = process.argv.includes("--bo-khoa") || String(process.env.LOGIN_BO_KHOA || "") === "1";
+const docSai = () => { try { return JSON.parse(fs.readFileSync(MOC_SAI, "utf8")); } catch { return null; } };
+function ghiSai(mota) {
+  const cu = docSai() || {};
+  try {
+    fs.writeFileSync(MOC_SAI, JSON.stringify({
+      lan: (cu.lan || 0) + 1, luc: new Date().toISOString(), mota: String(mota || "").slice(0, 300),
+    }, null, 2));
+  } catch { /* mốc best-effort */ }
+}
+const xoaSai = () => { try { fs.rmSync(MOC_SAI, { force: true }); } catch { /* bỏ qua */ } };
+/** Lấy phần "thông báo: …" trong ảnh hiện trường để lưu lý do đúng nguyên văn của IdP. */
+const loiTuHienTruong = (ht) => { const m = String(ht).match(/thông báo: ([\s\S]+)$/); return m ? m[1].trim() : String(ht).slice(0, 200); };
 
 const PROFILE_DIR = duongDanProfile(DIR);
 const EMAIL = process.env.HASAKI_EMAIL || "";
@@ -52,6 +78,57 @@ if (fs.existsSync(LOCK)) {
   if (Date.now() - fs.statSync(LOCK).mtimeMs < 15 * 60 * 1000) { log("Đã có phiên login đang chạy — bỏ qua."); process.exit(0); }
   xoaLock();
 }
+
+// CẦU DAO: đã có lượt bị IdP TỪ CHỐI gần đây → không nộp thêm lượt nào (kể cả lượt người bấm nút:
+// script vẫn tự gõ mật khẩu + OTP nên vẫn ăn hạn mức như lượt tự động).
+{
+  const sai = docSai();
+  // khoaDenKhi: mốc gỡ khoá đặt tay (dùng khi cần chặn dài hơn cửa mặc định, vd đang bị IdP throttle).
+  const conKhoa = !!sai && (sai.khoaDenKhi
+    ? Date.now() < Date.parse(sai.khoaDenKhi)
+    : Date.now() - Date.parse(sai.luc || 0) < KHOA_GIO * 3600 * 1000);
+  if (conKhoa && !BO_KHOA) {
+    log("⛔ CẦU DAO ĐANG NGẮT — lượt đăng nhập gần nhất bị IdP TỪ CHỐI lúc " + new Date(sai.luc).toLocaleString("vi-VN") + " (đã " + sai.lan + " lượt sai).");
+    if (sai.mota) log("   IdP nói: " + sai.mota);
+    log("   Mỗi lượt sai nữa là một bước tới KHOÁ TÀI KHOẢN — mà khoá thì NGƯỜI THẬT cũng không đăng nhập được.");
+    log("   Gỡ khi đã chắc mật khẩu/OTP đúng: xoá " + MOC_SAI + " hoặc chạy kèm --bo-khoa.");
+    process.exit(AUTO ? DEFER_EXIT : 4);
+  }
+  if (conKhoa && BO_KHOA) log("⚠ Cầu dao đang ngắt (" + sai.lan + " lượt sai) nhưng có --bo-khoa → vẫn chạy. Đây là lượt CÓ RỦI RO khoá tài khoản.");
+}
+
+/* ================= CỬA KIỂM Ở ĐẦU VÀO (Phần F bước 2, 30/07/2026) =================
+ * Trước bản này login-hasaki KHÔNG hỏi session-rules → *bất cứ gì* spawn nó cũng đăng nhập
+ * được, và mỗi lượt như thế là một cú đá phiên operator (WMS 1 phiên/tài khoản).
+ * Luật: KHÔNG login khi ĐANG CÓ phiên sống — vì chỉ khi có phiên sống thì login mới gây hại.
+ *
+ * CHỈ áp cho lượt TỰ ĐỘNG (--auto, do auto-login.js gọi khi phiên chết).
+ * Lượt người chủ động (nút trong email → watch-login-request spawn KHÔNG kèm --auto, hoặc chạy
+ * tay) thì KHÔNG chặn: người đã cố ý yêu cầu thì họ biết mình đang làm gì.
+ * EP_RELOGIN=1 để bỏ qua khi cần khẩn cấp.
+ *
+ * Phân biệt 2 kiểu "không chắc" — khác nhau ở chỗ có thông tin hay không:
+ *  • `khongro` (ĐÁNH GIÁ ĐƯỢC, kết luận là không rõ): get-me không trả lời (mất mạng) HOẶC token
+ *    trong kho còn SỐNG mà thiếu nhãn nguồn. Cả hai đều KHÔNG nên login — mất mạng thì login cũng
+ *    trượt, còn token còn sống thì vốn chẳng cần login. → hoãn (75).
+ *  • `tt === null` (đánh giá VĂNG ngoài dự kiến): không có thông tin nào → giữ hành vi bản cũ là
+ *    CHO CHẠY, thà thử còn hơn để dữ liệu đứng im vì một lỗi lạ; ghi log rõ để tra. */
+if (AUTO && String(process.env.EP_RELOGIN || "") !== "1") {
+  const tt = await trangThaiPhien(DIR, log).catch(() => null);
+  if (tt && (tt.ai === "nguoi" || tt.ai === "bot")) {
+    log("⛔ KHÔNG đăng nhập: " + tt.vi + ".");
+    log("   (Đá phiên đang sống là mất việc của người đang làm — bộ gọi hãy dùng token đó qua layTokenSongWms.)");
+    process.exit(DEFER_EXIT);
+  }
+  if (tt && tt.ai === "khong" && !tt.duocLogin) {
+    log("⏳ HOÃN đăng nhập: " + tt.vi + " (đệm quanh giờ người tới/rời máy — tránh cắt ngang lượt login đang dở).");
+    process.exit(DEFER_EXIT);
+  }
+  if (tt && tt.ai === "khongro") { log("⚠ " + tt.vi + " — thoát, tick sau thử lại."); process.exit(DEFER_EXIT); }
+  if (tt) log("✓ Cửa kiểm phiên: " + tt.vi + ".");
+  else log("⚠ Không đánh giá được trạng thái phiên (lỗi bất ngờ) — vẫn chạy như bản cũ, xem log để tra.");
+}
+
 fs.writeFileSync(LOCK, String(Date.now()));
 
 try {
@@ -130,7 +207,12 @@ async function goOTP(code) {
 async function bamNut(reSrc, { fallbackSubmit = false } = {}) {
   const h = await page.evaluateHandle((rs, fb) => {
     const re = new RegExp(rs, "i");
-    const XAU = /use another|another account|tài khoản khác|tai khoan khac|sign ?out|log ?out|đăng xuất|dang xuat|cancel|huỷ|hủy|quay lại|quay lai|\bback\b/i;
+    // Nút "phá luồng" — TUYỆT ĐỐI không rơi vào qua fallbackSubmit.
+    // 27/07/2026: fallback mù bấm "Use another account" mỗi giây → reset vòng đăng nhập.
+    // 30/07/2026: lượt 09:21 máy vừa boot CHƯA CÓ MẠNG (DNS ENOTFOUND) → trang lỗi của Edge
+    //   chỉ có nút "Refresh" → fallback bấm Refresh và báo "đăng nhập thành công" oan.
+    //   Nhóm resend/gửi lại/đổi phương thức cũng chặn: bấm bừa = tốn lượt gửi OTP, dễ khoá.
+    const XAU = /use another|another account|tài khoản khác|tai khoan khac|sign ?out|log ?out|đăng xuất|dang xuat|cancel|huỷ|hủy|quay lại|quay lai|\bback\b|refresh|reload|tải lại|tai lai|làm mới|lam moi|resend|gửi lại|gui lai|send again|try another|another way|phương thức khác|phuong thuc khac|đổi phương thức|doi phuong thuc|\bchange\b/i;
     const tat = (e) => e.disabled || e.getAttribute("aria-disabled") === "true" || /(^|\s)disabled(\s|$)/i.test(e.className || "");
     const c = [...document.querySelectorAll('button,[role=button],input[type=submit]')].filter(e => e.offsetParent !== null && !tat(e));
     return c.find(e => re.test((e.innerText || e.value || "").trim()))
@@ -158,8 +240,40 @@ const trong = (selCsv) => page.evaluate((s) => s.split("||").some(sel => [...doc
 const EMAIL_SEL = 'input[type=email]||input[name*="email" i]||input[id*="email" i]||input[name*="user" i]||input[autocomplete="username"]';
 const OTP_SEL = 'input[autocomplete="one-time-code"]||input[maxlength="1"]||input[name*="otp" i]||input[id*="otp" i]||input[inputmode="numeric"]||input[maxlength="6"]';
 
+/* ---------- ẢNH HIỆN TRƯỜNG (30/07/2026) ----------
+ * IdP Hasaki đã đổi giao diện 2 lần trong 1 tuần. Trước đây mỗi lần đổi là một buổi đoán mò vì
+ * log chỉ nói "Quá hạn (Turnstile/OTP?)". Nay mọi lối thoát đều ghi: URL, PHƯƠNG THỨC XÁC THỰC
+ * mà IdP đòi (tham số auth_methods trên URL — chính IdP khai), ô nhập, nút, và thông báo lỗi.
+ * IdP khai dạng: ...&auth_methods=PASSWORD,SMS_OTP,TOTP&method_locked=1 */
+const phuongThucIdP = () => { try { return new URL(page.url()).searchParams.get("auth_methods") || ""; } catch { return ""; } };
+async function anhHienTruong() {
+  let mo = "";
+  try {
+    mo = await page.evaluate(() => {
+      const hienRa = (e) => e.offsetParent !== null;
+      const inp = [...document.querySelectorAll("input")].filter(hienRa)
+        .map((e) => (e.type || "text") + (e.name ? ":" + e.name : "") + (e.value ? "=có" : "=trống")).slice(0, 8).join(", ");
+      const nut = [...document.querySelectorAll('button,[role=button],a,input[type=submit]')].filter(hienRa)
+        .map((e) => (e.innerText || e.value || "").trim()).filter(Boolean).slice(0, 10).join(" | ");
+      const loi = [...document.querySelectorAll('[role="alert"],.error,.alert,[class*="error" i]')].filter(hienRa)
+        .map((e) => (e.innerText || "").trim()).filter(Boolean).join(" / ").slice(0, 200);
+      return "ô nhập: [" + (inp || "KHÔNG có") + "] · nút: [" + (nut || "KHÔNG có") + "]" + (loi ? " · thông báo: " + loi : "");
+    });
+  } catch { mo = "(không đọc được DOM — trang đang chuyển hướng)"; }
+  const pt = phuongThucIdP();
+  return "URL: " + page.url().slice(0, 170) + (pt ? "\n    IdP đòi phương thức: " + pt : "") + "\n    " + mo;
+}
+async function dungVoiHienTruong(lyDo, ma = 1) {
+  clearInterval(nhip); clearInterval(theoDoi); if (baoSaiMK) clearInterval(baoSaiMK);
+  log("✗ " + lyDo);
+  log("  ẢNH HIỆN TRƯỜNG:\n    " + (await anhHienTruong()));
+  xoaLock();
+  try { await browser.close(); } catch { /* đã đóng */ }
+  process.exit(ma);
+}
+
 /* ---------- Máy trạng thái: điền theo Ô ĐANG TRỐNG (chịu được trang gộp email+mật khẩu+OTP) ---------- */
-const st = { otpDone: false, passSubmitted: false, credSubmitted: false, clickedContinue: false, otpWaitLogged: false, loggedEmail: false, loggedPass: false, emailLuc: 0 };
+const st = { otpDone: false, passSubmitted: false, credSubmitted: false, clickedContinue: false, otpWaitLogged: false, loggedEmail: false, loggedPass: false, emailLuc: 0, ssoMiss: 0, manLa: 0, ptLogged: false };
 // Host THẬT của trang — URL IdP mang redirect_uri chứa "work.hasaki.vn" trong query nên
 // regex substring từng làm bước SSO misfire ngay trên trang IdP (sự cố 27/07/2026).
 const hostHienTai = () => { try { return new URL(page.url()).hostname; } catch { return ""; } };
@@ -171,10 +285,27 @@ let busy = false;
 async function tick() {
   if (ok || busy) return; busy = true;
   try {
+    // 0) IdP khai phương thức xác thực trên URL — ghi 1 lần, và DỪNG SỚM nếu không có TOTP.
+    //    Đổi hệ authenticator (sang SMS OTP / duyệt trên app / passkey) thì bot KHÔNG thể tự làm:
+    //    gõ mã sinh từ HASAKI_2FA_SECRET chỉ tốn lượt sai và có thể khoá tài khoản → dừng, để người
+    //    đăng nhập tay 1 lần (phiên trong Edge profile sống tiếp cho các bộ dùng lại).
+    {
+      // Chỉ tin tham số khi ĐANG ở trên host IdP (auth-idp…): tránh đọc nhầm từ trang khác.
+      const pt = /auth-idp/i.test(hostHienTai()) ? phuongThucIdP() : "";
+      if (pt && !st.ptLogged) { st.ptLogged = true; log("  ℹ IdP đòi phương thức: " + pt); }
+      if (pt && SECRET && !/TOTP/i.test(pt)) {
+        await dungVoiHienTruong("IdP KHÔNG còn nhận TOTP cho lượt này (auth_methods=" + pt + ") — hệ xác thực đã đổi."
+          + " Bot dừng, KHÔNG gõ mã (tránh tốn lượt/khoá tài khoản). Cần đăng nhập TAY 1 lần, hoặc cập nhật HASAKI_2FA_SECRET nếu đã ghi danh lại TOTP ở app mới.", 3);
+      }
+    }
     // 1) work.hasaki.vn (so HOST thật): chỉ có nút SSO
     if (hostHienTai() === "work.hasaki.vn" && await hien('button||[role=button]') && !(await hien('input'))) {
       if (!duNhip("sso", 5000)) return;
-      const t = await bamNut("hasaki sso|đăng nhập với|dang nhap voi|sso", { fallbackSubmit: true }); if (t) log("  → bấm: " + t);
+      const t = await bamNut("hasaki sso|đăng nhập với|dang nhap voi|sso", { fallbackSubmit: true });
+      if (t) { st.ssoMiss = 0; log("  → bấm: " + t); return; }
+      // Không tìm được nút SSO nào đáng bấm: trang lỗi mạng của Edge cũng lọt vào đây (URL giữ
+      // nguyên work.hasaki.vn, chỉ có nút "Refresh" — đã bị XAU chặn). Đếm 4 lượt rồi dừng có ảnh.
+      if (++st.ssoMiss >= 4) await dungVoiHienTruong("Ở work.hasaki.vn nhưng KHÔNG thấy nút SSO nào đáng bấm sau " + st.ssoMiss + " lượt (trang lỗi mạng / giao diện đổi?).");
       return;
     }
     // 1a) Checkbox "I'm not a robot" (Hasaki ID v2 từ 27/07/2026 — Turnstile ẩn sau checkbox first-party,
@@ -247,6 +378,18 @@ async function tick() {
       log("  ✓ gõ OTP (còn " + conLai + "s)");
       return;
     }
+    // 4b) MÀN HÌNH LẠ: không còn ô nhập nào, mà cũng không phải trang SSO (1) hay chọn tài khoản (1b).
+    //     Ví dụ đúng thực tế: trang QUÉT QR / CHỜ DUYỆT TRÊN APP của hệ authenticator mới, hoặc trang
+    //     lỗi. Trước đây rơi xuống bước 5 và bấm nút submit bất kỳ (09:21 30/07 bấm "Refresh").
+    //     Nay: đợi 3 nhịp (~24s) cho trang render xong, vẫn lạ thì DỪNG kèm ảnh hiện trường.
+    //     CHỈ áp dụng khi CHƯA nộp gì: sau khi nộp mật khẩu/OTP, các trang callback OIDC vốn không
+    //     có ô nhập nào trong lúc chuyển hướng — giai đoạn đó để hạn HAN lo (cũng đã có ảnh).
+    if (!(await hien('input')) && !st.passSubmitted && !st.credSubmitted) {
+      if (!duNhip("man-la", 8000)) return;
+      if (++st.manLa >= 3) await dungVoiHienTruong("Màn hình LẠ không có ô nhập nào suốt ~" + st.manLa * 8 + "s — không bấm bừa (tránh reset luồng/tốn lượt gửi OTP).");
+      return;
+    }
+    st.manLa = 0;
     // 5) Trang identifier (chỉ email) → bấm "Tiếp tục" khi Turnstile bật (bamNut chỉ trả nút ĐANG BẬT).
     //    NHƯỜNG Turnstile ≥4s sau khi gõ email + tối đa 1 lượt bấm/4s — 27/07/2026 bấm Continue
     //    ngay giây gõ email → form nộp thiếu token Turnstile → IdP đá về trang chọn tài khoản, kẹt vòng lặp.
@@ -277,7 +420,11 @@ const nhip = setInterval(tick, 1000);
    IdP (auth-idp.inshasaki.com / SSO) hiện thông báo lỗi -> thoát NGAY exit(1),
    không ngồi chờ hết hạn 4 phút. Chỉ bật khi script TỰ điền mật khẩu (.env);
    đăng nhập tay thì không bật — người dùng còn gõ lại. */
-const RE_SAI_MK = /sai mật khẩu|mật khẩu không (chính xác|đúng)|không chính xác|thông tin đăng nhập không (đúng|hợp lệ)|invalid (username or )?password|incorrect password|wrong password|đăng nhập thất bại|login failed|invalid credentials/i;
+/* "Incorrect sign-in details" (bản tiếng Anh của IdP) TRƯỚC ĐÂY không khớp regex nào → lượt 08:51
+   hôm nay ngồi nhìn thông báo lỗi suốt 3,5 phút rồi mới hết hạn. Thêm vào để dừng ngay. */
+const RE_SAI_MK = /sai mật khẩu|mật khẩu không (chính xác|đúng)|không chính xác|thông tin đăng nhập không (đúng|hợp lệ)|invalid (username or )?password|incorrect (password|sign.?in details)|wrong password|đăng nhập thất bại|login failed|invalid credentials/i;
+/* Hạn mức lượt sai / bị chặn tạm — nghiêm trọng hơn sai mật khẩu: phải GHI CẦU DAO ngay. */
+const RE_KHOA = /attempts? left|account is locked|tài khoản .*(khoá|khóa)|quá nhiều lần|too many (attempts|requests)|try again later|thử lại sau|temporarily (locked|blocked)/i;
 let baoSaiMK = null;
 if (PASSWORD) baoSaiMK = setInterval(async () => {
   try {
@@ -286,7 +433,17 @@ if (PASSWORD) baoSaiMK = setInterval(async () => {
       return [...document.querySelectorAll(sel)]
         .map(e => (e.innerText || "").trim()).filter(Boolean).join(" | ").slice(0, 400);
     }).catch(() => "");
+    if (loi && RE_KHOA.test(loi)) {
+      clearInterval(baoSaiMK); clearInterval(nhip); clearInterval(theoDoi);
+      log("⛔ IdP ĐANG ĐẾM LƯỢT SAI / CHẶN TẠM: " + loi.slice(0, 200));
+      log("  → Dừng NGAY và NGẮT CẦU DAO: mọi lượt đăng nhập tự động sau sẽ bị chặn " + KHOA_GIO + "h.");
+      ghiSai(loi.slice(0, 200));
+      xoaLock();
+      try { await browser.close(); } catch { /* đã đóng */ }
+      process.exit(1);
+    }
     if (loi && RE_SAI_MK.test(loi)) {
+      ghiSai(loi.slice(0, 200));
       clearInterval(baoSaiMK); clearInterval(nhip); clearInterval(theoDoi);
       log("✗ SAI MẬT KHẨU — IdP báo: " + loi.slice(0, 140));
       log("  → Dừng NGAY (không chờ hết hạn). Kiểm tra lại HASAKI_PASSWORD trong .env.");
@@ -301,14 +458,14 @@ const HAN = AUTO ? 4 * 60 * 1000 : 15 * 60 * 1000;
 const t0 = Date.now();
 // Sau khi đăng nhập OK: chụp LUÔN token hr.hasaki (session đã có) → nạp kho CẢ work + hr,
 // để 1 lần đăng nhập là đủ cho cả 3 bộ, các bộ khác không phải mở trình duyệt/đăng nhập lại.
-let dangKetThuc = false;
+let dangKetThuc = false, napDuoc = false;   // napDuoc = đã nạp kho ≥1 token được wshr chấp nhận
 // wshr có CHẤP NHẬN token không? — Hasaki ID v2 (27/07/2026) có lúc gửi id_token OIDC của IdP
 // lên wshr trước khi app mint JWT thật; nạp nhầm vào kho là các bộ sau gọi API "lặng lẽ rỗng".
 const wshrNhan = async (tk) => { try { return (await fetch("https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=1", { headers: { authorization: tk } })).ok; } catch { return false; } };
 async function ketThucThanhCong() {
   if (dangKetThuc) return; dangKetThuc = true;
   clearInterval(theoDoi); clearInterval(nhip); if (baoSaiMK) clearInterval(baoSaiMK);
-  log("✅ Đăng nhập thành công.");
+  log("→ Đã bắt được token — xác minh với wshr trước khi kết luận...");
   try {
     if (!tokHr) {
       await page.goto("https://hr.hasaki.vn/", { waitUntil: "networkidle2", timeout: 30000 }).catch(() => {});
@@ -317,19 +474,40 @@ async function ketThucThanhCong() {
   } catch {}
   if (tokWork && !(await wshrNhan(tokWork))) { log("  … token work bắt được bị wshr từ chối (id_token OIDC?) — BỎ, không nạp kho."); tokWork = null; }
   if (tokHr && !(await wshrNhan(tokHr))) { log("  … token hr bắt được bị wshr từ chối (id_token OIDC?) — BỎ, không nạp kho."); tokHr = null; }
-  try { luuNhieu(DIR, { work: tokWork, hr: tokHr }); log("  ✓ Nạp kho token: work=" + (tokWork ? "có" : "—") + ", hr=" + (tokHr ? "có" : "—") + "."); } catch (e) { log("  (không nạp được kho token: " + e.message + ")"); }
+  // THÀNH CÔNG = có ÍT NHẤT 1 token được wshr CHẤP NHẬN và đã nạp kho.
+  // Vá 30/07/2026: trước đây `ok` bật khi THẤY bất kỳ request nào tới wshr có header authorization —
+  // kể cả id_token OIDC của IdP. Sáng nay (09:21, máy vừa boot chưa có mạng) script báo
+  // "✅ Đăng nhập thành công" rồi nạp kho RỖNG, exit 0 → auto-login tin là xong, KHÔNG thử lượt 2,
+  // và cả cụm 8h40 chết trong im lặng. Nay không có token nào được nhận thì đó là THẤT BẠI.
+  napDuoc = !!(tokWork || tokHr);
+  if (napDuoc) {
+    // Nhãn "bot": token này do CHÍNH BOT login mà có → lượt sau biết phiên đang sống là của mình,
+    // không phải của người đang làm (cửa an toàn của luật Phần F).
+    try { luuNhieu(DIR, { work: tokWork, hr: tokHr }, "bot"); xoaSai(); log("✅ Đăng nhập thành công — nạp kho token: work=" + (tokWork ? "có" : "—") + ", hr=" + (tokHr ? "có" : "—") + "."); }
+    catch (e) { napDuoc = false; log("  ✗ Không nạp được kho token: " + e.message); }
+  }
+  if (!napDuoc) {
+    log("✗ CHƯA đăng nhập được: có thấy request mang token nhưng wshr KHÔNG chấp nhận token nào (id_token OIDC / phiên chưa mint JWT thật).");
+    log("  ẢNH HIỆN TRƯỜNG:\n    " + (await anhHienTruong()));
+  }
   browser.close().catch(() => {});
 }
+// Giữ promise của bước kết thúc: nếu cửa sổ đóng GIỮA LÚC đang xác minh token với wshr, khối cuối
+// file phải CHỜ nó xong mới kết luận — không thì lượt thành công bị báo thất bại oan (exit 1).
+let ketThucXong = null;
 const theoDoi = setInterval(async () => {
-  if (ok) { ketThucThanhCong(); }
+  if (ok) { ketThucXong = ketThucXong || ketThucThanhCong(); }
   else if (Date.now() - t0 > HAN) {
     clearInterval(theoDoi); clearInterval(nhip); if (baoSaiMK) clearInterval(baoSaiMK);
-    // Ghi "ảnh hiện trường" trước khi đóng: kẹt ở URL nào, thấy nút gì — để lần sau khỏi đoán mò.
-    try {
-      const nut = await page.evaluate(() => [...document.querySelectorAll('button,[role=button],a,input[type=submit]')]
-        .filter(e => e.offsetParent !== null).map(e => (e.innerText || e.value || "").trim()).filter(Boolean).slice(0, 8).join(" | "));
-      log("⏰ Quá hạn chưa đăng nhập được (Turnstile/OTP?). Kẹt tại: " + page.url() + (nut ? " — nút thấy được: " + nut : ""));
-    } catch { log("⏰ Quá hạn chưa đăng nhập được (Turnstile/OTP?). Đóng."); }
+    // Ghi "ảnh hiện trường" trước khi đóng: kẹt ở đâu, IdP đòi gì, thấy ô/nút gì — khỏi đoán mò.
+    log("⏰ Quá hạn chưa đăng nhập được sau " + Math.round(HAN / 60000) + "'.");
+    const ht = await anhHienTruong();
+    log("  ẢNH HIỆN TRƯỜNG:\n    " + ht);
+    // ĐÃ NỘP mà vẫn hết hạn = IdP đã từ chối lượt này ⇒ ngắt cầu dao (không đoán, chỉ ghi khi có nộp).
+    if (st.credSubmitted || st.passSubmitted) {
+      ghiSai(loiTuHienTruong(ht));
+      log("  ⛔ Đã NGẮT CẦU DAO: lượt sau bị chặn " + KHOA_GIO + "h (xoá " + path.basename(MOC_SAI) + " hoặc --bo-khoa để gỡ).");
+    }
     browser.close().catch(() => {});
   }
 }, 1000);
@@ -337,6 +515,8 @@ const theoDoi = setInterval(async () => {
 if (!AUTO) log("👉 " + (SECRET ? "Sẽ tự đăng nhập." : "Gõ OTP xong sẽ tự đóng.") + " (Đóng tay cũng được.)");
 await new Promise((resolve) => browser.on("disconnected", resolve));
 clearInterval(nhip); clearInterval(theoDoi);
+if (ketThucXong) await ketThucXong.catch(() => {});   // chờ xác minh/nạp kho xong mới kết luận
 xoaLock();
-log(ok ? "Đã lưu phiên. Các bộ chạy lại bình thường." : (DRY_OTP ? "Kết thúc DRY-OTP (không nộp OTP)." : "Đã đóng (chưa xác nhận đăng nhập)."));
-process.exit(ok ? 0 : (DRY_OTP ? 0 : 1));
+// Exit 0 CHỈ khi đã nạp kho token được wshr chấp nhận (napDuoc) — không còn tin `ok` (xem Vá 4).
+log(napDuoc ? "Đã lưu phiên. Các bộ chạy lại bình thường." : (DRY_OTP ? "Kết thúc DRY-OTP (không nộp OTP)." : "Đã đóng (CHƯA đăng nhập được)."));
+process.exit(napDuoc ? 0 : (DRY_OTP ? 0 : 1));

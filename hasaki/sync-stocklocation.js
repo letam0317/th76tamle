@@ -280,7 +280,7 @@ async function ghiTab(tab, rows, apiAt) {
       if (!ok) throw new Error("Tự đăng nhập lại thất bại. " + e.message);
       t = await voiKhoa(DIR, getWmsToken, { log });
     }
-    luuToken(DIR, "wms", t);
+    luuToken(DIR, "wms", t, "bot");   // token bot tự chụp (không phải bridge của người)
     return t;
   }
 

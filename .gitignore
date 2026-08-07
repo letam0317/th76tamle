@@ -27,6 +27,12 @@ ui_*.png
 *.lock
 .last-sync.json
 .exports/
+# Moc "lan cuoi thay bridge con tuoi" — state CUC BO cua may tram (session-rules.js).
+# Do bang mtime nen chep/checkout sang may khac se mang moc sai -> khong commit.
+.bridge-thay-cuoi
+# Moc "kenh bridge wshr da chung thuc" — cong tac tu dong chuyen luat gio -> luat phien.
+# Phai do CHINH may do tu xac nhan, khong duoc chep tu may khac -> khong commit.
+.bridge-wshr-ok
 # Ban deploy Apps Script co SECRET that — KHONG commit
 google-script-DEPLOY.gs
 

@@ -33,6 +33,10 @@ ui_*.png
 .exports/
 .sync-ok-*
 .sync-guard.last-run
+# Moc "lan cuoi thay bridge con tuoi" + "kenh bridge wshr da chung thuc" (session-rules).
+# Do bang mtime / phai do CHINH may do tu xac nhan -> chep sang may khac la sai, khong commit.
+.bridge-thay-cuoi
+.bridge-wshr-ok
 .session-ledger-state.json
 # State/cache của nhịp phân tầng (sync-poller 26/07/2026)
 .poller-state.json
@@ -53,5 +57,6 @@ ui_*.png
 google-script-DEPLOY.gs
 # Thư mục làm việc clasp (chứa code kéo về từ script live + có secret) — KHÔNG commit
 .clasp-deploy/
-# Cache tracking cua doi-soat-kiemke (co du lieu ton kho)
-.doi-soat-cache.json
+# Cache tracking cua doi-soat-kiemke (co du lieu ton kho) — ke ca ban theo tung
+# ke hoach: DS_PLAN=243605 ghi .doi-soat-cache-plan243605.json (1,1MB dong hang WMS)
+.doi-soat-cache*.json

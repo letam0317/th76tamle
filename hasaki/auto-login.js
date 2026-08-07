@@ -16,19 +16,23 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { tokenCon, luuToken, voiKhoa } from "./token-store.js";
+import { DEFER_EXIT, layBridgeTokenWshr } from "./session-rules.js";
 
 export const coSecret = () => !!(process.env.HASAKI_2FA_SECRET || "").trim();
 
 const LOGIN_LOCK = (DIR) => path.join(DIR, ".login-open.lock");
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function chayAutoLogin(DIR) {
+/** Mã thoát của lượt login: 0 = xong · 75 = HOÃN (cửa kiểm phiên chặn) · khác = trượt thật. */
+export function chayAutoLoginMa(DIR) {
   return new Promise((res) => {
     const c = spawn(process.execPath, [path.join(DIR, "login-hasaki.js"), "--auto"], { cwd: DIR, stdio: "inherit" });
-    c.on("exit", (code) => res(code === 0));
-    c.on("error", () => res(false));
+    c.on("exit", (code) => res(code == null ? -1 : code));
+    c.on("error", () => res(-1));
   });
 }
+/** Bọc boolean cho các chỗ gọi cũ (giữ nguyên hợp đồng: true = đăng nhập xong). */
+export async function chayAutoLogin(DIR) { return (await chayAutoLoginMa(DIR)) === 0; }
 
 // Đăng nhập ĐƠN LƯỢT: nếu ĐÃ có phiên login đang chạy (lock < 15') → CHỜ nó xong, KHÔNG mở thêm.
 async function dangNhapMotLan(DIR, log) {
@@ -40,12 +44,18 @@ async function dangNhapMotLan(DIR, log) {
     return true;   // lượt login kia lo phần đăng nhập; ta chỉ cần lấy token lại
   }
   log("  ⚠ Phiên hết hạn — tự đăng nhập lại (ĐƠN LƯỢT)...");
-  if (await chayAutoLogin(DIR)) return true;
+  const ma1 = await chayAutoLoginMa(DIR);
+  if (ma1 === 0) return true;
+  // 75 = cửa kiểm phiên CHẶN (có người đang làm / chưa đủ cửa im lặng). Đây KHÔNG phải lỗi và
+  // thử lại ngay cũng vẫn bị chặn → hoãn hẳn lượt này, để tick sau (hoặc khung khác) lo.
+  if (ma1 === DEFER_EXIT) { const e = new Error("Hoãn đăng nhập: cửa kiểm phiên chặn (xem log login)."); e.defer = true; throw e; }
   // Trượt lượt 1 (Turnstile chậm / IdP trả trang lạ 1 nhịp) → nghỉ 25s thử ĐÚNG 1 lượt nữa rồi thôi
   // (mỗi lượt login-hasaki chỉ nộp OTP 1 lần nên 2 lượt vẫn an toàn khoá tài khoản, không spam IdP).
   log("  ⚠ Lượt đăng nhập 1 trượt — nghỉ 25s, thử lượt 2 (lượt CUỐI)...");
   await nghi(25000);
-  return await chayAutoLogin(DIR);
+  const ma2 = await chayAutoLoginMa(DIR);
+  if (ma2 === DEFER_EXIT) { const e = new Error("Hoãn đăng nhập: cửa kiểm phiên chặn ở lượt 2."); e.defer = true; throw e; }
+  return ma2 === 0;
 }
 
 /**
@@ -60,9 +70,20 @@ export async function layTokenTuPhucHoi(getToken, DIR, log = () => {}, app = "wo
   return await voiKhoa(DIR, async () => {
     const lai = tokenCon(DIR, app);   // trong lúc chờ khoá, bộ khác có thể đã nạp token
     if (lai) { log("✓ Token vừa được lượt khác nạp (" + app + ")."); return lai; }
+
+    // 2b) KÊNH BRIDGE work/hr (extension v1.4.0) — mượn phiên đang sống của operator.
+    //     Vì sao bắt buộc: cửa kiểm phiên CẤM bot login khi có người đang làm (đúng), mà bộ 5S
+    //     trước đây không có kênh nào khác ngoài SSO ⇒ hễ operator online là 5S đứng luôn cả ngày
+    //     (sự cố 31/07: factory tươi nhờ bridge WMS, còn 5S đóng băng từ 29/07). Bridge không tạo
+    //     phiên mới, không đá ai, và tự trả null khi GAS chưa có khe wshr (fail closed).
+    //     Chỉ áp cho "work": khe wshr được trọng tài bằng API danh bạ — đúng cổng mà bộ 5S dùng.
+    if (app === "work") {
+      const bridge = await layBridgeTokenWshr(log).catch(() => null);
+      if (bridge) { luuToken(DIR, app, bridge, "bridge"); return bridge; }
+    }
     try {
       const t = await getToken();
-      luuToken(DIR, app, t);
+      luuToken(DIR, app, t, "bot");   // getToken = bot tự chụp từ Edge profile → phiên của BOT
       return t;
     } catch (e) {
       if (e && e.defer) throw e;  // session-rules hoãn re-login (ngoài khung an toàn) → KHÔNG auto-login (cũng đá phiên)
@@ -73,7 +94,7 @@ export async function layTokenTuPhucHoi(getToken, DIR, log = () => {}, app = "wo
       if (sauLogin) { log("✓ Token đã có sẵn sau đăng nhập (" + app + ")."); return sauLogin; }
       log("✓ Đăng nhập xong — lấy token lần nữa (" + app + ")...");
       const t2 = await getToken();
-      luuToken(DIR, app, t2);
+      luuToken(DIR, app, t2, "bot");
       return t2;
     }
   }, { log });

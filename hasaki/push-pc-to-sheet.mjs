@@ -309,7 +309,7 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   if (boQuaNeuDaTuoi(DIR, "kiemke", log)) process.exit(0);
   // Token sống (kho bất kể tuổi + get-me → bridge) — cải tiến 22/07/2026, không vứt token theo tuổi.
   token = await layTokenSongWms(DIR, log);
-  if (!token) { log("⚠ Mở edge-profile đăng nhập lại — SẼ đăng xuất WMS trên Edge bạn đang mở."); token = await getTokenLive(); luuToken(DIR, "wms", token); log("✓ Token mới."); }
+  if (!token) { log("⚠ Mở edge-profile đăng nhập lại — SẼ đăng xuất WMS trên Edge bạn đang mở."); token = await getTokenLive(); luuToken(DIR, "wms", token, "bot"); log("✓ Token mới."); }
 
   const apiAt = Date.now();
   log(DELTA

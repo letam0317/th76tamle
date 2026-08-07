@@ -34,7 +34,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { fetchThuLai, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
+import { fetchThuLai, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -102,22 +102,6 @@ function viTriTrong(s){
   return out;
 }
 
-/* ===== ĐỌC tab của mình qua GAS readTab ===== */
-async function docTab(tab){
-  const txt = await (await fetchThuLai(APPSCRIPT_URL + "?action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb&_=" + Date.now())).text();
-  if (/không được phục vụ/i.test(txt)) return null;
-  const m = txt.match(/^\s*(?:\/\*\*\/)?cb\(([\s\S]*)\)\s*;?\s*$/);
-  if (!m) return null;
-  const j = JSON.parse(m[1]);
-  return (j && j.status === "success") ? { header: j.header || [], rows: j.rows || [] } : null;
-}
-/** CHỐT PII: GAS cũ chưa có tab trong whitelist sẽ ghi nhầm sang SHEET PUBLIC → phải probe. */
-async function gasPhucVuTab(tab){
-  try {
-    const r = await fetchThuLai(APPSCRIPT_URL + "?action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb");
-    return !/không được phục vụ/i.test(await r.text());
-  } catch { return false; }
-}
 async function ghiTab(tab, header, rows){
   if (DRY){
     fs.mkdirSync(path.join(DIR, ".exports"), { recursive: true });
@@ -192,7 +176,7 @@ async function ghiTab(tab, header, rows){
   } catch (e) { log("  ⚠ Không đọc được tab bàn đóng đơn (" + e.message + ") — bỏ qua, vẫn dựng bảng từ tab gốc."); }
 
   /* --- 2) dự phòng: người báo cáo gần nhất trong NGAY_DU_PHONG ngày (planogram) --- */
-  const pt = await docTab(TAB_PT);
+  const pt = await docTabGas(TAB_PT);
   const duPhong = new Map();   // viTri -> { em, code, ten, ngay }
   const viTriPT = new Set();   // MỌI vị trí planogram phát yêu cầu trong 45 ngày (kể cả chưa ai làm)
   let mocMoiNhat = "";
