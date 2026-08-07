@@ -73,10 +73,10 @@ Commit + push xong mới được sang mục 3.
    email/pass/OTP (TOTP từ `.env`) → phiên sống lại, chuỗi trên tự chạy tiếp.
    ⇒ Trên PC mới, chỉ cần **bước đăng nhập đầu tiên thành công** là toàn hệ tự duy trì.
 
-### Lịch chạy CŨ trên laptop (giữ lại để đối chiếu — PC dùng lịch mới ở mục 3bis)
+### Lịch chạy CŨ trên laptop (giữ lại để đối chiếu — lịch ĐANG chạy xem `LICH-VA-DU-PHONG.md`)
 | Task | Lịch | Chạy gì |
 |---|---|---|
-| 5S Dong bo dashboard | 07:00 hằng ngày | `AUTO-EXPORT.bat` → 5S-TASKS **+ nối luồng stock-location (factory)** |
+| 5S Dong bo dashboard | 07:00 hằng ngày (đã dời **08:40** từ 22/07) | `AUTO-EXPORT.bat` → 5S-TASKS **+ nối luồng stock-location (factory)** |
 | 5S Cham cong | 07:20 hằng ngày | `LAY-CHAM-CONG.bat` → CHAM-CONG + NHAN-SU |
 | Day bao cao 5S | mỗi 15 phút | `DAY-BAO-CAO-5S.bat` → inbox WMS-5S-AUDIT → task workflow 591 |
 | 5S Canh yeu cau dang nhap | mỗi 2 phút | `KIEM-TRA-YEU-CAU-LOGIN.bat` → mở Edge đăng nhập khi cần |

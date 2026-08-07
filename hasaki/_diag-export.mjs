@@ -1,9 +1,11 @@
 // TẠM: chẩn đoán vì sao cửa sổ Apr-May của auto-export luôn timeout.
 // Lấy token → queue export Apr-May → in RAW job status mỗi 5s (~40s). Không ghi Sheet.
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 import "dotenv/config";
-const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PROFILE_DIR = process.env.EDGE_PROFILE_DIR || "C:/Users/lechitam/New folder/hasaki/.wms-session/edge-profile";
+import { EDGE_PATH, duongDanProfile } from "./token-store.js";
+const PROFILE_DIR = duongDanProfile(path.dirname(fileURLToPath(import.meta.url)));
 const WFID = process.env.WORKFLOW_ID || "591";
 const API = "https://wshr.hasaki.vn/api/hr/excel-io";
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);

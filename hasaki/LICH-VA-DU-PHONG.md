@@ -26,7 +26,7 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 | **5S Cham cong** | **07:20**/ngày | `pull-timesheet.js` → tab `NHAN-SU` | `cham-cong.log` |
 | **Day bao cao 5S** | mỗi **15'** | `push-5s-to-workflow.js` (chiều **GHI**: inbox 5S → task WF 591) | `day-bao-cao-5s.log` |
 | **5S Canh yeu cau dang nhap** | mỗi **2'** | `watch-login-request.js` | stdout task |
-| **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ) | `sync-guard.log` |
+| **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ — từ 31/07 gọi `AUTO-EXPORT.bat` nên vá được cả bước 5S) | `sync-guard.log` |
 
 Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và đụng
 khung chặn re-login `07:45–18:00` → cụm hoãn trong im lặng (sự cố 22/07).
@@ -40,6 +40,7 @@ khung chặn re-login `07:45–18:00` → cụm hoãn trong im lặng (sự cố
 | AI xét ảnh (`sync-vesinh-ai.mjs`) | ≥ **30'** | thoát ngay nếu không có request "Chờ duyệt" |
 | Kiểm kê (`push-pc-to-sheet.mjs`) | ping ≥ **10'** (khi mốc ≥30') | **ping 4 call size=1** → marker `count@updated_at` đổi mới kéo `PC_DELTA=1` |
 | Tồn mã vị trí + tồn bất thường | slot **12:15 / 17:00** (cửa 90') | cộng lượt 8:40 = **3 lần/ngày** |
+| **5S (`auto-export-sync.js`)** | ≥ **45'** (thêm 31/07) | đi cổng **wshr**, chạy cả khi không có token WMS; `KHONG_LOGIN=1` → hết phiên thì exit 75, thử lại sau 10' |
 
 Ngoài khung: lượt 8:40 lo buổi sáng, watchdog 18:05 là lượt vét cuối ngày.
 
@@ -617,6 +618,57 @@ thứ giữ được là *tươi trong giờ làm* (P0) cộng *lịch sử khô
    **chuyển lease sang PC và tắt 5 task trên laptop**.
 6. **Đổi lịch: bỏ 8h40, đặt NỀN 05:30 + VÉT 18:30.**
 7. Nền dài hạn cho F6: nâng extension lên thu động, snapshot mỗi lượt, bộ phân loại lỗi.
+
+---
+
+## PHẦN C2 — ĐÃ SỬA 31/07/2026: bộ 5S mượn được bridge work/hr
+
+**Triệu chứng:** sáng 31/07 dashboard factory tươi (08:58) nhưng dashboard 5S vẫn là số 29/07.
+
+**Gốc:** hai dashboard đi hai kênh token khác nhau, và chỉ một kênh có đường lùi.
+- Factory (`sync-stocklocation` · `sync-tonbatthuong` · `push-pc-to-sheet` · `sync-vesinh-all`)
+  gọi `layTokenSongWms` = kho → **bridge WMS** ⇒ mượn thẳng phiên operator, không cần login.
+- 5S (`auto-export-sync` · `push-5s-to-workflow`) gọi `layTokenTuPhucHoi(...,"work")` = kho →
+  chụp Edge → **SSO**. Không có nhánh bridge nào, dù khe wshr đã chạy từ 30/07.
+
+⇒ Nghịch lý: cửa kiểm phiên (đúng đắn) cấm bot login khi có người đang làm, nên **operator càng
+online thì 5S càng không bao giờ cập nhật được**. 08:51 lượt SSO trượt (IdP: *Incorrect sign-in
+details*), 08:55 lượt 2 bị chặn vì bridge WMS đã tươi → 5S đóng băng từ 29/07 09:51.
+
+**Sửa:** `auto-login.js` — trong `layTokenTuPhucHoi`, sau khi kho rỗng và **trước** khi mở Edge:
+app `"work"` thử `layBridgeTokenWshr()`, lấy được thì lưu kho với nhãn `"bridge"` và dùng luôn.
+Fail-closed sẵn có: GAS chưa có khe wshr → trả `null` → đường cũ nguyên vẹn. Chỉ áp cho `"work"`
+(khe wshr được trọng tài bằng chính API danh bạ mà bộ 5S dùng); `pull-timesheet` (`"hr"`) giữ nguyên.
+Đã chạy thật 09:06: không mở browser, ghi 339 task vào `5S-TASKS` + đẩy 4 file Pages.
+
+### C2b — Kéo bộ 5S vào ĐÚNG cơ chế của factory (cùng ngày)
+
+Vá bridge ở trên mới chỉ trả lại *khả năng lấy token*. Bộ 5S vẫn thiếu 3 thứ mà 4 bước factory
+đã có từ 25/07, nên hỏng là không ai biết và không ai vá:
+
+| Cơ chế | Factory | 5S trước 31/07 | Nay |
+|---|---|---|---|
+| Mốc bước `.sync-ok-*` | ✅ 4 bước | ❌ không có mốc | ✅ `.sync-ok-5s`, ghi **chỉ khi** GAS trả `success` |
+| Guard vá mỗi giờ | ✅ | ❌ ngoài tầm với (guard chỉ gọi `SYNC-STOCK.bat`) | ✅ guard gọi `AUTO-EXPORT.bat`; `SYNC_SKIP_FRESH=1` cho bước đã tươi thoát sớm |
+| Nhịp trong ngày | ✅ 15'/30'/slot | ❌ **1 lần/ngày** ở cụm 8h40 | ✅ poller ≥45' |
+| Token: phiên sống trước, SSO sau | ✅ `layTokenSongWms` | ❌ nhảy thẳng vào SSO | ✅ `layTokenSongWork` (bản song sinh cho cổng wshr) |
+
+Chi tiết đáng nhớ:
+- `layTokenSongWork(DIR, log)` — kho `work` **bất kể tuổi** → trọng tài là API danh bạ wshr →
+  bridge work/hr. Không bao giờ tự login (giống hệt hợp đồng của `layTokenSongWms`).
+- `KHONG_LOGIN=1` (poller đặt): hết phiên thì `auto-export-sync` **exit 75**, không mở SSO —
+  giữ nguyên tắc "nhịp trong ngày không bao giờ tạo phiên mới".
+- Poller: thiếu token **WMS** vẫn chạy bước 5S (cổng khác nhau) — đúng ca operator chỉ mở
+  work/hr. Các bước factory trong lượt đó tự đứng ngoài.
+- Chống dội: mốc bước không nhích khi hoãn, nên có thêm `s5At` (thử lại ≥10') để không spawn
+  lại mỗi tick 2'. Cùng cách `aiAt`/`pcPingAt` đang dùng.
+- `cumDangChay` (cả guard lẫn poller) nay nhận diện thêm `auto-export-sync.js`.
+- **Đã kiểm chứng 31/07 09:28:** chạy `KHONG_LOGIN=1 node auto-export-sync.js` → lấy token bridge,
+  không mở browser, ghi 340 dòng, chạm `.sync-ok-5s`; `sync-guard.js` báo *"đủ mốc 5 bước hôm nay"*.
+
+**Còn lại:** lượt SSO 08:51 bị IdP từ chối kèm *"You have 6 attempts left before your account is
+locked"*. Đồng hồ máy lệch −0,6s nên **không phải** TOTP trôi giờ. Chưa truy tiếp — thử theo **D6**
+(`--dry-otp` ngoài giờ làm) trước khi để bot nộp thêm lượt nào.
 
 ---
 

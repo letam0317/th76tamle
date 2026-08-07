@@ -10,17 +10,22 @@
  */
 import puppeteer from "puppeteer";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const DIR = path.dirname(fileURLToPath(import.meta.url));
 const START_URL = "https://work.hasaki.vn/tasks-workflow?wfid=591";
-const OUT_FILE = "C:/Users/lechitam/AppData/Local/Temp/claude/C--Users-lechitam-New-folder/f71766f5-b21b-43cf-ba59-67680e52fd7a/scratchpad/captured-v2.json";
-const PROFILE_DIR = "C:/Users/lechitam/AppData/Local/Temp/claude/C--Users-lechitam-New-folder/f71766f5-b21b-43cf-ba59-67680e52fd7a/scratchpad/edge-profile";
+// Ghi vào .exports của chính dự án — 2 đường dẫn cũ trỏ vào thư mục tạm của một phiên đã chết,
+// máy khác (hoặc máy này sau khi dọn Temp) chạy là hỏng ngay ở dòng ghi file.
+const OUT_FILE = path.join(DIR, ".exports", "captured-v2.json");
+const PROFILE_DIR = path.join(DIR, ".exports", "capture-edge-profile");
 const TARGET = "create-task-workflow";
 const MAX_WAIT_MS = 15 * 60 * 1000;
 
 const events = [];
 let gotTarget = false;
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
-const save = () => { try { fs.writeFileSync(OUT_FILE, JSON.stringify({ capturedAt: new Date().toISOString(), events }, null, 2)); } catch (e) { log("Loi ghi:", e.message); } };
+const save = () => { try { fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true }); fs.writeFileSync(OUT_FILE, JSON.stringify({ capturedAt: new Date().toISOString(), events }, null, 2)); } catch (e) { log("Loi ghi:", e.message); } };
 
 // Mã chạy BÊN TRONG trang để móc fetch + XHR và đọc body (kể cả FormData)
 function pageHook() {

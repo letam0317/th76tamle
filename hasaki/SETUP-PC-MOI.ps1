@@ -7,8 +7,18 @@
 #  Script tự lấy đường dẫn thư mục hiện tại — đặt dự án ở đâu cũng chạy.
 #  Việc script làm:
 #    1. Kiểm tra Node / Edge / .env / node_modules
-#    2. Đăng ký 4 Scheduled Task (giờ giống hệt máy cũ)
+#    2. Đăng ký 5 Scheduled Task (ĐÚNG lịch đang chạy thật — xem bảng dưới)
 #    3. Đăng ký giao thức hasaki5s:// (nút đăng nhập trong email)
+#
+#  LỊCH CHUẨN (soát lại 30/07/2026 — bản cũ ghi 7h00 và THIẾU watchdog):
+#    5S Dong bo dashboard      08:40 hằng ngày   auto-export + cụm tồn kho (dời 7h00->8h40 từ 22/07)
+#    5S Cham cong              07:20 hằng ngày   danh bạ + chấm công hôm nay
+#    Day bao cao 5S            mỗi 15'           inbox 5S -> task workflow 591
+#    5S Canh yeu cau dang nhap mỗi 2'            cờ dashboard + sync-guard + sync-poller
+#    Factory watchdog ton kho  logon +5' & mỗi giờ 07:05-18:05   vá bước tồn kho còn cũ
+#  Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và
+#  đụng khung chặn re-login 07:45-18:00 (session-rules.js) -> cụm hoãn trong im lặng.
+#  Watchdog là bộ phận BẮT BUỘC: thiếu nó, một bước chết giữa cụm sẽ trơ dữ liệu cũ cả ngày.
 #  Việc PHẢI làm TAY sau đó (xem CHUYEN-MAY-PC.md):
 #    - Chép .env + dữ liệu riêng, chạy LOGIN-HASAKI.bat lần đầu,
 #      tắt lịch trên máy cũ, chỉnh nguồn điện không sleep.
@@ -44,7 +54,7 @@ if ($loi.Count) {
   $loi | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
 }
 
-# ---------- 2. DANG KY 4 SCHEDULED TASK ----------
+# ---------- 2. DANG KY 5 SCHEDULED TASK ----------
 Write-Host "`n== Dang ky Scheduled Task (ghi de neu da co)..." -ForegroundColor Cyan
 $wscript = "$env:SystemRoot\System32\wscript.exe"
 $hom = (Get-Date).Date
@@ -57,18 +67,31 @@ function Dang-Ky($ten, $vbs, $trigger) {
   Write-Host "  [OK] $ten"
 }
 
-# 7h00 hang ngay: auto-export (5S-TASKS) + noi luong ton vi tri (stocklocation)
-Dang-Ky "5S Dong bo dashboard" "auto-export-hidden.vbs" (New-ScheduledTaskTrigger -Daily -At ($hom.AddHours(7)))
+# 8h40 hang ngay: auto-export (5S-TASKS) + noi cum ton kho (SYNC-STOCK.bat: stocklocation,
+# kiem ke, ton bat thuong, ve sinh, AI anh). KHONG dat 7h00: may bat muon -> chay bu giua gio lam.
+Dang-Ky "5S Dong bo dashboard" "auto-export-hidden.vbs" (New-ScheduledTaskTrigger -Daily -At ($hom.AddHours(8).AddMinutes(40)))
 # 7h20 hang ngay: cham cong + danh ba nhan su
 Dang-Ky "5S Cham cong" "cham-cong-hidden.vbs" (New-ScheduledTaskTrigger -Daily -At ($hom.AddHours(7).AddMinutes(20)))
 # Moi 15 phut: day bao cao 5S tu inbox WMS-5S-AUDIT -> task workflow
 $t15 = New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7).AddMinutes(5)) `
        -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration ([TimeSpan]::MaxValue)
 Dang-Ky "Day bao cao 5S" "day-bao-cao-hidden.vbs" $t15
-# Moi 2 phut: canh yeu cau dang nhap (mo Edge khi can OTP)
+# Moi 2 phut: TRUC THAN KINH — co dashboard (cap nhat/cham cong/tai lai ton kho/dang nhap),
+# so nhat ky phien WMS, goi sync-guard (khong --force) va sync-poller (nhip 15-30' trong ngay).
 $t2 = New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7)) `
       -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration ([TimeSpan]::MaxValue)
 Dang-Ky "5S Canh yeu cau dang nhap" "watch-login-hidden.vbs" $t2
+# WATCHDOG ton kho: khi dang nhap Windows (+5') VA moi gio tu 07:05 keo dai 11h (-> 18:05).
+# Guard tu doc moc tung buoc (.sync-ok-*) va CHI chay lai buoc con cu (SYNC_SKIP_FRESH=1).
+$tgLogon = New-ScheduledTaskTrigger -AtLogOn
+$tgLogon.Delay = "PT5M"
+# LUU Y PowerShell 5.1: -Daily KHONG nhan -RepetitionInterval (khac parameter set -> loi binding).
+# Cach dung: tao trigger Daily, roi GAN Repetition lay tu mot trigger -Once.
+$tgGio = New-ScheduledTaskTrigger -Daily -At ($hom.AddHours(7).AddMinutes(5))
+$tgGio.Repetition = (New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7).AddMinutes(5)) `
+                     -RepetitionInterval (New-TimeSpan -Hours 1) `
+                     -RepetitionDuration (New-TimeSpan -Hours 11)).Repetition
+Dang-Ky "Factory watchdog ton kho" "sync-guard-hidden.vbs" @($tgLogon, $tgGio)
 
 # ---------- 3. GIAO THUC hasaki5s:// (HKCU, khong can Admin) ----------
 Write-Host "`n== Dang ky giao thuc hasaki5s:// ..." -ForegroundColor Cyan
@@ -84,6 +107,7 @@ Write-Host "  [OK] hasaki5s:// -> $DIR\LOGIN-HASAKI.bat"
 Write-Host "`n== XONG PHAN TU DONG. Tiep theo lam tay:" -ForegroundColor Green
 Write-Host "  1. Chay LOGIN-HASAKI.bat 1 lan (tao phien SSO + kho token tren may nay)"
 Write-Host "  2. Chay thu: AUTO-EXPORT.bat roi kiem tra auto-export.log + stocklocation.log + Google Sheet"
-Write-Host "  3. TAT lich tren MAY CU:  '5S Dong bo dashboard','5S Cham cong','Day bao cao 5S','5S Canh yeu cau dang nhap' | ForEach-Object { Disable-ScheduledTask -TaskName `$_ }"
+Write-Host "  3. TAT lich tren MAY CU (CA 5 task — 2 may cung chay = 2 phien SSO da nhau + 2 nguon ghi de Sheet):"
+Write-Host "     '5S Dong bo dashboard','5S Cham cong','Day bao cao 5S','5S Canh yeu cau dang nhap','Factory watchdog ton kho' | ForEach-Object { Disable-ScheduledTask -TaskName `$_ }"
 Write-Host "  4. Chinh nguon dien: khong Sleep (powercfg /change standby-timeout-ac 0) + tu dang nhap user sau khi khoi dong (netplwiz)"
 Write-Host "  5. Chay BAO-MAT-MAY.ps1 (SAU khi da chep du .env + du lieu rieng): siet ACL, ma hoa EFS, tu khoa man hinh"

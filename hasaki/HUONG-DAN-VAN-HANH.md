@@ -1,5 +1,11 @@
 # 🚀 HƯỚNG DẪN VẬN HÀNH THỰC TẾ — Checklist & Troubleshooting
 
+> **LỊCH CHẠY: xem `LICH-VA-DU-PHONG.md` (nguồn duy nhất, soát 30/07/2026).**
+> Mọi mốc giờ rải rác trong tài liệu này là **lịch cũ 07:00 giữ lại để đối chiếu** — thực tế
+> cụm chính chạy **08:40**, có thêm **watchdog tồn kho** (mỗi giờ 07:05–18:05) và
+> **nhịp phân tầng `sync-poller.js`** (vệ sinh 15' / AI 30' / kiểm kê ping 10' / tồn kho 3 lần/ngày)
+> mà bản tài liệu này chưa có. Khi hai chỗ khác nhau, tin `LICH-VA-DU-PHONG.md`.
+
 ---
 
 ## ✅ SETUP LẦN ĐẦU
