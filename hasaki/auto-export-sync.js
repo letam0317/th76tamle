@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { layTokenSongWork, ghiMocBuoc, boQuaNeuDaTuoi, DEFER_EXIT } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXPORT_DIR = path.join(DIR, ".exports");
@@ -306,15 +307,26 @@ async function taiVaDoc(filePath) {
 }
 
 const RUN_LOCK = path.join(DIR, ".export-running.lock");
+/* KHONG_LOGIN=1 (poller đặt): chỉ được dùng phiên ĐANG SỐNG, tuyệt đối không mở SSO.
+   Nhịp trong ngày mà tự đăng nhập là đá phiên operator — đúng thứ luật phiên cấm. */
+const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
 (async () => {
   // Chống chạy chồng (7h sáng + nút Cập nhật ngay) → xung đột profile Edge.
   if (fs.existsSync(RUN_LOCK) && Date.now() - fs.statSync(RUN_LOCK).mtimeMs < 10 * 60 * 1000) {
     log("Đang có phiên auto-export khác chạy, bỏ qua."); process.exit(0);
   }
+  // Lượt guard chạy VÁ: bước 5S đã tươi hôm nay thì nhường lượt cho bước còn cũ (như 4 bước factory).
+  if (boQuaNeuDaTuoi(DIR, "5s", log)) process.exit(0);
   fs.mkdirSync(EXPORT_DIR, { recursive: true });
   fs.writeFileSync(RUN_LOCK, String(Date.now()));
   process.on("exit", () => { try { fs.rmSync(RUN_LOCK, { force: true }); } catch {} });
-  const token = await layTokenTuPhucHoi(getToken, DIR, log, "work").catch(e => { log("✗ " + e.message); process.exit(2); });
+  /* Token theo ĐÚNG bậc thang của factory: phiên sống (kho/bridge) trước — chỉ khi không còn
+     phiên nào mới tính tới SSO, và nhịp poller thì không được tính tới nó. */
+  let token = await layTokenSongWork(DIR, log);
+  if (!token) {
+    if (KHONG_LOGIN) { log("… chưa có phiên work/hr sống — HOÃN lượt này (nhịp trong ngày không được đăng nhập)."); process.exit(DEFER_EXIT); }
+    token = await layTokenTuPhucHoi(getToken, DIR, log, "work").catch(e => { log("✗ " + e.message); process.exit(2); });
+  }
   log("✓ Đã lấy token.");
   const { dir: nvDir, ma: nvMa } = await layDanhBaNV(token);   // danh bạ NV: mã → tên, và staff_id → mã chuẩn
 
@@ -420,6 +432,8 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
   const res = await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header: outHeader, rows, apiAt: apiAtMs }) });
   let j = {}; try { j = JSON.parse(await res.text()); } catch {}
   log(j.status === "success" ? "✓ Đã ghi " + j.written + " dòng lúc " + j.at : "✗ Ghi tab thất bại: " + JSON.stringify(j).slice(0, 200));
+  // Mốc bước: chỉ chạm khi 5S-TASKS THẬT SỰ được ghi — guard/poller nhìn mốc này để biết còn cũ hay không.
+  if (j.status === "success") ghiMocBuoc(DIR, "5s");
 
   // ==== DATA-SUMMARY theo THÁNG (kiến trúc 3 năm không nghẽn) ====
   //      Chia rows theo tháng "Ngày vi phạm" -> summary/YYYY-MM.json + summary/index.json.

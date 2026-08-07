@@ -31,7 +31,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { duocPhepReLogin, layTokenSongWms, DEFER_EXIT, docMocBuoc, CAC_BUOC_SYNC } from "./session-rules.js";
+import { duocPhepReLogin, layTokenSongWms, layTokenSongWork, DEFER_EXIT, docMocBuoc, CAC_BUOC_SYNC } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SHEET_ID = process.env.STOCKLOC_SHEET_ID || "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
@@ -59,7 +59,7 @@ function cumDangChay() {
       { windowsHide: true, timeout: 30000 },
       (err, out) => {
         if (err || !out) return res(false);
-        const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-ai\.mjs|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
+        const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-ai\.mjs|auto-export-sync\.js|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
         res(out.split(/\r?\n/).some((l) => dau.test(l)));
       });
   });
@@ -114,6 +114,9 @@ async function main() {
   /* ---- 3) Nguồn token theo session-rules — quyết định chạy hay hoãn ---- */
   let nguon = null;
   if (await layTokenSongWms(DIR, log)) nguon = "token sống (kho/bridge — get-me OK, không tạo phiên mới)";
+  // Không có phiên WMS nhưng có phiên work/hr: bước 5S vẫn chạy được (cổng wshr riêng), 4 bước
+  // factory sẽ tự hoãn (exit 75) — vẫn hơn là đứng im để 5S cũ nguyên ngày.
+  if (!nguon && await layTokenSongWork(DIR, log)) nguon = "token work/hr sống (bridge) — đủ cho bước 5S";
   if (!nguon) {
     if (duocPhepReLogin(now)) nguon = "khung giờ an toàn (cho phép re-login SSO)";
     else {
@@ -121,14 +124,17 @@ async function main() {
       return DEFER_EXIT;
     }
   }
-  log("→ Nguồn: " + nguon + ". Chạy SYNC-STOCK.bat...");
+  log("→ Nguồn: " + nguon + ". Chạy AUTO-EXPORT.bat (5S + cụm tồn kho)...");
 
   /* ---- 4) Chạy cụm rồi kết luận bằng Metadata + mốc từng bước ---- */
   try { fs.writeFileSync(LAN_VA, new Date().toISOString()); } catch { /* mốc backoff best-effort */ }
   const ma = await new Promise((res) => {
     // Lượt VÁ (không --force): SYNC_SKIP_FRESH=1 — bước đã tươi hôm nay tự thoát sớm trong script.
     const env = { ...process.env, SYNC_SKIP_FRESH: FORCE ? "" : "1" };
-    const c = spawn("cmd.exe", ["/c", path.join(DIR, "SYNC-STOCK.bat")], { cwd: DIR, stdio: "ignore", windowsHide: true, env });
+    /* 31/07/2026: gọi AUTO-EXPORT.bat thay cho SYNC-STOCK.bat — bat này chạy bước 5S rồi mới
+       call SYNC-STOCK.bat, nên guard mới với tới được bước "5s". Không sợ chạy thừa: lượt VÁ đặt
+       SYNC_SKIP_FRESH=1 nên bước nào đã tươi hôm nay cũng tự thoát ngay ở dòng đầu. */
+    const c = spawn("cmd.exe", ["/c", path.join(DIR, "AUTO-EXPORT.bat")], { cwd: DIR, stdio: "ignore", windowsHide: true, env });
     c.on("exit", (code) => res(code == null ? -1 : code));
     c.on("error", () => res(-1));
   });
