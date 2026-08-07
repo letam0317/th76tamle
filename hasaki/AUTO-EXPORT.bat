@@ -5,6 +5,8 @@ REM  KHONG can bam nut, KHONG can file trong Downloads.
 REM  Task Scheduler goi (qua auto-export-hidden.vbs). Log: auto-export.log
 REM ============================================================
 cd /d "%~dp0"
+REM Xoay log truoc khi ghi (log ghi bang >> nen khong tu nho lai - xem XOAY-LOG.bat)
+call "%~dp0XOAY-LOG.bat" auto-export.log
 echo [%date% %time%] Bat dau auto-export... >> auto-export.log
 node auto-export-sync.js >> auto-export.log 2>&1
 echo [%date% %time%] Ket thuc. >> auto-export.log

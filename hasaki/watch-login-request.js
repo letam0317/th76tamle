@@ -21,6 +21,20 @@ const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour1
 
 if (!KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
+/* ===== IM LẶNG KHI KHÔNG CÓ VIỆC (01/08/2026) ==================================================
+ * Bộ này chạy MỖI 2 PHÚT nên 4 dòng "Không có yêu cầu…" mỗi lượt = ~2.900 dòng/ngày thuần rác:
+ * watch-login.log đã phình 1,2MB / 27.500 dòng trong ~13 ngày và dòng THẬT (có yêu cầu, lỗi) bị
+ * lấp giữa đống đó — đúng lúc cần tra thì không thấy. Nay: việc thật vẫn log đầy đủ, lượt rỗng chỉ
+ * ghi 1 dòng NHỊP TIM mỗi ~giờ (vẫn kiểm được bộ canh còn sống). Giảm ~97% dòng log. */
+const imLang = [];
+let coViec = false;
+const NHIP = path.join(DIR, ".watch-nhiptim");
+function nenGhiNhipTim(){
+  try { if (Date.now() - fs.statSync(NHIP).mtimeMs < 55 * 60 * 1000) return false; } catch { /* chưa có mốc */ }
+  try { fs.writeFileSync(NHIP, String(Date.now())); } catch { /* best-effort */ }
+  return true;
+}
+
 // SECRET đi trong POST body (không qua query → không lọt access-log)
 const apiPost = async (act, extra) => { const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: act, key: KEY, ...(extra || {}) }) }).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
 const hoi = (act) => apiPost(act);
@@ -31,20 +45,20 @@ const chayGuard = (force = true) => new Promise((res) => { const c = spawn("cmd.
 // 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
 const s = await hoi("syncStatus");
 if (s && s.requested) {
-  log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export (chờ xong)...");
+  coViec = true; log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export (chờ xong)...");
   await apiPost("clearSync");
   await chayCho("auto-export-sync.js");   // chờ hoàn tất; auto-export có khoá chống chạy chồng
   log("Auto-export xong.");
-} else log("Không có yêu cầu cập nhật.");
+} else imLang.push("cập nhật");
 
 // 1b) Yêu cầu CẬP NHẬT CHẤM CÔNG (nút "Cập nhật chấm công" + PIN)
 const tsq = await hoi("timesheetStatus");
 if (tsq && tsq.requested) {
-  log("⚡ Có yêu cầu cập nhật chấm công! Chạy pull-timesheet (chờ xong)...");
+  coViec = true; log("⚡ Có yêu cầu cập nhật chấm công! Chạy pull-timesheet (chờ xong)...");
   await apiPost("clearTimesheet");
   await chayCho("pull-timesheet.js");
   log("Pull-timesheet xong.");
-} else log("Không có yêu cầu chấm công.");
+} else imLang.push("chấm công");
 
 // 1c) Yêu cầu TẢI LẠI TỒN KHO FACTORY (nút "Tải lại dữ liệu" dashboard đặt cờ qua GAS).
 // CHỈ hỏi khi backend đã có action này (caps.stockFlag) — hỏi action lạ trên GAS bản cũ
@@ -54,12 +68,12 @@ let daChayGuard = false;
 if (caps && caps.stockFlag) {
   const sk = await hoi("stockSyncStatus");
   if (sk && sk.requested) {
-    log("⚡ Có yêu cầu tải lại tồn kho factory! Chạy sync-guard --force (chờ xong, log: sync-guard.log)...");
+    coViec = true; log("⚡ Có yêu cầu tải lại tồn kho factory! Chạy sync-guard --force (chờ xong, log: sync-guard.log)...");
     await apiPost("clearStockSync");
     await chayGuard();   // guard tự lo luật phiên (bridge/khung an toàn) — không đá ai trong giờ làm
     daChayGuard = true;
     log("Sync-guard xong.");
-  } else log("Không có yêu cầu tồn kho.");
+  } else imLang.push("tồn kho");
 }
 
 // 1d) CHỦ ĐỘNG GIỮ DỮ LIỆU TƯƠI (23/07/2026) — thay vì chỉ trông vào tick guard mỗi GIỜ:
@@ -95,7 +109,26 @@ try {
       let st = {}; try { st = JSON.parse(fs.readFileSync(LSTATE, "utf8")); } catch { /* chưa có sổ */ }
       const ghi = (dong) => fs.appendFileSync(LEDGER, new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false }) + "  " + dong + "\n");
       if (st.jti !== jti) ghi("PHIÊN MỚI trong kho: jti=" + jti + (song ? " (đang sống)" : " (đã chết ngay khi ghi nhận)"));
-      else if (st.song === true && !song) ghi("PHIÊN jti=" + jti + " VỪA CHẾT (get-me " + me.status + ") — có người/máy khác vừa đăng nhập tài khoản này (WMS 1 phiên/tài khoản) hoặc phiên hết hạn.");
+      else if (st.song === true && !song) {
+        /* VÁ 31/07/2026 — sổ cũ khẳng định luôn "có người/máy khác vừa đăng nhập WMS", và đó là
+         * kết luận SAI trong ca 11:14 hôm nay: cổng work/hr chết CÙNG LÚC. Hai ca hoàn toàn khác:
+         *   • chỉ WMS chết → đúng luật "WMS 1 phiên/tài khoản": ai đó vừa đăng nhập WMS.
+         *   • chết CẢ HAI → phiên IdP bị huỷ: đăng nhập mới ở BẤT KỲ app/thiết bị nào, hoặc IdP
+         *     thu hồi (khoá/throttle sau các lượt sai). Bot đá phiên WMS KHÔNG tạo ra cảnh này.
+         * Chỉ hỏi wshr ĐÚNG LÚC phát hiện chết → tick thường vẫn chỉ tốn 1 call như cũ. */
+        const w = docTokenCu(DIR, "work");
+        let cong = "không có token work để đối chứng";
+        if (w && w.token) {
+          const r = await fetch("https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=1", { headers: { authorization: w.token } }).catch(() => null);
+          cong = !r ? "không hỏi được wshr (mất mạng?) — chưa kết luận"
+            : r.ok ? "cổng work/hr CÒN SỐNG ⇒ chỉ phiên WMS bị đá: ai đó vừa ĐĂNG NHẬP WMS"
+              : "cổng work/hr CŨNG CHẾT (" + r.status + ") ⇒ phiên IdP bị huỷ (login mới ở app/thiết bị bất kỳ, hoặc IdP thu hồi) — KHÔNG phải kiểu đá phiên WMS";
+        }
+        const phut = st.luc ? Math.round((Date.now() - st.luc) / 60000) : null;
+        ghi("PHIÊN jti=" + jti + " VỪA CHẾT (get-me " + me.status + ")"
+          + (phut != null ? " sau " + Math.floor(phut / 60) + "h" + String(phut % 60).padStart(2, "0") : "")
+          + " — " + cong);
+      }
       else if (st.song === false && song) ghi("PHIÊN jti=" + jti + " sống lại (hiếm — kiểm tra đồng hồ/proxy).");
       if (st.jti !== jti || st.song !== song) fs.writeFileSync(LSTATE, JSON.stringify({ jti, song, luc: Date.now() }));
     }
@@ -111,9 +144,10 @@ if (fs.existsSync(LOCK)) {
 if (!boQuaLogin) {
   const d = await hoi("loginStatus");
   if (d && d.requested) {
-    log("⚡ Có yêu cầu đăng nhập! Mở màn hình login...");
+    coViec = true; log("⚡ Có yêu cầu đăng nhập! Mở màn hình login...");
     await apiPost("clearLogin");
     chay("login-hasaki.js");   // login-hasaki.js tự quản lock
-  } else log("Không có yêu cầu đăng nhập.");
+  } else imLang.push("đăng nhập");
 }
+if (!coViec && imLang.length && nenGhiNhipTim()) log("· nhịp tim: không có yêu cầu nào (" + imLang.join(" · ") + ") — lượt rỗng không ghi log nữa.");
 process.exit(0);

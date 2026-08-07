@@ -5,6 +5,8 @@ REM  KHONG tao task, KHONG dung inbox -> khong gay trung lap.
 REM  Bam dup de chay tay khi can cap nhat dashboard.
 REM ============================================================
 cd /d "%~dp0"
+REM Xoay log truoc khi ghi (log ghi bang >> nen khong tu nho lai - xem XOAY-LOG.bat)
+call "%~dp0XOAY-LOG.bat" dong-bo-task.log
 echo [%date% %time%] Bat dau dong bo task (tu file Export trong Downloads)... >> dong-bo-task.log
 node sync-board-to-sheet.js >> dong-bo-task.log 2>&1
 echo [%date% %time%] Ket thuc. >> dong-bo-task.log
