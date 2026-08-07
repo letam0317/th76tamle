@@ -43,6 +43,11 @@ node sync-phancong.mjs >> vesinh.log 2>&1
 echo [%date% %time%] Ket thuc phan cong. >> vesinh.log
 echo. >> vesinh.log
 
+echo [%date% %time%] Dong bo VE SINH KHO NGUYEN LIEU (F0-KHO - so do mat bang factory)... >> vesinh.log
+node sync-vesinh-factory.mjs >> vesinh.log 2>&1
+echo [%date% %time%] Ket thuc ve sinh kho. >> vesinh.log
+echo. >> vesinh.log
+
 echo [%date% %time%] AI xet duyet anh ve sinh (Claude cham request Cho duyet - tu bo qua neu thieu ANTHROPIC_API_KEY)... >> vesinh.log
 node sync-vesinh-ai.mjs >> vesinh.log 2>&1
 echo [%date% %time%] Ket thuc AI. >> vesinh.log

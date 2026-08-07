@@ -59,7 +59,7 @@ function cumDangChay() {
       { windowsHide: true, timeout: 30000 },
       (err, out) => {
         if (err || !out) return res(false);
-        const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-ai\.mjs|auto-export-sync\.js|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
+        const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-factory\.mjs|sync-vesinh-ai\.mjs|auto-export-sync\.js|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
         res(out.split(/\r?\n/).some((l) => dau.test(l)));
       });
   });
