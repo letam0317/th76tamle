@@ -13,15 +13,19 @@
  *   2) Khác SKU, cùng vị trí  → nghi NHẦM MÃ khi đếm/dán tem. Phải ra tận vị trí đối chiếu.
  *   3) Còn lại sau 2 tầng trên → THIẾU/THỪA THẬT, mới là thứ phải truy nguyên nhân.
  *
- *  CHỈ tính dòng đã đếm thật (status_id = 4) thuộc phiếu đã đếm xong. Phiếu PENDING/PROCESSING
- *  có qty_diff = -qty_by_sys nhưng đó là "chưa đếm", KHÔNG phải thiếu — gộp vào sẽ ra thiếu ảo.
+ *  CHỈ tính dòng đã ghi nhận (có qty_by_user / qty_diff / date_added) thuộc phiếu đã đếm xong.
+ *  Phiếu PENDING/PROCESSING bị loại từ tầng phiếu — gộp vào sẽ ra thiếu ảo. Lưu ý status_id dòng
+ *  KHÔNG phải dấu "đã đếm" với plan FULL_LOCATION_FACTORY (dòng lệch mang status_id = 2).
  *
  *  Chạy:  node doi-soat-kiemke.mjs
  *  Tham số qua .env / dòng lệnh:
  *    DS_WH=1339                 kho (mặc định WH - MATERIAL - GARMENT)
+ *    DS_PLAN=243605             đối soát 1 KẾ HOẠCH kiểm kê cụ thể (Request code) — bỏ khoảng plan date
  *    DS_FROM_MS / DS_TO_MS      khoảng PLAN DATE (epoch ms) — mặc định 20/07→27/07/2026
  *    DS_WRITE=0                 chỉ phân tích, không ghi Google Sheet
- *    DS_SHEET=<id>              sheet đích (mặc định sheet factory)
+ *    DS_SHEET=<id>              sheet đích (mặc định sheet factory) — GAS phải MỞ ĐƯỢC sheet đó
+ *    DS_CSV=<path>              xuất thêm CSV (tạo file Google Sheet MỚI: import/convert CSV này —
+ *                               GAS không mở được file ngoài tài khoản của nó)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -35,7 +39,8 @@ const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const SHEET_ID = process.env.DS_SHEET || "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 const GW = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklists";
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
-const CACHE_FILE = path.join(DIR, ".doi-soat-cache.json");
+const PLAN_ID = String(process.env.DS_PLAN || "").trim();
+const CACHE_FILE = path.join(DIR, PLAN_ID ? ".doi-soat-cache-plan" + PLAN_ID + ".json" : ".doi-soat-cache.json");
 
 const WH = process.env.DS_WH || "1339";
 const FROM_MS = process.env.DS_FROM_MS || "1784480400000";   // 00:00 20/07/2026 (giờ VN)
@@ -76,9 +81,11 @@ async function layJson(url) {
 /* ---------------- 1) Danh sách phiếu theo VỊ TRÍ trong khoảng plan date ---------------- */
 async function keoPhieu() {
   const out = [];
+  const dieuKien = PLAN_ID
+    ? "plan_id=" + PLAN_ID + "&warehouse_ids=" + WH
+    : "from_plan_date=" + FROM_MS + "&to_plan_date=" + TO_MS + "&warehouse_ids=" + WH;
   for (let page = 1; page <= 50; page++) {
-    const j = await layJson(GW + "/type-location?from_plan_date=" + FROM_MS + "&to_plan_date=" + TO_MS +
-      "&warehouse_ids=" + WH + "&page=" + page + "&size=200");
+    const j = await layJson(GW + "/type-location?" + dieuKien + "&page=" + page + "&size=200");
     const recs = getRecs(j);
     if (!recs.length) break;
     out.push(...recs);
@@ -115,7 +122,9 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
   let cache = {}; try { cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8")); } catch {}
   token = await layTokenSongWms(DIR, log);
 
-  log("Kho " + WH + " · plan " + new Date(Number(FROM_MS)).toLocaleDateString("vi-VN") + " → " + new Date(Number(TO_MS)).toLocaleDateString("vi-VN"));
+  log(PLAN_ID
+    ? "Kho " + WH + " · request code " + PLAN_ID + " (đối soát riêng 1 kế hoạch kiểm kê)"
+    : "Kho " + WH + " · plan " + new Date(Number(FROM_MS)).toLocaleDateString("vi-VN") + " → " + new Date(Number(TO_MS)).toLocaleDateString("vi-VN"));
 
   /* KHÔNG có token sống (operator vừa đăng nhập WMS — 1 phiên/tài khoản): TUYỆT ĐỐI không
      tự đăng nhập trong giờ làm. Vẫn dựng lại được báo cáo từ dữ liệu đã kéo:
@@ -132,7 +141,7 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
       try {   // đường lùi 2: mượn danh sách phiếu của bộ push-pc-to-sheet (cùng kho, cùng nguồn API)
         const pc = JSON.parse(fs.readFileSync(path.join(DIR, ".pc-cache.json"), "utf8"));
         const trongKhoang = (d) => { const t = Date.parse(String(d || "") + "T00:00:00+07:00"); return t >= Number(FROM_MS) && t <= Number(TO_MS); };
-        phieu = (pc.fLoc || []).filter((r) => String(r.warehouse_id) === String(WH) && trongKhoang(r.plan_date));
+        phieu = (pc.fLoc || []).filter((r) => String(r.warehouse_id) === String(WH) && (PLAN_ID ? String(r.plan_id) === PLAN_ID : trongKhoang(r.plan_date)));
         mocCache = pc.fullAt || 0;
       } catch { phieu = null; }
     }
@@ -141,6 +150,9 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
     log("⚠ CHẠY NGOÀI TUYẾN: token WMS đã bị đá (operator đang dùng) — KHÔNG đăng nhập mới.");
     log("  Dựng báo cáo từ cache lúc " + (mocCache ? new Date(mocCache).toLocaleString("vi-VN") : "?") + " — phiếu phát sinh sau mốc này chưa có.");
   }
+  if (PLAN_ID) phieu = phieu.filter((p) => String(p.plan_id) === PLAN_ID);   // phòng API trả lẫn plan khác
+  const boiCanh = phieu[0] || {};
+  if (PLAN_ID) log("  Kế hoạch: type " + (boiCanh.plan_type || "?") + " · kho " + (boiCanh.warehouse_name || "?"));
   const tt = {}; phieu.forEach((p) => { tt[p.status_name || "?"] = (tt[p.status_name || "?"] || 0) + 1; });
   log("✓ " + phieu.length + " phiếu vị trí — trạng thái: " + JSON.stringify(tt));
 
@@ -177,7 +189,14 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
     const c = cache[p.checklist_id]; if (!c) continue;
     for (const r of c.recs) {
       const sys = n0(r.qty_by_sys);
-      const diff = r.qty_diff == null ? null : n0(r.qty_diff);
+      const user = r.qty_by_user == null ? null : n0(r.qty_by_user);
+      /* FULL_LOCATION_FACTORY (đo plan 243605, 29/07/2026): status_id KHÔNG còn là dấu "đã đếm" —
+         dòng lệch nằm ở st2 (qty_diff = user−sys; hoặc = −sys khi SKU không tìm thấy, user null).
+         Kiểm chứng: quy tắc diff = qty_diff ?? (user−sys) khớp cờ is_diff của WMS 179/181 phiếu
+         APPROVED (2 phiếu lệch tầng UID-group, tổng SKU vẫn khớp). Dòng "đã ghi nhận" = có user
+         hoặc qty_diff hoặc date_added trong exp_by_user; dòng không dấu vết nào mới là chưa đếm. */
+      const diff = r.qty_diff != null ? n0(r.qty_diff) : (user != null ? user - sys : null);
+      const daGhiNhan = r.status_id === 4 || diff != null || ujParse(r.exp_by_user).some((e) => e && e.date_added);
       const factor = (r.combo_factors && r.combo_factors[0] && n0(r.combo_factors[0].factor)) || 1;
       const base = {
         cid: p.checklist_id, plan: p.plan_id, ngay: p.plan_date || "", ttPhieu: p.status_name || "",
@@ -186,7 +205,7 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
         moc: String(p.checklist_at || p.updated_at || p.plan_date || ""),
         uidU: uidList(r.exp_by_user), uidS: uidList(r.exp_by_sys),
       };
-      if (r.status_id !== 4) { chuaDem.push({ ...base, ttDong: r.status_id === 2 ? "Count cancelled" : "Not counted" }); continue; }
+      if (!daGhiNhan) { chuaDem.push({ ...base, ttDong: r.status_id === 2 ? "Count cancelled" : "Not counted" }); continue; }
       tho.push({ ...base, cnt: sys + (diff || 0), diff: diff || 0, ttDong: "Counted" });
     }
   }
@@ -318,7 +337,6 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
       (o.typo ? "  [" + o.typo + "]" : "") + "  → " + noiKiem(o).slice(0, 85));
 
   /* ---------------- 8) Ghi Google Sheet ---------------- */
-  if (!WRITE) { log("\n(DS_WRITE=0 — không ghi Sheet.)"); process.exit(0); }
   const apiAt = Date.now();
   async function ghiTab(tab, header, rows) {
     if (!rows.length) { log("  (⚠ " + tab + ": 0 dòng — bỏ qua)"); return; }
@@ -341,10 +359,27 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
   const duong = sku.filter((o) => o.net > 0).sort((a, b) => b.net - a.net);
   const am = sku.filter((o) => o.net < 0).sort((a, b) => a.net - b.net);
   const rows1 = [];
-  rows1.push(["ĐỐI SOÁT KIỂM KÊ · kho " + WH + " · plan " + new Date(Number(FROM_MS)).toLocaleDateString("vi-VN") +
-    "–" + new Date(Number(TO_MS)).toLocaleDateString("vi-VN") + " · " + dung.length + " phiếu đã đếm · " + theoSku.size + " SKU" +
+  const nhanPhamVi = PLAN_ID
+    ? "Request code " + PLAN_ID + " · " + (boiCanh.plan_type || "?") + " · " + (boiCanh.warehouse_name || "kho " + WH)
+    : "kho " + WH + " · plan " + new Date(Number(FROM_MS)).toLocaleDateString("vi-VN") + "–" + new Date(Number(TO_MS)).toLocaleDateString("vi-VN");
+  rows1.push(["ĐỐI SOÁT KIỂM KÊ · " + nhanPhamVi + " · " + dung.length + " phiếu đã đếm · " + theoSku.size + " SKU" +
     " · QUY TẮC: SKU thiếu ở bin A mà thừa ĐÚNG BẰNG NHAU ở bin B ⇒ KHÔNG lệch (" + skuBuTruHet.length + " SKU đã loại)",
     ...trong(10)]);
+  /* Khối THỐNG KÊ — chốt các con số tổng ngay đầu tab để người đọc không phải tự đếm lại */
+  rows1.push([...trong(11)]);
+  rows1.push(["■ THỐNG KÊ", ...trong(10)]);
+  const dongTk = (nhan, gt, ghiChu) => rows1.push(["", nhan, gt, "", "", "", "", "", "", "", ghiChu || ""]);
+  dongTk("Phiếu vị trí trong kế hoạch", phieu.length, Object.entries(tt).map(([k, v]) => k + ": " + v).join(" · "));
+  dongTk("Phiếu đưa vào đối soát (đã đếm)", dung.length, "bỏ qua " + boQua.length + " phiếu chưa đếm/huỷ");
+  dongTk("SKU đã đếm", theoSku.size, "");
+  dongTk("SKU có chênh lệch thô", skuTatCa.length, "trước khi bù trừ giữa các vị trí");
+  dongTk("SKU bù trừ hết → KHÔNG lệch", skuBuTruHet.length, "thiếu chỗ này = thừa chỗ khác, chỉ cần dời hàng");
+  dongTk("SKU CÒN LỆCH THẬT (sau bù trừ)", sku.length, "THIẾU " + tThieuThat.length + " SKU · THỪA " + tThuaThat.length + " SKU");
+  dongTk("Cặp nghi NHẦM MÃ cùng vị trí", cap.length, cap.filter((c) => c.khop).length + " cặp khớp đúng số lượng");
+  dongTk("SKU nghi LỖI GÕ SỐ 0", nghiTypoDs.length, "sửa số liệu, không phải mất hàng");
+  dongTk("Vị trí trong kế hoạch CHƯA ĐẾM", boQua.filter((p) => !TT_BO_QUA.has(String(p.status_name || "").toUpperCase())).length, "vùng mù — lệch thật có thể thay đổi khi đếm nốt");
+  for (const [u, v] of Object.entries(theoDv))
+    dongTk("Lệch ròng đơn vị " + u, (v.thieu ? "thiếu " + Math.round(v.thieu) : "") + (v.thieu && v.thua ? " · " : "") + (v.thua ? "thừa +" + Math.round(v.thua) : ""), v.n + " SKU — số đã quy đổi hệ số, KHÔNG cộng gộp khác đơn vị");
   for (const [nhan, ds] of [["LỆCH DƯƠNG", duong], ["LỆCH ÂM", am]]) {
     rows1.push([...trong(11)]);
     rows1.push(["■ " + nhan + " — " + ds.length + " SKU (tổng lệch mọi vị trí " + (nhan === "LỆCH DƯƠNG" ? "> 0" : "< 0") + ")", ...trong(10)]);
@@ -357,6 +392,15 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
           (d.diff > 0 ? "thừa tại bin này" : "thiếu tại bin này") + (d.soLanDem > 1 ? " · đếm lại " + d.soLanDem + " lần, lấy lần mới nhất " + d.gio : "")]);
     }
   }
+  /* CSV: cho luồng "xuất ra file Sheet MỚI" — dấu nháy ép-text bỏ đi vì import CSV không hiểu nó */
+  const CSV_PATH = String(process.env.DS_CSV || "");
+  if (CSV_PATH) {
+    const oCsv = (v) => { let s = String(v ?? ""); if (s.startsWith("'")) s = s.slice(1); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const bom = String.fromCharCode(0xfeff);   // Excel mở CSV tiếng Việt không vỡ font
+    fs.writeFileSync(CSV_PATH, bom + [HEADER1, ...rows1].map((r) => r.map(oCsv).join(",")).join("\r\n"), "utf8");
+    log("✓ Xuất CSV: " + CSV_PATH + " (" + rows1.length + " dòng).");
+  }
+  if (!WRITE) { log("\n(DS_WRITE=0 — không ghi Google Sheet.)"); process.exit(0); }
   log("\nGhi Google Sheet...");
   await ghiTab("DOI-SOAT-LECH", HEADER1, rows1);
 
