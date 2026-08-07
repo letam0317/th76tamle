@@ -21,30 +21,33 @@ p.on("pageerror", (e) => loi.push("pageerror: " + e.message));
 
 await p.goto(pathToFileURL(FILE).href, { waitUntil: "networkidle2", timeout: 60000 });
 await p.click("#ttPlg");
-await p.waitForFunction(() => document.querySelectorAll("#plgContent .pg-cell").length > 0, { timeout: 30000 });
+await p.waitForFunction(() => document.querySelectorAll("#plgContent .pg-o").length > 0, { timeout: 30000 });
 await new Promise((r) => setTimeout(r, 700));
 
 const do_ = await p.evaluate(() => {
-  const cells = [...document.querySelectorAll("#plgContent .pg-cell")];
-  const cum = [...document.querySelectorAll("#plgContent .pg-cum")];
+  const cells = [...document.querySelectorAll("#plgContent .pg-o")];
+  const svg = document.querySelector("#plgContent .pg-svg");
   const kpi = [...document.querySelectorAll("#plgSum .sm")].map((x) => x.querySelector(".l").textContent + "=" + x.querySelector(".k").textContent);
   const body = document.body;
   return {
-    soO: cells.length, soCum: cum.length,
-    soCot: document.querySelectorAll("#plgContent .pg-col").length,
+    soO: cells.length,
+    soDoanNen: document.querySelectorAll("#plgContent .pg-wall path").length,
+    soNhanVe: document.querySelectorAll("#plgContent .pg-lbl text").length,
+    viewBox: svg ? svg.getAttribute("viewBox") : "",
+    khungPx: svg ? Math.round(svg.getBoundingClientRect().width) + "x" + Math.round(svg.getBoundingClientRect().height) : "",
     trong: cells.filter((c) => c.classList.contains("trong")).length,
     kpi, canhBao: (document.querySelector("#plgAlert .pg-alert") || {}).textContent ? true : false,
     chuGiai: document.getElementById("plgLegend").textContent.trim().slice(0, 160),
     tranNgang: body.scrollWidth > body.clientWidth + 1,
-    mapRong: (document.querySelector("#plgContent .pg-map") || {}).scrollWidth || 0,
+    
     footer: document.getElementById("loadinfo").textContent,
   };
 });
 console.log(JSON.stringify(do_, null, 1));
 
-await p.screenshot({ path: path.join(OUT, "plg-factory.png"), fullPage: false });
+await p.screenshot({ path: path.join(OUT, "plg-factory.png"), fullPage: true });
 // mở pop-up 1 ô để kiểm tra
-await p.evaluate(() => document.querySelector("#plgContent .pg-cell").click());
+await p.click("#plgContent .pg-o");   // click chuot THAT: SVGGElement khong co .click() trong Edge
 await new Promise((r) => setTimeout(r, 500));
 const mo = await p.evaluate(() => ({
   hien: document.getElementById("plgmodal").classList.contains("show"),
