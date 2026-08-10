@@ -13,15 +13,16 @@
  *  → KHÔNG tạo phiên mới, KHÔNG đá ai, chạy được cả trong giờ làm việc.
  *
  *  LUẬT 2 — KHUNG GIỜ AN TOÀN: không có token nào sống thì CHỈ được ép re-login SSO
- *  ngoài giờ làm việc. Mặc định CHẶN trong 07:45–18:00 (giờ máy = giờ VN) — LIỀN MẠCH,
+ *  ngoài giờ làm việc. Mặc định CHẶN trong 07:00–22:30 (giờ máy = giờ VN) — LIỀN MẠCH,
  *  không chừa giờ trưa nữa: 22/07/2026 tick 12:05 re-login "khung trưa an toàn" đã đá
- *  operator đang làm việc xuyên trưa. Re-login giờ chỉ còn sáng sớm (<07:45, trước giờ
- *  làm) và chiều tối (≥18:00) — tick watchdog 18:05 là lượt vét cuối ngày.
+ *  operator đang làm việc xuyên trưa. Và không chừa buổi tối nữa (sửa 10/08/2026): CA TỐI
+ *  LÀM TỚI 22:00, KỂ CẢ CUỐI TUẦN — khung cũ 07:45–18:00 cho bot đăng nhập từ 18:00 là
+ *  đá thẳng vào ca tối. Re-login giờ chỉ còn 22:30–07:00, đúng khung chắc chắn không ai làm.
  *  Trong giờ chặn → ném DeferError → script exit 75 ("hoãn") → sync-guard tự thử lại
  *  ở tick sau / khung kế tiếp.
  *
  *  Override qua .env:
- *   SAFE_RELOGIN_BLOCKS="07:45-18:00"   — đổi khung CHẶN (rỗng = "" thì không chặn gì)
+ *   SAFE_RELOGIN_BLOCKS="07:00-22:30"   — đổi khung CHẶN (rỗng = "" thì không chặn gì)
  *   EP_RELOGIN=1                         — bỏ qua luật 2 (chạy tay/khẩn cấp)
  */
 import "dotenv/config";
@@ -138,8 +139,12 @@ const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/ma
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const GET_ME = "https://wms-gw.inshasaki.com/api/v1/auth/user/get-me";
 
-/* ---- Khung giờ CHẶN re-login (phút kể từ 00:00). Mặc định: 2 ca làm việc. ---- */
-const BLOCKS_RAW = process.env.SAFE_RELOGIN_BLOCKS != null ? process.env.SAFE_RELOGIN_BLOCKS : "07:45-18:00";
+/* ---- Khung giờ CHẶN re-login (phút kể từ 00:00). Mặc định: phủ TRỌN giờ có người làm. ----
+ * SỬA 10/08/2026: 07:45-18:00 → 07:00-22:30. Luật khung giờ này là đường lùi, chỉ dùng khi kênh
+ * wshr CHƯA chứng thực (chưa có mốc `.bridge-wshr-ok`) — tức đúng cảnh MÁY MỚI dựng lần đầu.
+ * Ca tối làm tới 22:00 kể cả cuối tuần, nên khung cũ cho phép bot đăng nhập từ 18:00 = đá phiên
+ * người đang làm. Nới đầu sáng về 07:00 vì có người tới sớm. */
+const BLOCKS_RAW = process.env.SAFE_RELOGIN_BLOCKS != null ? process.env.SAFE_RELOGIN_BLOCKS : "07:00-22:30";
 const phut = (s) => { const m = String(s).trim().match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
 const BLOCKS = BLOCKS_RAW.split(",").map((c) => {
   const [a, b] = String(c).split("-");
@@ -271,7 +276,11 @@ export async function layTokenSongWms(DIR, log = () => {}) {
       log("  ✓ Dùng lại token trong kho (lưu " + new Date(cu.at || 0).toLocaleString("vi-VN") + ", get-me OK — không đăng nhập mới, không đá ai).");
       return cu.token;
     }
-    log("  … token kho đã chết (get-me " + (me ? me.status : "lỗi mạng") + ") — thử kênh bridge.");
+    if (!me) {   // KHÔNG có phản hồi = lỗi mạng, KHÔNG phải bằng chứng token chết (xem ghi chú ở layTokenSongWork)
+      log("  ⚠ Không gọi được get-me (lỗi mạng) — GIỮ token trong kho, không tụt xuống bridge.");
+      return cu.token;
+    }
+    log("  … token kho đã chết (get-me " + me.status + ") — thử kênh bridge.");
   }
   const bridge = await layBridgeToken(log);
   if (bridge) { luuToken(DIR, "wms", bridge, "bridge"); chamMocBridge(DIR); return bridge; }
@@ -328,6 +337,14 @@ export async function layBridgeTokenWshr(log = () => {}) {
  * Nhờ hàm này bộ 5S mới có "đường lùi không cần đăng nhập" y như factory, và mới chạy được
  * trong nhịp poller (nơi tuyệt đối cấm login).
  */
+/* VÁ 10/08/2026 — "token tốt bị token cũ của bridge đè".
+ * Sáng nay kho đang giữ token mint 09:30 (hạn 12/08) mà đến trưa lại thành token mint 08/08
+ * (hạn 12:41 hôm nay) rồi hết hạn giữa buổi ⇒ mất phiên, mọi bộ đọc đứng hình.
+ * Cơ chế: một lượt `fetch` TRƯỢT VÌ MẠNG trả `null`, code cũ gộp chung với "token bị từ chối"
+ * → tụt xuống kênh bridge → `luuToken` ghi đè token cũ hơn (kênh bridge có lúc còn giữ token
+ * của phiên trước) lên token tốt. Từ nay: KHÔNG có phản hồi HTTP thì KHÔNG kết luận token chết —
+ * giữ nguyên token trong kho. Chỉ khi máy chủ THỰC SỰ từ chối (401/403/500 "Token has expired")
+ * mới đi tìm token khác. */
 export async function layTokenSongWork(DIR, log = () => {}) {
   _dirCuoi = DIR;
   const cu = docTokenCu(DIR, "work");
@@ -337,7 +354,11 @@ export async function layTokenSongWork(DIR, log = () => {}) {
       log("  ✓ Dùng lại token work trong kho (lưu " + new Date(cu.at || 0).toLocaleString("vi-VN") + ", wshr OK — không đăng nhập mới).");
       return cu.token;
     }
-    log("  … token work trong kho đã chết (wshr " + (thu ? thu.status : "lỗi mạng") + ") — thử kênh bridge.");
+    if (!thu) {
+      log("  ⚠ Không gọi được wshr (lỗi mạng) — GIỮ token work trong kho, không tụt xuống bridge.");
+      return cu.token;
+    }
+    log("  … token work trong kho đã chết (wshr " + thu.status + ") — thử kênh bridge.");
   }
   const bridge = await layBridgeTokenWshr(log);
   if (bridge) { luuToken(DIR, "work", bridge, "bridge"); chamMocBridge(DIR); return bridge; }
@@ -364,12 +385,19 @@ export function imLangBridgeMs(DIR) {
   try { return Date.now() - fs.statSync(f).mtimeMs; } catch { chamMocBridge(DIR); return 0; }
 }
 
-/** Cửa im lặng theo khung giờ — giờ chỉ là GỢI Ý MỀM (đệm quanh giờ người tới), không phải rào cứng. */
+/** Cửa im lặng theo khung giờ — giờ chỉ là GỢI Ý MỀM (đệm quanh giờ người tới), không phải rào cứng.
+ *
+ * SỬA 10/08/2026 — CA TỐI CHẠY TỚI 22:00, KỂ CẢ CUỐI TUẦN.
+ * Bản cũ hạ cửa xuống 5' ngay từ 17:30 vì tưởng sau giờ hành chính là không còn ai. Sai:
+ * ca tối làm tới 22:00 và có cả thứ 7/CN ⇒ từ 17:30 bot chỉ cần thấy im 5 phút là được
+ * đăng nhập, tức đá thẳng vào phiên của người đang làm ca tối. Đây là lỗ đá phiên thật.
+ * Nay ô 15' kéo dài tới 22:30 (lượt vét 22:02 rơi vào ô này — đúng lúc người vừa rời,
+ * cần đệm rộng), chỉ 22:30–07:00 mới hạ về 5'. KHÔNG có ưu đãi cuối tuần. */
 export function cuaImLangMs(d = new Date()) {
   const p = phutVN(d);
   if (p >= 7 * 60 && p < 9 * 60 + 30) return Number(process.env.CUA_IM_SANG || 25) * 60000;   // vùng đi sớm/muộn: nới rộng
-  if (p >= 9 * 60 + 30 && p < 17 * 60 + 30) return Number(process.env.CUA_IM_NGAY || 15) * 60000;
-  return Number(process.env.CUA_IM_DEM || 5) * 60000;                                          // ngoài giờ + cuối tuần
+  if (p >= 9 * 60 + 30 && p < 22 * 60 + 30) return Number(process.env.CUA_IM_NGAY || 15) * 60000;  // cả ca ngày LẪN ca tối
+  return Number(process.env.CUA_IM_DEM || 5) * 60000;                                          // 22:30–07:00: chắc chắn trống
 }
 
 /**
