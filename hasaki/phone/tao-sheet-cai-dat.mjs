@@ -13,7 +13,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const EMAIL = process.argv[2] || "cosmetics@hasakigroup.vn";
+/* MẶC ĐỊNH KHÔNG CHIA SẺ CHO AI. File nằm dưới tài khoản chủ GAS (letam0317@gmail.com) —
+   mở bằng chính tài khoản đó là đủ. Tuyệt đối KHÔNG tự chia sẻ sang email công ty
+   (cosmetics@hasakigroup.vn): user đã yêu cầu rõ, và miền đó cũng chặn chia sẻ ra ngoài
+   nên grant chỉ "có vẻ" thành công chứ không bám. Muốn chia sẻ thì truyền email tường minh. */
+const EMAIL = process.argv[2] || "";
 const SHEET_ID_CU = process.env.SHEET_ID || "";
 const TEN_FILE = "Máy trạm điện thoại (Xiaomi 13) — Phân tích & Hướng dẫn cài đặt";
 const TEN_TAB = "CAI-DAT-MAY-TRAM";
@@ -185,10 +189,20 @@ if (!rUp.ok || !f.id) { console.error("✗ Nạp file thất bại " + rUp.statu
 const sheetId = f.id;
 console.log("✓ Đã tạo Google Sheet: " + TEN_FILE);
 
-const p = await goi("https://www.googleapis.com/drive/v3/files/" + sheetId + "/permissions?sendNotificationEmail=false", {
-  method: "POST", body: JSON.stringify({ type: "user", role: "writer", emailAddress: EMAIL }),
-});
-console.log(p.id ? "✓ Đã chia sẻ quyền SỬA cho " + EMAIL : "⚠ Không chia sẻ được cho " + EMAIL);
+if (EMAIL) {
+  await goi("https://www.googleapis.com/drive/v3/files/" + sheetId + "/permissions?sendNotificationEmail=false", {
+    method: "POST", body: JSON.stringify({ type: "user", role: "writer", emailAddress: EMAIL }),
+  });
+  // KIỂM LẠI THẬT, đừng tin phản hồi POST: Drive trả về id cả khi chính sách miền đích chặn
+  // chia sẻ ra ngoài, nên grant "thành công" xong biến mất — đã dính đúng ca này 10/08/2026.
+  const q = await goi("https://www.googleapis.com/drive/v3/files/" + sheetId +
+    "/permissions?fields=permissions(role,emailAddress)");
+  const co = (q.permissions || []).some((x) => String(x.emailAddress || "").toLowerCase() === EMAIL.toLowerCase());
+  console.log(co ? "✓ Đã chia sẻ quyền SỬA cho " + EMAIL + " (đã kiểm lại)"
+                 : "⚠ KHÔNG chia sẻ được cho " + EMAIL + " — miền đích có thể chặn chia sẻ ra ngoài");
+} else {
+  console.log("• Không chia sẻ cho ai — mở file bằng chính tài khoản chủ GAS.");
+}
 
 /* ---------- Dọn các file rỗng tạo hụt ở lần chạy trước ---------- */
 if (SHEET_ID_CU) {
