@@ -86,6 +86,59 @@ lưng máy có bị phồng lên không. Chỉ mắt người mới thấy đư�
 
 ---
 
+## Link tải phần mềm (tra ngày 10/08/2026)
+
+Cài theo đúng thứ tự này.
+
+### Bước 1 — Trên MÁY TÍNH: công cụ nạp phần mềm cho điện thoại
+| Phần mềm | Link | Ghi chú |
+|---|---|---|
+| Android Platform Tools (adb + fastboot) | https://developer.android.com/tools/releases/platform-tools | Bản Windows. Giải nén ra một thư mục, không cần cài |
+
+### Bước 2 — Mở quyền quản trị (root) — **bỏ qua nếu máy đã có Magisk**
+| Phần mềm | Link | Bản mới nhất |
+|---|---|---|
+| **Magisk** | https://github.com/topjohnwu/Magisk/releases | v30.7 — tải file `.apk` |
+
+⚠️ **Ba cảnh báo, đọc kỹ trước khi làm:**
+1. **Xiaomi 13 phải vá `init_boot.img`, KHÔNG phải `boot.img`.** Máy ra đời với Android 13 nên
+   phần khởi động nằm ở tệp riêng. Vá nhầm `boot.img` là **treo máy**.
+2. Tệp `init_boot.img` phải lấy từ **đúng bản ROM đang cài** (Global/Taiwan, đúng số hiệu bản).
+   Lấy từ ROM khác phiên bản cũng treo máy. Nó nằm trong gói ROM fastboot bạn đã dùng để flash.
+3. **Chỉ tải Magisk từ đúng địa chỉ GitHub ở trên.** Có rất nhiều trang giả mạo Magisk cài mã độc.
+
+### Bước 3 — Môi trường chạy: 3 app Termux
+> 🔴 **Quan trọng nhất mục này: cả 3 app phải tải từ CÙNG MỘT NGUỒN (GitHub).**
+> Mỗi nguồn ký bằng một chữ ký khác nhau; trộn nguồn thì Android báo *"Không cài đặt được ứng dụng"*
+> mà không nói lý do. Và **tuyệt đối không lấy từ Play Store** — bản đó đã hỏng từ lâu.
+
+| App | Link | Bản mới |
+|---|---|---|
+| **Termux** (chính) | https://github.com/termux/termux-app/releases | v0.118.3 |
+| **Termux:Boot** (tự chạy sau khi khởi động) | https://github.com/termux/termux-boot/releases | v0.8.1 |
+| **Termux:API** (đọc pin, nhiệt độ cho nhịp tim) | https://github.com/termux/termux-api/releases | bản mới nhất |
+
+Trong mỗi trang, kéo xuống mục **Assets**, chọn file có chữ **`universal`** và **`apt-android-7`**
+(an toàn nhất, không cần biết máy thuộc loại nào).
+
+### Bước 4 — Đường cứu hộ từ xa
+| Phần mềm | Link |
+|---|---|
+| **AnyDesk cho Android** | https://anydesk.com/en/downloads/android |
+| AnyDesk Control Plugin *(chỉ cần nếu điều khiển không được)* | https://anydesk.com/downloads/android-plugin/com.anydesk.adcontrol.ad1 |
+
+Máy đã root thì AnyDesk thường điều khiển được luôn, không cần plugin.
+
+### Bước 5 — **Tôi tự cài, bạn không phải làm gì**
+| Phần mềm | Link | Ai cài |
+|---|---|---|
+| ACC — giữ pin ở 55–60% | https://github.com/VR-25/acc | Tôi, qua đường điều khiển từ xa |
+| Node.js, git, ssh, socat, lịch chạy | (script `00-MO-DUONG-SSH.sh` tự cài) | Script tự làm |
+
+Không cần cài F-Droid — lấy thẳng từ GitHub là đủ và mới hơn.
+
+---
+
 ## Nếu chỉ nhớ 3 điều
 
 1. **Termux phải lấy từ F-Droid/GitHub, không phải Play Store.**
