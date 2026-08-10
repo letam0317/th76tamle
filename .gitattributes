@@ -1,0 +1,5 @@
+# Script chạy trên Linux/Android (Termux) BẮT BUỘC xuống dòng kiểu LF.
+# Máy này là Windows nên git hay tự đổi sang CRLF khi lấy file ra — chép sang
+# điện thoại là gặp lỗi khó hiểu kiểu "bad interpreter: No such file or directory".
+# Dòng dưới khoá lại, để file .sh luôn ra LF dù lấy ở máy nào.
+*.sh text eol=lf
