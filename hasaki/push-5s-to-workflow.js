@@ -170,7 +170,13 @@ async function createTask(token, row, type00) {
 
   let token;
   try { token = await layTokenTuPhucHoi(getToken, DIR, log, "work"); log("✓ Đã lấy token."); }
-  catch (e) { log("✗ " + e.message); await sendAlert(e.message); process.exit(2); }
+  catch (e) {
+    // Đường 2 (OTP thủ công): e.defer = không có phiên sống để mượn VÀ bot không tự đăng nhập được.
+    // Đây KHÔNG phải lỗi — chờ người đăng nhập tay (nút trong email); lượt push-5s sau (mỗi 15') sẽ
+    // thấy phiên và đẩy. Thoát êm, KHÔNG gửi mail báo động mỗi 15' (nếu không sẽ spam đúng lúc chờ người).
+    if (e && e.defer) { log("⏸ " + e.message + " — bỏ lượt này, chờ phiên người thật. Không báo động."); process.exit(0); }
+    log("✗ " + e.message); await sendAlert(e.message); process.exit(2);
+  }
 
   const options = await getType00Options(token);
   log("✓ Workflow có " + options.length + " lựa chọn 'Lỗi vi phạm'.");

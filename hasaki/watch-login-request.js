@@ -17,6 +17,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const KEY = process.env.APPSCRIPT_KEY;
 const LOCK = path.join(DIR, ".login-open.lock");
+const OTP_TAY = String(process.env.LOGIN_OTP_TAY || "") === "1";   // Đường 2: người gõ OTP → cửa sổ phải HIỆN RA
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 
 if (!KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
@@ -38,7 +39,7 @@ function nenGhiNhipTim(){
 // SECRET đi trong POST body (không qua query → không lọt access-log)
 const apiPost = async (act, extra) => { const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: act, key: KEY, ...(extra || {}) }) }).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
 const hoi = (act) => apiPost(act);
-const chay = (file) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };   // GUI (login): chạy nền, không chờ
+const chay = (file, args = []) => { const c = spawn(process.execPath, [path.join(DIR, file), ...args], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };   // GUI (login): chạy nền, không chờ
 const chayCho = (file) => new Promise((res) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, stdio: "ignore" }); c.on("exit", res); c.on("error", res); });   // nền (auto-export): CHỜ xong
 const chayGuard = (force = true) => new Promise((res) => { const c = spawn("cmd.exe", ["/c", "node sync-guard.js " + (force ? "--force " : "") + ">> sync-guard.log 2>&1"], { cwd: DIR, stdio: "ignore", windowsHide: true }); c.on("exit", res); c.on("error", res); });   // guard: CHỜ xong, log riêng (force=true bỏ kiểm mới/cũ)
 
@@ -144,9 +145,11 @@ if (fs.existsSync(LOCK)) {
 if (!boQuaLogin) {
   const d = await hoi("loginStatus");
   if (d && d.requested) {
-    coViec = true; log("⚡ Có yêu cầu đăng nhập! Mở màn hình login...");
+    coViec = true; log("⚡ Có yêu cầu đăng nhập! Mở màn hình login..." + (OTP_TAY ? " (OTP thủ công — cửa sổ hiện ra để gõ 6 số)" : ""));
     await apiPost("clearLogin");
-    chay("login-hasaki.js");   // login-hasaki.js tự quản lock
+    // OTP thủ công (Đường 2): --show để cửa sổ HIỆN RA cho người đọc mã từ Hasaki Authenticator gõ vào
+    // (email+mật khẩu login-hasaki tự điền sẵn). Chế độ tự động cũ thì chạy ngầm ngoài màn hình như trước.
+    chay("login-hasaki.js", OTP_TAY ? ["--show"] : []);   // login-hasaki.js tự quản lock
   } else imLang.push("đăng nhập");
 }
 if (!coViec && imLang.length && nenGhiNhipTim()) log("· nhịp tim: không có yêu cầu nào (" + imLang.join(" · ") + ") — lượt rỗng không ghi log nữa.");

@@ -118,7 +118,11 @@ async function keoTimesheet(token, majorId, from, to) {
   }
   if (!token) {
     log("  … không có phiên nào đang sống — tới lượt tự đăng nhập.");
-    token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
+    token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => {
+      // Đường 2 (OTP thủ công): hoãn = chờ người đăng nhập tay, KHÔNG phải lỗi → thoát êm, không exit 2.
+      if (e && e.defer) { log("⏸ " + e.message + " — chờ đăng nhập tay (OTP thủ công), bỏ lượt này."); process.exit(0); }
+      log("✗ " + e.message); process.exit(2);
+    });
   }
   // Token trong kho có thể là id_token OIDC dính từ lượt trước (Hasaki ID v2) — kiểm lại với wshr;
   // hỏng thì mượn token work (cùng audience wshr, dùng tốt cho API hr — kiểm chứng 27/07/2026).

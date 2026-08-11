@@ -59,7 +59,12 @@ const loiTuHienTruong = (ht) => { const m = String(ht).match(/thông báo: ([\s\
 const PROFILE_DIR = duongDanProfile(DIR);
 const EMAIL = process.env.HASAKI_EMAIL || "";
 const PASSWORD = process.env.HASAKI_PASSWORD || "";
-const SECRET = (process.env.HASAKI_2FA_SECRET || "").replace(/\s+/g, "");
+/* OTP THỦ CÔNG — Đường 2 (12/08/2026). TOTP đã chuyển sang app Hasaki Authenticator, KHÔNG xuất
+ * seed base32 nên bot không tự sinh mã được nữa. Bật LOGIN_OTP_TAY=1 (hoặc --otp-tay): coi như
+ * KHÔNG có secret → bot điền sẵn email+mật khẩu rồi DỪNG cho người gõ 6 số (đọc từ app điện thoại).
+ * Hết đốt lượt bằng mã sai; đăng nhập tự động (--auto) tự hoãn, nhường luồng "nút trong email". */
+const OTP_TAY = process.argv.includes("--otp-tay") || String(process.env.LOGIN_OTP_TAY || "") === "1";
+const SECRET = OTP_TAY ? "" : (process.env.HASAKI_2FA_SECRET || "").replace(/\s+/g, "");
 const AUTO = process.argv.includes("--auto");
 const DRY_OTP = process.argv.includes("--dry-otp") || process.env.DRY_OTP === "1";
 const SHOW = process.argv.includes("--show");   // --show = hiện cửa sổ để gỡ lỗi; mặc định CHẠY NGẦM ngoài màn hình
@@ -72,7 +77,12 @@ function genOTP() {
   catch (e) { log("✗ HASAKI_2FA_SECRET không hợp lệ (base32): " + e.message); return null; }
 }
 const otpConLai = () => 30 - (Math.floor(Date.now() / 1000) % 30);   // giây còn lại của mã hiện tại
-if (AUTO && !SECRET) { log("✗ --auto cần HASAKI_2FA_SECRET. Thoát."); process.exit(1); }
+if (AUTO && !SECRET) {
+  // OTP thủ công: lượt TỰ ĐỘNG không thể hoàn tất (không có mã để gõ) → HOÃN êm (75, không phải lỗi),
+  // để bộ gọi (auto-login) hiểu là "chờ người" chứ không báo động; người đăng nhập qua nút trong email.
+  if (OTP_TAY) { log("⏸ OTP thủ công đang bật (LOGIN_OTP_TAY=1) — KHÔNG tự đăng nhập. Chờ người bấm nút trong email rồi gõ OTP tay."); process.exit(DEFER_EXIT); }
+  log("✗ --auto cần HASAKI_2FA_SECRET. Thoát."); process.exit(1);
+}
 
 if (fs.existsSync(LOCK)) {
   if (Date.now() - fs.statSync(LOCK).mtimeMs < 15 * 60 * 1000) { log("Đã có phiên login đang chạy — bỏ qua."); process.exit(0); }
