@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile, tokenCon } from "./token-store.js";
-import { ghiMocBuoc } from "./session-rules.js";
+import { ghiMocBuoc, layTokenSongWork } from "./session-rules.js";
 import { dongSuCo } from "./tu-chua.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -98,10 +98,31 @@ async function keoTimesheet(token, majorId, from, to) {
     const caps = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) }).then(r => r.json()).catch(() => null);
     if (!caps || caps.timesheet !== true) { log("✗ Apps Script chưa redeploy (chưa hỗ trợ ghi tab). BỎ QUA."); process.exit(3); }
   }
-  let token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
+  /* ═══ 12/08/2026 — SỬA THỨ TỰ NGUỒN TOKEN (gốc của vụ chết im lặng 16 ngày) ═══
+     TRƯỚC: gọi thẳng layTokenTuPhucHoi → mở Edge đăng nhập NGAY. Gặp cửa kiểm phiên là exit(2),
+     nên nhánh "mượn token work" nằm phía dưới KHÔNG BAO GIỜ tới được. Log 11/08 ghi rõ cửa kiểm
+     đã kê đúng thuốc — "bộ gọi hãy dùng token đó qua layTokenSongWms" — mà bộ gọi không nghe:
+        ⛔ KHÔNG đăng nhập: token kho còn sống và là của phiên NGƯỜI (nguon=bridge)
+        ✗ Hoãn đăng nhập: cửa kiểm phiên chặn
+     NAY: đi đúng bậc thang như 4 bộ factory, mượn trước — đăng nhập sau.
+       1) kho work + bridge wshr — phiên đang sống của laptop, KHÔNG đăng nhập, không đá ai
+       2) kho hr còn dùng được
+       3) tự đăng nhập — GIỮ NGUYÊN, là nhánh cho lúc không có ai đang làm: cuối tuần, ngoài giờ,
+          và ca nền 05:30 sau khi chuyển sang máy trạm bật 24/7. Đảo thứ tự KHÔNG bỏ nhánh này,
+          chỉ đẩy nó xuống cuối để khỏi đá phiên người đang làm. */
+  let token = await layTokenSongWork(DIR, log);
+  let daKiemWshr = !!token;
+  if (!token) {
+    const hrCu = tokenCon(DIR, "hr");
+    if (hrCu && await tokenWshrOk(hrCu)) { token = hrCu; daKiemWshr = true; log("  ✓ Dùng token hr còn sống trong kho (không đăng nhập mới)."); }
+  }
+  if (!token) {
+    log("  … không có phiên nào đang sống — tới lượt tự đăng nhập.");
+    token = await layTokenTuPhucHoi(getToken, DIR, log, "hr").catch(e => { log("✗ " + e.message); process.exit(2); });
+  }
   // Token trong kho có thể là id_token OIDC dính từ lượt trước (Hasaki ID v2) — kiểm lại với wshr;
   // hỏng thì mượn token work (cùng audience wshr, dùng tốt cho API hr — kiểm chứng 27/07/2026).
-  if (!(await tokenWshrOk(token))) {
+  if (!daKiemWshr && !(await tokenWshrOk(token))) {
     log("  ⚠ Token hr bị wshr từ chối (Token Signature could not be verified) — thử token work thay thế...");
     const w = tokenCon(DIR, "work");
     if (w && await tokenWshrOk(w)) { token = w; log("  ✓ Dùng token work cho API hr (wshr chấp nhận)."); }
