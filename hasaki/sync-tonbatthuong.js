@@ -18,6 +18,7 @@ import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
+import { kiemTruocKhiGhi, xacNhanDaGhi } from "./tu-chua.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROFILE_DIR = duongDanProfile(DIR);   // EDGE_PATH + profile lấy từ token-store (khả chuyển máy)
@@ -201,9 +202,14 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
     const rows = dich.rows;
     // GAS chặn ghi rows rỗng (chống xoá trắng) — 0 dòng thì bỏ qua, giữ dữ liệu cũ trên tab
     if (!rows.length) { log("  ⚠ " + tab + ": 0 dòng bất thường — bỏ qua (giữ dữ liệu cũ)."); continue; }
+    /* 12/08/2026 — CỔNG CHẶN GHI RÁC (tu-chua.js). Bắt kịch bản WMS trả 200 nhưng dữ liệu
+       tụt/lệch: đọc 12 dòng trong khi mọi ngày ~2.400. Ghi đè số đúng bằng số rác tai hại hơn
+       nhiều so với đứng im một hôm — nên thà giữ dữ liệu cũ rồi gửi thư gọi người. */
+    const cong = await kiemTruocKhiGhi(DIR, { nguon: tab, tenHienThi: "Tồn kho bất thường", header: HEADER, rows, cotSo: [7, 8, 9, 10, 11, 12, 13, 14], log });
+    if (!cong.ghi) continue;
     // Chạy 3 lần/ngày (8h40 + 2 slot poller): dữ liệu không đổi thì khỏi ghi lại ~50k dòng, chỉ chạm mốc chip giờ.
     const hash = hashTab(HEADER, rows);
-    if (tabKhongDoi(DIR, tab, hash)) { log("  = " + tab + ": dữ liệu KHÔNG đổi — bỏ qua ghi (" + rows.length + " dòng, tiết kiệm GAS)."); await chamMocTabs([tab], apiAt, log); continue; }
+    if (tabKhongDoi(DIR, tab, hash)) { log("  = " + tab + ": dữ liệu KHÔNG đổi — bỏ qua ghi (" + rows.length + " dòng, tiết kiệm GAS)."); await chamMocTabs([tab], apiAt, log); await xacNhanDaGhi(DIR, tab, rows.length); continue; }
     for (let i = 0; i < rows.length; i += CHUNK) {
       const phan = rows.slice(i, i + CHUNK);
       const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: tab, sheetId: dich.sheetId, header: HEADER, rows: phan, append: i > 0, apiAt });
@@ -212,6 +218,7 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
       log("  ✓ " + tab + ": ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + (i === 0 ? " (xoá data cũ trước)" : " (nối tiếp)"));
     }
     luuHashTab(DIR, tab, hash);
+    await xacNhanDaGhi(DIR, tab, rows.length);   // ghi mẫu baseline + đóng sự cố nếu trước đó có mở
   }
   ghiMocBuoc(DIR, "tonbatthuong");   // mốc thành công cho sync-guard
   log("✓ HOÀN TẤT — các tab Tồn kho bất thường đã có dữ liệu mới.");

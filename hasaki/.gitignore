@@ -60,3 +60,8 @@ google-script-DEPLOY.gs
 # Cache tracking cua doi-soat-kiemke (co du lieu ton kho) — ke ca ban theo tung
 # ke hoach: DS_PLAN=243605 ghi .doi-soat-cache-plan243605.json (1,1MB dong hang WMS)
 .doi-soat-cache*.json
+# Tang tu chua lanh (12/08/2026) — state CUC BO cua may tram, do bang lich su cua chinh may nay.
+# Chep sang may khac se mang baseline sai -> chan ghi nham hoac bo lot. KHONG commit.
+.baseline-tu-chua.json
+.canh-suc-khoe.json
+.dia-chi-hoc.json

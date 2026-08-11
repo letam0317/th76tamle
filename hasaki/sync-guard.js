@@ -149,6 +149,21 @@ async function main() {
   return DEFER_EXIT;
 }
 
+/* ---- 5) TẦNG TỰ CHỮA (12/08/2026): mỗi tick guard là 1 nhịp tim + 1 lượt soát sức khoẻ ----
+   Guard đã chạy sẵn mỗi giờ 7h-18h nên đây là chỗ rẻ nhất để đặt đồng hồ chết, khỏi thêm task.
+   Chạy TÁCH TIẾN TRÌNH: bộ giám sát tuyệt đối không được làm hỏng mã thoát của guard
+   (mã thoát 75 là tín hiệu "hoãn" mà cả hệ đang dựa vào). Treo quá 60s thì cắt, bỏ qua. */
+async function soatSucKhoe() {
+  await new Promise((res) => {
+    let xong = false;
+    const kt = () => { if (!xong) { xong = true; res(); } };
+    const c = spawn(process.execPath, [path.join(DIR, "canh-suc-khoe.js")], { cwd: DIR, stdio: "inherit", windowsHide: true });
+    const hen = setTimeout(() => { try { c.kill(); } catch { /* đã thoát */ } kt(); }, 60000);
+    c.on("exit", () => { clearTimeout(hen); kt(); });
+    c.on("error", () => { clearTimeout(hen); kt(); });
+  });
+}
+
 (async () => {
   // Dùng process.exitCode (không process.exit) để socket keep-alive tự đóng, thoát sạch.
   if (!giuKhoa()) { log("Guard khác đang chạy (lock còn tươi) — thoát."); return; }   // không nhả lock của người khác
@@ -156,5 +171,6 @@ async function main() {
   try { code = await main(); }
   catch (e) { log("✗ " + (e && e.message ? e.message : e)); code = 2; }
   nhaKhoa();
+  try { await soatSucKhoe(); } catch { /* giám sát hỏng không được kéo theo guard */ }
   process.exitCode = code;
 })();

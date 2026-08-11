@@ -26,6 +26,8 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile, tokenCon } from "./token-store.js";
+import { ghiMocBuoc } from "./session-rules.js";
+import { dongSuCo } from "./tu-chua.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -226,6 +228,10 @@ async function keoTimesheet(token, majorId, from, to) {
   catch (e) { log("  ⚠ POST lỗi (" + e.message + ") — kiểm tra lại qua gviz..."); }
   // (Bỏ xác minh gviz dự phòng: tab NHAN-SU đã dời sang SHEET RIÊNG bảo mật — Apps Script tự định tuyến
   //  theo PII_TABS — nên sheet public không còn tab này để đối chiếu; tin kết quả POST là đủ.)
+  /* 12/08/2026 — MỐC THÀNH CÔNG cho canh-suc-khoe.js. Bước này nằm NGOÀI cụm AUTO-EXPORT.bat
+     nên sync-guard không vá hộ được: nó chết từ 26/07 và im lặng suốt 16 ngày (Task Scheduler
+     vẫn báo Result 0 vì mã thoát bị .vbs nuốt). Từ nay không ghi được mốc = có thư cảnh báo. */
+  if (ok) { ghiMocBuoc(DIR, "chamcong"); await dongSuCo("DUNG-chamcong"); }
   log(ok ? "✓ Đã ghi " + written + " dòng vào tab " + TAB + "." : "✗ Ghi tab " + TAB + " thất bại.");
   process.exit(ok ? 0 : 2);
 })().catch(e => { log("✗ " + e.message); process.exit(2); });
