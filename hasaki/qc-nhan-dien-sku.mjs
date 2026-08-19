@@ -147,6 +147,62 @@ console.log("── Lọc theo phần tử tên hàng ──");
   }
 }
 {
+  /* GIAI ĐOẠN 1-2 (chuanChuoiTem) — hai bẫy đã cắn NGAY LÚC VIẾT, cắt chữ thì im lặng mà hậu quả rộng:
+       ① nhánh bắt "P/O NO" ăn luôn "Po" trong Polyester → "lyester" (mất rổ chất liệu của mọi tem)
+       ② "COLOR:" bị cắt nửa thành "OR:"
+     Và mẫu chữ ký nháy không được cắn vào giữa mã dài "HKM-DET.TT.10-163". */
+  const donChu = [
+    ["100% Polyester White", /polyester/i, true, "polyester phải còn nguyên"],
+    ["ART: F9-5284 COLOR: Hong tro", /\bor\b/i, false, "cắt tiền tố phải cắt HẾT, không để lại 'OR'"],
+    ["ART: F9-5284 COLOR: Hong tro", /f9-5284/i, true, "mã phải còn"],
+    ["HKM-DET.TT.10-163 Triều Vĩ", /HKM-DET\.TT\.10-163/i, true, "mã dài còn nguyên"],
+    ["QTY: 60 CONE NET: 12.5 KG DATE: 12/08/2026 INSPECTOR: NG.T.H", /inspector|12\/08|ng\.t\.h/i, false, "giấy tờ liên tiếp phải sạch hết"],
+  ];
+  const saiChu = donChu.filter(([t, re, phaiCo]) => re.test(E.chuanChuoiTem(t)) !== phaiCo);
+  kiem("Dọn chữ giấy tờ (chuanChuoiTem) không cắt lẹm chữ thật",
+    saiChu.length === 0,
+    saiChu.length ? saiChu.map(([t, , , vs]) => vs + " → \"" + E.chuanChuoiTem(t) + "\"").join(" | ") : donChu.length + "/" + donChu.length + " ca dọn đúng");
+
+  /* TRẦN ỨNG VIÊN: hạ 4.000 → 1.200 chỉ an toàn NHỜ ứng viên cân theo IDF. Hợp đồng: hai trần phải
+     cho ra Top 3 GIỐNG HỆT trên bộ tem mô phỏng — không thì việc hạ trần là đang đánh đổi âm thầm. */
+  {
+    const hopLe = ds.filter((r) => r.status === "ACTIVE" && String(r.pn).split("/").length >= 5);
+    const buoc = Math.max(1, Math.floor(hopLe.length / 120));
+    let khac = 0, n = 0, d4 = 0, d12 = 0, b4 = 0, b12 = 0;
+    for (let i = 0; n < 120 && i * buoc < hopLe.length; i++) {
+      const r = hopLe[i * buoc]; n++;
+      const dg = String(r.pn).split("/").map((x) => x.trim()).filter(Boolean);
+      const chu = [dg[1] || "", dg[3] || "", dg[4] || ""].filter(Boolean).join("  ") +
+        "\nP/O NO: 4500219877  LOT: 25/08-114  DATE: 12/08/2026";
+      const nhan = E.tuVanBan(chu, cm), khoa = E.khoaHang(r.pn);
+      const A = E.timTop(nhan, cm, { soLuong: 3, chiActive: true, tranUngVien: 4000 });
+      const B = E.timTop(nhan, cm, { soLuong: 3, chiActive: true, tranUngVien: 1200 });
+      const kA = A.map((x) => E.khoaHang(x.pn)), kB = B.map((x) => E.khoaHang(x.pn));
+      if (kA[0] === khoa) d4++; if (kB[0] === khoa) d12++;
+      if (kA.indexOf(khoa) >= 0) b4++; if (kB.indexOf(khoa) >= 0) b12++;
+      if (A.map((x) => x.sku).join() !== B.map((x) => x.sku).join()) khac++;
+    }
+    /* Hợp đồng là ĐỘ CHÍNH XÁC không tụt, KHÔNG phải "danh sách giống từng chữ": khi nhiều dòng cùng
+       điểm (ví dụ 5 dòng đều 95%) thì thứ tự trong nhóm đó vốn tuỳ ý, nên đòi giống hệt là đòi một
+       thứ không có nghĩa. Đo 19/08: ca duy nhất lệch là một nhóm 95% và CẢ HAI trần đều sai như nhau. */
+    kiem("Hạ trần ứng viên 4.000 → 1.200 KHÔNG làm tụt độ chính xác (nhờ xếp ứng viên theo IDF)",
+      d12 >= d4 && b12 >= b4,
+      "Top-1 " + d4 + "→" + d12 + "/" + n + " · Top-3 " + b4 + "→" + b12 + "/" + n + " · " + khac + " tem xáo thứ tự trong nhóm bằng điểm");
+  }
+
+  /* Người chấm IDF (4 giai đoạn) phải CHẠY ĐƯỢC và không phá luật nghiệp vụ nào — nó là đường dự
+     phòng có công tắc, đo bằng `qc-cham-idf.mjs`. Ở đây chỉ khoá: bật lên không vỡ, tắt lại như cũ. */
+  {
+    const nhan = E.tuAI({ item_codes: ["JC01262"], specs: ["17mm"], colors: ["matt silver"], brands: ["MORITO"] }, cm);
+    E.datCham("idf");
+    const idf = E.timTop(nhan, cm, { soLuong: 3, chiActive: true });
+    E.datCham("vai");
+    const vai = E.timTop(nhan, cm, { soLuong: 3, chiActive: true });
+    kiem("Công tắc datCham('idf') chạy được, vẫn giữ luật COMBO không đứng đầu, tắt lại về đúng bản cũ",
+      idf.length > 0 && idf[0].type !== "COMBO" && !idf[0].gop && vai.length > 0 && E.kieuCham() === "vai",
+      "idf #1 " + idf[0].sku + "/" + idf[0].pct + "% · vai #1 " + vai[0].sku + "/" + vai[0].pct + "%");
+  }
+
   /* SỰ CỐ THẬT 19/08/2026 (chiều muộn): gõ `c2080` — mã CÓ trong danh mục, 3 SKU — nhưng **cả 3 đều
      bán theo "Cuộn 5000m"** ⇒ luật "hàng đóng gói không được đứng đầu" (lúc đó là luật TOÀN CỤC) đẩy
      chúng xuống hạng 29-31, nhường 28 dòng chỉ khớp mỗi chữ "lavender" (50%). Thủ kho thấy y như
@@ -206,9 +262,15 @@ console.log("");
     topNv.map((r) => r.sku + "/" + r.pct + "%").join(" · "));
   /* Chính mấy mảnh này là thứ làm loãng điểm và bắt lệch OAN nếu không lọc: "LOT 25/08-114" đủ để
      engine kết luận "lệch tỉ lệ sợi" với mọi SKU ghi 27-60-3 rồi trừ 18% của chính dòng đúng. */
-  const boHet = ["4500219877", "25-08-114", "12-08-2026", "inspector"].filter((t) => (nv.bo || []).indexOf(t) < 0);
-  kiem("Mảnh giấy tờ (số PO · số lô · ngày · INSPECTOR) bị bỏ vì danh mục không hề có",
-    boHet.length === 0, boHet.length ? "còn lọt: " + boHet.join(",") : "đã bỏ " + (nv.bo || []).length + " mảnh");
+  /* Kiểm HỆ QUẢ, không kiểm cơ chế: mảnh giấy tờ không được có mặt trong BẤT KỲ vai nào. Nó bị loại
+     ở đâu thì tuỳ — từ 19/08/2026 số lô/ngày/chữ ký nháy bị `chuanChuoiTem` cắt ngay ở mức chuỗi
+     (nên KHÔNG còn xuất hiện trong `bo` nữa), còn số PO thì rơi ở bước lọc theo danh mục. Bản đầu
+     của ca này kiểm `bo` chứa đủ 4 mảnh ⇒ đỏ oan khi bước dọn tốt lên. */
+  const moiVai = ["code", "spec", "color", "brand"].reduce((a, v) => a.concat(nv[v] || []), []);
+  const conLot = ["4500219877", "25-08-114", "12-08-2026", "inspector", "ng.t.h"].filter((t) => moiVai.indexOf(t) >= 0);
+  kiem("Mảnh giấy tờ (số PO · số lô · ngày · chữ ký nháy) KHÔNG vào vai nào",
+    conLot.length === 0,
+    conLot.length ? "còn lọt: " + conLot.join(",") : "sạch — " + (nv.bo || []).length + " mảnh bị lọc theo danh mục, phần còn lại đã cắt ở mức chuỗi");
 
   /* MÃ DÀI GHÉP NHIỀU ĐOẠN: mẫu thông số từng cắn mất khúc giữa ("10-163") làm mất sạch bằng chứng */
   const dongHkm = ds.find((r) => /HKM-DET\.TT\.10-163/i.test(r.pn) && r.status === "ACTIVE");
