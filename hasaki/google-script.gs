@@ -1684,12 +1684,13 @@ function soDriveOcr_(b64, mime, lang) {
   }
 }
 
-/** Kiểm nhanh trong editor: OCR có chạy được không (dựng 1 ảnh chữ đơn giản ngay tại đây). */
+/** Kiểm nhanh trong editor: khoá/hạn mức + chặng của lượt OCR gần nhất.
+ *  KHÔNG tự tải ảnh từ site ngoài (mã production không nên gọi ra internet ngoài Google) — muốn đọc
+ *  thử một tem thật thì chạy `node qc-sku-ocr-live.mjs`, nó tự dựng ảnh rồi gọi đúng cổng này. */
 function testSkuOcr() {
-  var anh = UrlFetchApp.fetch('https://dummyimage.com/900x260/ffffff/000000.png&text=F9-5284+Tex+27').getBlob();
-  var kq = soDriveOcr_(Utilities.base64Encode(anh.getBytes()), 'image/png', 'vi');
-  Logger.log(JSON.stringify(kq));
-  Logger.log('Đã dùng hôm nay: ' + (PropertiesService.getScriptProperties().getProperty('so_n_' + svNgay_()) || 0) + '/' + SO_TRAN_NGAY);
+  var p = PropertiesService.getScriptProperties();
+  Logger.log('Đã dùng hôm nay: ' + (p.getProperty('so_n_' + svNgay_()) || 0) + '/' + SO_TRAN_NGAY);
+  Logger.log('Lượt OCR gần nhất: ' + (p.getProperty('so_chan_cuoi') || 'chưa có lượt nào'));
 }
 
 /** Gọi Gemini theo chuỗi model dự phòng; 429/503 = hết quota/quá tải → tụt model sau. */
