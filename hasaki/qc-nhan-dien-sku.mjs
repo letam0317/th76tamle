@@ -147,6 +147,23 @@ console.log("── Lọc theo phần tử tên hàng ──");
   }
 }
 {
+  /* SỰ CỐ THẬT 19/08/2026 (chiều muộn): gõ `c2080` — mã CÓ trong danh mục, 3 SKU — nhưng **cả 3 đều
+     bán theo "Cuộn 5000m"** ⇒ luật "hàng đóng gói không được đứng đầu" (lúc đó là luật TOÀN CỤC) đẩy
+     chúng xuống hạng 29-31, nhường 28 dòng chỉ khớp mỗi chữ "lavender" (50%). Thủ kho thấy y như
+     "gợi ý vẫn theo lần tra trước". Chữa: luật đóng gói chỉ so khi hai bên CÙNG mức "có mã". */
+  const cuon = ds.filter((r) => /c2080/i.test(r.pn) && r.status === "ACTIVE");
+  const nhanCuon = E.tuAI({ item_codes: ["c2080"], specs: [], colors: ["lavender"], brands: [] }, cm);
+  const topCuon = E.timTop(nhanCuon, cm, { soLuong: 3, chiActive: true, loc: ["c2080", "lavender"] });
+  kiem("Mã có thật mà MỌI SKU của nó đều là cuộn/combo → vẫn phải lên đầu (đóng gói không được đè định danh)",
+    cuon.length >= 2 && cuon.every((r) => /cuộn/i.test(r.pn)) && topCuon.length > 0 &&
+    topCuon.slice(0, 2).every((r) => /c2080/i.test(r.pn)) && topCuon[0].type !== "COMBO",
+    topCuon.map((r) => r.sku + "/" + r.pct + "%" + (r.type === "COMBO" ? "(COMBO)" : "")).join(" · "));
+  /* Mặt ngược: TRONG CÙNG một mặt hàng thì combo vẫn phải xuống sau bản đếm được (luật kho cũ vẫn
+     nguyên) — hai dòng này cùng mang mã c2080 nên luật đóng gói được quyền nói. */
+  kiem("… nhưng trong CÙNG mặt hàng thì bản (Combo) vẫn xuống sau bản NORMAL",
+    topCuon.length >= 2 && topCuon[0].type === "NORMAL" && topCuon[1].type === "COMBO",
+    (topCuon[0] || {}).type + " → " + (topCuon[1] || {}).type);
+
   /* GÕ MẢNH CHUNG: "polyester" một mình thì hàng trăm dòng cùng phủ 1/1 = 100%. Nhóm cùng độ phủ
      phải xếp tiếp bằng ĐIỂM KHỚP TEM, không phải bằng đơn vị/tồn (thủ kho báo 19/08: thấy
      "100,100,100%" rồi chọn nhầm). Ca này: cùng mảnh chung + từ khoá tem của dây kéo 8846295 màu

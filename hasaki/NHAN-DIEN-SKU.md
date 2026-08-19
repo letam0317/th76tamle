@@ -775,6 +775,62 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.9 Sự cố C2080 — luật "hàng đóng gói" bị dùng làm luật TOÀN CỤC
+
+**Báo lỗi:** *"ảnh là C2080 mà kết quả SKU gợi ý vẫn theo lần tra cứu trước đó — cả tra bằng ô phần
+tử và ảnh luôn"*.
+
+**Tái hiện được ngay** (`c2080` có thật trong danh mục, 3 SKU):
+
+```
+Tra "c2080 lavender"  →  Top 3 = 422350083 · 422270001 · 422265791   (50%, KHÔNG mang mã)
+                          3 SKU của c2080 nằm ở hạng 29-31 với 100% + coMa=true
+```
+
+**Gốc:** cả 3 SKU của mã `c2080` đều bán theo **"Cuộn 5000m"** ⇒ cờ `gop` ⇒ luật *"hàng đóng gói
+không được đứng đầu"* — lúc đó là **luật TOÀN CỤC** — đẩy chúng xuống dưới **28 dòng chỉ khớp mỗi chữ
+"lavender"**. Nhìn ra kết quả thì y như "vẫn theo lần tra trước", nhưng **không phải state leak**.
+Đáng chú ý: code đang xếp **ngược với chính tài liệu của nó** (mục 4.8 ghi `CÓ MÃ` phải đứng *trên*
+đóng gói).
+
+**Nhưng không thể chỉ đảo hai luật đó**: đưa `CÓ MÃ` lên trên hẳn thì **SỔ TAY** lại bị một dòng
+"tình cờ mang mã" vượt qua — mà sổ tay tồn tại chính để xử mấy tem có **mã NCC không nằm trong tên
+SKU** (2 ca test đỏ liền). Ba ràng buộc tạo thành **VÒNG**:
+
+```
+đóng gói > sổ tay        (sự cố: sổ tay lỡ học COMBO thì COMBO chiếm hạng 1)
+sổ tay   > có mã         (sổ tay là người tự tay xác nhận cho đúng tem đó)
+có mã    > đóng gói      (sự cố C2080)
+```
+
+**Cách ra khỏi vòng — trả luật đóng gói về đúng phạm vi của nó.** Ý nghĩa thật của nó luôn là *"giữa
+hai dòng **của cùng một mặt hàng** thì đừng gợi ý bản cuộn/combo, hãy gợi ý bản đếm được"*. Nó chưa
+bao giờ có nghĩa "một cuộn bất kỳ phải xuống dưới một mặt hàng khác hẳn". Nên: **chỉ so đóng gói khi
+hai bên CÙNG mức `coMa`**.
+
+| Ca | Hai bên cùng mức "có mã"? | Ai quyết | Kết quả |
+|---|---|---|---|
+| C2080 (cuộn, có mã) vs dòng 50% không mã | không | **CÓ MÃ** | c2080 lên #1 ✓ |
+| Morito COMBO vs NORMAL, cùng mã | có | **đóng gói** | COMBO xuống ✓ |
+| Sổ tay lỡ học COMBO của cùng mặt hàng | có | **đóng gói** | COMBO vẫn xuống ✓ |
+| Sổ tay chốt SKU không mang mã tem | không | **SỔ TAY** | ghim thắng ✓ |
+
+**Thứ tự chốt:**
+
+```
+laSku → ACTIVE → [HÀNG ĐÓNG GÓI, chỉ khi hai bên cùng mức "có mã"] → SỔ TAY → CÓ MÃ
+      → điểm → độ phủ → đơn vị nhỏ → tồn
+```
+
+Đo đối chứng trên 30 lượt OCR thật: Top-3 **87% → 90%**, **2 lượt tốt hơn · 0 lượt xấu hơn**.
+Test: **58/58** lõi (+2 ca khoá sự cố này: *mã mà mọi SKU đều là cuộn vẫn phải lên đầu* và *trong
+cùng mặt hàng thì (Combo) vẫn xuống sau NORMAL*).
+
+> **Bài học rút ra rộng hơn**: một luật nghiệp vụ viết dưới dạng "X không bao giờ đứng đầu" gần như
+> luôn thiếu phạm vi. Phải hỏi *"không đứng đầu SO VỚI CÁI GÌ"* — ở đây là so với **cùng mặt hàng**,
+> không phải so với cả danh mục. Ba luật cứng mà tạo thành vòng là dấu hiệu có một luật đang bị dùng
+> ngoài phạm vi của nó.
+
 ### 5b.8 MỘT LƯỢT QUÉT = MỘT TẤM TEM (sự cố 19/08/2026)
 
 **Báo lỗi:** chụp tem mới nhưng ① từ khoá tem CŨ vẫn còn và vẫn tính điểm (mã `C3968` của lượt
