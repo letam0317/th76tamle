@@ -683,6 +683,12 @@ Số mảnh bị bỏ hiện ở **dòng chân** ("đã bỏ N mảnh giấy t�
    nhưng bỏ được **cảm giác treo máy** — chính cái đó làm người dùng nói "quá lâu". Giây thứ 12 kèm
    nhắc: mạng yếu thì gõ mã trên tem là ra ngay, không cần chờ.
 
+> **ĐỘ TẢN của con số**: đo live 3 lượt trên trang thật ra **4,8 s · 6,7 s · 17,9 s** cho cùng một
+> tem. Lượt 17,9 s **chỉ có MỘT** lượt gọi `sku_vision` (không phải thử lại), nên nguyên nhân nằm ở
+> phía Google — Apps Script khởi động nguội hoặc model xếp hàng. Không có cách nào ép nhanh từ phía
+> mình; đó chính là lý do phải có **đồng hồ giây + nhắc ở giây 12** thay vì cố hứa một con số.
+> Đừng đọc một lần đo rồi kết luận nhanh/chậm: phải đo vài lượt.
+
 > **Bẫy async đã cắn khi đảo thứ tự**: `ndsNhanKetQua` không phải `async` mà bên trong có `await`
 > (nạp danh mục), nên bậc thang hỏi `ndsDuCanCu()` ngay sau đó **đọc `NDS.ket` của LƯỢT TRƯỚC** rồi
 > quyết định tụt xuống OCR sai. Đã cho `await` xuyên suốt.
