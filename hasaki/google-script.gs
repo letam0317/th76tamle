@@ -1398,9 +1398,19 @@ var SV_KHOA_CUNG = '';
 var SV_TRAN_NGAY = 400;        // tổng lượt đọc tem/ngày (bậc miễn phí Gemini ~ dư sức cho kho)
 var SV_TRAN_NGUOI = 120;       // lượt/ngày cho mỗi email
 var SV_TRAN_ANH_B64 = 2600000; // ~1,9 MB base64 (client đã thu nhỏ còn ~200-400 KB)
-/* Mỗi model có quota miễn phí RIÊNG theo ngày → hết model trước thì tự tụt model sau (giống
-   sync-vesinh-ai.mjs). Thứ tự = nhanh/chuẩn trước, nhẹ sau. */
-var SV_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+/* Mỗi model có quota miễn phí RIÊNG theo ngày → hết model trước thì tự tụt model sau.
+   THỨ TỰ ĐỔI 19/08/2026 (chiều) — trước đó là "chuẩn trước, nhẹ sau", ĐO THẬT thì sai cả hai mặt:
+     · `gemini-3.5-flash` (đứng đầu danh sách cũ) đang trả **429** ⇒ MỌI lượt đọc tem đều tốn một
+       round-trip vô ích trước khi tụt model, và nếu cả chuỗi 429 thì thủ kho thấy "không có kết quả".
+     · `gemini-2.5-flash-lite` trong chuỗi cũ trả **404** (tên model không còn dùng được) ⇒ thêm một
+       round-trip vô ích nữa.
+     · Đo thời gian đọc CÙNG một tem khó (nghiêng + mờ): `gemini-flash-lite-latest` **1,9-2,0 s**,
+       `gemini-3.5-flash-lite` 1,6-3,0 s, `gemini-3.1-flash-lite` 2,2-4,3 s — và cả ba đều bóc ĐÚNG
+       mã 8209948 + 18.0 CM + màu 366. Tức bản "lite" vừa nhanh hơn 2× vừa không kém ở việc này
+       (việc của nó chỉ là ĐỌC CHỮ, không phải suy luận).
+   ⇒ lite trước (nhanh + quota rộng), model to để sau làm dự phòng khi lite hết quota.
+   `gemini-flash-lite-latest` là bút danh trỏ tới bản lite mới nhất nên không bị chết tên như 2.5. */
+var SV_MODELS = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
 
 var SV_PROMPT =
   'Bạn đang đọc ảnh MỘT TEM NHÃN của nhà cung cấp trong kho nguyên liệu may (chỉ may, nút/khuy, dây kéo, nhãn dệt, vải, dây thun).\n' +
@@ -1696,7 +1706,16 @@ function testSkuOcr() {
 /** Gọi Gemini theo chuỗi model dự phòng; 429/503 = hết quota/quá tải → tụt model sau. */
 function svGoiGemini_(b64, mime, khoa) {
   var loiCuoi = '';
+  /* NHỚ MODEL ĐÃ CHẾT TRONG NGÀY — model hết quota (429) hoặc chết tên (404) thì bỏ qua luôn đến
+     hết ngày, khỏi tốn round-trip cho mọi lượt đọc tem sau đó (đo 19/08: model đầu danh sách 429 làm
+     mỗi lượt đọc tem tốn thêm ~1 giây vô ích). Khoá theo NGÀY nên hôm sau quota mới lại được thử. */
+  var pp = PropertiesService.getScriptProperties();
+  var kChet = 'sv_chet_' + svNgay_();
+  var chet = {};
+  try { chet = JSON.parse(pp.getProperty(kChet) || '{}') || {}; } catch (eC) { chet = {}; }
+  var doiChet = false;
   for (var i = 0; i < SV_MODELS.length; i++) {
+    if (chet[SV_MODELS[i]]) continue;
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + SV_MODELS[i] + ':generateContent?key=' + encodeURIComponent(khoa);
     var payload = {
       contents: [{ role: 'user', parts: [{ text: SV_PROMPT }, { inline_data: { mime_type: mime, data: b64 } }] }],
@@ -1710,7 +1729,11 @@ function svGoiGemini_(b64, mime, khoa) {
       continue;
     }
     var code = r.getResponseCode(), txt = r.getContentText();
-    if (code === 429 || code === 503) { loiCuoi = 'HTTP ' + code + ' (hết quota/quá tải) ở ' + SV_MODELS[i]; continue; }
+    if (code === 429 || code === 404) {          // hết quota trong ngày, hoặc tên model đã chết
+      chet[SV_MODELS[i]] = code; doiChet = true;
+      loiCuoi = 'HTTP ' + code + ' ở ' + SV_MODELS[i]; continue;
+    }
+    if (code === 503) { loiCuoi = 'HTTP 503 (quá tải) ở ' + SV_MODELS[i]; continue; }   // tạm thời, KHÔNG ghi chết
     if (code !== 200) return { status: 'error', message: 'AI trả HTTP ' + code + ': ' + String(txt).slice(0, 200) };
     var j; try { j = JSON.parse(txt); } catch (e2) { return { status: 'error', message: 'AI trả dữ liệu không đọc được.' }; }
     var cand = (j.candidates || [])[0];
@@ -1720,6 +1743,7 @@ function svGoiGemini_(b64, mime, khoa) {
     ((cand.content && cand.content.parts) || []).forEach(function (x) { chu += (x.text || ''); });
     var o; try { o = JSON.parse(chu); } catch (e3) { return { status: 'error', message: 'AI trả JSON sai khuôn.' }; }
     var lay = function (k) { return (o[k] || []).map(function (x) { return String(x).slice(0, 60); }).slice(0, 40); };
+    if (doiChet) { try { pp.setProperty(kChet, JSON.stringify(chet)); } catch (eS) { /* nhớ được thì tốt, không thì thôi */ } }
     return {
       status: 'success', model: SV_MODELS[i],
       quality: String(o.quality || ''),
@@ -1727,5 +1751,6 @@ function svGoiGemini_(b64, mime, khoa) {
       tokens: { item_codes: lay('item_codes'), specs: lay('specs'), colors: lay('colors'), brands: lay('brands'), others: lay('others') }
     };
   }
-  return { status: 'error', message: 'Tất cả model AI miễn phí đều đang hết hạn mức (' + loiCuoi + ') — gõ từ khoá tay giúp.' };
+  if (doiChet) { try { pp.setProperty(kChet, JSON.stringify(chet)); } catch (eS2) { /* best-effort */ } }
+  return { status: 'error', message: 'Tất cả model AI miễn phí đều đang hết hạn mức (' + loiCuoi + ') — dashboard sẽ tự thử OCR của Google, hoặc gõ mã trên tem.' };
 }

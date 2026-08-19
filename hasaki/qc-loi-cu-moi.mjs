@@ -39,6 +39,9 @@ const lam = (E) => {
   return { E, cm: E.dungChiMuc(ds) };
 };
 const cu = lam(CU), moi = lam(MOI);
+/* Đo TÁCH RIÊNG phần IDF: cùng lõi mới, chỉ bật/tắt trọng số IDF. Không tách ra thì không biết cái
+   nào mang lại thay đổi — bản vá lỗi hay trọng số mới. */
+const coIdf = typeof MOI.batIdf === "function";
 console.log("✓ Lõi CŨ (" + REV + ") + lõi MỚI, cùng danh mục " + rows.length + " SKU");
 
 const dem = JSON.parse(fs.readFileSync(F_DEM, "utf8"));
@@ -68,10 +71,14 @@ const dung = (b, sku, chu) => {
 };
 
 let tot = 0, xau = 0, nhu = 0;
-const d = { cu: { t1: 0, t3: 0, ma: 0 }, moi: { t1: 0, t3: 0, ma: 0 } };
+const d = { cu: { t1: 0, t3: 0, ma: 0 }, khongIdf: { t1: 0, t3: 0, ma: 0 }, moi: { t1: 0, t3: 0, ma: 0 } };
 for (const x of ca) {
-  const a = dung(cu, x.sku, x.chu), b = dung(moi, x.sku, x.chu);
+  const a = dung(cu, x.sku, x.chu);
+  let k = null;
+  if (coIdf) { MOI.batIdf(false); k = dung(moi, x.sku, x.chu); MOI.batIdf(true); }
+  const b = dung(moi, x.sku, x.chu);
   d.cu.t1 += a.top1 ? 1 : 0; d.cu.t3 += a.top3 ? 1 : 0; d.cu.ma += a.coMa ? 1 : 0;
+  if (k) { d.khongIdf.t1 += k.top1 ? 1 : 0; d.khongIdf.t3 += k.top3 ? 1 : 0; d.khongIdf.ma += k.coMa ? 1 : 0; }
   d.moi.t1 += b.top1 ? 1 : 0; d.moi.t3 += b.top3 ? 1 : 0; d.moi.ma += b.coMa ? 1 : 0;
   const diem = (r) => (r.top1 ? 2 : 0) + (r.top3 ? 1 : 0);
   const cham = diem(b) - diem(a);
@@ -86,6 +93,7 @@ const pc = (v) => String(Math.round((v / ca.length) * 100)).padStart(3) + "%";
 console.log("\n════ " + ca.length + " lượt đọc, chấm bằng 2 lõi ════");
 console.log("  lõi          Top-1        Top-3        khớp được mã");
 console.log("  CŨ (" + REV + ")   " + pc(d.cu.t1) + " (" + d.cu.t1 + ")    " + pc(d.cu.t3) + " (" + d.cu.t3 + ")    " + pc(d.cu.ma));
+if (coIdf) console.log("  MỚI, tắt IDF " + pc(d.khongIdf.t1) + " (" + d.khongIdf.t1 + ")    " + pc(d.khongIdf.t3) + " (" + d.khongIdf.t3 + ")    " + pc(d.khongIdf.ma));
 console.log("  MỚI          " + pc(d.moi.t1) + " (" + d.moi.t1 + ")    " + pc(d.moi.t3) + " (" + d.moi.t3 + ")    " + pc(d.moi.ma));
 console.log("\n  Đổi kết quả: " + tot + " lượt TỐT HƠN · " + xau + " lượt XẤU HƠN · " + nhu + " lượt y như cũ");
 process.exit(xau > tot ? 1 : 0);

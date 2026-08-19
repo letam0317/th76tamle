@@ -46,6 +46,23 @@ MADE IN VIETNAM
 NET WEIGHT 12.5 KG`,
 };
 const OCR_LOI = { status: "error", message: "OCR không thấy chữ nào trên ảnh — chụp gần hơn, đủ sáng, giữ tem phẳng." };
+/* AI trả về CÓ kèm mấy dòng giấy tờ trong raw_text — để kiểm bước lọc mảnh theo danh mục trên chính
+   đường AI (từ 19/08/2026 chiều, AI là người đọc đầu tiên nên bước lọc phải chạy ở đây). */
+const AI_GIAY_TO = {
+  status: "success", model: "gemini-3.5-flash(giả)", quality: "ro", ms: 1234, conLai: 399,
+  tokens: { item_codes: ["8846295", "CMOR-36"], specs: ["38.0 CM"], colors: ["345"], brands: ["YKK"], others: ["100 PCS"] },
+  text: `YKK 8846295 CMOR-36
+Chiều dài: 38.0 CM  Màu: 345
+ADD: LOT 24, TAN THOI HIEP IP, DIST 12, HCMC
+P/O NO: 4500219877  LOT: 25/08-114
+NET WEIGHT: 12.5 KG  INSPECTOR: NG.T.H`,
+};
+/* AI đọc được chữ nhưng KHÔNG mảnh nào là mã hàng có thật → bậc thang phải tụt xuống OCR */
+const AI_KHONG_MA = {
+  status: "success", model: "gemini-3.5-flash(giả)", quality: "mo", ms: 1100,
+  tokens: { item_codes: [], specs: [], colors: [], brands: ["SEWING THREAD"], others: [] },
+  text: "SEWING THREAD 100% POLYESTER\nMADE IN VIETNAM\nNET WEIGHT 12.5 KG",
+};
 let traLoiOcr = OCR_OK, soGoiOcr = 0, soGoiAi = 0;
 /* Trang HTML mà chặng 2 của Apps Script (script.googleusercontent.com/…/echo) thỉnh thoảng trả về
    thay cho JSON — chính là lỗi thật 19/08/2026 ("Unexpected token '<', \"<!DOCTYPE \"…"). */
@@ -596,22 +613,22 @@ const datAnhMoi = async () => {
 };
 
 await bam("#ttSku");
-traLoiOcr = OCR_OK; traLoi = AI_OK; soGoiOcr = 0; soGoiAi = 0;
+traLoi = AI_GIAY_TO; traLoiOcr = OCR_OK; soGoiOcr = 0; soGoiAi = 0;
 await datAnhMoi();
-const sauOcr = await page.evaluate(() => ({
+const sauAi = await page.evaluate(() => ({
   the: document.querySelectorAll("#ndsCards .nds-card").length,
   sku: (document.querySelector("#ndsCards .nds-sku") || {}).textContent || "",
-  nguon: (window.NDS.tokens || []).map((t) => t.nguon).join(","),
+  nguon: (window.NDS.tokens || []).map((t) => t.nguon).filter((v, i, a) => a.indexOf(v) === i).join(","),
   raw: (document.getElementById("ndsRaw") || {}).value || "",
   boRac: NDS.boRac || 0,
 }));
-kiem("OCR đọc ra mã có thật → ra SKU luôn và KHÔNG gọi AI lượt nào",
-  soGoiOcr === 1 && soGoiAi === 0 && sauOcr.the > 0,
-  soGoiOcr + " lượt OCR · " + soGoiAi + " lượt AI · " + sauOcr.the + " gợi ý · #1 = " + sauOcr.sku.trim());
-kiem("Từ khoá ghi rõ đến từ OCR (không nhận vơ là AI)", /ocr|chu/.test(sauOcr.nguon), sauOcr.nguon.slice(0, 60));
-kiem("Chữ OCR được đưa vào ô \"chữ trên tem\" để sửa được", /8846295/.test(sauOcr.raw), sauOcr.raw.slice(0, 40));
-kiem("Bỏ mảnh GIẤY TỜ không có trong danh mục (địa chỉ · số PO · ngày · cân nặng)", sauOcr.boRac >= 3,
-  "bỏ " + sauOcr.boRac + " mảnh");
+kiem("AI lập được mã có thật → ra SKU luôn và KHÔNG gọi OCR lượt nào (tiết kiệm 6 giây)",
+  soGoiAi === 1 && soGoiOcr === 0 && sauAi.the > 0,
+  soGoiAi + " lượt AI · " + soGoiOcr + " lượt OCR · " + sauAi.the + " gợi ý · #1 = " + sauAi.sku.trim());
+kiem("Chữ thô của AI cũng được tách (ghép 2 nguồn: vai AI + chữ thô)", /chu/.test(sauAi.nguon), sauAi.nguon);
+kiem("Chữ đọc được đưa vào ô \"chữ trên tem\" để sửa được", /8846295/.test(sauAi.raw), sauAi.raw.slice(0, 40));
+kiem("Bỏ mảnh GIẤY TỜ không có trong danh mục (địa chỉ · số PO · ngày · cân nặng)", sauAi.boRac >= 3,
+  "bỏ " + sauAi.boRac + " mảnh");
 const chanRac = await page.$eval("#ndsFoot", (e) => e.textContent);
 kiem("Dòng chân nói ra đã bỏ bao nhiêu mảnh giấy tờ", /mảnh giấy tờ/.test(chanRac), "");
 
@@ -624,16 +641,49 @@ const canhMau = await page.evaluate(() => {
 });
 kiem("Cùng mã nhưng khác màu/thông số → mời người chọn, không tự chốt", !!canhMau, canhMau.slice(0, 96));
 
-traLoiOcr = OCR_KHONG_MA; soGoiOcr = 0; soGoiAi = 0;
+/* AI đọc được chữ nhưng KHÔNG lập được mã nào có thật → phải tự tụt xuống OCR (miễn phí) */
+traLoi = AI_KHONG_MA; traLoiOcr = OCR_OK; soGoiOcr = 0; soGoiAi = 0;
 await datAnhMoi();
-kiem("OCR không lập được mã → TỰ leo thang sang AI", soGoiOcr === 1 && soGoiAi === 1,
-  soGoiOcr + " lượt OCR · " + soGoiAi + " lượt AI");
+const sauLeo = await page.evaluate(() => document.querySelectorAll("#ndsCards .nds-card").length);
+kiem("AI không lập được mã → TỰ tụt xuống OCR (miễn phí) và OCR cứu được",
+  soGoiAi === 1 && soGoiOcr === 1 && sauLeo > 0,
+  soGoiAi + " lượt AI · " + soGoiOcr + " lượt OCR · " + sauLeo + " gợi ý");
 
-traLoiOcr = OCR_LOI; soGoiOcr = 0; soGoiAi = 0;
+/* ĐÚNG CA THỦ KHO BÁO 19/08/2026: "không có kết quả nào" = AI hết hạn mức / trả JSON sai khuôn.
+   Đây là lý do giữ OCR trong bậc thang dù nó chậm hơn: nó không dùng hạn mức nào. */
+traLoi = AI_LOI; traLoiOcr = OCR_OK; soGoiOcr = 0; soGoiAi = 0;
+await page.evaluate(() => { const t = document.getElementById("toast"); t.textContent = ""; t.classList.remove("show"); });
 await datAnhMoi();
-const sauLoi = await page.evaluate(() => document.querySelectorAll("#ndsCards .nds-card").length);
-kiem("OCR chết → vẫn ra kết quả nhờ leo thang sang AI (không để màn hình trống)",
-  soGoiAi === 1 && sauLoi > 0, soGoiOcr + " lượt OCR · " + soGoiAi + " lượt AI · " + sauLoi + " gợi ý");
+const sauCuu = await page.evaluate(() => ({
+  the: document.querySelectorAll("#ndsCards .nds-card").length,
+  nguon: (window.NDS.tokens || []).map((t) => t.nguon).filter((v, i, a) => a.indexOf(v) === i).join(","),
+}));
+kiem("AI hết hạn mức → OCR CỨU, vẫn ra kết quả (đúng ca \"không có kết quả nào\")",
+  soGoiAi === 1 && soGoiOcr === 1 && sauCuu.the > 0,
+  soGoiAi + " lượt AI · " + soGoiOcr + " lượt OCR · " + sauCuu.the + " gợi ý · nguồn " + sauCuu.nguon);
+
+/* Cả hai người đọc đều hỏng → mới được quăng lỗi, và phải chỉ sang đường KHÔNG CẦN MẠNG (gõ mã) */
+traLoi = AI_LOI; traLoiOcr = OCR_LOI; soGoiOcr = 0; soGoiAi = 0;
+await page.evaluate(() => { const t = document.getElementById("toast"); t.textContent = ""; t.classList.remove("show"); });
+await datAnhMoi();
+const baoHong = await page.$eval("#toast", (e) => e.textContent);
+kiem("Cả AI lẫn OCR hỏng → nói thẳng một lần + chỉ sang ô gõ mã",
+  soGoiAi === 1 && soGoiOcr === 1 && /gõ mã in trên tem/i.test(baoHong),
+  soGoiAi + " AI · " + soGoiOcr + " OCR · toast: " + baoHong.slice(0, 64));
+
+/* Đồng hồ giây trong hộp "đang đọc": không rút được 4–8 giây của Google, nhưng phải cho thấy máy
+   đang làm chứ không treo (chính cảm giác treo làm thủ kho báo "quá lâu"). */
+traLoi = AI_OK; traLoiOcr = OCR_OK;
+const coDongHo = await page.evaluate(async () => {
+  ndsBusy(true, "đang thử");
+  await new Promise((r) => setTimeout(r, 350));
+  const el = document.getElementById("ndsDongHo");
+  const chu = el ? el.textContent : "";
+  ndsBusy(false);
+  return { chu: chu, conSau: !!document.getElementById("ndsDongHo") };
+});
+kiem("Hộp \"đang đọc\" có đồng hồ giây và tắt sạch khi xong",
+  /^0,[1-9]s$/.test(coDongHo.chu) && !coDongHo.conSau, "sau 0,35s hiện " + coDongHo.chu);
 
 /* Quay lại tab Nhận diện SKU trước khi đo: getComputedStyle vẫn trả giá trị grid dù phần tử đang
    bị ẩn, nên nếu không kiểm "đang hiện thật" thì ca này pass cả khi trang đứng ở tab khác. */

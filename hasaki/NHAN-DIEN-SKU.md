@@ -12,13 +12,15 @@ hết hạn mức AI vẫn dùng được**:
 | 1. Danh mục | tab Sheet `SKU_MASTER` | 5.610 SKU 3 kho nguyên liệu (kèm đơn vị tính) | dùng bản cache trong máy (12h), có ghi rõ tuổi |
 | 2. **Mã vạch** | `BarcodeDetector` sẵn trong trình duyệt | ảnh → mã vạch, **~0,1 s, không mạng** | tụt xuống tầng 3/4 |
 | 3. **Sổ tay tem** | `localStorage` trên máy | chữ ký tem / mã vạch → SKU **người đã chốt** | tem lạ thì tụt xuống tầng 4 |
-| 4. **OCR của Google** | Apps Script `action=sku_ocr` → Drive OCR | ảnh → **chữ thô**, ~6 s, **MIỄN PHÍ** (0 hạn mức AI) | tụt xuống tầng 5 |
-| 5. Đọc tem bằng AI | Apps Script `action=sku_vision` → Gemini | ảnh → chữ + từ khoá gắn vai (3–7 s) | gõ từ khoá tay / dán chữ trên tem |
+| 4. Đọc tem bằng AI | Apps Script `action=sku_vision` → Gemini | ảnh → chữ + từ khoá gắn vai, **~5 s** (model 2 s + 2 s phí 2 chặng GAS) | tụt xuống tầng 5 |
+| 5. **OCR của Google** | Apps Script `action=sku_ocr` → Drive OCR | ảnh → **chữ thô**, ~7,4 s, **MIỄN PHÍ** (0 hạn mức AI) | gõ mã trên tem / dán chữ |
 | 6. Đối soát | 100% trong trình duyệt (`NDS_ENGINE`) | trọng số 45/25/20/10 + fuzzy, vai lấy bằng chứng từ danh mục | — (không phụ thuộc mạng) |
 
-> **Thứ tự CÓ CHỦ Ý**: tầng 2, 3, 4 đều là đường **không tốn hạn mức AI** và chạy trước. AI chỉ còn
-> là lưới đỡ khi ba tầng kia **chưa lập được MÃ HÀNG** có thật trong danh mục — dùng ít dần theo thời
-> gian, đúng luật "nhẹ tải upstream". Chi tiết + số đo: **mục 5b**.
+> **Thứ tự CÓ CHỦ Ý, và đã đảo một lần** (chiều 19/08/2026, sau khi thủ kho báo *"đọc quá lâu >20s"*):
+> tầng 2–3 vẫn chạy trước vì chúng **0 giây, 0 mạng**. Nhưng giữa AI và OCR thì **AI đứng trước** —
+> đo thật: AI ~5 s còn OCR ~7,4 s (riêng Drive chuyển ảnh sang Google Docs đã 3–4 s, không sửa được),
+> và AI còn **đúng hơn** ở tem chữ nhỏ/nhoè. OCR giữ đúng vai trị giá nhất của nó: **chạy khi AI hết
+> hạn mức / trả JSON sai khuôn** — tức đúng ca "không có kết quả nào". Chi tiết + số đo: **mục 5b**.
 
 ---
 
@@ -550,7 +552,7 @@ Ba chặng trong `soDriveOcr_`: **mở phiên nạp** (`uploadType=resumable`, J
 **400/ngày/máy** (cao hơn AI vì không tốn hạn mức, trần chỉ để một máy hỏng không quét vô hạn) · cờ
 "đang đọc" theo email (Script Properties, không phải CacheService — xem ghi chú ở `sku_vision`).
 
-### 5b.2 OCR **không thay** AI — nó là tầng rẻ chạy trước
+### 5b.2 OCR **không thay** AI — nó là lưới đỡ khi AI chết
 
 Đo trên **30 tem mô phỏng** (nhãn cắt từ PRODUCTNAME thật, 3 bậc khó: sạch · nghiêng+mờ+loá ·
 chữ nhỏ 0,62× + nhoè + nghiêng 13° + loá mạnh):
@@ -570,11 +572,15 @@ Và trên bộ 12 tem khó (có gọi cả Gemini):
 
 **Kết luận đúng của số liệu**: OCR đọc được **16/16 lượt** (AI trượt 1) và **miễn phí**, nhưng ở bậc
 tem **RẤT KHÓ** nó đọc lệch ký tự (`Đen-580-AA` → `Ben-380-AA`, `345` → `145`) ⇒ ra **đúng mã** mà
-**lệch màu**. AI là mô hình thị giác nên dựng lại được chữ nhoè. Vì vậy **bậc thang**:
+**lệch màu**. AI là mô hình thị giác nên dựng lại được chữ nhoè. Cộng thêm số đo tốc độ ở **5b.6**
+(AI ~5 s, OCR ~7,4 s), **bậc thang chốt lại là**:
 
 ```
-① mã vạch (0,1s, offline) → ② sổ tay tem (0s) → ③ OCR Google (6s, MIỄN PHÍ) → ④ AI (chỉ khi ③ chưa lập được mã)
+① mã vạch (0,1s, offline) → ② sổ tay tem (0s) → ③ AI (~5s) → ④ OCR Google (~7,4s, MIỄN PHÍ — chỉ khi ③ chưa lập được mã hoặc chết)
 ```
+
+> Bậc thang này từng đặt OCR ở vị trí ③ (sáng 19/08, lý do "miễn phí thì cho chạy trước"). Thủ kho
+> dùng thật rồi báo **"đọc quá lâu >20s"** — phản hồi đúng, xem 5b.6 để biết 20 giây đi đâu.
 
 Điều kiện leo thang **không phải % điểm** mà là `ndsDuCanCu()`: *đã khớp tuyệt đối một MÃ có thật
 trong danh mục chưa*. Điểm cao nhờ chữ chung chính là thứ đưa ra SKU sai một cách tự tin, nên không
@@ -642,12 +648,77 @@ Lọc theo 3 mức, rẻ trước: có nguyên văn trong `cm.idx` → `loi()` t
 Số mảnh bị bỏ hiện ở **dòng chân** ("đã bỏ N mảnh giấy tờ") — người dùng thấy máy bỏ cái gì.
 Đo: lọc **+4 điểm** Top-1 (77% vs 73%).
 
-### 5b.5 Giao diện
+### 5b.5 TỐC ĐỘ — "đọc quá lâu >20s" đi đâu, và cắt được bao nhiêu
 
-* 3 nút dưới khung, đúng thứ tự **rẻ → đắt**: `Quét mã vạch` · `Đọc lại chữ (OCR)` · `Nhờ AI đọc`.
-* Ảnh gửi OCR **to hơn** ảnh gửi AI (`NDS_MAX_OCR` 2000px vs 1400px): OCR ăn theo độ nét từng nét
-  chữ, còn AI đoán được cả chữ nhoè.
+**Đo thật trên chính cổng production, cùng một tem, cùng đường truyền:**
+
+| Chặng | Thời gian | Sửa được không |
+|---|---|---|
+| Phí cố định 2 chặng của Apps Script (gọi không kèm ảnh) | **1,7–2,0 s** | **Không** — web app luôn đi `exec` → 302 → `googleusercontent/echo` |
+| Đẩy ảnh từ điện thoại qua 4G | tuỳ mạng, **vài giây** | Có — cắt byte (xem dưới) |
+| OCR: Drive chuyển ảnh → Google Docs | **3,2–4,0 s** | **Không** — việc của Google |
+| OCR: export văn bản | 0,6 s | — |
+| AI: model đọc ảnh | **1,9–2,5 s** (bản `lite`) | Có — chọn model (xem dưới) |
+
+⇒ **OCR ~7,4 s · AI ~5,0 s** tổng cộng, và cộng thời gian đẩy ảnh trên mạng di động thì OCR chạm
+>20 s như thủ kho gặp. **OCR không thể nhanh hơn**, nên nó phải xuống làm lưới đỡ.
+
+**Bốn việc đã làm để cắt thời gian:**
+
+1. **Đảo bậc thang** (AI trước): bỏ 7,4 s khỏi đường thường gặp. Đo live end-to-end sau khi đảo:
+   **6,7 s** kể cả nạp trang + nạp danh mục 5.613 SKU + dựng ảnh.
+2. **Chọn model theo SỐ ĐO, không theo "to là chuẩn"**. Đo cùng một tem khó:
+   `gemini-flash-lite-latest` **1,9–2,0 s** · `gemini-3.5-flash-lite` 1,6–3,0 s ·
+   `gemini-3.1-flash-lite` 2,2–4,3 s — **cả ba bóc đúng** mã `8209948` + `18.0 CM` + màu `366`.
+   Việc của model ở đây chỉ là **ĐỌC CHỮ**, không phải suy luận, nên bản `lite` không kém.
+   ⚠ Phát hiện quan trọng: `gemini-3.5-flash` (model **đứng đầu** danh sách cũ) đang trả **429**, và
+   `gemini-2.5-flash-lite` trong chuỗi dự phòng trả **404** (tên model đã chết) ⇒ **mỗi lượt đọc tem
+   đều tốn 1–2 round-trip vô ích**, và nếu cả chuỗi 429 thì thủ kho thấy đúng câu "không có kết quả".
+   Đã đổi thứ tự (lite trước) và **nhớ model chết trong ngày** (`sv_chet_<ngày>` ở Script Properties):
+   429/404 thì bỏ qua model đó tới hết ngày, hôm sau quota mới lại thử. Script từ 4,5 s → **2,3–3,2 s**.
+3. **Cắt byte ảnh**: ảnh gửi OCR hạ **2000 → 1400 px** (đo: 2000/1400/1000 px cho ra **chữ y hệt
+   nhau**, mà 2000 px nặng hơn ~50%), và nén theo **ngân sách byte** ≤ 430K ký tự base64 — hạ chất
+   lượng 0,72 → 0,6 → 0,5 **trước** khi hạ độ phân giải (chữ chịu nhiễu nén tốt hơn chịu mất điểm ảnh).
+4. **Đồng hồ giây trong hộp "đang đọc"** + đổi màu ở giây thứ 12. Không rút được 4–5 s của Google,
+   nhưng bỏ được **cảm giác treo máy** — chính cái đó làm người dùng nói "quá lâu". Giây thứ 12 kèm
+   nhắc: mạng yếu thì gõ mã trên tem là ra ngay, không cần chờ.
+
+> **Bẫy async đã cắn khi đảo thứ tự**: `ndsNhanKetQua` không phải `async` mà bên trong có `await`
+> (nạp danh mục), nên bậc thang hỏi `ndsDuCanCu()` ngay sau đó **đọc `NDS.ket` của LƯỢT TRƯỚC** rồi
+> quyết định tụt xuống OCR sai. Đã cho `await` xuyên suốt.
+
+### 5b.6 IDF — đã làm, đã đo, đang TẮT
+
+Đề xuất (của user): thay trọng số vai cố định bằng **IDF** tự học từ danh mục. Nguyên tắc thì đúng —
+`polyester` có ở 2.813 SKU (IDF **0,69**) không thể nặng bằng `8209948` có ở 12 SKU (IDF **6,15**).
+Đã cài: `cm.idf` dựng cùng chỉ mục (không tốn thêm thời gian đo được, vẫn 252 ms), điểm mỗi vai đổi
+từ trung bình thường sang **trung bình có trọng số IDF**, kèm công tắc `batIdf()` để đối chứng.
+
+**Đo trên dữ liệu thật thì KHÔNG hơn:**
+
+| Bộ đo | Tắt IDF | Bật IDF |
+|---|---|---|
+| 30 lượt OCR thật (tem đọc được mã) | Top-1 **80%** · Top-3 87% | Top-1 **80%** · Top-3 87% (y hệt) |
+| 17 ca mô phỏng "tem mờ không đọc ra mã" — chỗ IDF *đáng lẽ* phát huy | Top-1 **76%** | Top-1 **71%** (1 ca đổi hạng 1, đổi sang SAI) |
+
+**Vì sao không hơn** — ba thứ đã làm sẵn việc của IDF: ① `tuVanBan` **lọc mảnh theo danh mục** nên rác
+không vào tới bước chấm; ② điểm mỗi vai là `(max + trung bình)/2`, phần `max` vốn không quan tâm từ
+chung; ③ cái tách được các dòng cùng họ là cơ chế **XUNG ĐỘT** (nhân điểm) chứ không phải trọng số từ.
+IDF chỉ đổi được nửa "trung bình" của công thức. Thêm nữa, **luật cứng "CÓ MÃ" đứng TRÊN điểm số**,
+nên khi tem đọc được mã thì điểm không phải thứ quyết định hạng.
+
+⇒ **Mặc định TẮT**, giữ `cm.idf` + `batIdf()` để đo lại khi có tem thật. Không ship thứ đo ra không
+hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có sẵn cột *"MỚI, tắt IDF"*.
+
+### 5b.7 Giao diện
+
+* Ảnh gửi OCR và AI **cùng 1400px** — bản đầu cho OCR 2000px theo lý thuyết "OCR ăn độ nét từng nét
+  chữ", đo thật thì 2000/1400/1000px cho ra **chữ y hệt nhau** nên chỉ còn là byte thừa (xem 5b.5).
 * Badge từ khoá ghi rõ **nguồn** trong tooltip (mã vạch · OCR · AI · tách từ chữ trên tem · gõ tay).
+* 3 nút dưới khung theo đúng thứ tự bậc thang: `Quét mã vạch` (0 giây) · `Đọc lại chữ (OCR)` (miễn
+  phí) · `Nhờ AI đọc`. Hộp "đang đọc" có **đồng hồ giây** và nói rõ đang nhờ ai đọc; khi AI hỏng thì
+  câu chữ đổi thành *"AI không đọc được — đang thử OCR của Google (miễn phí)…"* để người dùng hiểu
+  vì sao phải chờ thêm. Chỉ khi **cả hai** hỏng mới quăng một thông báo lỗi + đưa con trỏ tới ô gõ mã.
 * **Cảnh báo mới "cùng mã, khác màu"**: khi ≥2 gợi ý cùng mang đúng một mã, dải chữ nói thẳng *các
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
@@ -755,7 +826,7 @@ khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng m
 | `node qc-sku-vision-live.mjs` | cổng thật trên production: chặn email lạ, chặn ảnh quá lớn, đọc tem thật, chặn 2 lượt song song (tốn 2 lượt hạn mức) | **8/8** |
 | `node qc-sku-ocr-live.mjs` | **cổng OCR thật** (`sku_ocr`): deploy đã lên chưa · email lạ · ảnh quá lớn không bao giờ được OCR · đọc đúng mã trên tem · **đo thời gian từng chặng** · chặn 2 lượt song song · ảnh trắng thì nói "không thấy chữ" | **10/10** (19/08) |
 | `node qc-ocr-doi-chung.mjs [--so 30] [--duong ABCDEFG] [--dung-dem]` | **đo người đọc nào tốt hơn**: 7 đường (tin vai AI · +bằng chứng · chữ thô AI · OCR · OCR không lọc · ghép AI · ghép cả 2) trên cùng bộ tem, nhãn cắt từ SKU thật + chữ giấy tờ, 3 bậc khó. `--dung-dem` chạy lại **0 lượt gọi** | OCR **77%** Top-1 / 83% Top-3 (30 tem) |
-| `node qc-loi-cu-moi.mjs [--rev e7c0753]` | **đối chứng lõi cũ (từ git) với lõi mới trên CÙNG chữ đã đọc** — cách duy nhất kết luận một lần sửa lõi là tốt hay xấu | 1 tốt hơn · **0 xấu hơn** · 29 y cũ |
+| `node qc-loi-cu-moi.mjs [--rev e7c0753]` | **đối chứng lõi cũ (từ git) với lõi mới trên CÙNG chữ đã đọc** — cách duy nhất kết luận một lần sửa lõi là tốt hay xấu; có sẵn cột **"MỚI, tắt IDF"** để đo riêng phần trọng số | 1 tốt hơn · **0 xấu hơn** · 29 y cũ · Top-1 77→80% · lập được mã 70→77% |
 | `node probe-sku-master.mjs` | thăm dò lại nguồn dữ liệu khi WMS đổi trường | — |
 
 Hai bộ test đầu **cắt mã ra khỏi file thật** (`NDS-ENGINE` trong `factory/index.html`, `SV_PROMPT`/
