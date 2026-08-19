@@ -26,7 +26,7 @@ var TEN_SHEET_TASKS = '5S-TASKS';
 // Dashboard KHÔNG đọc các tab này. ID được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng().
 var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
 var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];
-var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-ANH', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG', 'VESINH-LICHSU', 'VESINH-CHAMCONG-NGAY'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
+var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-ANH', 'VESINH-ANH-CU', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG', 'VESINH-LICHSU', 'VESINH-CHAMCONG-NGAY'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
 // VESINH-PHANCONG (30/07/2026, sync-phancong.mjs): bảng phân công phụ trách theo vị trí —
 // kéo từ g-sheet phân công gốc của bộ phận, vị trí nào g-sheet bỏ trống thì bù bằng người
 // BÁO CÁO gần nhất trong 30 ngày (planogram). Có email + tên NV nên BẮT BUỘC nằm sheet private.
@@ -36,6 +36,9 @@ var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU
 // VESINH-ANH (03/08/2026, sync-vesinh-all.js): Request ID | Ngày | Ảnh — tách cột Ảnh khỏi
 // VESINH-YEUCAU (tab nặng nhất lúc mở dashboard, 44/246KB là ảnh) để dashboard nạp nó ở BẬC 3.
 // Không có PII, nhưng để chung sheet private cho khỏi phải nhớ tab nào nằm sheet nào.
+// VESINH-ANH-CU (18/08/2026): cùng 3 cột, phần ảnh của ngày 4->7. Ảnh nay giữ đủ 7 ngày (bằng cửa
+// sổ VESINH-YEUCAU) nhưng chia 2 tab để lượt mở pop-up thường ngày vẫn chỉ tải ~400KB như cũ;
+// dashboard chỉ gọi tab này khi người dùng soi đúng một ngày không có trong tab nhanh.
 // VESINH-CHAMCONG-NGAY (01/08/2026, sync-vesinh-all.js): chấm công THEO NGÀY (giờ vào ca + giờ ra
 // cuối) của bộ phận, cửa sổ trượt 60 ngày, gói theo người. Để pop-up ô sơ đồ xem NGÀY CŨ biết được
 // "hôm đó phụ trách có đi làm mà không báo cáo, hay nghỉ". Có tên + email NV → sheet private.
@@ -60,8 +63,38 @@ function ghiNhanSaiPin_(dinhDanh) {
 }
 function xoaSaiPin_(dinhDanh) { CacheService.getScriptCache().remove('pinfail_' + dinhDanh); }
 
-/* ----------------------------- POST: lưu form / sync ----------------------------- */
+/* ===== CHỐT CHỐNG GHI TRÙNG KHI CLIENT THỬ LẠI (nonce — 12/08/2026) ==========================
+ * VẤN ĐỀ ĐO ĐƯỢC: Apps Script trả 404 ở khâu LẤY NỘI DUNG (chặng googleusercontent/echo) trong khi
+ * execution phía Google VẪN CHẠY XONG — đo 12/08: client nhận 404 ở giây 46, lượt lấy lại thứ 3 nhận
+ * đúng kết quả cũ. Client buộc phải thử lại, và với lượt ghi KHÔNG idempotent thì thử lại = nhân đôi:
+ *   · syncTasks append=true (bộ sync chia gói lớn) → thêm 2 lần cùng khối dòng
+ *   · pc_adjust / pc_uidgr_edit / suCo / heartbeat → appendRow 2 lần
+ *   · alert → gửi 2 email
+ * CHỮA: client gửi kèm `nonce` (GIỮ NGUYÊN qua mọi lượt thử lại của cùng nội dung). Lượt đầu chạy
+ * thật rồi CẤT phản hồi theo nonce 10 phút; lượt thử lại chỉ nhận lại đúng phản hồi đó, KHÔNG chạy
+ * lại thân hàm. Đặt ở doPost nên che MỌI action, không phải vá từng chỗ.
+ * Không có nonce (client cũ) → chạy y như trước, không đổi hành vi. */
 function doPost(e) {
+  var nonce = '';
+  try { var d0 = JSON.parse(e.postData.contents); nonce = d0 && d0.nonce ? String(d0.nonce).slice(0, 80) : ''; } catch (eN) {}
+  if (nonce) {
+    try {
+      var daCo = CacheService.getScriptCache().get('NONCE:' + nonce);
+      if (daCo) return ContentService.createTextOutput(daCo).setMimeType(ContentService.MimeType.JSON);
+    } catch (eC) {}
+  }
+  var ra = doPostGoc_(e);
+  if (nonce) {
+    try {
+      // Chỉ cất được TextOutput (mọi nhánh POST đều trả phanHoiJson) — nhánh khác thì bỏ qua.
+      if (ra && typeof ra.getContent === 'function') CacheService.getScriptCache().put('NONCE:' + nonce, ra.getContent(), 600);
+    } catch (eP) {}
+  }
+  return ra;
+}
+
+/* ----------------------------- POST: lưu form / sync ----------------------------- */
+function doPostGoc_(e) {
   try {
     var duLieu = JSON.parse(e.postData.contents);
     // Endpoint máy-gọi-máy dạng POST (SECRET trong body, KHÔNG qua query)
@@ -71,7 +104,10 @@ function doPost(e) {
     if (duLieu && duLieu.action === 'clearTimesheet') return keyBodyOK_(duLieu) ? xoaCo_('TS_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'loginStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('LOGIN_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearLogin') return keyBodyOK_(duLieu) ? xoaCo_('LOGIN_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
-    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true, touchTabs: true, tuChua: true }) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    /* servedTabs (12/08/2026): trả thẳng whitelist để client khỏi "probe bằng cách TẢI CẢ TAB".
+       gasPhucVuTab cũ gọi readTab cho 4 tab mỗi lượt sync chỉ để biết tên tab có trong danh sách —
+       execution dài chính là thứ làm Google trả 404 ở khâu lấy nội dung. */
+    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true, touchTabs: true, tuChua: true, servedTabs: SERVE_PRIVATE_TABS }) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pending') return keyBodyOK_(duLieu) ? apiPendingData_() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'mark') return keyBodyOK_(duLieu) ? apiMarkData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'alert') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); apiAlert({ parameter: { key: SECRET, msg: String(duLieu.msg || '') } }); return phanHoiJson({ status: 'success' }); }
@@ -107,6 +143,8 @@ function doPost(e) {
     if (duLieu && duLieu.action === 'pc_set_key') return pcJson_(pcSetKey_(duLieu));
     if (duLieu && duLieu.action === 'pc_adjust') return pcJson_(pcKeyOK_(duLieu) ? pcAdjust_(duLieu) : pcKeyErr_());   // 27/07/2026: lưu SL điều chỉnh Physical Count Detail vào tab kiemke-adjust
     if (duLieu && duLieu.action === 'pc_uidgr_edit') return pcJson_(pcUidgrEdit_(duLieu));   // 27/07/2026: Action trên dòng UID group lệch — KHÔNG PC_KEY, gác bằng email @hasaki.vn (kiểm server-side trong PhysicalCountImport)
+    if (duLieu && duLieu.action === 'sku_vision') return phanHoiJson(skuVision_(duLieu));   // 18/08/2026: tab "Nhận diện SKU" — proxy Vision LLM, gác bằng email @hasaki.vn + hạn mức ngày
+    if (duLieu && duLieu.action === 'sku_ocr') return phanHoiJson(skuOcr_(duLieu));      // 19/08/2026: đọc CHỮ trên tem bằng OCR của Google Drive — miễn phí, không tốn hạn mức AI
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -559,8 +597,13 @@ function apiSyncTasks(duLieu) {
     if (header.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, header.length).setValues(rows);
   } else {
     sheet.clearContents();
-    try { sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart(); } catch (e) {}  // gỡ ô hợp nhất -> ghi không lệch
     var all = [header].concat(rows);
+    /* Gỡ ô hợp nhất CHỈ TRONG VÙNG SẮP GHI (12/08/2026). Trước quét cả lưới getMaxRows ×
+       getMaxColumns — với tab ~40k dòng là việc nặng vô ích mỗi lần ghi, mà execution càng dài thì
+       Google càng hay 404 ở khâu lấy nội dung. Ô hợp nhất ngoài vùng ghi không ảnh hưởng setValues. */
+    if (all.length && header.length) {
+      try { sheet.getRange(1, 1, all.length, header.length).breakApart(); } catch (e) {}
+    }
     if (all.length && header.length) {
       sheet.getRange(1, 1, all.length, header.length).setValues(all);
       sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
@@ -573,6 +616,8 @@ function apiSyncTasks(duLieu) {
     var apiAt = Number(duLieu.apiAt || 0) || new Date().getTime();
     PropertiesService.getScriptProperties().setProperty('LAST_SYNC_' + tenTab, String(apiAt));
   } catch (e) {}
+  // Tab vừa đổi dữ liệu → bỏ cache readTab của nó, đừng để dashboard đọc bản cũ (xem rtGhiCache_)
+  if (SERVE_PRIVATE_TABS.indexOf(tenTab) >= 0) rtXoaCache_(tenTab);
   return phanHoiJson({ status: 'success', written: rows.length, append: noiTiep, at: Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd HH:mm:ss') });
 }
 
@@ -585,6 +630,75 @@ function apiLastSync(e) {
   return phanHoiJsonp(cb, { status: 'success', ts: ts });
 }
 
+/* ===== CACHE PHỤC VỤ readTab (12/08/2026) =====
+ * ĐO THẬT trước khi làm: readTab VESINH-YEUCAU mất 39s và TRƯỢT 9/10 lượt (404 rơi ngẫu nhiên ở
+ * giây 18-90), tab nhỏ CHAMCONG-VESINH 8,4s, còn JSON tĩnh bridgeCaps chỉ 1,4s. Nghĩa là chi phí
+ * nằm ở chính lượt thực thi phải openById SHEET PRIVATE (file này to: NHAN-SU, CHAM-CONG, LICHSU 60
+ * ngày…) rồi getValues + serialize lại y nguyên một kết quả mà cả ngày chỉ đổi vài lần.
+ * → Dựng SẴN chuỗi JSON, giữ trong CacheService: lượt sau không mở Sheet nữa, execution ngắn hẳn
+ *   (đỡ luôn hạn mức runtime của tài khoản, thứ đang khiến 404 rơi ngẫu nhiên). Đo sau khi bật:
+ *   VESINH-YEUCAU 15-100s (hay 404) → 2,1-2,2s.
+ * Cache giới hạn 100KB/khoá nên phải CẮT KHÚC; tab nào được ghi thì xoá cache tab đó (apiSyncTasks).
+ * Mất 1 khúc (cache bị đẩy ra) = coi như không có cache, đọc lại Sheet — không bao giờ trả nửa vời.
+ * CHỈ CACHE PHẦN THÂN (header+rows), KHÔNG cache 'ts': hash-skip của poller mỗi 15' vẫn gọi
+ * touchTabs để chip giờ dashboard chạy theo giờ quét THẬT — nếu ts nằm trong cache thì cứ 15 phút
+ * lại phải xoá cache dù DỮ LIỆU KHÔNG ĐỔI, cache thành vô nghĩa. Ghép ts vào lúc trả (đọc property
+ * tươi, ~0 chi phí) → touchTabs không cần đụng cache, chip giờ vẫn đúng.
+ * Bộ sync tự HÂM cache sau khi ghi (session-rules.js hamCacheTabs) để lượt dựng đắt đỏ rơi vào
+ * tiến trình nền, không rơi vào người mở dashboard. */
+var RT_CACHE_PREFIX = 'RT3:';          // RT3: bản @52 từng cache cả ts trong thân — phải bỏ hẳn entry cũ
+/* 50.000 ký tự/khúc, ghi bằng put() TỪNG KHÚC (không putAll cả gói): đo thật 12/08 — tab nhỏ 6,5KB
+   (1 khúc) cache ăn ngay (3,4s → 1,25s), còn tab 131KB cắt 90.000 ký tự × 2 khúc thì lượt sau VẪN
+   17s = cả gói putAll bị từ chối (im lặng, nằm trong try/catch). */
+var RT_CACHE_KHUC = 50000;
+var RT_CACHE_SONG = 6 * 60 * 60;       // 6 giờ
+
+function rtKhoa_(tab, i) { return RT_CACHE_PREFIX + tab + ':' + i; }
+
+function rtDocCache_(tab) {
+  try {
+    var c = CacheService.getScriptCache();
+    var n = Number(c.get(RT_CACHE_PREFIX + tab + ':n') || 0);
+    if (n <= 0) return null;
+    var khoa = [];
+    for (var i = 0; i < n; i++) khoa.push(rtKhoa_(tab, i));
+    var got = c.getAll(khoa), s = '';
+    for (var j = 0; j < n; j++) {
+      var phan = got[rtKhoa_(tab, j)];
+      if (phan == null) return null;   // thiếu khúc → dựng lại từ Sheet
+      s += phan;
+    }
+    return s;
+  } catch (e) { return null; }
+}
+
+function rtGhiCache_(tab, chuoiJson) {
+  try {
+    var c = CacheService.getScriptCache(), n = 0;
+    for (var i = 0; i < chuoiJson.length; i += RT_CACHE_KHUC) {
+      c.put(rtKhoa_(tab, n), chuoiJson.substring(i, i + RT_CACHE_KHUC), RT_CACHE_SONG);
+      n++;
+    }
+    // Ghi khoá đếm SAU CÙNG: khúc nào hỏng giữa đường thì :n không tồn tại → lượt đọc coi như
+    // chưa có cache và dựng lại, chứ không bao giờ đọc một bộ khúc thiếu.
+    c.put(RT_CACHE_PREFIX + tab + ':n', String(n), RT_CACHE_SONG);
+  } catch (e) {}   // cache hỏng thì bỏ qua, đường đọc Sheet vẫn nguyên
+}
+
+function rtXoaCache_(tab) {
+  try {
+    var c = CacheService.getScriptCache();
+    var n = Number(c.get(RT_CACHE_PREFIX + tab + ':n') || 0);
+    var khoa = [RT_CACHE_PREFIX + tab + ':n'];
+    for (var i = 0; i < n + 4; i++) khoa.push(rtKhoa_(tab, i));   // +4: chừa cho bản cũ nhiều khúc hơn
+    c.removeAll(khoa);
+  } catch (e) {}
+}
+
+function rtTraJsonp_(cb, chuoiJson) {
+  return ContentService.createTextOutput(cb + '(' + chuoiJson + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
 /** Dashboard đọc 1 tab nằm ở SHEET PRIVATE (chỉ whitelist SERVE_PRIVATE_TABS) — JSONP {status, header, rows, ts}.
  *  Sheet gốc không public; dữ liệu chỉ ra ngoài qua endpoint này (đủ cho dashboard vốn public, nhưng file gốc kín). */
 function apiReadTab(e) {
@@ -592,6 +706,10 @@ function apiReadTab(e) {
   var tab = e.parameter.tab || '';
   if (SERVE_PRIVATE_TABS.indexOf(tab) < 0) return phanHoiJsonp(cb, { status: 'error', message: 'Tab không được phục vụ' });
   var ts = Number(PropertiesService.getScriptProperties().getProperty('LAST_SYNC_' + tab) || 0);
+  if (e.parameter.moi !== '1') {   // moi=1: ép bỏ cache, đọc thẳng Sheet (để đối chiếu khi cần)
+    var than = rtDocCache_(tab);
+    if (than) return rtTraJsonp_(cb, than + ',"ts":' + ts + '}');
+  }
   var ss = PRIVATE_SHEET_ID ? SpreadsheetApp.openById(PRIVATE_SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(tab);
   if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return phanHoiJsonp(cb, { status: 'success', header: [], rows: [], ts: ts });
@@ -607,13 +725,20 @@ function apiReadTab(e) {
       return v;
     });
   });
-  return phanHoiJsonp(cb, { status: 'success', header: header, rows: rows, ts: ts });
+  /* Cắt dấu '}' cuối để phần thân ghép được với ',"ts":…}' — thứ tự khoá trong JSON không đổi
+     (status, header, rows, ts) nên client nhận đúng như cũ. */
+  var goc = JSON.stringify({ status: 'success', header: header, rows: rows });
+  var than2 = goc.substring(0, goc.length - 1);
+  rtGhiCache_(tab, than2);
+  return rtTraJsonp_(cb, than2 + ',"ts":' + ts + '}');
 }
 
 /** Xoá 1 tab whitelist khỏi SHEET PUBLIC (dọn bản sao cũ sau khi đã chuyển ghi sang sheet private). Cần key. */
 function apiPurgeTab(duLieu) {
   var tab = String(duLieu.tab || '');
-  if (SERVE_PRIVATE_TABS.indexOf(tab) < 0) return phanHoiJson({ status: 'error', message: 'Chỉ purge tab trong whitelist' });
+  // Cho phép thêm tab tiền tố 'ZZ-' (12/08/2026): tab NHÁP khi kiểm thử backend, để kiểm xong dọn được.
+  var laNhap = tab.indexOf('ZZ-') === 0;
+  if (!laNhap && SERVE_PRIVATE_TABS.indexOf(tab) < 0) return phanHoiJson({ status: 'error', message: 'Chỉ purge tab trong whitelist hoặc tab nháp ZZ-' });
   var ss = SpreadsheetApp.getActiveSpreadsheet();   // sheet PUBLIC (5S)
   var sh = ss.getSheetByName(tab);
   if (!sh) return phanHoiJson({ status: 'success', deleted: null, message: 'Không có tab trên sheet public' });
@@ -1248,4 +1373,358 @@ function phanHoiJson(obj) {
 }function testQuyenFetch() {
   var r = UrlFetchApp.fetch('https://www.google.com');
   Logger.log('HTTP ' + r.getResponseCode());
+}
+
+/* ==============================================================================================
+ *  NHẬN DIỆN SKU — CỔNG VISION LLM (action = sku_vision) · 18/08/2026
+ * ----------------------------------------------------------------------------------------------
+ *  Dashboard Audit Factory (trang GitHub Pages CÔNG KHAI) gửi ảnh tem NCC lên đây, Apps Script
+ *  gọi Gemini rồi trả về TỪ KHOÁ đã gắn vai. Vì sao phải qua đây:
+ *    · Khoá AI nằm trong Script Properties → KHÔNG lộ trong mã trang công khai.
+ *    · Có chỗ để gác cổng: email @hasaki.vn + hạn mức ngày + nhịp chống bấm liên tục.
+ *    · Không phải dựng thêm hạ tầng nào (Apps Script đã là backend ghi Sheet của dự án).
+ *
+ *  CÀI KHOÁ 1 LẦN (không commit khoá vào git): mở Apps Script → chạy hàm `datKhoaGemini()` sau khi
+ *  dán khoá vào biến trong hàm, hoặc Project Settings → Script properties → thêm GEMINI_API_KEY.
+ *  Khoá miễn phí lấy ở aistudio.google.com/apikey (cùng khoá mà sync-vesinh-ai.mjs đang dùng).
+ *
+ *  KHÔNG lưu ảnh, KHÔNG ghi ảnh vào Sheet/Drive. Chỉ ghi 1 dòng đếm lượt (không có ảnh) để biết
+ *  hạn mức đã dùng bao nhiêu.
+ * ============================================================================================== */
+/* Khoá Gemini. Ưu tiên Script Properties (đặt bằng datKhoaGemini() — không nằm trong mã nguồn);
+   SV_KHOA_CUNG là đường dự phòng để bản deploy chạy được ngay sau clasp push. Bản git-safe LUÔN để
+   trống chuỗi này; khoá thật chỉ sống trong .clasp-deploy/sa.js (đã gitignore, cùng chỗ với SECRET/PIN). */
+var SV_KHOA_CUNG = '';
+var SV_TRAN_NGAY = 400;        // tổng lượt đọc tem/ngày (bậc miễn phí Gemini ~ dư sức cho kho)
+var SV_TRAN_NGUOI = 120;       // lượt/ngày cho mỗi email
+var SV_TRAN_ANH_B64 = 2600000; // ~1,9 MB base64 (client đã thu nhỏ còn ~200-400 KB)
+/* Mỗi model có quota miễn phí RIÊNG theo ngày → hết model trước thì tự tụt model sau (giống
+   sync-vesinh-ai.mjs). Thứ tự = nhanh/chuẩn trước, nhẹ sau. */
+var SV_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+
+var SV_PROMPT =
+  'Bạn đang đọc ảnh MỘT TEM NHÃN của nhà cung cấp trong kho nguyên liệu may (chỉ may, nút/khuy, dây kéo, nhãn dệt, vải, dây thun).\n' +
+  'Tem có hàng trăm quy cách khác nhau và KHÔNG theo khuôn nào: tem tròn dán lõi cuộn chỉ, tem bảng chữ nhật dán túi nút, tem dài dán cuộn dây kéo, tem in nhiệt, tem viết tay.\n' +
+  'Ảnh có thể cong, nhăn, bọc nylon loá sáng, dính bụi, chụp nghiêng hoặc ngược.\n' +
+  '\n' +
+  'NHIỆM VỤ: trích xuất MỌI ký hiệu nhận dạng ĐỌC ĐƯỢC, phân theo 5 nhóm dưới đây. Tuyệt đối:\n' +
+  '- KHÔNG suy diễn, KHÔNG bù thông tin không có trên tem, KHÔNG dịch, KHÔNG sửa chính tả của nhà cung cấp.\n' +
+  '- Chữ nào không chắc thì vẫn ghi nguyên như thấy (bên dùng có công cụ khớp gần đúng).\n' +
+  '- Mỗi phần tử là MỘT cụm ngắn, không phải cả câu.\n' +
+  '\n' +
+  'item_codes: mã hàng / mã model / mã nhà cung cấp / mã vạch dạng chữ-số (ví dụ JC01262, F9-5284, 8846295, CMOR-36, SAB-255LK3557-2, 422440680).\n' +
+  'specs    : thông số kỹ thuật và kích thước (ví dụ Tex 27, 60/3, Tkt 120, 17mm, 38.0 CM, 20*58mm, 24L, #3, 170gsm).\n' +
+  'colors   : mã màu và tên màu (ví dụ 345, #006, V8S41, TN050, 19-4117 TCX, Matt Silver, Hồng tro, Gunmetal).\n' +
+  'brands   : thương hiệu / nhà cung cấp / tên loại hàng in trên tem (ví dụ YKK, MORITO, THESEUS IRISA, AVERY DENNISON, Phong Việt, zipper, button, thread).\n' +
+  'others   : ký hiệu còn lại có thể hữu ích (số lô, số cuộn, ngày, số PO…).\n' +
+  'raw_text : toàn bộ chữ đọc được, giữ thứ tự dòng, mỗi dòng cách nhau bằng " | ".\n' +
+  'quality  : "ro" nếu chữ rõ; "mo" nếu mờ/loá/nghiêng phải đoán; "khong_doc_duoc" nếu hầu như không đọc được gì.';
+
+var SV_SCHEMA = {
+  type: 'OBJECT',
+  required: ['item_codes', 'specs', 'colors', 'brands', 'others', 'raw_text', 'quality'],
+  properties: {
+    item_codes: { type: 'ARRAY', items: { type: 'STRING' } },
+    specs: { type: 'ARRAY', items: { type: 'STRING' } },
+    colors: { type: 'ARRAY', items: { type: 'STRING' } },
+    brands: { type: 'ARRAY', items: { type: 'STRING' } },
+    others: { type: 'ARRAY', items: { type: 'STRING' } },
+    raw_text: { type: 'STRING' },
+    quality: { type: 'STRING', enum: ['ro', 'mo', 'khong_doc_duoc'] }
+  }
+};
+
+/** Cài khoá Gemini vào Script Properties — dán khoá vào rồi CHẠY HÀM NÀY 1 LẦN trong editor. */
+function datKhoaGemini() {
+  var khoa = '';   // ← dán khoá aistudio.google.com/apikey vào đây, chạy hàm, rồi XOÁ lại khỏi mã
+  if (!khoa) throw new Error('Chưa dán khoá vào biến `khoa` trong hàm datKhoaGemini().');
+  PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', khoa);
+  Logger.log('Đã lưu GEMINI_API_KEY (' + khoa.length + ' ký tự). Hãy xoá khoá khỏi mã nguồn.');
+}
+/** Kiểm nhanh trong editor: khoá có chưa, model nào còn quota. */
+function testSkuVision() {
+  var p = PropertiesService.getScriptProperties();
+  Logger.log('GEMINI_API_KEY: ' + (p.getProperty('GEMINI_API_KEY') ? 'đã có' : 'CHƯA CÓ'));
+  Logger.log('Đã dùng hôm nay: ' + (p.getProperty('sv_n_' + svNgay_()) || 0) + '/' + SV_TRAN_NGAY);
+}
+
+function svNgay_() { return Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd'); }
+/* Dọn khoá đếm của những ngày đã qua — không dọn thì Script Properties phình dần theo ngày */
+function svDonCu_(p) {
+  try {
+    var nay = svNgay_(), all = p.getProperties();
+    for (var k in all) {
+      if (k.indexOf('sv_n_') !== 0) continue;
+      var d = k.slice(5, 13);
+      if (/^\d{8}$/.test(d) && d < nay) p.deleteProperty(k);
+    }
+  } catch (e) { /* dọn dẹp best-effort, không được làm hỏng lượt đọc tem */ }
+}
+
+/**
+ * action = sku_vision — body: { email, mime, anh(base64 KHÔNG có tiền tố data:), nonce }
+ * Trả: { status:'success', tokens:{item_codes,specs,colors,brands,others}, text, quality, model, ms }
+ */
+function skuVision_(d) {
+  var t0 = new Date().getTime();
+  var mail = String((d && d.email) || '').trim().toLowerCase();
+  if (!/^[a-z0-9._%+-]+@hasaki\.vn$/.test(mail)) return { status: 'error', message: 'Cần email đúng định dạng ten@hasaki.vn.' };
+  var b64 = String((d && d.anh) || '');
+  if (!b64) return { status: 'error', message: 'Thiếu ảnh tem.' };
+  if (b64.length > SV_TRAN_ANH_B64) return { status: 'error', message: 'Ảnh quá lớn — chụp lại hoặc để dashboard thu nhỏ trước khi gửi.' };
+  var mime = String((d && d.mime) || 'image/jpeg');
+  if (!/^image\/(jpeg|png|webp)$/.test(mime)) mime = 'image/jpeg';
+
+  var p = PropertiesService.getScriptProperties();
+  var khoa = p.getProperty('GEMINI_API_KEY') || SV_KHOA_CUNG;
+  if (!khoa) return { status: 'error', message: 'Apps Script chưa có khoá AI — chạy hàm datKhoaGemini() một lần (xem NHAN-DIEN-SKU.md).' };
+
+  /* Cờ "ĐANG ĐỌC" theo email — chặn 2 lượt gửi CHỒNG NHAU (bấm 2 lần vì tưởng máy treo).
+     · Cờ nằm ở Script Properties, KHÔNG phải CacheService: đo thật 18/08/2026, bắn 2 lượt cùng lúc
+       thì CẢ HAI đều chạy, vì mỗi lượt là một execution riêng và cache chưa kịp lan sang nhau.
+     · Script lock chỉ giữ trong lúc "kiểm rồi đặt cờ" (vài ms) rồi thả NGAY — không giữ suốt 3-7
+       giây gọi Gemini, vì như thế là bắt người khác chờ oan.
+     · Trần 60 giây để tự mở lại nếu lượt trước chết giữa đường; xong là xoá cờ nên quét liên tục
+       nhiều cuộn KHÔNG phải chờ.
+     Từ đây trở xuống, MỌI đường thoát đều phải gọi svMoCo_ — bỏ quên là khoá email đó 60 giây. */
+  var kDang = 'sv_dang_' + mail, bayGio = new Date().getTime(), duocDi = true;
+  var lock = LockService.getScriptLock(), coLock = false;
+  try {
+    coLock = lock.tryLock(3000);
+    var moc = Number(p.getProperty(kDang) || 0);
+    if (moc && (bayGio - moc) < 60000) duocDi = false;
+    else p.setProperty(kDang, String(bayGio));
+  } catch (eL) { duocDi = true; }   // chốt hỏng thì cho đi: thà tốn 1 lượt hơn chặn oan người đang làm
+  finally { if (coLock) { try { lock.releaseLock(); } catch (eR) { /* đã thả */ } } }
+  if (!duocDi) return { status: 'error', message: 'Đang đọc ảnh trước — chờ xong rồi bấm tiếp.' };
+
+  try {
+    /* Hạn mức ngày (tổng + theo người) */
+    var ngay = svNgay_(), kAll = 'sv_n_' + ngay, kMe = 'sv_n_' + ngay + '_' + mail;
+    var nAll = Number(p.getProperty(kAll) || 0), nMe = Number(p.getProperty(kMe) || 0);
+    if (nAll >= SV_TRAN_NGAY) return { status: 'error', message: 'Hết hạn mức đọc tem hôm nay (' + SV_TRAN_NGAY + ' ảnh) — gõ từ khoá tay giúp, mai lại đọc được.' };
+    if (nMe >= SV_TRAN_NGUOI) return { status: 'error', message: 'Email này đã dùng ' + nMe + ' lượt đọc tem hôm nay (trần ' + SV_TRAN_NGUOI + ').' };
+
+    var kq = svGoiGemini_(b64, mime, khoa);
+    if (kq.status !== 'success') return kq;
+
+    if (nAll === 0) svDonCu_(p);
+    p.setProperty(kAll, String(nAll + 1));
+    p.setProperty(kMe, String(nMe + 1));
+    kq.ms = new Date().getTime() - t0;
+    kq.conLai = SV_TRAN_NGAY - (nAll + 1);
+    return kq;
+  } finally { svMoCo_(p, kDang); }
+}
+
+/** Mở cờ "đang đọc" (gọi ở finally của mọi đường ra). Hỏng ở đây thì cờ tự hết sau 60 giây. */
+function svMoCo_(p, kDang) {
+  try { p.deleteProperty(kDang); } catch (e) { /* cờ tự hết sau 60s */ }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *  ĐỌC CHỮ TRÊN TEM BẰNG OCR CỦA GOOGLE (action = sku_ocr) · 19/08/2026
+ *  ---------------------------------------------------------------------------------------------
+ *  Vì sao thêm đường này khi đã có Vision LLM: 19/08/2026 thủ kho báo "nhận diện toàn sai hoặc
+ *  không có kết quả nào". Đo thật thì ra 2 nguyên nhân, và OCR chữa được cả hai:
+ *    ① AI CHẾT LƯỢT — hết hạn mức mọi model (429) hoặc trả JSON sai khuôn (đo: 1/16 lượt) ⇒ thủ kho
+ *      không có kết quả nào. OCR này KHÔNG dùng hạn mức Gemini: nó là chức năng chuyển ảnh → Google
+ *      Docs của Drive (chính engine mà Google Dịch/Lens đang dùng), miễn phí theo tài khoản.
+ *    ② AI GÁN VAI SAI — trả mã hàng vào ô "colors" nên lõi chấm mã 45% mất bằng chứng định danh.
+ *      Đường này chỉ trả CHỮ THÔ, việc xếp vai để lõi trong trình duyệt làm (NDS_ENGINE.tuVanBan)
+ *      và lấy bằng chứng từ chính danh mục SKU — không ai đoán hộ nữa.
+ *
+ *  CÁCH LÀM (không thêm hạ tầng, không xin IT — đúng luật của dự án):
+ *    upload ảnh vào Drive kèm `ocrLanguage` và yêu cầu chuyển thành Google Docs → Drive tự OCR →
+ *    export văn bản thuần → XOÁ file ngay. Dùng Drive REST v3 qua UrlFetchApp + ScriptApp
+ *    .getOAuthToken(), KHÔNG cần bật Advanced Drive Service (scope `drive` đã có trong manifest).
+ *
+ *  ĐO THẬT 19/08/2026 (16 tem mô phỏng, nhãn cắt từ SKU thật):
+ *    · đọc được 16/16 lượt (AI: 15/16) · 4,6–7,2 giây · KHÔNG tốn lượt AI nào
+ *    · tem sạch/khó: ra đúng SKU y như AI. Tem RẤT KHÓ (chữ nhỏ + nhoè + nghiêng 13°): OCR đọc lệch
+ *      vài ký tự ("Đen-580-AA" → "Ben-380-AA", "345" → "145") nên ra đúng MÃ mà lệch MÀU ⇒ vì vậy
+ *      dashboard vẫn LEO THANG sang AI khi OCR không lập được mã, và cảnh báo khi các gợi ý chỉ
+ *      khác nhau ở màu. OCR không thay AI; nó là tầng rẻ chạy trước và là lưới đỡ khi AI chết.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+var SO_TRAN_NGAY = 2000;        // OCR không tốn hạn mức AI; trần chỉ để một máy hỏng không quét vô hạn
+var SO_TRAN_NGUOI = 400;
+var SO_TRAN_ANH_B64 = 2600000;  // ~1,9 MB base64 (client đã thu nhỏ còn ~200-500 KB)
+
+/**
+ * action = sku_ocr — body: { email, mime, anh(base64 KHÔNG có tiền tố data:), lang, nonce }
+ * Trả: { status:'success', text, ms, nguon:'drive-ocr', conLai }
+ */
+function skuOcr_(d) {
+  var t0 = new Date().getTime();
+  var mail = String((d && d.email) || '').trim().toLowerCase();
+  if (!/^[a-z0-9._%+-]+@hasaki\.vn$/.test(mail)) return { status: 'error', message: 'Cần email đúng định dạng ten@hasaki.vn.' };
+  var b64 = String((d && d.anh) || '');
+  /* CỬA CHẨN ĐOÁN: gọi không kèm ảnh + chuanDoan=1 thì trả về chặng/thời gian của lượt OCR gần
+     nhất. Cần vì khi execution lâu, Apps Script trả trang HTML ở chặng 2 và client không nhận
+     được con số nào để biết chậm ở đâu. */
+  if (!b64 && d && d.chuanDoan) return { status: 'success', chanCuoi: String(PropertiesService.getScriptProperties().getProperty('so_chan_cuoi') || 'chưa có lượt nào'), tranNgay: SO_TRAN_NGAY };
+  if (!b64) return { status: 'error', message: 'Thiếu ảnh tem.' };
+  if (b64.length > SO_TRAN_ANH_B64) return { status: 'error', message: 'Ảnh quá lớn — để dashboard thu nhỏ trước khi gửi.' };
+  var mime = String((d && d.mime) || 'image/jpeg');
+  if (!/^image\/(jpeg|png|webp)$/.test(mime)) mime = 'image/jpeg';
+  var lang = String((d && d.lang) || 'vi').replace(/[^a-z\-]/gi, '').slice(0, 8) || 'vi';
+
+  var p = PropertiesService.getScriptProperties();
+  /* Cờ "đang đọc" theo email — y như sku_vision (xem ghi chú ở đó: phải nằm ở Script Properties,
+     không phải CacheService, và MỌI đường thoát đều đi qua svMoCo_). */
+  var kDang = 'so_dang_' + mail, bayGio = new Date().getTime(), duocDi = true;
+  var lock = LockService.getScriptLock(), coLock = false;
+  try {
+    coLock = lock.tryLock(3000);
+    var moc = Number(p.getProperty(kDang) || 0);
+    if (moc && (bayGio - moc) < 60000) duocDi = false;
+    else p.setProperty(kDang, String(bayGio));
+  } catch (eL) { duocDi = true; }
+  finally { if (coLock) { try { lock.releaseLock(); } catch (eR) { /* đã thả */ } } }
+  if (!duocDi) return { status: 'error', message: 'Đang đọc ảnh trước — chờ xong rồi bấm tiếp.' };
+
+  try {
+    var ngay = svNgay_(), kAll = 'so_n_' + ngay, kMe = 'so_n_' + ngay + '_' + mail;
+    var nAll = Number(p.getProperty(kAll) || 0), nMe = Number(p.getProperty(kMe) || 0);
+    if (nAll >= SO_TRAN_NGAY) return { status: 'error', message: 'Hết trần đọc chữ hôm nay (' + SO_TRAN_NGAY + ' ảnh).' };
+    if (nMe >= SO_TRAN_NGUOI) return { status: 'error', message: 'Máy này đã dùng ' + nMe + ' lượt đọc chữ hôm nay (trần ' + SO_TRAN_NGUOI + ').' };
+
+    var kq = soDriveOcr_(b64, mime, lang);
+    if (kq.status !== 'success') return kq;
+
+    if (nAll === 0) soDonCu_(p);
+    p.setProperty(kAll, String(nAll + 1));
+    p.setProperty(kMe, String(nMe + 1));
+    kq.ms = new Date().getTime() - t0;
+    kq.conLai = SO_TRAN_NGAY - (nAll + 1);
+    return kq;
+  } finally { svMoCo_(p, kDang); }
+}
+
+/** Dọn khoá đếm của những ngày đã qua (giống svDonCu_, khoá riêng để 2 đường không đè nhau). */
+function soDonCu_(p) {
+  try {
+    var nay = svNgay_(), all = p.getProperties();
+    for (var k in all) {
+      if (k.indexOf('so_n_') !== 0) continue;
+      var ng = k.slice(5, 13);
+      if (/^\d{8}$/.test(ng) && ng < nay) p.deleteProperty(k);
+    }
+  } catch (e) { /* dọn dẹp best-effort */ }
+}
+
+/**
+ * Ảnh → CHỮ bằng OCR của Google Drive. 3 chặng: nạp-ảnh-kèm-chuyển-đổi → export text → xoá file.
+ *
+ * ⚠ NẠP ẢNH BẰNG "RESUMABLE", KHÔNG GHÉP MULTIPART BẰNG TAY (sửa 19/08/2026 sau khi đo).
+ *   Bản đầu ghép thân multipart trong JS: `dau.concat(bytes).concat(cuoi)` rồi `newBlob(...).getBytes()`.
+ *   Mỗi phần tử của mảng phải đi qua cầu JS↔Java hai lượt, nên một ảnh tem 300–500 KB thành mảng
+ *   nửa triệu phần tử — đo thật: execution 35–40 GIÂY, và execution dài chính là thứ làm Google trả
+ *   404 ở chặng lấy nội dung (đã ghi trong hồ sơ sự cố GAS 12/08/2026).
+ *   Đường resumable chỉ gửi JSON ở lượt 1 rồi PUT NGUYÊN Blob ở lượt 2 — Blob là kiểu GAS xử lý
+ *   thẳng bằng Java, không phải dựng mảng số nào.
+ *
+ * ⚠ File tạm PHẢI xoá ở mọi đường ra: nó nằm trong Drive của chủ GAS, để lại là rác lớn dần và
+ *   đúng cái mà luật "không chia sẻ file sang email công ty" muốn tránh (file không còn thì không
+ *   có gì để lỡ chia sẻ).
+ */
+function soDriveOcr_(b64, mime, lang) {
+  var token = ScriptApp.getOAuthToken(), H = { Authorization: 'Bearer ' + token };
+  var anh;
+  try { anh = Utilities.newBlob(Utilities.base64Decode(b64), mime, 'nds-tem'); }
+  catch (e) { return { status: 'error', message: 'Ảnh gửi lên không đúng định dạng base64.' }; }
+
+  var id = '', mUp = 0, mEx = 0, mMoc = new Date().getTime(), chan = 'mo-phien';
+  try {
+    /* Chặng 1a: mở phiên nạp (chỉ JSON, không có ảnh) — Drive trả URL phiên ở header Location */
+    var r1 = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id&ocrLanguage=' + encodeURIComponent(lang), {
+      method: 'post', contentType: 'application/json; charset=UTF-8', headers: H,
+      payload: JSON.stringify({ name: 'nds-ocr-tam', mimeType: 'application/vnd.google-apps.document' }),
+      muteHttpExceptions: true
+    });
+    if (r1.getResponseCode() !== 200) return { status: 'error', message: 'Drive không mở được phiên nạp ảnh (HTTP ' + r1.getResponseCode() + ').' };
+    var hd = r1.getAllHeaders(), noi = hd.Location || hd.location || '';
+    if (!noi) return { status: 'error', message: 'Drive không trả URL phiên nạp ảnh.' };
+
+    /* Chặng 1b: đẩy nguyên Blob ảnh vào phiên — Drive OCR ngay khi chuyển sang Google Docs */
+    chan = 'nap-anh';
+    var r2 = UrlFetchApp.fetch(String(noi), { method: 'put', contentType: mime, headers: H, payload: anh, muteHttpExceptions: true });
+    mUp = new Date().getTime() - mMoc;
+    var c2 = r2.getResponseCode(), t2 = r2.getContentText();
+    if (c2 !== 200 && c2 !== 201) return { status: 'error', message: 'Drive không nhận ảnh (HTTP ' + c2 + '): ' + String(t2).slice(0, 140) };
+    id = String((JSON.parse(t2) || {}).id || '');
+    if (!id) return { status: 'error', message: 'Drive không trả về id file OCR.' };
+
+    /* Chặng 2: lấy chữ đã OCR ra dạng văn bản thuần */
+    chan = 'lay-chu';
+    var mocEx = new Date().getTime();
+    var r3 = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id + '/export?mimeType=text/plain', { headers: H, muteHttpExceptions: true });
+    mEx = new Date().getTime() - mocEx;
+    if (r3.getResponseCode() !== 200) return { status: 'error', message: 'Không lấy được chữ đã OCR (HTTP ' + r3.getResponseCode() + ').' };
+    var chu = String(r3.getContentText() || '');
+    /* Drive đắp một dải "____" cho đường viền của tem và có BOM ở đầu — cắt đi kẻo lõi đối soát
+       coi đó là từ khoá. */
+    chu = chu.replace(/\uFEFF/g, '').replace(/[_]{3,}/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!chu) return { status: 'error', message: 'OCR không thấy chữ nào trên ảnh — chụp gần hơn, đủ sáng, giữ tem phẳng.' };
+    return { status: 'success', nguon: 'drive-ocr', text: chu.slice(0, 4000), msUp: mUp, msExport: mEx };
+  } catch (e3) {
+    return { status: 'error', message: 'Lỗi khi OCR (' + chan + '): ' + e3.message };
+  } finally {
+    /* Ghi lại chặng + thời gian của lượt vừa rồi để CHẨN ĐOÁN được khi chặng 2 của Apps Script trả
+       trang HTML (lúc đó client không nhận được số nào). Đọc bằng: action=sku_ocr + chuanDoan=1. */
+    try {
+      PropertiesService.getScriptProperties().setProperty('so_chan_cuoi',
+        chan + ' · nạp ' + mUp + 'ms · lấy chữ ' + mEx + 'ms · tổng ' + (new Date().getTime() - mMoc) + 'ms · ' +
+        Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'HH:mm:ss'));
+    } catch (e6) { /* không ghi được cũng không sao */ }
+    if (id) {
+      try { UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id, { method: 'delete', headers: H, muteHttpExceptions: true }); }
+      catch (e4) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e5) { /* đành để Drive dọn */ } }
+    }
+  }
+}
+
+/** Kiểm nhanh trong editor: OCR có chạy được không (dựng 1 ảnh chữ đơn giản ngay tại đây). */
+function testSkuOcr() {
+  var anh = UrlFetchApp.fetch('https://dummyimage.com/900x260/ffffff/000000.png&text=F9-5284+Tex+27').getBlob();
+  var kq = soDriveOcr_(Utilities.base64Encode(anh.getBytes()), 'image/png', 'vi');
+  Logger.log(JSON.stringify(kq));
+  Logger.log('Đã dùng hôm nay: ' + (PropertiesService.getScriptProperties().getProperty('so_n_' + svNgay_()) || 0) + '/' + SO_TRAN_NGAY);
+}
+
+/** Gọi Gemini theo chuỗi model dự phòng; 429/503 = hết quota/quá tải → tụt model sau. */
+function svGoiGemini_(b64, mime, khoa) {
+  var loiCuoi = '';
+  for (var i = 0; i < SV_MODELS.length; i++) {
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + SV_MODELS[i] + ':generateContent?key=' + encodeURIComponent(khoa);
+    var payload = {
+      contents: [{ role: 'user', parts: [{ text: SV_PROMPT }, { inline_data: { mime_type: mime, data: b64 } }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: SV_SCHEMA, maxOutputTokens: 2048, temperature: 0 }
+    };
+    var r;
+    try {
+      r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
+    } catch (e) {
+      loiCuoi = 'không gọi được Gemini: ' + e.message;
+      continue;
+    }
+    var code = r.getResponseCode(), txt = r.getContentText();
+    if (code === 429 || code === 503) { loiCuoi = 'HTTP ' + code + ' (hết quota/quá tải) ở ' + SV_MODELS[i]; continue; }
+    if (code !== 200) return { status: 'error', message: 'AI trả HTTP ' + code + ': ' + String(txt).slice(0, 200) };
+    var j; try { j = JSON.parse(txt); } catch (e2) { return { status: 'error', message: 'AI trả dữ liệu không đọc được.' }; }
+    var cand = (j.candidates || [])[0];
+    if (!cand) return { status: 'error', message: 'AI không trả kết quả (có thể bị chặn nội dung).' };
+    if (/SAFETY|PROHIBITED/i.test(String(cand.finishReason || ''))) return { status: 'error', message: 'AI từ chối đọc ảnh này.' };
+    var chu = '';
+    ((cand.content && cand.content.parts) || []).forEach(function (x) { chu += (x.text || ''); });
+    var o; try { o = JSON.parse(chu); } catch (e3) { return { status: 'error', message: 'AI trả JSON sai khuôn.' }; }
+    var lay = function (k) { return (o[k] || []).map(function (x) { return String(x).slice(0, 60); }).slice(0, 40); };
+    return {
+      status: 'success', model: SV_MODELS[i],
+      quality: String(o.quality || ''),
+      text: String(o.raw_text || '').slice(0, 4000),
+      tokens: { item_codes: lay('item_codes'), specs: lay('specs'), colors: lay('colors'), brands: lay('brands'), others: lay('others') }
+    };
+  }
+  return { status: 'error', message: 'Tất cả model AI miễn phí đều đang hết hạn mức (' + loiCuoi + ') — gõ từ khoá tay giúp.' };
 }

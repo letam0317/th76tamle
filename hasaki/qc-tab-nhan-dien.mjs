@@ -28,6 +28,25 @@ const AI_OK = {
   text: "YKK | 8846295 | CMOR-36 | Chiều dài: 38.0 CM | Màu: 345",
 };
 const AI_LOI = { status: "error", message: "Hết hạn mức đọc tem hôm nay (400 ảnh) — gõ từ khoá tay giúp." };
+/* Kết quả OCR giả — action sku_ocr chỉ trả CHỮ THÔ (không có vai nào), đúng như Drive OCR.
+   Có kèm mấy dòng GIẤY TỜ để kiểm bước lọc mảnh theo danh mục. */
+const OCR_OK = {
+  status: "success", nguon: "drive-ocr", ms: 5300, msUp: 4200, msExport: 800, conLai: 1999,
+  text: `YKK 8846295 CMOR-36
+Chiều dài: 38.0 CM  Màu: 345
+ADD: LOT 24, TAN THOI HIEP IP, DIST 12, HCMC
+P/O NO: 4500219877  LOT: 25/08-114
+NET WEIGHT: 12.5 KG  INSPECTOR: NG.T.H`,
+};
+/* OCR đọc được chữ nhưng KHÔNG mảnh nào là mã hàng có thật -> phải LEO THANG sang AI */
+const OCR_KHONG_MA = {
+  status: "success", nguon: "drive-ocr", ms: 5100,
+  text: `SEWING THREAD 100% POLYESTER
+MADE IN VIETNAM
+NET WEIGHT 12.5 KG`,
+};
+const OCR_LOI = { status: "error", message: "OCR không thấy chữ nào trên ảnh — chụp gần hơn, đủ sáng, giữ tem phẳng." };
+let traLoiOcr = OCR_OK, soGoiOcr = 0, soGoiAi = 0;
 /* Trang HTML mà chặng 2 của Apps Script (script.googleusercontent.com/…/echo) thỉnh thoảng trả về
    thay cho JSON — chính là lỗi thật 19/08/2026 ("Unexpected token '<', \"<!DOCTYPE \"…"). */
 const GAS_HTML = "<!DOCTYPE html><html><head><title>Error</title></head><body>Sorry, unable to open the file.</body></html>";
@@ -59,8 +78,15 @@ page.on("request", (req) => {
       return req.respond({ status: 200, contentType: "text/html",
         headers: { "Access-Control-Allow-Origin": "*" }, body: GAS_HTML });
     }
+    /* TÁCH THEO ACTION: bậc thang có 2 người đọc, phải đếm riêng mới kiểm được "OCR ra mã rồi thì
+       KHÔNG gọi AI nữa" — đó chính là hợp đồng tiết kiệm hạn mức. */
+    let act = "";
+    try { act = (JSON.parse(req.postData() || "{}") || {}).action || ""; } catch (e) { act = ""; }
+    if (act === "sku_ocr") soGoiOcr++;
+    if (act === "sku_vision") soGoiAi++;
+    const than = act === "sku_ocr" ? traLoiOcr : traLoi;
     return req.respond({ status: 200, contentType: "application/json",
-      headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(traLoi) });
+      headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(than) });
   }
   req.continue();
 });
@@ -139,8 +165,10 @@ const anHet = await page.evaluate(() => Array.prototype.filter.call(
   .map((e) => e.id || e.className));
 kiem("Mọi phần tử [hidden] trong tab đều THẬT SỰ bị ẩn (không bị class display đè)",
   anHet.length === 0, anHet.join(", ") || "sạch");
-kiem("Ngoài khung chỉ còn nút hành động với KẾT QUẢ",
-  trongKhung.ngoai.length === 2 && trongKhung.ngoai.every((t) => /Quét mã vạch|Đọc lại bằng AI/.test(t)),
+/* 3 nút từ 19/08/2026: mã vạch · OCR Google (miễn phí) · AI — đúng 3 người đọc của bậc thang, và
+   phải đúng thứ tự rẻ→đắt để ai nhìn cũng biết nên bấm cái nào trước. */
+kiem("Ngoài khung chỉ còn nút hành động với KẾT QUẢ (mã vạch · OCR · AI, đúng thứ tự rẻ→đắt)",
+  trongKhung.ngoai.length === 3 && /mã vạch/i.test(trongKhung.ngoai[0]) && /OCR/i.test(trongKhung.ngoai[1]) && /AI/i.test(trongKhung.ngoai[2]),
   trongKhung.ngoai.join(" · "));
 
 /* ---------- 3b. KHUNG XEM TRƯỚC: đúng MỘT lớp hiện, không chia đôi ----------
@@ -166,7 +194,8 @@ kiem("Ảnh phủ TRỌN khung, không bị bóp còn nửa bên",
   "khung " + khung.st.w + "×" + khung.st.h + " · ảnh " + (dangHien[0] || {}).w + "×" + (dangHien[0] || {}).h);
 
 const moKhoa = await page.$eval("#ndsBtnDoc", (e) => !e.disabled);
-kiem("Có ảnh thì nút \"Đọc lại bằng AI\" mở khoá", moKhoa);
+const moKhoaOcr = await page.$eval("#ndsBtnOcr", (e) => !e.disabled);
+kiem("Có ảnh thì mở khoá CẢ HAI nút đọc lại (OCR + AI)", moKhoa && moKhoaOcr, "OCR=" + moKhoaOcr + " · AI=" + moKhoa);
 /* TỰ ĐỘNG (19/08/2026): đặt ảnh xong là phải tự chạy hết bậc thang mã vạch → sổ tay → AI, KHÔNG
    cần bấm nút nào. Ca này cố ý KHÔNG bấm gì — có badge từ khoá tức là nó đã tự chạy. */
 const tuChay = await page.waitForFunction(() => document.querySelectorAll("#ndsTags .nds-tag").length > 0, { timeout: 30000 })
@@ -548,6 +577,64 @@ await page.setOfflineMode(false);
 /* ---------- 12. Bố cục điện thoại + rời tab tắt camera ---------- */
 await page.setViewport({ width: 390, height: 844, isMobile: true, deviceScaleFactor: 2 });
 await new Promise((r) => setTimeout(r, 600));
+/* ---------- 12. BẬC THANG OCR ↔ AI (19/08/2026) ----------------------------------------------
+   Hợp đồng của tầng OCR: (a) đọc được mã có thật trong danh mục thì DỪNG, không tiêu một lượt AI
+   nào; (b) không lập được mã thì TỰ leo thang sang AI; (c) OCR chết cũng leo thang, không để thủ
+   kho đứng nhìn màn hình trống — đây đúng là ca "không có kết quả nào" mà thủ kho báo 19/08/2026. */
+const datAnhMoi = async () => {
+  await page.evaluate(() => {
+    ndsXoaHet();
+    var c = document.createElement("canvas"); c.width = 620; c.height = 400;
+    var x = c.getContext("2d");
+    x.fillStyle = "#fff"; x.fillRect(0, 0, 620, 400);
+    x.fillStyle = "#111"; x.font = "bold 28px Arial"; x.fillText("YKK 8846295", 36, 84);
+    x.font = "20px Arial"; x.fillText("38.0 CM  ·  345", 36, 140);
+    ndsDatAnh(c.toDataURL("image/jpeg", 0.9));
+  });
+  await page.waitForFunction(() => !NDS.tuDong && !NDS.dangDoc, { timeout: 40000 }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 400));
+};
+
+await bam("#ttSku");
+traLoiOcr = OCR_OK; traLoi = AI_OK; soGoiOcr = 0; soGoiAi = 0;
+await datAnhMoi();
+const sauOcr = await page.evaluate(() => ({
+  the: document.querySelectorAll("#ndsCards .nds-card").length,
+  sku: (document.querySelector("#ndsCards .nds-sku") || {}).textContent || "",
+  nguon: (window.NDS.tokens || []).map((t) => t.nguon).join(","),
+  raw: (document.getElementById("ndsRaw") || {}).value || "",
+  boRac: NDS.boRac || 0,
+}));
+kiem("OCR đọc ra mã có thật → ra SKU luôn và KHÔNG gọi AI lượt nào",
+  soGoiOcr === 1 && soGoiAi === 0 && sauOcr.the > 0,
+  soGoiOcr + " lượt OCR · " + soGoiAi + " lượt AI · " + sauOcr.the + " gợi ý · #1 = " + sauOcr.sku.trim());
+kiem("Từ khoá ghi rõ đến từ OCR (không nhận vơ là AI)", /ocr|chu/.test(sauOcr.nguon), sauOcr.nguon.slice(0, 60));
+kiem("Chữ OCR được đưa vào ô \"chữ trên tem\" để sửa được", /8846295/.test(sauOcr.raw), sauOcr.raw.slice(0, 40));
+kiem("Bỏ mảnh GIẤY TỜ không có trong danh mục (địa chỉ · số PO · ngày · cân nặng)", sauOcr.boRac >= 3,
+  "bỏ " + sauOcr.boRac + " mảnh");
+const chanRac = await page.$eval("#ndsFoot", (e) => e.textContent);
+kiem("Dòng chân nói ra đã bỏ bao nhiêu mảnh giấy tờ", /mảnh giấy tờ/.test(chanRac), "");
+
+/* Các gợi ý CÙNG mã 8846295 chỉ khác MÀU (102 biến thể): máy phải nói ra chứ không để con số của
+   hạng 1 trông như một kết luận — chữ màu in nhỏ nên chính OCR/AI hay đọc lệch 345↔145. */
+const canhMau = await page.evaluate(() => {
+  const t = (document.getElementById("ndsCards") || {}).textContent || "";
+  const i = t.indexOf("đều mang đúng mã");
+  return i < 0 ? "" : t.slice(Math.max(0, i - 24), i + 90);
+});
+kiem("Cùng mã nhưng khác màu/thông số → mời người chọn, không tự chốt", !!canhMau, canhMau.slice(0, 96));
+
+traLoiOcr = OCR_KHONG_MA; soGoiOcr = 0; soGoiAi = 0;
+await datAnhMoi();
+kiem("OCR không lập được mã → TỰ leo thang sang AI", soGoiOcr === 1 && soGoiAi === 1,
+  soGoiOcr + " lượt OCR · " + soGoiAi + " lượt AI");
+
+traLoiOcr = OCR_LOI; soGoiOcr = 0; soGoiAi = 0;
+await datAnhMoi();
+const sauLoi = await page.evaluate(() => document.querySelectorAll("#ndsCards .nds-card").length);
+kiem("OCR chết → vẫn ra kết quả nhờ leo thang sang AI (không để màn hình trống)",
+  soGoiAi === 1 && sauLoi > 0, soGoiOcr + " lượt OCR · " + soGoiAi + " lượt AI · " + sauLoi + " gợi ý");
+
 /* Quay lại tab Nhận diện SKU trước khi đo: getComputedStyle vẫn trả giá trị grid dù phần tử đang
    bị ẩn, nên nếu không kiểm "đang hiện thật" thì ca này pass cả khi trang đứng ở tab khác. */
 await bam("#ttSku");
@@ -590,6 +677,6 @@ kiem("Không có lỗi JS nào trên trang", loiTrang.length === 0, loiTrang.sli
 await browser.close();
 const truot = ket.filter((k) => !k.ok).length;
 console.log("\n" + (truot ? "✗ " : "✓ ") + (ket.length - truot) + "/" + ket.length + " mục đạt" +
-  (truot ? " — " + truot + " mục TRƯỢT" : "") + " · " + soGoiGas + " lượt gọi Apps Script (đã chặn, không ra internet)" +
+  (truot ? " — " + truot + " mục TRƯỢT" : "") + " · " + soGoiGas + " lượt gọi Apps Script (" + soGoiOcr + " OCR / " + soGoiAi + " AI ở cụm cuối, đã chặn, không ra internet)" +
   (LUU_ANH ? "\n  ảnh: " + OUT : ""));
 process.exit(truot ? 1 : 0);
