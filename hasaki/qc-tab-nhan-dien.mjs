@@ -65,7 +65,7 @@ const AI_KHONG_MA = {
 };
 let traLoiOcr = OCR_OK, soGoiOcr = 0, soGoiAi = 0;
 /* treGas = số ms giữ phản hồi lại, để mô phỏng mạng chậm (ca "phản hồi của ảnh cũ về muộn") */
-let treGas = 0;
+let treGas = 0, soGoiHam = 0;
 /* Trang HTML mà chặng 2 của Apps Script (script.googleusercontent.com/…/echo) thỉnh thoảng trả về
    thay cho JSON — chính là lỗi thật 19/08/2026 ("Unexpected token '<', \"<!DOCTYPE \"…"). */
 const GAS_HTML = "<!DOCTYPE html><html><head><title>Error</title></head><body>Sorry, unable to open the file.</body></html>";
@@ -99,10 +99,14 @@ page.on("request", (req) => {
     }
     /* TÁCH THEO ACTION: bậc thang có 2 người đọc, phải đếm riêng mới kiểm được "OCR ra mã rồi thì
        KHÔNG gọi AI nữa" — đó chính là hợp đồng tiết kiệm hạn mức. */
-    let act = "";
-    try { act = (JSON.parse(req.postData() || "{}") || {}).action || ""; } catch (e) { act = ""; }
-    if (act === "sku_ocr") soGoiOcr++;
-    if (act === "sku_vision") soGoiAi++;
+    let act = "", than0 = {};
+    try { than0 = JSON.parse(req.postData() || "{}") || {}; act = than0.action || ""; } catch (e) { act = ""; }
+    /* Lượt HÂM NÓNG (chuanDoan, không kèm ảnh) KHÔNG phải một lượt đọc tem — đừng tính vào bộ đếm,
+       không thì mọi ca "0 lượt OCR" đỏ oan. */
+    const laHam = !!than0.chuanDoan && !than0.anh;
+    if (laHam) soGoiHam++;
+    else if (act === "sku_ocr") soGoiOcr++;
+    else if (act === "sku_vision") soGoiAi++;
     const than = act === "sku_ocr" ? traLoiOcr : traLoi;
     const traVe = () => req.respond({ status: 200, contentType: "application/json",
       headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(than) }).catch(() => { /* lượt bị abort */ });
@@ -688,6 +692,30 @@ const coDongHo = await page.evaluate(async () => {
 });
 kiem("Hộp \"đang đọc\" có đồng hồ giây và tắt sạch khi xong",
   /^0,[1-9]s$/.test(coDongHo.chu) && !coDongHo.conSau, "sau 0,35s hiện " + coDongHo.chu);
+
+/* ---------- 12b. TIẾT KIỆM THỜI GIAN CHỜ (19/08/2026) ----------------------------------------
+   Ba việc đo được: nén ảnh ĐÚNG MỘT LẦN cho mỗi tấm (dù bậc thang dùng 2 người đọc), ảnh gửi lên
+   không vượt ngân sách byte, và có lượt HÂM NÓNG Apps Script (chống lượt đầu vào instance nguội —
+   đo thật có lượt 28,5s mà chỉ 1 POST, tức không phải thử lại). */
+kiem("Có hâm nóng Apps Script khi mở tab (không ảnh, không tốn hạn mức)", soGoiHam >= 1, soGoiHam + " lượt hâm nóng");
+traLoi = AI_KHONG_MA; traLoiOcr = OCR_OK;      // buộc bậc thang dùng CẢ HAI người đọc trên cùng 1 ảnh
+await page.evaluate(() => {
+  window.__soNen = 0;
+  const goc = window.ndsNenAnh;
+  window.ndsNenAnh = function () { window.__soNen++; return goc.apply(this, arguments); };
+});
+soGoiAi = 0; soGoiOcr = 0;
+await datAnhMoi();
+const nenSo = await page.evaluate(() => ({ so: window.__soNen, tran: window.NDS_TRAN_B64 }));
+kiem("Một tấm ảnh chỉ nén MỘT lần dù bậc thang gọi cả AI lẫn OCR",
+  soGoiAi === 1 && soGoiOcr === 1 && nenSo.so === 1,
+  soGoiAi + " AI · " + soGoiOcr + " OCR · " + nenSo.so + " lần nén");
+const kbGui = await page.evaluate(async () => {
+  const a = await ndsNenSan(NDS_MAX_CANH);
+  return { b64: a.b64.length, kb: Math.round(a.b64.length * 0.75 / 1024), tran: NDS_TRAN_B64 };
+});
+kiem("Ảnh gửi lên không vượt ngân sách byte (thời gian đẩy ảnh trên 4G)",
+  kbGui.b64 <= kbGui.tran, kbGui.kb + "KB (" + kbGui.b64 + " ≤ " + kbGui.tran + " ký tự base64)");
 
 /* ---------- 13. ẢNH MỚI = LƯỢT MỚI (sự cố 19/08/2026) ----------------------------------------
    Thủ kho báo: chụp tem mới nhưng từ khoá tem CŨ vẫn còn và vẫn tính điểm (mã `C3968` của lượt
