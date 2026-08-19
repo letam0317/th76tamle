@@ -6,7 +6,7 @@
  *    2) công thức: đúng ví dụ thật (10kg · 10 cuộn · lõi 50gr · cuộn nguyên 5.000.000mm/120gr)
  *    3) nút "cân cả lõi / chỉ riêng chỉ" đổi kết quả 1,7 lần — chọn sai là sai to
  *    4) cờ đỏ khi số liệu vô lý + 2 ca không tính được (lõi ≥ cuộn nguyên · cân ≤ tổng lõi)
- *  Thêm: ghi nhớ quy cách qua F5, "Lô tiếp theo" chỉ xoá 2 ô của lô, bố cục điện thoại, chân trang.
+ *  Thêm: thanh chân trang ẩn hẳn ở 2 tab Công cụ kho, ghi nhớ quy cách qua F5, "Lô tiếp theo" chỉ xoá 2 ô của lô, bố cục điện thoại, chân trang.
  *
  *  CHẶN TOÀN BỘ MẠNG RA NGOÀI (gviz + Apps Script): tab này không cần dữ liệu Sheet, chặn để test
  *  chạy được offline và KHÔNG đốt thêm lượt gọi upstream nào.
@@ -70,8 +70,16 @@ const chiMinh = await page.evaluate(() => ["viewStock", "viewKK", "viewAbn", "vi
 kiem("Mở tab thì chỉ view Chuyển đổi cân hiện, 5 view kia ẩn", chiMinh);
 const onBen = await page.evaluate(() => { const e = document.querySelector('#sideNav .s-item[data-tab="cd"]'); return e && e.classList.contains("on"); });
 kiem("Thanh bên tô sáng đúng mục đang xem", !!onBen);
-kiem("Chân trang KHÔNG mượn mốc \"cập nhật\" của tồn kho",
-  !/cập nhật/.test(await page.$eval("#loadinfo", (e) => e.textContent)), await page.$eval("#loadinfo", (e) => e.textContent.trim()));
+/* Thanh chân "Nguồn: stocklocationfactory · …" đã BỬe ở cả 2 tab Công cụ kho (19/08/2026): chúng
+   không đọc tab Sheet nào nên nguồn/số dòng/mốc cập nhật đều vô nghĩa. Các tab khác phải còn nguyên. */
+const chan = await page.evaluate(() => {
+  const r = {};
+  ["cd", "sku", "stock", "plg"].forEach((t) => { showTab(t); r[t] = document.querySelector(".footbar").offsetParent !== null; });
+  return r;
+});
+kiem("Thanh chân ẩn hẳn ở cả 2 tab Công cụ kho, 4 tab dữ liệu vẫn còn",
+  chan.cd === false && chan.sku === false && chan.stock === true && chan.plg === true, JSON.stringify(chan));
+await bam("#ttCd");
 
 /* ---------- 2. Bộ đọc số: 3 kiểu dấu phân cách + thập phân + rác ---------- */
 const doc = await page.evaluate(() => ["2.500.000", "2,500,000", "2500000", "10,5", "10.5", "0,25",
