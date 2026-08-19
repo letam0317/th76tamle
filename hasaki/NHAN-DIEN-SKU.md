@@ -754,6 +754,19 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
 * Ảnh gửi OCR và AI **cùng 1400px** — bản đầu cho OCR 2000px theo lý thuyết "OCR ăn độ nét từng nét
   chữ", đo thật thì 2000/1400/1000px cho ra **chữ y hệt nhau** nên chỉ còn là byte thừa (xem 5b.5).
 * Badge từ khoá ghi rõ **nguồn** trong tooltip (mã vạch · OCR · AI · tách từ chữ trên tem · gõ tay).
+* **HÀNG ĐẦU CỦA THẺ = TOÀN BỘ PHẦN ĐỌC NHANH** (chốt 19/08/2026 sau 2 lần rút):
+  `hạng · SKU · Tồn + ĐVT · ghi chú · %` — ghi chú là *tem in đúng mã này · từ sổ tay · lệch <họ>*.
+  Thẻ **không còn dòng phụ nào**: còn 2 dòng nội dung (hàng đầu + tên hàng) và một dòng tóm tắt gấp
+  lại. Vì sao dồn được: mấy ghi chú đó chỉ 2–4 chữ **và** chúng quyết định "có tin thẻ này không",
+  nên phải đọc **cùng lúc** với mã SKU chứ không phải sau khi đã lướt hết tên hàng dài của WMS.
+  Hàng đã `flex-wrap` nên máy hẹp thì phần cuối tự xuống dòng — vẫn ngắn hơn một dòng phụ riêng
+  (dòng phụ có `margin-top:7px` + chiều cao dòng của chính nó).
+* **Nút `quên ghi nhớ này` ngay trên thẻ** khi kết quả đến từ sổ tay. LỖ THẬT phát hiện 19/08/2026:
+  `ndsSoQuen()` có hàm, có cả ca test, nhưng **không có nút nào trong giao diện gọi tới** ⇒ bấm nhầm
+  một lần là sổ tay ghim SKU sai ở **100% mãi mãi**, cách duy nhất là "Xoá sổ tay" (mất sạch mọi ghi
+  nhớ). Nút phải nằm đúng chỗ người ta **nhìn thấy cái sai**. Bắt buộc `stopPropagation` — cả thẻ là
+  nút chọn SKU, không chặn thì bấm "quên" lại thành "chọn lại đúng cái SKU sai đó" (đúng bẫy đã cắn
+  với nút biến thể đơn vị); đã có ca test khoá lại.
 * 3 nút dưới khung theo đúng thứ tự bậc thang: `Quét mã vạch` (0 giây) · `Đọc lại chữ (OCR)` (miễn
   phí) · `Nhờ AI đọc`. Hộp "đang đọc" có **đồng hồ giây** và nói rõ đang nhờ ai đọc; khi AI hỏng thì
   câu chữ đổi thành *"AI không đọc được — đang thử OCR của Google (miễn phí)…"* để người dùng hiểu

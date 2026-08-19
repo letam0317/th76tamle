@@ -271,10 +271,18 @@ const tonCanhSku = await page.$$eval("#ndsCards .nds-card .nds-chead", (a) => a.
 kiem("Tồn + đơn vị nằm NGAY CẠNH mã SKU trên cùng một hàng (thẻ gọn hơn 1 dòng)",
   tonCanhSku.length === the.length && tonCanhSku.every((x) => x.co && x.sauSku && x.cungHang && /^Tồn\s[\d.,]+\s\S/.test(x.chu)),
   (tonCanhSku[0] || {}).chu + " · liền sau SKU: " + (tonCanhSku[0] || {}).sauSku + " · cùng hàng: " + (tonCanhSku[0] || {}).cungHang);
-const sub = await page.$$eval("#ndsCards .nds-card .nds-sub", (a) => a.map((e) => e.textContent.trim()));
-kiem("Dòng phụ CHỈ hiện khi có điều đáng nói, và không còn chip từ khoá",
-  sub.every((t) => /từ sổ tay|tem in đúng mã|lệch /.test(t)) && the.every((t) => t.chips.length === 0),
-  sub.length ? sub.join(" | ").slice(0, 70) : "không thẻ nào cần dòng phụ — đúng");
+/* 19/08/2026 (lần 2): ghi chú "tem in đúng mã này / từ sổ tay / lệch …" cũng lên HÀNG ĐẦU cùng
+   SKU + tồn ⇒ thẻ KHÔNG còn dòng phụ nào. Hàng đầu là toàn bộ phần đọc nhanh. */
+const ghiChu = await page.$$eval("#ndsCards .nds-card", (a) => a.map((c) => {
+  const h = c.querySelector(".nds-chead"), g = h.querySelector(".nds-ok, .nds-lech");
+  const sku = h.querySelector(".nds-sku");
+  return { chu: g ? g.textContent.trim() : "",
+    cungHang: !g || Math.abs(g.getBoundingClientRect().top - sku.getBoundingClientRect().top) < 6 };
+}));
+const conSub = await page.$$eval("#ndsCards .nds-sub", (a) => a.length);
+kiem("Ghi chú (tem in đúng mã / lệch …) nằm CÙNG HÀNG với SKU, thẻ không còn dòng phụ nào",
+  conSub === 0 && ghiChu.every((x) => x.cungHang) && the.every((t) => t.chips.length === 0),
+  ghiChu.map((x) => x.chu || "—").join(" | ").slice(0, 70) + " · số dòng phụ còn lại: " + conSub);
 const viSao = await page.$$eval("#ndsCards .nds-card details.nds-more", (a) => a.map((d) => ({ mo: d.open, tt: d.querySelector("summary").textContent.trim() })));
 kiem("Biến thể + từ khoá khớp gộp chung MỘT <details>, mặc định đóng",
   viSao.length > 0 && viSao.every((d) => !d.mo && /từ khoá khớp|đơn vị khác/.test(d.tt)), (viSao[0] || {}).tt || "(không có)");
@@ -367,7 +375,7 @@ kiem("Lần sau gặp lại tem đó: SKU đã học lên #1, 100%, không gọi
   String(sauHoc.sku) === String(skuHoc) && sauHoc.hoc === true && sauHoc.pct === 100,
   "chọn " + skuHoc + " (trước đó máy xếp: " + truocHoc.join(",") + ") → nay #1 = " + sauHoc.sku + "/" + sauHoc.pct + "%");
 /* Dấu "từ sổ tay" nay nằm ở dòng phụ chứ không phải một badge nữa (thẻ đã rút tới lõi) */
-const nhanHoc = await page.$eval("#ndsCards .nds-card .nds-sub", (e) => e.textContent.trim());
+const nhanHoc = await page.$eval("#ndsCards .nds-card .nds-chead", (e) => e.textContent.trim());
 kiem("Thẻ nói rõ kết quả đến TỪ SỔ TAY (để biết vì sao chắc chắn)", /từ sổ tay/.test(nhanHoc), nhanHoc);
 const gasTruoc = soGoiGas;
 await page.evaluate(() => ndsDoiSoat());
