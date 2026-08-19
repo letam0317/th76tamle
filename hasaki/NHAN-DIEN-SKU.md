@@ -683,10 +683,43 @@ Số mảnh bị bỏ hiện ở **dòng chân** ("đã bỏ N mảnh giấy t�
    nhưng bỏ được **cảm giác treo máy** — chính cái đó làm người dùng nói "quá lâu". Giây thứ 12 kèm
    nhắc: mạng yếu thì gõ mã trên tem là ra ngay, không cần chờ.
 
+### 5b.5b Bảng chặng đầy-đủ của MỘT lượt quét (đo 19/08/2026, trang thật)
+
+Ảnh mẫu "nặng như ảnh chụp trong kho" (nhiễu hạt mịn, 2400×1600 → gửi lên 158 KB):
+
+| Chặng | wifi | 4G yếu (1,6/0,75 Mbps · 300 ms) | Ai giữ chặng này |
+|---|---|---|---|
+| Nén ảnh trên máy | 0,13 s | 0,13 s | mình |
+| Đẩy ảnh lên | ~0,1 s | **~1,7 s** | mình (byte) |
+| 2 chặng Apps Script (`exec` → 302 → `echo`) | **~1,8 s** | ~2,2 s | **Google** |
+| Gemini đọc ảnh | **~2,3 s** | ~2,3 s | **Google** |
+| Đối soát 5.613 SKU + vẽ thẻ | 0,035 s | 0,03 s | mình |
+| **TỔNG tới lúc hiện Top 3** | **5,1–5,4 s** | **6,6–7,6 s** | |
+
+Trước gói cắt byte: 4G yếu **8,0–8,3 s** (ảnh 209 KB) ⇒ cắt được **~1,3–1,7 s**. Trên wifi thì byte
+không phải chặng nghẽn nên không đổi. **Hai chặng lớn nhất (~4,1 s) đều nằm ngoài tầm mình** — đó là
+lý do không thể hứa "1–2 giây" như gọi model trực tiếp.
+
+**Nếu muốn cắt tiếp thì chỉ còn 4 đường** (xếp theo lợi ích ÷ rủi ro):
+
+| Đường | Cắt được | Cái giá |
+|---|---|---|
+| **Sổ tay tem DÙNG CHUNG** (thêm action GAS + tab `SKU_TEM_HOC`) | **5 s → 0 s** cho mọi tem đã có người chốt 1 lần | thêm 1 tab Sheet + 1 đường ghi; sổ tay hiện chỉ nằm trong từng máy |
+| **Cắt đúng vùng tem** trước khi gửi | ~0,8 s trên 4G (158 → ~70 KB) | dò sai vùng thì cắt mất chữ ⇒ phải "dò chắc mới cắt" |
+| **Gọi Gemini TRỰC TIẾP từ trang** + đọc theo luồng (`streamGenerateContent`) | ~**3 s** (bỏ 1,8 s hai chặng GAS + thấy Top 3 ngay khi model trả mã, không đợi hết JSON) | **khoá AI nằm trong trang công khai**; giới hạn theo HTTP referrer chặn được người dùng thường, KHÔNG chặn được `curl` ⇒ có thể bị đốt hạn mức |
+| **Proxy riêng** (Cloudflare Worker, bậc miễn phí) | ~1,6 s (phí proxy còn ~0,1–0,2 s) | thêm một hạ tầng mới phải trông |
+
+Đường "gọi trực tiếp" chính là cách app Gemini đạt 1–2 giây: nó không có chặng proxy nào và nó
+**đọc theo luồng**. Muốn số đó thì phải trả giá bằng việc lộ khoá — đó là quyết định nghiệp vụ,
+không phải quyết định kỹ thuật.
+
 > **ĐỘ TẢN của con số**: đo live 3 lượt trên trang thật ra **4,8 s · 6,7 s · 17,9 s** cho cùng một
 > tem. Lượt 17,9 s **chỉ có MỘT** lượt gọi `sku_vision` (không phải thử lại), nên nguyên nhân nằm ở
 > phía Google — Apps Script khởi động nguội hoặc model xếp hàng. Không có cách nào ép nhanh từ phía
 > mình; đó chính là lý do phải có **đồng hồ giây + nhắc ở giây 12** thay vì cố hứa một con số.
+> Lượt xấu nhất đo được là **28,5 s** (cũng chỉ MỘT lượt POST). Vì vậy tab **hâm nóng Apps Script**
+> lúc mở: một lượt `chuanDoan` rỗng, không ảnh, **không tốn hạn mức nào**, chỉ để Google dựng sẵn
+> instance trước khi thủ kho chụp tem.
 > Đừng đọc một lần đo rồi kết luận nhanh/chậm: phải đo vài lượt.
 
 > **Bẫy async đã cắn khi đảo thứ tự**: `ndsNhanKetQua` không phải `async` mà bên trong có `await`
