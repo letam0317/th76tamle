@@ -729,6 +729,51 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.8 MỘT LƯỢT QUÉT = MỘT TẤM TEM (sự cố 19/08/2026)
+
+**Báo lỗi:** chụp tem mới nhưng ① từ khoá tem CŨ vẫn còn và vẫn tính điểm (mã `C3968` của lượt
+trước), ② ô *"Phần tử trên tem"* + mảng token không được làm sạch, ③ sổ tay trộn token giữa hai lượt
+nên gợi ý SKU cũ, và điểm **bị cào bằng** (nhiều dòng cùng 75%).
+
+**Gốc — một chỗ, ba triệu chứng:** `ndsXoaHet()` dọn đủ 6 thứ (`tokens · ket · daBo · rawDaTach ·
+maVach · loc` + 2 ô input), còn `ndsDatAnh()` chỉ đặt lại `anh` + `xoay` + `maVach`. **Hai đường dọn
+khác nhau cho cùng một việc** — y hệt bài học của `ndsLop()` khi khung xem trước bị "chia đôi".
+
+Riêng dấu hiệu **"cào bằng 75%"** chỉ đúng một chỗ và rất đáng nhớ: `NDS.loc` (mảnh gõ ở ô *Phần tử
+trên tem*) còn sót ⇒ `timTop` chuyển sang chấm bằng **ĐỘ PHỦ mảnh** (3/4 = 75%, 2/4 = 50%) chứ không
+phải điểm khớp tem ⇒ hàng loạt dòng cùng điểm. Thấy Top 3 cùng một con số chẵn (100/75/50%) thì hỏi
+ngay: *ô Phần tử trên tem có còn chữ không?*
+
+Và vì `ndsSoKhoa()` dựng chữ ký tem từ **chính `NDS.tokens`**, token trộn ⇒ **chữ ký trộn** ⇒ sổ tay
+tra/ghi nhớ ra SKU của tem cũ. Tức triệu chứng ③ không phải lỗi riêng của sổ tay.
+
+**Chữa:**
+
+* **`ndsLuotMoi()` — một hàm dọn duy nhất**, gọi từ **cả hai** chỗ (đặt ảnh mới · bấm *Xoá hết*).
+  Thêm hàm là quên hàm.
+* **`NDS.luot` = số thứ tự lượt quét.** Mọi người đọc (AI · OCR · mã vạch · `ndsDoiSoat`) chốt số này
+  lúc bắt đầu và kiểm lại **sau mỗi `await`** (`ndsConLuot`): khác số ⇒ kết quả thuộc tấm ảnh cũ ⇒ bỏ,
+  **im lặng**. Không có nó thì chụp 2 tem liên tiếp là kết quả tem 1 rơi vào tem 2.
+* `ndsLuotMoi()` **abort luôn lượt gọi mạng đang bay** (`NDS.huy`): vừa khỏi tốn hạn mức, vừa nhả cờ
+  `dangDoc`. Trước đây `ndsTuDongNhanDien` `return` thẳng khi `dangDoc=true` ⇒ **tem thứ hai không
+  được đọc** mà vẫn hiện kết quả tem thứ nhất. Nay chờ cờ nhả (12 nhịp × 60 ms) rồi chạy.
+* Có ảnh mới là **xoá ngay thẻ gợi ý cũ**, đừng để nó đứng cạnh ảnh mới trong lúc đang đọc.
+
+**Kèm một việc nữa lộ ra khi đo live:** gõ **một mảnh chung** ("polyester") thì hàng trăm dòng cùng
+phủ 1/1 = **100%**, và nhóm đó trước đây xếp tiếp bằng đơn vị/tồn — gần như tuỳ ý. Nay **điểm khớp
+tem làm thứ tự phụ**: cùng độ phủ thì dòng khớp thêm nhiều từ khoá của tem hơn đứng trước. Không có
+từ khoá tem nào thì điểm khớp = 0 cho tất cả ⇒ thứ tự y như cũ (không đổi hành vi cũ).
+
+**Đo live trên trang thật (2 tem liên tiếp):** tem A `F9-5284` (+ gõ mảnh "polyester") → tem B
+`8209948`: từ khoá tem B **sạch bóng** tem A, ô *Phần tử* rỗng, `loc = null`, #1 = `422308806` **85%**
+(điểm khớp thật, không phải độ phủ). Test: **+7 ca** trong `qc-tab-nhan-dien.mjs` (**86/86**), gồm ca
+*"phản hồi đến muộn của ảnh cũ bị bỏ"* (mock giữ phản hồi 2,5 s rồi chen ảnh mới) và ca *"sổ tay không
+ghim SKU tem A sang tem B"*.
+
+> ⚠ **Bẫy trong chính test**: đọc `%` bằng regex trên `textContent` của cả thẻ thì nó ngoạm luôn mã
+> SKU 9 chữ số (`142230880697`) rồi ca test **pass oan** vì `142230880697 >= 80`. Phải đọc ở đúng
+> phần tử `.nds-pct`.
+
 ---
 
 ## 6. Lõi đối soát (`NDS_ENGINE`, trong `factory/index.html`)
@@ -826,9 +871,9 @@ khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng m
 
 | Lệnh | Kiểm gì | Kết quả 18/08/2026 |
 |---|---|---|
-| `node qc-nhan-dien-sku.mjs [--gviz] [--chi-tiet]` | lõi đối soát trên 5.610 SKU thật: 18 dạng đoạn ĐƠN VỊ, khoá gom mặt hàng, 3 quy cách tem, OCR sai nhẹ, SKU in trên tem, cùng mã khác màu, tem mờ, từ khoá rác, **ưu tiên đơn vị nhỏ nhất** (+ bất biến: không biến thể nào nhỏ hơn đại diện), **chữ ký + ghim sổ tay**, **6 ca chữ thô/OCR** (mã dài nhiều đoạn · chi số ghi liền · cỡ dán liền số đo · số đo không chiếm rổ mã · AI gán vai sai · số dài không khớp mã ngắn) | **55/55** · 8ms/lượt (19/08) |
+| `node qc-nhan-dien-sku.mjs [--gviz] [--chi-tiet]` | lõi đối soát trên 5.610 SKU thật: 18 dạng đoạn ĐƠN VỊ, khoá gom mặt hàng, 3 quy cách tem, OCR sai nhẹ, SKU in trên tem, cùng mã khác màu, tem mờ, từ khoá rác, **ưu tiên đơn vị nhỏ nhất** (+ bất biến: không biến thể nào nhỏ hơn đại diện), **chữ ký + ghim sổ tay**, **6 ca chữ thô/OCR** (mã dài nhiều đoạn · chi số ghi liền · cỡ dán liền số đo · số đo không chiếm rổ mã · AI gán vai sai · số dài không khớp mã ngắn), **gõ mảnh chung thì xếp tiếp bằng điểm khớp** | **56/56** · 8-10ms/lượt (19/08) |
 | `node qc-tem-vision.mjs [--giu-anh]` | **đầu-cuối**: dựng 6 ảnh tem (3 quy cách × sạch/khó: nghiêng 7° + mờ + loá nylon + vết bẩn) → Gemini thật → engine, **ghép vai AI + chữ thô y như dashboard** | **6/6 ra đúng SKU** |
-| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang OCR↔AI** (OCR ra mã thì 0 lượt AI · không lập được mã thì tự leo thang · OCR chết vẫn ra kết quả · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu) | **77/77** (19/08) |
+| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ) | **86/86** (19/08) |
 | `node qc-sku-vision-live.mjs` | cổng thật trên production: chặn email lạ, chặn ảnh quá lớn, đọc tem thật, chặn 2 lượt song song (tốn 2 lượt hạn mức) | **8/8** |
 | `node qc-sku-ocr-live.mjs` | **cổng OCR thật** (`sku_ocr`): deploy đã lên chưa · email lạ · ảnh quá lớn không bao giờ được OCR · đọc đúng mã trên tem · **đo thời gian từng chặng** · chặn 2 lượt song song · ảnh trắng thì nói "không thấy chữ" | **10/10** (19/08) |
 | `node qc-ocr-doi-chung.mjs [--so 30] [--duong ABCDEFG] [--dung-dem]` | **đo người đọc nào tốt hơn**: 7 đường (tin vai AI · +bằng chứng · chữ thô AI · OCR · OCR không lọc · ghép AI · ghép cả 2) trên cùng bộ tem, nhãn cắt từ SKU thật + chữ giấy tờ, 3 bậc khó. `--dung-dem` chạy lại **0 lượt gọi** | OCR **77%** Top-1 / 83% Top-3 (30 tem) |

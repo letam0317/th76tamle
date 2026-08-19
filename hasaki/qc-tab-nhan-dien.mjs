@@ -64,6 +64,8 @@ const AI_KHONG_MA = {
   text: "SEWING THREAD 100% POLYESTER\nMADE IN VIETNAM\nNET WEIGHT 12.5 KG",
 };
 let traLoiOcr = OCR_OK, soGoiOcr = 0, soGoiAi = 0;
+/* treGas = số ms giữ phản hồi lại, để mô phỏng mạng chậm (ca "phản hồi của ảnh cũ về muộn") */
+let treGas = 0;
 /* Trang HTML mà chặng 2 của Apps Script (script.googleusercontent.com/…/echo) thỉnh thoảng trả về
    thay cho JSON — chính là lỗi thật 19/08/2026 ("Unexpected token '<', \"<!DOCTYPE \"…"). */
 const GAS_HTML = "<!DOCTYPE html><html><head><title>Error</title></head><body>Sorry, unable to open the file.</body></html>";
@@ -102,8 +104,10 @@ page.on("request", (req) => {
     if (act === "sku_ocr") soGoiOcr++;
     if (act === "sku_vision") soGoiAi++;
     const than = act === "sku_ocr" ? traLoiOcr : traLoi;
-    return req.respond({ status: 200, contentType: "application/json",
-      headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(than) });
+    const traVe = () => req.respond({ status: 200, contentType: "application/json",
+      headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(than) }).catch(() => { /* lượt bị abort */ });
+    if (treGas > 0) { setTimeout(traVe, treGas); return; }
+    return traVe();
   }
   req.continue();
 });
@@ -684,6 +688,99 @@ const coDongHo = await page.evaluate(async () => {
 });
 kiem("Hộp \"đang đọc\" có đồng hồ giây và tắt sạch khi xong",
   /^0,[1-9]s$/.test(coDongHo.chu) && !coDongHo.conSau, "sau 0,35s hiện " + coDongHo.chu);
+
+/* ---------- 13. ẢNH MỚI = LƯỢT MỚI (sự cố 19/08/2026) ----------------------------------------
+   Thủ kho báo: chụp tem mới nhưng từ khoá tem CŨ vẫn còn và vẫn tính điểm (mã `C3968` của lượt
+   trước), ô "Phần tử trên tem" vẫn giữ chữ cũ, sổ tay trộn token hai lượt nên gợi ý SKU cũ, điểm
+   bị cào bằng (nhiều dòng cùng 75%). Cụm này khoá cả 4 mặt của lỗi đó. */
+const AI_TEM_A = {
+  status: "success", model: "gemini(giả)", quality: "ro",
+  tokens: { item_codes: ["C3968"], specs: ["Tex 27"], colors: [], brands: ["COATS"], others: [] },
+  text: "COATS C3968 Tex 27",
+};
+const AI_TEM_B = {
+  status: "success", model: "gemini(giả)", quality: "ro",
+  tokens: { item_codes: ["8209948"], specs: ["18.0 CM"], colors: ["366"], brands: ["YKK"], others: [] },
+  text: "YKK 8209948 CHC-36 | Chiều dài: 18.0 CM | Màu: 366",
+};
+traLoi = AI_TEM_A; traLoiOcr = OCR_OK;
+await datAnhMoi();
+/* Người dùng còn gõ thêm mảnh vào ô "Phần tử trên tem" cho tem A -> NDS.loc có giá trị */
+await page.evaluate(() => { document.getElementById("ndsMa").value = "polyester"; ndsTraMa(); });
+await new Promise((r) => setTimeout(r, 600));
+const truocB = await page.evaluate(() => ({
+  tokens: NDS.tokens.map((t) => t.t).join(","), loc: (NDS.loc || []).join(","),
+  ma: document.getElementById("ndsMa").value,
+}));
+kiem("Dựng được hiện trạng của tem A (có từ khoá + có mảnh đã gõ)",
+  /c3968/.test(truocB.tokens) && truocB.loc.length > 0, "tokens: " + truocB.tokens.slice(0, 50) + " · loc: " + truocB.loc);
+
+traLoi = AI_TEM_B; soGoiAi = 0; soGoiOcr = 0;
+await datAnhMoi();                                        // ẢNH MỚI
+const sauB = await page.evaluate(() => ({
+  tokens: NDS.tokens.map((t) => t.t).join(","),
+  loc: NDS.loc, ma: document.getElementById("ndsMa").value, raw: document.getElementById("ndsRaw").value,
+  rawDaTach: NDS.rawDaTach, daBo: Object.keys(NDS.daBo || {}).length, maVach: (NDS.maVach || []).length,
+  sku1: ((document.querySelector("#ndsCards .nds-sku") || {}).textContent || "").trim(),
+  /* Đọc % ở ĐÚNG phần tử .nds-pct — bắt bằng regex trên textContent của cả thẻ thì nó ngoạm luôn
+     mã SKU (9 chữ số) rồi ca test pass oan vì "142230880697 >= 80". */
+  pct: Array.from(document.querySelectorAll("#ndsCards .nds-pct")).map((e) => parseInt(e.textContent, 10)).join(","),
+}));
+kiem("Ảnh mới KHÔNG còn từ khoá của ảnh cũ (mã C3968 phải biến mất)",
+  !/c3968/.test(sauB.tokens) && /8209948/.test(sauB.tokens), sauB.tokens.slice(0, 60));
+kiem("Ảnh mới dọn sạch ô \"Phần tử trên tem\" + mảnh lọc (đây là thứ làm điểm cào bằng 75%)",
+  sauB.ma === "" && !sauB.loc, "ô: \"" + sauB.ma + "\" · loc: " + JSON.stringify(sauB.loc));
+kiem("Ảnh mới dọn sạch ô chữ trên tem + bộ nhớ 'đã bỏ' + mã vạch cũ",
+  /8209948/.test(sauB.raw) && !/C3968/.test(sauB.raw) && sauB.daBo === 0 && sauB.maVach === 0,
+  "raw: " + sauB.raw.slice(0, 40) + " · daBo " + sauB.daBo + " · mã vạch " + sauB.maVach);
+kiem("Kết quả là của tem MỚI và điểm là điểm khớp (không phải độ phủ mảnh cũ)",
+  sauB.sku1 === "422308806" && Number(sauB.pct.split(",")[0]) >= 80,
+  "#1 " + sauB.sku1 + " · các mức điểm: " + sauB.pct);
+
+/* SỔ TAY: học SKU cho tem A rồi chụp tem B — không được ghim SKU của A sang B (token đã trộn thì
+   chữ ký tem cũng trộn, đó là gốc của "gợi ý sai SKU cũ"). */
+traLoi = AI_TEM_A;
+await datAnhMoi();
+await page.evaluate(() => { try { localStorage.removeItem("nds-so-v1"); } catch (e) {} });
+await datAnhMoi();
+const skuA = await page.evaluate(() => {
+  const t = document.querySelector("#ndsCards .nds-card");
+  if (t) t.click();
+  return ((document.querySelector("#ndsCards .nds-sku") || {}).textContent || "").trim();
+});
+await new Promise((r) => setTimeout(r, 300));
+traLoi = AI_TEM_B;
+await datAnhMoi();
+const hocLan = await page.evaluate(() => ({
+  sku1: ((document.querySelector("#ndsCards .nds-sku") || {}).textContent || "").trim(),
+  daHoc: !!(NDS.ket && NDS.ket[0] && NDS.ket[0].daHoc),
+  soKhoa: (typeof ndsSoKhoa === "function" ? ndsSoKhoa() : []).join(" | "),
+}));
+kiem("Sổ tay KHÔNG trộn token giữa 2 lượt quét (tem B không bị ghim SKU của tem A)",
+  hocLan.sku1 === "422308806" && !hocLan.daHoc && hocLan.soKhoa.indexOf("c3968") < 0,
+  "đã học tem A = " + skuA + " · #1 của tem B = " + hocLan.sku1 + (hocLan.daHoc ? " (BỊ GHIM)" : "") +
+  " · khoá sổ hiện tại: " + hocLan.soKhoa.slice(0, 60));
+
+/* LƯỢT CŨ TRẢ VỀ MUỘN: chụp tem A (mạng chậm) rồi chụp ngay tem B — phản hồi của A về sau KHÔNG
+   được rơi vào tem B. Đây là ca "dữ liệu ảnh quét trước" khó thấy nhất vì phụ thuộc nhịp mạng. */
+traLoi = AI_TEM_A; treGas = 2500; soGoiAi = 0;
+await page.evaluate(() => {
+  const c = document.createElement("canvas"); c.width = 600; c.height = 380;
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, 600, 380);
+  x.fillStyle = "#111"; x.font = "bold 30px Arial"; x.fillText("COATS C3968", 30, 90);
+  ndsDatAnh(c.toDataURL("image/jpeg", 0.9));
+});
+await new Promise((r) => setTimeout(r, 500));            // để lượt của tem A bay đi
+traLoi = AI_TEM_B; treGas = 0;
+await datAnhMoi();                                        // tem B chen ngang
+await new Promise((r) => setTimeout(r, 3200));            // chờ luôn cả phản hồi muộn của tem A
+const sauTre = await page.evaluate(() => ({
+  tokens: NDS.tokens.map((t) => t.t).join(","),
+  sku1: ((document.querySelector("#ndsCards .nds-sku") || {}).textContent || "").trim(),
+}));
+kiem("Phản hồi ĐẾN MUỘN của ảnh cũ bị bỏ, không rơi vào ảnh mới",
+  !/c3968/.test(sauTre.tokens) && sauTre.sku1 === "422308806",
+  "#1 " + sauTre.sku1 + " · tokens " + sauTre.tokens.slice(0, 56));
 
 /* Quay lại tab Nhận diện SKU trước khi đo: getComputedStyle vẫn trả giá trị grid dù phần tử đang
    bị ẩn, nên nếu không kiểm "đang hiện thật" thì ca này pass cả khi trang đứng ở tab khác. */

@@ -147,6 +147,16 @@ console.log("── Lọc theo phần tử tên hàng ──");
   }
 }
 {
+  /* GÕ MẢNH CHUNG: "polyester" một mình thì hàng trăm dòng cùng phủ 1/1 = 100%. Nhóm cùng độ phủ
+     phải xếp tiếp bằng ĐIỂM KHỚP TEM, không phải bằng đơn vị/tồn (thủ kho báo 19/08: thấy
+     "100,100,100%" rồi chọn nhầm). Ca này: cùng mảnh chung + từ khoá tem của dây kéo 8846295 màu
+     345 thì dòng đúng phải lên #1 dù cả nhóm đều 100% độ phủ. */
+  const nhanChung = E.tuAI({ item_codes: ["8846295"], specs: ["38cm"], colors: ["345"], brands: ["YKK"] }, cm);
+  const topLoc = E.timTop(nhanChung, cm, { soLuong: 3, chiActive: true, loc: ["polyester"] });
+  kiem("Gõ mảnh CHUNG (polyester) → cùng độ phủ thì xếp tiếp bằng điểm khớp tem",
+    topLoc.length > 0 && String(topLoc[0].pn).indexOf("8846295") >= 0 && topLoc[0].pct === 100,
+    topLoc.map((r) => r.sku + "/" + r.pct + "%").join(" · ") + " · #1: " + String((topLoc[0] || {}).pn || "").slice(0, 58));
+
   /* Sự cố thật 19/08: sổ tay lỡ học sang bản COMBO thì nó chiếm hạng 1 với "100% · từ sổ tay",
      vượt qua cả luật "combo/đơn vị gộp không bao giờ đứng đầu". Luật kho phải thắng sổ tay. */
   const combo = ds.find((r) => r.type === "COMBO" && r.status === "ACTIVE" && /JC01262/i.test(r.pn));
