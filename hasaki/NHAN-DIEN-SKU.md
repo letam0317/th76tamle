@@ -890,6 +890,38 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.20 Bỏ dòng đếm mảnh + combo mẫu tem theo đúng khuôn dự án (20/08/2026)
+
+**① Bỏ hẳn dòng đếm khi quét tem.** Toast cũ: *"OCR của Google đọc được 3 mã · 5 thông số/màu · bỏ 9
+mảnh giấy tờ · 4,7s."* → nay chỉ còn **"Đã đọc xong tem."** (hoặc *"Chưa đọc được tem — chụp gần hơn,
+hoặc gõ mã trên tem."*). Số mảnh bóc được vẫn thấy ở badge **"N từ khoá"** của bước 3 và ở chính mấy
+viên từ khoá bên dưới — không cần đọc lại trong một dải chữ biến mất sau 6 giây.
+
+**② Ô mẫu tem: `<select>` trần → COMBO của dự án.** Lệ dự án (đã ghi ở `tinh-dong-bo-du-an`): control
+mới phải **tái dùng `.combo` / `.combo-menu` popIn + focus ring** sẵn có, **cấm control trần**. Modal
+*In tem SKU* đang dùng `<select>` nên lệch hẳn ngôn ngữ thiết kế của mọi pop-up khác.
+
+Nay: `prCbHtml(chon, sku)` dựng đúng khuôn `.combo` (input readonly + `.combo-menu` + `.combo-item`),
+`data-s` = SKU của dòng, **không có `data-s`** nghĩa là ô *"áp cho tất cả"*. Mở/chọn/đóng qua
+`prCbMo` · `prCbChon` · `prCbDong`; **Escape** và **bấm ra ngoài** móc vào ĐÚNG hai chuỗi xử lý chung
+của trang (không dựng listener rời — mỗi listener rời là một chỗ có thể quên tháo). Escape đóng **menu**
+trước, modal in vẫn mở — đúng nếp "cái nào nổi trên cùng thì đóng trước" của cả dự án.
+
+Đo: menu mở với `animation-name: popIn`, 5 mẫu tem, chọn xong tự đóng và đổi nhãn, `0 <select>` còn lại
+trong modal, không lỗi JS.
+
+**Hai bẫy đã cắn ngay lúc làm:**
+
+* `combo-menu` để `width:max-content` thì **dù đang ẩn** (`visibility:hidden`) nó **vẫn tính vào vùng
+  cuộn** ⇒ sinh **62px kéo ngang** trong modal trên máy 390px (bộ test bắt được). Máy hẹp phải trả về
+  khuôn gốc: menu rộng đúng bằng ô, chữ dài thì ngắt dòng trong mục.
+* Ca test bắt phần tử combo **trước** khi chọn rồi đọc `input.value` **sau** khi chọn → `prDatMau` gọi
+  `prVe()` dựng lại cả bảng nên node đó **đã rời cây** và vẫn mang nhãn cũ ⇒ đỏ oan. Phải truy lại DOM
+  sau mỗi lần bảng vẽ lại.
+
+Test: **77/77** lõi · **126/126** tab (+2 ca: *ô mẫu tem dùng combo, không còn `<select>` nào* ·
+*combo mở có popIn, chọn xong tự đóng và đổi nhãn*).
+
 ### 5b.19 Điện thoại: bảng "SKU đã chọn để in tem" → THẺ (20/08/2026)
 
 **Ảnh báo lỗi từ máy thật (390px):** modal *In tem SKU* dùng `<table>` 6 cột → cột **"Tên sản phẩm" co

@@ -830,14 +830,19 @@ const bang = await page.evaluate(async () => {
   const hienModal = document.getElementById("prmodal").classList.contains("show");
   const dong = document.querySelectorAll("#prBody tr").length;
   const oSl = document.querySelectorAll("#prBody input.prsl").length;
-  const oMau = document.querySelectorAll("#prBody select.prmau").length;
+  /* 20/08/2026: ô mẫu tem đổi từ `<select>` trần sang COMBO của dự án (.prcb + .combo-menu popIn) —
+     lệ dự án cấm control trần. Ca test lái combo thay vì select. */
+  const oMau = document.querySelectorAll("#prBody .prcb").length;
   const nutXoa = document.querySelectorAll("#prBody .prdel").length;
-  const soMau = document.querySelectorAll("#prBody select.prmau option").length / Math.max(1, oMau);
-  return { hienModal, dong, oSl, oMau, nutXoa, soMau, tong: prTongTem() };
+  const soMau = document.querySelectorAll("#prBody .prcb .combo-item").length / Math.max(1, oMau);
+  const conSelect = document.querySelectorAll("#prmodal select").length;
+  return { hienModal, dong, oSl, oMau, nutXoa, soMau, conSelect, tong: prTongTem() };
 });
 kiem("Mở được bảng danh sách in, mỗi dòng có mẫu tem + số lượng + nút xoá",
   bang.hienModal && bang.dong === 2 && bang.oSl === 2 && bang.oMau === 2 && bang.nutXoa === 2,
   bang.dong + " dòng · " + bang.oMau + " ô mẫu (" + bang.soMau + " mẫu chọn được) · " + bang.oSl + " ô số lượng");
+kiem("Ô mẫu tem dùng COMBO của dự án, không còn <select> trần nào trong modal in",
+  bang.conSelect === 0 && bang.soMau >= 4, bang.conSelect + " select · " + bang.soMau + " mục trong menu");
 
 const doiSl = await page.evaluate(async () => {
   const inp = document.querySelector("#prBody input.prsl");
@@ -851,14 +856,26 @@ kiem("Xem trước dựng tem thật, mỗi tem có mã vạch", doiSl.xem >= 6 
   doiSl.xem + " tem xem trước · " + doiSl.bc + " mã vạch");
 
 const doiMau = await page.evaluate(async () => {
-  const sel = document.querySelector("#prBody select.prmau");
-  sel.value = "t42x25"; sel.dispatchEvent(new Event("change"));
+  /* Lái ĐÚNG như người dùng: bấm ô combo -> menu popIn -> bấm một mục. */
+  const cb = document.querySelector("#prBody .prcb");
+  cb.querySelector("input").click();
   await new Promise((r) => setTimeout(r, 200));
+  const moMenu = cb.querySelector(".combo-menu").classList.contains("show");
+  const anim = getComputedStyle(cb.querySelector(".combo-menu")).animationName;
+  cb.querySelector('.combo-item[data-v="t42x25"]').click();
+  await new Promise((r) => setTimeout(r, 220));
   const t = document.querySelector("#prXem .pr-tem");
-  return { mau: Object.keys(PR.sel).map((k) => PR.sel[k].mau).join(","), kho: t ? t.style.width + "×" + t.style.height : "" };
+  /* PHẢI TRUY LẠI DOM sau khi chọn: prDatMau -> prVe() dựng lại cả bảng, nên `cb` bắt trước đó là
+     node ĐÃ RỜI CÂY và vẫn mang nhãn cũ (bẫy pass/fail oan — đã cắn ngay lúc viết ca này). */
+  return { moMenu, anim, daDong: !document.querySelector("#prmodal .combo-menu.show"),
+    nhan: document.querySelector("#prBody .prcb input").value,
+    mau: Object.keys(PR.sel).map((k) => PR.sel[k].mau).join(","), kho: t ? t.style.width + "×" + t.style.height : "" };
 });
 kiem("Đổi mẫu tem của một dòng thì khổ tem xem trước đổi theo",
   /t42x25/.test(doiMau.mau) && doiMau.kho === "42mm×25mm", doiMau.mau + " · tem đầu " + doiMau.kho);
+kiem("Combo mẫu tem: mở có animation popIn của dự án, chọn xong tự đóng và đổi nhãn",
+  doiMau.moMenu && doiMau.anim === "popIn" && doiMau.daDong && /42,5|42/.test(doiMau.nhan),
+  "animation " + doiMau.anim + " · đóng sau khi chọn: " + doiMau.daDong + " · nhãn \"" + doiMau.nhan + "\"");
 
 const xoaDong = await page.evaluate(async () => {
   const truoc = prSo();
