@@ -187,6 +187,10 @@ var CSS = [
 "#pane-kk .hk-hcol:hover .hk-hseg{filter:brightness(1.12);}",
 "#pane-kk .hk-hdate{font-size:9.5px;color:var(--muted,#9ca3af);margin-top:4px;white-space:nowrap;}",
 "#pane-kk .hk-hdelta{font-size:9.5px;font-weight:750;line-height:1.3;min-height:13px;font-variant-numeric:tabular-nums;}",
+/* SÀN CỠ CHỮ ĐIỆN THOẠI: hai dòng này là NGÀY và MỨC LỆCH dưới mỗi cột biểu đồ — nhãn cho biết
+   cột đó là ngày nào, lệch bao nhiêu. 9,5px trên máy cầm tay là phải nhíu mắt. Nâng 10,5px ở
+   ≤768px, bản máy tính giữ nguyên mật độ. Bộ đo qc-mobile-toan-du-an bắt được (35 + 31 chỗ). */
+"@media(max-width:768px){#pane-kk .hk-hdate,#pane-kk .hk-hdelta{font-size:10.5px;}}",
 "#pane-kk .hk-histempty{color:var(--muted,#9ca3af);font-size:12px;padding:14px 2px;}",
 /* Panel "Tiến độ theo kho" — thẻ kho bấm để lọc chéo toàn tab */
 "#pane-kk .hk-whlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:12px;max-height:400px;overflow-y:auto;padding-right:6px;}",

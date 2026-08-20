@@ -1080,6 +1080,12 @@ body.side-anim{overflow-x:clip;}
 @media(max-width:768px){
   .kb-lbl{font-size:10.5px;}
   .kpi-wrap thead th{font-size:10.5px;}
+  /* Cột "so với tháng trước": tỉ lệ % + mũi tên tăng/giảm — con số người ta soi nhất trong bảng KPI,
+     mà đang bị hạ xuống 9,5px trên điện thoại (rule ở khối 768px phía trên). */
+  .kpi-prev,.kpi-up,.kpi-down,.kpi-prev-non{font-size:10.5px;}
+  /* `.tt-wrap i` khai `!important` ở khối trên nên phải `!important` mới đè được. Đây là dòng chú
+     dưới tiêu đề trang (chữ thưa, in hoa) — 8,5px là mức không đọc nổi trên máy cầm tay. */
+  .tt-wrap i{font-size:10.5px !important;}
 }
 </style>
 </head>
