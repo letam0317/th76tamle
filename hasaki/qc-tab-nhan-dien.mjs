@@ -941,12 +941,23 @@ const haiGio = await page.evaluate(() => {
 kiem("Thêm vào danh sách in KHÔNG chạm vào giỏ kiểm kê", haiGio.in === 1 && haiGio.kiemKe === 0,
   "danh sách in " + haiGio.in + " · giỏ kiểm kê " + haiGio.kiemKe);
 
-/* ---------- 7. Phạm vi ACTIVE / Tất cả ---------- */
-await bam("#ndsScopeAll");
-await new Promise((r) => setTimeout(r, 500));
-const scope = await page.evaluate(() => ({ chi: NDS.chiActive, hint: document.getElementById("ndsResHint").textContent }));
-kiem("Đổi phạm vi sang \"Tất cả\" (gồm INACTIVE)", scope.chi === false && /INACTIVE/.test(scope.hint), scope.hint);
-await bam("#ndsScopeA");
+/* ---------- 7. Phạm vi ACTIVE / Tất cả ----------
+   HAI NÚT ACTIVE|Tất cả và dòng "Top 3 · chỉ SKU đang ACTIVE" đã BỎ khỏi giao diện 20/08/2026 (yêu cầu
+   user). Cờ `NDS.chiActive` vẫn còn và vẫn đổi được bằng `ndsDoiScope` — ca test đổi sang gọi hàm, và
+   khoá luôn việc hai nút đó KHÔNG được quay lại (bớt chữ trên đầu Top 3 là quyết định có chủ ý). */
+const scope = await page.evaluate(async () => {
+  ndsDoiScope(0);
+  await new Promise((r) => setTimeout(r, 400));
+  const ra = { chi: NDS.chiActive, conNut: !!document.getElementById("ndsScopeAll") || !!document.getElementById("ndsScopeA"),
+    conHint: !!document.getElementById("ndsResHint"), soThe: document.querySelectorAll("#ndsCards .nds-card").length };
+  ndsDoiScope(1);
+  await new Promise((r) => setTimeout(r, 400));
+  ra.veLai = NDS.chiActive;
+  return ra;
+});
+kiem("Đổi phạm vi vẫn chạy bằng cờ (hai nút ACTIVE|Tất cả đã bỏ khỏi giao diện)",
+  scope.chi === false && scope.veLai === true && !scope.conNut && !scope.conHint && scope.soThe > 0,
+  "chiActive false→true · còn nút: " + scope.conNut + " · còn dòng hint: " + scope.conHint + " · " + scope.soThe + " thẻ");
 
 /* ---------- 8. NGOẠI LỆ: AI trả lỗi (hết hạn mức) ---------- */
 traLoi = AI_LOI;
@@ -1249,11 +1260,53 @@ const mtDong = await page.evaluate(() => {
   d.remove();
   return ra;
 });
+/* Từ 20/08/2026 hàng này giữ BA thứ (chữ tóm tắt · nhãn lệch · nút "In tem") và được phép WRAP trên
+   máy hẹp — nên trần chiều cao là ĐÚNG 2 dòng (72px) — ba thứ đó không thể vừa một dòng 390px. Thứ phải giữ là "không tràn". Điều PHẢI giữ: nhãn lệch nằm cùng
+   hàng với chữ tóm tắt, ở BÊN PHẢI, và không tràn khỏi thẻ. */
 kiem("Điện thoại: nhãn 'lệch …' CÙNG HÀNG với 'từ khoá khớp' (flex space-between, không tràn)",
   mtDong.co && mtDong.flex === "flex" && mtDong.canh === "space-between" && mtDong.doc === "center" &&
-  mtDong.cungHang && mtDong.lechPhai && !mtDong.tran && mtDong.caoDong <= 26 && mtDong.dauCon === "sạch",
+  mtDong.cungHang && mtDong.lechPhai && !mtDong.tran && mtDong.caoDong <= 72 && mtDong.dauCon === "sạch",
   mtDong.flex + "/" + mtDong.canh + "/" + mtDong.doc + " · cùng hàng: " + mtDong.cungHang +
   " · bên phải: " + mtDong.lechPhai + " · cao " + mtDong.caoDong + "px · \"" + mtDong.chu + "\" · hàng đầu: " + mtDong.dauCon);
+/* ĐIỆN THOẠI: BẢNG DANH SÁCH IN PHẢI LÀ THẺ, KHÔNG PHẢI BẢNG BÓP (20/08/2026, ảnh máy thật).
+   Triệu chứng cũ: <table> 6 cột trong màn 390px làm cột "Tên sản phẩm" co còn MỘT ký tự, chữ xếp dọc
+   "T ê n s ả n p h…", phải kéo ngang mới đọc. */
+const inMobile = await page.evaluate(async () => {
+  ndsThemToken("8846295", "code", "chu");
+  NDS.ket = NDS_ENGINE.timTop(NDS_ENGINE.tuAI({ item_codes: ["8846295"], specs: [], colors: [], brands: ["YKK"] }, NDS.cm),
+    NDS.cm, { soLuong: 3, chiActive: true });
+  ndsVeKetQua(7);
+  document.querySelectorAll("#ndsCards .nds-card .nds-tem").forEach((b) => b.click());
+  await new Promise((r) => setTimeout(r, 200));
+  prMo();
+  await new Promise((r) => setTimeout(r, 350));
+  const body = document.querySelector("#prmodal .modalbody");
+  const tr = document.querySelector("#prBody tr");
+  const td = tr ? tr.children : [];
+  const pn = td[1] && td[1].getBoundingClientRect();
+  const sku = td[0] && td[0].getBoundingClientRect();
+  const loc = document.querySelectorAll("#prmodal .mfilters .fld");
+  const r1 = loc[0] && loc[0].getBoundingClientRect(), r2 = loc[1] && loc[1].getBoundingClientRect();
+  const ra = { keoNgang: body.scrollWidth - body.clientWidth,
+    theLuoi: tr ? getComputedStyle(tr).display : "",
+    anThead: getComputedStyle(document.querySelector("#prmodal .mtbl thead")).display,
+    pnRong: pn ? Math.round(pn.width) : -1,
+    pnDuoiSku: !!(pn && sku) && pn.top > sku.top - 1,
+    locCungHang: !!(r1 && r2) && Math.abs(r1.top - r2.top) < 6,
+    locDeNhau: !!(r1 && r2) && !(r1.bottom <= r2.top || r2.bottom <= r1.top) && Math.abs(r1.top - r2.top) > 6,
+    tranTrang: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  prDong(); prXoaHet();
+  return ra;
+});
+kiem("Điện thoại: danh sách in là THẺ (không bóp bảng), tên hàng đủ rộng, không kéo ngang",
+  inMobile.keoNgang === 0 && inMobile.tranTrang <= 2 && inMobile.theLuoi === "grid" &&
+  inMobile.anThead === "none" && inMobile.pnRong >= 240 && inMobile.pnDuoiSku,
+  "kéo ngang " + inMobile.keoNgang + "px · tr=" + inMobile.theLuoi + " · thead=" + inMobile.anThead +
+  " · cột tên rộng " + inMobile.pnRong + "px");
+kiem("Điện thoại: hai ô \"áp cho tất cả\" nằm CÙNG HÀNG và không đè nhau",
+  inMobile.locCungHang && !inMobile.locDeNhau,
+  "cùng hàng: " + inMobile.locCungHang + " · đè nhau: " + inMobile.locDeNhau);
+
 kiem("Điện thoại: nút điều khiển không tràn khỏi khung, đủ cao để chạm", !nut.tran && nut.thap >= 24,
   nut.n + " nút · tràn: " + nut.tran + " · nút thấp nhất " + nut.thap + "px");
 kiem("Điện thoại: tab đang hiện, không tràn ngang, lưới xếp 1 cột",

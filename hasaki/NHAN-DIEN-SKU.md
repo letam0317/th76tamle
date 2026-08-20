@@ -890,6 +890,45 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.19 Điện thoại: bảng "SKU đã chọn để in tem" → THẺ (20/08/2026)
+
+**Ảnh báo lỗi từ máy thật (390px):** modal *In tem SKU* dùng `<table>` 6 cột → cột **"Tên sản phẩm" co
+còn MỘT ký tự, chữ xếp dọc** thành `T ê n s ả n p h…`, các dòng bị cắt, phải kéo ngang mới đọc. Đúng
+bài học đã ghi ở pop-up chi tiết phiếu Kiểm kê: **trên điện thoại mỗi dòng là một THẺ, đừng ép bảng co.**
+
+**Làm bằng CSS THUẦN** (không sửa JS/markup của khối in — khối đó đang được một lượt khác sửa, càng ít
+chạm càng tốt): ẩn `thead`, mỗi `<tr>` thành lưới 3 cột, các `<td>` xếp theo `grid-area`:
+
+```
+[ SKU .................... Số tem [1] · × ]
+[ tên hàng (ngắt dòng, tối đa 2 dòng)     ]
+[ ĐVT: pcs ....... mẫu tem (rộng hết ô)   ]
+```
+
+Nhãn cột trả lại bằng `::before` (`ĐVT:` / `Số tem`) vì `thead` đã ẩn.
+
+**Hai chỗ phải sửa thêm, phát hiện khi chụp lại:**
+
+1. `.mfilters .fld` **đóng cứng `height:32px`** cho bố cục một hàng. Xếp dọc mà giữ chiều cao đó thì ô
+   chọn **tràn khỏi viên pill và hai viên ĐÈ NHAU**. Bản đầu mở `height:auto` — hết đè nhưng ngốn
+   **130px** chiều dọc, trên màn 844px chỉ còn thấy ĐÚNG MỘT thẻ.
+2. Chốt: **gộp hai ô "áp cho tất cả" vào MỘT hàng** `1fr 104px`, rút nhãn dài
+   *"ÁP MẪU TEM CHO TẤT CẢ"* → **`MẪU`** / **`SL`** bằng `font-size:0` + `::before` — đổi chữ hiển thị
+   mà **không sửa markup**. Lấy lại ~90px ⇒ thấy 2 thẻ.
+
+**Đo sau khi sửa (máy 390×844):** kéo ngang trong modal **0px**, tràn ngang trang **0px**, `tr` là
+`grid`, `thead` `display:none`, cột tên rộng **324px** (trước: ~15px), ô chọn mẫu rộng 179px thay vì bị
+cắt chữ. Hai vùng cuộn có chiều cao đoán được (`modalbody 40vh` · `pr-xem 30vh`) nên **nút "In" luôn
+nhìn thấy**.
+
+Kèm theo: hàng thông tin của thẻ gợi ý nay giữ **ba** thứ (chữ tóm tắt · nhãn "lệch …" · nút **In tem**)
+nên cho `flex-wrap` — máy hẹp thì xuống 2 dòng, thà vậy còn hơn đẩy nút ra khỏi thẻ. Ca test đổi trần
+chiều cao 1 dòng → 2 dòng (72px), thứ vẫn khoá là **không tràn** và **nhãn lệch nằm cùng hàng, bên phải**.
+
+Ca test mới: *danh sách in là THẺ (không bóp bảng), tên hàng ≥240px, không kéo ngang* · *hai ô "áp cho
+tất cả" cùng hàng và không đè nhau*. Cũng sửa ca cũ **bấm `#ndsScopeAll`** (nút đã bỏ) sang gọi
+`ndsDoiScope()` và khoá luôn việc hai nút đó không được quay lại. Test: **77/77** lõi · **124/124** tab.
+
 ### 5b.17 SOÁT 30 TEM THẬT — bảng "mảnh nào vào vai nào" (20/08/2026)
 
 Cách soát: chạy 30 lượt OCR thật (đã có đáp án) qua `tuVanBan`, rồi **đối chiếu vai của từng mảnh với
