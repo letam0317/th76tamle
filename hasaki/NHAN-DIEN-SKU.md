@@ -890,6 +890,66 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.14 Sự cố tem Lenio F0-1588 — "5000 M" bị coi là MÃ MÀU (20/08/2026, chiều)
+
+**Báo lỗi:** *"sao không gợi ý 422487060 `Chỉ Lenio/F0-1588_Phong Việt/…/Tex 24-100D2/mm` (đúng) mà
+gợi ý các SKU chỉ mẫu?"* — ảnh chụp màn hình cho thấy Top 3 là `422513319 · 422513324` (68%), đều là
+**"Chỉ Lenio mẫu"**.
+
+**Tem in:** `THESEUS Lenio · Made in Vietnam · 100D/2 · 5000 M · Tkt120 · Tex 24 · MA · H26/33367 · F0-1588`.
+Danh mục có **11 dòng** mang mã F0-1588. Chấm điểm từng dòng:
+
+| Điểm | SKU | Xung đột | Tên |
+|---|---|---|---|
+| 72% | 422389640 | — | Chỉ Lenio **mẫu**/…/Tex 24-100D-2/ cuộn 200m |
+| 72% | 422447893 | — | Chỉ **mẫu**/Chỉ may Lenio Phong Việt F0-1588/…/tex 24 100D-2 |
+| 69% | 422513319/24/29 | — | Chỉ Lenio **mẫu**/…/Đen sample…/tex 24/cuộn 200m/mm |
+| **59%** | **422487060** | **`mamau`** | **Chỉ Lenio/…/Deep Black 19-3911 TCX_PD00695MIM/Tex 24-100D2/mm** ← đáp án |
+
+**Gốc — KHÔNG phải kho mẫu, mà là MỘT MẢNH BỊ XẾP SAI RỔ.** Tem in `5000 M` (chiều dài cuộn); OCR
+đọc ra hai mảnh rời `5000` và `M`, và mảnh `5000` **rơi vào rổ MÀU** (luật mã màu nhận cả số trần
+kiểu `345`, `074`). Dòng đúng có mã màu THẬT (`19-3911`, `PD00695MIM`) ⇒ máy so "tem nói mã màu 5000,
+dòng nói 19-3911" ⇒ **XUNG ĐỘT MÃ MÀU GIẢ** ⇒ nhân 0,82 ⇒ **88% tụt xuống 59%**. Mấy dòng *"mẫu"* ghi
+THIẾU mã màu nên **không có gì để lệch**, thoát án và leo lên hạng 1.
+
+> Đây đúng mặt trái đã ghi ở 5b (ca nút Morito): **dòng ghi ĐỦ thông số bị phạt, dòng ghi THIẾU được
+> thưởng**. Lần đó chữa bằng luật nghiệp vụ (ACTIVE/NORMAL là luật cứng) nên không đỡ được ca này —
+> ở đây cả 11 dòng đều ACTIVE và NORMAL.
+
+**Chữa — hẹp nhất có thể, ở đúng chỗ sai:** thêm `raDangMaMau(t)` và dùng cho **CẢ HAI phía** (tem và
+danh mục, cùng một hàm để không bao giờ lệch nhau):
+
+```
+có chữ/gạch  → LÀ mã màu   (19-3911 · V8S41 · PD00695MIM · #006)
+số trần      → chỉ 1-3 chữ số mới là mã màu   (345 · 074)
+số trần ≥1000 → KHÔNG phải mã màu   (5000 M · MOQ ≤ 1000 · keo Bemis 3914 · mã vải 92419)
+```
+
+Không chạm vào cơ chế xung đột (thứ duy nhất tách được 102 biến thể dây kéo cùng mã 8846295).
+
+**Đo đối chứng cũ-mới, 30 lượt OCR THẬT (`qc-loi-cu-moi.mjs`, 0 lượt gọi mạng):**
+
+| Lõi | Top-1 | Top-3 |
+|---|---|---|
+| CŨ (HEAD) | 77% (23/30) | 90% (27/30) |
+| **MỚI** | **80% (24/30)** | 90% (27/30) |
+
+**1 lượt tốt hơn · 0 lượt xấu hơn · 29 lượt y như cũ.** Trên danh mục live, tem Lenio giờ ra
+`#1 422487060` (72%, tồn 949.696.000 mm) — đúng đáp án.
+
+> **Bẫy đọc số đo của bộ đối chứng**: cột "khớp được mã" tụt 77% → 73% **không phải** do bản vá — bộ
+> này cố ý so **hai đường khác nhau** (`bocTen` của bản cũ vs `tuVanBan` của bản mới, xem ghi chú
+> trong chính file). Dựng lại phép so với CÙNG một đường thì **0/30 lượt lệch** cờ `coMaKhop`. Đừng
+> vội kết luận khi một cột đổi mà cột khác thì không.
+
+Test: **67/67** lõi (+2 ca: *"5000 M" không được coi là mã màu* và mặt ngược *mã màu THẬT (345) vẫn
+phải phân biệt được biến thể — không nới luật*) · **120/120** tab.
+
+**Việc CHƯA làm, ghi lại kẻo quên:** `5000` hiện vẫn nằm trong rổ MÀU (chỉ thôi sinh xung đột chứ
+chưa được xếp đúng chỗ). Xếp nó về rổ THÔNG SỐ khi mảnh sau là đơn vị (`5000` + `M` → `5000m`) sẽ cho
+dòng đúng khớp thêm một thông số nữa (88% thay vì 72%) — nhưng đó là sửa `tuVanBan`, phạm vi rộng hơn,
+cần đo lại cả 30 lượt.
+
 ### 5b.13 Nhặt kho MẪU + toast lên đầu + sự cố GHI HỤT DANH MỤC (20/08/2026, chiều)
 
 **① Toast lên ĐẦU màn hình.** Nó đang neo `bottom:28px` — đúng chỗ nút Chụp vừa dời xuống (5b.12),
@@ -1341,7 +1401,8 @@ khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng m
 |---|---|---|
 | `node qc-nhan-dien-sku.mjs [--gviz] [--chi-tiet]` | lõi đối soát trên 5.610 SKU thật: 18 dạng đoạn ĐƠN VỊ, khoá gom mặt hàng, 3 quy cách tem, OCR sai nhẹ, SKU in trên tem, cùng mã khác màu, tem mờ, từ khoá rác, **ưu tiên đơn vị nhỏ nhất** (+ bất biến: không biến thể nào nhỏ hơn đại diện), **chữ ký + ghim sổ tay**, **6 ca chữ thô/OCR** (mã dài nhiều đoạn · chi số ghi liền · cỡ dán liền số đo · số đo không chiếm rổ mã · AI gán vai sai · số dài không khớp mã ngắn), **gõ mảnh chung thì xếp tiếp bằng điểm khớp** | **56/56** · 8-10ms/lượt (19/08) |
 | `node qc-tem-vision.mjs [--giu-anh]` | **đầu-cuối**: dựng 6 ảnh tem (3 quy cách × sạch/khó: nghiêng 7° + mờ + loá nylon + vết bẩn) → Gemini thật → engine, **ghép vai AI + chữ thô y như dashboard** | **6/6 ra đúng SKU** |
-| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ)  · **PHẠM VI GIỎ** (bấm thẻ không vào giỏ · thanh giỏ chỉ hiện ở tab Kiểm kê + Tồn kho bất thường · `pcAdd` bị chặn ngoài phạm vi) | **98/98** (20/08) |
+| `node qc-in-tem.mjs` | lõi in tem (khối `PR-TEM`): bảng mẫu vạch Code 128 đối chiếu bản gốc từng bit · checksum tính lại bằng công thức · giải mã ngược chuỗi vạch · SVG (số vạch · bề rộng · crispEdges · vừa khổ tem) · 3 mẫu tem (khổ · escape tên hàng · cắt tên dài) · tổng số tem / gom theo khổ | **38/38** (20/08) |
+| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ)  · **PHẠM VI GIỎ** (bấm thẻ không vào giỏ · thanh giỏ chỉ hiện ở tab Kiểm kê + Tồn kho bất thường · `pcAdd` bị chặn ngoài phạm vi) | **120/120** (20/08) |
 | `node qc-sku-vision-live.mjs` | cổng thật trên production: chặn email lạ, chặn ảnh quá lớn, đọc tem thật, chặn 2 lượt song song (tốn 2 lượt hạn mức) | **8/8** |
 | `node qc-sku-ocr-live.mjs` | **cổng OCR thật** (`sku_ocr`): deploy đã lên chưa · email lạ · ảnh quá lớn không bao giờ được OCR · đọc đúng mã trên tem · **đo thời gian từng chặng** · chặn 2 lượt song song · ảnh trắng thì nói "không thấy chữ" | **10/10** (19/08) |
 | `node qc-ocr-doi-chung.mjs [--so 30] [--duong ABCDEFG] [--dung-dem]` | **đo người đọc nào tốt hơn**: 7 đường (tin vai AI · +bằng chứng · chữ thô AI · OCR · OCR không lọc · ghép AI · ghép cả 2) trên cùng bộ tem, nhãn cắt từ SKU thật + chữ giấy tờ, 3 bậc khó. `--dung-dem` chạy lại **0 lượt gọi** | OCR **77%** Top-1 / 83% Top-3 (30 tem) |
@@ -1440,3 +1501,92 @@ Tính năng này làm việc tạo lệnh kiểm kê **dễ hơn hẳn** (trư�
 đi đếm, phiếu chờ xử lý — chứ không phải tải API, và nó **không** nằm trong ràng buộc "nhẹ tải
 upstream". Nhưng nên theo dõi: nếu số phiếu tăng nhanh, chỗ nghẽn sẽ là **người xử lý phiếu**, không
 phải máy chủ WMS.
+
+---
+
+## 11. IN TEM SKU — bước 1 (20/08/2026)
+
+Nhu cầu: nhận diện xong thì chọn một hoặc nhiều SKU vào **danh sách chờ in**, ở đó chọn **mẫu tem**
+và **số lượng tem** cho từng SKU, rồi xác nhận in.
+
+### 11.1 Chống nhấn nhầm — hai yêu cầu chốt của người dùng
+
+| Yêu cầu | Làm thế nào |
+|---|---|
+| "Chọn SKU để in phải là do NGƯỜI chọn, tránh nhấn nhầm cũng tự thêm vào danh sách in" | Đường **duy nhất** thêm tem là nút **`＋ Tem`** trên thẻ (`prTick`). Bấm vào **cả thẻ** (vốn là một nút lớn chiếm cả ô) vẫn chỉ làm việc cũ: copy mã + ghi sổ tay. Nút có `stopPropagation` nên bấm nút không kích luôn thẻ cha. Lượt nhận diện mới **không** tự thêm gì. |
+| "Vào danh sách in rồi vẫn xoá / bỏ chọn được" | Ba đường bỏ: bấm lại nút (`✓ Tem` → bỏ), nút **✕** từng dòng trong bảng, và **Xoá hết**. |
+
+Nghĩa là chạm lệch tay thì tệ nhất là **copy lại cái mã** — không sinh ra con tem nào để in. Giấy tem
+là vật tư thật, nên hành động "sinh ra tem" phải là một cú bấm có địa chỉ.
+
+### 11.2 Danh sách chờ in là giỏ RIÊNG, không dùng chung với giỏ kiểm kê
+
+`PR.sel` (khoá theo **SKU**, mang thêm `mau` + `sl`, lưu ở `sessionStorage['pr-tem-v1']`) tách hẳn
+với `PC.sel` của lệnh kiểm kê. Ba lý do, không phải chuyện cho gọn:
+
+* **khoá khác**: giỏ kiểm kê khoá `kho|SKU`; giỏ in khoá theo SKU và cần thêm mẫu tem + số lượng;
+* **phạm vi khác**: thanh chờ in chỉ hiện ở tab Nhận diện SKU, còn giỏ kiểm kê thì **không được**
+  xuất hiện ở tab đó (xem mục 3 về `PC_TAB`);
+* **hậu quả khác**: tick sai vào lệnh kiểm kê thì sửa được, in sai là mất tem thật — nên luồng in có
+  xem trước + xác nhận số lượng, luồng kiểm kê thì không cần.
+
+Giới hạn: **200 SKU** một danh sách · **200 tem** mỗi SKU · **2.000 tem** một lượt in. Trên 30 tem thì
+hỏi lại một câu trước khi mở hộp thoại in.
+
+### 11.3 Ba mẫu tem
+
+| Mã mẫu | Khổ | Trên tem có gì |
+|---|---|---|
+| `t50x30` (mặc định) | 50 × 30 mm | mã SKU cỡ lớn · mã vạch · tên hàng 2 dòng · ĐVT |
+| `t70x40` | 70 × 40 mm | như trên + tên hàng dài hơn + **ngày in** |
+| `t40x20` | 40 × 20 mm | chỉ mã SKU + mã vạch |
+
+Khổ giấy nằm ngay trong **tên mẫu** để thủ kho không phải đoán. Mỗi con tem in ra **đúng một trang**
+khổ đó (`break-after:page`) — đó là cách máy in nhãn hiểu "một con tem". Một lượt in chỉ nhận **một
+khổ**: `@page` chỉ đặt được một cỡ giấy, nên trộn 2 khổ trong một lượt là ra sai giấy — gặp thì chặn
+và nói rõ, có nút *"Áp mẫu tem cho tất cả"* để gộp về một khổ.
+
+> ⚠ **Khổ 50×30 mm là GIẢ ĐỊNH**, chưa ai chốt. Khi biết khổ tem thật đang lắp trong máy thì sửa
+> `w`/`h` của mẫu trong khối `PR-TEM` — không phải sửa chỗ nào khác.
+
+### 11.4 Mã vạch: Code 128B, tự vẽ, và cách canh cho khỏi sai im lặng
+
+Chọn 128B vì mã SKU của kho là dãy 9 chữ số: mã hoá gọn (11 module/ký tự → **34,8 mm** cho SKU 9 số,
+vừa khổ 50 mm), và mọi máy quét cầm tay đều đọc. Vẽ bằng `<rect>` SVG thuần — không CDN (lệ dự án),
+không canvas (in ra bị nhoè, máy quét kém đọc), có `shape-rendering="crispEdges"`.
+
+Mã vạch sai là loại lỗi **im lặng** tệ nhất: tem trông đẹp, dán hết cuộn, tới lúc quét mới biết. Nên
+`hasaki/qc-in-tem.mjs` canh ba lớp:
+
+* bảng mẫu vạch trong trang được **đối chiếu từng bit** với bản gốc lưu ở `.code128-doi-chung.json`
+  (lấy từ JsBarcode) — 95 ký tự in được + START_B + STOP;
+* **checksum tính lại bằng công thức** `(104 + Σ vị_trí × giá_trị) mod 103`, không gọi hàm của trang;
+* **giải mã ngược**: đọc lại chuỗi vạch bằng bảng gốc rồi so với chuỗi ban đầu — kèm ca "đổi 1 module
+  thì phải KHÔNG đọc ra chuỗi cũ" để chứng minh phép kiểm có hiệu lực.
+
+Bên cạnh mã vạch, tem luôn in **mã SKU dạng chữ số cỡ lớn**: quét lỗi thì còn gõ tay được.
+
+> Ba lớp test trên **không thay được** việc quét thử một con tem bằng máy quét thật trước khi in loạt.
+
+### 11.5 Chọn máy in: đang là hộp thoại của Windows
+
+Bấm **In** thì trang dựng đúng số con tem vào `#prsheet`, đặt `@page` theo khổ mẫu, rồi gọi
+`window.print()` — **danh sách máy in do Windows hiện**, người dùng chọn ở đó.
+
+Hiển thị danh sách máy in + trạng thái sẵn sàng **ngay trong trang** là **bước 2**, chưa làm, vì
+trình duyệt không có API nào cho việc đó. Đã đo (20/08/2026):
+
+| Đường | Kết quả đo |
+|---|---|
+| trang HTTPS gọi thẳng `http://127.0.0.1` (agent ở máy) | Edge có cửa sổ thật: **được** (~900 ms/lượt); Edge headless: **bị chặn** (Private Network Access) |
+| **extension làm cầu nối** (đã có `wms-bridge`) | **được** — 921 ms, đọc đúng 3 máy in kèm trạng thái + số job |
+| WebUSB / WebSerial / WebBluetooth | API có mặt, nhưng phải bấm chọn thiết bị mỗi lần và trên Windows máy in đã có driver thì WebUSB không claim được |
+
+Và cái mà Windows **không** biết: hết giấy / hết ribbon / đầu in mở của máy in nhãn thường không lên
+tới hệ điều hành (`Get-Printer.PrinterStatus` trả `Normal` cho cả máy đang rút dây; chỉ
+`Win32_Printer.WorkOffline` bắt được). Muốn biết thật thì phải hỏi chính máy in bằng TSPL/ZPL.
+
+### 11.6 Dọn sau khi in
+
+`#prsheet` được xoá sạch khi `afterprint` bắn, kèm một lượt dọn chậm 60 giây làm lưới an toàn: giữ
+khung in đầy tem thì lần **in trang khác** (vd bảng kiểm kê) cũng ra tem.

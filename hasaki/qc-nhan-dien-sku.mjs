@@ -286,6 +286,34 @@ console.log("── Lọc theo phần tử tên hàng ──");
     } else kiem("Cả nhóm chỉ còn bản CUỘN → bản /mm lên đại diện", true, "(danh mục không có 422266550 để thử)");
   }
 
+  /* SỰ CỐ THẬT 20/08/2026 (chiều) — tem chỉ Lenio F0-1588: tab gợi ý 3 dòng "Chỉ Lenio MẪU" thay vì
+     dòng đúng 422487060. Gốc KHÔNG phải kho mẫu mà là MỘT MẢNH BỊ XẾP SAI RỔ: tem in "5000 M"
+     (chiều dài cuộn) ⇒ mảnh "5000" rơi vào rổ MÀU ⇒ so với mã màu THẬT của dòng đúng
+     ("19-3911", "PD00695MIM") ⇒ XUNG ĐỘT MÃ MÀU GIẢ, trừ 18% ⇒ 88% tụt còn 59%. Mấy dòng "mẫu" ghi
+     THIẾU mã màu nên KHÔNG có gì để lệch, thoát án và leo lên hạng 1 — đúng mặt trái đã ghi ở mục 5b
+     (ca Morito): dòng ghi ĐỦ bị phạt, dòng ghi THIẾU được thưởng.
+     Chữa: số TRẦN từ 4 chữ số trở lên (>= 1000) không phải mã màu (mã màu thật là "345", "074",
+     "19-3911", "V8S41", "PD00695MIM"), lọc ở CẢ hai phía tem và danh mục bằng cùng một hàm. */
+  {
+    const CHU_LENIO = "THESEUS Lenio Made in Vietnam 100D/2 5000 M Tkt120 Tex 24 MA H26/33367 F0-1588";
+    const nhanL = E.tuVanBan(CHU_LENIO, cm);
+    const topL = E.timTop(nhanL, cm, { soLuong: 3, chiActive: true });
+    const dungRoi = ds.find((r) => r.sku === "422487060");
+    const lech = topL[0] && (topL[0].xungDot || []).indexOf("mamau") >= 0;
+    kiem("Tem in \"5000 M\" → 5000 KHÔNG bị coi là mã màu, dòng ghi ĐỦ mã màu không bị phạt oan",
+      !!dungRoi && topL.length > 0 && topL[0].sku === "422487060" && !lech,
+      topL.map((r) => r.sku + "/" + r.pct + "%" + ((r.xungDot || []).length ? "[" + r.xungDot.join(",") + "]" : "")).join(" · "));
+    /* Mặt ngược phải giữ: mã màu THẬT (2-3 chữ số, có gạch, hoặc chữ-số) vẫn phải sinh xung đột —
+       đây là thứ tách được 102 biến thể dây kéo cùng mã 8846295, đừng nới. */
+    const nhanMau = E.tuAI({ item_codes: ["8846295"], specs: ["38cm"], colors: ["345"], brands: ["YKK"] }, cm);
+    const topMau = E.timTop(nhanMau, cm, { soLuong: 3, chiActive: true });
+    const coLech = topMau.some((r) => (r.xungDot || []).indexOf("mamau") >= 0) ||
+      (topMau[0] && String(topMau[0].pn).indexOf("345") >= 0);
+    kiem("… nhưng mã màu THẬT (345) vẫn phân biệt được biến thể (không nới luật)",
+      topMau.length > 0 && coLech,
+      topMau.map((r) => r.sku + "/" + r.pct + "%").join(" · ") + " · #1: " + String((topMau[0] || {}).pn || "").slice(0, 62));
+  }
+
   /* GÕ MẢNH CHUNG: "polyester" một mình thì hàng trăm dòng cùng phủ 1/1 = 100%. Nhóm cùng độ phủ
      phải xếp tiếp bằng ĐIỂM KHỚP TEM, không phải bằng đơn vị/tồn (thủ kho báo 19/08: thấy
      "100,100,100%" rồi chọn nhầm). Ca này: cùng mảnh chung + từ khoá tem của dây kéo 8846295 màu
