@@ -1067,6 +1067,20 @@ body.side-anim{overflow-x:clip;}
   @supports not (translate:1px 0){ body.side-open #sideToggle{left:calc(min(80vw,300px) + 7px);} }
   body.side-open #sideBackdrop{opacity:1;visibility:visible;}
 }
+
+/* ===== SÀN CỠ CHỮ TRÊN ĐIỆN THOẠI (20/08/2026) ==================================================
+ * Bộ đo `hasaki/qc-mobile-toan-du-an.mjs` mở link live bằng 4 máy (iPhone SE/14, Android 360/412)
+ * và chỉ ra đúng 2 chỗ ở tab Tổng quan: nhãn thẻ KPI `.kb-lbl` bị hạ xuống 9px và tiêu đề bảng rút
+ * gọn `.th-short` ở 8,5px. Cả hai là NHÃN — thứ cho biết con số bên cạnh nghĩa là gì — nên nhỏ hơn
+ * 10px là chữ phải nhíu mắt trên máy cầm tay.
+ * ⚠ KHỐI NÀY PHẢI Ở CUỐI <style>: hai rule gốc nằm trong `@media(max-width:768px)` phía trên, cùng
+ * độ ưu tiên nên rule ĐỨNG SAU thắng. Đặt giữa tệp là sửa mà không ăn (đã dính đúng bẫy này ở
+ * dashboard factory). Thêm selector mới thì thêm vào đây, đừng rải giữa tệp.
+ * Bảng KPI rộng quá thì `.kpi-wrap` đã tự cuộn ngang nên nới chữ không làm tràn trang. */
+@media(max-width:768px){
+  .kb-lbl{font-size:10.5px;}
+  .kpi-wrap thead th{font-size:10.5px;}
+}
 </style>
 </head>
 <body>
