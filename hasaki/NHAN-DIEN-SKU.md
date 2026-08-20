@@ -2064,3 +2064,28 @@ bảng **6 cột đã bỏ**. Nó vẫn xanh trong khi giao diện thật dán n
 test giờ đo cả **nội dung nhãn** (`::before`), không chỉ kích cỡ: ô 1 phải là "Số tem", ô 2 "Số lượng",
 ô SKU **không** được có nhãn `ĐVT`, và hai ô "áp cho tất cả" phải ghi `SỐ TEM` / `SỐ LƯỢNG` (đang ghi
 `MẪU` / `SL` — nhãn của bảng cũ còn sót lại).
+
+### 12.8 Bẫy đắt nhất trong ngày: mã đã đúng, tiến trình thì cũ
+
+Người dùng in thử 4 con tem `12 · 14 · 16 · 18` và cả bốn con đều in **cùng một chuỗi** `"12, 14, 16, 18"`
+thay vì mỗi con một số. Lõi đúng, bộ test xanh, dashboard gửi lệnh đúng — nhưng **tiến trình agent đang
+chạy là bản khởi động lúc 18:23, trước khi phần nở tem được sửa**. Nó vẫn lấy nguyên ô số lượng làm số
+in rồi lặp 4 lần.
+
+Đây là loại lỗi tệ vì mọi bằng chứng đều nói "đã xong": file trên đĩa đúng, test đọc file trên đĩa nên
+cũng đúng, chỉ có RAM là sai. Ba việc đã làm để nó không lặp lại:
+
+1. **Agent tự nạp lại khi mã đổi.** Mỗi lượt quét lúc RẢNH, agent so dấu thời gian của
+   `in-tem-agent.mjs` và `factory/index.html` (lõi tem nằm trong đó) với lúc nó khởi động; khác thì
+   sinh tiến trình mới rồi tự thoát. Chỉ đổi lúc rảnh nên không có lệnh nào bị bỏ giữa đường. Đo thật:
+   sửa file → 6 giây sau PID đã đổi, và vẫn đúng **một** tiến trình (task watchdog 5 phút là lưới đỡ
+   cuối, không phải đường chính).
+2. **Chế độ ĐO liệt kê từng con tem.** `[ĐO] 1) 422430797 · 12 | 2) 422430797 · 14 | …` — số lượng nằm
+   trong ảnh bitmap nên soi luồng TSPL không bao giờ thấy được nó sai. Bản chạy khô mà không nói con
+   tem nào mang số nào thì không kiểm được gì; 4 con tem thật đã phải in ra chỉ để biết điều đó.
+3. **Ca test gọi thẳng agent**, không chỉ gọi lõi: `node in-tem-agent.mjs --thu "422430797@12/14/16"`
+   rồi đọc dòng liệt kê. Ở dòng lệnh dùng dấu **gạch chéo** để tách số lượng vì dấu phẩy đã dùng để
+   tách các SKU.
+
+`chay()` (đường `--thu`/`--in`) cũng đã bỏ vòng tự lặp, dùng chung `T.moRong` như `--dich-vu`: một
+đường nở tem duy nhất cho cả ba lối vào.

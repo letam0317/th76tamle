@@ -446,6 +446,20 @@ console.log("\n── 11. Dấu nghìn · ngày dd-mm-yy · thứ tự xếp tem
     (job.match(/CLS/g) || []).length + " CLS · " + (job.match(/PRINT 1,1/g) || []).length + " PRINT");
   kiem("Mỗi hàng có 2 khối BITMAP (2 con tem/hàng)", (job.match(/BITMAP /g) || []).length === 6,
     (job.match(/BITMAP /g) || []).length + " BITMAP");
+
+  /* AGENT PHẢI NỞ ĐÚNG, KHÔNG CHỈ LÕI. Ca này có mặt vì lõi đã đúng mà tem in ra vẫn sai: tiến trình
+     agent đang chạy là bản khởi động TRƯỚC lúc sửa mã, nên nó lấy nguyên chuỗi "12, 14, 16, 18" làm
+     số in rồi lặp 4 lần — 4 con tem thật ra khỏi máy in giống hệt nhau. Số lượng nằm trong ảnh bitmap
+     nên soi luồng TSPL không thấy; phải đọc danh sách con tem mà agent tự khai. */
+  let ra3 = "";
+  try {
+    ra3 = execFileSync(process.execPath, [path.join(DIR, "in-tem-agent.mjs"), "--thu", "422430797@12/14/16"],
+      { encoding: "utf8", windowsHide: true, timeout: 120000 });
+  } catch (e) { ra3 = "LOI: " + String(e.message || e); }
+  const liet = (ra3.match(/1\)[^\r\n]*/) || [""])[0];
+  kiem("Agent nở đúng: 1 SKU · 3 số lượng → 3 con tem mang 12 / 14 / 16 (không phải 3 con giống nhau)",
+    /3 con tem/.test(ra3) && /1\)\s*\S+\s*·\s*12\s*\|\s*2\)\s*\S+\s*·\s*14\s*\|\s*3\)\s*\S+\s*·\s*16/.test(liet),
+    liet || ra3.slice(0, 90));
 }
 
 console.log("\n" + (truot ? "✗ " + dat + "/" + (dat + truot) + " ca đạt — " + truot + " ca TRƯỢT" : "✓ " + dat + "/" + dat + " ca đạt"));

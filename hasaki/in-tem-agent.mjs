@@ -32,7 +32,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import "dotenv/config";                 // đọc hasaki/.env — nơi giữ APPSCRIPT_URL + APPSCRIPT_KEY
@@ -253,6 +253,14 @@ async function goiGas(body) {
   throw new Error(cuoi || "không gọi được Apps Script");
 }
 
+/** Một dòng tả rõ từng con tem sẽ ra giấy: "1) 422430797 · 12 | 2) 422430797 · 14 | …".
+ *  Đây là thứ duy nhất đọc được bằng mắt để biết việc "nhiều bịch khác số lượng" có đúng hay không —
+ *  số lượng nằm trong ảnh bitmap nên soi luồng TSPL không thấy được. */
+function moTaConTem(conTem) {
+  return conTem.map((r, i) => (i + 1) + ") " + (r._dot ? "[tem thông báo đợt]" : r.sku + " · " + (r.sl === "" ? "(không có số lượng)" : r.sl)))
+    .join(" | ");
+}
+
 async function inMotLenh(lenh) {
   const t0 = Date.now();
   const dong = lenh.dong || [];
@@ -300,6 +308,9 @@ async function inMotLenh(lenh) {
   if (lenh.thu) {
     for (const b of khuc) byte += b.length;
     console.log("    [ĐO] dựng xong " + hang.length + " hàng giấy (" + byte + " byte) — KHÔNG gửi máy in");
+    /* LIỆT KÊ TỪNG CON TEM. Bản chạy khô mà không nói con tem nào mang số nào thì không kiểm được gì:
+       ngày 20/08/2026 tôi đã in 4 con tem thật chỉ để phát hiện cả 4 mang cùng một chuỗi số. */
+    console.log("    [ĐO] " + moTaConTem(conTem));
     return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: "", thu: true,
       msTra: tTra - t0, msDung: tDung - tTra, msGui: 0, msTong: Date.now() - t0 };
   }
@@ -364,6 +375,23 @@ async function chayDichVu(nhip) {
   console.log("Agent in tem đang chạy · nhịp " + (nhip ? nhip + "s" : "tự động (1s giờ làm / 12s ngoài giờ)") +
     " · máy in: " + (MAY_IN || "(tự tìm PE200)"));
   console.log("Ctrl+C để dừng.");
+  /* TỰ NẠP LẠI KHI MÃ ĐỔI. Vì sao phải có: agent là tiến trình chạy nền cả ngày, nên sửa
+     `in-tem-agent.mjs` hay lõi tem trong `factory/index.html` xong thì tiến trình đang chạy VẪN dùng
+     mã cũ — mà không có dấu hiệu nào. Ngày 20/08/2026 việc này đã làm 4 con tem thật in sai (mỗi con
+     phải mang một số lượng riêng, nhưng tiến trình cũ in cả 4 giống nhau), và người dùng là người
+     phát hiện ra, không phải tôi.
+     Chỉ nạp lại khi ĐANG RẢNH (không có lệnh nào trong tay) và tự sinh tiến trình mới trước khi thoát,
+     nên không có khoảng trống nào mà lệnh in bị bỏ rơi. */
+  const nguonCanhGiu = [fileURLToPath(import.meta.url), F_HTML];
+  const dauMoc = () => nguonCanhGiu.map((f) => { try { return String(fs.statSync(f).mtimeMs); } catch { return "?"; } }).join("|");
+  const mocDau = dauMoc();
+  const napLai = () => {
+    console.log("── mã đã đổi → nạp lại agent (tiến trình mới thay thế tiến trình này)");
+    try {
+      spawn(process.execPath, process.argv.slice(1), { detached: true, stdio: "ignore", cwd: DIR }).unref();
+    } catch (e) { console.error("  không sinh được tiến trình mới: " + (e.message || e) + " — task 5 phút sẽ bật lại"); }
+    process.exit(0);
+  };
   let imTu = Date.now();
   for (;;) {
     let coViec = false;
@@ -397,7 +425,10 @@ async function chayDichVu(nhip) {
     }
     /* Vừa có việc thì quay lại hỏi NGAY: mấy người bấm In cùng lúc phải được nhặt liên tiếp, chứ
        không phải mỗi người cách nhau một nhịp nghỉ. */
-    if (!coViec) await nghi((nhip || nhipTuDong()) * 1000);
+    if (!coViec) {
+      if (dauMoc() !== mocDau) napLai();          // rảnh + mã đã đổi -> đổi tiến trình
+      await nghi((nhip || nhipTuDong()) * 1000);
+    }
   }
 }
 
@@ -417,17 +448,19 @@ const dsIn = argv.indexOf("--in") >= 0 ? layCo("--in", "") : "";
 /** "422322192x2,422440680" → [{sku, sl}] */
 function bocDanhSach(s) {
   return String(s).split(",").map((x) => x.trim()).filter(Boolean).map((x) => {
-    /* Bóc SỐ LƯỢNG trước: lớp ký tự của mã SKU cũng ăn cả chữ "x" và chữ số nên regex gộp sẽ ngoạm
-       luôn "x2" vào mã (bẫy đã cắn: 3 tem thành 2). */
     /* Cú pháp: "SKU", "SKU x3" (3 con tem), "SKU@100" (số lượng in trên tem), "SKU x3 @100".
+       Nhiều bịch khác số lượng: "SKU@12/14/16" → 3 con tem, mỗi con một số. Dùng dấu GẠCH CHÉO chứ
+       không phải dấu phẩy, vì dấu phẩy ở dòng lệnh đã dùng để tách các SKU với nhau.
        Bóc SỐ TEM trước: lớp ký tự của mã SKU cũng ăn cả chữ "x" và chữ số nên regex gộp sẽ ngoạm
        luôn "x2" vào mã (bẫy đã cắn: 3 tem thành 2). */
     let slHang = "";
     const at = x.split("@");
     if (at.length > 1) { slHang = at.slice(1).join("@").trim(); x = at[0].trim(); }
+    /* Nhiều số lượng thì SỐ TEM do danh sách quyết định — cùng luật với dashboard (lõi `temCuaDong`). */
+    const nhieu = T.tachSl(slHang).length;
     const m = x.match(/^(.+?)\s*[x*]\s*(\d+)$/i);
-    if (m) return { sku: m[1].trim(), soTem: Math.max(1, Number(m[2])), sl: slHang };
-    return /^[0-9A-Za-z._-]+$/.test(x) ? { sku: x, soTem: 1, sl: slHang } : null;
+    if (m) return { sku: m[1].trim(), soTem: nhieu > 1 ? nhieu : Math.max(1, Number(m[2])), sl: slHang };
+    return /^[0-9A-Za-z._-]+$/.test(x) ? { sku: x, soTem: nhieu > 1 ? nhieu : 1, sl: slHang } : null;
   }).filter(Boolean);
 }
 /** Tra tên hàng từ danh mục đã đồng bộ (.sku-master-dry.json) */
@@ -489,18 +522,16 @@ async function traGviz(sku) {
 async function chay(ds, chiThu) {
   const dm = napDanhMuc();
   const nay = T.ngayTem();          // dd-mm-yy, cùng một hàm với dashboard
-  const conTem = [];
+  /* Nở bằng LÕI (`T.moRong`) — đúng hàm mà dashboard và `--dich-vu` dùng. Tự lặp ở đây là cách cũ,
+     và nó không hiểu "12/14/16" là ba bịch khác số lượng. */
+  const dongCoTen = [];
   for (const o of ds) {
     let tt = dm && dm.get(o.sku);
     if (!tt) tt = await traGviz(o.sku);            // chưa có trong file đồng bộ -> tra Sheet một lượt
-    const r = {
-      sku: o.sku,
-      pn: tt ? tt.pn : "(không thấy trong danh mục)",
-      sl: o.sl || "",                 // SỐ LƯỢNG in trên tem (khác số con tem)
-      ngay: nay,
-    };
-    for (let i = 0; i < (o.soTem || 1); i++) conTem.push(r);
+    dongCoTen.push({ sku: o.sku, pn: tt ? tt.pn : "(không thấy trong danh mục)",
+      slHang: o.sl || "", sl: o.soTem || 1, mau: MAU });
   }
+  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay }));
   if (!conTem.length) { console.error("Không có SKU nào để in."); process.exit(1); }
   /* TEM THÔNG BÁO ĐỢT IN: chỉ chèn khi biết đợt này của AI (--nguoi) — dùng khi máy in là chỗ dùng
      chung và hàng đợi có nhiều người. In một mình thì không tốn thêm tem. */
@@ -513,6 +544,7 @@ async function chay(ds, chiThu) {
     "mm (" + kt.cot + " tem/hàng · khe dọc " + kt.khe + "mm · khe ngang GAP " + GAP_MM +
     "mm · dịch trái " + LECH_MM + "mm · đậm " + DENSITY + ")");
   console.log(conTem.length + " con tem → " + hang.length + " hàng giấy");
+  console.log("  " + moTaConTem(conTem));
   /* Dựng CẢ LỆNH thành một luồng TSPL — y hệt đường mà `--dich-vu` gửi, để `--thu` là bản chạy khô
      trung thực chứ không phải một cách dựng khác. Ảnh xem trước vẫn tách theo từng hàng giấy cho dễ
      soi bố cục. */
