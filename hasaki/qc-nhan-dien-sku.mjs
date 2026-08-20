@@ -314,6 +314,45 @@ console.log("── Lọc theo phần tử tên hàng ──");
       topMau.map((r) => r.sku + "/" + r.pct + "%").join(" · ") + " · #1: " + String((topMau[0] || {}).pn || "").slice(0, 62));
   }
 
+  /* SỰ CỐ THẬT 20/08/2026 (thẻ mẫu CMTS07) — HAI lỗi tách rời, tem này trúng cả hai:
+     ① TỈ LỆ CHẤT LIỆU bị nhận là MÃ HÀNG: "60%Cotton"/"40%Poly" cũng "chữ lẫn số" nên vào rổ MÃ
+        (nặng 45%) ⇒ mọi dòng chứa "60% Cotton" đều được đánh dấu CÓ MÃ ⇒ luật cứng "CÓ MÃ" mất sạch
+        sức phân biệt: một "Áo Mẫu FT/CMPO0015" 44% (ACTIVE) leo lên hạng 1, đè 16 dòng mang ĐÚNG mã
+        CMTS07 (61%, tồn 0).
+     ② MÀU VIỆT ↔ ANH không nối: thẻ ghi "Màu sắc: ĐEN", tên hàng WMS ghi "…/Black/Size XL" ⇒ rổ màu
+        hai bên không có chữ nào chung ⇒ "Coconut Milk" và "Black" cùng 61%, máy không biết cái nào
+        là đen. Nối một chiều Anh→Việt lúc dựng chỉ mục. */
+  {
+    const CHU_MAU = "THE THONG TIN MAU LOAI MAU: Mau doi Ma san pham: CMTS07 Ten san pham: HENLEY-T-SHIRT_MAN_REGULAR_PIQUE " +
+      "Size: XL Nguyen phu lieu: Dung X Thay the Thanh phan vai: BH-P006-PIQUE 60%Cotton + 40%Poly - 275gsm Mau sac: DEN";
+    const nhanM = E.tuVanBan(CHU_MAU, cm);
+    /* `tuVanBan` LỌC mảnh theo danh mục, nên "cmts07" chỉ có mặt khi danh mục có kho mẫu (đường
+       --gviz). Phần khoá được ở MỌI đường nạp là: không mảnh `%` nào lọt vào rổ MÃ. */
+    kiem("Tỉ lệ chất liệu (60%Cotton · 40%Poly) KHÔNG được vào rổ MÃ",
+      !nhanM.code.some((t) => /%/.test(t)),
+      "code = " + JSON.stringify(nhanM.code));
+    const coCmts = ds.some((r) => /cmts07/i.test(r.pn));
+    if (coCmts) {
+      kiem("… và mã sản phẩm CMTS07 vẫn được nhận là MÃ", nhanM.code.indexOf("cmts07") >= 0,
+        "code = " + JSON.stringify(nhanM.code));
+      const topM = E.timTop(nhanM, cm, { soLuong: 3, chiActive: true });
+      kiem("Thẻ mẫu CMTS07 → Top 3 phải TOÀN dòng mang CMTS07 (không còn dòng lạ chen lên)",
+        topM.length > 0 && topM.every((r) => /cmts07/i.test(r.pn)),
+        topM.map((r) => r.sku + "/" + r.pct + "%").join(" · "));
+      kiem("… và màu ĐEN của thẻ khớp được dòng ghi \"Black\" (nối màu Anh→Việt)",
+        topM.length > 0 && /\/Black\//i.test(topM[0].pn),
+        "#1 = " + topM[0].sku + " · " + String(topM[0].pn).slice(0, 66));
+    } else kiem("Thẻ mẫu CMTS07 → Top 3 toàn dòng mang CMTS07", true, "(danh mục này chưa có kho mẫu)");
+    /* ⚠ Nối màu phải MỘT CHIỀU: NCC "Trang Nhã" bỏ dấu thành `trang`, trùng chữ "trắng" — nối hai
+       chiều là mọi dòng của NCC đó tự nhận màu `white` (bộ đối chứng 30 lượt bắt được: biến thể Navy
+       đè biến thể White đúng). Ca này khoá lại chiều đó. */
+    const nhaTrang = ds.filter((r) => /Trang Nhã/i.test(r.pn) && !/white|trắng/i.test(r.pn)).slice(0, 40);
+    const bleed = nhaTrang.filter((r) => (r._b.color || []).indexOf("white") >= 0);
+    kiem("Nối màu KHÔNG chảy ngược: dòng của NCC \"Trang Nhã\" không tự nhận màu white",
+      nhaTrang.length > 0 && bleed.length === 0,
+      "kiểm " + nhaTrang.length + " dòng · số dòng bị gán oan white: " + bleed.length);
+  }
+
   /* GÕ MẢNH CHUNG: "polyester" một mình thì hàng trăm dòng cùng phủ 1/1 = 100%. Nhóm cùng độ phủ
      phải xếp tiếp bằng ĐIỂM KHỚP TEM, không phải bằng đơn vị/tồn (thủ kho báo 19/08: thấy
      "100,100,100%" rồi chọn nhầm). Ca này: cùng mảnh chung + từ khoá tem của dây kéo 8846295 màu

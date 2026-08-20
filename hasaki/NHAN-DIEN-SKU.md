@@ -890,6 +890,66 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.15 Thẻ mẫu CMTS07 — chất liệu bị nhận là MÃ, và màu ĐEN ↔ Black (20/08/2026)
+
+**Ảnh báo lỗi:** thẻ *Mẫu đối* — `Mã sản phẩm CMTS07` · HENLEY-T-SHIRT_MAN_REGULAR_PIQUE · XL ·
+`BH-P006-PIQUE 60%Cotton + 40%Poly - 275gsm` · **Màu sắc ĐEN**. Tab gợi ý 3 dòng **Vải pique BH-P006**
+(Coconut Milk / Red Ochre / Forest Biome, 64%) — không dòng nào mang CMTS07, không dòng nào màu đen.
+
+**BA nguyên nhân, độc lập nhau:**
+
+**① Banner "Chưa khớp được MÃ HÀNG nào" là do CACHE CŨ trên máy.** `CMTS07` có thật trong danh mục —
+**16 dòng** (`Áo mẫu PP/SS/FT/CMTS07/...`), tất cả từ kho MẪU nhặt về lúc 11:16. Ảnh chụp 13:18 nhưng
+`NDS_CACHE_TTL = 12 giờ`, nên máy đó vẫn đang dùng bản danh mục nạp từ sáng (chưa có kho mẫu). Nút
+`⟳ Tải lại danh mục` ở dòng chân là đường chữa tay; muốn tự động thì phải hạ TTL hoặc so mốc ghi tab.
+
+**② TỈ LỆ CHẤT LIỆU bị nhận là MÃ HÀNG.** `60%Cotton` · `40%Poly` cũng "chữ lẫn số" nên `RE_CODE` đưa
+vào **rổ MÃ (nặng 45%)**. Hậu quả đo được trên danh mục live: mọi dòng chứa "60% Cotton" đều được đánh
+dấu **CÓ MÃ**, nên luật cứng "CÓ MÃ" mất sạch sức phân biệt:
+
+```
+hạng 1  422492801  44%  ACTIVE    Áo Mẫu FT/CMPO0015/…        ← KHÔNG có CMTS07, vẫn coMa=true
+hạng 3  422301645  61%  INACTIVE  Áo mẫu SS/CMTS07/…/Coconut Milk/Size XL
+hạng 4  422322154  61%  INACTIVE  Áo mẫu PP/CMTS07/…/Black/Size XL   ← đáp án
+```
+
+Cùng mức "có mã" ⇒ bậc ACTIVE được quyền nói ⇒ dòng ACTIVE tồn 1 đè 16 dòng mang đúng mã tồn 0.
+**Chữa:** thêm `[0-9]+([.,][0-9]+)?%.*` vào `RE_KHONG_LA_MA` — chất liệu là THÔNG SỐ, không phải định
+danh (cả tem lẫn tên hàng WMS đều bóc bằng cùng hàm nên hai bên vẫn khớp nhau).
+
+**③ MÀU VIỆT ↔ ANH không nối.** Thẻ ghi `ĐEN`, tên hàng ghi `…/Black/Size XL` ⇒ rổ màu hai bên không
+có một chữ chung ⇒ màu (20% trọng số) đóng góp **0 cho cả dòng đúng lẫn dòng sai**, nên "Coconut Milk"
+và "Black" cùng 61%. **Chữa:** bảng `DONG_NGHIA_MAU`, nối lúc **dựng chỉ mục** vào rổ màu + `all` của
+từng DÒNG (không phải của tem — điểm mỗi vai là `(max+trung bình)/2` trên mảnh CỦA TEM, thêm mảnh vào
+tem là làm loãng trung bình; thêm vào rổ của dòng thì chỉ có thể làm `khopTot` cao hơn).
+
+**Kết quả:** `#1 = 422322154 · 67% · Áo mẫu PP/CMTS07/…/Black/Size XL` — đúng mã, đúng màu, đúng size.
+Top 3 nay **toàn dòng mang CMTS07**.
+
+## Hai bản vá TỰ GÂY LỖI, bộ đối chứng bắt được ngay — đừng làm lại
+
+**(a) "Mã hàng đã ở rổ MÃ thì đừng tính là mã màu nữa".** Nghe rất hợp lý (nó là họ hàng của sự cố
+"5000 M" ở 5b.14). Thực tế: tem vải Rib `NKT189` có rổ màu `nkt189 · cm40 · tn114-tn006b · 165`; bỏ
+mấy mảnh trùng rổ MÃ đi thì **chỉ còn `165`** (lấy từ "NET 165 KG") làm bằng chứng mã màu — nó chẳng
+khớp dòng nào ⇒ **sinh xung đột mã màu GIẢ cho CẢ HAI** biến thể White/Navy, 97% tụt 80%, thứ tự đảo.
+Chính mấy mảnh mã "trùng" đó đang giữ cho cơ chế xung đột khỏi bắn bừa. **Đã lùi lại.**
+
+**(b) Nối màu HAI CHIỀU.** Nhà cung cấp **"Trang Nhã"** — bỏ dấu thành `trang`, **trùng đúng chữ
+"trắng"** — nên mọi dòng của NCC đó được cộng thêm màu `white`; biến thể **Navy tự nhận mình là trắng**
+và đè biến thể White đúng. Tên riêng tiếng Việt trùng từ màu là chuyện thường (Trang · Hồng · Ngọc ·
+Cam), còn từ màu TIẾNG ANH gần như không bao giờ là tên NCC ⇒ **chỉ nối một chiều Anh→Việt**
+(`black→den`, `white→trang`). Ca thật của user (tem "ĐEN", tên hàng "Black") nằm đúng chiều này; chiều
+ngược chấp nhận bỏ.
+
+**Đo đối chứng 30 lượt OCR thật:** Top-1 **77% → 80%**, Top-3 90% giữ nguyên, **1 tốt hơn · 0 xấu
+hơn**. Test **72/72** lõi (đường live có kho mẫu) · **70/70** (đường bản nháp) · **120/120** tab, gồm 4
+ca mới: *chất liệu không vào rổ MÃ* · *Top 3 toàn dòng CMTS07* · *ĐEN khớp được "Black"* · *nối màu
+không chảy ngược (dòng của "Trang Nhã" không tự nhận white)*.
+
+> **Bài học**: hai bản vá bị lùi ở trên đều **đúng về lý** và đều **sai trên dữ liệu thật**. Cả hai chỉ
+> bị bắt vì có bộ đối chứng 30 lượt OCR thật chạy trong 3 giây, 0 lượt gọi mạng. Sửa lõi mà không chạy
+> `qc-loi-cu-moi.mjs` thì hai lỗi này đã lên trang thật.
+
 ### 5b.14 Sự cố tem Lenio F0-1588 — "5000 M" bị coi là MÃ MÀU (20/08/2026, chiều)
 
 **Báo lỗi:** *"sao không gợi ý 422487060 `Chỉ Lenio/F0-1588_Phong Việt/…/Tex 24-100D2/mm` (đúng) mà
