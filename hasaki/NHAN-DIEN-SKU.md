@@ -2271,7 +2271,7 @@ lên ngay (ô Số lượng phải là `type="text"` vì mình tự chèn dấu 
 User đo được: **tắt máy in 30 giây sau** dashboard mới đổi trạng thái, **bật lại thì 120 giây**. Ba
 nguyên nhân, mỗi cái một tầng:
 
-**① Hỏi sai chỗ.** Máy in này là máy SHARE. Hỏi KẾT NỐI CỤC BỘ (`Get-Printer -Name "\may\share"`)
+**① Hỏi sai chỗ.** Máy in này là máy SHARE. Hỏi KẾT NỐI CỤC BỘ (`Get-Printer -Name "\\may\share"`)
 chỉ mất **27ms** nhưng trả về **bản cache** của Windows — chính cache đó là 30s/120s. Hỏi thẳng **máy
 chủ in** (`Get-Printer -ComputerName <máy> -Name <share>`) thì đọc đúng thiết bị thật (thấy cả
 `PortName USB031`). Nay hỏi máy chủ trước, chỉ rơi về cache khi không gọi được.
