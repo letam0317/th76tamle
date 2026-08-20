@@ -134,6 +134,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pr_them') return apiPrThem(duLieu);
     if (duLieu && duLieu.action === 'pr_lay') return keyBodyOK_(duLieu) ? apiPrLay(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_xong') return keyBodyOK_(duLieu) ? apiPrXong(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pr_hoan') return keyBodyOK_(duLieu) ? apiPrHoan(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_trangthai') return apiPrTrangThai(duLieu);
     if (duLieu && duLieu.action === 'pr_hangdoi') return apiPrHangDoi(duLieu);
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
@@ -1418,8 +1419,32 @@ var PR_P_IDS = 'PR_IDS';
 var PR_P_TIEN = 'PRQ_';
 var PR_P_NHIP = 'PR_NHIP';
 var PR_P_LUU = 'PR_LUU_LUC';
+var PR_P_MAY = 'PR_MAY';        // tình trạng máy in do agent gửi kèm mỗi lượt hỏi việc
+var PR_MAY_HET = 45000;         // tình trạng cũ hơn 45 giây thì coi như KHÔNG BIẾT (agent có thể đã tắt)
 
 function prSP_() { return PropertiesService.getScriptProperties(); }
+/* ── TÌNH TRẠNG MÁY IN (21/08/2026) ──────────────────────────────────────────────────────────────
+ * Sự cố: máy in hết giấy mà dashboard không báo gì; người dùng bấm ép in 4 lần rồi lắp cuộn mới vẫn
+ * không ra tem. Gốc: `WritePrinter` báo OK ngay khi spooler nhận byte, không liên quan tới giấy.
+ * Nay agent đọc thật (Get-Printer + WMI + queue) rồi gửi kèm MỖI lượt `pr_lay`; chỗ này giữ lại để
+ * dashboard đọc được, và để `apiPrLay` KHÔNG phát việc khi máy đang chặn — lệnh nằm lại ở `cho` và
+ * tự in tiếp khi máy in xong, người dùng không phải bấm lại lần nào.
+ * ────────────────────────────────────────────────────────────────────────────────────────────────── */
+function prMayGhi_(sp, chuoi) {
+  if (!chuoi) return;
+  try { sp.setProperty(PR_P_MAY, JSON.stringify({ tt: String(chuoi).slice(0, 400), luc: new Date().getTime() })); } catch (e) {}
+}
+/** Tình trạng máy in kèm tuổi. `ro:true` = quá cũ, đừng tin (agent có thể đã tắt). */
+function prMayDoc_(all) {
+  var o = null;
+  try { o = JSON.parse((all ? all[PR_P_MAY] : prSP_().getProperty(PR_P_MAY)) || 'null'); } catch (e) { o = null; }
+  if (!o || !o.luc) return { co: false };
+  var tre = new Date().getTime() - Number(o.luc);
+  var tt = {};
+  try { tt = JSON.parse(o.tt); } catch (e) { tt = {}; }
+  return { co: true, tre: tre, ro: tre > PR_MAY_HET, chu: String(tt.chu || ''), chan: !!tt.chan && tre <= PR_MAY_HET,
+    canh: !!tt.canh, job: Number(tt.job), ma: String(tt.ma || '') };
+}
 function prIds_(all) { try { return JSON.parse(all[PR_P_IDS] || '[]') || []; } catch (e) { return []; } }
 function prLenh_(all, id) { try { return JSON.parse(all[PR_P_TIEN + id] || 'null'); } catch (e) { return null; } }
 
@@ -1481,7 +1506,7 @@ function apiPrThem(duLieu) {
     ghi[PR_P_IDS] = JSON.stringify(ids);
     sp.setProperties(ghi, false);
     for (var d = 0; d < xoa.length; d++) sp.deleteProperty(xoa[d]);
-    return phanHoiJson({ status: 'success', id: id, soTem: tong, soSku: dong.length,
+    return phanHoiJson({ status: 'success', id: id, soTem: tong, soSku: dong.length, may: prMayDoc_(all),
       truoc: tr.soDot, temTruoc: tr.soTem, nguoiTruoc: tr.nguoi, dangIn: tr.dangIn, agentTre: prAgentTre_(all) });
   } finally { lock.releaseLock(); }
 }
@@ -1493,6 +1518,16 @@ function apiPrThem(duLieu) {
 function apiPrLay(duLieu) {
   var sp = prSP_(), all = sp.getProperties(), now = new Date().getTime();
   prNhipGhi_();                                      // nhịp tim: dashboard biết máy trạm còn trực
+  prMayGhi_(sp, duLieu && duLieu.may);               // tình trạng máy in agent vừa đọc được
+  /* MÁY IN ĐANG CHẶN (hết giấy · mở nắp · kẹt · offline · queue nghẽn) thì KHÔNG phát việc: lệnh nằm
+     lại ở `cho`, dashboard đọc `may` để nói đúng lý do, và khi máy in xong thì lượt hỏi sau tự nhận
+     việc. Đây là chỗ chữa gốc chuyện "bấm ép in 4 lần": người dùng không có gì phải bấm lại. */
+  var may = prMayDoc_(all);
+  if (duLieu && duLieu.may) {
+    try { var t = JSON.parse(duLieu.may); if (t && t.chan) return phanHoiJson({ status: 'success', dsLenh: [], mayChan: String(t.chu || '') }); } catch (e) {}
+  } else if (may.chan) {
+    return phanHoiJson({ status: 'success', dsLenh: [], mayChan: may.chu });
+  }
   var ids = prIds_(all), co = false;
   for (var i = 0; i < ids.length; i++) {
     var o = prLenh_(all, ids[i]);
@@ -1543,6 +1578,21 @@ function apiPrXong(duLieu) {
   return phanHoiJson({ status: 'success' });
 }
 
+/** Agent trả lệnh về hàng đợi vì máy in chưa sẵn sàng (hết giấy...). KHÔNG phải lỗi: lệnh về lại
+ *  `cho` kèm lý do, và sẽ tự in khi máy in xong. Đếm số lần hoãn để còn thấy được nó chờ bao lâu. */
+function apiPrHoan(duLieu) {
+  var id = String(duLieu.id || '');
+  if (!id) return phanHoiJson({ status: 'error', message: 'Thiếu id.' });
+  var sp = prSP_(), o = prLenh_(sp.getProperties(), id);
+  if (!o) return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
+  o.tt = 'cho';
+  o.nhan = 0;
+  o.hoan = (Number(o.hoan) || 0) + 1;
+  o.ghiChu = String(duLieu.ly || 'máy in chưa sẵn sàng').slice(0, 200);
+  sp.setProperty(PR_P_TIEN + id, JSON.stringify(o));
+  return phanHoiJson({ status: 'success', hoan: o.hoan });
+}
+
 /** Dashboard hỏi trạng thái lệnh vừa gửi (PUBLIC — chỉ trả đúng dòng theo id). Property trước,
  *  Sheet chỉ khi lệnh đã quá cũ và rời hàng đợi nhanh. */
 function apiPrTrangThai(duLieu) {
@@ -1553,6 +1603,7 @@ function apiPrTrangThai(duLieu) {
   var tr = prTruocP_(all, prIds_(all), Number(o.ts || 0));
   return phanHoiJson({ status: 'success', id: id, trangThai: String(o.tt), soTem: Number(o.soTem) || 0,
     lucNhan: Number(o.nhan) || 0, lucXong: Number(o.xongLuc) || 0, ghiChu: String(o.ghiChu || ''),
+    hoan: Number(o.hoan) || 0, may: prMayDoc_(all),
     truoc: tr.soDot, temTruoc: tr.soTem, nguoiTruoc: tr.nguoi, dangIn: tr.dangIn, agentTre: prAgentTre_(all) });
 }
 /** Tra lệnh cũ (đã rời hàng đợi nhanh) trong sổ lưu. Chậm hơn nhưng hiếm khi phải dùng. */
@@ -1620,7 +1671,7 @@ function apiPrHangDoi(duLieu) {
   var all = prSP_().getProperties();
   var t = prTruocP_(all, prIds_(all), 0);
   return phanHoiJson({ status: 'success', agentTre: prAgentTre_(all), cho: t.soDot, temCho: t.soTem,
-    nguoiCho: t.nguoi, dangIn: t.dangIn, tranSku: PR_TRAN_DONG, tranTem: PR_TRAN_TEM });
+    nguoiCho: t.nguoi, dangIn: t.dangIn, may: prMayDoc_(all), tranSku: PR_TRAN_DONG, tranTem: PR_TRAN_TEM });
 }
 
 /** Dọn hàng đợi nhanh: bỏ lệnh đã xong quá 15 phút VÀ đã vào sổ lưu; nếu quá trần thì bỏ tiếp từ cũ

@@ -222,6 +222,74 @@ async function guiRaw(buf, mayIn) {
   return kq;
 }
 
+/* ───────── 4b. TÌNH TRẠNG THẬT CỦA MÁY IN ─────────
+   Sự cố 21/08/2026: máy in HẾT GIẤY mà dashboard không báo gì. Người dùng bấm ép in 4 lần, lắp cuộn
+   decal mới vẫn không ra tem, phải mở nắp máy rồi đóng lại mới in — và chỉ ra 3/5 con.
+   Vì sao cả đường in "im lặng": `WritePrinter` trả về OK ngay khi SPOOLER nhận byte. Nó không hề nói
+   máy in có giấy hay không. Suốt từ đầu tới giờ agent báo "OK 19320 byte" là báo đúng theo nghĩa
+   spooler, nhưng sai theo nghĩa người dùng cần. Muốn biết thì phải ĐI HỎI — đó là việc của khối này.
+   Ba mức kết luận:
+     · `chan` = true  -> KHÔNG được gửi byte nào (hết giấy · mở nắp · kẹt · mất kết nối · queue nghẽn)
+     · `canh` = true  -> vẫn in được nhưng phải nói trước (gần hết giấy...)
+     · còn lại        -> sẵn sàng (kèm số việc đang trong queue) */
+/*<MAY-TT>*/
+const MAY_ERR = { 3: ['gần hết giấy', 0], 4: ['HẾT GIẤY', 1], 5: ['gần hết mực', 0], 6: ['hết mực', 1],
+  7: ['MỞ NẮP máy in', 1], 8: ['KẸT GIẤY', 1], 9: ['máy in cần bảo trì', 0], 10: ['khay ra đầy', 1],
+  11: ['lỗi giấy', 1] };
+const MAY_TT = { PaperOut: 'HẾT GIẤY', DoorOpen: 'MỞ NẮP máy in', PaperJam: 'KẸT GIẤY',
+  Offline: 'máy in đang OFFLINE', Error: 'máy in báo lỗi', PaperProblem: 'lỗi giấy',
+  UserInterventionRequired: 'máy in cần người xử lý', NotAvailable: 'máy in không dùng được',
+  ServerUnknown: 'không thấy máy chủ in', OutOfMemory: 'máy in hết bộ nhớ',
+  /* Queue bị tạm dừng (ai đó bấm Pause, hoặc Windows tự dừng sau lỗi) cũng là CHẶN: byte vào queue
+     rồi nằm đó, tem không ra — đúng kiểu im lặng mà lần hết giấy đã gây ra. */
+  Paused: 'queue máy in đang TẠM DỪNG' };
+const JOB_XAU = /Error|Offline|PaperOut|Blocked|UserIntervention|Paused/i;
+
+/** Đọc thô bằng PowerShell (Get-Printer + WMI + Get-PrintJob) — xem `_TRANG-THAI-MAY-IN.ps1`. */
+function docMayInTho() {
+  const a = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(DIR, "_TRANG-THAI-MAY-IN.ps1")];
+  const m = mayDung();
+  if (m) a.push("-Printer", m);
+  try {
+    const out = execFileSync("powershell", a, { encoding: "utf8", windowsHide: true, timeout: 25000 }).trim();
+    return JSON.parse(out.slice(out.indexOf("{")));
+  } catch (e) { return null; }
+}
+/** Thô -> kết luận đọc được bằng tiếng người. */
+function phanXuMayIn(r) {
+  if (!r) return { ma: 'khong-hoi-duoc', chu: 'không hỏi được tình trạng máy in', chan: false, canh: true, job: -1 };
+  if (r.loi) return { ma: 'khong-thay', chu: r.loi, chan: true, canh: false, job: -1 };
+  const job = Number(r.job) || 0;
+  const js = r.js || [];
+  /* Thứ tự phán xử: lỗi CỤ THỂ của máy trước (hết giấy/mở nắp/kẹt) vì nó nói đúng việc phải làm;
+     rồi tới trạng thái chung; cuối cùng mới tới dấu hiệu suy ra từ queue. */
+  const e = MAY_ERR[Number(r.err)];
+  if (e) return { ma: 'err' + r.err, chu: e[0], chan: !!e[1], canh: !e[1], job: job };
+  const t = MAY_TT[String(r.tt || '')];
+  if (t) return { ma: 'tt-' + r.tt, chu: t, chan: true, canh: false, job: job };
+  if (r.off === true) return { ma: 'offline', chu: 'máy in bị đặt OFFLINE (Use Printer Offline)', chan: true, canh: false, job: job };
+  for (const j of js) {
+    if (JOB_XAU.test(String(j.st || ''))) {
+      return { ma: 'job-xau', chu: 'việc in #' + j.id + ' đang mắc (' + j.st + ')', chan: true, canh: false, job: job };
+    }
+  }
+  /* Việc in nằm quá 45 giây = máy in KHÔNG rút dữ liệu ra nữa. Một con tem in xong trong ~2 giây, nên
+     ngưỡng này rất rộng rồi. Đây chính là dấu hiệu mà lần hết giấy vừa rồi lẽ ra phải bắt được. */
+  const gia = js.filter((j) => Number(j.tuoi) > 45);
+  if (gia.length) return { ma: 'nghen', chu: 'queue đang nghẽn ' + gia.length + ' việc (máy in không nhận dữ liệu)', chan: true, canh: false, job: job };
+  return { ma: 'ok', chu: job > 0 ? ('đang in ' + job + ' việc') : 'sẵn sàng', chan: false, canh: false, job: job };
+}
+/*</MAY-TT>*/
+/** Trạng thái mới nhất, tự nhớ trong `NHIP_MAY` giây để khỏi gọi PowerShell mỗi nhịp quét. */
+const NHIP_MAY = 10;
+let _may = null, _mayLuc = 0;
+function trangThaiMayIn(batBuocMoi) {
+  if (!batBuocMoi && _may && Date.now() - _mayLuc < NHIP_MAY * 1000) return _may;
+  _may = phanXuMayIn(docMayInTho());
+  _mayLuc = Date.now();
+  return _may;
+}
+
 /* ───────── 5. HÀNG ĐỢI IN (chế độ --dich-vu) ─────────
    Cả hai đầu chỉ gọi RA NGOÀI nên không cần mở cổng, không cần cùng mạng: dashboard ghi lệnh vào tab
    `IN-TEM-CHO` qua GAS, agent này quét lấy rồi in, xong thì báo lại trạng thái.
@@ -314,13 +382,30 @@ async function inMotLenh(lenh) {
     return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: "", thu: true,
       msTra: tTra - t0, msDung: tDung - tTra, msGui: 0, msTong: Date.now() - t0 };
   }
+  /* HỎI MÁY IN NGAY TRƯỚC KHI GỬI. Hết giấy mà vẫn gửi thì spooler nhận hết, báo OK, rồi tem không
+     ra — và người dùng bấm ép in thêm mấy lần nữa (đúng chuyện đã xảy ra 21/08/2026). Chặn ở đây thì
+     lệnh còn nguyên trong hàng đợi, xử lý giấy xong là tự in. */
+  const truoc = trangThaiMayIn(true);
+  if (truoc.chan) {
+    console.log("    ⛔ KHÔNG gửi: " + truoc.chu);
+    return { soTem: conTem.length, soHang: hang.length, byte: 0, hoan: true, may: truoc.chu,
+      loi: '', msTra: tTra - t0, msDung: tDung - tTra, msGui: 0, msTong: Date.now() - t0 };
+  }
   for (const b of khuc) {
     byte += b.length;
     const kq = await guiRaw(b, mayDung());
     console.log("    gửi " + hang.length + " hàng giấy (" + b.length + " byte): " + kq);
     if (/^LOI/i.test(kq)) loi.push(kq);
   }
-  return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: loi.join(" | "),
+  /* SOI LẠI SAU KHI GỬI: spooler nhận byte xong không có nghĩa tem đã ra. Nếu máy in vừa chuyển sang
+     hết giấy/mở nắp thì nói thẳng, và nói kèm "đừng bấm in lại" — vì byte ĐÃ nằm trong queue, lắp
+     giấy xong là nó in, bấm lại là ra tem đôi. */
+  await nghi(2500);
+  const sau = trangThaiMayIn(true);
+  if (sau.chan) {
+    loi.push('đã gửi nhưng máy in đang ' + sau.chu + ' — tem sẽ ra khi xử lý xong, ĐỪNG bấm in lại');
+  }
+  return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: loi.join(" | "), may: sau.chu,
     msTra: tTra - t0, msDung: tDung - tTra, msGui: Date.now() - tDung, msTong: Date.now() - t0 };
 }
 
@@ -367,10 +452,20 @@ async function chayDichVu(nhip) {
      Lệnh chỉ có SIZE + CLS, KHÔNG có PRINT nên máy in không nhả con tem nào. */
   try {
     const t = Date.now();
-    const kq = guiRawMotLuot(Buffer.from("SIZE 82 mm,60 mm" + NL + "CLS" + NL, "latin1"), MAY_IN);
+    /* Hâm nóng bằng cách CHỈ MỞ rồi đóng handle máy in — không gửi byte nào.
+       Bản trước gửi một lệnh TSPL rỗng (SIZE+CLS, không có PRINT) nên mỗi lần agent nạp lại là để
+       lại MỘT việc in 0 byte nằm trong queue ở trạng thái "Spooling" — chính họ lỗi làm lượt gửi sau
+       đội từ ~2s lên 22s. Mở handle vẫn trả đúng cái giá kết nối (RPC/SMB tới spooler máy bên kia). */
+    const a = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(DIR, "_IN-RAW.ps1"), "-File", "x", "-ChiMo"];
+    if (MAY_IN) a.push("-Printer", MAY_IN);
+    let kq;
+    try { kq = execFileSync("powershell", a, { encoding: "utf8", windowsHide: true, timeout: 25000 }).trim(); }
+    catch (e) { kq = "LOI: " + String(e.message || e).slice(0, 120); }
     ghimMay(kq);
     console.log("   hâm nóng máy in: " + kq.slice(0, 60) + " (" + (Date.now() - t) + "ms)" +
       (mayGhim ? " · ghim tên máy in: " + mayGhim : ""));
+    const tt = trangThaiMayIn(true);
+    console.log("   tình trạng máy in: " + tt.chu + (tt.chan ? "  ← ĐANG CHẶN IN" : ""));
   } catch (e) { console.log("   hâm nóng máy in không xong: " + String(e.message || e).slice(0, 80)); }
   console.log("Agent in tem đang chạy · nhịp " + (nhip ? nhip + "s" : "tự động (1s giờ làm / 12s ngoài giờ)") +
     " · máy in: " + (MAY_IN || "(tự tìm PE200)"));
@@ -382,6 +477,7 @@ async function chayDichVu(nhip) {
      phát hiện ra, không phải tôi.
      Chỉ nạp lại khi ĐANG RẢNH (không có lệnh nào trong tay) và tự sinh tiến trình mới trước khi thoát,
      nên không có khoảng trống nào mà lệnh in bị bỏ rơi. */
+  let _mayChanCu = null;                    // chỉ log khi tình trạng ĐỔI, khỏi spam mỗi giây
   const nguonCanhGiu = [fileURLToPath(import.meta.url), F_HTML];
   const dauMoc = () => nguonCanhGiu.map((f) => { try { return String(fs.statSync(f).mtimeMs); } catch { return "?"; } }).join("|");
   const mocDau = dauMoc();
@@ -396,7 +492,15 @@ async function chayDichVu(nhip) {
   for (;;) {
     let coViec = false;
     try {
-      const kq = await goiGas({ action: "pr_lay", key: GAS_KEY });
+      /* Gửi kèm TÌNH TRẠNG MÁY IN mỗi lượt hỏi việc: dashboard nhờ đó nói được "máy in hết giấy"
+         ngay trên màn hình người bấm, và GAS dùng nó để KHÔNG phát việc khi máy đang chặn (lệnh nằm
+         lại ở `cho`, tự in tiếp khi máy in xong — người dùng không phải bấm lại lần nào). */
+      const may = trangThaiMayIn(false);
+      if (may.chan !== _mayChanCu) {
+        console.log((may.chan ? "⚠ máy in ĐANG CHẶN: " : "✓ máy in đã ổn: ") + may.chu);
+        _mayChanCu = may.chan;
+      }
+      const kq = await goiGas({ action: "pr_lay", key: GAS_KEY, may: JSON.stringify(may) });
       const ds = (kq && kq.dsLenh) || [];
       coViec = ds.length > 0;
       if (!coViec) {
@@ -412,10 +516,15 @@ async function chayDichVu(nhip) {
           catch (e) { ra = { loi: String(e.message || e).slice(0, 200) }; }
           /* BÁO XONG MÀ KHÔNG ĐỨNG ĐỢI: `pr_xong` mất ~1,1s, trong khi đợt của người kế tiếp đang
              chờ được nhặt. Gửi rồi đi tiếp; lỗi báo trạng thái chỉ ghi log, tem thì đã ra rồi. */
-          goiGas({ action: "pr_xong", key: GAS_KEY, id: lenh.id, loi: ra.loi || "",
-            ghiChu: ra.loi ? "" : (ra.soTem + " tem / " + ra.soHang + " hàng giấy") })
+          /* `hoan` = chưa in được vì máy in đang chặn -> trả lệnh về hàng đợi kèm lý do, KHÔNG báo
+             xong và cũng KHÔNG báo lỗi. Người dùng thấy đúng một câu: "máy in hết giấy, lệnh đang
+             chờ" — và không phải bấm lại. */
+          goiGas(ra.hoan
+            ? { action: "pr_hoan", key: GAS_KEY, id: lenh.id, ly: ra.may || "máy in chưa sẵn sàng" }
+            : { action: "pr_xong", key: GAS_KEY, id: lenh.id, loi: ra.loi || "",
+                ghiChu: ra.loi ? "" : (ra.soTem + " tem / " + ra.soHang + " hàng giấy") })
             .catch((e) => console.error("  (không báo được trạng thái về GAS: " + (e.message || e) + ")"));
-          console.log(ra.loi ? "  ✗ " + ra.loi
+          console.log(ra.hoan ? "  ⏸ hoãn: " + ra.may : ra.loi ? "  ✗ " + ra.loi
             : "  ✓ " + (ra.thu ? "[ĐO] đã dựng " : "đã in ") + ra.soTem + " tem trong " + (ra.msTong / 1000).toFixed(1) +
               "s (tra tên " + ra.msTra + "ms · dựng ảnh " + ra.msDung + "ms · gửi máy in " + ra.msGui + "ms)");
         }

@@ -2140,3 +2140,102 @@ bị mất backslash lúc sinh file, và **cả trang chết** (`Unexpected iden
 chỉ hỏng cái nút. Đã đổi sang `prCam(this.previousElementSibling)`: nút nằm ngay sau ô nhập nên không
 cần dấu nháy nào. Kèm theo có `probe-loi-trang.mjs` — mở trang trong Edge headless rồi in **mọi** lỗi
 JS, dùng khi bộ test đổ ngay từ ca đầu (lúc đó thông báo của bộ test không chỉ được vào đâu).
+
+### 12.10 Máy in hết giấy mà không ai biết — và cách chữa (21/08/2026)
+
+**Chuyện đã xảy ra:** máy in hết giấy giữa một đợt. Dashboard **không báo gì**. Người dùng bấm ép in
+**4 lần**. Lắp cuộn decal mới vẫn không ra tem; phải mở nắp máy rồi đóng lại mới in — và chỉ ra **3
+trong 5** con tem.
+
+**Vì sao cả đường in im lặng:** `WritePrinter` trả về OK **ngay khi SPOOLER nhận byte**. Nó không hề
+liên quan tới việc máy in có giấy hay không. Suốt từ đầu tới giờ agent báo `OK 19320 byte` — đúng
+theo nghĩa spooler, nhưng sai hoàn toàn theo nghĩa người dùng cần. Không có ai đi hỏi máy in cả.
+
+**Chữa: đi hỏi, rồi chặn.**
+- `_TRANG-THAI-MAY-IN.ps1` đọc **ba nguồn** (mỗi nguồn thấy một phần): `Get-Printer` →
+  `PrinterStatus` + `JobCount`; WMI `Win32_Printer` → `DetectedErrorState` (4 = hết giấy · 7 = mở nắp ·
+  8 = kẹt · 3 = gần hết) + `WorkOffline`; `Get-PrintJob` → từng việc in trong queue **kèm tuổi**.
+  Đo thật: 1,2 giây một lượt.
+- Việc in nằm trong queue **quá 45 giây** là dấu hiệu chắc nhất: máy in không rút dữ liệu ra nữa. Một
+  con tem in xong trong ~2 giây, nên ngưỡng đó đã rất rộng. Đây chính là dấu hiệu mà lần hết giấy vừa
+  rồi lẽ ra phải bắt được.
+- Agent đọc mỗi **10 giây** (và **bắt buộc đọc lại ngay trước khi gửi**), gửi kèm mỗi lượt `pr_lay`.
+- **GAS không phát việc khi máy đang chặn.** Lệnh nằm lại ở `cho`; máy in xong thì lượt hỏi sau tự
+  nhận việc và in. Đây là chỗ chữa gốc chuyện "bấm ép in 4 lần": **người dùng không có gì phải bấm
+  lại**. Kèm `pr_hoan` để agent trả lệnh về hàng đợi khi phát hiện chặn sau khi đã nhận.
+- Sau khi gửi vẫn **soi lại một lần**: nếu máy vừa chuyển sang hết giấy thì nói thẳng, và nói kèm
+  *"tem sẽ ra khi xử lý xong, ĐỪNG bấm in lại"* — byte đã nằm trong queue, bấm lại là ra tem đôi.
+- Dashboard: **chip tình trạng máy in** ở chân pop-up, tự làm mới 5 giây/lượt khi pop-up đang mở, ba
+  màu (sẵn sàng · cảnh báo · chặn) và **nói rõ khi số liệu đã cũ** — một chip "sẵn sàng" đọc từ 5 phút
+  trước là vô giá trị. Lúc máy chặn, dòng trạng thái nói lý do + việc phải làm, và `prTheoDoi` kiên
+  nhẫn tới 6 phút thay vì bỏ cuộc sau 2 (người dùng còn đi lấy cuộn decal).
+
+**Bắt được thêm một họ lỗi nữa:** cú "hâm nóng" đầu mỗi lần agent khởi động đang gửi một lệnh TSPL
+rỗng, và **mỗi lần như vậy để lại một việc in 0 byte nằm trong queue** ở trạng thái `Spooling` — chính
+họ lỗi làm lượt gửi sau đội từ ~2s lên 22s. Nay hâm nóng bằng `_IN-RAW.ps1 -ChiMo`: chỉ mở rồi đóng
+handle máy in, **không sinh việc in nào** (đo: 451ms, queue vẫn rỗng).
+
+**Đã nghiệm thu cả tuyến bằng trạng thái giả** (không tháo giấy máy in thật):
+gửi lệnh → báo `HẾT GIẤY` → GAS phát **0** việc và trả `mayChan` → dashboard thấy `trangThai=cho`,
+`may.chan=true`, `may.chu="HẾT GIẤY"` → báo `sẵn sàng` → việc được phát ra ngay, đúng lệnh cũ. 13 ca
+test bơm thẳng số liệu thô của Windows vào khối phán xử (hết giấy · mở nắp · kẹt · gần hết · offline ·
+queue tạm dừng · job mang cờ lỗi · job nghẽn 45s · job mới 3 giây · không hỏi được · không thấy máy).
+
+### 12.11 Đếm được bao nhiêu tem còn lại không? — phân tích, KHÔNG thực thi
+
+Câu trả lời ngắn: **không đếm được đáng tin**, và chỗ chặn không nằm ở code mình.
+
+**Ba lý do, theo thứ tự cứng dần:**
+1. **Không có ai giữ con số đó.** Windows/spooler không hề biết cuộn decal còn bao nhiêu nhãn; không
+   có trường nào trong `Get-Printer` / WMI / queue nói về vật tư. Cảm biến của máy in chỉ có hai mức
+   *có giấy / hết giấy* (mức `LowPaper` = 3 có trong chuẩn WMI và mình đã xử lý sẵn, nhưng máy in
+   decal để bàn hầu như không có cảm biến "gần hết" nên đừng trông chờ nó bắn).
+2. **Máy in có đồng hồ, mà mình không đọc được.** TSPL có lệnh hỏi trạng thái (`<ESC>!?`) và đồng hồ
+   quãng in; muốn đọc **byte trả về** thì phải nói chuyện trực tiếp với cổng USB trên máy cắm máy in.
+   Qua queue share thì đường chỉ có **một chiều: ghi**. Đây là giới hạn của quyền đang có, không phải
+   thiếu code.
+3. **Máy in không chỉ nhận việc từ dự án này.** Người ta vẫn in trực tiếp bằng BarTender trên
+   `DESKTOP-JE75K38`. Mọi con số mình tự đếm đều mù phần đó. Và kể cả có bắt được việc in của họ
+   trong queue (`Get-PrintJob` thấy được, vì là queue dùng chung) thì cũng vô dụng: một việc in RAW
+   luôn báo `TotalPages = 1` bất kể trong đó có 1 hay 200 con tem.
+
+**Ba bậc làm được, nếu vẫn muốn có một cái đồng hồ ước lượng:**
+- **Bậc 1 — đếm phần của mình (chắc chắn đúng).** Agent biết chính xác số con tem mỗi lệnh. Cộng dồn
+  từ lúc bấm nút *"đã lắp cuộn mới"* → *"cuộn này đã in 780 tem"*. Rẻ, không cần quyền gì thêm.
+- **Bậc 2 — ước lượng còn lại (có sai số biết trước).** Khai một lần "một cuộn ≈ N tem" rồi lấy
+  `N − đã in`. Sai số = **đúng bằng** số tem in trực tiếp từ desktop, tức là mình phải nói rõ đây là
+  ước lượng, và cảnh báo ở mức ~85% chứ đừng hứa con số chính xác.
+- **Bậc 3 — đóng nốt lỗ mù (cần thêm quyền).** Nhật ký `Microsoft-Windows-PrintService/Operational`
+  trên **máy cắm máy in** ghi mọi việc in (kể cả BarTender). Đọc được nó thì đếm được cả hai nguồn —
+  nhưng cần đọc event log từ xa, tức là vượt khỏi mức "chỉ dùng quyền đang có". Theo lệ của dự án thì
+  bậc này **không làm**.
+
+**Khuyến nghị:** đừng dựng đồng hồ ước lượng lúc này. Cái đau thật của sự cố vừa rồi không phải "không
+biết còn mấy tem" mà là **hết giấy mà không ai báo, rồi bấm ép in 4 lần**. Phần đó đã chữa xong ở
+§12.10 (báo thẳng + không phát việc + tự in lại khi lắp giấy xong). Nếu sau này vẫn muốn một cái gauge
+thì làm **bậc 1 + bậc 2**, và ghi rõ trên giao diện rằng đây là số **ước lượng**.
+
+### 12.12 Tên thiết bị thay cho `may-oth9uh70@hasaki.vn`
+
+Hàng đợi ghi "đợt tem này của ai" để người ra lấy tem biết khúc nào của mình — nhưng danh tính đang
+dùng là một chuỗi tự sinh, với người đọc thì vô nghĩa hoàn toàn.
+
+Trình duyệt cho biết được gì: `navigator.userAgentData.getHighEntropyValues(['model'])` (Chrome/Edge
+trên Android) trả về **mã máy** — Xiaomi 13 ra `2211133C`, không phải tên thương mại; iOS thì Apple
+**không** cho biết model, chỉ "iPhone". Nên **không có cách nào tự đoán ra đúng chữ "Xiaomi 13"**.
+Vì vậy: đoán một cái tên tạm cho khỏi trống (mã máy Android / iPhone / iPad / PC Windows), rồi để
+người dùng **đặt tên một lần** — nút *"Thiết bị: …"* ở chân pop-up In tem, nhớ trong máy đó.
+Danh tính kỹ thuật (`may-…@hasaki.vn`, dùng cho hạn mức AI) vẫn gửi riêng ở trường `may`.
+
+### 12.13 iOS: bấm "Bật camera" là mất nút Chụp
+
+Trên iPhone, bấm *Bật camera* thì khung phóng to tràn màn hình, mất luôn nút **Chụp** màu cam và hàng
+tỉ lệ zoom. Nguyên nhân: Safari trên iOS **tự đưa `<video>` vào toàn màn hình** khi play nếu thiếu
+thuộc tính tiền tố cũ `webkit-playsinline` (chỉ có `playsinline` là không đủ trên bản cũ). Lúc đó nút
+Chụp (`position:fixed`) và hàng zoom nằm dưới lớp toàn màn hình nên coi như mất.
+
+Vá bốn lớp, từ gốc ra ngoài: thêm `webkit-playsinline` + `autoplay` · ẩn thanh điều khiển gốc của
+Safari (`::-webkit-media-controls`, nó có nút toàn màn hình — chạm nhầm là mất khung) · **trần chiều
+cao** cho khung trên máy hẹp (`max-height:min(52vh,420px)`) kèm khuôn `padding-top:75%` cho trình
+duyệt không hiểu `aspect-ratio` · và lưới đỡ cuối: nghe `webkitbeginfullscreen` thì gọi
+`webkitExitFullscreen()` ngay.

@@ -462,5 +462,52 @@ console.log("\n── 11. Dấu nghìn · ngày dd-mm-yy · thứ tự xếp tem
     liet || ra3.slice(0, 90));
 }
 
+/* ══════════ PHÁN XỬ TÌNH TRẠNG MÁY IN ══════════
+   Sự cố 21/08/2026: máy in hết giấy, dashboard không báo gì, người dùng bấm ép in 4 lần. Khối phán xử
+   này là chỗ quyết định "có được gửi byte hay không", nên nó phải đúng với từng mã lỗi thật của
+   Windows — mà mã lỗi thì không thể dựng lại bằng tay trên máy in thật (không thể tháo giấy ra rồi
+   chạy test được). Nên: cắt khối `MAY-TT` trong agent ra rồi bơm trạng thái thô vào. */
+{
+  console.log("\n▸ Phán xử tình trạng máy in (từ số liệu thô của Windows)");
+  const nguonMay = fs.readFileSync(path.join(DIR, "in-tem-agent.mjs"), "utf8");
+  const m1 = nguonMay.indexOf("/*<MAY-TT>*/"), m2 = nguonMay.indexOf("/*</MAY-TT>*/");
+  const px = new Function(nguonMay.slice(m1, m2) + "\n return phanXuMayIn;")();
+
+  const ok = { may: "X", tt: "Normal", job: 0, err: 2, ext: 0, off: false, eps: 2, js: [], loi: "" };
+  const r0 = px(ok);
+  kiem("Máy bình thường → sẵn sàng, KHÔNG chặn", r0.chan === false && /sẵn sàng/.test(r0.chu), r0.chu);
+
+  const hetGiay = px(Object.assign({}, ok, { err: 4 }));
+  kiem("DetectedErrorState = 4 → \"HẾT GIẤY\" và CHẶN in", hetGiay.chan === true && /HẾT GIẤY/.test(hetGiay.chu), hetGiay.chu);
+  const moNap = px(Object.assign({}, ok, { err: 7 }));
+  kiem("DetectedErrorState = 7 → \"mở nắp\" và CHẶN in", moNap.chan === true && /MỞ NẮP/i.test(moNap.chu), moNap.chu);
+  const ketGiay = px(Object.assign({}, ok, { err: 8 }));
+  kiem("DetectedErrorState = 8 → \"kẹt giấy\" và CHẶN in", ketGiay.chan === true && /KẸT GIẤY/i.test(ketGiay.chu), ketGiay.chu);
+  const ganHet = px(Object.assign({}, ok, { err: 3 }));
+  kiem("Gần hết giấy → CẢNH BÁO nhưng VẪN in (đừng chặn oan)", ganHet.chan === false && ganHet.canh === true, ganHet.chu);
+
+  const ttPaperOut = px(Object.assign({}, ok, { tt: "PaperOut" }));
+  kiem("PrinterStatus = PaperOut → chặn (đường thứ hai, khi WMI không nói gì)", ttPaperOut.chan === true, ttPaperOut.chu);
+  const tamDung = px(Object.assign({}, ok, { tt: "Paused" }));
+  kiem("Queue TẠM DỪNG → chặn (byte vào queue rồi nằm đó, tem không ra)", tamDung.chan === true, tamDung.chu);
+  const offline = px(Object.assign({}, ok, { off: true }));
+  kiem("Máy in bị đặt OFFLINE → chặn", offline.chan === true && /OFFLINE/i.test(offline.chu), offline.chu);
+
+  const jobXau = px(Object.assign({}, ok, { js: [{ id: 9, st: "Error, Offline", byte: 19320, tuoi: 5 }] }));
+  kiem("Việc in mang cờ lỗi/offline → chặn, và nói rõ số việc", jobXau.chan === true && /#9/.test(jobXau.chu), jobXau.chu);
+  const nghen = px(Object.assign({}, ok, { js: [{ id: 11, st: "Spooling", byte: 19320, tuoi: 120 }] }));
+  kiem("Việc in nằm quá 45 giây → \"queue nghẽn\" và chặn (dấu hiệu lần hết giấy vừa rồi bỏ lọt)",
+    nghen.chan === true && /nghẽn/.test(nghen.chu), nghen.chu);
+  const jobMoi = px(Object.assign({}, ok, { job: 1, js: [{ id: 12, st: "Printing", byte: 19320, tuoi: 3 }] }));
+  kiem("Việc in vừa gửi (3 giây, đang in) → KHÔNG chặn, chỉ báo đang in",
+    jobMoi.chan === false && /đang in 1 việc/.test(jobMoi.chu), jobMoi.chu);
+
+  const khongHoi = px(null);
+  kiem("Không hỏi được máy in → cảnh báo, nhưng KHÔNG chặn (đừng vì đọc lỗi mà chặn cả đường in)",
+    khongHoi.chan === false && khongHoi.canh === true, khongHoi.chu);
+  const khongThay = px({ loi: "khong thay may in nao ten chua PE200" });
+  kiem("Không thấy máy in nào → chặn và nói thẳng lý do", khongThay.chan === true, khongThay.chu);
+}
+
 console.log("\n" + (truot ? "✗ " + dat + "/" + (dat + truot) + " ca đạt — " + truot + " ca TRƯỢT" : "✓ " + dat + "/" + dat + " ca đạt"));
 process.exit(truot ? 1 : 0);

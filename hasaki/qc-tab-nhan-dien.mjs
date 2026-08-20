@@ -958,6 +958,62 @@ kiem("Xoá chip GIỮA thì bỏ đúng 2.000, còn 1.000 và 3.000 (không ph�
   xoaChip.chip.join("|") === "1.000|3.000" && xoaChip.tong === 2 && xoaChip.soTem === "2",
   xoaChip.truoc + " → " + xoaChip.tong + " tem · [" + xoaChip.chip.join(" | ") + "]");
 
+/* CHIP TÌNH TRẠNG MÁY IN (21/08/2026) — sự cố: máy in hết giấy mà pop-up không báo gì, người dùng
+   bấm ép in 4 lần rồi lắp cuộn mới vẫn không ra tem. Chip phải nói đúng ba mức: sẵn sàng / cảnh báo /
+   chặn, và phải nói khi SỐ LIỆU ĐÃ CŨ (agent tắt thì "sẵn sàng" đọc từ 5 phút trước là vô giá trị). */
+const chipMay = await page.evaluate(async () => {
+  const goc = prGoiGas;
+  const ra = {};
+  const thu = async (may) => {
+    prGoiGas = async () => ({ status: "success", cho: 0, temCho: 0, agentTre: 1200, may: may, tranSku: 40, tranTem: 400 });
+    await prHoiHangDoi();
+    prNhipMayIn(false);                                  // tắt vòng 5 giây, khỏi nhiễu ca sau
+    const el = document.getElementById("prMayChip");
+    return { chu: el.textContent, lop: el.className };
+  };
+  ra.ok = await thu({ co: true, tre: 1500, ro: false, chan: false, canh: false, chu: "sẵn sàng", job: 0 });
+  ra.hetGiay = await thu({ co: true, tre: 2000, ro: false, chan: true, canh: false, chu: "HẾT GIẤY", job: 2 });
+  ra.ganHet = await thu({ co: true, tre: 2000, ro: false, chan: false, canh: true, chu: "gần hết giấy", job: 0 });
+  ra.cu = await thu({ co: true, tre: 300000, ro: true, chan: false, canh: false, chu: "sẵn sàng", job: 0 });
+  ra.chuaCo = await thu({ co: false });
+  prGoiGas = goc;
+  return ra;
+});
+kiem("Chip máy in: sẵn sàng thì xanh, HẾT GIẤY thì đỏ",
+  /sẵn sàng/.test(chipMay.ok.chu) && /b-ok/.test(chipMay.ok.lop) &&
+  /HẾT GIẤY/.test(chipMay.hetGiay.chu) && /b-bad/.test(chipMay.hetGiay.lop),
+  chipMay.ok.chu + " · " + chipMay.hetGiay.chu);
+kiem("Chip máy in: gần hết giấy chỉ CẢNH BÁO (vàng), không đỏ",
+  /b-warn/.test(chipMay.ganHet.lop), chipMay.ganHet.chu);
+kiem("Chip máy in nói rõ khi SỐ LIỆU ĐÃ CŨ (agent có thể đã tắt) — không dám báo \"sẵn sàng\"",
+  /cũ/.test(chipMay.cu.chu) && !/b-ok/.test(chipMay.cu.lop), chipMay.cu.chu);
+kiem("Chưa có số liệu nào thì nói \"chưa rõ\", không đoán bừa",
+  /chưa rõ/.test(chipMay.chuaCo.chu), chipMay.chuaCo.chu);
+
+/* TÊN THIẾT BỊ (21/08/2026): hàng đợi ghi "đợt tem của ai" — trước đây là `may-oth9uh70@hasaki.vn`,
+   với người đọc thì vô nghĩa. Nay gửi tên thiết bị người tự đặt. */
+const tenMay = await page.evaluate(async () => {
+  const truoc = ndsTenMay();
+  localStorage.setItem("nds-ten-may", "Xiaomi 13");
+  prVeTenMay();
+  window.__goi = [];
+  const goc = prGoiGas;
+  prGoiGas = async (b) => { window.__goi.push(b); return { status: "success", id: "PRTEST3", trangThai: "xong" }; };
+  prIn();
+  await new Promise((r) => setTimeout(r, 400));
+  prGoiGas = goc;
+  const b = window.__goi.filter((x) => x.action === "pr_them")[0] || {};
+  return { doan: truoc, ten: ndsTenMay(), nut: document.getElementById("prTenMay").textContent,
+    nguoi: b.nguoi, may: b.may };
+});
+kiem("Đặt tên thiết bị: hàng đợi nhận đúng tên đó, không phải chuỗi may-xxxx",
+  tenMay.nguoi === "Xiaomi 13" && /@hasaki\.vn$/.test(String(tenMay.may || "")),
+  "nguoi=\"" + tenMay.nguoi + "\" · danh tính kỹ thuật vẫn gửi riêng: " + tenMay.may);
+kiem("Nút ở chân pop-up hiện tên thiết bị đang dùng",
+  /Xiaomi 13/.test(tenMay.nut), tenMay.nut);
+kiem("Chưa đặt tên thì đoán một cái đọc được (không phải chuỗi ngẫu nhiên)",
+  !!tenMay.doan && !/^may-[a-z0-9]{8}@/.test(tenMay.doan), "tên đoán: " + tenMay.doan);
+
 /* Trả về một số lượng duy nhất cho mấy ca dưới (chúng dùng ô Số tem tự do). */
 await page.evaluate(async () => {
   let x;
@@ -1455,6 +1511,26 @@ kiem("Điện thoại: ô SKU KHÔNG bị gắn nhãn \"ĐVT\" (và SKU đứng 
 kiem("Điện thoại: nhãn hai ô \"áp cho tất cả\" nói đúng việc của nó (SỐ TEM · SỐ LƯỢNG)",
   /SỐ TEM/.test(inMobile.nhanApTem) && /SỐ LƯỢNG/.test(inMobile.nhanApSl),
   inMobile.nhanApTem + " · " + inMobile.nhanApSl);
+
+/* KHUNG CAMERA TRÊN MÁY HẸP (sự cố iOS 21/08/2026: bấm "Bật camera" thì khung phóng to tràn màn hình,
+   mất luôn nút "Chụp" màu cam và hàng tỉ lệ zoom).
+   Gốc: Safari trên iPhone tự đưa <video> vào TOÀN MÀN HÌNH khi play nếu thiếu `webkit-playsinline`;
+   và khung không có trần chiều cao nên khi `aspect-ratio` không tính được thì nó cao tự do. */
+const camMobile = await page.evaluate(() => {
+  const v = document.getElementById("ndsVideo");
+  const st = document.getElementById("ndsStage");
+  const r = st.getBoundingClientRect();
+  const cs = getComputedStyle(st);
+  return { inline: v.hasAttribute("playsinline"), wk: v.hasAttribute("webkit-playsinline"),
+    dieuKhien: v.hasAttribute("controls"), cao: Math.round(r.height), tran: cs.maxHeight,
+    caoManh: Math.round(window.innerHeight) };
+});
+kiem("iOS: <video> có CẢ playsinline và webkit-playsinline (không tự vào toàn màn hình)",
+  camMobile.inline && camMobile.wk && !camMobile.dieuKhien,
+  "playsinline=" + camMobile.inline + " · webkit-playsinline=" + camMobile.wk);
+kiem("Điện thoại: khung camera có TRẦN chiều cao, không chiếm quá nửa màn (còn chỗ cho nút Chụp)",
+  camMobile.tran !== "none" && camMobile.cao <= Math.round(camMobile.caoManh * 0.55),
+  "khung cao " + camMobile.cao + "px / màn " + camMobile.caoManh + "px · max-height " + camMobile.tran);
 
 kiem("Điện thoại: nút điều khiển không tràn khỏi khung, đủ cao để chạm", !nut.tran && nut.thap >= 24,
   nut.n + " nút · tràn: " + nut.tran + " · nút thấp nhất " + nut.thap + "px");

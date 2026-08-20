@@ -9,11 +9,16 @@
 
 param(
   [Parameter(Mandatory=$true)][string]$File,
-  [string]$Printer = ''
+  [string]$Printer = '',
+  # -ChiMo: CHI mo roi dong handle may in, KHONG gui byte nao. Dung de "ham nong" duong ket noi toi
+  # spooler may ben kia (luot gui dau tien sau khi agent khoi dong mat ~8s, luot sau ~2s).
+  # Vi sao khong ham nong bang mot lenh TSPL rong: moi lan nhu vay tao MOT viec in 0 byte nam lai
+  # trong queue o trang thai "Spooling" — chinh ho loi lam moi luot gui sau do doi len toi 22s.
+  [switch]$ChiMo
 )
 $ErrorActionPreference = 'Stop'
 
-if (-not (Test-Path $File)) { Write-Output "LOI: khong thay file $File"; exit 1 }
+if (-not $ChiMo -and -not (Test-Path $File)) { Write-Output "LOI: khong thay file $File"; exit 1 }
 
 if (-not $Printer) {
   $mi = Get-Printer | Where-Object { $_.Name -match 'PE200' } | Select-Object -First 1
@@ -43,6 +48,16 @@ public class RawPrintTem {
   [DllImport("winspool.drv", SetLastError=true)] static extern bool EndPagePrinter(IntPtr h);
   [DllImport("winspool.drv", SetLastError=true)] static extern bool WritePrinter(IntPtr h, IntPtr buf, int n, out int written);
 
+  /* Mo roi dong handle: tra dung cai gia ket noi (RPC/SMB toi spooler may ben kia) ma KHONG tao
+     viec in nao. */
+  public static string ChiMo(string printer) {
+    IntPtr h;
+    PRINTER_DEFAULTS pd = new PRINTER_DEFAULTS();
+    pd.pDatatype = IntPtr.Zero; pd.pDevMode = IntPtr.Zero; pd.DesiredAccess = PRINTER_ACCESS_USE;
+    if (!OpenPrinter(printer, out h, ref pd)) return "LOI OpenPrinter " + Marshal.GetLastWin32Error();
+    ClosePrinter(h);
+    return "OK mo";
+  }
   public static string Send(string printer, byte[] data, string docName) {
     IntPtr h; int written = 0;
     PRINTER_DEFAULTS pd = new PRINTER_DEFAULTS();
@@ -64,6 +79,11 @@ public class RawPrintTem {
 '@
 }
 
+if ($ChiMo) {
+  $kq = [RawPrintTem]::ChiMo($Printer)
+  Write-Output "$kq | may in: $Printer | 0 byte"
+  exit 0
+}
 $bytes = [System.IO.File]::ReadAllBytes($File)
 $kq = [RawPrintTem]::Send($Printer, $bytes, "Audit Factory - in tem")
 Write-Output "$kq | may in: $Printer | $($bytes.Length) byte"
