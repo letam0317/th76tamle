@@ -926,6 +926,23 @@ tem là làm loãng trung bình; thêm vào rổ của dòng thì chỉ có th�
 **Kết quả:** `#1 = 422322154 · 67% · Áo mẫu PP/CMTS07/…/Black/Size XL` — đúng mã, đúng màu, đúng size.
 Top 3 nay **toàn dòng mang CMTS07**.
 
+## Chữa nguyên nhân ① — SOÁT MỐC GHI TAB thay vì bắt người dùng nhớ bấm nút
+
+`NDS_CACHE_TTL` **12 giờ → 2 giờ**, nhưng TTL chỉ còn là **lưới cuối**. Đường chính là
+`ndsSoatMocDanhMuc()`:
+
+1. Mở tab → dùng bản cache **ngay** (không ai phải chờ, giữ nguyên tốc độ).
+2. Ở NỀN, hỏi mốc `LAST_SYNC_SKU_MASTER` bằng **đúng đường JSONP mà chip giờ dữ liệu vẫn dùng**
+   (`action=lastSync` — không tốn hạn mức AI, không đụng WMS, 1 lượt GET nhỏ).
+3. Mốc mới hơn bản đang giữ (đệm **60 giây** cho lệch đồng hồ máy trạm ↔ điện thoại) ⇒ xoá cache,
+   nạp lại, và **đối soát lại** nếu trên màn hình đang có từ khoá; kèm một toast (nay ở đầu màn hình).
+
+Kiểm chứng mốc thật: `LAST_SYNC_SKU_MASTER = 11:18:18 20/08/2026` — đúng giây lượt sync ghi tab, tức
+GAS đã tự chạm mốc này ở đường ghi (`syncTasks`), không cần thêm gì phía máy trạm.
+
+Ca test khoá cả hai chiều: *mốc cũ hơn cache ⇒ KHÔNG tải lại* (không thì mỗi lần mở tab là tải lại
+1,5 MB vô ích) và *mốc mới hơn ⇒ phải tải lại*, cùng với `TTL ≤ 2h`.
+
 ## Hai bản vá TỰ GÂY LỖI, bộ đối chứng bắt được ngay — đừng làm lại
 
 **(a) "Mã hàng đã ở rổ MÃ thì đừng tính là mã màu nữa".** Nghe rất hợp lý (nó là họ hàng của sự cố

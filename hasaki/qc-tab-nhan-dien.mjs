@@ -174,6 +174,33 @@ await page.evaluate(() => {
   x.font = "22px Arial"; x.fillText("38.0 CM  ·  345", 40, 150);
   ndsDatAnh(c.toDataURL("image/jpeg", 0.9));
 });
+/* ---------- 2b. SOÁT MỐC GHI TAB: danh mục trên Sheet đổi thì tự nạp lại (20/08/2026) ----------
+   Sự cố: kho MẪU nhặt về 11:16, thủ kho quét 13:18 vẫn thấy "Chưa khớp được MÃ HÀNG nào" vì cache
+   TTL 12 giờ (nay hạ còn 2 giờ). Bắt người dùng nhớ bấm "Tải lại danh mục" là không được — họ không
+   có cách nào biết danh mục vừa đổi. */
+const socMoc = await page.evaluate(async () => {
+  const ra = {};
+  /* (a) Mốc CŨ HƠN bản đang giữ -> KHÔNG được tải lại */
+  NDS.cacheAt = Date.now();
+  NDS.dangSoatMoc = false; NDS.nguon = 'đánh dấu-a';
+  ndsSoatMocDanhMuc();
+  await new Promise((r) => setTimeout(r, 900));
+  ra.giuNguyen = NDS.nguon === 'đánh dấu-a';
+  /* (b) Mốc MỚI HƠN (mock lastSync trả Date.now(), đặt cache thành 6 giờ trước) -> phải tải lại */
+  NDS.cacheAt = Date.now() - 6 * 3600 * 1000;
+  NDS.dangSoatMoc = false; NDS.nguon = 'đánh dấu-b';
+  ndsSoatMocDanhMuc();
+  for (let i = 0; i < 60 && NDS.nguon === 'đánh dấu-b'; i++) await new Promise((r) => setTimeout(r, 250));
+  ra.daTaiLai = /vừa tải/.test(NDS.nguon);
+  ra.nguon = NDS.nguon;
+  ra.ttlGio = Math.round(NDS_CACHE_TTL / 3600000);
+  return ra;
+});
+kiem("Mốc ghi tab MỚI HƠN cache → tự nạp lại danh mục; mốc cũ hơn thì giữ nguyên (TTL chỉ là lưới cuối)",
+  socMoc.giuNguyen && socMoc.daTaiLai && socMoc.ttlGio <= 2,
+  "giữ nguyên khi mốc cũ: " + socMoc.giuNguyen + " · tải lại khi mốc mới: " + socMoc.daTaiLai +
+  " (nguồn: " + socMoc.nguon + ") · TTL " + socMoc.ttlGio + "h");
+
 /* ---------- 3a0. Ô "PHẦN TỬ TRÊN TEM" ĐỨNG TRÊN KHUNG CAMERA (chuyển 20/08/2026) ----------
    Yêu cầu user: mở tab là thấy ô nhập trước, khung hình sau. Kiểm bằng TOẠ ĐỘ THẬT (không kiểm thứ
    tự trong DOM) vì `.nds-grid` có thể xếp lại bằng CSS; kèm kiểm khoảng thở giữa hai khối không phình
@@ -718,6 +745,181 @@ await page.evaluate(() => { ndsXoaHet(); document.getElementById("ndsMa").value 
 await page.evaluate(() => { ndsXoaHet(); document.getElementById("ndsMa").value = ""; ndsVeMaGoi([]);
   document.getElementById("ndsRaw").value = "YKK 8846295 CMOR-36 38.0 CM 345"; ndsDoiSoat(); });
 await new Promise((r) => setTimeout(r, 600));
+
+/* ---------- 6k. IN TEM SKU: danh sách chờ in (bước 1, 20/08/2026) ----------
+   Hai yêu cầu chốt của người dùng, mỗi cái một ca khoá lại:
+   ① thêm vào danh sách in PHẢI do người bấm đúng nút — nhấn nhầm vào thẻ thì KHÔNG được thêm;
+   ② vào danh sách rồi vẫn bỏ được: bấm lại nút trên thẻ · nút ✕ từng dòng · Xoá hết. */
+await page.evaluate(() => { ndsXoaHet(); PR.sel = {}; prLuu(); prSyncBar();
+  document.getElementById("ndsRaw").value = "8846295 38.0 CM #3 345 YKK"; return ndsDoiSoat(); });
+await new Promise((r) => setTimeout(r, 800));
+const temNut = await page.evaluate(() => ({
+  soThe: document.querySelectorAll("#ndsCards .nds-card").length,
+  soNut: document.querySelectorAll("#ndsCards .nds-tem").length,
+  chu: (document.querySelector("#ndsCards .nds-tem") || {}).textContent,
+  cao: Math.round((document.querySelector("#ndsCards .nds-tem") || {}).getBoundingClientRect?.().height || 0),
+}));
+kiem("Mỗi thẻ gợi ý có nút riêng để thêm vào danh sách in", temNut.soNut === temNut.soThe && temNut.soNut > 0,
+  temNut.soNut + " nút / " + temNut.soThe + " thẻ · chữ \"" + temNut.chu + "\" · cao " + temNut.cao + "px");
+kiem("Nút đủ cao để chạm bằng ngón tay (≥28px)", temNut.cao >= 28, temNut.cao + "px");
+
+/* ① nhấn nhầm vào THẺ thì không được sinh ra tem để in */
+await bam("#ndsCards .nds-card");
+await new Promise((r) => setTimeout(r, 300));
+const sauBamThe = await page.evaluate(() => ({ n: prSo(), tem: prTongTem(),
+  bar: !document.getElementById("prbar").classList.contains("hidden") }));
+kiem("Bấm CẢ THẺ không thêm gì vào danh sách in (chống nhấn nhầm)",
+  sauBamThe.n === 0 && sauBamThe.tem === 0 && sauBamThe.bar === false,
+  sauBamThe.n + " SKU · " + sauBamThe.tem + " tem · thanh " + (sauBamThe.bar ? "hiện" : "ẩn"));
+
+/* ② bấm ĐÚNG nút thì mới thêm — và nút tự đổi trạng thái để biết đang chờ in */
+const skuTem = await page.evaluate(() => (NDS.ket[0] || {}).sku);
+/* Mốc sổ tay phải lấy NGAY TRƯỚC khi bấm nút: ca ① ở trên vừa bấm cả thẻ nên sổ tay đã tăng một
+   lần rồi — lấy mốc từ trước đó thì ca này trượt oan (đã cắn đúng bẫy này lúc viết). */
+const hocTruocNut = await page.evaluate(() => ndsSoDem());
+await bam("#ndsCards .nds-tem");
+await new Promise((r) => setTimeout(r, 400));
+const sauTick = await page.evaluate(() => ({ n: prSo(), tem: prTongTem(), ds: Object.keys(PR.sel),
+  chu: (document.querySelector("#ndsCards .nds-tem") || {}).textContent,
+  co: !!document.querySelector("#ndsCards .nds-tem.co"),
+  bar: !document.getElementById("prbar").classList.contains("hidden"),
+  barN: document.getElementById("prbarN").textContent, barT: document.getElementById("prbarT").textContent,
+  hoc: ndsSoDem() }));
+kiem("Bấm nút \"＋ Tem\" đưa ĐÚNG SKU đó vào danh sách chờ in",
+  sauTick.n === 1 && String(sauTick.ds[0]) === String(skuTem) && sauTick.tem === 1,
+  sauTick.ds.join(",") + " · " + sauTick.tem + " tem");
+kiem("Nút đổi sang trạng thái \"đang chờ in\" để nhìn là biết", /✓/.test(sauTick.chu) && sauTick.co, sauTick.chu);
+kiem("Thanh nổi hiện đúng số SKU + số tem", sauTick.bar && sauTick.barN === "1" && sauTick.barT === "1",
+  sauTick.barN + " SKU · " + sauTick.barT + " tem");
+kiem("Bấm nút KHÔNG kích luôn hành động của thẻ cha (không ghi thêm sổ tay)", sauTick.hoc === hocTruocNut,
+  "sổ tay " + hocTruocNut + " → " + sauTick.hoc);
+
+/* ② bấm lại chính nút đó = BỎ khỏi danh sách */
+await bam("#ndsCards .nds-tem.co");
+await new Promise((r) => setTimeout(r, 400));
+const sauBo = await page.evaluate(() => ({ n: prSo(), chu: (document.querySelector("#ndsCards .nds-tem") || {}).textContent,
+  bar: !document.getElementById("prbar").classList.contains("hidden") }));
+kiem("Bấm lại nút là BỎ khỏi danh sách in (không cần mở bảng)",
+  sauBo.n === 0 && /＋/.test(sauBo.chu) && sauBo.bar === false, sauBo.n + " SKU · nút \"" + sauBo.chu + "\"");
+
+/* ---------- 6k2. Bảng danh sách in: mẫu tem · số lượng · xoá từng dòng ---------- */
+const bang = await page.evaluate(async () => {
+  document.querySelectorAll("#ndsCards .nds-tem").forEach((b, i) => { if (i < 2) b.click(); });
+  prMo();
+  await new Promise((r) => setTimeout(r, 250));
+  const hienModal = document.getElementById("prmodal").classList.contains("show");
+  const dong = document.querySelectorAll("#prBody tr").length;
+  const oSl = document.querySelectorAll("#prBody input.prsl").length;
+  const oMau = document.querySelectorAll("#prBody select.prmau").length;
+  const nutXoa = document.querySelectorAll("#prBody .prdel").length;
+  const soMau = document.querySelectorAll("#prBody select.prmau option").length / Math.max(1, oMau);
+  return { hienModal, dong, oSl, oMau, nutXoa, soMau, tong: prTongTem() };
+});
+kiem("Mở được bảng danh sách in, mỗi dòng có mẫu tem + số lượng + nút xoá",
+  bang.hienModal && bang.dong === 2 && bang.oSl === 2 && bang.oMau === 2 && bang.nutXoa === 2,
+  bang.dong + " dòng · " + bang.oMau + " ô mẫu (" + bang.soMau + " mẫu chọn được) · " + bang.oSl + " ô số lượng");
+
+const doiSl = await page.evaluate(async () => {
+  const inp = document.querySelector("#prBody input.prsl");
+  inp.value = "5"; inp.dispatchEvent(new Event("change"));
+  await new Promise((r) => setTimeout(r, 200));
+  return { tong: prTongTem(), nutIn: document.getElementById("prBtnIn").textContent,
+    xem: document.querySelectorAll("#prXem .pr-tem").length, bc: document.querySelectorAll("#prXem svg").length };
+});
+kiem("Đổi số lượng một dòng thì tổng số tem đổi theo", doiSl.tong === 6, doiSl.tong + " tem · nút \"" + doiSl.nutIn + "\"");
+kiem("Xem trước dựng tem thật, mỗi tem có mã vạch", doiSl.xem >= 6 && doiSl.bc >= 6,
+  doiSl.xem + " tem xem trước · " + doiSl.bc + " mã vạch");
+
+const doiMau = await page.evaluate(async () => {
+  const sel = document.querySelector("#prBody select.prmau");
+  sel.value = "t40x20"; sel.dispatchEvent(new Event("change"));
+  await new Promise((r) => setTimeout(r, 200));
+  const t = document.querySelector("#prXem .pr-tem");
+  return { mau: Object.keys(PR.sel).map((k) => PR.sel[k].mau).join(","), kho: t ? t.style.width + "×" + t.style.height : "" };
+});
+kiem("Đổi mẫu tem của một dòng thì khổ tem xem trước đổi theo",
+  /t40x20/.test(doiMau.mau) && doiMau.kho === "40mm×20mm", doiMau.mau + " · tem đầu " + doiMau.kho);
+
+const xoaDong = await page.evaluate(async () => {
+  const truoc = prSo();
+  document.querySelector("#prBody .prdel").click();
+  await new Promise((r) => setTimeout(r, 200));
+  return { truoc, sau: prSo(), dong: document.querySelectorAll("#prBody tr").length };
+});
+kiem("Xoá được TỪNG DÒNG trong danh sách in", xoaDong.sau === xoaDong.truoc - 1 && xoaDong.dong === 1,
+  xoaDong.truoc + " → " + xoaDong.sau + " SKU");
+
+/* Hai khổ tem trong một lượt in: phải NÓI RÕ chứ không in bừa ra sai giấy */
+const lanKho = await page.evaluate(async () => {
+  document.getElementById("toast").textContent = "";
+  prDong();
+  await new Promise((r) => setTimeout(r, 250));
+  document.querySelectorAll("#ndsCards .nds-tem").forEach((b) => { if (!b.classList.contains("co")) b.click(); });
+  const ks = Object.keys(PR.sel);
+  PR.sel[ks[0]].mau = "t50x30"; PR.sel[ks[1]].mau = "t40x20"; prLuu();
+  window.__daIn = 0; window.print = () => { window.__daIn++; };
+  prIn();
+  await new Promise((r) => setTimeout(r, 200));
+  return { chu: document.getElementById("toast").textContent, daIn: window.__daIn, khoTem: ks.length };
+});
+kiem("Danh sách có 2 khổ tem khác nhau thì CHẶN in và nói rõ (không in sai giấy)",
+  lanKho.daIn === 0 && /khổ tem khác nhau/i.test(lanKho.chu), lanKho.chu.slice(0, 80));
+
+/* Áp một mẫu cho tất cả rồi in: kiểm đúng số con tem ra giấy + @page đúng khổ */
+const inThat = await page.evaluate(async () => {
+  prMo();
+  await new Promise((r) => setTimeout(r, 200));
+  prApMau("t50x30"); prApSl(2);
+  await new Promise((r) => setTimeout(r, 200));
+  window.__daIn = 0; window.print = () => { window.__daIn++; };
+  prIn();
+  await new Promise((r) => setTimeout(r, 300));
+  return { daIn: window.__daIn, soTem: document.querySelectorAll("#prsheet .pr-tem").length,
+    page: document.getElementById("prPage").textContent, coClass: document.body.classList.contains("in-tem"),
+    tong: prTongTem() };
+});
+kiem("In: đúng số con tem vào khung in + @page đặt đúng khổ mẫu",
+  inThat.daIn === 1 && inThat.soTem === inThat.tong && /50mm 30mm/.test(inThat.page) && inThat.coClass,
+  inThat.soTem + " tem · " + inThat.page);
+
+/* Dọn: khung in phải sạch sau khi hộp thoại in đóng, kẻo trang khác in ra cũng thành tem */
+const donSach = await page.evaluate(async () => {
+  window.dispatchEvent(new Event("afterprint"));
+  await new Promise((r) => setTimeout(r, 150));
+  return { soTem: document.querySelectorAll("#prsheet .pr-tem").length, coClass: document.body.classList.contains("in-tem") };
+});
+kiem("Đóng hộp thoại in thì khung in được dọn sạch", donSach.soTem === 0 && !donSach.coClass,
+  donSach.soTem + " tem còn lại");
+
+/* Thanh chờ in chỉ thuộc tab Nhận diện SKU; danh sách KHÔNG bị mất khi ghé tab khác */
+const theoTab = await page.evaluate(() => {
+  prDong();
+  const hien = () => !document.getElementById("prbar").classList.contains("hidden");
+  const ra = {};
+  ["kk", "abn", "stock", "plg", "home", "sku"].forEach((t) => { showTab(t); ra[t] = hien(); });
+  return { ra, con: prSo() };
+});
+kiem("Thanh chờ in CHỈ hiện ở tab Nhận diện SKU",
+  theoTab.ra.sku === true && !theoTab.ra.kk && !theoTab.ra.abn && !theoTab.ra.stock && !theoTab.ra.plg && !theoTab.ra.home,
+  Object.keys(theoTab.ra).map((k) => k + "=" + (theoTab.ra[k] ? "hiện" : "ẩn")).join(" · "));
+kiem("Đi tab khác rồi về, danh sách in vẫn còn nguyên", theoTab.con > 0, theoTab.con + " SKU");
+
+const xoaHet = await page.evaluate(async () => { prXoaHet(); await new Promise((r) => setTimeout(r, 200));
+  return { n: prSo(), bar: !document.getElementById("prbar").classList.contains("hidden"),
+    nut: document.querySelectorAll("#ndsCards .nds-tem.co").length }; });
+kiem("\"Xoá\" bỏ hết danh sách in và nút trên thẻ trở lại trạng thái chưa chọn",
+  xoaHet.n === 0 && !xoaHet.bar && xoaHet.nut === 0, xoaHet.n + " SKU · " + xoaHet.nut + " nút còn sáng");
+
+/* Giỏ kiểm kê và danh sách in là HAI giỏ khác nhau — không được lẫn */
+const haiGio = await page.evaluate(() => {
+  showTab("sku");
+  document.querySelector("#ndsCards .nds-tem").click();
+  const ra = { in: prSo(), kiemKe: pcCount() };
+  prXoaHet();
+  return ra;
+});
+kiem("Thêm vào danh sách in KHÔNG chạm vào giỏ kiểm kê", haiGio.in === 1 && haiGio.kiemKe === 0,
+  "danh sách in " + haiGio.in + " · giỏ kiểm kê " + haiGio.kiemKe);
 
 /* ---------- 7. Phạm vi ACTIVE / Tất cả ---------- */
 await bam("#ndsScopeAll");
