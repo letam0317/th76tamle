@@ -201,6 +201,25 @@ kiem("Mốc ghi tab MỚI HƠN cache → tự nạp lại danh mục; mốc cũ 
   "giữ nguyên khi mốc cũ: " + socMoc.giuNguyen + " · tải lại khi mốc mới: " + socMoc.daTaiLai +
   " (nguồn: " + socMoc.nguon + ") · TTL " + socMoc.ttlGio + "h");
 
+/* "Ý BẠN LÀ…" (20/08/2026): tem in "Col C3185" mà OCR đọc lệch một số ("C3186") thì lõi KHÔNG tự
+   đổi (danh mục có cả c3185 và c3184 — đoán bừa là chọn sai hàng), nhưng phải MỜI CHỌN mã có thật
+   gần nhất, bấm một cái là tra ngay. */
+const moiChon = await page.evaluate(() => {
+  const cu = NDS.tokens.slice();
+  NDS.tokens = [{ t: "c3186", vai: "code", nguon: "ocr" }];
+  const html = ndsMoiChonMa();
+  NDS.tokens = cu;
+  const d = document.createElement("div"); d.innerHTML = html;
+  const nut = Array.prototype.map.call(d.querySelectorAll("button"), (b) => b.textContent.trim().split(" ")[0]);
+  /* onclick dùng thực thể HTML `&#39;` cho dấu nháy — kiểm bằng cách đọc thẳng attribute đã giải mã,
+     đừng khớp regex trên chuỗi thô (đã cắn: đổi cách escape là ca test đỏ oan). */
+  const oc = Array.prototype.map.call(d.querySelectorAll("button"), (b) => b.getAttribute("onclick") || "");
+  return { co: /Ý bạn là/.test(html), nut, bam: oc.some((x) => x === "ndsDungMa('c3185')") };
+});
+kiem("Mã đọc lệch mà không tự đổi được → mời chọn mã CÓ THẬT gần nhất (\"Ý bạn là…\")",
+  moiChon.co && moiChon.nut.indexOf("c3185") >= 0 && moiChon.bam,
+  "nút: " + moiChon.nut.join(" · ") + " · gọi đúng ndsDungMa: " + moiChon.bam);
+
 /* ---------- 3a0. Ô "PHẦN TỬ TRÊN TEM" ĐỨNG TRÊN KHUNG CAMERA (chuyển 20/08/2026) ----------
    Yêu cầu user: mở tab là thấy ô nhập trước, khung hình sau. Kiểm bằng TOẠ ĐỘ THẬT (không kiểm thứ
    tự trong DOM) vì `.nds-grid` có thể xếp lại bằng CSS; kèm kiểm khoảng thở giữa hai khối không phình
@@ -832,13 +851,13 @@ kiem("Xem trước dựng tem thật, mỗi tem có mã vạch", doiSl.xem >= 6 
 
 const doiMau = await page.evaluate(async () => {
   const sel = document.querySelector("#prBody select.prmau");
-  sel.value = "t40x20"; sel.dispatchEvent(new Event("change"));
+  sel.value = "t42x25"; sel.dispatchEvent(new Event("change"));
   await new Promise((r) => setTimeout(r, 200));
   const t = document.querySelector("#prXem .pr-tem");
   return { mau: Object.keys(PR.sel).map((k) => PR.sel[k].mau).join(","), kho: t ? t.style.width + "×" + t.style.height : "" };
 });
 kiem("Đổi mẫu tem của một dòng thì khổ tem xem trước đổi theo",
-  /t40x20/.test(doiMau.mau) && doiMau.kho === "40mm×20mm", doiMau.mau + " · tem đầu " + doiMau.kho);
+  /t42x25/.test(doiMau.mau) && doiMau.kho === "42mm×25mm", doiMau.mau + " · tem đầu " + doiMau.kho);
 
 const xoaDong = await page.evaluate(async () => {
   const truoc = prSo();
@@ -856,7 +875,7 @@ const lanKho = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 250));
   document.querySelectorAll("#ndsCards .nds-tem").forEach((b) => { if (!b.classList.contains("co")) b.click(); });
   const ks = Object.keys(PR.sel);
-  PR.sel[ks[0]].mau = "t50x30"; PR.sel[ks[1]].mau = "t40x20"; prLuu();
+  PR.sel[ks[0]].mau = "t42x62"; PR.sel[ks[1]].mau = "t42x25"; prLuu();
   window.__daIn = 0; window.print = () => { window.__daIn++; };
   prIn();
   await new Promise((r) => setTimeout(r, 200));
@@ -869,7 +888,7 @@ kiem("Danh sách có 2 khổ tem khác nhau thì CHẶN in và nói rõ (không 
 const inThat = await page.evaluate(async () => {
   prMo();
   await new Promise((r) => setTimeout(r, 200));
-  prApMau("t50x30"); prApSl(2);
+  prApMau("t42x62"); prApSl(2);
   await new Promise((r) => setTimeout(r, 200));
   window.__daIn = 0; window.print = () => { window.__daIn++; };
   prIn();
@@ -879,7 +898,7 @@ const inThat = await page.evaluate(async () => {
     tong: prTongTem() };
 });
 kiem("In: đúng số con tem vào khung in + @page đặt đúng khổ mẫu",
-  inThat.daIn === 1 && inThat.soTem === inThat.tong && /50mm 30mm/.test(inThat.page) && inThat.coClass,
+  inThat.daIn === 1 && inThat.soTem === inThat.tong && /42.5mm 62mm/.test(inThat.page) && inThat.coClass,
   inThat.soTem + " tem · " + inThat.page);
 
 /* Dọn: khung in phải sạch sau khi hộp thoại in đóng, kẻo trang khác in ra cũng thành tem */

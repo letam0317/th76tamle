@@ -353,6 +353,39 @@ console.log("── Lọc theo phần tử tên hàng ──");
       "kiểm " + nhaTrang.length + " dòng · số dòng bị gán oan white: " + bleed.length);
   }
 
+  /* SỰ CỐ THẬT 20/08/2026 (chiều muộn) — tem cuộn chỉ COATS astra, nhãn màu in "Col C3185":
+     OCR trả về DÍNH LIỀN ("ColC3185") hoặc đọc lệch chữ ("COIC3185", l→I) ⇒ token `colc3185` không
+     có trong chỉ mục ⇒ luật cứng "CÓ MÃ" không bắn ⇒ tab đưa 3 cuộn chỉ astra khác màu ở 32% kèm
+     banner "Chưa khớp được MÃ HÀNG nào". `coTuGanGiong` chỉ GIỮ token chứ không SỬA nó.
+     Chữa: `suaMaTheoDanhMuc` — DANH MỤC LÀM CHỨNG, không đoán bừa. */
+  {
+    const goc = ds.find((r) => /C3185/i.test(r.pn) && r.type === "NORMAL");
+    const DUOI = "COATS astra Made in Vietnam Staple Spun Polyester 5000m Tex 27 Tkt 120 8754 VPDG 427993349 ";
+    if (goc) {
+      [["dính liền", "ColC3185"], ["dấu chấm", "Col.C3185"], ["OCR l→I", "COIC3185"], ["đúng chuẩn", "Col C3185"]]
+        .forEach(([ten, ma]) => {
+          const nh = E.tuVanBan(DUOI + ma, cm);
+          const tp = E.timTop(nh, cm, { soLuong: 1, chiActive: true });
+          kiem("Tem \"" + ma + "\" (" + ten + ") → sửa về mã có thật rồi ra đúng SKU",
+            nh.code.indexOf("c3185") >= 0 && !!tp.coMaKhop && tp.length > 0 && tp[0].sku === goc.sku,
+            "code=" + JSON.stringify(nh.code) + " · #1=" + ((tp[0] || {}).sku || "-") + "/" + ((tp[0] || {}).pct || 0) + "%");
+        });
+      /* KHÓA MẶT TRÁI: lệch 1 ký tự mà có ≥2 ứng viên thì TUYỆT ĐỐI không tự đổi (thà không khớp còn
+         hơn khớp sai hàng) — danh mục có cả c3185 và c3184. */
+      const nhLech = E.tuVanBan(DUOI + "Col C3186", cm);
+      kiem("… nhưng lệch 1 ký tự mà có ≥2 ứng viên (c3185 · c3184) thì KHÔNG tự đổi",
+        nhLech.code.indexOf("c3185") < 0 && nhLech.code.indexOf("c3184") < 0,
+        "code=" + JSON.stringify(nhLech.code) + " · ứng viên: " + JSON.stringify(E.maGanGiong("c3186", cm, 4)));
+      kiem("… và lúc đó phải MỜI CHỌN mã có thật gần nhất (\"Ý bạn là…\")",
+        E.maGanGiong("c3186", cm, 4).indexOf("c3185") >= 0,
+        JSON.stringify(E.maGanGiong("c3186", cm, 4)));
+    } else kiem("Tem ColC3185 → sửa về mã có thật", true, "(danh mục không có C3185 để thử)");
+    /* Không bao giờ TỰ NGHĨ RA mã: mảnh không giống mã nào trong danh mục thì trả rỗng. */
+    kiem("maGanGiong KHÔNG tự nghĩ ra mã (mảnh lạ → rỗng)",
+      E.maGanGiong("zzq99887", cm, 4).length === 0 && E.maGanGiong("c3185", cm, 4).length === 0,
+      "mảnh lạ: [] · mã đã có nguyên văn: [] (không cần mời chọn)");
+  }
+
   /* GÕ MẢNH CHUNG: "polyester" một mình thì hàng trăm dòng cùng phủ 1/1 = 100%. Nhóm cùng độ phủ
      phải xếp tiếp bằng ĐIỂM KHỚP TEM, không phải bằng đơn vị/tồn (thủ kho báo 19/08: thấy
      "100,100,100%" rồi chọn nhầm). Ca này: cùng mảnh chung + từ khoá tem của dây kéo 8846295 màu

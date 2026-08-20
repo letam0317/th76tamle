@@ -890,6 +890,60 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.16 Tem COATS astra C3185 — OCR dính "Col" vào mã, và lời mời "Ý bạn là…" (20/08/2026)
+
+**Báo lỗi (gắt):** *"hình ảnh có mã màu là c3185 mà gợi ý không có SKU nào có phần tử c3185"* — Top 3
+là 3 cuộn chỉ astra khác màu ở **32%**, kèm banner *"Chưa khớp được MÃ HÀNG nào"*.
+
+`C3185` **có thật** trong danh mục: `422266554 · Chỉ may/COATS Phong Phú, C3185/…/Seashell Pink/…/Cuộn
+5000m · ACTIVE · tồn 67` (+ bản Combo `422394070`).
+
+**Trước hết, KIỂM XEM CÓ PHẢI DO CÁC BẢN VÁ TRONG NGÀY** (user nói "càng cải tiến càng sai" — phải trả
+lời bằng số, không phải bằng lời):
+
+| Chữ OCR có thể ra | Lõi SÁNG NAY (169b21c) | Lõi sau các bản vá trong ngày |
+|---|---|---|
+| `Col C3185` (đọc chuẩn) | ✗ trả bản **COMBO** 422394070 | ✓ **422266554** |
+| `ColC3185` (dính liền) | ✗ 422273836 · 38% | ✗ 422273836 · 38% |
+| `COIC3185` (l→I) | ✗ 38% | ✗ 38% |
+| `Col C3186` (lệch 1 số) | ✗ 67% | ✗ 67% |
+
+⇒ Tem này **chưa bao giờ nhận được**; các bản vá trong ngày chỉ làm ca "đọc chuẩn" từ SAI thành ĐÚNG.
+Nhưng đó không phải cái người dùng cần — họ cần nó ĐÚNG với chữ mà OCR THẬT trả về.
+
+**Gốc:** nhãn màu in `Col C3185`. OCR trả về **dính liền** (`ColC3185`) hoặc lệch chữ (`COIC3185`).
+Token thành `colc3185`, mà `cm.idx["colc3185"]` không có ⇒ **luật cứng "CÓ MÃ" không bắn** ⇒ rơi xuống
+chấm bằng chữ chung (`astra` · `COATS` · `Polyester` · `5000m`) ⇒ 3 cuộn chỉ khác màu ở 32%.
+`coTuGanGiong` chỉ **GIỮ** token lại (để nó không bị coi là chữ giấy tờ) chứ **không SỬA** nó, nên mọi
+bước sau vẫn tra bằng chuỗi sai.
+
+**Chữa — `suaMaTheoDanhMuc`, nguyên tắc DANH MỤC LÀM CHỨNG, không đoán bừa:**
+
+```
+(1) cắt tiền tố TOÀN CHỮ ≤4 ký tự (col · coi · color · art · ref · lot …) rồi tra lại chỉ mục
+(2) lệch ĐÚNG MỘT ký tự, cùng độ dài, và CHỈ CÓ MỘT ứng viên  →  đổi (c0098 → c0097)
+    ≥2 ứng viên  →  KHÔNG đổi (c3186 có cả c3185 và c3184; f9-5285 có 4 ứng viên)
+```
+
+Chỉ áp cho mảnh **ra dáng mã**, và chỉ khi bản gốc **không có nguyên văn** trong danh mục. Kết quả:
+5/6 kiểu OCR ở trên nay ra `#1 = 422266554 · 94%`.
+
+**Ca thứ 6 (lệch 1 số, ≥2 ứng viên) — mời chọn thay vì bỏ mặc.** Đoán bừa là chọn sai hàng, nhưng để
+người dùng ở cái banner "chưa khớp mã" cũng vô ích: họ **đang cầm tem**, chỉ cần thấy 2-3 mã gần nhất
+là nhận ra ngay. Banner nay kèm dải **"Ý bạn là: c3185 · c3184"** — chỉ liệt mã **CÓ THẬT** trong chỉ
+mục (`maGanGiong`), kèm số dòng, bấm một cái là chạy đúng đường "Tra theo mã" sẵn có.
+
+Đo: **Top-1 77% → 80%** trên 30 lượt OCR thật (1 tốt hơn · 0 xấu hơn), và cột "khớp được mã" **về lại
+77%** — bản sửa chính tả lấy lại được đúng lượt trước đó bị mất cờ `coMaKhop`.
+Test: **77/77** lõi (+7 ca: 4 kiểu OCR của C3185 · *≥2 ứng viên thì KHÔNG tự đổi* · *phải mời chọn* ·
+*không bao giờ tự nghĩ ra mã*) · **122/122** tab (+1 ca dải "Ý bạn là…").
+
+> **Bẫy của chính công cụ sửa mã**: `esc()` + nháy đơn lồng nhiều tầng trong `onclick` — chuỗi
+> `ndsDungMa('…')` bị công cụ soạn ăn mất dấu gạch chéo, thành `ndsDungMa(''+esc(m)+'')` (JS vẫn
+> hợp lệ nên KHÔNG có lỗi cú pháp, chỉ là click ra `ndsDungMa(c3185)` — biến không tồn tại). Nay viết
+> nháy đơn bằng thực thể HTML `&#39;`, và ca test đọc `getAttribute("onclick")` đã giải mã thay vì
+> khớp regex trên chuỗi thô.
+
 ### 5b.15 Thẻ mẫu CMTS07 — chất liệu bị nhận là MÃ, và màu ĐEN ↔ Black (20/08/2026)
 
 **Ảnh báo lỗi:** thẻ *Mẫu đối* — `Mã sản phẩm CMTS07` · HENLEY-T-SHIRT_MAN_REGULAR_PIQUE · XL ·
@@ -1478,8 +1532,8 @@ khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng m
 |---|---|---|
 | `node qc-nhan-dien-sku.mjs [--gviz] [--chi-tiet]` | lõi đối soát trên 5.610 SKU thật: 18 dạng đoạn ĐƠN VỊ, khoá gom mặt hàng, 3 quy cách tem, OCR sai nhẹ, SKU in trên tem, cùng mã khác màu, tem mờ, từ khoá rác, **ưu tiên đơn vị nhỏ nhất** (+ bất biến: không biến thể nào nhỏ hơn đại diện), **chữ ký + ghim sổ tay**, **6 ca chữ thô/OCR** (mã dài nhiều đoạn · chi số ghi liền · cỡ dán liền số đo · số đo không chiếm rổ mã · AI gán vai sai · số dài không khớp mã ngắn), **gõ mảnh chung thì xếp tiếp bằng điểm khớp** | **56/56** · 8-10ms/lượt (19/08) |
 | `node qc-tem-vision.mjs [--giu-anh]` | **đầu-cuối**: dựng 6 ảnh tem (3 quy cách × sạch/khó: nghiêng 7° + mờ + loá nylon + vết bẩn) → Gemini thật → engine, **ghép vai AI + chữ thô y như dashboard** | **6/6 ra đúng SKU** |
-| `node qc-in-tem.mjs` | lõi in tem (khối `PR-TEM`): bảng mẫu vạch Code 128 đối chiếu bản gốc từng bit · checksum tính lại bằng công thức · giải mã ngược chuỗi vạch · SVG (số vạch · bề rộng · crispEdges · vừa khổ tem) · 3 mẫu tem (khổ · escape tên hàng · cắt tên dài) · tổng số tem / gom theo khổ | **38/38** (20/08) |
-| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ)  · **PHẠM VI GIỎ** (bấm thẻ không vào giỏ · thanh giỏ chỉ hiện ở tab Kiểm kê + Tồn kho bất thường · `pcAdd` bị chặn ngoài phạm vi) | **120/120** (20/08) |
+| `node qc-in-tem.mjs` | lõi in tem (khối `PR-TEM`): bảng mẫu vạch Code 128 đối chiếu bản gốc từng bit · checksum tính lại bằng công thức · giải mã ngược chuỗi vạch · SVG (số vạch · bề rộng · crispEdges · vừa khổ tem) · 3 mẫu tem (khổ · escape tên hàng · cắt tên dài) · tổng số tem / gom theo khổ | **50/50** (20/08) |
+| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ)  · **PHẠM VI GIỎ** (bấm thẻ không vào giỏ · thanh giỏ chỉ hiện ở tab Kiểm kê + Tồn kho bất thường · `pcAdd` bị chặn ngoài phạm vi) | **122/122** (20/08) |
 | `node qc-sku-vision-live.mjs` | cổng thật trên production: chặn email lạ, chặn ảnh quá lớn, đọc tem thật, chặn 2 lượt song song (tốn 2 lượt hạn mức) | **8/8** |
 | `node qc-sku-ocr-live.mjs` | **cổng OCR thật** (`sku_ocr`): deploy đã lên chưa · email lạ · ảnh quá lớn không bao giờ được OCR · đọc đúng mã trên tem · **đo thời gian từng chặng** · chặn 2 lượt song song · ảnh trắng thì nói "không thấy chữ" | **10/10** (19/08) |
 | `node qc-ocr-doi-chung.mjs [--so 30] [--duong ABCDEFG] [--dung-dem]` | **đo người đọc nào tốt hơn**: 7 đường (tin vai AI · +bằng chứng · chữ thô AI · OCR · OCR không lọc · ghép AI · ghép cả 2) trên cùng bộ tem, nhãn cắt từ SKU thật + chữ giấy tờ, 3 bậc khó. `--dung-dem` chạy lại **0 lượt gọi** | OCR **77%** Top-1 / 83% Top-3 (30 tem) |
@@ -1610,25 +1664,38 @@ với `PC.sel` của lệnh kiểm kê. Ba lý do, không phải chuyện cho g�
 Giới hạn: **200 SKU** một danh sách · **200 tem** mỗi SKU · **2.000 tem** một lượt in. Trên 30 tem thì
 hỏi lại một câu trước khi mở hộp thoại in.
 
-### 11.3 Ba mẫu tem
+### 11.3 Bốn mẫu tem — đều là khổ giấy THẬT của kho
 
-| Mã mẫu | Khổ | Trên tem có gì |
-|---|---|---|
-| `t50x30` (mặc định) | 50 × 30 mm | mã SKU cỡ lớn · mã vạch · tên hàng 2 dòng · ĐVT |
-| `t70x40` | 70 × 40 mm | như trên + tên hàng dài hơn + **ngày in** |
-| `t40x20` | 40 × 20 mm | chỉ mã SKU + mã vạch |
+Số liệu đọc ngày 20/08/2026 bằng `hasaki/_DOC-MAY-IN.ps1` chạy trên **`DESKTOP-JE75K38`** (172.16.0.113)
+— máy cắm cả hai máy in tem của kho qua USB:
 
-Khổ giấy nằm ngay trong **tên mẫu** để thủ kho không phải đoán. Mỗi con tem in ra **đúng một trang**
-khổ đó (`break-after:page`) — đó là cách máy in nhãn hiểu "một con tem". Một lượt in chỉ nhận **một
-khổ**: `@page` chỉ đặt được một cỡ giấy, nên trộn 2 khổ trong một lượt là ra sai giấy — gặp thì chặn
-và nói rõ, có nút *"Áp mẫu tem cho tất cả"* để gộp về một khổ.
+| Mã mẫu | Khổ | Nguồn (form BarTender · sửa lần cuối) | Máy in |
+|---|---|---|---|
+| **`t42x62`** (mặc định) | **42,5 × 62 mm** | `Desktop\sku.btw` · `SKU_SAMPLE.btw` — **20/08/2026** | TSC PE200 (USB031) |
+| `t46x76` | 46 × 76 mm | `Downloads\adult_us_noprice_backup10.btw` — 18/08/2026 | TSC PE200 |
+| `t42x25` | 42 × 25 mm | `Desktop\Barcode.btw` — 18/08/2026 | Zebra ZT230 (USB033) |
+| `t22x13` | 21,6 × 12,7 mm | `Desktop\barcodetem4.btw` — 22/01/2026 | TSC PE200 |
 
-> ⚠ **Khổ 50×30 mm là GIẢ ĐỊNH**, chưa ai chốt. Khi biết khổ tem thật đang lắp trong máy thì sửa
-> `w`/`h` của mẫu trong khối `PR-TEM` — không phải sửa chỗ nào khác.
+Ba khổ dựng lúc đầu (50×30 · 70×40 · 40×20) **đã bỏ** — không khổ nào có giấy thật; đó là số tôi tự
+nghĩ khi chưa đọc được máy in. Bộ test `qc-in-tem.mjs` khoá cả bốn khổ lại (mục 7) nên sau này ai đổi
+khổ thì buộc phải đổi cùng lúc ở cả hai chỗ.
+
+Bố cục tem SKU dựng theo đúng form đang dùng (bóc từ `sku.btw`: `Box 1` · `Barcode 1` · `Barcode 2` ·
+`Text 1` · `Picture`, font Arial/Tahoma): tem **dọc**, khung viền mảnh, mã SKU cỡ lớn trên cùng, mã
+vạch ở giữa, tên hàng nhiều dòng, ĐVT + ngày in ở chân.
+
+Mỗi con tem in ra **đúng một trang** khổ đó (`break-after:page`) — đó là cách máy in nhãn hiểu "một
+con tem". Một lượt in chỉ nhận **một khổ**: `@page` chỉ đặt được một cỡ giấy, nên trộn 2 khổ trong
+một lượt là ra sai giấy — gặp thì chặn và nói rõ, có nút *"Áp mẫu tem cho tất cả"* để gộp về một khổ.
+
+**Bẫy cần biết khi in qua hộp thoại Windows**: driver của `TSC PE200 (Copy 1)` trên máy đó đang set
+khổ giấy **83,8 × 63,5 mm** (dpi 203×203), lệch với 42,5 × 62 của form — BarTender tự ghi đè khổ khi
+in, còn `window.print()` thì không, nên phải chọn đúng khổ trong hộp thoại.
 
 ### 11.4 Mã vạch: Code 128B, tự vẽ, và cách canh cho khỏi sai im lặng
 
-Chọn 128B vì mã SKU của kho là dãy 9 chữ số: mã hoá gọn (11 module/ký tự → **34,8 mm** cho SKU 9 số,
+Đúng loại mà form của kho đang dùng — bóc từ `sku.btw` thấy kiểu `Code128` (dù tên form là
+`SKU-UPC-A-Them-2-so-00`, chữ "UPC-A" chỉ là tên cũ để lại). Chọn 128B vì mã SKU của kho là dãy 9 chữ số: mã hoá gọn (11 module/ký tự → **34,8 mm** cho SKU 9 số,
 vừa khổ 50 mm), và mọi máy quét cầm tay đều đọc. Vẽ bằng `<rect>` SVG thuần — không CDN (lệ dự án),
 không canvas (in ra bị nhoè, máy quét kém đọc), có `shape-rendering="crispEdges"`.
 
