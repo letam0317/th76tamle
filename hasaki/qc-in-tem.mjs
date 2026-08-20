@@ -507,6 +507,18 @@ console.log("\n── 11. Dấu nghìn · ngày dd-mm-yy · thứ tự xếp tem
     khongHoi.chan === false && khongHoi.canh === true, khongHoi.chu);
   const khongThay = px({ loi: "khong thay may in nao ten chua PE200" });
   kiem("Không thấy máy in nào → chặn và nói thẳng lý do", khongThay.chan === true, khongThay.chu);
+
+  /* KHÔNG GỌI ĐƯỢC MÁY CHỦ IN (máy trạm tắt / mất mạng / spooler bên kia chết). Đây là ca đã cắn thật
+     21/08/2026: máy trạm tắt, probe rơi về BẢN CACHE cục bộ nên báo "sẵn sàng", agent gửi đi và nhận
+     `LOI StartDocPrinter 1722`. Luật: một lượt hụt thì bỏ qua (có thể chỉ là cú RPC lỗi), HAI lượt
+     liền nhau mới chặn — chặn ngay lượt đầu là chặn oan. */
+  const imLan1 = px(Object.assign({}, ok, { mcLoi: 1, nguon: "cuc-bo" }));
+  kiem("Máy chủ in im MỘT lượt → chưa chặn (đừng chặn oan vì một cú RPC hụt)", imLan1.chan === false, imLan1.chu);
+  const imLan2 = px(Object.assign({}, ok, { mcLoi: 1, nguon: "cuc-bo" }));
+  kiem("Máy chủ in im HAI lượt liền → chặn và nói rõ \"máy trạm hoặc máy in đang tắt?\"",
+    imLan2.chan === true && /máy chủ in/.test(imLan2.chu), imLan2.chu);
+  const imRoiOn = px(ok);
+  kiem("Máy chủ in trả lời lại → hết chặn ngay (đếm lượt hụt được đặt lại)", imRoiOn.chan === false, imRoiOn.chu);
 }
 
 console.log("\n" + (truot ? "✗ " + dat + "/" + (dat + truot) + " ca đạt — " + truot + " ca TRƯỢT" : "✓ " + dat + "/" + dat + " ca đạt"));

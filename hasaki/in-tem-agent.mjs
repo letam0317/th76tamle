@@ -201,9 +201,17 @@ function ghimMay(dong) {
   if (m && m[1] && !mayGhim) { mayGhim = m[1]; return true; }
   return false;
 }
+/** Gửi lỗi thì ĐẶT LẠI trạng thái ngay, khỏi chờ lượt đọc sau: người đang nhìn dashboard phải thấy
+ *  lý do trong khoảng một giây, không phải sau nhịp đọc kế tiếp. */
+function mayHong(chu) {
+  _may = { ma: 'gui-loi', chu: chu, chan: true, canh: false, job: -1, nguon: (_may && _may.nguon) || '' };
+  _mayLuc = Date.now();
+}
 async function guiRaw(buf, mayIn) {
   const t0 = Date.now();
   let kq = guiRawMotLuot(buf, mayIn);
+  /* 1722 = RPC không tới được spooler bên kia. Không đợi probe nữa: nói ngay. */
+  if (/1722|not reachable|ServerOffline/i.test(kq)) mayHong('không gửi được tới máy in — máy trạm hoặc spooler đang tắt');
   const lau = Date.now() - t0;
   /* Gửi ĐƯỢC mà chậm bất thường: gần như luôn là có job kẹt phía máy in. Dọn NGAY để đợt sau không
      bị lây — dọn sau khi tem của đợt này đã ra nên không làm chậm chính người vừa bấm. */
@@ -244,48 +252,118 @@ const MAY_TT = { PaperOut: 'HẾT GIẤY', DoorOpen: 'MỞ NẮP máy in', Paper
      rồi nằm đó, tem không ra — đúng kiểu im lặng mà lần hết giấy đã gây ra. */
   Paused: 'queue máy in đang TẠM DỪNG' };
 const JOB_XAU = /Error|Offline|PaperOut|Blocked|UserIntervention|Paused/i;
+let _mcLoiLien = 0;                 // số lượt liền nhau không gọi được máy chủ in
 
-/** Đọc thô bằng PowerShell (Get-Printer + WMI + Get-PrintJob) — xem `_TRANG-THAI-MAY-IN.ps1`. */
-function docMayInTho() {
-  const a = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(DIR, "_TRANG-THAI-MAY-IN.ps1")];
-  const m = mayDung();
-  if (m) a.push("-Printer", m);
+/* MỘT TIẾN TRÌNH POWERSHELL SỐNG LÂU, hỏi qua stdin (xem `_MAY-IN-SERVER.ps1`).
+   Vì sao không spawn mỗi lượt như trước: hỏi thẳng MÁY CHỦ IN mới đọc được trạng thái tươi, nhưng
+   trong một tiến trình MỚI thì lệnh đó mất 8-10 giây (nạp module PrintManagement + dựng phiên RPC).
+   Cùng lệnh trong phiên đã nóng: 129ms. Nên trả cái giá khởi động MỘT LẦN rồi hỏi qua đường ống.
+   Tiến trình chết (spooler sập, máy ngủ) thì lượt hỏi sau tự dựng lại — không để hỏng vĩnh viễn. */
+let _ps = null, _psDem = 0;
+function moPS() {
+  if (_ps && !_ps.killed && _ps.exitCode === null) return _ps;
   try {
-    const out = execFileSync("powershell", a, { encoding: "utf8", windowsHide: true, timeout: 25000 }).trim();
-    return JSON.parse(out.slice(out.indexOf("{")));
-  } catch (e) { return null; }
+    const a = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(DIR, "_MAY-IN-SERVER.ps1")];
+    const m = mayDung();
+    if (m) a.push("-Printer", m);
+    _ps = spawn("powershell", a, { windowsHide: true, stdio: ["pipe", "pipe", "ignore"] });
+    _ps.stdout.setEncoding("utf8");
+    _ps.dem = "";
+    _ps.daChao = false;
+    _ps.stdout.on("data", (d) => { _ps.dem += d; });
+    _ps.on("exit", () => { _ps = null; });
+    _psDem++;
+    if (_psDem > 1) console.log("   (dựng lại tiến trình hỏi máy in, lần " + _psDem + ")");
+  } catch (e) { _ps = null; }
+  return _ps;
+}
+const MOC_PS = "<<END>>";
+/** Đọc tới dòng mốc `<<END>>`, trả về phần trước nó. Rỗng = quá hạn (tiến trình treo). */
+async function docTiMoc(ps, hanMs) {
+  const het = Date.now() + hanMs;
+  while (Date.now() < het) {
+    const i = ps.dem.indexOf(MOC_PS);
+    if (i >= 0) { const ra = ps.dem.slice(0, i).trim(); ps.dem = ps.dem.slice(i + MOC_PS.length); return ra || " "; }
+    await nghi(25);
+  }
+  return "";
+}
+/** Gửi một lệnh cho tiến trình PS rồi đợi tới dòng mốc. Trả về chuỗi (rỗng nếu lỗi/quá hạn).
+ *  ĐỌC BỎ DÒNG CHÀO TRƯỚC: tiến trình mới dựng tự đọc máy in một lượt (trả cái giá nạp module ~8s)
+ *  rồi in "SAN-SANG" + mốc. Không đọc bỏ thì câu hỏi đầu tiên nhận đúng dòng chào đó làm câu trả lời
+ *  — và vì nó không phải JSON nên agent kết luận "không hỏi được tình trạng máy in", rồi lượt sau
+ *  chờ hết hạn 8 giây làm cả vòng quét dài ra 12 giây (đã cắn 21/08/2026, thấy trong log). */
+async function hoiPS(lenh, hanMs) {
+  const ps = moPS();
+  if (!ps) return "";
+  if (!ps.daChao) {
+    const chao = await docTiMoc(ps, 25000);
+    if (!chao) { try { ps.kill(); } catch (e) {} _ps = null; return ""; }
+    ps.daChao = true;
+  }
+  ps.dem = "";
+  try { ps.stdin.write(lenh + "\r\n"); } catch (e) { try { ps.kill(); } catch (e2) {} _ps = null; return ""; }
+  const ra = await docTiMoc(ps, hanMs || 6000);
+  if (ra) return ra;
+  /* Quá hạn = tiến trình treo (đã gặp khi spooler bên kia chết): giết đi, lượt sau dựng lại. */
+  try { ps.kill(); } catch (e) {}
+  _ps = null;
+  return "";
+}
+/** Đọc thô tình trạng máy in. */
+async function docMayInTho() {
+  const out = await hoiPS("TT", 8000);
+  if (!out) return null;
+  const i = out.indexOf("{");
+  if (i < 0) return null;
+  try { return JSON.parse(out.slice(i)); } catch (e) { return null; }
 }
 /** Thô -> kết luận đọc được bằng tiếng người. */
 function phanXuMayIn(r) {
-  if (!r) return { ma: 'khong-hoi-duoc', chu: 'không hỏi được tình trạng máy in', chan: false, canh: true, job: -1 };
-  if (r.loi) return { ma: 'khong-thay', chu: r.loi, chan: true, canh: false, job: -1 };
+  if (!r) return { ma: 'khong-hoi-duoc', chu: 'không hỏi được tình trạng máy in', chan: false, canh: true, job: -1, nguon: '' };
+  if (r.loi) return { ma: 'khong-thay', chu: r.loi, chan: true, canh: false, job: -1, nguon: String(r.nguon || '') };
   const job = Number(r.job) || 0;
   const js = r.js || [];
   /* Thứ tự phán xử: lỗi CỤ THỂ của máy trước (hết giấy/mở nắp/kẹt) vì nó nói đúng việc phải làm;
      rồi tới trạng thái chung; cuối cùng mới tới dấu hiệu suy ra từ queue. */
+  const ng = String(r.nguon || '');
+  /* KHÔNG GỌI ĐƯỢC MÁY CHỦ IN: máy trạm tắt / mất mạng / spooler bên kia chết. Chặn ngay từ lượt thứ
+     HAI liền nhau — một lượt đơn lẻ có thể chỉ là cú RPC hụt, chặn ngay là chặn oan; nhưng hai lượt
+     liền thì đúng là bên kia im. Không có chốt này thì probe rơi về bản cache cục bộ và báo "sẵn
+     sàng" trong khi gửi đi nhận LOI StartDocPrinter 1722 (đã cắn 21/08/2026). */
+  if (Number(r.mcLoi) === 1) {
+    _mcLoiLien++;
+    if (_mcLoiLien >= 2) return { ma: 'may-chu-im', chu: 'không gọi được máy chủ in — máy trạm hoặc máy in đang tắt?',
+      chan: true, canh: false, job: Number(r.job) || 0, nguon: ng };
+  } else { _mcLoiLien = 0; }
   const e = MAY_ERR[Number(r.err)];
-  if (e) return { ma: 'err' + r.err, chu: e[0], chan: !!e[1], canh: !e[1], job: job };
+  if (e) return { ma: 'err' + r.err, chu: e[0], chan: !!e[1], canh: !e[1], job: job, nguon: ng };
   const t = MAY_TT[String(r.tt || '')];
-  if (t) return { ma: 'tt-' + r.tt, chu: t, chan: true, canh: false, job: job };
-  if (r.off === true) return { ma: 'offline', chu: 'máy in bị đặt OFFLINE (Use Printer Offline)', chan: true, canh: false, job: job };
+  if (t) return { ma: 'tt-' + r.tt, chu: t, chan: true, canh: false, job: job, nguon: ng };
+  if (r.off === true) return { ma: 'offline', chu: 'máy in bị đặt OFFLINE (Use Printer Offline)', chan: true, canh: false, job: job, nguon: ng };
   for (const j of js) {
     if (JOB_XAU.test(String(j.st || ''))) {
-      return { ma: 'job-xau', chu: 'việc in #' + j.id + ' đang mắc (' + j.st + ')', chan: true, canh: false, job: job };
+      return { ma: 'job-xau', chu: 'việc in #' + j.id + ' đang mắc (' + j.st + ')', chan: true, canh: false, job: job, nguon: ng };
     }
   }
   /* Việc in nằm quá 45 giây = máy in KHÔNG rút dữ liệu ra nữa. Một con tem in xong trong ~2 giây, nên
      ngưỡng này rất rộng rồi. Đây chính là dấu hiệu mà lần hết giấy vừa rồi lẽ ra phải bắt được. */
   const gia = js.filter((j) => Number(j.tuoi) > 45);
-  if (gia.length) return { ma: 'nghen', chu: 'queue đang nghẽn ' + gia.length + ' việc (máy in không nhận dữ liệu)', chan: true, canh: false, job: job };
-  return { ma: 'ok', chu: job > 0 ? ('đang in ' + job + ' việc') : 'sẵn sàng', chan: false, canh: false, job: job };
+  if (gia.length) return { ma: 'nghen', chu: 'queue đang nghẽn ' + gia.length + ' việc (máy in không nhận dữ liệu)', chan: true, canh: false, job: job, nguon: ng };
+  return { ma: 'ok', chu: job > 0 ? ('đang in ' + job + ' việc') : 'sẵn sàng', chan: false, canh: false, job: job, nguon: ng };
 }
 /*</MAY-TT>*/
-/** Trạng thái mới nhất, tự nhớ trong `NHIP_MAY` giây để khỏi gọi PowerShell mỗi nhịp quét. */
-const NHIP_MAY = 10;
-let _may = null, _mayLuc = 0;
-function trangThaiMayIn(batBuocMoi) {
-  if (!batBuocMoi && _may && Date.now() - _mayLuc < NHIP_MAY * 1000) return _may;
-  _may = phanXuMayIn(docMayInTho());
+/* Nhịp đọc: DÀY khi có người đang mở pop-up In tem (GAS nói qua cờ `xem`), THƯA khi không ai xem.
+   Một lượt đọc mất ~0,4s nên đọc mỗi 0,7s lúc có người xem là chấp nhận được; còn cả ngày không ai
+   in thì 12 giây/lượt là đủ. */
+const NHIP_MAY_XEM = 0.7, NHIP_MAY_IM = 12;
+let _may = null, _mayLuc = 0, _mayXem = 0;
+/** Có người đang nhìn dashboard (GAS trả `xem` ở lượt `pr_lay`) -> đọc dày trong 45 giây tới. */
+function mayCoNguoiXem(co) { if (co) _mayXem = Date.now(); }
+function nhipMay() { return Date.now() - _mayXem < 45000 ? NHIP_MAY_XEM : NHIP_MAY_IM; }
+async function trangThaiMayIn(batBuocMoi) {
+  if (!batBuocMoi && _may && Date.now() - _mayLuc < nhipMay() * 1000) return _may;
+  _may = phanXuMayIn(await docMayInTho());
   _mayLuc = Date.now();
   return _may;
 }
@@ -385,7 +463,7 @@ async function inMotLenh(lenh) {
   /* HỎI MÁY IN NGAY TRƯỚC KHI GỬI. Hết giấy mà vẫn gửi thì spooler nhận hết, báo OK, rồi tem không
      ra — và người dùng bấm ép in thêm mấy lần nữa (đúng chuyện đã xảy ra 21/08/2026). Chặn ở đây thì
      lệnh còn nguyên trong hàng đợi, xử lý giấy xong là tự in. */
-  const truoc = trangThaiMayIn(true);
+  const truoc = await trangThaiMayIn(true);
   if (truoc.chan) {
     console.log("    ⛔ KHÔNG gửi: " + truoc.chu);
     return { soTem: conTem.length, soHang: hang.length, byte: 0, hoan: true, may: truoc.chu,
@@ -401,7 +479,7 @@ async function inMotLenh(lenh) {
      hết giấy/mở nắp thì nói thẳng, và nói kèm "đừng bấm in lại" — vì byte ĐÃ nằm trong queue, lắp
      giấy xong là nó in, bấm lại là ra tem đôi. */
   await nghi(2500);
-  const sau = trangThaiMayIn(true);
+  const sau = await trangThaiMayIn(true);
   if (sau.chan) {
     loi.push('đã gửi nhưng máy in đang ' + sau.chu + ' — tem sẽ ra khi xử lý xong, ĐỪNG bấm in lại');
   }
@@ -464,8 +542,9 @@ async function chayDichVu(nhip) {
     ghimMay(kq);
     console.log("   hâm nóng máy in: " + kq.slice(0, 60) + " (" + (Date.now() - t) + "ms)" +
       (mayGhim ? " · ghim tên máy in: " + mayGhim : ""));
-    const tt = trangThaiMayIn(true);
-    console.log("   tình trạng máy in: " + tt.chu + (tt.chan ? "  ← ĐANG CHẶN IN" : ""));
+    const tt = await trangThaiMayIn(true);
+    console.log("   tình trạng máy in: " + tt.chu + (tt.chan ? "  ← ĐANG CHẶN IN" : "") +
+      " (nguồn: " + (tt.nguon || "?") + ")");
   } catch (e) { console.log("   hâm nóng máy in không xong: " + String(e.message || e).slice(0, 80)); }
   console.log("Agent in tem đang chạy · nhịp " + (nhip ? nhip + "s" : "tự động (1s giờ làm / 12s ngoài giờ)") +
     " · máy in: " + (MAY_IN || "(tự tìm PE200)"));
@@ -495,12 +574,13 @@ async function chayDichVu(nhip) {
       /* Gửi kèm TÌNH TRẠNG MÁY IN mỗi lượt hỏi việc: dashboard nhờ đó nói được "máy in hết giấy"
          ngay trên màn hình người bấm, và GAS dùng nó để KHÔNG phát việc khi máy đang chặn (lệnh nằm
          lại ở `cho`, tự in tiếp khi máy in xong — người dùng không phải bấm lại lần nào). */
-      const may = trangThaiMayIn(false);
+      const may = await trangThaiMayIn(false);
       if (may.chan !== _mayChanCu) {
         console.log((may.chan ? "⚠ máy in ĐANG CHẶN: " : "✓ máy in đã ổn: ") + may.chu);
         _mayChanCu = may.chan;
       }
       const kq = await goiGas({ action: "pr_lay", key: GAS_KEY, may: JSON.stringify(may) });
+      mayCoNguoiXem(!!(kq && kq.xem));                 // ai đang mở pop-up In tem -> đọc máy in dày hơn
       const ds = (kq && kq.dsLenh) || [];
       coViec = ds.length > 0;
       if (!coViec) {
@@ -536,7 +616,9 @@ async function chayDichVu(nhip) {
        không phải mỗi người cách nhau một nhịp nghỉ. */
     if (!coViec) {
       if (dauMoc() !== mocDau) napLai();          // rảnh + mã đã đổi -> đổi tiến trình
-      await nghi((nhip || nhipTuDong()) * 1000);
+      /* CÓ NGƯỜI ĐANG MỞ POP-UP: gần như không nghỉ, để tình trạng máy in gửi lên luôn tươi (mỗi vòng
+         còn ~1,5s = đọc máy in 0,4s + một lượt hỏi Apps Script 1,1s). Không ai xem thì nghỉ đủ nhịp. */
+      await nghi(Date.now() - _mayXem < 45000 ? 200 : (nhip || nhipTuDong()) * 1000);
     }
   }
 }

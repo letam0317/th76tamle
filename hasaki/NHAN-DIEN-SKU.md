@@ -2265,3 +2265,65 @@ duyệt không hiểu `dvh` thì chỉ bỏ dòng đó và giữ nguyên `90vh`:
 (chờ 300ms cho bàn phím dựng xong — cuộn sớm thì vị trí tính ra sai), và nghe `visualViewport.resize`
 để cuộn lại một lần nữa đúng lúc bàn phím vừa mở. Cả hai ô đều có `inputmode="numeric"` để bàn phím số
 lên ngay (ô Số lượng phải là `type="text"` vì mình tự chèn dấu chấm hàng nghìn).
+
+### 12.15 Ép trạng thái máy in về gần thời gian thực (21/08/2026)
+
+User đo được: **tắt máy in 30 giây sau** dashboard mới đổi trạng thái, **bật lại thì 120 giây**. Ba
+nguyên nhân, mỗi cái một tầng:
+
+**① Hỏi sai chỗ.** Máy in này là máy SHARE. Hỏi KẾT NỐI CỤC BỘ (`Get-Printer -Name "\may\share"`)
+chỉ mất **27ms** nhưng trả về **bản cache** của Windows — chính cache đó là 30s/120s. Hỏi thẳng **máy
+chủ in** (`Get-Printer -ComputerName <máy> -Name <share>`) thì đọc đúng thiết bị thật (thấy cả
+`PortName USB031`). Nay hỏi máy chủ trước, chỉ rơi về cache khi không gọi được.
+
+**② Mỗi lượt hỏi lại spawn PowerShell.** Lệnh `-ComputerName` trong một tiến trình MỚI mất **8–10
+giây** (nạp module PrintManagement + dựng phiên RPC); cùng lệnh đó trong phiên đã nóng: **129ms**.
+Nên nay có `_MAY-IN-SERVER.ps1` — một tiến trình PowerShell **sống lâu**, agent hỏi qua stdin và đọc
+tới dòng mốc `<<END>>`. Một lượt đọc đầy đủ (máy chủ 129ms + WMI 239ms + queue 6ms) ≈ **0,4s**.
+Bẫy đã cắn ngay khi làm: tiến trình mới in một **dòng chào** (`SAN-SANG`) mà agent nhận nhầm làm câu
+trả lời → báo "không hỏi được", rồi lượt sau chờ hết hạn 8 giây làm **cả vòng quét dài 12 giây**. Phải
+đọc bỏ dòng chào trước khi hỏi.
+
+**③ Nhịp đọc cố định.** Nay nhịp **theo người xem**: dashboard mở pop-up In tem → GAS đóng dấu
+`PR_XEM` → agent thấy cờ `xem` và chuyển sang đọc máy in mỗi **0,7s** (và gần như không nghỉ giữa hai
+vòng); không ai xem thì 12s/lượt cho nhẹ máy. Dashboard cũng hỏi mỗi **900ms** thay vì 5 giây.
+
+**Đo lại sau khi vá** (dashboard hỏi liên tục 10 lượt, máy trạm đang tắt thật):
+số liệu tươi **0,5–1,9s** (trung vị ~1,2s), mỗi lượt gọi Apps Script 1,3–1,7s.
+→ **Tổng độ trễ thấy trên màn hình ≈ 2–3,4s**, so với 30s/120s trước đó.
+
+**Nói thẳng về mốc "<2s":** không đạt được qua đường hàng đợi này, và không phải vì thiếu tối ưu. Một
+lượt gọi Apps Script tốn ~1,1–1,4s trần (chuỗi chuyển hướng của Google) và đường đi phải qua **hai**
+lượt như vậy: agent→GAS rồi GAS→dashboard. Cộng nhịp đọc thì sàn thật là ~2,5s. Muốn dưới 2s thì
+dashboard phải nói TRỰC TIẾP với máy trạm — đúng cái không làm được từ điện thoại (lý do sinh ra hàng
+đợi, xem §12.1).
+
+**Bắt được thêm một lỗ ngay trong lúc user thử:** máy trạm tắt hẳn → hỏi máy chủ in thất bại → probe
+**rơi về bản cache** và báo "sẵn sàng" → agent gửi đi và nhận `LOI StartDocPrinter 1722`. Nay "không
+gọi được máy chủ in" là **một tín hiệu**: hụt **hai lượt liền** thì chặn với câu *"máy trạm hoặc máy
+in đang tắt?"* (một lượt đơn lẻ thì bỏ qua — chặn ngay là chặn oan vì một cú RPC hụt). Và khi lệnh gửi
+thất bại với 1722 thì đặt trạng thái chặn **ngay**, không đợi lượt đọc sau.
+
+### 12.16 Chân + đầu pop-up In tem (21/08/2026)
+
+Bốn thứ `Máy in: sẵn sàng · Thiết bị: PC Windows · Xoá hết · Xác nhận in` đang chen một hàng flex nên
+trên điện thoại rớt dòng lộn xộn — đúng họ lỗi với hàng nhập liệu ở §12.14.
+
+- **Tên thiết bị lên ĐẦU pop-up**, chôn cứng bìa phải cùng hàng với tiêu đề, cạnh nút đóng. Nó là
+  *danh tính của cái máy đang bấm*, không phải một điều khiển của việc in — để lẫn giữa mấy nút ở chân
+  thì vừa chật vừa dễ bấm nhầm.
+- **Chân chia hai khối:** bên trái TÌNH TRẠNG (đọc), bên phải VIỆC LÀM (bấm). Trên điện thoại xếp
+  thành hai dòng, nút chính ăn hết bề rộng còn lại và cao 46px (đo được **265×46px**).
+- **Tình trạng máy in thành "viên thuốc" có đèn**: một chấm màu nói nhanh hơn mọi câu chữ — xanh sẵn
+  sàng · vàng cảnh báo · **đỏ + nháy** khi đang chặn (người đang định bấm In phải bị chặn mắt lại) ·
+  xám chưa rõ.
+- **Nút lùi "In bằng máy này" xuống một dòng riêng.** Bộ test bắt được: khi nó hiện, BA nút chen một
+  hàng 350px làm nút chính co còn **126px** và chữ rớt hai dòng.
+- **Bẫy CSS đáng ghi:** khối `@media(max-width:1000px)` của pop-up in nằm **TRƯỚC** phần CSS gốc của
+  `.prfoot` trong file. Hai rule cùng độ ưu tiên thì **cái đứng sau thắng**, nên `align-items:stretch`
+  trong media bị `align-items:center` phía dưới đè. Phải thêm tiền tố `#prmodal` (1-2-0) để thắng bất
+  kể thứ tự.
+
+Kèm hai việc nhỏ user chỉ ra: nhãn **"Số tem" căn bìa trái** (ô có class `num` nên nhãn thừa hưởng căn
+phải và trôi sang bên phải cột 82px), và **chip số lượng chuyển xuống DƯỚI ô nhập** (tay đang gõ thì ô
+nhập ở trên; danh sách đã chốt là thứ đọc lại nên ở dưới).

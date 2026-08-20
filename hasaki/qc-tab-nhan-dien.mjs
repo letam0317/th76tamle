@@ -980,13 +980,13 @@ const chipMay = await page.evaluate(async () => {
   return ra;
 });
 kiem("Chip máy in: sẵn sàng thì xanh, HẾT GIẤY thì đỏ",
-  /sẵn sàng/.test(chipMay.ok.chu) && /b-ok/.test(chipMay.ok.lop) &&
-  /HẾT GIẤY/.test(chipMay.hetGiay.chu) && /b-bad/.test(chipMay.hetGiay.lop),
+  /sẵn sàng/.test(chipMay.ok.chu) && /pp-ok/.test(chipMay.ok.lop) &&
+  /HẾT GIẤY/.test(chipMay.hetGiay.chu) && /pp-bad/.test(chipMay.hetGiay.lop),
   chipMay.ok.chu + " · " + chipMay.hetGiay.chu);
 kiem("Chip máy in: gần hết giấy chỉ CẢNH BÁO (vàng), không đỏ",
-  /b-warn/.test(chipMay.ganHet.lop), chipMay.ganHet.chu);
+  /pp-warn/.test(chipMay.ganHet.lop), chipMay.ganHet.chu);
 kiem("Chip máy in nói rõ khi SỐ LIỆU ĐÃ CŨ (agent có thể đã tắt) — không dám báo \"sẵn sàng\"",
-  /cũ/.test(chipMay.cu.chu) && !/b-ok/.test(chipMay.cu.lop), chipMay.cu.chu);
+  /cũ/.test(chipMay.cu.chu) && !/pp-ok/.test(chipMay.cu.lop), chipMay.cu.chu);
 kiem("Chưa có số liệu nào thì nói \"chưa rõ\", không đoán bừa",
   /chưa rõ/.test(chipMay.chuaCo.chu), chipMay.chuaCo.chu);
 
@@ -1009,8 +1009,22 @@ const tenMay = await page.evaluate(async () => {
 kiem("Đặt tên thiết bị: hàng đợi nhận đúng tên đó, không phải chuỗi may-xxxx",
   tenMay.nguoi === "Xiaomi 13" && /@hasaki\.vn$/.test(String(tenMay.may || "")),
   "nguoi=\"" + tenMay.nguoi + "\" · danh tính kỹ thuật vẫn gửi riêng: " + tenMay.may);
-kiem("Nút ở chân pop-up hiện tên thiết bị đang dùng",
-  /Xiaomi 13/.test(tenMay.nut), tenMay.nut);
+kiem("Nút tên thiết bị hiện đúng tên đang dùng", /Xiaomi 13/.test(tenMay.nut), tenMay.nut);
+/* Tên thiết bị phải ở ĐẦU pop-up, chôn cứng bìa phải cùng hàng với tiêu đề (yêu cầu 21/08/2026) —
+   không lẫn giữa mấy nút ở chân, vì nó là danh tính chứ không phải một điều khiển của việc in. */
+const viTriTen = await page.evaluate(() => {
+  const b = document.getElementById("prTenMay");
+  const hd = document.querySelector("#prmodal .modalhd");
+  const mt = document.querySelector("#prmodal .modalhd .mt");
+  const x = document.querySelector("#prmodal .mclose");
+  const rb = b.getBoundingClientRect(), rh = hd.getBoundingClientRect(), rm = mt.getBoundingClientRect();
+  return { trongDau: !!b.closest(".modalhd"), cungHang: Math.abs(rb.top - rm.top) < 26,
+    beNPhai: rb.right >= rh.right - 90, truocNutX: !!x && rb.right <= x.getBoundingClientRect().left + 2,
+    trongChan: !!b.closest(".prfoot") };
+});
+kiem("Tên thiết bị nằm ở ĐẦU pop-up, cùng hàng tiêu đề và sát bìa phải (không còn ở chân)",
+  viTriTen.trongDau && !viTriTen.trongChan && viTriTen.cungHang && viTriTen.beNPhai && viTriTen.truocNutX,
+  "trong đầu: " + viTriTen.trongDau + " · cùng hàng: " + viTriTen.cungHang + " · sát bìa phải: " + viTriTen.beNPhai);
 kiem("Chưa đặt tên thì đoán một cái đọc được (không phải chuỗi ngẫu nhiên)",
   !!tenMay.doan && !/^may-[a-z0-9]{8}@/.test(tenMay.doan), "tên đoán: " + tenMay.doan);
 
@@ -1545,7 +1559,7 @@ const nhapMobile = await page.evaluate(async () => {
   const rIn = oSl().getBoundingClientRect();
   const sau = { tem: Math.round(oTem().getBoundingClientRect().width), sl: Math.round(rIn.width),
     soChip: document.querySelectorAll("#prBody tr td:nth-child(2) .prchip").length,
-    chipTren: !!rChip && rChip.bottom <= rIn.top + 1,
+    chipDuoi: !!rChip && rChip.top >= rIn.bottom - 1,
     chipCungHang: !!rChip && Math.abs(rChip.top - rIn.top) < 6,
     keoNgang: document.querySelector("#prmodal .modalbody").scrollWidth - document.querySelector("#prmodal .modalbody").clientWidth };
   prDong(); prXoaHet();
@@ -1557,12 +1571,43 @@ kiem("Điện thoại: ô \"Số tem\" chôn cứng ~82px, ô \"Số lượng\" 
 kiem("Điện thoại: ô Số lượng cao ≥44px, chữ ≥18px và in đậm (đủ chạm + đọc lại được)",
   nhapMobile.truoc.caoSl >= 44 && nhapMobile.truoc.chuSl >= 18 && nhapMobile.truoc.damSl >= 600,
   "cao " + nhapMobile.truoc.caoSl + "px · chữ " + nhapMobile.truoc.chuSl + "px/" + nhapMobile.truoc.damSl);
-kiem("Điện thoại: 3 chip số lượng nằm THÀNH DÒNG RIÊNG PHÍA TRÊN ô nhập",
-  nhapMobile.sau.soChip === 3 && nhapMobile.sau.chipTren && !nhapMobile.sau.chipCungHang,
-  nhapMobile.sau.soChip + " chip · chip ở trên: " + nhapMobile.sau.chipTren);
+/* Chip nằm DƯỚI ô nhập (đổi 21/08/2026 theo yêu cầu): tay đang gõ thì ô nhập ở trên, danh sách đã
+   chốt là thứ đọc lại nên ở dưới. Điều KHÔNG đổi: chip phải là DÒNG RIÊNG, không chen ngang. */
+kiem("Điện thoại: 3 chip số lượng nằm THÀNH DÒNG RIÊNG PHÍA DƯỚI ô nhập",
+  nhapMobile.sau.soChip === 3 && nhapMobile.sau.chipDuoi && !nhapMobile.sau.chipCungHang,
+  nhapMobile.sau.soChip + " chip · chip ở dưới: " + nhapMobile.sau.chipDuoi);
 kiem("Điện thoại: thêm chip KHÔNG bóp ô nhập và không sinh kéo ngang",
   nhapMobile.sau.sl >= nhapMobile.truoc.sl - 2 && nhapMobile.sau.tem === nhapMobile.truoc.tem && nhapMobile.sau.keoNgang === 0,
   "ô nhập " + nhapMobile.truoc.sl + "px → " + nhapMobile.sau.sl + "px · Số tem " + nhapMobile.sau.tem + "px · kéo ngang " + nhapMobile.sau.keoNgang + "px");
+
+/* NHÃN "Số tem" phải căn BÌA TRÁI: ô có class `num` (căn phải cho con số) nên nhãn thừa hưởng căn
+   phải và trôi sang bên phải cột 82px — user nhìn thấy ngay và báo lại. */
+const nhanTemTrai = await page.evaluate(async () => {
+  /* Chờ 400ms trước khi mở lại: `prDong()` của ca trước đặt `display:none` bằng setTimeout(200ms) —
+     mở pop-up sớm hơn thì cái timer đó ập tới sau và đóng ngay pop-up vừa mở (nút đo ra 0×0px). */
+  await new Promise((r) => setTimeout(r, 400));
+  if (!prSo()) document.querySelector("#ndsCards .nds-card .nds-tem").click();
+  await new Promise((r) => setTimeout(r, 200));
+  prMo();
+  await new Promise((r) => setTimeout(r, 450));
+  const td = document.querySelector("#prBody tr td:nth-child(1)");
+  const canh = getComputedStyle(td, "::before").textAlign;
+  /* Chân pop-up: TÌNH TRẠNG một dòng, NÚT một dòng riêng — và nút chính phải rộng. */
+  const fl = document.querySelector("#prmodal .prfoot .prfl").getBoundingClientRect();
+  const fr = document.querySelector("#prmodal .prfoot .prfr").getBoundingClientRect();
+  const btn = document.getElementById("prBtnIn").getBoundingClientRect();
+  const ra = { canh: canh, hai: fr.top >= fl.bottom - 2, caoBtn: Math.round(btn.height),
+    rongBtn: Math.round(btn.width), rongFr: Math.round(fr.width),
+    moRoi: document.getElementById("prmodal").classList.contains("show"), soSku: prSo() };
+  prDong(); prXoaHet();
+  return ra;
+});
+kiem("Điện thoại: nhãn \"Số tem\" căn BÌA TRÁI của cột (không trôi sang phải)",
+  nhanTemTrai.canh === "left", "text-align: " + nhanTemTrai.canh);
+kiem("Điện thoại: chân pop-up xếp 2 dòng (tình trạng / nút), nút In cao ≥44px và ăn hết bề rộng",
+  nhanTemTrai.moRoi && nhanTemTrai.hai && nhanTemTrai.caoBtn >= 44 && nhanTemTrai.rongBtn >= nhanTemTrai.rongFr * 0.5,
+  "pop-up mở: " + nhanTemTrai.moRoi + " · " + nhanTemTrai.soSku + " SKU · 2 dòng: " + nhanTemTrai.hai +
+  " · nút In " + nhanTemTrai.rongBtn + "×" + nhanTemTrai.caoBtn + "px");
 
 /* KHUNG CAMERA TRÊN MÁY HẸP (sự cố iOS 21/08/2026: bấm "Bật camera" thì khung phóng to tràn màn hình,
    mất luôn nút "Chụp" màu cam và hàng tỉ lệ zoom).

@@ -1421,6 +1421,8 @@ var PR_P_NHIP = 'PR_NHIP';
 var PR_P_LUU = 'PR_LUU_LUC';
 var PR_P_MAY = 'PR_MAY';        // tình trạng máy in do agent gửi kèm mỗi lượt hỏi việc
 var PR_MAY_HET = 45000;         // tình trạng cũ hơn 45 giây thì coi như KHÔNG BIẾT (agent có thể đã tắt)
+var PR_P_XEM = 'PR_XEM';        // lần cuối có người MỞ pop-up In tem (dashboard hỏi hàng đợi)
+var PR_XEM_LAU = 45000;         // trong 45 giây đó thì agent đọc máy in dày hơn
 
 function prSP_() { return PropertiesService.getScriptProperties(); }
 /* ── TÌNH TRẠNG MÁY IN (21/08/2026) ──────────────────────────────────────────────────────────────
@@ -1430,6 +1432,19 @@ function prSP_() { return PropertiesService.getScriptProperties(); }
  * dashboard đọc được, và để `apiPrLay` KHÔNG phát việc khi máy đang chặn — lệnh nằm lại ở `cho` và
  * tự in tiếp khi máy in xong, người dùng không phải bấm lại lần nào.
  * ────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* CÓ NGƯỜI ĐANG XEM? Dashboard hỏi hàng đợi (mở pop-up In tem) thì đóng dấu ở đây; agent đọc cờ đó
+   để chuyển sang đọc tình trạng máy in mỗi 0,7 giây thay vì 12 giây. Đọc dày cả ngày thì tốn CPU máy
+   trạm vô ích, mà đọc thưa lúc người ta đang đứng nhìn thì trạng thái trễ — nên để chính người xem
+   bật nó lên. */
+function prXemGhi_() {
+  try { prSP_().setProperty(PR_P_XEM, String(new Date().getTime())); } catch (e) {}
+}
+function prCoNguoiXem_(all) {
+  try {
+    var t = Number((all ? all[PR_P_XEM] : prSP_().getProperty(PR_P_XEM)) || 0);
+    return t > 0 && new Date().getTime() - t < PR_XEM_LAU;
+  } catch (e) { return false; }
+}
 function prMayGhi_(sp, chuoi) {
   if (!chuoi) return;
   try { sp.setProperty(PR_P_MAY, JSON.stringify({ tt: String(chuoi).slice(0, 400), luc: new Date().getTime() })); } catch (e) {}
@@ -1524,9 +1539,9 @@ function apiPrLay(duLieu) {
      việc. Đây là chỗ chữa gốc chuyện "bấm ép in 4 lần": người dùng không có gì phải bấm lại. */
   var may = prMayDoc_(all);
   if (duLieu && duLieu.may) {
-    try { var t = JSON.parse(duLieu.may); if (t && t.chan) return phanHoiJson({ status: 'success', dsLenh: [], mayChan: String(t.chu || '') }); } catch (e) {}
+    try { var t = JSON.parse(duLieu.may); if (t && t.chan) return phanHoiJson({ status: 'success', dsLenh: [], mayChan: String(t.chu || ''), xem: prCoNguoiXem_(all) }); } catch (e) {}
   } else if (may.chan) {
-    return phanHoiJson({ status: 'success', dsLenh: [], mayChan: may.chu });
+    return phanHoiJson({ status: 'success', dsLenh: [], mayChan: may.chu, xem: prCoNguoiXem_(all) });
   }
   var ids = prIds_(all), co = false;
   for (var i = 0; i < ids.length; i++) {
@@ -1537,7 +1552,7 @@ function apiPrLay(duLieu) {
     /* Agent đang rảnh — đây là lúc RẺ NHẤT để ghi sổ lưu những đợt vừa in xong: mở Sheet tốn ~2s
        nhưng không có ai đang đợi. Cố tình KHÔNG ghi ở `pr_xong`, vì lúc đó agent còn phải quay lại
        nhặt lệnh tiếp theo của người khác. */
-    return phanHoiJson({ status: 'success', dsLenh: [], daLuu: prGhiSo_(sp, all, ids) });
+    return phanHoiJson({ status: 'success', dsLenh: [], daLuu: prGhiSo_(sp, all, ids), xem: prCoNguoiXem_(all) });
   }
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(8000)) return phanHoiJson({ status: 'success', dsLenh: [] });
@@ -1559,7 +1574,7 @@ function apiPrLay(duLieu) {
         nhieuNguoi: soNguoi > 1, thu: Number(o2.thu) === 1 });
     }
     if (ra.length) sp.setProperties(ghi, false);
-    return phanHoiJson({ status: 'success', dsLenh: ra, soNguoiCho: soNguoi });
+    return phanHoiJson({ status: 'success', dsLenh: ra, soNguoiCho: soNguoi, xem: prCoNguoiXem_(all) });
   } finally { lock.releaseLock(); }
 }
 
@@ -1598,6 +1613,7 @@ function apiPrHoan(duLieu) {
 function apiPrTrangThai(duLieu) {
   var id = String(duLieu.id || '');
   if (!id) return phanHoiJson({ status: 'error', message: 'Thiếu id.' });
+  prXemGhi_();                     // đang theo dõi một lệnh cũng là đang xem
   var all = prSP_().getProperties(), o = prLenh_(all, id);
   if (!o) return prTrangThaiSo_(id);
   var tr = prTruocP_(all, prIds_(all), Number(o.ts || 0));
@@ -1668,6 +1684,7 @@ function prTruocP_(all, ids, moc) {
 /** PUBLIC: mở pop-up In tem là biết ngay máy in kho sống hay chết, có ai đang in trước mình, và trần
  *  thật của một lệnh (để dashboard chặn trước chứ không để bị chối sau khi bấm). */
 function apiPrHangDoi(duLieu) {
+  prXemGhi_();                     // có người mở pop-up -> agent đọc máy in dày lên
   var all = prSP_().getProperties();
   var t = prTruocP_(all, prIds_(all), 0);
   return phanHoiJson({ status: 'success', agentTre: prAgentTre_(all), cho: t.soDot, temCho: t.soTem,
