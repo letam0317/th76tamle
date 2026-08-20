@@ -871,6 +871,56 @@ const xoaDong = await page.evaluate(async () => {
 kiem("Xoá được TỪNG DÒNG trong danh sách in", xoaDong.sau === xoaDong.truoc - 1 && xoaDong.dong === 1,
   xoaDong.truoc + " → " + xoaDong.sau + " SKU");
 
+/* GÕ SỐ LƯỢNG: chấm hàng nghìn xuất hiện NGAY LÚC GÕ (không phải sau khi rời ô). Không có dấu ngăn
+   cách thì đếm số 0 bằng mắt là sai, mà tem sai số lượng thì cả bịch hàng đi sai chỗ. */
+const goSo = await page.evaluate(async () => {
+  const o = document.querySelector("#prBody tr td:nth-child(2) input");
+  const buoc = [];
+  o.value = "";
+  "100000".split("").forEach((c) => { o.value += c; prGoSo(o); buoc.push(o.value); });
+  o.dispatchEvent(new Event("change"));
+  await new Promise((r) => setTimeout(r, 200));
+  return { buoc: buoc, luu: document.querySelector("#prBody tr td:nth-child(2) input").value };
+});
+kiem("Gõ số lượng: tự chèn dấu chấm ngay từ hàng nghìn (1.000 … 100.000)",
+  goSo.buoc[3] === "1.000" && goSo.buoc[5] === "100.000" && goSo.luu === "100.000", goSo.buoc.join(" → "));
+
+/* CÙNG MỘT SKU, NHIỀU BỊCH KHÁC SỐ LƯỢNG (yêu cầu 20/08/2026): SKU A có 3 bịch 12 · 14 · 16 thì phải
+   ra 3 con tem cùng SKU mà khác số lượng — trước đây chỉ in được N con tem GIỐNG nhau. */
+const nhieuSl = await page.evaluate(async () => {
+  const o = document.querySelector("#prBody tr td:nth-child(2) input");
+  o.value = "12, 14, 16"; prGoSo(o);
+  const goXong = o.value;                            // dấu phẩy phải còn nguyên, không bị gộp số
+  o.dispatchEvent(new Event("change"));
+  await new Promise((r) => setTimeout(r, 250));
+  const tem = document.querySelector("#prBody tr td:nth-child(1) input");
+  return { goXong: goXong, oSl: document.querySelector("#prBody tr td:nth-child(2) input").value,
+    soTem: tem.value, khoa: tem.disabled, tong: prTongTem(), dong: document.querySelectorAll("#prBody tr").length,
+    nutIn: document.getElementById("prBtnIn").textContent };
+});
+kiem("Gõ \"12, 14, 16\" thì dấu phẩy còn nguyên (không gộp thành 1.214)",
+  nhieuSl.goXong === "12, 14, 16" && nhieuSl.oSl === "12, 14, 16", "\"" + nhieuSl.goXong + "\"");
+kiem("Cùng 1 SKU · 3 số lượng → 3 con tem, ô Số tem tự khoá theo danh sách",
+  nhieuSl.soTem === "3" && nhieuSl.khoa === true && nhieuSl.tong === 3 && nhieuSl.dong === 1,
+  nhieuSl.dong + " dòng · số tem " + nhieuSl.soTem + (nhieuSl.khoa ? " (khoá)" : " (CHƯA khoá)") + " · nút \"" + nhieuSl.nutIn + "\"");
+
+const guiNhieu = await page.evaluate(async () => {
+  window.__goi = [];
+  prGoiGas = async (b) => { window.__goi.push(b); return { status: "success", id: "PRTEST2", trangThai: "xong", soTem: 3 }; };
+  window.__daIn = 0; window.print = () => { window.__daIn++; };
+  prIn();
+  await new Promise((r) => setTimeout(r, 500));
+  const b = window.__goi[0] || {};
+  let d = [];
+  try { d = JSON.parse(b.dong || "[]"); } catch (e) { d = []; }
+  prDatSlHang(d[0] ? d[0].sku : "", "1.200");        // dọn lại cho các ca sau
+  await new Promise((r) => setTimeout(r, 150));
+  return { sl: d[0] && d[0].sl, slHang: d[0] && d[0].slHang, daIn: window.__daIn };
+});
+kiem("Lệnh gửi đi khai ĐÚNG 3 tem cho dòng nhiều số lượng (hàng đợi không báo hụt)",
+  guiNhieu.sl === 3 && guiNhieu.slHang === "12, 14, 16" && guiNhieu.daIn === 0,
+  "sl=" + guiNhieu.sl + " · slHang=\"" + guiNhieu.slHang + "\"");
+
 /* Hai khổ tem trong một lượt in: phải NÓI RÕ chứ không in bừa ra sai giấy */
 const lanKho = await page.evaluate(async () => {
   document.getElementById("toast").textContent = "";
@@ -1318,8 +1368,12 @@ const inMobile = await page.evaluate(async () => {
   const body = document.querySelector("#prmodal .modalbody");
   const tr = document.querySelector("#prBody tr");
   const td = tr ? tr.children : [];
-  const pn = td[1] && td[1].getBoundingClientRect();
-  const sku = td[0] && td[0].getBoundingClientRect();
+  /* 5 ô, ĐÚNG thứ tự trong `prVe`: 1 Số tem · 2 Số lượng · 3 SKU · 4 Tên sản phẩm · 5 nút xoá.
+     Bản test cũ đo td[0]/td[1] tưởng là SKU/tên — đúng theo bảng 6 cột đã bỏ, nên nó xanh trong khi
+     giao diện thật đang dán nhãn "ĐVT:" lên ô SKU. Đây là lý do phải đo cả NHÃN, không chỉ kích cỡ. */
+  const nhan = (el) => (el ? String(getComputedStyle(el, "::before").content || "") : "");
+  const pn = td[3] && td[3].getBoundingClientRect();
+  const sku = td[2] && td[2].getBoundingClientRect();
   const loc = document.querySelectorAll("#prmodal .mfilters .fld");
   const r1 = loc[0] && loc[0].getBoundingClientRect(), r2 = loc[1] && loc[1].getBoundingClientRect();
   const ra = { keoNgang: body.scrollWidth - body.clientWidth,
@@ -1327,6 +1381,9 @@ const inMobile = await page.evaluate(async () => {
     anThead: getComputedStyle(document.querySelector("#prmodal .mtbl thead")).display,
     pnRong: pn ? Math.round(pn.width) : -1,
     pnDuoiSku: !!(pn && sku) && pn.top > sku.top - 1,
+    nhanTem: nhan(td[0]), nhanSl: nhan(td[1]), nhanSku: nhan(td[2]),
+    nhanApTem: nhan(loc[0] && loc[0].querySelector("label")), nhanApSl: nhan(loc[1] && loc[1].querySelector("label")),
+    skuTren: !!(sku && pn) && sku.top <= pn.top,
     locCungHang: !!(r1 && r2) && Math.abs(r1.top - r2.top) < 6,
     locDeNhau: !!(r1 && r2) && !(r1.bottom <= r2.top || r2.bottom <= r1.top) && Math.abs(r1.top - r2.top) > 6,
     tranTrang: document.documentElement.scrollWidth - document.documentElement.clientWidth };
@@ -1341,6 +1398,17 @@ kiem("Điện thoại: danh sách in là THẺ (không bóp bảng), tên hàng 
 kiem("Điện thoại: hai ô \"áp cho tất cả\" nằm CÙNG HÀNG và không đè nhau",
   inMobile.locCungHang && !inMobile.locDeNhau,
   "cùng hàng: " + inMobile.locCungHang + " · đè nhau: " + inMobile.locDeNhau);
+/* NHÃN TRÊN THẺ — ảnh máy thật 16:59 ngày 20/08/2026: ô SKU bị gắn nhãn "ĐVT: 422424151" và ô Số
+   lượng thì trống trơn. Nhãn dán theo `nth-child` là thứ âm thầm sai khi số cột đổi, nên khoá lại. */
+kiem("Điện thoại: hai ô số có nhãn ĐÚNG (Số tem · Số lượng), không còn nhãn nào dán sai",
+  /Số tem/.test(inMobile.nhanTem) && /Số lượng/.test(inMobile.nhanSl),
+  "ô1=" + inMobile.nhanTem + " · ô2=" + inMobile.nhanSl);
+kiem("Điện thoại: ô SKU KHÔNG bị gắn nhãn \"ĐVT\" (và SKU đứng đầu thẻ)",
+  !/ĐVT/.test(inMobile.nhanSku) && inMobile.skuTren,
+  "nhãn ô SKU: " + (inMobile.nhanSku || "(không có)") + " · SKU trên tên: " + inMobile.skuTren);
+kiem("Điện thoại: nhãn hai ô \"áp cho tất cả\" nói đúng việc của nó (SỐ TEM · SỐ LƯỢNG)",
+  /SỐ TEM/.test(inMobile.nhanApTem) && /SỐ LƯỢNG/.test(inMobile.nhanApSl),
+  inMobile.nhanApTem + " · " + inMobile.nhanApSl);
 
 kiem("Điện thoại: nút điều khiển không tràn khỏi khung, đủ cao để chạm", !nut.tran && nut.thap >= 24,
   nut.n + " nút · tràn: " + nut.tran + " · nút thấp nhất " + nut.thap + "px");

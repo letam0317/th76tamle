@@ -386,5 +386,67 @@ console.log("\n── 11. Dấu nghìn · ngày dd-mm-yy · thứ tự xếp tem
     JSON.stringify(h5.map((h) => h.map((x) => x.sku))));
 }
 
+/* ══════════ NHIỀU SỐ LƯỢNG CHO CÙNG MỘT SKU ══════════
+   Nhu cầu thật của kho: SKU A có 3 bịch 12 · 14 · 16 → 3 con tem cùng SKU khác số lượng. Đây là chỗ
+   dễ lệch nhất giữa hai đầu (dashboard đếm số tem, agent nở ra tem) nên nở bằng ĐÚNG một hàm của lõi
+   và khoá lại bằng test. */
+{
+  console.log("\n▸ Nhiều số lượng cho cùng một SKU");
+  kiem('tachSl("12, 14, 16") → 3 số', T.tachSl("12, 14, 16").join("|") === "12|14|16", JSON.stringify(T.tachSl("12, 14, 16")));
+  kiem('Dấu CHẤM là ngăn cách hàng nghìn, KHÔNG phải tách danh sách: "1.200" vẫn là MỘT số',
+    T.tachSl("1.200").length === 1 && T.tachSl("1.200")[0] === "1.200", JSON.stringify(T.tachSl("1.200")));
+  kiem('Khoảng trắng cũng tách được: "1200 1400" → 2 số', T.tachSl("1200 1400").length === 2, JSON.stringify(T.tachSl("1200 1400")));
+  kiem('Chữ không phải số thì bỏ: "100 m" vẫn là MỘT số', T.tachSl("100 m").length === 1, JSON.stringify(T.tachSl("100 m")));
+  kiem("Ô rỗng → không có số nào", T.tachSl("").length === 0 && T.tachSl(null).length === 0);
+
+  const nhieu = { sku: "SKUA", pn: "hàng A", slHang: "12, 14, 16", sl: 1, mau: "t40x60" };
+  const mot = { sku: "SKUB", pn: "hàng B", slHang: "1.200", sl: 3, mau: "t40x60" };
+  kiem("Dòng nhiều số lượng: SỐ TEM do danh sách quyết định (3 số → 3 tem, bỏ qua ô số tem)",
+    T.temCuaDong(nhieu) === 3, "temCuaDong = " + T.temCuaDong(nhieu));
+  kiem("Dòng một số lượng: vẫn in đúng số bản người dùng gõ", T.temCuaDong(mot) === 3, "temCuaDong = " + T.temCuaDong(mot));
+  kiem("Tổng số tem cộng đúng cả hai kiểu dòng", T.tongTem([nhieu, mot]) === 6, T.tongTem([nhieu, mot]) + " tem");
+
+  const con = T.moRong([nhieu, mot]);
+  kiem("moRong: mỗi số lượng RA MỘT con tem, đúng thứ tự người gõ",
+    con.length === 6 && con.slice(0, 3).map((r) => r.slHang).join("|") === "12|14|16",
+    con.map((r) => r.sku + ":" + r.slHang).join(" · "));
+  kiem("moRong: dòng một số lượng thì 3 con tem GIỐNG nhau",
+    con.slice(3).every((r) => r.sku === "SKUB" && r.slHang === "1.200"), con.slice(3).map((r) => r.slHang).join("|"));
+  kiem("moRong giữ nguyên SKU và tên hàng cho từng con tem",
+    con[1].sku === "SKUA" && con[1].pn === "hàng A", con[1].sku + " / " + con[1].pn);
+  const svg = T.mau("t40x60").ve({ sku: con[1].sku, pn: con[1].pn, sl: con[1].slHang, ngay: T.ngayTem() });
+  kiem("Con tem thứ 2 in ĐÚNG số lượng của nó (14), không phải của con thứ nhất",
+    svg.indexOf(">14<") >= 0 && svg.indexOf(">12<") < 0, "tem 2 mang số " + con[1].slHang);
+}
+
+/* ══════════ MỘT LỆNH = MỘT LUỒNG TSPL LIỀN MẠCH ══════════
+   User báo 20/08/2026: in 6 tem thì máy nhả 2 con, kéo decal trống về, mới nhả 2 con tiếp. Nguyên
+   nhân: mỗi hàng giấy là một trang TSPL mang theo `SIZE`/`GAP` → máy in đo lại giấy mỗi lần.
+   Ca test gọi thẳng agent ở chế độ `--thu` (không gửi máy in) rồi soi luồng byte thật sẽ gửi đi. */
+{
+  console.log("\n▸ Luồng TSPL của cả lệnh (chống nhả–rút decal giữa các cặp tem)");
+  const { execFileSync } = await import("node:child_process");
+  let ra = "";
+  try {
+    ra = execFileSync(process.execPath, [path.join(DIR, "in-tem-agent.mjs"), "--thu", "422430797x6"],
+      { encoding: "utf8", windowsHide: true, timeout: 120000 });
+  } catch (e) { ra = "LOI: " + String(e.message || e); }
+  const f = path.join(process.env.TEMP || process.env.TMP || ".", "audit-factory-in-tem", "ca-lenh.tspl");
+  const job = fs.existsSync(f) ? fs.readFileSync(f, "latin1") : "";
+  kiem("6 con tem → 3 hàng giấy, dựng thành MỘT tệp lệnh", /6 con tem → 3 hàng giấy/.test(ra) && job.length > 0,
+    job ? (job.length + " byte") : ra.slice(0, 80));
+  kiem("Khai khổ (SIZE) đúng MỘT lần cho cả lệnh — không bắt máy in đo lại giấy giữa các hàng",
+    (job.match(/SIZE /g) || []).length === 1, (job.match(/SIZE /g) || []).length + " lần SIZE");
+  kiem("GAP cũng chỉ khai một lần, và có đơn vị ở CẢ HAI tham số",
+    (job.match(/GAP /g) || []).length === 1 && /GAP [0-9.]+ mm,0 mm/.test(job),
+    (job.match(/GAP[^\r\n]*/) || [""])[0]);
+  kiem("Có SET TEAR OFF: bỏ cú đẩy tem ra thanh xé rồi kéo về sau mỗi nhãn", job.indexOf("SET TEAR OFF") >= 0);
+  kiem("Mỗi hàng giấy vẫn có CLS + PRINT riêng (3 hàng → 3 lần)",
+    (job.match(/CLS/g) || []).length === 3 && (job.match(/PRINT 1,1/g) || []).length === 3,
+    (job.match(/CLS/g) || []).length + " CLS · " + (job.match(/PRINT 1,1/g) || []).length + " PRINT");
+  kiem("Mỗi hàng có 2 khối BITMAP (2 con tem/hàng)", (job.match(/BITMAP /g) || []).length === 6,
+    (job.match(/BITMAP /g) || []).length + " BITMAP");
+}
+
 console.log("\n" + (truot ? "✗ " + dat + "/" + (dat + truot) + " ca đạt — " + truot + " ca TRƯỢT" : "✓ " + dat + "/" + dat + " ca đạt"));
 process.exit(truot ? 1 : 0);

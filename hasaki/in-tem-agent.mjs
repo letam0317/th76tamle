@@ -84,16 +84,29 @@ function bitmapTSPL(raw, boQuaTrai) {
   return { buf: out, wByte, height, rong: w };
 }
 
-/* ───────── 3. DỰNG LỆNH TSPL CHO MỘT HÀNG GIẤY ───────── */
-async function tsplHang(hang, maMau) {
-  const kt = T.khoTrang(maMau), m = kt.tem;
-  const dau =
-    "SIZE " + kt.w + " mm," + kt.h + " mm" + NL +
+/* ───────── 3. DỰNG LỆNH TSPL ─────────
+   MỘT LỆNH IN = MỘT LUỒNG TSPL LIỀN MẠCH: khai khổ MỘT LẦN ở đầu, rồi mỗi hàng giấy chỉ còn
+   `CLS` + `BITMAP` + `PRINT`.
+   Vì sao phải tách như vậy (user báo 20/08/2026: in 6 tem thì máy nhả 2 con, kéo decal trống về, mới
+   nhả 2 con tiếp — mất thời gian): bản trước mỗi hàng giấy là một trang TSPL ĐẦY ĐỦ, mang theo cả
+   `SIZE` và `GAP`. Hai lệnh đó bắt máy in **đo lại giấy** nên nó phải đẩy tem qua đầu in rồi rút về
+   trước mỗi cặp tem. Khai một lần thì máy giữ nguyên phép đo và in một hơi.
+   `SET TEAR OFF` bỏ luôn cú đẩy tem ra thanh xé rồi kéo về sau MỖI nhãn — chính là đoạn "rút decal"
+   nhìn thấy được. Đánh đổi: con tem cuối đứng lại trước thanh xé, bóc bằng tay (decal die-cut vẫn
+   bóc bình thường). */
+function tsplDau(maMau) {
+  const kt = T.khoTrang(maMau);
+  return "SIZE " + kt.w + " mm," + kt.h + " mm" + NL +
     /* ĐỦ ĐƠN VỊ cả hai tham số: viết "GAP 3 mm, 0" (thiếu đơn vị số thứ hai) thì có máy in bỏ cả
        dòng và giữ khe học từ lần trước — im lặng, rồi tem lệch dần. */
     "GAP " + GAP_MM + " mm,0 mm" + NL +
-    "DIRECTION 1" + NL + "REFERENCE 0,0" + NL + "DENSITY " + DENSITY + NL + "SPEED 3" + NL + "CLS" + NL;
-  const out = [Buffer.from(dau, "latin1")];
+    "DIRECTION 1" + NL + "REFERENCE 0,0" + NL + "DENSITY " + DENSITY + NL + "SPEED 3" + NL +
+    "SET TEAR OFF" + NL;
+}
+/** Thân MỘT hàng giấy (2 con tem) — không có SIZE/GAP nên không bắt máy in đo lại giấy. */
+async function tsplThan(hang, maMau) {
+  const kt = T.khoTrang(maMau), m = kt.tem;
+  const out = [Buffer.from("CLS" + NL, "latin1")];
   for (let c = 0; c < kt.cot; c++) {
     const r = hang[c];
     if (!r) continue;                            // ô trống: chừa hẳn, không in gì
@@ -108,6 +121,16 @@ async function tsplHang(hang, maMau) {
     out.push(Buffer.from(NL, "latin1"));
   }
   out.push(Buffer.from("PRINT 1,1" + NL, "latin1"));
+  return Buffer.concat(out);
+}
+/** MỘT hàng giấy đứng riêng (dùng cho `--thu` / `--in` ở dòng lệnh): khai khổ + thân. */
+async function tsplHang(hang, maMau) {
+  return Buffer.concat([Buffer.from(tsplDau(maMau), "latin1"), await tsplThan(hang, maMau)]);
+}
+/** CẢ LỆNH: khai khổ một lần rồi nối các hàng giấy — đây là đường mà `--dich-vu` dùng. */
+async function tsplJob(hangs, maMau) {
+  const out = [Buffer.from(tsplDau(maMau), "latin1")];
+  for (const h of hangs) out.push(await tsplThan(h, maMau));
   return Buffer.concat(out);
 }
 
@@ -233,24 +256,25 @@ async function goiGas(body) {
 async function inMotLenh(lenh) {
   const t0 = Date.now();
   const dong = lenh.dong || [];
-  /* TRA TÊN GỘP MỘT LƯỢT: danh mục trong máy trước, còn thiếu bao nhiêu thì hỏi Sheet MỘT câu.
-     Bản cũ hỏi từng SKU nên một lệnh 5 SKU lạ đứng yên 3-5 giây trước khi máy in kêu. */
+  /* TRA TÊN GỘP MỘT LƯỢT: tên gửi kèm lệnh trước, rồi danh mục trong máy, còn thiếu bao nhiêu thì
+     hỏi Sheet MỘT câu. Bản cũ hỏi từng SKU nên một lệnh 5 SKU lạ đứng yên 3-5 giây trước khi máy
+     in kêu. */
   const dm = napDanhMuc();
-  /* Chỉ tra những SKU KHÔNG có tên gửi kèm và cũng không có trong danh mục trong máy. Bình thường
-     dashboard đã gửi tên nên vòng này rỗng và chặng tra tên mất 0ms. */
   const thieu = dong.filter((o) => !String(o.pn || "").trim())
     .map((o) => String(o.sku)).filter((k) => !(dm && dm.get(k)));
   const bu = thieu.length ? await traGvizNhieu(thieu) : new Map();
   const nay = T.ngayTem();
-  const conTem = [];
-  for (const o of dong) {
+  /* Gắn tên vào từng dòng rồi để LÕI nở ra từng con tem. Nở bằng `T.moRong` chứ không tự đếm ở đây:
+     dòng có thể khai NHIỀU số lượng ("12, 14, 16" = 3 bịch → 3 con tem cùng SKU khác số lượng), và
+     dashboard đếm số tem bằng đúng hàm này — hai bên nở khác nhau là số trên màn hình khác số tem
+     ra khỏi máy in. */
+  const dongCoTen = dong.map((o) => {
     const k = String(o.sku);
-    /* Thứ tự ưu tiên tên: tên NGƯỜI DÙNG ĐÃ THẤY khi bấm in > danh mục trong máy > tra Sheet. */
     const tt = (dm && dm.get(k)) || bu.get(k);
-    const ten = String(o.pn || "").trim() || (tt ? tt.pn : "") || "(không thấy trong danh mục)";
-    const r = { sku: k, pn: ten, sl: o.slHang || "", ngay: nay };
-    for (let i = 0; i < Math.max(1, Number(o.sl) || 1); i++) conTem.push(r);
-  }
+    return { sku: k, pn: String(o.pn || "").trim() || (tt ? tt.pn : "") || "(không thấy trong danh mục)",
+      slHang: o.slHang || "", sl: o.sl, mau: o.mau };
+  });
+  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay }));
   if (!conTem.length) return { loi: "lệnh rỗng" };
   /* Tem thông báo đợt: chỉ khi hàng đợi đang có nhiều người — in một mình thì không tốn thêm tem. */
   if (lenh.nhieuNguoi) {
@@ -262,28 +286,27 @@ async function inMotLenh(lenh) {
   const hang = T.chiaHang(conTem, mau);
   const tTra = Date.now();          // xong chặng TRA TÊN
 
-  /* MỘT LỆNH = MỘT JOB SPOOLER. Bản cũ gọi PowerShell cho TỪNG hàng giấy: mỗi lần khởi động
-     powershell.exe đã 190ms (đo 20/08/2026), 20 con tem là 10 lần → gần 2 giây chỉ để mở tiến trình,
-     lại thêm nguy cơ đợt tem của người khác chen vào giữa. Nối các hàng thành một luồng TSPL rồi gửi
-     một lượt: máy in xử lý tuần tự đúng thứ tự. Cắt khúc 20 hàng cho khỏi có job vài MB. */
-  const buf = [];
-  for (const h of hang) buf.push(await tsplHang(h, mau));
-  const tDung = Date.now();         // xong chặng DỰNG ẢNH
+  /* MỘT LỆNH = MỘT JOB SPOOLER, và trong job đó là MỘT luồng TSPL liền mạch (khai khổ một lần).
+     Bản cũ gọi PowerShell cho TỪNG hàng giấy (190ms/lần chỉ để mở tiến trình) và khai khổ lại mỗi
+     hàng (máy in đo lại giấy → nhả rồi rút decal giữa mỗi 2 con tem).
+     Cắt khúc 40 hàng cho khỏi có job vài MB. */
   const loi = [];
   let byte = 0;
+  const khuc = [];
+  for (let k = 0; k < hang.length; k += 40) khuc.push(await tsplJob(hang.slice(k, k + 40), mau));
+  const tDung = Date.now();         // xong chặng DỰNG ẢNH
   /* LỆNH ĐO: dừng ở đây. Đã đi qua đúng những chặng tốn thời gian (hàng đợi, tra tên, dựng ảnh) nên
      số đo vẫn thật, chỉ không tốn con tem nào. */
   if (lenh.thu) {
-    for (const b of buf) byte += b.length;
+    for (const b of khuc) byte += b.length;
     console.log("    [ĐO] dựng xong " + hang.length + " hàng giấy (" + byte + " byte) — KHÔNG gửi máy in");
     return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: "", thu: true,
       msTra: tTra - t0, msDung: tDung - tTra, msGui: 0, msTong: Date.now() - t0 };
   }
-  for (let k = 0; k < buf.length; k += 20) {
-    const khuc = Buffer.concat(buf.slice(k, k + 20));
-    byte += khuc.length;
-    const kq = await guiRaw(khuc, mayDung());
-    console.log("    gửi " + Math.min(20, buf.length - k) + " hàng giấy (" + khuc.length + " byte): " + kq);
+  for (const b of khuc) {
+    byte += b.length;
+    const kq = await guiRaw(b, mayDung());
+    console.log("    gửi " + hang.length + " hàng giấy (" + b.length + " byte): " + kq);
     if (/^LOI/i.test(kq)) loi.push(kq);
   }
   return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: loi.join(" | "),
@@ -490,20 +513,26 @@ async function chay(ds, chiThu) {
     "mm (" + kt.cot + " tem/hàng · khe dọc " + kt.khe + "mm · khe ngang GAP " + GAP_MM +
     "mm · dịch trái " + LECH_MM + "mm · đậm " + DENSITY + ")");
   console.log(conTem.length + " con tem → " + hang.length + " hàng giấy");
-  for (let i = 0; i < hang.length; i++) {
-    const buf = await tsplHang(hang[i], MAU);
-    if (chiThu) {
-      const f = path.join(TMP, "hang-" + (i + 1) + ".tspl");
-      fs.writeFileSync(f, buf);
+  /* Dựng CẢ LỆNH thành một luồng TSPL — y hệt đường mà `--dich-vu` gửi, để `--thu` là bản chạy khô
+     trung thực chứ không phải một cách dựng khác. Ảnh xem trước vẫn tách theo từng hàng giấy cho dễ
+     soi bố cục. */
+  const job = await tsplJob(hang, MAU);
+  const khaiKho = (job.toString("latin1").match(/SIZE /g) || []).length;
+  console.log("  một luồng TSPL: " + job.length + " byte · khai khổ " + khaiKho + " lần" +
+    " · SET TEAR " + (job.toString("latin1").indexOf("SET TEAR OFF") >= 0 ? "OFF" : "(không có)"));
+  if (chiThu) {
+    const f = path.join(TMP, "ca-lenh.tspl");
+    fs.writeFileSync(f, job);
+    console.log("  → " + f);
+    for (let i = 0; i < hang.length; i++) {
       const fa = path.join(TMP, "hang-" + (i + 1) + ".png");
       await anhXemTruoc(hang[i], MAU, fa);
-      console.log("  hàng " + (i + 1) + ": " + buf.length + " byte → " + f);
-      console.log("             ảnh xem trước: " + fa);
-    } else {
-      console.log("  hàng " + (i + 1) + ": " + buf.length + " byte → " + (await guiRaw(buf, MAY_IN)));
+      console.log("             ảnh xem trước hàng " + (i + 1) + ": " + fa);
     }
+    console.log("(--thu: chưa gửi gì tới máy in)");
+  } else {
+    console.log("  gửi máy in: " + (await guiRaw(job, mayDung())));
   }
-  if (chiThu) console.log("(--thu: chưa gửi gì tới máy in)");
 }
 
 if (dsThu) await chay(bocDanhSach(dsThu), true);

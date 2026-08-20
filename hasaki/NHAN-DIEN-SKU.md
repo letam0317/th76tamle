@@ -2017,3 +2017,50 @@ Thêm một chỗ nữa: **nhịp tim agent đọc bị lệch**. `getProperties
 gọi cách đó một giây, và dashboard sẽ báo oan *"máy trạm đang tắt agent"* — một báo động sai kiểu đó
 đắt hơn nhiều một dòng ghi thêm, vì lần sau người dùng sẽ không tin dòng trạng thái nữa. Nay nhịp tim
 ghi vào **cả Cache và Property**, đọc lấy cái tươi hơn: đo lại được 0,5–1,5s ổn định.
+
+### 12.7 Bốn điều từ ảnh chụp máy thật (20/08/2026, 16:59)
+
+Ảnh pop-up **In tem SKU** trên điện thoại, cùng bốn yêu cầu của người dùng. Ba trong bốn điều là lỗi
+của bố cục, không phải của đường in.
+
+**① Dấu chấm ngăn cách khi GÕ.** Đã có sẵn (`prGoSo` + `prSoCham`, chấm ngay từ hàng nghìn và giữ chỗ
+con trỏ) — ảnh chụp bản live cũ nên chưa thấy. Nhưng khi làm mục ③ thì phát hiện `prSoCham` gộp cả dấu
+phẩy vào con số: `"12, 14"` biến thành `"1.214"`. Nay chấm **từng số** trong ô: dấu chấm thuộc về con
+số (hàng nghìn), dấu phẩy / khoảng trắng là ngăn cách danh sách nên giữ nguyên chỗ người gõ.
+
+**② Bấm Xác nhận in là IN, không nhảy thêm bước lưu / chọn máy in.** Dòng chữ trong ảnh — *"Bấm In sẽ
+mở hộp thoại in của Windows"* — là của bản trước hàng đợi; nay chỗ đó là **dòng trạng thái** và nói
+đúng tình hình: máy in đang rảnh · đang chạy đợt của ai · máy trạm tắt agent · máy in báo lỗi (kèm
+nguyên văn). Hộp thoại in của Windows **không còn tự mở**: gửi hàng đợi thất bại thì chỉ hiện thêm nút
+*In bằng máy này* để người dùng chủ động chọn — có một ca test khoá đúng hành vi đó, vì "tự nhảy ra hộp
+thoại" chính là chỗ người dùng phản ứng mạnh nhất (`!!!!!`).
+
+**③ Cùng một SKU, nhiều bịch khác số lượng.** SKU A có 3 bịch 12 · 14 · 16 → phải ra **3 con tem cùng
+SKU khác số lượng**; trước đây chỉ in được N con tem giống nhau. Cách gõ: ô **Số lượng** nhận danh
+sách — `12, 14, 16`. Khi đó ô **Số tem** tự khoá và hiện đúng `3` (số tem do danh sách quyết định; để
+người dùng sửa tay thì sinh ra hai con số chỏi nhau).
+Việc "nở" một dòng thành từng con tem đặt ở **lõi `PR_TEM`** (`tachSl` · `temCuaDong` · `moRong`) chứ
+không viết ở dashboard rồi viết lại ở agent: hai bên nở khác nhau là **số tem trên màn hình khác số
+tem ra khỏi máy in**. Lệnh gửi vào hàng đợi cũng khai `sl` = số tem THẬT của dòng, nếu không thì hàng
+đợi báo "1 tem" trong khi máy in nhả 3, và trần số tem gác sai.
+
+**④ In 6 tem phải ra một hơi.** Máy đang nhả 2 con, kéo decal trống về, rồi mới nhả 2 con tiếp.
+Nguyên nhân: mỗi hàng giấy là **một trang TSPL đầy đủ**, mang theo cả `SIZE` và `GAP` — hai lệnh đó bắt
+máy in **đo lại giấy**, nên nó phải đẩy tem qua đầu in rồi rút về trước mỗi cặp. Nay khai khổ **một
+lần** ở đầu lệnh (`tsplDau`), mỗi hàng chỉ còn `CLS` + `BITMAP` + `PRINT` (`tsplThan`), và thêm
+`SET TEAR OFF` để bỏ luôn cú đẩy tem ra thanh xé rồi kéo về sau **mỗi** nhãn.
+Đánh đổi đã biết: con tem cuối đứng lại trước thanh xé, bóc bằng tay (decal die-cut vẫn bóc bình
+thường). Nghiệm thu thật: 4 tem `12 · 14 · 16 · 18` → **2 hàng giấy trong MỘT job 77 KB**, gửi 1,9s,
+bấm → xong 6,9s.
+
+`--thu` cũng đổi để là **bản chạy khô trung thực**: dựng cả lệnh thành một tệp `ca-lenh.tspl` y hệt
+luồng mà `--dich-vu` gửi, và in ra số lần khai khổ. Bộ test soi thẳng luồng byte đó: `SIZE` đúng 1
+lần · `GAP` 1 lần có đơn vị ở cả hai tham số · có `SET TEAR OFF` · 3 hàng thì 3 `CLS`/3 `PRINT`/6
+`BITMAP`.
+
+**Một bài học về TEST:** ca test điện thoại cũ đo `td[0]`/`td[1]` tưởng là SKU / tên hàng — đúng theo
+bảng **6 cột đã bỏ**. Nó vẫn xanh trong khi giao diện thật dán nhãn `ĐVT:` lên ô SKU và bỏ trắng nhãn
+ô Số lượng (thấy rõ trong ảnh). Nhãn gắn bằng `nth-child` là thứ **âm thầm sai** khi số cột đổi, nên
+test giờ đo cả **nội dung nhãn** (`::before`), không chỉ kích cỡ: ô 1 phải là "Số tem", ô 2 "Số lượng",
+ô SKU **không** được có nhãn `ĐVT`, và hai ô "áp cho tất cả" phải ghi `SỐ TEM` / `SỐ LƯỢNG` (đang ghi
+`MẪU` / `SL` — nhãn của bảng cũ còn sót lại).
