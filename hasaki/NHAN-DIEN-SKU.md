@@ -925,6 +925,22 @@ Kèm theo: hàng thông tin của thẻ gợi ý nay giữ **ba** thứ (chữ t
 nên cho `flex-wrap` — máy hẹp thì xuống 2 dòng, thà vậy còn hơn đẩy nút ra khỏi thẻ. Ca test đổi trần
 chiều cao 1 dòng → 2 dòng (72px), thứ vẫn khoá là **không tràn** và **nhãn lệch nằm cùng hàng, bên phải**.
 
+> **⚠ NGƯỠNG PHẢI LÀ 1000px, KHÔNG PHẢI 640px** (siết ngay sau khi user báo *"vẫn hiển thị như cũ"*).
+> Hai nguyên nhân, cả hai đều thật:
+> * GitHub Pages gửi `Cache-Control: max-age=600` ⇒ máy có thể giữ HTML cũ tới **10 phút**. Chữa: tải
+>   lại mạnh (đóng tab rồi mở lại).
+> * **Quan trọng hơn**: điện thoại bật *"Trang máy tính"* thì **viewport CSS thành ~980px** nên MỌI quy
+>   tắc `@media(max-width:640px)` **không ăn** — mà màn hình vẫn 390px. Ngưỡng **1000px** phủ luôn ca
+>   đó; máy bàn thật (≥1024px) vẫn được bố cục bảng. Đo lại ở viewport 980px: kéo ngang 0px, cột tên
+>   hàng rộng 890px. **Bài học: đừng chọn ngưỡng theo "cỡ điện thoại", chọn theo cỡ mà bố cục kia thật
+>   sự cần.**
+
+**Trang Tổng quan — hai công cụ kho lên hàng đầu** (cùng lượt): thêm cờ `uuTien` cho nhóm *Công cụ kho*
+và `homeRender()` vẽ nhóm có cờ đó trước (sort ổn định nên các nhóm còn lại giữ nguyên thứ tự khai báo).
+**Chỉ đổi thứ tự VẼ ở trang Tổng quan** — thứ tự trong `HOME_MUC` (và do đó ở thanh bên) giữ nguyên, khỏi
+đổi thói tay người đang dùng. Hai công cụ này dùng ngay tại chỗ, không cần dữ liệu nền, nên là thứ hay
+chọn nhất.
+
 Ca test mới: *danh sách in là THẺ (không bóp bảng), tên hàng ≥240px, không kéo ngang* · *hai ô "áp cho
 tất cả" cùng hàng và không đè nhau*. Cũng sửa ca cũ **bấm `#ndsScopeAll`** (nút đã bỏ) sang gọi
 `ndsDoiScope()` và khoá luôn việc hai nút đó không được quay lại. Test: **77/77** lõi · **124/124** tab.
