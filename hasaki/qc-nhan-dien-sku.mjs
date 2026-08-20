@@ -265,16 +265,24 @@ console.log("── Lọc theo phần tử tên hàng ──");
         topM.length > 0 && topM[0].sku === "422304419" && topM[0].pct >= 90 &&
         bt.some((x) => x.sku === "422266550"),
         topM.map((r) => r.sku + "/" + r.pct + "%/" + r.status).join(" · ") + " · biến thể: " + bt.map((x) => x.sku + "·" + x.donVi).join(", "));
-      /* Mặt trái phải khoá: nhóm CHẾT HOÀN TOÀN (không dòng nào còn sống) vẫn không được gợi ý. */
+      /* Mặt trái phải khoá — HAI ca ngược nhau, đúng đường biên của luật:
+         (i) nhóm chết hoàn toàn mà CHỈ khớp chữ chung ⇒ vẫn không được gợi ý (ngoại lệ đơn vị nhỏ
+             không được nới thành "cứ chết là cho hiện");
+         (ii) nhóm chết hoàn toàn mà MANG ĐÚNG MÃ in trên tem ⇒ PHẢI hiện (luật "định danh thắng
+             phạm vi" 20/08/2026, sinh ra từ ca thẻ mẫu SMPA01 tồn 0). */
       const chet = [
         { sku: "999000001", pn: "Vật tư thử QC/ZZQC-0001_QCTest/Polyester/None/None/None/None/cuộn", type: "NORMAL", status: "INACTIVE", qty: 0, unit: "cuộn" },
         { sku: "999000002", pn: "Vật tư thử QC/ZZQC-0001_QCTest/Polyester/None/None/None/None/mm", type: "NORMAL", status: "INACTIVE", qty: 0, unit: "mm" },
       ];
       const cmC = E.dungChiMuc(ds.concat(chet));
-      const topC = E.timTop(E.tuAI({ item_codes: ["zzqc-0001"], specs: [], colors: [], brands: [] }, cmC), cmC, { soLuong: 3, chiActive: true });
-      kiem("… nhưng nhóm CHẾT HOÀN TOÀN thì vẫn không được gợi ý (ngoại lệ không nới rộng)",
-        !topC.some((r) => String(r.sku).indexOf("999000") === 0),
-        topC.length ? topC.map((r) => r.sku + "/" + r.pct + "%").join(" · ") : "(không có gợi ý nào)");
+      const topChung = E.timTop(E.tuAI({ item_codes: [], specs: [], colors: [], brands: ["QCTest"] }, cmC), cmC, { soLuong: 3, chiActive: true });
+      kiem("Nhóm CHẾT HOÀN TOÀN, chỉ khớp chữ chung → vẫn không được gợi ý",
+        !topChung.some((r) => String(r.sku).indexOf("999000") === 0),
+        topChung.length ? topChung.map((r) => r.sku + "/" + r.pct + "%").join(" · ") : "(không có gợi ý nào)");
+      const topMa = E.timTop(E.tuAI({ item_codes: ["zzqc-0001"], specs: [], colors: [], brands: [] }, cmC), cmC, { soLuong: 3, chiActive: true });
+      kiem("… nhưng MANG ĐÚNG MÃ tem thì tồn 0 vẫn phải hiện (định danh thắng phạm vi)",
+        topMa.length > 0 && String(topMa[0].sku).indexOf("999000") === 0 && topMa[0].status === "INACTIVE",
+        topMa.map((r) => r.sku + "/" + r.pct + "%/" + r.status).join(" · "));
     } else kiem("Cả nhóm chỉ còn bản CUỘN → bản /mm lên đại diện", true, "(danh mục không có 422266550 để thử)");
   }
 

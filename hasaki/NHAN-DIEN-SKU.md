@@ -890,6 +890,73 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.12 Thẻ mẫu SMPA01 → luật "ĐỊNH DANH THẮNG PHẠM VI" + 4 việc gọn giao diện (20/08/2026)
+
+**Ảnh gửi tới không phải tem NCC** mà là **thẻ thông tin mẫu nội bộ** (`THẺ THÔNG TIN MẪU`: Loại mẫu ·
+Mã sản phẩm **SMPA01** · Men_Track Pants_Tapper · size XL/L · 87% poly + 13% lycra · Đen). Không có mã
+nhà cung cấp nào; dây neo duy nhất là `SMPA01`.
+
+**Tra WMS thì SMPA01 CÓ THẬT** — 2 SKU, và cả hai đều **không có trường `total`** (tồn 0):
+
+| SKU | Tên WMS | Kho | Công ty |
+|---|---|---|---|
+| 422430797 | Quần mẫu FT/SMPA01/87% Nylon, 13% Lycra/None/Deep Black/Size S | **1441 SAMPLE - 130 AP CHANH - MTG** | 1002 |
+| 422280648 | Quần mẫu FT/SMPA01/87% Nylon, 13% Lycra/None/Grey/None | **1441 SAMPLE - 130 AP CHANH - MTG** | 1002 |
+
+> **KHÔNG CÓ kho SAMPLE nào thuộc GARMENT.** Công ty 1005 chỉ có 5 kho — MATERIAL 1339 · SEMI PRODUCT
+> 1340 · FINISHED GOODS 1341 · SHOP 1266 · NG 1516 (đã quét, đếm từng kho). Kho mẫu là của **MTG**.
+> Cũng không có endpoint danh sách kho (đã thử 4 đường, đều 404) — muốn biết kho nào có gì thì
+> `stock-inventories?warehouse_ids=<id>&size=1` rồi đọc `warehouse_name`.
+
+**Hai lớp nguyên nhân, và lớp thứ hai mới là lớp đáng sửa:**
+
+* **Lớp 1 — phạm vi danh mục** (đúng như user đoán): `SKU_MASTER` chỉ quét 3 kho nguyên liệu nên
+  `SMPA01` không có trong chỉ mục ⇒ tab đưa 3 dòng chỉ khớp chữ chung `87%`/`13%`/`đen` ở 25–60%.
+* **Lớp 2 — xếp hạng**: bơm 2 dòng đó vào danh mục rồi chạy lõi ĐANG DEPLOY thì máy **nhận diện
+  đúng** (`diemMot = 0,82`, `coMa = true`, khớp `smpa01` tuyệt đối) nhưng **xếp hạng 344/457** — dưới
+  cả dòng 25% không mang mã — và với phạm vi "chỉ ACTIVE" thì **bị loại sạch**. Vì tồn 0 ⇒ INACTIVE,
+  mà luật cứng *"ACTIVE đứng trước"* (chốt 19/08) đè lên cả bằng chứng định danh. **Với hàng mẫu thì
+  tồn 0 là bình thường** — mẫu may xong nằm đó, không ai nhập tồn.
+
+**Chữa (không tốn thêm một lượt gọi WMS nào — user chốt "hạn chế đè nặng lên WMS"):**
+
+```
+laSku → [ACTIVE, chỉ khi hai bên cùng mức "có mã"] → [COMBO → GỘP, cùng điều kiện]
+      → SỔ TAY → CÓ MÃ → điểm → độ phủ → đơn vị nhỏ → tồn
+```
+
+Đúng cái ngoặc đã dùng cho luật đóng gói ở 5b.9, nay áp thêm cho bậc ACTIVE: **khác mức `coMa` thì
+ACTIVE im, CÓ MÃ quyết**; cùng mức thì ACTIVE vẫn quyết (hai dòng cùng mã, cái còn tồn đứng trước) ⇒
+**mọi ca tem thường không đổi hành vi**. Kèm ở bước gom nhóm: nhóm không còn dòng sống nào **nhưng có
+dòng mang đúng mã tem** thì vẫn được đại diện (thay vì bị `chiActive` loại).
+
+Đo: `#1 422430797 · 82% · INACTIVE` ở CẢ hai phạm vi. Test **65/65** lõi, trong đó 2 ca khoá đúng
+đường biên: *nhóm chết hoàn toàn mà chỉ khớp chữ chung → vẫn KHÔNG gợi ý* (ngoại lệ không được nới
+thành "cứ chết là cho hiện") và *nhóm chết hoàn toàn mà mang đúng mã → PHẢI hiện*.
+
+> **Ca này KHÔNG kéo kho SAMPLE vào cụm hằng ngày** (3.485 dòng, +4 lượt gọi/ngày, +0,6 MB tải) —
+> user chốt giữ tải upstream. Nghĩa là **thẻ mẫu vẫn chưa tra được** cho tới khi có ai nhặt kho SAMPLE
+> về một lần; sau khi có luật trên thì chỉ cần một lượt nhặt TAY (4 lượt gọi) là tra được ngay.
+
+**Bốn việc gọn giao diện (cùng yêu cầu):**
+
+| # | Đổi gì | Vì sao |
+|---|---|---|
+| 1 | Hộp "đang đọc" **chỉ còn đồng hồ giây** (bỏ "AI không đọc được — đang thử OCR của Google (miễn phí)…", "Chưa lập được mã hàng — đang đọc lại bằng OCR…"), quá 12s thì **đổi màu** thay vì thêm chữ | người đứng trước kệ không cần biết máy đang gọi ai, chỉ cần biết đang chạy và đã bao lâu |
+| 2 | Nút **Chụp** rời khỏi khung, thành **thanh nổi cố định ở đáy màn hình**, **màu cam** (`#f57c00`), cao 48px, chỉ hiện khi camera bật (`ndsHienChup` — MỘT chỗ duy nhất, gọi từ cả `ndsCam` và `ndsTatCam`) | chụp tem là thao tác một tay, điện thoại cầm thấp; cam cố định vì `--accent` đổi theo 7 theme, có theme trùng luôn màu nút |
+| 3 | Bỏ khối `<details>` **"Máy tự chạy thế nào?"** và rút dòng trống ô từ khoá | giảng giải bậc thang là chuyện của người dựng, không phải của người quét tem |
+| 4 | **Dòng chân chỉ còn nút** (`⟳ Tải lại danh mục`, `Xoá sổ tay`) — bỏ "Danh mục 5.625 SKU kho nguyên liệu (4.297 ACTIVE/1.328 INACTIVE) · nguồn … · đối soát 7ms · Sổ tay tem: N ghi nhớ …" | trên ĐT nó chiếm 4–5 dòng ngay dưới Top 3; số liệu vẫn nằm trong `NDS.ds`/`NDS.boRac`/`NDS.msDoiSoat` để chẩn đoán và để test đọc |
+
+**Bẫy đã xử:** ① thanh Chụp phải nằm **ngoài mọi view** trong DOM — `.vfade{will-change}` của các view
+làm chính nó thành containing block của `position:fixed` (bẫy cũ của `.date-pop`); ② hai thanh nổi
+(Chụp + giỏ "Đã chọn N SKU") **đè nhau** nếu không nâng giỏ lên — nay `body.nds-chup #pcbar{bottom:118px}`,
+đo được khe 14px trên máy 390px; ③ **bẫy pass oan trong chính ca test**: đọc hộp "đang đọc" SAU khi
+`ndsBusy(false)` thì hộp đã bị xoá nên "không còn chữ" luôn đúng — phải đọc TRƯỚC khi tắt.
+
+Đo trên máy 390px: nút Chụp cách đáy **76px**, cao **48px**, giỏ SKU cách đáy 137px, không đè; dòng
+chân còn **1 nút, 0 chữ**. Test: **65/65** lõi · **99/99** tab (+3 ca: nút Chụp nổi đúng chỗ/đúng màu/
+hiện-ẩn theo camera · dòng chân không còn thông báo · hộp đọc chỉ còn đồng hồ giây).
+
 ### 5b.11 Bố cục lại giao diện (yêu cầu user 20/08/2026)
 
 Năm việc, làm cùng một lượt vì chúng cùng một mục đích: **lấy lại chiều dọc trên điện thoại** và cho
