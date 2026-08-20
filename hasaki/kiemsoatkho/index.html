@@ -1080,12 +1080,56 @@ body.side-anim{overflow-x:clip;}
 @media(max-width:768px){
   .kb-lbl{font-size:10.5px;}
   .kpi-wrap thead th{font-size:10.5px;}
+  /* .kb-sub là dòng mô tả dưới nhãn thẻ KPI. Nó `nowrap + ellipsis` nên trên điện thoại bị cắt
+     THIẾU 449px chữ — tức gần như chỉ còn mấy chữ đầu ("Thao tác vật lý với hà…"), đọc không ra
+     nghĩa. Câu đầy đủ vẫn nằm ở `title` nhưng điện thoại không có hover để xem.
+     Cho nó XUỐNG DÒNG (kẹp 2 dòng) thay vì cắt — thẻ cao thêm chút nhưng đọc được.
+     Bộ đo bắt được bằng luật "nhãn bị cắt" (scrollWidth vượt clientWidth). */
+  .kb-sub{white-space:normal; overflow:hidden; text-overflow:clip; line-height:1.4;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
   /* Cột "so với tháng trước": tỉ lệ % + mũi tên tăng/giảm — con số người ta soi nhất trong bảng KPI,
      mà đang bị hạ xuống 9,5px trên điện thoại (rule ở khối 768px phía trên). */
   .kpi-prev,.kpi-up,.kpi-down,.kpi-prev-non{font-size:10.5px;}
   /* `.tt-wrap i` khai `!important` ở khối trên nên phải `!important` mới đè được. Đây là dòng chú
      dưới tiêu đề trang (chữ thưa, in hoa) — 8,5px là mức không đọc nổi trên máy cầm tay. */
   .tt-wrap i{font-size:10.5px !important;}
+}
+
+/* ===== NÚT CHÚ THÍCH `i` — BẢN DÙNG CHUNG CHO CẢ CÁC MODULE (20/08/2026) ========================
+ * Nhân bản đúng thành phần `.h2tip` của dashboard Audit Factory để hai dashboard cùng một quy ước.
+ * VÌ SAO có nó: các tab từng mở đầu bằng đoạn giảng giải "chỉ số đọc từ báo cáo nào, lọc luật gì",
+ * và tiêu đề thì kèm nhãn chỉ dẫn thao tác trong ngoặc — cả hai chiếm chỗ của số liệu mỗi lần vào
+ * tab. Nay dồn vào một nút nhỏ cạnh CHÍNH thứ nó nói tới; rê chuột vào thì hiện, rê ra thì ẩn.
+ * KÝ HIỆU `i` (không phải `!`): `i` = thông tin bổ trợ · `?` = trợ giúp · `!` = thứ bắt buộc biết
+ * trước khi làm tiếp (mang sắc thái cảnh báo). Chú thích ở đây thuộc loại đầu.
+ * BA ĐIỂM SỐNG CHẾT (đều đã dính một lần ở dashboard factory):
+ *   · ẩn bằng `display:none`, KHÔNG dùng `visibility:hidden` — phần tử ẩn kiểu kia VẪN nới vùng cuộn
+ *     của trang (đã làm kéo ngang 186px trên mọi tab).
+ *   · bong bóng NEO MÉP TRÁI, không canh giữa — canh giữa thì trổ ra ngoài mép màn và mất chữ đầu.
+ *   · máy cảm ứng đổi thành DẢI ĐÁY MÀN: `left/right` chốt vào viewport nên không bao giờ tràn.
+ * `data-tip` là VĂN BẢN THUẦN: `content:attr()` không dựng được thẻ. */
+.h2tip{position:relative; display:inline-flex; align-items:center; justify-content:center;
+  width:1.15em; height:1.15em; min-width:1.15em; margin-left:.4em; padding:0; vertical-align:.06em;
+  border:1px solid var(--border); border-radius:999px; background:0; color:var(--muted);
+  font-family:inherit; font-size:.72em; font-weight:700; font-style:normal; line-height:1; cursor:help;
+  opacity:.75; transition:opacity .15s ease, color .15s ease, border-color .15s ease;}
+.h2tip:hover, .h2tip:focus-visible{opacity:1; color:var(--accent); border-color:var(--accent); outline:0;}
+.h2tip::after{content:attr(data-tip); position:absolute; left:-6px; top:calc(100% + 9px); display:none;
+  transform-origin:top left; background:var(--text); color:var(--surface);
+  font-size:11.5px; font-weight:600; line-height:1.5; text-align:left; white-space:normal;
+  width:max-content; max-width:min(420px, calc(100vw - 32px));
+  padding:8px 11px; border-radius:8px; pointer-events:none; box-shadow:0 6px 20px rgba(0,0,0,.22); z-index:60;}
+.h2tip::before{content:""; position:absolute; left:50%; top:calc(100% + 3px); width:0; height:0; display:none;
+  pointer-events:none; transform:translateX(-50%); border:5px solid transparent; border-bottom-color:var(--text);}
+.h2tip:hover::after, .h2tip:focus-visible::after{display:block; animation:popIn .18s ease both;}
+.h2tip:hover::before, .h2tip:focus-visible::before{display:block;}
+@media(hover:none){
+  .h2tip{width:1.3em; height:1.3em; min-width:1.3em; font-size:.8em;}
+  .h2tip::after{position:fixed; left:12px; right:12px; bottom:16px; top:auto;
+    width:auto; max-width:none; font-size:12.5px; line-height:1.55; padding:11px 13px; border-radius:10px;
+    box-shadow:0 -4px 24px rgba(0,0,0,.28); z-index:120;}
+  .h2tip::before{content:none;}
+  .h2tip:focus::after{display:block; animation:popIn .18s ease both;}
 }
 </style>
 </head>
@@ -3439,6 +3483,21 @@ document.addEventListener('click', ()=>csDongHet(null));
   /* renderTabs() (đổi công ty) làm mới #tabsNav → dựng lại sidebar cho khớp */
   try{ new MutationObserver(build).observe(document.getElementById("tabsNav"), { childList: true }); }catch(e){}
 })();
+</script>
+
+<script>
+/* Nút chú thích `i` — helper DÙNG CHUNG cho host và mọi module (factory-stock, hasaki-kiemke,
+   hasaki-tonbatthuong…). Một ký hiệu thì chỉ được có MỘT chỗ quyết định: hằng TIP_KYHIEU.
+   Nội dung phải là VĂN BẢN THUẦN (content:attr không dựng thẻ). */
+var TIP_KYHIEU = "i";
+function tipEsc(t){ return String(t == null ? "" : t)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function tipMuc(txt, lop){
+  if (!txt) return "";
+  return '<button type="button" class="h2tip' + (lop ? " " + lop : "") +
+    '" aria-label="Chú thích: ' + tipEsc(String(txt).slice(0, 120)) +
+    '" data-tip="' + tipEsc(txt) + '">' + TIP_KYHIEU + "</button>";
+}
 </script>
 </body>
 </html>

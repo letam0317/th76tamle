@@ -317,17 +317,17 @@ var KHUNG =
 '    <h2>Kiểm kê theo SKU <span class="hk-hint">(type SKU)</span> <span class="hk-scope" id="hkScope-sku" hidden></span></h2>' +
 '    <div class="hk-strip" id="hkStrip-sku"></div>' +
 '    <div id="hkStatus-sku"></div>' +
-'    <div class="hk-dhead">Đã kiểm theo ngày <span class="hk-hint">(Counted date · so với ngày kề trước)</span> <span class="hk-legend" id="hkLegend-sku"></span></div>' +
+'    <div class="hk-dhead">Đã kiểm theo ngày <span class="hk-legend" id="hkLegend-sku"></span></div>' +
 '    <div class="hk-daily" id="hkHist-sku"></div>' +
 '  </section>' +
 '  <section class="hk-panel">' +
 '    <h2>Kiểm kê theo mã vị trí <span class="hk-hint">(type Location · Full location)</span> <span class="hk-scope" id="hkScope-loc" hidden></span></h2>' +
 '    <div class="hk-strip" id="hkStrip-loc"></div>' +
 '    <div id="hkStatus-loc"></div>' +
-'    <div class="hk-dhead">Đã kiểm theo ngày <span class="hk-hint">(Counted date · so với ngày kề trước)</span> <span class="hk-legend" id="hkLegend-loc"></span></div>' +
+'    <div class="hk-dhead">Đã kiểm theo ngày <span class="hk-legend" id="hkLegend-loc"></span></div>' +
 '    <div class="hk-daily" id="hkHist-loc"></div>' +
 '  </section>' +
-'  <section class="hk-panel hk-span2"><h2>Tiến độ theo kho <span class="hk-hint">(SKU + mã vị trí · bấm thẻ kho để lọc toàn tab theo kho đó)</span></h2><div class="hk-whlist" id="hkWhList"></div></section>' +
+'  <section class="hk-panel hk-span2"><h2>Tiến độ theo kho</h2><div class="hk-whlist" id="hkWhList"></div></section>' +
 '</div>' +
 '<div id="hkState" class="hk-state"><div class="hk-spin"></div>Đang tải dữ liệu kiểm kê…</div>' +
 '<div class="hk-srcfoot">' +

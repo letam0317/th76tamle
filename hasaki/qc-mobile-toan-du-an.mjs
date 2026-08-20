@@ -11,7 +11,7 @@
  *  Tệp này đo RỘNG: một bộ luật CHUNG áp cho mọi màn, tự tìm ra phần tử vi phạm — nhờ vậy tab mới
  *  thêm sau này cũng được canh mà không phải viết thêm ca nào.
  *
- *  SÁU LUẬT CHUNG (rút ra từ những lần vỡ thật, xem memory qc-bo-cuc-dien-thoai):
+ *  TÁM LUẬT CHUNG (rút ra từ những lần vỡ thật, xem memory qc-bo-cuc-dien-thoai):
  *    ① Trang KHÔNG được kéo ngang. Cuộn ngang chỉ được phép BÊN TRONG khung tự khai
  *       `overflow-x:auto` (bảng rộng), không được để cả trang trôi.
  *    ② Không phần tử nào tràn khỏi mép phải màn hình (trừ phần tử nằm trong khung cuộn ngang nói trên).
@@ -21,6 +21,8 @@
  *       THẬT, không đo cái hộp (hộp kiểm gốc 15-22px, CSS không nới được).
  *    ⑤ Không "số mồ côi": trong chế độ THẺ thì thead ẩn, ô thuần số mà không nhãn là số vô nghĩa.
  *    ⑥ Nhãn phải đọc được: chữ <10px là quá nhỏ trên máy cầm tay (bỏ qua phần tử chỉ có ký hiệu).
+ *    ⑦ Nhãn KHÔNG bị cắt bởi ellipsis ("TỔ…" thì con số bên cạnh thành vô nghĩa).
+ *    ⑧ Cụm control không RĂNG CƯA: thanh điều khiển wrap ≥4 hàng, hoặc chiếm >1/4 màn, là lộn xộn.
  *
  *  node qc-mobile-toan-du-an.mjs                 (mặc định: cả 2 dashboard, 4 máy)
  *  node qc-mobile-toan-du-an.mjs --may=ios       (chỉ iOS · hoặc --may=android)
@@ -66,12 +68,28 @@ const TRANG = [
     file: path.resolve(DIR, "..", "factory", "index.html"),
     sanSang: "() => typeof showTab === 'function' && typeof HOME_MUC !== 'undefined'",
     man: [
-      { ten: "Tổng quan", mo: "() => { showTab('home'); return true; }" },
-      { ten: "Trạng thái lưu trữ", mo: "() => { showTab('stock'); return true; }" },
-      { ten: "Kiểm kê", mo: "() => { showTab('kk'); return true; }" },
-      { ten: "Tồn kho bất thường", mo: "() => { showTab('abn'); return true; }" },
-      { ten: "Planogram", mo: "() => { showTab('plg'); return true; }" },
-      { ten: "Nhận diện SKU", mo: "() => { showTab('sku'); return true; }" },
+      /* `sanSangMan` = điều kiện "tab này đã VẼ XONG dữ liệu thật". BẮT BUỘC phải có, không thì bộ đo
+         chụp đúng lúc tab còn là skeleton — mà skeleton thì luật nào cũng đạt (không chữ nên không
+         cắt, không control nên không răng cưa). Đây là lý do lượt trước bộ đo báo tab Kiểm kê SẠCH
+         trong khi thanh lọc thật đang vỡ 6 hàng cao 222px.
+         ⚠ Điều kiện phải bám CON SỐ THẬT, không bám sự tồn tại của phần tử: skeleton dùng CHÍNH
+         class thật (`.ks`, `.card`, `.abntile`) nên "đếm phần tử > 0" vẫn đúng khi màn còn xám —
+         đã dính đúng bẫy này ở bản trước. Nên điều kiện là "có ô nào chứa CHỮ SỐ". */
+      { ten: "Tổng quan", mo: "() => { showTab('home'); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#viewHome .hm-t').length > 0" },
+      { ten: "Trạng thái lưu trữ", mo: "() => { showTab('stock'); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#viewStock .card .k')].some(x => /\\d/.test(x.textContent))" },
+      { ten: "Kiểm kê", mo: "() => { showTab('kk'); return true; }",
+        /* Phải chờ ĐỦ BA thứ: dải chỉ số, ô lọc, VÀ chip kho. Bản trước thiếu chip kho nên đo lúc
+           thanh còn ngắn ⇒ tab báo ĐẠT trong khi cùng thanh đó bị pop-up bắt là 215px/5 hàng. Cùng
+           một thanh mà hai kết luận trái nhau thì lỗi ở điều kiện chờ, không ở thanh. */
+        sanSangMan: "() => [...document.querySelectorAll('#viewKK .kkstrip .ks .v')].some(x => /\\d/.test(x.textContent)) && document.querySelectorAll('#kkFilters .fld').length > 0 && document.querySelectorAll('#kkWhBar .kktab').length > 0" },
+      { ten: "Tồn kho bất thường", mo: "() => { showTab('abn'); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#viewAbn .abntile .k')].some(x => /\\d/.test(x.textContent))" },
+      { ten: "Planogram", mo: "() => { showTab('plg'); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#viewPlg .pg-whbar *').length > 0" },
+      { ten: "Nhận diện SKU", mo: "() => { showTab('sku'); return true; }",
+        sanSangMan: "() => !!document.getElementById('ndsMa')" },
       { ten: "Pop-up Kiểm kê (theo SKU)", cho: "#kkmodal.show",
         mo: "() => { showTab('kk'); const t=document.querySelector('#kkWrap .ks,.ks'); if(!t) return false; t.click(); return true; }",
         dong: "() => { try{ closeKkModal(); }catch(e){} }" },
@@ -117,7 +135,7 @@ function raSoat() {
   const trongKhungCuon = (el) => { for (let p = el.parentElement; p && p !== de; p = p.parentElement) {
       const ox = getComputedStyle(p).overflowX; if (ox === 'auto' || ox === 'scroll') return true; } return false; };
   const ten = (el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
-    (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 2).join('.') : '');
+    (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
   /* Số dòng chữ THẬT: gom rect của Range theo tâm dọc. Hai bẫy đã dính (giữ lại để đừng đo lại
      kiểu cũ): (a) chiều cao ô / line-height là đo chiều cao HÀNG vì td vertical-align:top;
      (b) đếm số rect thì sai vì 1 dòng sinh nhiều rect khi ô có phần tử con. */
@@ -196,6 +214,40 @@ function raSoat() {
       if (!coNhan) moCoi.push({ el: ten(td), chu: t.slice(0, 14) });
     }
   }
+  /* ⑧ NHÃN BỊ CẮT: `text-overflow:ellipsis` làm chữ mất đuôi. Con số còn đó mà nhãn thành "TỔ…"
+     thì không ai biết nó là số gì — ĐO THẬT ở dải 6 chỉ số tab Kiểm kê trên màn 375px. Luật cũ không
+     bắt được: không tràn, không bóp, và vẫn "có nhãn" nên không tính là mồ côi.
+     Nhận diện: phần tử có ellipsis mà scrollWidth vượt clientWidth quá 8px ⇒ chữ thật sự bị cắt. */
+  const cat = [];
+  for (const el of document.querySelectorAll('body *')) {
+    if (!thay(el)) continue;
+    const cs = getComputedStyle(el);
+    if (cs.textOverflow !== 'ellipsis') continue;
+    if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue;
+    const t = (el.textContent || '').trim();
+    if (t.length < 4) continue;
+    const thieu = el.scrollWidth - el.clientWidth;
+    if (thieu > 8) cat.push({ el: ten(el), thieu, chu: t.slice(0, 22) });
+  }
+  /* ⑨ CỤM CONTROL RĂNG CƯA: một thanh điều khiển wrap thành nhiều hàng với các món lệch bề rộng
+     nhìn ra một đống lộn xộn, và ăn hết phần đầu màn trước khi thấy số liệu. ĐO THẬT: thanh lọc tab
+     Kiểm kê cao 222px / 6 hàng trên màn 375px.
+     Nhận diện: thanh có >=4 món nhìn thấy xếp thành >=4 HÀNG (đếm số mốc `top` khác nhau), hoặc cao
+     hơn 1/4 màn hình. Ngưỡng 4 hàng để 2-3 hàng ngay ngắn (kiểu 2 cột) vẫn được coi là ổn. */
+  const rangCua = [];
+  for (const bar of document.querySelectorAll('.kkbar,.mfilters,.pg-whbar,.nds-ctl')) {
+    if (!thay(bar)) continue;
+    const con = [...bar.querySelectorAll(':scope > *')].filter((x) => thay(x) &&
+      getComputedStyle(x).display !== 'contents');
+    /* `display:contents` không có hộp riêng ⇒ phải lấy CHÁU làm món thật, không thì đếm ra 1 con. */
+    const mon = con.length >= 4 ? con : [...bar.querySelectorAll('.kktab,.fld,.mfbtn,button')].filter(thay);
+    if (mon.length < 4) continue;
+    const tops = [...new Set(mon.map((x) => Math.round(x.getBoundingClientRect().top / 6)))];
+    const cao = Math.round(bar.getBoundingClientRect().height);
+    if (tops.length >= 4 || cao > de.clientHeight / 4)
+      rangCua.push({ el: ten(bar), hang: tops.length, cao, mon: mon.length,
+        phanTramMan: Math.round(cao / de.clientHeight * 100) });
+  }
   /* Chữ quá nhỏ để đọc trên điện thoại. Gom theo SELECTOR (không liệt kê từng phần tử) để sửa được
      bằng một rule, và bỏ qua phần tử ẩn/không có chữ thật. */
   const dem = {};
@@ -215,7 +267,10 @@ function raSoat() {
   Object.keys(dem).sort((a, b) => dem[b] - dem[a]).forEach((k) => chuNho.push({ el: k, n: dem[k] }));
   const gon = (a, n) => a.slice(0, n);
   const mcU = [...new Map(moCoi.map((x) => [x.el, x])).values()];
+  const catU = [...new Map(cat.map((x) => [x.el, x])).values()];
   return { keoTrang: de.scrollWidth - W, W,
+    cat: catU.slice(0, 6), nCat: catU.length,
+    rangCua: rangCua.slice(0, 4), nRangCua: rangCua.length,
     tran: gon(tran, 6), nTran: tran.length,
     bop: gon(bop, 6), nBop: bop.length,
     cham: gon(cham, 6), nCham: cham.length,
@@ -248,7 +303,12 @@ for (const may of MAY) {
     console.log("  ── " + trang.ten + "  (" + (DUNG_FILE ? "file" : "live") + ")");
     try {
       await p.goto(url, { waitUntil: "networkidle2", timeout: 90000 });
-      await p.waitForFunction(trang.sanSang, { timeout: 60000 });
+      /* ⚠ BẪY NẶNG NHẤT CỦA CẢ BỘ ĐO (phát hiện 20/08/2026): truyền CHUỖI NGUỒN arrow function cho
+         waitForFunction thì Puppeteer đánh giá chuỗi đó như một BIỂU THỨC — kết quả là một object
+         hàm, mà object thì luôn truthy ⇒ lệnh chờ TRẢ VỀ NGAY, không chờ gì cả. Hậu quả: bộ đo chụp
+         và đo lúc trang còn skeleton, rồi báo ĐẠT — xanh giả toàn bộ. Phải bọc "(fn)()" để nó GỌI
+         hàm, đúng như cách làm với man.mo ở dưới. */
+      await p.waitForFunction('(' + trang.sanSang + ')()', { timeout: 60000 });
     } catch (e) {
       console.log("     ✗ không mở được: " + e.message.split("\n")[0]);
       tongLoi++; await p.close(); continue;
@@ -274,7 +334,13 @@ for (const may of MAY) {
         try { await p.waitForSelector(man.cho, { timeout: 15000 }); } catch (e) {
           console.log("     ○ " + man.ten + " — bỏ qua (pop-up không hiện)"); continue; }
       }
-      await nghi(man.cho ? 900 : 700);
+      if (man.sanSangMan) {
+        /* Chờ tab vẽ xong DỮ LIỆU THẬT. Hết thời gian mà vẫn skeleton thì BÁO RÕ và bỏ qua — thà
+           nói "không đo được" còn hơn đo một cái skeleton rồi kết luận "đạt". */
+        try { await p.waitForFunction('(' + man.sanSangMan + ')()', { timeout: 40000 }); }
+        catch (e) { console.log("     ○ " + man.ten + " — BỎ QUA: tab chưa vẽ xong dữ liệu (còn skeleton)"); continue; }
+      }
+      await nghi(900);
       const r = await p.evaluate(raSoat);
       tongMan++;
       const xau = [];
@@ -283,6 +349,8 @@ for (const may of MAY) {
       if (r.nBop) xau.push(r.nBop + " ô bị bóp (chữ xếp dọc)");
       if (r.nCham) xau.push(r.nCham + " control chạm <40px");
       if (r.nMoCoi) xau.push(r.nMoCoi + " ô số MỒ CÔI (không nhãn)");
+      if (r.nCat) xau.push(r.nCat + " nhãn BỊ CẮT chữ");
+      if (r.nRangCua) xau.push(r.nRangCua + " cụm control RĂNG CƯA");
       if (r.nChuNho) xau.push(r.nChuNho + " kiểu chữ <10px");
       if (!xau.length) console.log("     ✓ " + man.ten);
       else {
@@ -292,6 +360,9 @@ for (const may of MAY) {
         r.bop.forEach((x) => console.log("        bóp   " + x.el + "  rộng " + x.rong + "px → " + x.dong + " dòng  \"" + x.chu + "…\""));
         r.cham.forEach((x) => console.log("        chạm  " + x.el + "  " + x.co + "px"));
         r.moCoi.forEach((x) => console.log("        mồ côi " + x.el + "  = \"" + x.chu + "\" (không nhãn)"));
+        r.cat.forEach((x) => console.log("        cắt   " + x.el + "  thiếu " + x.thieu + "px  \"" + x.chu + "\""));
+        r.rangCua.forEach((x) => console.log("        răng cưa " + x.el + "  " + x.mon + " món / " + x.hang +
+          " hàng · cao " + x.cao + "px (" + x.phanTramMan + "% màn)"));
         r.chuNho.forEach((x) => console.log("        chữ   " + x.el + "   ×" + x.n));
       }
       bangKe.push({ may: may.ten, he: may.he, trang: trang.ten, man: man.ten, ...r, xau });

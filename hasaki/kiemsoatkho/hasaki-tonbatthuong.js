@@ -186,8 +186,15 @@ var KHUNG =
 '    <span id="htLoadinfo" class="ht-hint"></span>' +
 '    <button id="htReload" onclick="HTONBAT.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
 '  </div>' +
-'  <p class="ht-hint" style="margin:0">Chỉ số "bất thường" đọc từ báo cáo <b>stock-inventory</b> WMS (cụm đồng bộ 7h) — chỉ SKU có <b>Product Type = Normal</b> và có ít nhất 1 loại &gt; 0: Conflict · UID Temp · Not Found · Unsuitable product · Committed · Committed Outbound.</p>' +
 '</div>';
+/* Đoạn giảng giải "Chỉ số bất thường đọc từ báo cáo…" ĐÃ RỜI KHỎI ĐẦU TAB (20/08/2026, cùng luật với
+   dashboard Audit Factory): nó chiếm 2-3 dòng đầu màn mỗi lần vào tab, mà đọc một lần là biết.
+   Nay nằm trong nút `i` dán ngay cạnh nhãn thẻ "SKU bất thường" — tức cạnh CHÍNH con số nó định
+   nghĩa (nguyên tắc proximity), không phải một câu chắn trước bảng. VĂN BẢN THUẦN vì tooltip dựng
+   bằng content:attr(). */
+var TIP_TONG = 'Chỉ số "bất thường" đọc từ báo cáo stock-inventory của WMS (cụm đồng bộ 7h): chỉ lấy ' +
+  'SKU có Product Type = Normal và có ít nhất 1 loại lớn hơn 0 — Conflict, UID Temp, Not Found, ' +
+  'Unsuitable product, Committed, Committed Outbound.';
 
 var MODAL_HTML =
 '<div id="htModal" class="ht-modal">' +
@@ -376,7 +383,7 @@ function render(){
   var tot = _so.tot, cnt = _so.cnt, byWh = _so.byWh, nSku = _so.nSku, nWh = _so.nWh;
 
   var tiles = '<div class="ht-tile tot" onclick="HTONBAT.openAll()" title="Xem tất cả SKU bất thường">' +
-      '<div class="k">' + nf(nSku) + '</div><div class="l">SKU bất thường</div><div class="s">Product Type = Normal · ' + nf(nWh) + ' kho</div></div>' +
+      '<div class="k">' + nf(nSku) + '</div><div class="l">SKU bất thường' + (typeof tipMuc === "function" ? tipMuc(TIP_TONG) : "") + '</div><div class="s">Product Type = Normal · ' + nf(nWh) + ' kho</div></div>' +
     TYPES.map(function(t){
       return '<div class="ht-tile" style="--cc:' + t.c + '" data-k="' + t.k + '" onclick="HTONBAT.openType(this.getAttribute(\'data-k\'))" title="Xem SKU có ' + t.lb + '">' +
         '<div class="k">' + nf(tot[t.k]) + '</div><div class="l">' + t.lb + '</div><div class="s">' + nf(cnt[t.k]) + ' SKU</div></div>';
@@ -410,8 +417,8 @@ function render(){
   }).join("");
 
   html += '<div class="ht-grid2 ht-fade">' +
-    '<section class="ht-panel"><h2>Theo kho <span class="ht-hint">(độ dài = tổng SL · màu = loại · bấm để xem SKU)</span> <span class="ht-legend">' + legend + '</span></h2><div class="ht-chart">' + whBars + '</div></section>' +
-    '<section class="ht-panel"><h2>Theo loại <span class="ht-hint">(bấm để xem SKU)</span></h2><div class="ht-chart">' + typeBars + '</div></section>' +
+    '<section class="ht-panel"><h2>Theo kho <span class="ht-legend">' + legend + '</span></h2><div class="ht-chart">' + whBars + '</div></section>' +
+    '<section class="ht-panel"><h2>Theo loại</h2><div class="ht-chart">' + typeBars + '</div></section>' +
   '</div>';
   cont.innerHTML = html;
   requestAnimationFrame(function(){ requestAnimationFrame(function(){

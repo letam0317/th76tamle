@@ -436,8 +436,8 @@ function render(groups, whDiv){
     '<span class="fs-tag rem">Còn lại ' + (100 - rate).toFixed(1) + '% (' + nf(gPe) + ' SKU)</span></div>' +
     '<div class="fs-ratebar"><div class="fs-ratef" data-fsw="' + rate.toFixed(1) + '">' + rate.toFixed(0) + '%</div>' +
     '<div class="fs-ratefr" data-fsw="' + (100 - rate).toFixed(1) + '">' + (100 - rate).toFixed(0) + '%</div></div></div>' +
-    '<section class="fs-panel"><h2>Bảng chi tiết <span class="fs-hint">(bấm từng kho để xem chi tiết &amp; total)</span></h2>' + acc + '</section>' +
-    '<section class="fs-panel"><h2>Tiến độ lên kệ theo Warehouse <span class="fs-hint">(bấm số SKU để xem chi tiết)</span></h2><div class="fs-whlist">' + whchips + '</div></section>' +
+    '<section class="fs-panel"><h2>Bảng chi tiết</h2>' + acc + '</section>' +
+    '<section class="fs-panel"><h2>Tiến độ lên kệ theo Warehouse</h2><div class="fs-whlist">' + whchips + '</div></section>' +
     '<section class="fs-panel"><h2>Top Category theo số SKU đã lên kệ</h2>' + bars + '</section>' +
     '</div>';
   requestAnimationFrame(function(){ requestAnimationFrame(function(){
