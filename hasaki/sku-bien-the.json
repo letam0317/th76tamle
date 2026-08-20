@@ -1,0 +1,104 @@
+{
+ "at": "2026-08-20T02:23:43.330Z",
+ "moTa": "Biến thể ĐƠN VỊ NHỎ HƠN của các mặt hàng trong 3 kho nguyên liệu, nhặt từ kho ngoài phạm vi (chủ yếu WH - SEMI PRODUCT). Tồn để 0 vì tồn thật nằm ở kho khác. Chạy lại: node sync-sku-master.mjs --bu-bien-the",
+ "trang": 146,
+ "quet": 145082,
+ "rows": [
+  [
+   "422304419",
+   "Chỉ may/COATS Phong Phú, C2080/Polyester /None/Lavender/None/Text 27 - 60-3- Tkt 120/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422330461",
+   "Chỉ Irisa/F7-5621_Phong Việt/Polyester/None/Xanh tro/None/Tex 27- 60_3/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422370120",
+   "Dây chống dãn/Triều Vĩ/Nylon+Polyester/None/White/None/ngang 5mm/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422370183",
+   "Dây chống dãn/Triều Vĩ/Nylon+Polyester/None/Black/none/None-ngang 5mm/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422377876",
+   "Chỉ FILTEX/FS5039_Phong Việt/Polyester/None/Light Sand/None/Tex 24-100D-2-Tkt 120/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422378203",
+   "Chỉ Irisa/FX-1157_Phong Việt/100% Polyester/None/Army Gray/None/Tex 27- 60-3/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422381090",
+   "Mực Black 4 ( Đen 4 )/T&T/ dùng cho máy in Pad T125/None/None/(1kg hộp)/None/mg",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mg"
+  ],
+  [
+   "422386278",
+   "Chỉ may Astra mẫu/Coats Phong Phú/polyester/None/C1740/None/Text 27-Tkt120/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422386283",
+   "Chỉ may Astra mẫu/Coats Phong Phú/polyester/None/C8331/None/Text 40-Tkt075/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422386285",
+   "Chỉ may Astra mẫu/Coats Phong Phú/polyester/None/C9308/None/Text 40-Tkt075/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422413917",
+   "Film trang trí /Bemis/Polyurethane nhiệt đẻo, mã EXO3900/None/Navy/None/dày 0,004, width 475MM/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ],
+  [
+   "422429773",
+   "Keo bonding/6410NETX_Bemis/Polyurethane nhiệt dẻo/None/Clear/None/45gsm,width 7mm/mm",
+   "NORMAL",
+   "INACTIVE",
+   0,
+   "mm"
+  ]
+ ]
+}

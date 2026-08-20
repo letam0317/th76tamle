@@ -165,6 +165,24 @@ await page.evaluate(() => {
   x.font = "22px Arial"; x.fillText("38.0 CM  ·  345", 40, 150);
   ndsDatAnh(c.toDataURL("image/jpeg", 0.9));
 });
+/* ---------- 3a0. Ô "PHẦN TỬ TRÊN TEM" ĐỨNG TRÊN KHUNG CAMERA (chuyển 20/08/2026) ----------
+   Yêu cầu user: mở tab là thấy ô nhập trước, khung hình sau. Kiểm bằng TOẠ ĐỘ THẬT (không kiểm thứ
+   tự trong DOM) vì `.nds-grid` có thể xếp lại bằng CSS; kèm kiểm khoảng thở giữa hai khối không phình
+   ra (margin cộng dồn là thứ đã cắn ở tab Planogram). */
+const oTrenKhung = await page.evaluate(() => {
+  const o = document.querySelector("#viewNds .nds-marow"), st = document.getElementById("ndsStage");
+  const h2 = document.querySelector("#viewNds section.panel h2");
+  if (!o || !st) return null;
+  const a = o.getBoundingClientRect(), b = st.getBoundingClientRect(), c = h2.getBoundingClientRect();
+  return { tren: a.bottom <= b.top + 1, duoiTieuDe: a.top >= c.bottom - 1,
+    khe: Math.round(b.top - a.bottom), coNut: !!o.querySelector(".nds-go"),
+    nhan: (o.querySelector("label") || {}).textContent || "" };
+});
+kiem("Ô \"Phần tử trên tem\" + nút Tra nằm NGAY TRÊN khung camera (ngay dưới tiêu đề bước 1)",
+  !!oTrenKhung && oTrenKhung.tren && oTrenKhung.duoiTieuDe && oTrenKhung.coNut &&
+  oTrenKhung.khe >= 0 && oTrenKhung.khe <= 18,
+  oTrenKhung ? ("nhãn \"" + oTrenKhung.nhan.trim() + "\" · khe tới khung " + oTrenKhung.khe + "px") : "(không thấy ô nhập)");
+
 /* ---------- 3a. THANH ĐIỀU KHIỂN KHUNG NẰM TRONG KHUNG (chốt 19/08/2026) ----------
    Nút thao tác với chính khung hình (bật/tắt camera · chụp · chọn ảnh · xoay) phải nằm TRÊN khung
    như app camera, không rải ra ngoài. Nút hành động với KẾT QUẢ (quét mã vạch · đọc lại bằng AI)
@@ -237,7 +255,7 @@ const the = await page.$$eval("#ndsCards .nds-card", (a) => a.map((c) => ({
   sku: (c.querySelector(".nds-sku") || {}).textContent,
   pct: (c.querySelector(".nds-pct") || {}).textContent,
   rong: (c.querySelector(".nds-fill") || {}).style ? c.querySelector(".nds-fill").style.width : "",
-  toTrung: c.querySelectorAll(".nds-pn mark").length,
+  toTrung: c.querySelectorAll(".nds-pn .highlight-match").length,
   loai: (c.querySelector(".badge") || {}).textContent,
   ton: (c.querySelector(".pg-chip") || {}).textContent,
   badges: Array.prototype.map.call(c.querySelectorAll(".nds-chead .badge"), (b) => b.textContent.trim()),
@@ -246,7 +264,19 @@ const the = await page.$$eval("#ndsCards .nds-card", (a) => a.map((c) => ({
 kiem("Vẽ Top 3 thẻ gợi ý", the.length === 3, the.map((t) => t.sku + " " + t.pct).join(" · "));
 kiem("Thẻ #1 là SKU đúng của tem YKK 38cm màu 345", the[0] && the[0].sku === "422322192", the[0] && the[0].sku);
 kiem("Thanh % có bề rộng theo điểm", !!(the[0] && /%$/.test(the[0].rong)), the[0] && the[0].rong);
-kiem("Tên sản phẩm có tô đậm phần trùng khớp", !!(the[0] && the[0].toTrung >= 2), the[0] && the[0].toTrung + " đoạn <mark>");
+kiem("Tên sản phẩm có tô đậm phần trùng khớp", !!(the[0] && the[0].toTrung >= 2), the[0] && the[0].toTrung + " đoạn .highlight-match");
+/* 20/08/2026: đoạn tô phải là `<span class="highlight-match">` VỚI ĐÚNG bộ màu đã chốt — không thì
+   đổi tên class ở một chỗ mà quên CSS là mất tô, im lặng (không lỗi JS, không ca test nào đỏ). */
+const toMau = await page.evaluate(() => {
+  const e = document.querySelector("#ndsCards .nds-pn .highlight-match");
+  if (!e) return null;
+  const st = getComputedStyle(e);
+  return { the: e.tagName, bg: st.backgroundColor, chu: st.color, day: st.fontWeight, bo: st.borderRadius };
+});
+kiem("Đoạn tô là <span class='highlight-match'> với đúng bộ màu (#ffe0b2 / #e65100, in đậm)",
+  !!toMau && toMau.the === "SPAN" && toMau.bg === "rgb(255, 224, 178)" && toMau.chu === "rgb(230, 81, 0)" &&
+  Number(toMau.day) >= 700,
+  toMau ? toMau.the + " · nền " + toMau.bg + " · chữ " + toMau.chu + " · đậm " + toMau.day : "(không thấy đoạn tô nào)");
 if (LUU_ANH) {
   await page.evaluate(() => { var t=document.getElementById("toast"); t.classList.remove("show"); window.scrollTo(0,0); });
   await page.screenshot({ path: path.join(OUT, "nds-desktop.png") });
@@ -283,6 +313,21 @@ const conSub = await page.$$eval("#ndsCards .nds-sub", (a) => a.length);
 kiem("Ghi chú (tem in đúng mã / lệch …) nằm CÙNG HÀNG với SKU, thẻ không còn dòng phụ nào",
   conSub === 0 && ghiChu.every((x) => x.cungHang) && the.every((t) => t.chips.length === 0),
   ghiChu.map((x) => x.chu || "—").join(" | ").slice(0, 70) + " · số dòng phụ còn lại: " + conSub);
+/* 20/08/2026 — sự cố C2080: đại diện nhóm có thể là bản ĐƠN VỊ NHỎ có TỒN 0 (bản cuộn mới là bản
+   có tồn). Thẻ vẫn in huy hiệu INACTIVE nên phải nói ngay vì sao nó đứng đầu, không thì thủ kho thấy
+   "tồn 0" rồi bỏ qua đúng cái SKU cần đếm. Kiểm bằng cách gọi THẲNG hàm vẽ thẻ với một dòng dựng tay
+   (không phụ thuộc danh mục live đã có bản /mm chưa). */
+const theDvNho = await page.evaluate(() => {
+  const html = ndsTheKetQua({ sku: "422304419", pn: "Chỉ may/COATS Phong Phú, C2080/Polyester /None/Lavender/None/Text 27 - 60-3- Tkt 120/mm",
+    type: "NORMAL", status: "INACTIVE", qty: 0, donVi: "mm", dv: "mm", q: 0.001, pct: 98, diem: 0.98, khop: {}, xungDot: [],
+    dvNhoThay: true, song: true, bienThe: [{ sku: "422266550", donVi: "Cuộn 5000m", status: "ACTIVE", qty: 32, q: 100 }] }, 1);
+  const d = document.createElement("div"); d.innerHTML = html;
+  const g = d.querySelector(".nds-chead .nds-ok");
+  return { chu: g ? g.textContent.trim() : "", badge: Array.prototype.map.call(d.querySelectorAll(".nds-chead .badge"), (b) => b.textContent.trim()) };
+});
+kiem("Đại diện là bản đơn vị nhỏ TỒN 0 → thẻ nói rõ 'đếm theo mm · tồn ở bản Cuộn 5000m'",
+  /đếm theo mm/.test(theDvNho.chu) && /Cuộn 5000m/.test(theDvNho.chu) && theDvNho.badge.indexOf("INACTIVE") >= 0,
+  theDvNho.chu + " · huy hiệu: " + theDvNho.badge.join(","));
 const viSao = await page.$$eval("#ndsCards .nds-card details.nds-more", (a) => a.map((d) => ({ mo: d.open, tt: d.querySelector("summary").textContent.trim() })));
 kiem("Biến thể + từ khoá khớp gộp chung MỘT <details>, mặc định đóng",
   viSao.length > 0 && viSao.every((d) => !d.mo && /từ khoá khớp|đơn vị khác/.test(d.tt)), (viSao[0] || {}).tt || "(không có)");
@@ -674,14 +719,21 @@ kiem("Bỏ mảnh GIẤY TỜ không có trong danh mục (địa chỉ · số 
 const chanRac = await page.$eval("#ndsFoot", (e) => e.textContent);
 kiem("Dòng chân nói ra đã bỏ bao nhiêu mảnh giấy tờ", /mảnh giấy tờ/.test(chanRac), "");
 
-/* Các gợi ý CÙNG mã 8846295 chỉ khác MÀU (102 biến thể): máy phải nói ra chứ không để con số của
-   hạng 1 trông như một kết luận — chữ màu in nhỏ nên chính OCR/AI hay đọc lệch 345↔145. */
+/* ĐẢO CỰC 20/08/2026 (yêu cầu user): dải "N gợi ý dưới đây đều mang đúng mã X — chỉ khác nhau ở
+   màu / thông số…" đã BỎ HẲN. Nó chiếm 3 dòng ngay trên Top 3 để nói một việc mà 3 thẻ đã nói rõ
+   hơn (phần tô .highlight-match giống nhau, chỗ khác nhau là chữ màu không được tô). Ca test giữ
+   lại nhưng đổi chiều: nếu chuỗi đó quay về là có người khôi phục mà không đọc quyết định này.
+   Kèm kiểm KHÔNG chừa khoảng trống: thẻ #1 phải là phần tử đầu tiên trong #ndsCards. */
 const canhMau = await page.evaluate(() => {
-  const t = (document.getElementById("ndsCards") || {}).textContent || "";
-  const i = t.indexOf("đều mang đúng mã");
-  return i < 0 ? "" : t.slice(Math.max(0, i - 24), i + 90);
+  const c = document.getElementById("ndsCards") || {};
+  const dau = c.firstElementChild;
+  return { con: ((c.textContent || "").indexOf("đều mang đúng mã") >= 0),
+    dauLaThe: !!dau && dau.classList.contains("nds-card"),
+    tren: dau ? Math.round(parseFloat(getComputedStyle(dau).marginTop) || 0) : -1 };
 });
-kiem("Cùng mã nhưng khác màu/thông số → mời người chọn, không tự chốt", !!canhMau, canhMau.slice(0, 96));
+kiem("Dải cảnh báo 'cùng mã, khác màu' đã bỏ — Top 3 không bị đẩy xuống",
+  !canhMau.con && canhMau.dauLaThe && canhMau.tren === 0,
+  "còn dải: " + canhMau.con + " · phần tử đầu là thẻ: " + canhMau.dauLaThe + " · margin-top: " + canhMau.tren + "px");
 
 /* AI đọc được chữ nhưng KHÔNG lập được mã nào có thật → phải tự tụt xuống OCR (miễn phí) */
 traLoi = AI_KHONG_MA; traLoiOcr = OCR_OK; soGoiOcr = 0; soGoiAi = 0;
@@ -865,6 +917,33 @@ const nut = await page.evaluate(() => {
   return { tran: bs.some((b) => b.right > cr.right + 1 || b.left < cr.left - 1),
     thap: Math.round(Math.min.apply(null, bs.map((b) => b.height))), n: bs.length };
 });
+/* 20/08/2026 (yêu cầu user): NHÃN "lệch …" phải nằm CÙNG HÀNG với "N từ khoá khớp · N đơn vị khác",
+   không được đẩy xuống dòng chừa dải trống. Dựng thẻ bằng cách gọi thẳng hàm vẽ (không phụ thuộc tem
+   nào đang cho ra xung đột) rồi đo trên máy 390px — chỗ chật nhất. */
+const mtDong = await page.evaluate(() => {
+  const html = ndsTheKetQua({ sku: "422322192", pn: "Dây kéo cước thuận #3/8846295_YKK/100% Polyester/None/Soft Citrus-(Vàng nhạt)-345/Size 3/38cm/pcs",
+    type: "NORMAL", status: "ACTIVE", qty: 12, donVi: "pcs", dv: "pcs", q: 1, pct: 88, diem: 0.88,
+    khop: { code: ["8846295"], spec: ["38cm"], color: ["345"], brand: ["ykk"] }, xungDot: ["mamau", "tex"],
+    bienThe: [{ sku: "422322216", donVi: "mm", status: "ACTIVE", qty: 5, q: 0.001 }] }, 1);
+  const d = document.createElement("div"); d.className = "nds-cards";
+  document.getElementById("ndsCards").parentNode.appendChild(d); d.innerHTML = html;
+  const sum = d.querySelector("details.nds-more>summary");
+  const t = sum && sum.querySelector(".nds-sumt"), l = sum && sum.querySelector(".nds-lech");
+  const st = sum ? getComputedStyle(sum) : {};
+  const a = t && t.getBoundingClientRect(), b = l && l.getBoundingClientRect(), c = sum && sum.getBoundingClientRect();
+  const ra = { co: !!(t && l), flex: st.display, canh: st.justifyContent, doc: st.alignItems,
+    cungHang: !!(a && b) && Math.abs(a.top - b.top) < 6,
+    lechPhai: !!(a && b) && b.left >= a.right - 1,
+    caoDong: c ? Math.round(c.height) : -1, tran: !!(b && c) && b.right > c.right + 1,
+    chu: (l && l.textContent.trim()) || "", dauCon: d.querySelector(".nds-chead .nds-lech") ? "CÒN" : "sạch" };
+  d.remove();
+  return ra;
+});
+kiem("Điện thoại: nhãn 'lệch …' CÙNG HÀNG với 'từ khoá khớp' (flex space-between, không tràn)",
+  mtDong.co && mtDong.flex === "flex" && mtDong.canh === "space-between" && mtDong.doc === "center" &&
+  mtDong.cungHang && mtDong.lechPhai && !mtDong.tran && mtDong.caoDong <= 26 && mtDong.dauCon === "sạch",
+  mtDong.flex + "/" + mtDong.canh + "/" + mtDong.doc + " · cùng hàng: " + mtDong.cungHang +
+  " · bên phải: " + mtDong.lechPhai + " · cao " + mtDong.caoDong + "px · \"" + mtDong.chu + "\" · hàng đầu: " + mtDong.dauCon);
 kiem("Điện thoại: nút điều khiển không tràn khỏi khung, đủ cao để chạm", !nut.tran && nut.thap >= 24,
   nut.n + " nút · tràn: " + nut.tran + " · nút thấp nhất " + nut.thap + "px");
 kiem("Điện thoại: tab đang hiện, không tràn ngang, lưới xếp 1 cột",

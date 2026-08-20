@@ -176,11 +176,117 @@ Hai cái bẫy đã tránh khi tối ưu:
 * **Đã thử hạ trần ứng viên** (4.000 → 600) cho nhanh: **bác**, vì Top 3 lệch 2,7% số ca. Nhanh mà
   sai thì không phải nhanh. Mọi tối ưu ở đây đều là *đổi cách tính*, không phải *tính ít đi* —
   đối chứng 400 tem mô phỏng × 2 phạm vi cho ra **giống hệt** bản trước tối ưu, 0 lượt lệch.
+  (Lần bác này là lúc ứng viên còn xếp theo **đếm đầu từ khoá**. Sau khi đổi sang cân theo IDF thì
+  hạ trần lại an toàn — xem mục 3b.)
 
 `ungVien` còn có chỉ mục **2-gram** thay cho quét tuyến tính 9.272 từ vựng. Chọn 2-gram chứ không
 3-gram là có lý do: một ký tự sai phá tối đa **hai** 2-gram, mà từ dài ≥5 có ≥4 cái, nên mọi cặp mà
 Levenshtein-có-ngưỡng chấp nhận đều còn chung ít nhất một 2-gram ⇒ rút ngắn danh sách mà **không bỏ
 sót**. 3-gram thì `"abcde"` vs `"abXde"` mất sạch gram chung — sẽ sót.
+
+---
+
+## 3b. Vòng tối ưu 20/08/2026 — đo trong TRÌNH DUYỆT THẬT, không phải trong Node
+
+Vì sao phải đo lại: mọi con số ở mục 3 đều đo bằng Node trên PC. Đo lại **trong Edge** và bóp CPU
+để giả điện thoại thủ kho cầm ngoài kho (`Emulation.setCPUThrottlingRate`) thì lộ ra hai chuyện:
+
+* mốc "một lượt tra dưới 50ms" **chỉ đạt trên PC** — bóp 4× là 70ms, bóp 6× là 111ms;
+* thứ làm người dùng thấy "trang treo" **không phải bước tra** (12ms) mà là **bước dựng chỉ mục**:
+  194ms trên PC nhưng **1,36 s** khi bóp 4× và **2,2 s** khi bóp 6×, chạy đồng bộ nên cả trang đứng.
+
+| Đo trong Edge · 5.610 SKU | Trước | Sau | |
+|---|---|---|---|
+| Dựng chỉ mục · PC | 194 ms | **136 ms** | |
+| Dựng chỉ mục · CPU 4× | 1.360 ms | **1.021 ms** | |
+| **Luồng UI bị giữ** khi dựng · 4× | **1.179 ms** | **73 ms** | chia lô + nhường luồng |
+| **Luồng UI bị giữ** khi dựng · 6× | **1.969 ms** | **142 ms** | |
+| 1 lượt tra (30 OCR thật) · PC | 12,3 / 18,2 ms (p50/p95) | **6,3 / 8,6 ms** | |
+| 1 lượt tra · CPU 4× | 70,0 / 106,5 ms | **34,7 / 48,9 ms** | đạt mốc <50ms |
+| 1 lượt tra · CPU 6× | 111,2 / 173,6 ms | **57,7 / 84,6 ms** | |
+| Đường gõ tay 1-3 mảnh (Node) | 7,4 ms | **1,9 ms** | |
+
+Năm thay đổi, mỗi cái có số đo riêng (bốn cái đầu **không đổi một con số nào** của kết quả):
+
+1. `boDau` có **đường nhanh ASCII** — chuỗi toàn ASCII thì không có dấu nào để bỏ, khỏi
+   `normalize('NFD')`. Hồ sơ CPU cho thấy hàm này một mình ngốn **20,5%** bước dựng chỉ mục.
+2. `loi()` **nhớ kết quả** như `chuan()`/`ocr()` đã làm. Nó bị gọi cả trên từ khoá (hàng trăm nghìn
+   lượt mỗi lượt tra) lẫn trên **cả tên hàng** trong `locDong` (5.610 tên × mỗi mảnh người gõ) —
+   chính chỗ thứ hai làm đường gõ tay nhanh gấp 4.
+3. `khopTot` có **đường nhanh khớp tuyệt đối** (`ro.indexOf(tok)`): `khopTot`+`diemCap` chiếm **39%**
+   bước tra, mà phần lớn từ khoá đã được `tuVanBan` lọc theo danh mục nên khớp nguyên văn.
+4. `bocTen` **bỏ qua đoạn không có chữ số** ở bước bắt mã màu chữ-số — bước đó chỉ nhận token có số,
+   mà mỗi tên hàng có 6-8 đoạn và phần lớn là chữ thuần.
+5. Trần ứng viên **1.200 → 500**: chỗ duy nhất *tính ít đi*, nên phải đo kỹ. Trên 30 lượt OCR thật +
+   400 tem mô phỏng, Top-1/Top-3 **y nguyên** ở mọi trần từ 1.200 xuống 150; thẻ hạng 2-3 (không
+   phải đáp án) đổi ở 10/430 lượt tại trần 600 và 19/430 tại trần 400 ⇒ chọn 500. Nhúm dòng **mang
+   đúng mã tem** vẫn được thêm vào sau bước cắt (`TRAN_MA`) nên trần không cắt mất bằng chứng định danh.
+
+Và một thay đổi về **cách chạy**, không phải cách tính: `ndsNapDs` dựng chỉ mục **theo lô 200 dòng,
+nhường luồng sau mỗi lô** (`dungChiMucViec` trong lõi — cùng một bản mã với `dungChiMuc`, chỉ khác
+chỗ ngắt). Ba cấu hình đã đo, cột sau là mức giữ luồng lâu nhất ở 4×/6×:
+
+| cách nhường | giữ luồng 4× / 6× | tổng thời gian |
+|---|---|---|
+| lô 500, nhường mỗi 3 lô | 494 / 848 ms | không đội |
+| ngân sách 30-40ms mỗi lát | 128 / 158 ms | **đội 36-59%** |
+| lô 200, nhường bằng `setTimeout(0)` | 59 / 122 ms | đội 25% |
+| **lô 200, nhường bằng `MessageChannel`** | **73 / 142 ms** | **không đội** |
+
+`setTimeout(0)` bị trình duyệt ghim sàn ~4ms mỗi lượt, gần 30 lượt liền là chỗ sinh ra 25% kia.
+
+**Bẫy đã cắn ngay lúc viết** (bộ 92 ca bắt được, đáng ghi lại): bản đầu gán `NDS.ds = rows` *trước*
+khi chỉ mục dựng xong. Nhưng `NDS.ds` chính là cờ "danh mục đã sẵn sàng" mà `ndsDoiSoat` xem, nên
+một lượt đối soát chen vào giữa hai lô sẽ thấy cờ đã bật mà `NDS.cm` còn `null` ⇒ **không vẽ được
+thẻ nào**. Hồi dựng đồng bộ thì không có kẽ nào để chen; chia lô là mở ra kẽ đó.
+
+Sau vòng này: **64/64 ca lõi** + **93/93 ca trình duyệt** đạt, Top-1/Top-3 trên 30 lượt OCR thật vẫn
+đúng **80%/90%**, và bộ 8 ca nghiệp vụ vẫn 8/8.
+
+---
+
+## 3c. Đã đo và KHÔNG lấy: dò khớp PHẦN TỬ tem ↔ PHẦN TỬ `PRODUCTNAME`
+
+Ý tưởng: OCR đọc tem ra từng phần tử → lọc ký tự thừa trong từng phần tử → tìm dòng nào có phần tử
+khớp. Không chấm điểm mờ, không fuzzy ⇒ đáng lẽ nhanh như tia chớp. Đã dựng thử (chỉ trong
+scratchpad, không đưa vào dự án) và đo trên đúng 30 lượt OCR thật:
+
+| | tốc độ p50 | Top-1 | Top-3 | không ra gợi ý |
+|---|---|---|---|---|
+| khớp **nguyên văn** phần tử | **0,03 ms** | 37% | 60% | 8/30 lượt |
+| khớp **chứa nhau** | 1,20 ms | 33% | 50% | 0/30 |
+| lõi sau cải tiến | 7,6 ms | **80%** | **90%** | 0/30 |
+
+Nhanh hơn thật — 8 đến 250 lần. Nhưng nó không trả lời được câu hỏi của thủ kho, và lý do đo được
+rất rõ: **58% phần tử của SKU đúng không hề được in trên tem**, chỉ **22%** được in nguyên văn. Tem
+NCC và `PRODUCTNAME` của WMS không cùng quy ước — WMS ghép `F9-5284_Phong Việt` (mã + NCC trong một
+phần tử), `Text 27-60-3-Tkt 120` (hai chỉ số trong một phần tử), còn tem in rời từng thứ.
+
+Dùng làm **tầng sàng** (phần tử lọc trước, lõi chấm sau) cũng không ăn:
+
+| tầng sàng | giữ được mặt hàng đúng | tập sàng (trung vị) |
+|---|---|---|
+| phần tử khớp nguyên văn | 70% (mất 9/30 lượt) | 45 dòng |
+| phần tử khớp chứa nhau | 97% | 794 dòng |
+| **`ungVien` hiện tại (trần 500)** | **100%** | 442 mặt hàng |
+
+Khớp nguyên văn thì nhỏ mà **mất 30% đáp án**; khớp chứa nhau thì giữ được nhưng tập **to gần gấp
+đôi** tập ứng viên hiện tại — tức không nhanh hơn. Thêm nữa, nhóm dòng đồng điểm cao nhất có trung vị
+3-5 dòng và **max 626**, nên sau khi khớp phần tử vẫn phải có người phân giải: đúng những luật đang
+có (ACTIVE → đóng gói → sổ tay → CÓ MÃ → đơn vị nhỏ nhất).
+
+Chỗ mô hình này **dùng được** là một **đường tắt có điều kiện**, chưa làm:
+
+| ngưỡng K (tập ≤ K dòng thì đi tắt) | đi tắt được | trong đó tập chứa mặt hàng đúng |
+|---|---|---|
+| 20 | 17% lượt | 80% |
+| 50 | 27% lượt | 88% |
+| 200 | 53% lượt | 94% |
+
+Nghĩa là ~1/2 số tem có thể trả lời trong 0,03ms, nhưng cứ 16 lượt đi tắt thì 1 lượt tập sàng không
+chứa mặt hàng đúng ⇒ muốn dùng thì phải **kiểm tra rồi rơi về đường thường**, chứ không được tin
+đường tắt. Đường gõ tay (`locDong`) thì có thể đổi sang chỉ mục phần tử để xuống ~0,02 ms — nhưng
+đổi thế là mất khả năng gõ **nửa** phần tử (`gecko` trong `Gài Gecko C3298`), thứ thủ kho đang dùng.
 
 ---
 
@@ -775,6 +881,37 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.11 Bố cục lại giao diện (yêu cầu user 20/08/2026)
+
+Năm việc, làm cùng một lượt vì chúng cùng một mục đích: **lấy lại chiều dọc trên điện thoại** và cho
+mắt bắt được chỗ giống tem nhanh hơn.
+
+| # | Đổi gì | Vì sao |
+|---|---|---|
+| 1 | Ô **Phần tử trên tem + nút Tra** lên **ngay trên khung camera** (ngay dưới tiêu đề bước 1) | đây là đường không cần camera / không cần mạng / không tốn hạn mức — mở tab phải thấy nó trước, không phải cuộn qua khung + 3 nút |
+| 2 | **BỎ HẲN** dải "N gợi ý dưới đây đều mang đúng mã X — chỉ khác nhau ở màu / thông số…" | 3 dòng chữ ngay trên Top 3, trên ĐT là đẩy hẳn thẻ #1 khỏi màn hình, để nói một việc mà 3 thẻ đã nói rõ hơn |
+| 3 | Nhãn **"lệch …" rời hàng đầu**, xuống **cùng hàng** với "N từ khoá khớp · N đơn vị khác" | hàng đầu đã có hạng · SKU · tồn · ghi chú · %; thêm nhãn lệch là máy hẹp phải xuống dòng và chừa một dải trống, trong khi dòng thông tin đang trống hẳn nửa phải |
+| 4 | Tô trùng khớp bằng **`<span class="highlight-match">`** (`#ffe0b2` / `#e65100`, in đậm) thay `<mark>`, và tô **cả từ khoá đã quét** chứ không chỉ mảnh dòng đó khớp | bộ màu cố định nên không nhạt đi theo token của 7 theme; thủ kho so tem bằng MẮT nên mảnh nào có trên tem mà tên hàng cũng có thì phải sáng lên |
+| 5 | Siết khoảng cách (`.nds-marow` 10px→2px, khoảng thở dồn vào `#ndsStage{margin-top:9px}`) | margin cộng dồn hai đầu là thứ đã cắn ở tab Planogram |
+
+**Ba chi tiết dễ làm sai, đã xử:**
+
+* `.nds-more>summary` có mũi tên bằng `::before` — cho `display:flex; justify-content:space-between`
+  thì `::before` thành **flex item thứ ba** và space-between **xé mũi tên khỏi chữ**. Nên mũi tên
+  chuyển sang `.nds-sumt::before`, summary còn đúng 2 item (chữ trái · nhãn lệch phải).
+* Thẻ **không có gì để gấp lại** (không biến thể, không từ khoá khớp) mà vẫn có nhãn lệch: dùng
+  `.nds-inline` — cùng một khuôn hàng, để hai kiểu thẻ không lệch nhịp nhau.
+* **Nối hai đoạn tô cách nhau đúng một ký tự ngăn** (`_ / -` hoặc khoảng trắng): tên WMS ghép phần tử
+  bằng mấy ký tự đó nên `8846295_YKK` bị vẽ thành hai vệt sáng kẹp khe tối, đọc lấm chấm. Chỉ nối khi
+  **cả hai bên đã được tô** ⇒ không tô oan chữ nào.
+
+Đo lại sau khi đổi (máy 390px): ô nhập ở `y=149`, khe tới khung **9px**, tràn ngang **0px**, phần tử
+đầu tiên của `#ndsCards` là **thẻ #1** với `margin-top: 0` (không còn khoảng trống của dải cảnh báo cũ),
+dòng thông tin cao **23px** một hàng. Test: **64/64** lõi · **96/96** tab (+4 ca mới: ô nhập trên khung ·
+dải cảnh báo đã bỏ & Top 3 không bị đẩy xuống · đoạn tô là `.highlight-match` đúng bộ màu · nhãn lệch
+cùng hàng trên máy 390px). Ca cũ *"Cùng mã nhưng khác màu → mời người chọn"* **đảo cực** thành *"dải đó
+đã bỏ"* — chuỗi cũ quay lại là có người khôi phục mà không đọc quyết định này.
+
 ### 5b.9 Sự cố C2080 — luật "hàng đóng gói" bị dùng làm luật TOÀN CỤC
 
 **Báo lỗi:** *"ảnh là C2080 mà kết quả SKU gợi ý vẫn theo lần tra cứu trước đó — cả tra bằng ô phần
@@ -819,6 +956,7 @@ hai bên CÙNG mức `coMa`**.
 
 ```
 laSku → ACTIVE → [HÀNG ĐÓNG GÓI, chỉ khi hai bên cùng mức "có mã"] → SỔ TAY → CÓ MÃ
+      (bậc đóng gói tách thành COMBO → GỘP từ 20/08/2026, xem 5b.10)
       → điểm → độ phủ → đơn vị nhỏ → tồn
 ```
 
@@ -830,6 +968,106 @@ cùng mặt hàng thì (Combo) vẫn xuống sau NORMAL*).
 > luôn thiếu phạm vi. Phải hỏi *"không đứng đầu SO VỚI CÁI GÌ"* — ở đây là so với **cùng mặt hàng**,
 > không phải so với cả danh mục. Ba luật cứng mà tạo thành vòng là dấu hiệu có một luật đang bị dùng
 > ngoài phạm vi của nó.
+
+### 5b.10 Sự cố 20/08/2026 — "tem C2080 mà gợi ý ra SKU combo"
+
+**Báo lỗi:** *"quét tem có C2080 · Tkt 120 · 5000m · Tex 27 mà đề xuất 422266550 — SKU này là combo;
+SKU NORMAL của tem là 422304419, sao không đề xuất nó?"*
+
+**Tái hiện được y hệt** (cắt lõi ra Node, chạy trên đúng bản danh mục mà máy đó đang cache —
+`nds-master-v1`, chụp 10:28:58 19/08, 5.610 dòng):
+
+```
+#1 422266550  98%  NORMAL/ACTIVE  tồn 32  [Cuộn 5000m]
+#2 422394068  98%  COMBO /ACTIVE  tồn 12  [Cuộn 5000m]   ← đây mới là bản (Combo)
+#3 422395610  93%  NORMAL/ACTIVE  tồn  1  [cuộn 5000m]
+```
+
+**HAI việc khác nhau, đừng trộn:**
+
+**① 422266550 KHÔNG phải combo — nó là bản ĐÓNG GÓI.** `product_type` của WMS ghi `Normal`; bản
+`(Combo)` của cùng mặt hàng là **422394068**. Cái làm nó *trông* như combo là đơn vị `Cuộn 5000m`
+(cờ `gop`). Máy xếp đúng theo dữ liệu nó có.
+
+**② 422304419 KHÔNG NẰM TRONG DANH MỤC — nên không có cách nào gợi ý được.** Tra WMS
+(`stock-inventories?...&sku=422304419`, tham số `sku=` có tác dụng, `keyword=` bị bỏ qua):
+
+| SKU | Đơn vị | product_type | Có mặt ở kho | tồn |
+|---|---|---|---|---|
+| 422266550 | Cuộn 5000m | Normal | **1177 WH-MATERIAL-MTG** (32) · 1178 WH-SEMI PRODUCT (135) | 32 trong phạm vi |
+| **422304419** | **mm** | Normal | **CHỈ 1178 WH-SEMI PRODUCT-MTG**, không có `total` | 0 |
+| 422394068 | Cuộn 5000m | **Combo** | 1177 (12) · 1178 (154) · office (10) | 12 trong phạm vi |
+
+`sync-sku-master.mjs` chỉ quét **3 kho nguyên liệu** (1177 · 1458 · 1339) để giữ luật *nhẹ tải
+upstream* — nên bản `/mm` sống ở kho **bán thành phẩm** bị loại ngay từ đầu. Và nếu có kéo nó vào thì
+nó vào với `tồn 0 ⇒ STATUS=INACTIVE`, tức bộ lọc "chỉ gợi ý ACTIVE" lại che nó (nó vẫn hiện ở dòng
+*cùng mặt hàng, khác đơn vị* trên thẻ — đã đo).
+
+Quy mô: **1.088/5.053 mặt hàng (21,5%)** trong danh mục hiện tại chỉ còn SKU đơn vị GỘP/COMBO còn
+sống ⇒ với chúng, tem quét ra chắc chắn là bản cuộn. Ước lượng ở kho 1178 có **~3.500 dòng phụ liệu,
+trong đó ~700 dòng đơn vị nhỏ** (đo bằng 4 trang mẫu/127 trang) — đó là kho biến thể còn thiếu.
+Muốn nhặt về thì phải trả **~127 lượt gọi** cho một lượt quét kho 1178 (endpoint KHÔNG nhận lọc theo
+category), nên đây là việc **chạy tay/định kỳ dài**, không đưa vào cụm hằng ngày.
+
+**③ LỖ THẬT phát hiện khi đọc lại luật (đã vá).** Bậc "hàng đóng gói" viết là
+`(type==='COMBO' || gop)` — **một bậc gộp hai ý niệm**. Khi hai dòng CÙNG là hàng đóng gói thì bậc đó
+im hẳn, thứ tự rơi xuống **TỒN**:
+
+```
+tồn 422394068 (Combo)  >  tồn 422266550 (Normal)   ⇒  COMBO chiếm hạng 1
+```
+
+Hôm nay NORMAL thắng **chỉ vì** phạm vi danh mục chỉ thấy 12 của kho 1177 — tồn thật của bản Combo ở
+kho 1178 là **154**. Tức luật *"hạng 1 luôn phải là NORMAL"* đang được giữ bởi may mắn, không phải bởi
+luật. **Vá:** tách thành **hai bậc, COMBO trước GỘP** (vẫn nằm trong ngoặc "chỉ so khi hai bên cùng
+mức `coMa`" của 5b.9, để định danh vẫn thắng đóng gói):
+
+```
+laSku → ACTIVE → [COMBO → GỘP, chỉ khi hai bên cùng mức "có mã"] → SỔ TAY → CÓ MÃ
+      → điểm → độ phủ → đơn vị nhỏ → tồn
+```
+
+`type==='COMBO'` là **dữ liệu của WMS**, `gop` là **suy ra từ tên đơn vị** — không được để chúng triệt
+tiêu nhau. Ca test khoá lại: *"COMBO có TỒN NHIỀU HƠN bản NORMAL (cùng mã, cùng cuộn) → vẫn không được
+đứng đầu"* (bơm tồn combo lên +1000 rồi kiểm). Ca cũ *"(Combo) xuống ngay hạng 2"* đổi thành *"xuống
+sau MỌI bản NORMAL cùng mang mã"* — vì giờ nó rơi xuống hạng 3. **62/62** lõi · **92/92** tab.
+
+**④ CHỮA GỐC (chốt với user 20/08/2026): nhặt biến thể + cho nó lên #1.**
+
+* `sync-sku-master.mjs --bu-bien-the` — **chạy tay, định kỳ dài**. Quét mọi kho NGOÀI 3 kho nguyên
+  liệu (1178 SEMI PRODUCT-MTG 127k · 1151 OFFICE 5,5k · 1441 SAMPLE 3,5k · 1179 FINISHED 3k · 1250
+  NG-OFFICE 2,3k · 1307 · 1340 SEMI PRODUCT-GARMENT 2,6k · 1266 · 1516 · 1341), **giữ lại đúng những
+  dòng là biến thể đơn vị NHỎ HƠN của mặt hàng ĐÃ có trong danh mục** rồi lưu `sku-bien-the.json`.
+  Không ghi Sheet. `khoaHang`/`donVi` **cắt thẳng từ `factory/index.html`** (như 2 bộ test) để không
+  bao giờ có hai định nghĩa "cùng mặt hàng / đơn vị nhỏ hơn".
+* Lượt sync thường **merge** file đó vào danh mục; SKU nào đã có ở kho nguyên liệu thì giữ bản của kho
+  nguyên liệu (file bù chỉ THÊM, không đè). **Cụm hằng ngày vẫn đúng ~7 lượt gọi WMS.**
+* Dòng bù vào luôn `INVENTORY_QTY = 0 ⇒ STATUS = INACTIVE` — tồn của nó nằm ở kho khác, ghi số đó vào
+  đây là nói dối về kho nguyên liệu.
+* Vì thế lõi phải có thêm một luật, nếu không thì bộ lọc "chỉ ACTIVE" lại che đúng cái vừa nhặt về:
+  **khi MỌI dòng còn sống của một mặt hàng đều là hàng đóng gói thì bản đơn vị nhỏ (dù tồn 0) lên làm
+  đại diện nhóm**; và "còn sống" ở luật cứng ACTIVE tính theo **cả mặt hàng** (`song`), không theo
+  riêng dòng đại diện — không thì bản `/mm` tồn 0 bị mọi dòng ACTIVE 50% vượt lên trên.
+  Nhóm **chết hoàn toàn** vẫn không được gợi ý (ngoại lệ không nới rộng) — có ca test khoá.
+* Thẻ nói rõ vì sao đứng đầu: `đếm theo mm · tồn ở bản Cuộn 5000m` (thẻ vẫn in huy hiệu INACTIVE, nên
+  không nói thì thủ kho thấy "tồn 0" rồi bỏ qua đúng SKU cần đếm).
+
+Kết quả đo trên đúng danh mục thật + bơm thêm 422304419: `#1 = 422304419 · 98% · mm · biến thể
+422266550 · Cuộn 5000m · ACTIVE 32`. Test: **64/64** lõi (+2 ca: *đại diện là bản /mm tồn 0* và *nhóm
+chết hoàn toàn vẫn không gợi ý*) · **93/93** tab (+1 ca ghi chú trên thẻ).
+
+**Không tìm lại được tấm ảnh đã quét — và đó là chủ ý.** `sku_vision` ghi rõ *"KHÔNG lưu ảnh, KHÔNG
+ghi ảnh vào Sheet/Drive"*; `sku_ocr` tạo file Drive tạm rồi **DELETE** (không phải vào thùng rác) ở
+mọi đường ra. Ba dấu vết còn lại, đều KHÔNG có ảnh:
+
+* `so_chan_cuoi` (Script Property) — chặng + thời gian lượt **OCR** gần nhất. Đọc: `action=sku_ocr` +
+  `chuanDoan=1`. Lúc điều tra: `lay-chu · nạp 3755ms · lấy chữ 890ms · tổng 4651ms · 18:22:10`.
+* `sv_n_<ngày>` / `so_n_<ngày>` — chỉ là **số đếm** lượt/ngày.
+* `nds-so-v1` + `nds-master-v1` trong localStorage của **đúng máy đã quét** — sổ tay (chữ ký tem →
+  SKU người chốt) và bản cache danh mục. Đọc được bằng cách copy `Local Storage/leveldb` của profile
+  Edge sang một user-data-dir tạm rồi mở bằng puppeteer + chặn request (đừng đọc thô: leveldb nén
+  snappy). Lần này sổ tay có 4 mục, **không có mục nào của C2080** ⇒ loại luôn giả thuyết "sổ tay ghim
+  SKU sai".
 
 ### 5b.8 MỘT LƯỢT QUÉT = MỘT TẤM TEM (sự cố 19/08/2026)
 

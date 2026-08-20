@@ -215,10 +215,68 @@ console.log("── Lọc theo phần tử tên hàng ──");
     topCuon.slice(0, 2).every((r) => /c2080/i.test(r.pn)) && topCuon[0].type !== "COMBO",
     topCuon.map((r) => r.sku + "/" + r.pct + "%" + (r.type === "COMBO" ? "(COMBO)" : "")).join(" · "));
   /* Mặt ngược: TRONG CÙNG một mặt hàng thì combo vẫn phải xuống sau bản đếm được (luật kho cũ vẫn
-     nguyên) — hai dòng này cùng mang mã c2080 nên luật đóng gói được quyền nói. */
-  kiem("… nhưng trong CÙNG mặt hàng thì bản (Combo) vẫn xuống sau bản NORMAL",
-    topCuon.length >= 2 && topCuon[0].type === "NORMAL" && topCuon[1].type === "COMBO",
-    (topCuon[0] || {}).type + " → " + (topCuon[1] || {}).type);
+     nguyên) — hai dòng này cùng mang mã c2080 nên luật đóng gói được quyền nói.
+     Từ 20/08/2026 KHÔNG khoá cứng "COMBO đứng ngay hạng 2" nữa: COMBO phải xuống sau MỌI dòng
+     NORMAL cùng mức bằng chứng, nên nó có thể rơi xuống hạng 3+. */
+  const viComboCuon = topCuon.findIndex((r) => r.type === "COMBO");
+  kiem("… nhưng bản (Combo) vẫn xuống sau MỌI bản NORMAL cùng mang mã",
+    topCuon.length >= 2 && topCuon[0].type === "NORMAL" &&
+    (viComboCuon < 0 || topCuon.slice(0, viComboCuon).every((r) => r.type === "NORMAL")),
+    topCuon.map((r) => r.sku + "/" + r.type).join(" · "));
+
+  /* SỰ CỐ THẬT 20/08/2026: thủ kho báo "tem C2080 mà gợi ý ra SKU combo". Đọc lại luật thì thấy
+     `(type==='COMBO' || gop)` bị gộp thành MỘT bậc ⇒ khi CẢ HAI dòng đều là "Cuộn 5000m" thì bậc đó
+     im hẳn, thứ tự rơi xuống TỒN. Tồn thật của 422394068 ở kho 1178 là 154 (danh mục chỉ thấy 12 của
+     kho 1177) ⇒ chỉ cần tồn đổi chiều là COMBO chiếm hạng 1. Ca này ép đúng tình huống đó. */
+  {
+    const cb = ds.find((r) => r.type === "COMBO" && r.status === "ACTIVE" && /c2080/i.test(r.pn));
+    const nm = cb && ds.find((r) => r.type === "NORMAL" && r.status === "ACTIVE" &&
+      r.pn.replace(/\s+/g, " ").trim() === cb.pn.replace(/^\(Combo\)\s*/i, "").replace(/\s+/g, " ").trim());
+    if (cb && nm) {
+      const dsX = ds.map((r) => (r.sku === cb.sku ? Object.assign({}, r, { qty: (Number(nm.qty) || 0) + 1000 }) : r));
+      const cmX = E.dungChiMuc(dsX);
+      const topX = E.timTop(E.tuAI({ item_codes: ["c2080"], specs: ["tex 27", "tkt 120"], colors: [], brands: ["COATS"] }, cmX),
+        cmX, { soLuong: 3, chiActive: true });
+      /* Đừng khoá theo SKU cụ thể: khi danh mục đã có bản `/mm` (sau `--bu-bien-the`) thì đại diện
+         nhóm là bản /mm chứ không phải bản cuộn — cái phải khoá là "COMBO không được đứng đầu". */
+      const viCombo = topX.findIndex((r) => r.sku === cb.sku);
+      kiem("COMBO có TỒN NHIỀU HƠN bản NORMAL (cùng mã, cùng cuộn) → vẫn không được đứng đầu",
+        topX.length > 0 && topX[0].type === "NORMAL" && viCombo !== 0 &&
+        (viCombo < 0 || topX.slice(0, viCombo).every((r) => r.type === "NORMAL")),
+        topX.map((r) => r.sku + "/" + r.type + "/tồn " + r.qty).join(" · "));
+    } else kiem("COMBO có TỒN NHIỀU HƠN bản NORMAL → vẫn không được đứng đầu", true, "(danh mục không có cặp COMBO/NORMAL c2080 để thử)");
+  }
+
+  /* SỰ CỐ 20/08/2026, phần GỐC: bản đơn vị nhỏ của mặt hàng (422304419 `/mm`) chỉ sống ở kho BÁN
+     THÀNH PHẨM nên không có trong danh mục ⇒ tab chỉ gợi ý được bản `/Cuộn 5000m`. Sau khi
+     `--bu-bien-the` nhặt nó về, nó vào với TỒN 0 (tồn thật ở kho khác) ⇒ phải kiểm 2 việc: nó lên
+     đại diện nhóm, VÀ nó không bị luật "ACTIVE trước" đẩy xuống dưới mấy dòng chỉ khớp chữ chung. */
+  {
+    const cuonNL = ds.find((r) => r.sku === "422266550");
+    if (cuonNL) {
+      const mm = { sku: "422304419", pn: cuonNL.pn.replace(/\/Cuộn 5000m$/i, "/mm"), type: "NORMAL", status: "INACTIVE", qty: 0, unit: "mm" };
+      /* Danh mục đã có sẵn dòng này (sau `--bu-bien-the`) thì đừng nhân đôi — ca test phải cho cùng
+         kết quả ở CẢ hai đường nạp danh mục (bản nháp sync cũ · gviz live). */
+      const cmM = E.dungChiMuc(ds.some((r) => r.sku === mm.sku) ? ds : ds.concat([mm]));
+      const nhanM = E.tuAI({ item_codes: ["c2080"], specs: ["tex 27", "tkt 120", "5000m"], colors: [], brands: ["COATS"] }, cmM);
+      const topM = E.timTop(nhanM, cmM, { soLuong: 3, chiActive: true });
+      const bt = (topM[0] || {}).bienThe || [];
+      kiem("Cả nhóm chỉ còn bản CUỘN còn sống → bản /mm (tồn 0) lên đại diện, không bị tụt vì INACTIVE",
+        topM.length > 0 && topM[0].sku === "422304419" && topM[0].pct >= 90 &&
+        bt.some((x) => x.sku === "422266550"),
+        topM.map((r) => r.sku + "/" + r.pct + "%/" + r.status).join(" · ") + " · biến thể: " + bt.map((x) => x.sku + "·" + x.donVi).join(", "));
+      /* Mặt trái phải khoá: nhóm CHẾT HOÀN TOÀN (không dòng nào còn sống) vẫn không được gợi ý. */
+      const chet = [
+        { sku: "999000001", pn: "Vật tư thử QC/ZZQC-0001_QCTest/Polyester/None/None/None/None/cuộn", type: "NORMAL", status: "INACTIVE", qty: 0, unit: "cuộn" },
+        { sku: "999000002", pn: "Vật tư thử QC/ZZQC-0001_QCTest/Polyester/None/None/None/None/mm", type: "NORMAL", status: "INACTIVE", qty: 0, unit: "mm" },
+      ];
+      const cmC = E.dungChiMuc(ds.concat(chet));
+      const topC = E.timTop(E.tuAI({ item_codes: ["zzqc-0001"], specs: [], colors: [], brands: [] }, cmC), cmC, { soLuong: 3, chiActive: true });
+      kiem("… nhưng nhóm CHẾT HOÀN TOÀN thì vẫn không được gợi ý (ngoại lệ không nới rộng)",
+        !topC.some((r) => String(r.sku).indexOf("999000") === 0),
+        topC.length ? topC.map((r) => r.sku + "/" + r.pct + "%").join(" · ") : "(không có gợi ý nào)");
+    } else kiem("Cả nhóm chỉ còn bản CUỘN → bản /mm lên đại diện", true, "(danh mục không có 422266550 để thử)");
+  }
 
   /* GÕ MẢNH CHUNG: "polyester" một mình thì hàng trăm dòng cùng phủ 1/1 = 100%. Nhóm cùng độ phủ
      phải xếp tiếp bằng ĐIỂM KHỚP TEM, không phải bằng đơn vị/tồn (thủ kho báo 19/08: thấy
