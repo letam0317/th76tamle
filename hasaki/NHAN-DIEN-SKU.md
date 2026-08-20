@@ -2,7 +2,15 @@
 
 Tab thứ 5 của **Audit Factory** (`factory/index.html`). Thủ kho chụp tem nhà cung cấp trên điện
 thoại → AI đọc từ khoá → dashboard đối soát với danh mục SKU nguyên liệu → gợi ý **Top 3 SKU** kèm
-% độ tin cậy → bấm một nút là SKU vào **giỏ "Tạo lệnh kiểm kê"** đang dùng ở tab Kiểm kê.
+% độ tin cậy → bấm thẻ là **copy mã SKU** và **ghi vào sổ tay tem** (lần sau gặp lại tem đó ra ngay,
+không cần AI).
+
+> **Đổi 20/08/2026 — phạm vi "tạo lệnh kiểm kê"**: trước đây bấm thẻ ở tab này đổ SKU thẳng vào giỏ
+> *"Tạo lệnh kiểm kê"*. Nay đường đó **chỉ còn ở 2 tab: Kiểm kê và Tồn kho bất thường** (theo yêu
+> cầu). Khoá bằng một danh sách duy nhất `PC_TAB={kk,abn}` trong `factory/index.html`, chặn cả ba
+> đường: `pcAdd` (ghi vào giỏ), `pcSyncBar` (thanh giỏ nổi + preview không hiện ngoài 2 tab, nên nút
+> *Tạo lệnh kiểm kê* cũng không với tới) và `pcOpen` (mở modal tạo lệnh). Giỏ **không bị xoá** khi
+> ghé tab khác — chọn dở ở tab Kiểm kê, đi xem Planogram rồi quay lại vẫn còn nguyên.
 
 Dựng ngày **18/08/2026**. Ba tầng độc lập — tầng dưới không phụ thuộc tầng trên, nên **mất mạng /
 hết hạn mức AI vẫn dùng được**:
@@ -138,7 +146,8 @@ lâu không gặp thì gần như chắc chắn không gặp lại). Hai loại 
 nhau vẫn ra cùng chữ ký và sổ tay sẽ trả lời chắc nịch một SKU **sai**. Dưới 2 từ khoá thì **không
 đáng nhớ** (trả `''`).
 
-**Học lúc nào**: đúng lúc người bấm **"Chọn SKU này"** — đó là khoảnh khắc DUY NHẤT ta biết chắc tem
+**Học lúc nào**: đúng lúc người **bấm thẻ SKU** (trước 20/08/2026 là nút "Chọn SKU này") — đó là
+khoảnh khắc DUY NHẤT ta biết chắc tem
 nào ứng với SKU nào, vì người vừa xác nhận. **Tra lúc nào**: mọi lượt `ndsDoiSoat()`, trước khi
 chấm điểm; trúng thì SKU đó được **ghim #1 với 100%** kèm huy hiệu `ĐÃ HỌC` — thắng cả điểm số.
 
@@ -1194,12 +1203,14 @@ nhầm, gõ thêm tay, hoặc dán nguyên chữ trên tem).
 Mục **2 · SKU gợi ý** (Top 3: SKU · % · thanh tiến trình · tên sản phẩm **tô đậm
 phần trùng khớp** · COMBO/NORMAL · **ACTIVE/INACTIVE** · `Tồn: 8.200.000 mm` · `ĐVT: mm` · chip từ
 khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng mặt hàng, khác đơn vị"** ·
-**Chọn SKU này** / Copy mã).
+**bấm cả thẻ = xác nhận SKU**).
 
-* "Chọn SKU này" → `pcAdd(...)` = **đúng cái giỏ** mà tab Kiểm kê / Tồn kho bất thường đang dùng,
-  kèm **lý do chọn** ("Nhận diện tem: 8846295 345 ykk (97%) · ĐVT pcs") → bấm tiếp "Tạo lệnh kiểm
-  kê" là xong. Nút biến thể trong dòng "Cùng mặt hàng, khác đơn vị" đi **cùng một đường** (chọn đúng
-  SKU của nút đó, lý do vẫn giữ % của nhóm).
+* **Bấm thẻ** (hoặc Enter/Space khi thẻ đang được chọn) làm đúng hai việc, **không** liên quan tới
+  lệnh kiểm kê nữa (xem hộp đổi phạm vi ở đầu tài liệu): **copy mã SKU** vào clipboard để dán sang
+  WMS / phiếu tay, và **ghi sổ tay tem** để lần sau khỏi gọi AI. Nút biến thể trong dòng "Cùng mặt
+  hàng, khác đơn vị" đi **cùng một đường**, chỉ khác là xác nhận đúng SKU của nút đó.
+* Muốn đưa SKU vào lệnh kiểm kê thì tick ở pop-up của tab **Kiểm kê** hoặc **Tồn kho bất thường** —
+  đó là 2 chỗ duy nhất còn giữ đường `pcAdd → #pcbar → Tạo lệnh kiểm kê`.
 * Rời tab thì **tắt camera** (không để đèn camera sáng, đỡ hao pin).
 * Bỏ một từ khoá thì nó **không sống lại** từ ô "dán chữ trên tem" (ô raw chỉ được tách lại khi nội
   dung ĐỔI; từ khoá đã bỏ được ghi nhớ cho tới khi đọc ảnh mới).
@@ -1213,7 +1224,7 @@ khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng m
 |---|---|---|
 | `node qc-nhan-dien-sku.mjs [--gviz] [--chi-tiet]` | lõi đối soát trên 5.610 SKU thật: 18 dạng đoạn ĐƠN VỊ, khoá gom mặt hàng, 3 quy cách tem, OCR sai nhẹ, SKU in trên tem, cùng mã khác màu, tem mờ, từ khoá rác, **ưu tiên đơn vị nhỏ nhất** (+ bất biến: không biến thể nào nhỏ hơn đại diện), **chữ ký + ghim sổ tay**, **6 ca chữ thô/OCR** (mã dài nhiều đoạn · chi số ghi liền · cỡ dán liền số đo · số đo không chiếm rổ mã · AI gán vai sai · số dài không khớp mã ngắn), **gõ mảnh chung thì xếp tiếp bằng điểm khớp** | **56/56** · 8-10ms/lượt (19/08) |
 | `node qc-tem-vision.mjs [--giu-anh]` | **đầu-cuối**: dựng 6 ảnh tem (3 quy cách × sạch/khó: nghiêng 7° + mờ + loá nylon + vết bẩn) → Gemini thật → engine, **ghép vai AI + chữ thô y như dashboard** | **6/6 ra đúng SKU** |
-| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ) | **86/86** (19/08) |
+| `node qc-tab-nhan-dien.mjs [--anh]` | tab trong Edge headless: nạp gviz, badge, thẻ, tô trùng khớp, giỏ kiểm kê, **badge ACTIVE/INACTIVE + chip ĐVT**, **thẻ đơn vị nhỏ nhất + nút biến thể**, ACTIVE/Tất cả, AI lỗi, mất mạng, ảnh không đọc được, cache offline, **thứ tự bước mới**, **sổ tay học 1 lần ra ngay 0 lượt gọi AI**, **mã vạch (API giả)**, **không hỏi email**, **tự chạy khi có ảnh**, **thẻ gọn (không badge thừa · Tồn kèm ĐVT · details Vì sao khớp)**, **kết quả song song với ảnh**, bố cục điện thoại, tắt camera, lỗi JS, **bậc thang AI↔OCR** (AI ra mã thì 0 lượt OCR · không lập được mã thì tụt xuống OCR · AI hết hạn mức thì OCR cứu · cả hai hỏng thì nói 1 lần · bỏ mảnh giấy tờ · cảnh báo cùng mã khác màu · đồng hồ giây), **ẢNH MỚI = LƯỢT MỚI** (từ khoá/ô Phần tử/chữ trên tem/mã vạch đều sạch · phản hồi đến muộn của ảnh cũ bị bỏ · sổ tay không ghim SKU tem cũ)  · **PHẠM VI GIỎ** (bấm thẻ không vào giỏ · thanh giỏ chỉ hiện ở tab Kiểm kê + Tồn kho bất thường · `pcAdd` bị chặn ngoài phạm vi) | **98/98** (20/08) |
 | `node qc-sku-vision-live.mjs` | cổng thật trên production: chặn email lạ, chặn ảnh quá lớn, đọc tem thật, chặn 2 lượt song song (tốn 2 lượt hạn mức) | **8/8** |
 | `node qc-sku-ocr-live.mjs` | **cổng OCR thật** (`sku_ocr`): deploy đã lên chưa · email lạ · ảnh quá lớn không bao giờ được OCR · đọc đúng mã trên tem · **đo thời gian từng chặng** · chặn 2 lượt song song · ảnh trắng thì nói "không thấy chữ" | **10/10** (19/08) |
 | `node qc-ocr-doi-chung.mjs [--so 30] [--duong ABCDEFG] [--dung-dem]` | **đo người đọc nào tốt hơn**: 7 đường (tin vai AI · +bằng chứng · chữ thô AI · OCR · OCR không lọc · ghép AI · ghép cả 2) trên cùng bộ tem, nhãn cắt từ SKU thật + chữ giấy tờ, 3 bậc khó. `--dung-dem` chạy lại **0 lượt gọi** | OCR **77%** Top-1 / 83% Top-3 (30 tem) |

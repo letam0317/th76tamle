@@ -150,8 +150,17 @@ const nap = await page.waitForFunction(() => window.NDS && NDS.ds && NDS.ds.leng
   .then(() => true).catch(() => false);
 const soSku = await page.evaluate(() => (window.NDS && NDS.ds) ? NDS.ds.length : 0);
 kiem("Nạp tab SKU_MASTER qua gviz", nap && soSku > 1000, soSku + " SKU");
-const chan = await page.$eval("#ndsFoot", (e) => e.textContent.trim());
-kiem("Dòng chân ghi rõ nguồn + số lượng", /SKU.*(Google Sheet|bộ nhớ máy)/.test(chan), chan.slice(0, 90));
+/* ĐỔI 20/08/2026 (yêu cầu user): dòng chân KHÔNG còn dòng thông báo nào ("Danh mục 5.625 SKU kho
+   nguyên liệu … · đối soát 7ms · Sổ tay tem: N ghi nhớ …"), chỉ còn NÚT làm được việc. Số liệu vẫn
+   nằm trong NDS.ds nên vẫn kiểm được bằng state. */
+const chan = await page.evaluate(() => {
+  const e = document.getElementById("ndsFoot");
+  return { chu: (e.textContent || "").replace(/⟳|Tải lại danh mục|Xoá sổ tay/g, "").trim(),
+    nut: Array.prototype.map.call(e.querySelectorAll("button"), (b) => b.textContent.trim()) };
+});
+kiem("Dòng chân chỉ còn nút, không còn dòng thông báo nào",
+  chan.chu === "" && chan.nut.length >= 1 && /Tải lại danh mục/.test(chan.nut[0]),
+  "chữ còn lại: \"" + chan.chu + "\" · nút: " + chan.nut.join(" · "));
 
 /* ---------- 3. Ảnh + gọi AI (giả) → badge từ khoá → thẻ kết quả ---------- */
 /* Dựng ảnh JPEG THẬT bằng canvas rồi nạp vào tab (không dùng base64 gõ tay: JPEG sai 1 byte là
@@ -198,9 +207,30 @@ const trongKhung = await page.evaluate(() => {
   return { ten, ngoai,
     lot: !!r && r.top >= st.top - 1 && r.bottom <= st.bottom + 1 && r.left >= st.left - 1 && r.right <= st.right + 1 };
 });
-kiem("Bật camera · Chụp · Chọn ảnh · ⟲ · ⟳ nằm TRONG khung",
-  trongKhung.ten.length === 5 && /Bật camera/.test(trongKhung.ten[0]) && trongKhung.lot,
+kiem("Bật camera · Chọn ảnh · ⟲ · ⟳ nằm TRONG khung (Chụp đã dời ra thanh nổi)",
+  trongKhung.ten.length === 4 && /Bật camera/.test(trongKhung.ten[0]) && trongKhung.lot &&
+  !trongKhung.ten.some((t) => /^Chụp$/.test(t)),
   trongKhung.ten.join(" · "));
+/* 20/08/2026 (yêu cầu user): nút CHỤP nổi ở đáy màn hình, đúng chỗ thanh "Đã chọn N SKU", màu CAM,
+   và chỉ hiện khi camera đang bật. Không gọi ndsCam() được trong headless (không có camera) nên
+   kiểm qua ndsHienChup — chính hàm mà ndsCam/ndsTatCam dùng. */
+const barChup = await page.evaluate(() => {
+  const b = document.getElementById("ndsChupbar"), nut = document.getElementById("ndsBtnChup");
+  const ngoaiView = !!b && !document.getElementById("viewNds").contains(b);   // fixed phải nằm ngoài .vfade
+  ndsHienChup(true);
+  const st = getComputedStyle(nut), r = nut.getBoundingClientRect();
+  const ra = { ngoaiView, hienKhiBat: !b.classList.contains("hidden"), nen: st.backgroundColor, chu: st.color,
+    cao: Math.round(r.height), duoiCung: Math.round(innerHeight - r.bottom), coBodyClass: document.body.classList.contains("nds-chup"),
+    viTri: getComputedStyle(b).position };
+  ndsTatCam();
+  ra.anKhiTat = b.classList.contains("hidden") && !document.body.classList.contains("nds-chup");
+  return ra;
+});
+kiem("Nút CHỤP nổi ở đáy màn hình, màu cam, hiện/ẩn theo camera",
+  barChup.ngoaiView && barChup.viTri === "fixed" && barChup.hienKhiBat && barChup.anKhiTat &&
+  barChup.nen === "rgb(245, 124, 0)" && barChup.chu === "rgb(255, 255, 255)" &&
+  barChup.cao >= 44 && barChup.duoiCung <= 160,
+  "nền " + barChup.nen + " · cao " + barChup.cao + "px · cách đáy " + barChup.duoiCung + "px · ẩn khi tắt: " + barChup.anKhiTat);
 /* Bẫy đã cắn 2 lần: khai `display` bằng class làm thuộc tính `hidden` mất tác dụng. Ca này quét
    MỌI phần tử đang mang `hidden` trong tab — thêm phần tử mới mà quên là bị bắt ngay. */
 const anHet = await page.evaluate(() => Array.prototype.filter.call(
@@ -358,7 +388,10 @@ await new Promise((r) => setTimeout(r, 400));
 const lai = await page.$eval("#ndsCards .nds-card .nds-sku", (e) => e.textContent).catch(() => "");
 kiem("Gõ tay \"38.0 CM\" thì SKU đúng trở lại #1", lai === "422322192", lai);
 
-/* ---------- 6. "Chọn SKU này" -> vào GIỎ kiểm kê dùng chung ---------- */
+/* ---------- 6. Bấm thẻ = XÁC NHẬN SKU (copy mã + ghi sổ tay), KHÔNG vào giỏ kiểm kê ----------
+   Đổi 20/08/2026: đường "tick chọn SKU -> tạo lệnh kiểm kê" chỉ còn ở 2 tab Kiểm kê / Tồn kho bất
+   thường (PC_TAB trong index.html). Mấy ca dưới khoá cả hai nửa của hợp đồng mới: tab này KHÔNG
+   được ghi vào giỏ, và thanh giỏ KHÔNG được hiện ở đây. */
 await page.evaluate(() => { PC.sel = {}; pcSyncBar(); });
 /* 2 nút "Chọn SKU này"/"Copy mã" đã BỎ (3 thẻ = 6 nút, lấn hết chỗ của thông tin cần đọc).
    Nay bấm CẢ THẺ là chọn — ca này khoá luôn cái hợp đồng đó. */
@@ -366,14 +399,40 @@ const nutCu = await page.$$eval("#ndsCards .nds-card .nds-go, #ndsCards .nds-car
 kiem("Đã bỏ 2 nút \"Chọn SKU này\" / \"Copy mã\" trên thẻ", nutCu === 0, nutCu + " nút còn sót");
 const laNut = await page.$eval("#ndsCards .nds-card", (e) => e.getAttribute("role") + "/" + e.getAttribute("tabindex"));
 kiem("Cả thẻ là nút chọn (bấm được + tới được bằng bàn phím)", laNut === "button/0", laNut);
+const soTruocThe = await page.evaluate(() => ndsSoDem());
 await bam("#ndsCards .nds-card");
-const gio = await page.evaluate(() => {
-  const k = Object.keys(PC.sel)[0];
-  return { n: pcCount(), key: k, o: PC.sel[k], barHien: !document.getElementById("pcbar").classList.contains("hidden") };
+const gio = await page.evaluate(() => ({
+  n: pcCount(), barHien: !document.getElementById("pcbar").classList.contains("hidden"),
+  hoc: ndsSoDem(), soTay: ndsSoTra(),
+}));
+kiem("Bấm thẻ KHÔNG đổ SKU vào giỏ kiểm kê nữa", gio.n === 0, gio.n + " SKU trong giỏ");
+kiem("Thanh giỏ nổi KHÔNG hiện ở tab Nhận diện SKU", gio.barHien === false, gio.barHien ? "vẫn hiện" : "đã ẩn");
+kiem("Bấm thẻ vẫn GHI SỔ TAY đúng SKU đó (vòng tự học không mất)",
+  gio.hoc > soTruocThe && gio.soTay.indexOf("422322192") >= 0, gio.soTay.join(","));
+/* Giỏ vẫn phải sống ở 2 tab được phép — nhồi 1 dòng rồi đổi tab để xem thanh giỏ hiện/ẩn đúng chỗ */
+const barTheoTab = await page.evaluate(() => {
+  PC.sel = { "WH|1": { wh: "WH", sku: "1", pn: "x", t: 0, src: "test" } }; pcSyncBar();
+  const doc = () => !document.getElementById("pcbar").classList.contains("hidden");
+  const ra = {};
+  ["sku", "stock", "plg", "cd", "home", "kk", "abn"].forEach((t) => { showTab(t); ra[t] = doc(); });
+  showTab("sku"); PC.sel = {}; pcSyncBar();
+  return ra;
 });
-kiem("Bấm \"Chọn SKU này\" đưa SKU vào giỏ PC.sel", gio.n === 1 && gio.o && gio.o.sku === "422322192", JSON.stringify(gio.o));
-kiem("Giỏ ghi LÝ DO chọn (truy được vì sao)", !!(gio.o && /Nhận diện tem/.test(gio.o.src)), gio.o && gio.o.src);
-kiem("Thanh giỏ nổi hiện lên để đi tiếp \"Tạo lệnh kiểm kê\"", gio.barHien);
+kiem("Thanh giỏ CHỈ hiện ở tab Kiểm kê + Tồn kho bất thường",
+  barTheoTab.kk === true && barTheoTab.abn === true &&
+  !barTheoTab.sku && !barTheoTab.stock && !barTheoTab.plg && !barTheoTab.cd && !barTheoTab.home,
+  Object.keys(barTheoTab).map((k) => k + "=" + (barTheoTab[k] ? "hiện" : "ẩn")).join(" · "));
+/* Khoá cả đường gọi thẳng: pcAdd từ tab ngoài 2 tab đó phải bị chặn, không chỉ ẩn thanh */
+const chanAdd = await page.evaluate(() => {
+  showTab("sku"); pcAdd("WH - MATERIAL - MTG", "422322192", "x", 2, "thử");
+  const nSku = pcCount();
+  showTab("kk"); pcAdd("WH - MATERIAL - MTG", "422322192", "x", 2, "thử");
+  const nKk = pcCount();
+  PC.sel = {}; pcSyncBar(); showTab("sku");
+  return { nSku, nKk };
+});
+kiem("pcAdd bị chặn ở tab ngoài phạm vi, vẫn chạy ở tab Kiểm kê",
+  chanAdd.nSku === 0 && chanAdd.nKk === 1, "tab sku → " + chanAdd.nSku + " · tab kk → " + chanAdd.nKk);
 
 /* ---------- 6b. ĐƠN VỊ NHỎ NHẤT (keo Bemis có cả SKU tính theo mét lẫn theo mm) ---------- */
 /* Kiểm kê đếm bằng mm nên thẻ #1 phải là bản mm; bản mét KHÔNG được giấu vì có khi nó mới là bản
@@ -394,11 +453,15 @@ const soAlt = await page.$$eval("#ndsCards .nds-card .nds-alt", (a) => a.length)
 kiem("Biến thể vẽ thành nút bấm chọn được (không phải chữ chết)", soAlt > 0, soAlt + " nút");
 await page.evaluate(() => { const d = document.querySelector("#ndsCards .nds-card details"); if (d) d.open = true; });
 const skuAlt = await page.$eval("#ndsCards .nds-card .nds-alt", (e) => e.textContent.trim().split(" ")[0]).catch(() => "");
-await page.evaluate(() => { PC.sel = {}; pcSyncBar(); });
+/* Thước đo là TOAST chứ không phải sổ tay: tem keo Bemis này chỉ bóc ra được 1 từ khoá định danh
+   nên `chuKy` cố tình trả rỗng (dưới 2 từ khoá thì KHÔNG đáng nhớ) ⇒ sổ tay không ghi gì, đúng thiết
+   kế. Cái cần khoá ở đây là: bấm biến thể thì xác nhận ĐÚNG SKU của nút đó, và không vào giỏ. */
+await page.evaluate(() => { PC.sel = {}; pcSyncBar(); const t = document.getElementById("toast"); t.textContent = ""; t.classList.remove("show"); });
 await bam("#ndsCards .nds-card .nds-alt");
-const gioAlt = await page.evaluate(() => { const k = Object.keys(PC.sel)[0]; return k ? PC.sel[k] : null; });
-kiem("Bấm nút biến thể thì ĐÚNG SKU đó vào giỏ, lý do ghi cả ĐVT",
-  !!gioAlt && String(gioAlt.sku) === skuAlt && /ĐVT/.test(gioAlt.src || ""), JSON.stringify(gioAlt));
+const altKq = await page.evaluate(() => ({ chu: document.getElementById("toast").textContent, gio: pcCount() }));
+kiem("Bấm nút biến thể thì xác nhận ĐÚNG SKU đó (copy mã), không vào giỏ",
+  altKq.chu.indexOf(skuAlt) >= 0 && /copy mã SKU/i.test(altKq.chu) && altKq.gio === 0,
+  altKq.chu.slice(0, 70) + " · giỏ " + altKq.gio);
 
 /* ---------- 6c. SỔ TAY TEM: học 1 lần, lần sau ra ngay KHÔNG cần AI ---------- */
 /* Đây là cả mục đích của sổ tay: cùng bộ từ khoá đó, lần sau phải trả về ĐÚNG SKU người đã chọn,
@@ -436,12 +499,14 @@ const nutQuen = await page.evaluate(() => {
 });
 kiem("Thẻ \"từ sổ tay\" có nút gỡ ghi nhớ ngay tại chỗ (không phải Xoá sổ tay cả bộ)",
   !!nutQuen && /quên ghi nhớ/i.test(nutQuen.chu) && nutQuen.trongThe, nutQuen ? nutQuen.chu : "KHÔNG có nút nào");
-const gioTruoc = await page.evaluate(() => Object.keys(PC.sel || {}).length);
+/* Thước đo là SỔ TAY (từ 20/08/2026 bấm thẻ không còn vào giỏ nữa): bấm "quên ghi nhớ" mà nổi bọt
+   lên thẻ cha thì thẻ cha sẽ HỌC LẠI ngay cái vừa gỡ ⇒ số ghi nhớ không giảm. */
+const hocTruoc = await page.evaluate(() => ndsSoDem());
 await page.evaluate(() => document.querySelector("#ndsCards .nds-card .nds-quen").click());
 await new Promise((r) => setTimeout(r, 500));
-const gioSau = await page.evaluate(() => Object.keys(PC.sel || {}).length);
-kiem("Bấm \"quên ghi nhớ\" KHÔNG kích chọn SKU của thẻ cha (chặn nổi bọt)", gioSau === gioTruoc,
-  "giỏ trước " + gioTruoc + " · sau " + gioSau);
+const hocSau = await page.evaluate(() => ndsSoDem());
+kiem("Bấm \"quên ghi nhớ\" KHÔNG kích xác nhận SKU của thẻ cha (chặn nổi bọt)", hocSau < hocTruoc,
+  "ghi nhớ trước " + hocTruoc + " · sau " + hocSau);
 await new Promise((r) => setTimeout(r, 500));
 const sauQuen = await page.evaluate(() => ({ sku: (NDS.ket[0] || {}).sku, hoc: !!(NDS.ket[0] || {}).daHoc }));
 kiem("\"Quên ghi nhớ này\" gỡ được ghi nhớ sai", sauQuen.hoc === false, "#1 quay lại " + sauQuen.sku);
@@ -449,9 +514,11 @@ kiem("\"Quên ghi nhớ này\" gỡ được ghi nhớ sai", sauQuen.hoc === fal
 /* ---------- 6d. Mã vạch: có API thì quét, không có thì nói rõ chứ không im ---------- */
 const mv = await page.evaluate(() => ({ co: ndsCoMaVach(), nut: !!document.getElementById("ndsBtnMV") }));
 kiem("Có nút \"Quét mã vạch\" (đường nhanh nhất, không cần AI)", mv.nut, mv.co ? "trình duyệt CÓ BarcodeDetector" : "trình duyệt không có API — tab phải nói rõ ở dòng chân");
-const chanMV = await page.$eval("#ndsFoot", (e) => e.textContent);
-kiem("Dòng chân báo đúng tình trạng mã vạch + số ghi nhớ sổ tay",
-  /Sổ tay tem/.test(chanMV) && (mv.co || /không đọc được mã vạch/.test(chanMV)), chanMV.slice(-95));
+/* Dòng chân đã bỏ hết chữ (20/08/2026) nên tình trạng mã vạch + số ghi nhớ kiểm bằng STATE. */
+const mvState = await page.evaluate(() => ({ co: ndsCoMaVach(), so: ndsSoDem(), nut: !!document.getElementById("ndsBtnMV") }));
+kiem("Tình trạng mã vạch + số ghi nhớ sổ tay đọc được (không cần dòng thông báo)",
+  mvState.nut && typeof mvState.co === "boolean" && typeof mvState.so === "number",
+  "BarcodeDetector: " + mvState.co + " · sổ tay: " + mvState.so + " ghi nhớ");
 
 /* ---------- 6e. Mã vạch với API GIẢ ----------
    Edge trên Windows không có BarcodeDetector (API này chỉ có trên Android), nên phần THẬT sẽ chỉ
@@ -716,8 +783,8 @@ kiem("Chữ thô của AI cũng được tách (ghép 2 nguồn: vai AI + chữ 
 kiem("Chữ đọc được đưa vào ô \"chữ trên tem\" để sửa được", /8846295/.test(sauAi.raw), sauAi.raw.slice(0, 40));
 kiem("Bỏ mảnh GIẤY TỜ không có trong danh mục (địa chỉ · số PO · ngày · cân nặng)", sauAi.boRac >= 3,
   "bỏ " + sauAi.boRac + " mảnh");
-const chanRac = await page.$eval("#ndsFoot", (e) => e.textContent);
-kiem("Dòng chân nói ra đã bỏ bao nhiêu mảnh giấy tờ", /mảnh giấy tờ/.test(chanRac), "");
+const chanRac = await page.$eval("#ndsFoot", (e) => e.textContent.replace(/⟳|Tải lại danh mục|Xoá sổ tay/g, "").trim());
+kiem("Dòng chân vẫn KHÔNG chèn thông báo nào sau khi đọc tem", chanRac === "", "chữ còn lại: \"" + chanRac + "\"");
 
 /* ĐẢO CỰC 20/08/2026 (yêu cầu user): dải "N gợi ý dưới đây đều mang đúng mã X — chỉ khác nhau ở
    màu / thông số…" đã BỎ HẲN. Nó chiếm 3 dòng ngay trên Top 3 để nói một việc mà 3 thẻ đã nói rõ
@@ -773,11 +840,15 @@ const coDongHo = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 350));
   const el = document.getElementById("ndsDongHo");
   const chu = el ? el.textContent : "";
+  /* ĐỌC HỘP TRƯỚC khi tắt — bẫy pass oan: tắt rồi thì hộp không còn, "không còn chữ" luôn đúng. */
+  const box = document.getElementById("ndsBusyBox");
+  const conChu = box ? box.textContent.replace(chu, "").trim() : "KHÔNG THẤY HỘP";
   ndsBusy(false);
-  return { chu: chu, conSau: !!document.getElementById("ndsDongHo") };
+  return { chu: chu, conChu: conChu, conSau: !!document.getElementById("ndsDongHo") };
 });
-kiem("Hộp \"đang đọc\" có đồng hồ giây và tắt sạch khi xong",
-  /^0,[1-9]s$/.test(coDongHo.chu) && !coDongHo.conSau, "sau 0,35s hiện " + coDongHo.chu);
+kiem("Hộp \"đang đọc\" CHỈ còn đồng hồ giây (không còn câu 'đang thử OCR…'), tắt sạch khi xong",
+  /^0,[1-9]s$/.test(coDongHo.chu) && coDongHo.conChu === "" && !coDongHo.conSau,
+  "sau 0,35s hiện " + coDongHo.chu + " · chữ kèm theo: \"" + coDongHo.conChu + "\"");
 
 /* ---------- 12b. TIẾT KIỆM THỜI GIAN CHỜ (19/08/2026) ----------------------------------------
    Ba việc đo được: nén ảnh ĐÚNG MỘT LẦN cho mỗi tấm (dù bậc thang dùng 2 người đọc), ảnh gửi lên
