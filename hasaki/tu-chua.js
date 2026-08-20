@@ -23,6 +23,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
+import { gasPost } from "./session-rules.js";
 
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
@@ -185,22 +186,34 @@ async function gasCoTuChua() {
   if (_capTuChua != null) return _capTuChua;
   if (!APPSCRIPT_KEY) return (_capTuChua = false);
   try {
-    const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) });
-    const j = await r.json().catch(() => null);
+    const j = await gasPost({ action: "caps", key: APPSCRIPT_KEY }, () => {}, "caps");
     _capTuChua = !!(j && j.tuChua);
   } catch { _capTuChua = false; }
   return _capTuChua;
 }
 
+/* Qua gasPost: 404 chập chờn của Google từng làm tầng tự chữa TƯỞNG gửi thất bại. Với action suCo
+ * (appendRow sổ sự cố) và thư cảnh báo thì thử lại mà không có chốt sẽ ghi 2 dòng / gửi 2 thư —
+ * nonce của gasPost khiến GAS trả lại phản hồi cũ thay vì làm lại. */
 async function guiGas(payload) {
   if (!await gasCoTuChua()) return null;
-  try {
-    const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ ...payload, key: APPSCRIPT_KEY }) });
-    return await r.json().catch(() => null);
-  } catch { return null; }   // best-effort: mất mạng thì thôi, tick sau báo lại
+  try { return await gasPost({ ...payload, key: APPSCRIPT_KEY }, () => {}, payload.action || "tuChua"); }
+  catch { return null; }   // best-effort: mất mạng thì thôi, tick sau báo lại
 }
+
+/* ══ CÔNG TẮC THƯ (15/08/2026, theo yêu cầu: NGƯNG gửi mail cảnh báo) ══════════════════════
+ * `CANH_GUI_THU=0` trong .env ⇒ mọi lời gọi moSuCo/dongSuCo im lặng, KHÔNG chạm GAS.
+ * Vì sao chặn ngay tại đây chứ không sửa GAS: đây là cửa DUY NHẤT máy trạm đẩy thư (đã soát —
+ * `apiAlert` trong google-script.gs không còn script Node nào gọi), nên tắt 1 chỗ là tắt hết,
+ * không phải deploy lại web app đang là đường ghi Sheet của cả dự án.
+ *
+ * CỐ Ý KHÔNG tắt `nhipTim`: nhịp tim là thứ NGĂN thư, không phải thứ gửi thư — bên GAS
+ * `tcCanhNhipTim` gửi "máy trạm im" khi nhịp tim tắt lịm. Chặn nhịp tim = tự chuốc thư.
+ *
+ * Các cảm biến VẪN chạy và vẫn in ⛔ ra log (canh-suc-khoe.js / sync-guard.log) — chỉ mất đường
+ * thư. Muốn xem hiện trạng bất cứ lúc nào: `node canh-suc-khoe.js --xem`. */
+const GUI_THU = String(process.env.CANH_GUI_THU ?? "1") !== "0";
+export const guiThuDangBat = () => GUI_THU;
 
 /**
  * Mở sự cố → GAS quyết định có gửi thư không (1 thư/sự cố/ngày, nhắc ngày 3 và ngày 7).
@@ -209,11 +222,13 @@ async function guiGas(payload) {
  *  nguon : tên tiếng Việt người non-tech đọc hiểu ("Tồn kho bất thường")
  */
 export async function moSuCo({ ma, loai, nguon, soLieu = {}, chiTiet = "" }) {
+  if (!GUI_THU) return null;
   return guiGas({ action: "suCo", viec: "mo", ma, loai, nguon, soLieu, chiTiet });
 }
 
 /** Đóng sự cố → GAS gửi thư xanh "đã chảy lại". Chưa từng mở thì GAS tự im, gọi thoải mái. */
 export async function dongSuCo(ma) {
+  if (!GUI_THU) return null;
   return guiGas({ action: "suCo", viec: "dong", ma });
 }
 

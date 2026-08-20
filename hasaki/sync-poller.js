@@ -38,13 +38,21 @@ const WH_PING = "1177,1339,863,874";   // MTG + GARMENT + SHOP/WH 170 QL1A — �
 
 const PHUT = 60 * 1000;
 const VESINH_MIN = Number(process.env.POLLER_VESINH_MIN || 15) * PHUT;
-/* CỬA SỔ QUÉT PLANOGRAM CỦA NHỊP POLLER (03/08/2026): 10 ngày thay vì 45 mặc định.
+/* CỬA SỔ QUÉT PLANOGRAM CỦA NHỊP POLLER (03/08/2026): hẹp hơn 45 ngày mặc định.
  * Vì sao được: mọi thứ CẦN quá khứ đã chuyển sang kho CỘNG DỒN trong sync-vesinh-all.js
  * (danh mục vị trí · VESINH-LICHSU 60 ngày · VESINH-CHAMCONG-NGAY 60 ngày) nên lượt quét chỉ
- * còn nhiệm vụ "bắt cái mới"; 10 ngày là thừa cho cửa sổ yêu cầu 7 ngày của VESINH-YEUCAU.
- * Lợi: ~7 trang → ~2 trang mỗi lượt, mà lượt này chạy tới ~36 lần/ngày.
- * Lượt cụm 8h40 (SYNC-STOCK.bat) VẪN quét đủ 45 ngày → mỗi ngày một lần vá lại mọi lệch tích luỹ. */
-const VESINH_QUET_NGAY = Number(process.env.POLLER_VESINH_QUET_NGAY || 10);
+ * còn nhiệm vụ "bắt cái mới".
+ * Lượt cụm 8h40 (SYNC-STOCK.bat) VẪN quét đủ 45 ngày → mỗi ngày một lần vá lại mọi lệch tích luỹ.
+ *
+ * VÁ 15/08/2026 — 10 → 8 ngày, và SỬA LUÔN CON SỐ SAI TRONG CHÚ THÍCH CŨ.
+ * Chú thích cũ ghi "~7 trang → ~2 trang". ĐO THẬT trong vesinh.log (30/32 lượt gần nhất):
+ *     10 ngày = 1.636–1.740 request / size 500 = **4 trang**   (không phải 2)
+ *     45 ngày = 4.398–4.652 request           = **9–10 trang**
+ * Suy ra 8 ngày ≈ 1.350 request = **3 trang** ⇒ cắt 1 trang mỗi lượt, ~30 lượt/ngày ⇒ −30 trang/ngày
+ * lên planogram mà không mất gì: hai thứ tiêu thụ cửa sổ này đều ≤7 ngày (VESINH-YEUCAU giữ
+ * VS_YC_DAYS=7, ảnh giữ VS_ANH_NGAY=3 — trần 7 ngày). 8 = 7 + 1 ngày biên cho lệch múi giờ.
+ * Đừng hạ xuống 7: mất sạch biên, request tạo lúc 23h hôm thứ 7 sẽ rơi ra ngoài. */
+const VESINH_QUET_NGAY = Number(process.env.POLLER_VESINH_QUET_NGAY || 8);
 const AI_MIN = Number(process.env.POLLER_AI_MIN || 30) * PHUT;
 const KIEMKE_MIN = Number(process.env.POLLER_KIEMKE_MIN || 30) * PHUT;
 const PING_MIN = Number(process.env.POLLER_PING_MIN || 10) * PHUT;

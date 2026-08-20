@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile, tokenCon } from "./token-store.js";
-import { ghiMocBuoc, layTokenSongWork } from "./session-rules.js";
+import { ghiMocBuoc, layTokenSongWork, gasPost } from "./session-rules.js";
 import { dongSuCo } from "./tu-chua.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -95,7 +95,9 @@ async function keoTimesheet(token, majorId, from, to) {
 
 (async () => {
   if (!DRY) {
-    const caps = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) }).then(r => r.json()).catch(() => null);
+    /* Qua gasPost: một cú 404 chập chờn của Google từng làm caps=null → tự kết luận "GAS chưa
+       redeploy" rồi exit 3, bỏ cả lượt chấm công dù backend bình thường. */
+    const caps = await gasPost({ action: "caps", key: APPSCRIPT_KEY }, log, "caps").catch(() => null);
     if (!caps || caps.timesheet !== true) { log("✗ Apps Script chưa redeploy (chưa hỗ trợ ghi tab). BỎ QUA."); process.exit(3); }
   }
   /* ═══ 12/08/2026 — SỬA THỨ TỰ NGUỒN TOKEN (gốc của vụ chết im lặng 16 ngày) ═══
@@ -249,8 +251,8 @@ async function keoTimesheet(token, majorId, from, to) {
 
   const body = JSON.stringify({ action: "syncTasks", tab: TAB, key: APPSCRIPT_KEY, header, rows });
   let ok = false, written = 0;
-  try { const j = JSON.parse(await (await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).text()); ok = j.status === "success"; written = j.written || 0; }
-  catch (e) { log("  ⚠ POST lỗi (" + e.message + ") — kiểm tra lại qua gviz..."); }
+  try { const j = await gasPost(body, log, TAB); ok = j.status === "success"; written = j.written || 0; }
+  catch (e) { log("  ⚠ POST lỗi (" + e.message + ")."); }
   // (Bỏ xác minh gviz dự phòng: tab NHAN-SU đã dời sang SHEET RIÊNG bảo mật — Apps Script tự định tuyến
   //  theo PII_TABS — nên sheet public không còn tab này để đối chiếu; tin kết quả POST là đủ.)
   /* 12/08/2026 — MỐC THÀNH CÔNG cho canh-suc-khoe.js. Bước này nằm NGOÀI cụm AUTO-EXPORT.bat

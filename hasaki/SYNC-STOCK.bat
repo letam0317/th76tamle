@@ -14,6 +14,8 @@ call "%~dp0XOAY-LOG.bat" stocklocation.log
 call "%~dp0XOAY-LOG.bat" kiemke.log
 call "%~dp0XOAY-LOG.bat" vesinh.log
 call "%~dp0XOAY-LOG.bat" tonbatthuong.log
+call "%~dp0XOAY-LOG.bat" tra-uid.log
+call "%~dp0XOAY-LOG.bat" sku-master.log
 
 echo [%date% %time%] Dong bo Ton ma vi tri (stock-location)... >> stocklocation.log
 node sync-stocklocation.js >> stocklocation.log 2>&1
@@ -29,6 +31,14 @@ echo [%date% %time%] Dong bo Ton kho bat thuong... >> tonbatthuong.log
 node sync-tonbatthuong.js >> tonbatthuong.log 2>&1
 echo [%date% %time%] Ket thuc. >> tonbatthuong.log
 echo. >> tonbatthuong.log
+
+REM Danh muc SKU nguyen lieu cho tab "Nhan dien SKU" (tab Sheet SKU_MASTER).
+REM Chi ~7 luot goi WMS (3 kho nguyen lieu). Dat SAU tonbatthuong: token trong kho con tuoi nen
+REM buoc nay KHONG bao gio phai dang nhap (exit 75 = hoan, se chay lai o luot guard sau).
+echo [%date% %time%] Dong bo DANH MUC SKU nguyen lieu (SKU_MASTER)... >> sku-master.log
+node sync-sku-master.mjs >> sku-master.log 2>&1
+echo [%date% %time%] Ket thuc. >> sku-master.log
+echo. >> sku-master.log
 
 echo [%date% %time%] Dong bo VE SINH GOP (Phu trach + Doi chieu cham cong + Yeu cau/Nhat ky, SHOP-170, 1 luot quet)... >> vesinh.log
 node sync-vesinh-all.js >> vesinh.log 2>&1

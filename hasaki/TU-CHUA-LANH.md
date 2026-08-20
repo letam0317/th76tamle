@@ -3,6 +3,25 @@
 > Dựng 12/08/2026. Mục tiêu: hệ chạy tiếp và **gọi đúng người** khi WMS / HR / planogram đổi,
 > không cần ai ngồi canh, không phụ thuộc trợ lý AI nào.
 
+> ## ⛔ TỪ 15/08/2026: THƯ CẢNH BÁO ĐANG TẮT (`CANH_GUI_THU=0` trong `.env`)
+>
+> Theo yêu cầu vận hành. **Chỉ đường THƯ bị cắt** — mọi thứ khác giữ nguyên:
+>
+> | Vẫn chạy | Đã ngưng |
+> |---|---|
+> | Cảm biến soát sức khoẻ (mỗi tick guard) — vẫn in `⛔` ra `sync-guard.log` | Thư 🔴 mở sự cố (`moSuCo`) |
+> | **Chặn ghi rác** (`kiemTruocKhiGhi`) — vẫn giữ dữ liệu cũ khi payload tụt/sai cột | Thư 🟢 "đã chảy lại" (`dongSuCo`) |
+> | Nhịp tim lên GAS (`nhipTim`) | |
+>
+> Nhịp tim **cố ý giữ nguyên**: nó là thứ *ngăn* thư, không phải thứ gửi thư — bên GAS
+> `tcCanhNhipTim` gửi "máy trạm im" khi nhịp tim tắt lịm. Chặn nhịp tim = tự chuốc thư.
+>
+> Xem hiện trạng bất cứ lúc nào, không cần thư: `node canh-suc-khoe.js --xem`
+>
+> **Bật lại**: đổi `CANH_GUI_THU=1`. Kèm một việc dọn: các sự cố đang MỞ trong sổ GAS
+> (`TC_SC_*` Script Properties) không được đóng trong thời gian tắt, nên trước khi bật lại nên chạy
+> `tcXoaSoSuCo()` một lượt trong editor Apps Script để sổ khỏi giữ sự cố cũ.
+
 ## Vì sao có tầng này
 
 Sự cố mở mắt: bước **chấm công** chết từ 26/07/2026 vì IdP đổi giao diện. Suốt **16 ngày**:
@@ -36,7 +55,8 @@ Tầng 4  VIỆC CỦA NGƯỜI  đăng nhập passkey · lịch planogram bị 
 | File | Vai trò |
 |---|---|
 | `tu-chua.js` | Thư viện: `phanLoaiLoi` · `kiemTruocKhiGhi` · `xacNhanDaGhi` · `layTruong` · `thuNhieuDiaChi` · `moSuCo`/`dongSuCo` · `nhipTim` |
-| `canh-suc-khoe.js` | Đồng hồ chết phía máy trạm: soát mốc từng bước + cầu dao đăng nhập |
+| `canh-suc-khoe.js` | Đồng hồ chết phía máy trạm: soát mốc từng bước + cầu dao đăng nhập + **cầu nối** + **trễ trong ngày** |
+| `trang-thai-bridge.js` | Đọc trạng thái extension cầu nối **từ profile Edge** (bật/tắt/đã ghim) — chỉ đọc, không sửa |
 | `google-script-TuChua.gs` | Sổ sự cố + khuôn thư + đồng hồ chết phía Google (`tcCanhNhipTim`) |
 | `.baseline-tu-chua.json` | Lịch sử số dòng đã được chấp nhận (14 mẫu/nguồn) — **không commit** |
 | `.canh-suc-khoe.json` | Trạng thái lượt trước, để không gọi GAS thừa — **không commit** |
@@ -45,19 +65,43 @@ Tầng 4  VIỆC CỦA NGƯỜI  đăng nhập passkey · lịch planogram bị 
 Đấu nối: `sync-guard.js` (gọi cuối mỗi tick) · `sync-tonbatthuong.js` (cổng chặn ghi rác) ·
 `pull-timesheet.js` (ghi mốc `chamcong`).
 
-## Kích hoạt — 3 bước, làm 1 lần
+## Kích hoạt — ĐÃ BẬT 11/08/2026
 
 ```
-1) cd hasaki\.clasp-deploy && clasp push && clasp deploy -i <DEPLOY_ID>
-2) Mở editor Apps Script → chạy tay tcTaoTrigger()    (tạo trigger canh nhịp tim mỗi giờ)
-3) Mở editor Apps Script → chạy tay tcThuNghiem()     (gửi 4 thư mẫu để xem thật)
+✓ 1) clasp push + clasp deploy -i AKfycbz…RQ  → bản @51, caps.tuChua = true (đã kiểm live)
+      Thư thật đầu tiên đã gửi 18:03 11/08: PHIEN_CHET (vệ sinh trễ 300', không phiên nào sống).
+□ 2) Mở editor Apps Script → chạy tay tcTaoTrigger()   ← CÒN LẠI, tuỳ chọn
+      Chỉ cần cho ca "MÁY TRẠM TẮT": lúc đó máy không tự tố cáo được, phải để GAS canh nhịp tim.
+      Mọi cảm biến khác gửi thư trực tiếp từ máy trạm nên KHÔNG cần trigger.
+□ 3) tcThuNghiem() — gửi 6 thư mẫu để xem khuôn thư (không bắt buộc)
 ```
 
 Chưa deploy thì mọi lời gọi từ Node **tự im lặng bỏ qua** — `tu-chua.js` probe `caps.tuChua`
 trước khi POST, đúng luật đã ghi trong `session-rules.js` (GAS bản cũ gặp action lạ sẽ ghi rác
-vào sheet 5S).
+vào sheet 5S). Bẫy đã tránh: **không** thêm scope `script.scriptapp` vào `appsscript.json` để tự
+tạo trigger — thêm scope mới buộc chủ sở hữu cấp quyền lại, mà web app này đang là đường ghi Sheet
+của cả dự án; đánh đổi sai. Trigger cứ để tạo tay 1 lần.
 
 Kiểm tra bất cứ lúc nào, không gửi thư: `node canh-suc-khoe.js --xem`
+
+## Cảm biến TRONG NGÀY (thêm 11/08/2026)
+
+Ngưỡng 26 giờ của `canh-suc-khoe.js` cố ý thô — nó chỉ bắt ca "chết cả ngày". Ca 11/08 lộ ra lỗ:
+Edge **tắt extension cầu nối** (nạp unpacked, Chế độ nhà phát triển off) → 13:03 token WMS bị thu
+hồi → không ai nghe token mới → dữ liệu đứng **5 tiếng**, mà mọi hạng mục vẫn "ok" vì chưa tới 26h.
+Người phát hiện bằng mắt khi mở dashboard. Hai cảm biến bịt lỗ đó:
+
+| Cảm biến | Điều kiện báo | Thư | Việc người làm |
+|---|---|---|---|
+| **Cầu nối** (`BRIDGE-TAT`) | extension bị tắt/chưa cài — đọc thẳng profile Edge | `BRIDGE_TAT` 🟠 | bật lại + F5 WMS, hoặc **ghim** cho xong |
+| **Trễ trong ngày** (`KHONG-PHIEN` / `TRE-vesinh`) | mốc vệ sinh (nhịp poller 15') cũ > `CANH_TRE_PHUT`=90' | `PHIEN_CHET` 🔴 (có nút login) hoặc `BUOC_DUNG` | đăng nhập 1 lần, hoặc đọc log |
+
+Chống báo động giả: chỉ mở sự cố trong **7h–19h** và **không Chủ nhật** (kho không làm thì không có
+phiên để mượn — đó là bình thường). Cầu nối tắt là **gốc**: khi nó tắt, cảm biến trễ **không** gửi
+thư thứ hai cho cùng một nguyên nhân.
+
+Cầu nối bị tắt được báo **ngay cả khi dữ liệu còn tươi**: token cũ còn sống thì chưa ai thấy gì,
+nhưng đã hết đường tự lành — bot không sinh được OTP nữa, không mượn được phiên là hết cách.
 
 ## Thư gửi khi nào
 

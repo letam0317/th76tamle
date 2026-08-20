@@ -156,12 +156,43 @@ function guiRawMotLuot(buf, mayIn) {
   return kq;
 }
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Xoá job KẸT trong queue máy in tem (già hơn 2 phút). Một con tem in xong trong ~2 giây nên job
+ *  già hơn 2 phút chắc chắn đã chết, không phải của ai đang đứng đợi.
+ *  Vì sao cần: đo 20/08/2026 — một job "Spooling" size 0 nằm lại trong queue làm MỌI lượt gửi sau nó
+ *  đội từ ~2s lên 22s, mà không có lỗi nào để đọc. Người bấm chỉ thấy "sao lâu". */
+function donJobKet(mayIn) {
+  const tim = mayIn ? "'" + mayIn.replace(/'/g, "''") + "'"
+    : "(Get-Printer | Where-Object { $_.Name -match 'PE200' } | Select-Object -First 1).Name";
+  return psRun("$n=0; try { $p=" + tim + "; if ($p) { Get-PrintJob -PrinterName $p -ErrorAction Stop | " +
+    "Where-Object { $_.SubmittedTime -lt (Get-Date).AddMinutes(-2) } | " +
+    "ForEach-Object { Remove-PrintJob -InputObject $_; $n++ } } } catch {}; \"$n job\"");
+}
+/* Tên máy in đã ghim. Nếu người chạy không truyền `--may`, `_IN-RAW.ps1` phải tự `Get-Printer` để dò
+   máy có tên chứa PE200 — mất ~0,47s cho MỖI lượt in (đo 20/08/2026). Dò một lần lúc hâm nóng rồi
+   ghim lại: những lượt sau khỏi trả cái giá đó. */
+let mayGhim = "";
+const mayDung = () => MAY_IN || mayGhim;
+/** Bóc tên máy in từ dòng kết quả của `_IN-RAW.ps1` ("OK 23 | may in: <tên> | 23 byte"). */
+function ghimMay(dong) {
+  const m = String(dong || "").match(/may in:\s*(.+?)\s*\|/);
+  if (m && m[1] && !mayGhim) { mayGhim = m[1]; return true; }
+  return false;
+}
 async function guiRaw(buf, mayIn) {
+  const t0 = Date.now();
   let kq = guiRawMotLuot(buf, mayIn);
+  const lau = Date.now() - t0;
+  /* Gửi ĐƯỢC mà chậm bất thường: gần như luôn là có job kẹt phía máy in. Dọn NGAY để đợt sau không
+     bị lây — dọn sau khi tem của đợt này đã ra nên không làm chậm chính người vừa bấm. */
+  if (lau > 8000 && !/^LOI/i.test(kq)) {
+    console.log("     ⚠ gửi mất " + (lau / 1000).toFixed(1) + "s (bình thường ~2s) — dọn job kẹt: " + donJobKet(mayIn).slice(0, 40));
+  }
   for (let lan = 1; lan <= 2 && /^LOI/i.test(kq); lan++) {
-    /* 1722 = RPC server unavailable (spooler bên kia vừa restart / chưa sẵn sàng) — nối lại rồi thử tiếp */
+    /* 1722 = RPC server unavailable (spooler bên kia vừa restart / chưa sẵn sàng) — dọn job chết rồi
+       nối lại queue, sau đó thử tiếp. */
+    const bo = donJobKet(mayIn);
     const chua = noiLaiQueue();
-    console.log("     ⟳ máy in không nhận (" + kq.slice(0, 60) + ") — nối lại queue: " + chua.slice(0, 60));
+    console.log("     ⟳ máy in không nhận (" + kq.slice(0, 60) + ") — bỏ " + bo.slice(0, 12) + ", nối lại queue: " + chua.slice(0, 50));
     await nghi(lan * 3000);
     kq = guiRawMotLuot(buf, mayIn);
   }
@@ -200,12 +231,24 @@ async function goiGas(body) {
 }
 
 async function inMotLenh(lenh) {
-  const conTem = [];
+  const t0 = Date.now();
+  const dong = lenh.dong || [];
+  /* TRA TÊN GỘP MỘT LƯỢT: danh mục trong máy trước, còn thiếu bao nhiêu thì hỏi Sheet MỘT câu.
+     Bản cũ hỏi từng SKU nên một lệnh 5 SKU lạ đứng yên 3-5 giây trước khi máy in kêu. */
+  const dm = napDanhMuc();
+  /* Chỉ tra những SKU KHÔNG có tên gửi kèm và cũng không có trong danh mục trong máy. Bình thường
+     dashboard đã gửi tên nên vòng này rỗng và chặng tra tên mất 0ms. */
+  const thieu = dong.filter((o) => !String(o.pn || "").trim())
+    .map((o) => String(o.sku)).filter((k) => !(dm && dm.get(k)));
+  const bu = thieu.length ? await traGvizNhieu(thieu) : new Map();
   const nay = T.ngayTem();
-  for (const o of lenh.dong || []) {
-    let tt = napDanhMuc()?.get(String(o.sku));
-    if (!tt) tt = await traGviz(o.sku);
-    const r = { sku: String(o.sku), pn: tt ? tt.pn : "(không thấy trong danh mục)", sl: o.slHang || "", ngay: nay };
+  const conTem = [];
+  for (const o of dong) {
+    const k = String(o.sku);
+    /* Thứ tự ưu tiên tên: tên NGƯỜI DÙNG ĐÃ THẤY khi bấm in > danh mục trong máy > tra Sheet. */
+    const tt = (dm && dm.get(k)) || bu.get(k);
+    const ten = String(o.pn || "").trim() || (tt ? tt.pn : "") || "(không thấy trong danh mục)";
+    const r = { sku: k, pn: ten, sl: o.slHang || "", ngay: nay };
     for (let i = 0; i < Math.max(1, Number(o.sl) || 1); i++) conTem.push(r);
   }
   if (!conTem.length) return { loi: "lệnh rỗng" };
@@ -213,17 +256,68 @@ async function inMotLenh(lenh) {
   if (lenh.nhieuNguoi) {
     conTem.unshift({ _dot: true, nguoi: lenh.nguoi || "—",
       luc: new Date().toLocaleTimeString("vi-VN").slice(0, 5) + " " + nay,
-      soTem: conTem.length, soSku: (lenh.dong || []).length });
+      soTem: conTem.length, soSku: dong.length });
   }
-  const mau = (lenh.dong && lenh.dong[0] && lenh.dong[0].mau) || T.MAU_MAC_DINH;
+  const mau = (dong[0] && dong[0].mau) || T.MAU_MAC_DINH;
   const hang = T.chiaHang(conTem, mau);
+  const tTra = Date.now();          // xong chặng TRA TÊN
+
+  /* MỘT LỆNH = MỘT JOB SPOOLER. Bản cũ gọi PowerShell cho TỪNG hàng giấy: mỗi lần khởi động
+     powershell.exe đã 190ms (đo 20/08/2026), 20 con tem là 10 lần → gần 2 giây chỉ để mở tiến trình,
+     lại thêm nguy cơ đợt tem của người khác chen vào giữa. Nối các hàng thành một luồng TSPL rồi gửi
+     một lượt: máy in xử lý tuần tự đúng thứ tự. Cắt khúc 20 hàng cho khỏi có job vài MB. */
+  const buf = [];
+  for (const h of hang) buf.push(await tsplHang(h, mau));
+  const tDung = Date.now();         // xong chặng DỰNG ẢNH
   const loi = [];
-  for (let i = 0; i < hang.length; i++) {
-    const kq = await guiRaw(await tsplHang(hang[i], mau), MAY_IN);
-    console.log("    hàng " + (i + 1) + "/" + hang.length + ": " + kq);
-    if (/^LOI/i.test(kq)) loi.push("hàng " + (i + 1) + ": " + kq);
+  let byte = 0;
+  /* LỆNH ĐO: dừng ở đây. Đã đi qua đúng những chặng tốn thời gian (hàng đợi, tra tên, dựng ảnh) nên
+     số đo vẫn thật, chỉ không tốn con tem nào. */
+  if (lenh.thu) {
+    for (const b of buf) byte += b.length;
+    console.log("    [ĐO] dựng xong " + hang.length + " hàng giấy (" + byte + " byte) — KHÔNG gửi máy in");
+    return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: "", thu: true,
+      msTra: tTra - t0, msDung: tDung - tTra, msGui: 0, msTong: Date.now() - t0 };
   }
-  return { soTem: conTem.length, soHang: hang.length, loi: loi.join(" | ") };
+  for (let k = 0; k < buf.length; k += 20) {
+    const khuc = Buffer.concat(buf.slice(k, k + 20));
+    byte += khuc.length;
+    const kq = await guiRaw(khuc, mayDung());
+    console.log("    gửi " + Math.min(20, buf.length - k) + " hàng giấy (" + khuc.length + " byte): " + kq);
+    if (/^LOI/i.test(kq)) loi.push(kq);
+  }
+  return { soTem: conTem.length, soHang: hang.length, byte: byte, loi: loi.join(" | "),
+    msTra: tTra - t0, msDung: tDung - tTra, msGui: Date.now() - tDung, msTong: Date.now() - t0 };
+}
+
+/* Nhịp quét tự động. Sau khi hàng đợi sống chuyển sang Script Properties, một lượt hỏi lúc rỗng chỉ
+   còn ~1,1s (trần của Apps Script) và KHÔNG mở Sheet — nên hỏi mỗi giây trong giờ làm là hợp lý.
+   Ngoài giờ giãn ra 12s: không ai in lúc nửa đêm, mà hạn mức Apps Script thì có thật. */
+function nhipTuDong() {
+  const g = new Date().getHours();
+  return g >= 6 && g < 20 ? 1 : 12;
+}
+
+/* SỔ LOG: từ 20/08/2026 agent chạy ẨN qua Task Scheduler (task "Factory agent in tem") nên không còn
+   cửa sổ nào để đọc. Không có log thì lúc tem không ra sẽ chẳng biết agent có chạy không, nhận được
+   lệnh chưa, máy in trả lời gì — đúng cảnh đã mất thời gian hôm nay. Ghi kèm ra file, tự cắt bớt để
+   không phình vô hạn. */
+function moSoLog() {
+  const f = path.join(DIR, ".in-tem-agent.log");
+  try {
+    if (fs.existsSync(f) && fs.statSync(f).size > 512 * 1024) {
+      const t = fs.readFileSync(f, "utf8");
+      fs.writeFileSync(f, t.slice(-200 * 1024));
+    }
+  } catch { /* log hỏng thì thôi, KHÔNG được làm chết đường in vì cái log */ }
+  const goc = console.log.bind(console), gocLoi = console.error.bind(console);
+  const ghi = (nhan, raGoc) => (...a) => {
+    raGoc(...a);
+    try { fs.appendFileSync(f, "[" + new Date().toLocaleString("vi-VN") + "]" + nhan + " " + a.join(" ") + "\n"); } catch {}
+  };
+  console.log = ghi("", goc);
+  console.error = ghi(" LỖI", gocLoi);
+  return f;
 }
 
 async function chayDichVu(nhip) {
@@ -231,34 +325,56 @@ async function chayDichVu(nhip) {
     console.error("Cần đặt biến môi trường APPSCRIPT_URL và APPSCRIPT_KEY (xem hasaki/.env).");
     process.exit(3);
   }
-  console.log("Agent in tem đang chạy · nhịp " + nhip + "s · máy in: " + (MAY_IN || "(tự tìm PE200)"));
+  const soLog = moSoLog();
+  console.log("── agent khởi động (pid " + process.pid + ") · sổ log: " + soLog);
+  /* HÂM NÓNG kết nối máy in: lượt gửi ĐẦU TIÊN sau khi agent khởi động mất 7,9s trong khi lượt sau
+     chỉ 2,3s (đo 20/08/2026) — chi phí mở kết nối tới spooler máy bên kia. Trả cái giá đó ngay bây
+     giờ, lúc không ai đang đợi, thay vì để người bấm In đầu tiên của ngày phải trả.
+     Lệnh chỉ có SIZE + CLS, KHÔNG có PRINT nên máy in không nhả con tem nào. */
+  try {
+    const t = Date.now();
+    const kq = guiRawMotLuot(Buffer.from("SIZE 82 mm,60 mm" + NL + "CLS" + NL, "latin1"), MAY_IN);
+    ghimMay(kq);
+    console.log("   hâm nóng máy in: " + kq.slice(0, 60) + " (" + (Date.now() - t) + "ms)" +
+      (mayGhim ? " · ghim tên máy in: " + mayGhim : ""));
+  } catch (e) { console.log("   hâm nóng máy in không xong: " + String(e.message || e).slice(0, 80)); }
+  console.log("Agent in tem đang chạy · nhịp " + (nhip ? nhip + "s" : "tự động (1s giờ làm / 12s ngoài giờ)") +
+    " · máy in: " + (MAY_IN || "(tự tìm PE200)"));
   console.log("Ctrl+C để dừng.");
-  let im = 0;
+  let imTu = Date.now();
   for (;;) {
+    let coViec = false;
     try {
       const kq = await goiGas({ action: "pr_lay", key: GAS_KEY });
       const ds = (kq && kq.dsLenh) || [];
-      if (!ds.length) {
-        if (++im % 12 === 0) console.log("  (" + new Date().toLocaleTimeString("vi-VN") + ") hàng đợi trống");
+      coViec = ds.length > 0;
+      if (!coViec) {
+        /* Báo còn sống mỗi 5 phút thôi: nhịp 1 giây mà in log mỗi lượt thì cửa sổ chạy thành vô dụng. */
+        if (Date.now() - imTu > 300000) { console.log("  (" + new Date().toLocaleTimeString("vi-VN") + ") hàng đợi trống"); imTu = Date.now(); }
       } else {
-        im = 0;
+        imTu = Date.now();
         for (const lenh of ds) {
           console.log("→ lệnh " + lenh.id + " của " + (lenh.nguoi || "—") + ": " + lenh.soTem + " tem" +
             (lenh.nhieuNguoi ? " (hàng đợi có nhiều người → in kèm tem thông báo đợt)" : ""));
           let ra;
           try { ra = await inMotLenh(lenh); }
           catch (e) { ra = { loi: String(e.message || e).slice(0, 200) }; }
-          try {
-            await goiGas({ action: "pr_xong", key: GAS_KEY, id: lenh.id, loi: ra.loi || "",
-              ghiChu: ra.loi ? "" : (ra.soTem + " tem / " + ra.soHang + " hàng giấy") });
-          } catch (e) { console.error("  (không báo được trạng thái về GAS: " + (e.message || e) + ")"); }
-          console.log(ra.loi ? "  ✗ " + ra.loi : "  ✓ đã in " + ra.soTem + " tem");
+          /* BÁO XONG MÀ KHÔNG ĐỨNG ĐỢI: `pr_xong` mất ~1,1s, trong khi đợt của người kế tiếp đang
+             chờ được nhặt. Gửi rồi đi tiếp; lỗi báo trạng thái chỉ ghi log, tem thì đã ra rồi. */
+          goiGas({ action: "pr_xong", key: GAS_KEY, id: lenh.id, loi: ra.loi || "",
+            ghiChu: ra.loi ? "" : (ra.soTem + " tem / " + ra.soHang + " hàng giấy") })
+            .catch((e) => console.error("  (không báo được trạng thái về GAS: " + (e.message || e) + ")"));
+          console.log(ra.loi ? "  ✗ " + ra.loi
+            : "  ✓ " + (ra.thu ? "[ĐO] đã dựng " : "đã in ") + ra.soTem + " tem trong " + (ra.msTong / 1000).toFixed(1) +
+              "s (tra tên " + ra.msTra + "ms · dựng ảnh " + ra.msDung + "ms · gửi máy in " + ra.msGui + "ms)");
         }
       }
     } catch (e) {
       console.error("  lỗi vòng quét: " + String(e.message || e).slice(0, 160));
     }
-    await nghi(nhip * 1000);
+    /* Vừa có việc thì quay lại hỏi NGAY: mấy người bấm In cùng lúc phải được nhặt liên tiếp, chứ
+       không phải mỗi người cách nhau một nhịp nghỉ. */
+    if (!coViec) await nghi((nhip || nhipTuDong()) * 1000);
   }
 }
 
@@ -292,19 +408,47 @@ function bocDanhSach(s) {
   }).filter(Boolean);
 }
 /** Tra tên hàng từ danh mục đã đồng bộ (.sku-master-dry.json) */
+let _dm = null, _dmLuc = 0;
 function napDanhMuc() {
+  /* GIỮ TRONG BỘ NHỚ 10 phút: agent chạy nền cả ngày, mà bản cũ đọc + parse lại cả 932KB cho TỪNG
+     SKU của TỪNG lệnh. Mỗi lượt chỉ 7ms nên không ai thấy, nhưng là việc làm không để làm gì. */
+  if (_dm && Date.now() - _dmLuc < 600000) return _dm;
   const f = path.join(DIR, ".sku-master-dry.json");
   if (!fs.existsSync(f)) return null;
   const rows = JSON.parse(fs.readFileSync(f, "utf8")).rows;
   const m = new Map();
   for (const r of rows) if (!m.has(String(r[0]))) m.set(String(r[0]), { pn: r[1], type: r[2], status: r[3] });
+  _dm = m; _dmLuc = Date.now();
   return m;
 }
 /** Tra thẳng tab SKU_MASTER trên Sheet (gviz) khi SKU chưa có trong file đồng bộ.
  *  Hỏi cả hai kiểu số/chữ vì cột A đổi kiểu tuỳ lúc Sheet nạp — hỏi một kiểu thì có hôm trả rỗng
  *  mà không ai biết vì sao (tem in ra thiếu tên, im lặng). */
+/** Tra NHIỀU SKU trong MỘT truy vấn gviz. Bản cũ hỏi từng cái, mỗi cái 0,5–1,1s: một lệnh 5 SKU lạ
+ *  là mất 3-5 giây đứng yên trước khi máy in kêu. Một câu `where A = x or A = 'x' or ...` trả về hết. */
+async function traGvizNhieu(dsSku) {
+  const ra = new Map();
+  const ds = dsSku.map((x) => String(x).replace(/[^0-9A-Za-z._-]/g, "")).filter(Boolean);
+  if (!ds.length) return ra;
+  const dk = ds.map((k) => "A = " + k + " or A = '" + k + "'").join(" or ");
+  const q = "select A,B,C,D where " + dk + " limit " + ds.length;
+  const u = "https://docs.google.com/spreadsheets/d/" + SHEET_SKU +
+    "/gviz/tq?tqx=out:json&sheet=SKU_MASTER&headers=1&tq=" + encodeURIComponent(q);
+  try {
+    const t = await (await fetch(u)).text();
+    const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+    for (const r of (j.table && j.table.rows) || []) {
+      const o = (r.c || []).map((c) => (c && c.v != null ? c.v : ""));
+      const k = String(o[0] || "");
+      if (k && !ra.has(k)) ra.set(k, { pn: String(o[1] || ""), type: String(o[2] || ""), status: String(o[3] || "") });
+    }
+  } catch { /* mất mạng thì trả về những gì có; tem vẫn in, tên ghi "(không thấy trong danh mục)" */ }
+  return ra;
+}
+
+const SHEET_SKU = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 async function traGviz(sku) {
-  const ID = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
+  const ID = SHEET_SKU;
   const k = String(sku).replace(/[^0-9A-Za-z._-]/g, "");
   const q = "select A,B,C,D where A = " + k + " or A = '" + k + "' limit 1";
   const u = "https://docs.google.com/spreadsheets/d/" + ID +
@@ -364,7 +508,7 @@ async function chay(ds, chiThu) {
 
 if (dsThu) await chay(bocDanhSach(dsThu), true);
 else if (dsIn) await chay(bocDanhSach(dsIn), false);
-else if (argv.includes("--dich-vu")) await chayDichVu(Math.max(3, Number(layCo("--nhip", "6"))));
+else if (argv.includes("--dich-vu")) await chayDichVu(Math.max(0, Number(layCo("--nhip", "0"))));
 else {
   console.log('Dùng: node in-tem-agent.mjs --thu "422430797x2" | --in "422430797x2,422322192" | --dich-vu');
   console.log('      tuỳ chọn: --mau t40x60 --may "<tên máy in>" --gap 3 --dam 10 --lech 2');

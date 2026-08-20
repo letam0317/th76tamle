@@ -39,7 +39,7 @@ var FETCH_TIMEOUT_MS = 4 * 60 * 1000;        // AbortController: ngắt request 
 var PAL = ["#2563eb", "#0ea5e9", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#10b981", "#ec4899", "#6366f1", "#f43f5e", "#0891b2", "#84cc16"];
 
 /* ===== STATE (đóng trong closure — không rò ra global) ===== */
-var LAST_SYNC_MS = 0, _syncing = false, _rowCount = 0, _unlockTimer = null, _toastTimer = null;
+var LAST_SYNC_MS = 0, _syncing = false, _rowCount = 0, _skuCount = 0, _unlockTimer = null, _toastTimer = null;
 var WH_DATA = {}, WH_COLOR = {}, curWh = null, curTab = "shelf", CUR_CATS = [], _deb = null;
 var _raw = [], _pending = 0, _failed = 0, _lastLoadAt = 0, _boot = false;
 var PANE = null;
@@ -211,15 +211,92 @@ var MODAL =
 '</div>' +
 '<div id="fsToast"></div>';
 
-/* ===== TẢI DỮ LIỆU (gviz JSONP — callback mang tiền tố fsgv_, không đụng host) ===== */
+/* ===== TẢI DỮ LIỆU (gviz JSONP — callback mang tiền tố fsgv_, không đụng host) =====
+ *
+ * VÁ 15/08/2026 — NẠP HAI TẦNG. ĐO THẬT (đừng suy đoán lại):
+ *   Đường cũ `select A,C,D,F,G,M` trên 2 tab thô = **12,6 MB · 46.737 dòng · ~10,2 s**, mỗi lần mở,
+ *   không cache. Màn hình chính chỉ hiển thị **84 nhóm (kho × ngành hàng)** ⇒ tỷ lệ hữu ích ~1/1000.
+ *   Và nó đã nặng như vậy từ giữa tháng 7 (41.709 → 46.183 SKU, +11%/tháng) — không phải mới phình.
+ *
+ *   Nay: `sync-stocklocation.js` cộng sẵn ra tab `stockloc-tong` (84 dòng ≈ **6 KB**, đã đối chiếu
+ *   KHỚP 100% từng số với aggregate() bên dưới). Màn hình chính đọc tab đó.
+ *   Chi tiết SKU của MỘT kho chỉ nạp khi người dùng bấm vào kho đó (`where G = 'tên kho'`).
+ *
+ *   Vẫn giữ nguyên đường cũ làm DỰ PHÒNG: tab tổng chưa kịp sinh / lỗi ⇒ tự lùi về tải 2 tab thô,
+ *   màn hình không bao giờ trắng. Không thêm một lượt gọi WMS nào — tab tổng cộng từ dữ liệu đã có
+ *   trong RAM của chính lượt sync.
+ */
+var TONG_TAB = "stockloc-tong";
+var CACHE_V = "fsc1:", CACHE_TTL = 10 * 60 * 1000;   // 10' — nguồn chỉ đổi 3 lần/ngày
+function cacheGet(k){
+  try{ var o = JSON.parse(sessionStorage.getItem(CACHE_V + k) || "null");
+    return (o && Date.now() - o.at < CACHE_TTL) ? o.d : null; }catch(e){ return null; }
+}
+function cacheSet(k, d){
+  try{ sessionStorage.setItem(CACHE_V + k, JSON.stringify({ at: Date.now(), d: d })); }catch(e){ /* hết quota/riêng tư */ }
+}
+/* 1 lượt gviz JSONP → Promise(rows 2 chiều). tq rỗng = cả tab. */
+function gvizP(sheet, tq, id){
+  return new Promise(function(res, rej){
+    var cb = "fsgv_" + id;
+    window[cb] = function(resp){
+      try{ res(((resp.table && resp.table.rows) || []).map(function(r){
+        return (r.c || []).map(function(c){ return (c && c.v != null) ? c.v : ""; }); })); }
+      catch(e){ rej(e); }
+    };
+    var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:" + cb +
+      "&sheet=" + encodeURIComponent(sheet) + (tq ? "&tq=" + encodeURIComponent(tq) : "");
+    var old = $id("fs_sc_" + id); if (old) old.remove();
+    var sc = document.createElement("script"); sc.id = "fs_sc_" + id; sc.src = url;
+    sc.onerror = function(){ rej(new Error("JSONP lỗi: " + sheet)); };
+    document.body.appendChild(sc);
+  });
+}
 function loadData(){
   $id("fsReload").disabled = true;
   var st = $id("fsState"); st.style.display = "block";
   st.innerHTML = '<div class="fs-spin"></div>Đang tải dữ liệu trực tiếp từ Google Sheet…';
   $id("fsContent").innerHTML = "";
-  _raw = []; _pending = TABS.length; _failed = 0; _lastLoadAt = Date.now();
+  _raw = []; _failed = 0; _lastLoadAt = Date.now();
+  WH_DATA = {};   // chi tiết nạp lại theo kho khi cần
+
+  var c = cacheGet(TONG_TAB);
+  if (c){ dungTuTong(c); loadMeta(); return; }   // vẽ ngay từ cache phiên, khỏi chờ mạng
+
+  gvizP(TONG_TAB, "", "tong").then(function(rows){
+    /* Tab chưa tồn tại thì gviz KHÔNG báo lỗi — nó trả tab đầu tiên của file (bẫy đã ghi trong
+       hasaki-planogram.js). Nên phải kiểm hình dạng: 7 cột, cột 4-7 là số. */
+    if (!rows.length || rows[0].length < 7 || isNaN(Number(rows[0][3]))) throw new Error("tab tổng chưa đúng dạng");
+    cacheSet(TONG_TAB, rows); dungTuTong(rows);
+  }).catch(function(){
+    st.innerHTML = '<div class="fs-spin"></div>Đang tải dữ liệu trực tiếp từ Google Sheet…';
+    loadDataTho();   // DỰ PHÒNG: đường cũ, đọc 2 tab thô
+  });
+  loadMeta();
+}
+/* Dựng màn hình chính từ tab tổng: [Division, Warehouse, CategoryName, SkuShelf, QtyShelf, SkuPend, QtyPend] */
+function dungTuTong(rows){
+  var groups = [], whDiv = {}, whset = {};
+  for (var i = 0; i < rows.length; i++){
+    var r = rows[i], div = String(r[0] || ""), wh = String(r[1] || ""), cat = String(r[2] || "(trống)");
+    if (!wh) continue;
+    whDiv[wh] = div; whset[wh] = 1;
+    groups.push([wh, cat, Number(r[3]) || 0, Number(r[4]) || 0, Number(r[5]) || 0, Number(r[6]) || 0]);
+  }
+  groups.sort(function(x, y){ if (x[0] < y[0]) return -1; if (x[0] > y[0]) return 1; return y[2] - x[2]; });
+  var ci = 0; Object.keys(whset).forEach(function(w){ WH_COLOR[w] = PAL[ci++ % PAL.length]; });
+  render(groups, whDiv);
+  /* Đường tổng không còn tải dòng thô nên "N dòng" hết nghĩa — đổi sang tổng SKU, là con số người
+     dùng thật sự đọc (và cũng là con số các thẻ KPI đang hiển thị). */
+  _rowCount = 0;
+  _skuCount = groups.reduce(function(s, g){ return s + g[2] + g[4]; }, 0);
+  capNhatThongTin();
+}
+/* Đường CŨ giữ nguyên làm dự phòng */
+function loadDataTho(){
+  _raw = []; _pending = TABS.length; _failed = 0;
   TABS.forEach(function(t, i){
-    var cb = "fsgv_" + i;
+    var cb = "fsgv_tho" + i;
     window[cb] = function(resp){ onTab(resp, t.div); };
     var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:" + cb +
       "&sheet=" + encodeURIComponent(t.sheet) + "&tq=" + encodeURIComponent("select A,C,D,F,G,M");
@@ -228,7 +305,6 @@ function loadData(){
     sc.onerror = function(){ _failed++; _pending--; checkDone(); };
     document.body.appendChild(sc);
   });
-  loadMeta();
 }
 function onTab(resp, div){
   try{
@@ -291,7 +367,7 @@ function aggregate(){
   WH_DATA = detail;
   var ci = 0; Object.keys(whset).forEach(function(w){ WH_COLOR[w] = PAL[ci++ % PAL.length]; });
   render(groups, whDiv);
-  _rowCount = _raw.length;
+  _rowCount = _raw.length; _skuCount = 0;
   capNhatThongTin();
 }
 
@@ -384,8 +460,42 @@ function renderCatMenu(){
   var m = $id("fsCatMenu"); m.innerHTML = html; m.classList.add("show");
 }
 function closeCat(){ var m = $id("fsCatMenu"); if (m) m.classList.remove("show"); }
+/* Chi tiết SKU của MỘT kho — nạp khi người dùng bấm, không nạp sẵn (15/08/2026).
+   Kho lớn nhất chiếm 34.249/46.737 dòng (73%), nên nạp sẵn tất cả là trả giá cho thứ hầu như
+   không ai mở. `where G = 'tên kho'` để Google lọc, trình duyệt chỉ nhận đúng phần cần. */
+function napChiTietKho(w){
+  if (WH_DATA[w]) return Promise.resolve();
+  var c = cacheGet("ct:" + w);
+  if (c){ WH_DATA[w] = c; return Promise.resolve(); }
+  var tq = "select A,C,D,F,G,M where G = '" + String(w).replace(/'/g, "''") + "'";
+  return Promise.all(TABS.map(function(t, i){ return gvizP(t.sheet, tq, "ct" + i).catch(function(){ return []; }); }))
+    .then(function(kq){
+      var d = { shelf: [], pend: [] };
+      kq.forEach(function(rows){
+        rows.forEach(function(r){
+          var sku = String(r[0] || ""), pn = String(r[1] || ""), loc = String(r[2] || ""),
+              cat = String(r[3] || "(trống)"), tot = Number(r[5]) || 0;
+          if (!sku && !loc) return;
+          (isShelf(loc) ? d.shelf : d.pend).push([sku, pn, loc, cat, tot]);
+        });
+      });
+      WH_DATA[w] = d; cacheSet("ct:" + w, d);
+    });
+}
 function openModal(w){
-  if (!WH_DATA[w]) return;
+  /* Chưa có chi tiết → nạp rồi mở lại. Mở modal TRƯỚC với trạng thái chờ sẽ đẹp hơn, nhưng ở đây
+     giữ đơn giản: chặn double-click bằng cờ, và pop-up chỉ bật khi đã có số thật. */
+  if (!WH_DATA[w]){
+    if (openModal._dang) return;
+    openModal._dang = true;
+    var btn = document.querySelector('[data-fswh="' + String(w).replace(/"/g, '\\"') + '"]');
+    if (btn) btn.style.opacity = ".55";
+    napChiTietKho(w).then(function(){
+      openModal._dang = false; if (btn) btn.style.opacity = "";
+      if (WH_DATA[w]) openModal(w);
+    }).catch(function(){ openModal._dang = false; if (btn) btn.style.opacity = ""; });
+    return;
+  }
   curWh = w; curTab = "shelf";
   $id("fsMtitle").textContent = w;
   $id("fsCShelf").textContent = nf(WH_DATA[w].shelf.length);
@@ -429,6 +539,7 @@ function renderRows(){
 function capNhatThongTin(){
   var t = "";
   if (_rowCount) t = "· " + nf(_rowCount) + " dòng";
+  else if (_skuCount) t = "· " + nf(_skuCount) + " SKU";
   if (LAST_SYNC_MS) t += (t ? " " : "") + "· cập nhật " + fmtTime(LAST_SYNC_MS);
   if (_failed) t += " · " + _failed + " tab lỗi";
   var el = $id("fsLoadinfo"); if (el) el.textContent = t;

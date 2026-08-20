@@ -18,13 +18,24 @@
  *     Đây chính là loại bước từng chết trong im lặng, nên phải canh riêng.
  *     TUYỆT ĐỐI không nhét "chamcong" vào CAC_BUOC_SYNC: guard sẽ coi cả cụm là cũ
  *     rồi spawn AUTO-EXPORT.bat mỗi 20' trong vô vọng — bat đó không chạy pull-timesheet.
+ *
+ *  BỔ SUNG 11/08/2026 — HAI CẢM BIẾN TRONG NGÀY (sự cố bridge bị Edge tắt):
+ *   Ngưỡng 26 giờ ở trên cố ý thô: nó chỉ bắt ca "chết cả ngày". Ca 11/08 lại là ca khác —
+ *   token WMS bị thu hồi lúc 13:03, cầu nối (extension) thì Edge đã tắt nên không ai vá được,
+ *   dữ liệu đứng 5 tiếng mà mọi hạng mục vẫn "ok" vì chưa tới 26 giờ. Thêm 2 cảm biến nhịp giờ:
+ *    • CẦU NỐI  — đọc thẳng profile Edge (trang-thai-bridge.js): extension bị tắt/chưa cài là
+ *      báo NGAY, dù dữ liệu còn tươi. Đây là bom hẹn giờ: còn token cũ thì chưa thấy gì, token
+ *      hết hạn mới vỡ, và lúc vỡ thì không có đường tự lành nào.
+ *    • TRỄ TRONG NGÀY — mốc bước nhịp nhanh nhất (vệ sinh, nhịp poller 15') cũ quá 90' trong giờ
+ *      làm = dashboard đang hiện số cũ. Kèm chẩn đoán nguyên nhân vào thư để không phải mò.
  */
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CAC_BUOC_SYNC, docMocBuoc } from "./session-rules.js";
-import { moSuCo, dongSuCo, nhipTim } from "./tu-chua.js";
+import { CAC_BUOC_SYNC, docMocBuoc, imLangBridgeMs, trangThaiPhien } from "./session-rules.js";
+import { moSuCo, dongSuCo, nhipTim, guiThuDangBat } from "./tu-chua.js";
+import { docTrangThaiExt } from "./trang-thai-bridge.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const CHI_XEM = process.argv.includes("--xem");
@@ -45,12 +56,23 @@ const TEN = {
  * Đặt ngắn hơn (vd 12h) sẽ báo động giả mỗi sáng khi máy bật muộn. */
 const NGUONG_GIO = 26;
 
+/* Ngưỡng TRONG NGÀY: bước nhịp nhanh nhất (vệ sinh — poller 15') cũ quá 90' trong giờ làm là
+ * dashboard đang hiện số cũ. 90' = 6 lượt poller trượt liên tiếp → không còn là nhiễu; đặt ngắn
+ * hơn (vd 30') sẽ báo động giả mỗi lần WMS chậm hoặc máy vừa boot. */
+const NGUONG_TRE_PHUT = Number(process.env.CANH_TRE_PHUT || 90);
+const BUOC_NHANH = "vesinh";
+
 /* Chỉ MỞ sự cố trong giờ người ta còn đọc mail. ĐÓNG thì lúc nào cũng được — tin vui
  * không cần chờ giờ hành chính, và đóng muộn sẽ khiến thư nhắc hôm sau gửi thừa. */
 const gioVN = () => Number(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }));
 const trongGioBao = () => { const h = gioVN(); return h >= 7 && h < 19; };
+/* Chủ nhật kho không làm: không ai mở WMS thì không có phiên để mượn, mà đó là bình thường —
+ * báo động ngày đó chỉ dạy người ta bỏ qua thư. Cảm biến trong ngày vì vậy nghỉ Chủ nhật. */
+const laNgayLam = () => new Date().toLocaleDateString("en-US", { timeZone: "Asia/Ho_Chi_Minh", weekday: "short" }) !== "Sun";
+const canhTrongNgay = () => trongGioBao() && laNgayLam();
 
 const tuoiGio = (ms) => ms ? (Date.now() - ms) / 3600000 : Infinity;
+const tuoiPhut = (ms) => ms ? (Date.now() - ms) / 60000 : Infinity;
 const doiGio = (g) => g === Infinity ? "chưa từng chạy" : g < 24 ? Math.round(g) + " giờ" : Math.floor(g / 24) + " ngày " + Math.round(g % 24) + " giờ";
 
 /* Bộ nhớ trạng thái lượt trước (.canh-suc-khoe.json). Guard gọi bộ này ~12 lượt/ngày; không có
@@ -61,6 +83,8 @@ let _tt = {};
 try { _tt = JSON.parse(fs.readFileSync(F_TRANGTHAI, "utf8")); } catch { _tt = {}; }
 const luuTrangThai = () => { try { fs.writeFileSync(F_TRANGTHAI, JSON.stringify(_tt)); } catch { /* best-effort */ } };
 const vuaLanhLai = (khoa) => _tt[khoa] === "hong";
+/* Đuôi câu cho các dòng "vừa lành lại": nói đúng có thư hay không (công tắc CANH_GUI_THU). */
+const duoiKhacPhuc = () => guiThuDangBat() ? "gửi thư báo khắc phục." : "không gửi thư (CANH_GUI_THU=0).";
 
 async function canhCacBuoc() {
   let hong = 0;
@@ -85,7 +109,7 @@ async function canhCacBuoc() {
       if (!CHI_XEM) _tt["DUNG-" + buoc] = "hong";
     } else {
       log("  ✓ " + ten + ": " + doiGio(g) + " trước");
-      if (!CHI_XEM && vuaLanhLai("DUNG-" + buoc)) { await dongSuCo("DUNG-" + buoc); log("    → đã chảy lại, gửi thư báo khắc phục."); }
+      if (!CHI_XEM && vuaLanhLai("DUNG-" + buoc)) { await dongSuCo("DUNG-" + buoc); log("    → đã chảy lại, " + duoiKhacPhuc()); }
       if (!CHI_XEM) _tt["DUNG-" + buoc] = "ok";
     }
   }
@@ -99,7 +123,7 @@ async function canhCauDao() {
   let cd = null;
   try { cd = JSON.parse(fs.readFileSync(path.join(DIR, ".login-that-bai.json"), "utf8")); } catch { /* không có = tốt */ }
   if (!cd || !(cd.lan >= 3)) {
-    if (!CHI_XEM && vuaLanhLai("CAUDAO")) { await dongSuCo("CAUDAO"); log("    → cầu dao đã gỡ, gửi thư báo khắc phục."); }
+    if (!CHI_XEM && vuaLanhLai("CAUDAO")) { await dongSuCo("CAUDAO"); log("    → cầu dao đã gỡ, " + duoiKhacPhuc()); }
     if (!CHI_XEM) _tt.CAUDAO = "ok";
     if (cd) log("  ✓ Cầu dao đăng nhập: " + cd.lan + " lượt trượt — chưa tới ngưỡng gọi người.");
     else log("  ✓ Cầu dao đăng nhập: không bật.");
@@ -118,10 +142,104 @@ async function canhCauDao() {
   return 1;
 }
 
+/* ══════════ CẢM BIẾN 1: CẦU NỐI PHIÊN (extension trong Edge) ══════════
+ * Đọc thẳng profile Edge chứ không suy đoán từ hậu quả. Báo NGAY khi extension tắt/chưa cài, kể cả
+ * lúc dữ liệu còn tươi: còn token cũ thì chưa ai thấy gì, nhưng token hết hạn là vỡ, và vỡ theo
+ * kiểu KHÔNG THỂ TỰ LÀNH (bot không sinh được OTP, không có phiên nào để mượn). Báo sớm 1 ngày
+ * ở đây rẻ hơn nhiều so với 5 tiếng dữ liệu đứng như chiều 11/08. */
+async function canhCauNoi() {
+  const ext = docTrangThaiExt();
+  if (!ext.coEdge) { log("  – Cầu nối WMS: không đọc được profile Edge — bỏ qua cảm biến này."); return 0; }
+
+  if (ext.on) {
+    log("  ✓ Cầu nối WMS (extension): " + ext.vi);
+    if (!CHI_XEM && vuaLanhLai("BRIDGE-TAT")) { await dongSuCo("BRIDGE-TAT"); log("    → cầu nối đã bật lại, " + duoiKhacPhuc()); }
+    if (!CHI_XEM) _tt["BRIDGE-TAT"] = "ok";
+    return 0;
+  }
+
+  const treGio = tuoiGio(docMocBuoc(DIR, BUOC_NHANH));
+  const imPhut = Math.round(imLangBridgeMs(DIR) / 60000);
+  log("  ⛔ Cầu nối WMS (extension): " + ext.vi + " · cầu nối im " + imPhut + "' · " + TEN[BUOC_NHANH] + " cũ " + doiGio(treGio));
+  if (!CHI_XEM && canhTrongNgay()) {
+    await moSuCo({
+      ma: "BRIDGE-TAT", loai: "BRIDGE_TAT", nguon: "Cầu nối phiên WMS",
+      soLieu: { trePhut: Math.round(tuoiPhut(docMocBuoc(DIR, BUOC_NHANH))), imPhut, treGio: Math.round(treGio === Infinity ? 999 : treGio) },
+      chiTiet: ext.coCai
+        ? "Extension đã cài (" + (ext.duongDan || ext.id) + ") nhưng đang bị tắt: " + (ext.lyDoTat || "không rõ lý do") + "."
+        : "Chưa thấy extension trong profile Edge nào — có thể đã bị xoá khỏi danh sách."
+    });
+  }
+  if (!CHI_XEM) _tt["BRIDGE-TAT"] = "hong";
+  return 1;
+}
+
+/* ══════════ CẢM BIẾN 2: TRỄ TRONG NGÀY ══════════
+ * Đo đúng cái người dùng nhìn thấy: "dashboard đang hiện số của mấy giờ?". Lấy bước nhịp nhanh
+ * nhất (vệ sinh, poller 15') làm đại diện — bước nào chậm thì cũng do cùng một cái token.
+ * Chẩn đoán luôn nguyên nhân để thư nói được VIỆC CẦN LÀM, không chỉ báo "có gì đó sai":
+ *   cầu nối tắt → đã có sự cố riêng, không gửi thư thứ hai cho cùng một gốc.
+ *   không phiên nào sống → thư có nút mở cửa sổ đăng nhập (việc 3 phút).
+ *   có phiên mà vẫn trễ → lỗi kỹ thuật thật, cần người đọc log. */
+async function canhTreTrongNgay() {
+  const ten = TEN[BUOC_NHANH] || BUOC_NHANH;
+  const treP = tuoiPhut(docMocBuoc(DIR, BUOC_NHANH));
+  const MA_PHIEN = "KHONG-PHIEN", MA_TRE = "TRE-" + BUOC_NHANH;
+
+  if (treP <= NGUONG_TRE_PHUT) {
+    log("  ✓ " + ten + " (nhịp trong ngày): " + Math.round(treP) + "' trước");
+    for (const ma of [MA_PHIEN, MA_TRE]) {
+      if (!CHI_XEM && vuaLanhLai(ma)) { await dongSuCo(ma); log("    → đã chảy lại, " + duoiKhacPhuc()); }
+      if (!CHI_XEM) _tt[ma] = "ok";
+    }
+    return 0;
+  }
+
+  const ext = docTrangThaiExt();
+  const imPhut = Math.round(imLangBridgeMs(DIR) / 60000);
+  let phien = null;
+  try { phien = await trangThaiPhien(DIR); } catch { /* mất mạng: coi như không kết luận được */ }
+  const khongPhien = !!phien && phien.ai === "khong";
+  log("  ⛔ " + ten + ": mốc cũ " + Math.round(treP) + "' (ngưỡng " + NGUONG_TRE_PHUT + "') · cầu nối im " + imPhut + "' · phiên: " + (phien ? phien.vi : "không kiểm được"));
+
+  // Cầu nối tắt là GỐC — canhCauNoi() đã gửi thư đúng việc cần làm, đừng gửi thư thứ hai.
+  if (!ext.on) { log("    (gốc là cầu nối bị tắt — sự cố BRIDGE-TAT đã báo, không gửi thư trùng)"); return 1; }
+
+  if (khongPhien) {
+    if (!CHI_XEM && canhTrongNgay()) {
+      await moSuCo({
+        ma: MA_PHIEN, loai: "PHIEN_CHET", nguon: ten,
+        soLieu: { trePhut: Math.round(treP), imPhut, treGio: treP / 60 },
+        chiTiet: "Cầu nối vẫn bật nhưng không nghe được token nào — nghĩa là không còn tab WMS/work nào đang đăng nhập."
+      });
+    }
+    if (!CHI_XEM) { _tt[MA_PHIEN] = "hong"; _tt[MA_TRE] = "ok"; }
+    return 1;
+  }
+
+  if (!CHI_XEM && canhTrongNgay()) {
+    await moSuCo({
+      ma: MA_TRE, loai: "BUOC_DUNG", nguon: ten,
+      soLieu: { treGio: treP / 60 },
+      chiTiet: "Phiên vẫn sống (" + (phien ? phien.vi : "?") + ") mà bước vẫn không ghi được — xem vesinh.log / poller.log trên máy trạm."
+    });
+  }
+  if (!CHI_XEM) { _tt[MA_TRE] = "hong"; _tt[MA_PHIEN] = "ok"; }
+  return 1;
+}
+
 (async () => {
   log("Soát sức khoẻ các bước đồng bộ" + (CHI_XEM ? " (chỉ xem)" : "") + "...");
-  const hong = (await canhCacBuoc()) + (await canhCauDao());
+  const hong = (await canhCacBuoc()) + (await canhCauDao()) + (await canhCauNoi()) + (await canhTreTrongNgay());
   if (!CHI_XEM) { luuTrangThai(); await nhipTim("canh-suc-khoe"); }   // nhịp tim: GAS canh nhịp này để bắt ca máy trạm tắt
-  log(hong ? "→ " + hong + " hạng mục cần người xử lý" + (CHI_XEM ? " (chế độ xem — CHƯA gửi thư)." : " — đã báo lên hộp thư.") : "→ Tất cả bình thường.");
+  /* Log phải nói ĐÚNG cái đã xảy ra: từ 15/08/2026 có công tắc CANH_GUI_THU=0 (ngưng gửi mail
+     cảnh báo) — lúc đó vẫn soát, vẫn in ⛔, nhưng không có thư nào rời máy. Ghi "đã báo lên hộp thư"
+     trong trạng thái đó là nói dối người đọc log. */
+  log(hong
+    ? "→ " + hong + " hạng mục cần người xử lý"
+      + (CHI_XEM ? " (chế độ xem — CHƯA gửi thư)."
+        : guiThuDangBat() ? " — đã báo lên hộp thư."
+          : " — CHỈ ghi log, KHÔNG gửi thư (CANH_GUI_THU=0).")
+    : "→ Tất cả bình thường.");
   process.exitCode = 0;   // luôn 0: đây là bộ giám sát, không được làm hỏng mã thoát của bộ gọi
 })();

@@ -26,6 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { luuNhieu, EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { trangThaiPhien, DEFER_EXIT } from "./session-rules.js";
+import { hoiOtpQuaChat } from "./hop-thu.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCK = path.join(DIR, ".login-open.lock");
@@ -65,6 +66,13 @@ const PASSWORD = process.env.HASAKI_PASSWORD || "";
  * Hết đốt lượt bằng mã sai; đăng nhập tự động (--auto) tự hoãn, nhường luồng "nút trong email". */
 const OTP_TAY = process.argv.includes("--otp-tay") || String(process.env.LOGIN_OTP_TAY || "") === "1";
 const SECRET = OTP_TAY ? "" : (process.env.HASAKI_2FA_SECRET || "").replace(/\s+/g, "");
+/* OTP QUA TIN NHẮN — Đường 2b (19/08/2026). Vẫn là "người gõ 6 số", nhưng gõ vào Telegram thay vì
+ * gõ vào cửa sổ trên máy trạm: tới bước OTP, script NHẮN XIN chủ máy, nhận mã rồi tự gõ + nộp.
+ * Nhờ vậy đăng nhập được cả khi chủ máy đang ở ngoài kho, mà KHÔNG cần seed TOTP (seed đã chuyển
+ * sang app Hasaki Authenticator, không xuất được). Không lách MFA: mã vẫn do người thật đọc từ app.
+ * Mọi cửa kiểm cũ giữ nguyên — cầu dao chống khoá tài khoản, khoá chống chạy chồng, luật phiên. */
+const OTP_CHAT = process.argv.includes("--otp-chat") || String(process.env.LOGIN_OTP_CHAT || "") === "1";
+const OTP_CHO_GIAY = Number(process.env.LOGIN_OTP_CHO_GIAY || 300);
 const AUTO = process.argv.includes("--auto");
 const DRY_OTP = process.argv.includes("--dry-otp") || process.env.DRY_OTP === "1";
 const SHOW = process.argv.includes("--show");   // --show = hiện cửa sổ để gỡ lỗi; mặc định CHẠY NGẦM ngoài màn hình
@@ -80,8 +88,16 @@ const otpConLai = () => 30 - (Math.floor(Date.now() / 1000) % 30);   // giây c�
 if (AUTO && !SECRET) {
   // OTP thủ công: lượt TỰ ĐỘNG không thể hoàn tất (không có mã để gõ) → HOÃN êm (75, không phải lỗi),
   // để bộ gọi (auto-login) hiểu là "chờ người" chứ không báo động; người đăng nhập qua nút trong email.
-  if (OTP_TAY) { log("⏸ OTP thủ công đang bật (LOGIN_OTP_TAY=1) — KHÔNG tự đăng nhập. Chờ người bấm nút trong email rồi gõ OTP tay."); process.exit(DEFER_EXIT); }
-  log("✗ --auto cần HASAKI_2FA_SECRET. Thoát."); process.exit(1);
+  // Đường 2b: có kênh tin nhắn thì lượt --auto KHÔNG hoãn nữa — chạy tiếp, tới bước OTP sẽ nhắn xin.
+  if (OTP_CHAT) {
+    log("🔐 OTP qua tin nhắn đang bật — sẽ nhắn xin 6 số khi tới bước OTP (chờ tối đa " + Math.round(OTP_CHO_GIAY / 60) + "').");
+  } else if (OTP_TAY) {
+    log("⏸ OTP thủ công đang bật (LOGIN_OTP_TAY=1) — KHÔNG tự đăng nhập. Chờ người bấm nút trong email rồi gõ OTP tay.");
+    process.exit(DEFER_EXIT);
+  } else {
+    log("✗ --auto cần HASAKI_2FA_SECRET. Thoát.");
+    process.exit(1);
+  }
 }
 
 if (fs.existsSync(LOCK)) {
@@ -283,7 +299,7 @@ async function dungVoiHienTruong(lyDo, ma = 1) {
 }
 
 /* ---------- Máy trạng thái: điền theo Ô ĐANG TRỐNG (chịu được trang gộp email+mật khẩu+OTP) ---------- */
-const st = { otpDone: false, passSubmitted: false, credSubmitted: false, clickedContinue: false, otpWaitLogged: false, loggedEmail: false, loggedPass: false, emailLuc: 0, ssoMiss: 0, manLa: 0, ptLogged: false };
+const st = { otpDone: false, otpXin: false, passSubmitted: false, credSubmitted: false, clickedContinue: false, otpWaitLogged: false, loggedEmail: false, loggedPass: false, emailLuc: 0, ssoMiss: 0, manLa: 0, ptLogged: false };
 // Host THẬT của trang — URL IdP mang redirect_uri chứa "work.hasaki.vn" trong query nên
 // regex substring từng làm bước SSO misfire ngay trên trang IdP (sự cố 27/07/2026).
 const hostHienTai = () => { try { return new URL(page.url()).hostname; } catch { return ""; } };
@@ -378,6 +394,27 @@ async function tick() {
       if (await goVao('input[type=password]', PASSWORD) && !st.loggedPass) { log("  ✓ gõ mật khẩu"); st.loggedPass = true; }
       return;
     }
+    /* 4-chat) OTP QUA TIN NHẮN (Đường 2b): không có seed thì nhắn xin chủ máy 6 số và CHỜ NGAY
+       tại đây (tick bị khoá bởi cờ `busy` nên không có tick nào chen ngang). Không nhận được mã
+       thì DỪNG — tuyệt đối không nộp bừa, vì mỗi lượt sai là một bước tới khoá tài khoản. */
+    if (!SECRET && OTP_CHAT && coOTP && !emailTrong && !passTrong && !st.otpDone) {
+      if (st.otpXin) return;
+      st.otpXin = true;
+      const t = Date.now();
+      const { ma, ly } = await hoiOtpQuaChat(DIR, {
+        nhan: AUTO ? "lượt đăng nhập của máy trạm (không có phiên nào còn sống)" : "bạn vừa yêu cầu đăng nhập",
+        choGiay: OTP_CHO_GIAY, log,
+      });
+      if (!ma) {
+        log("✗ Không nhận được OTP qua tin nhắn (" + ly + ") — DỪNG, KHÔNG nộp gì lên IdP.");
+        await browser.close().catch(() => {});
+        process.exit(ly === "chua-bat" ? 1 : DEFER_EXIT);
+      }
+      await goOTP(ma); st.otpDone = true;
+      if (DRY_OTP) { log("  ✓ [DRY-OTP] đã GÕ OTP nhận qua tin nhắn nhưng KHÔNG nộp. Kết thúc test."); setTimeout(() => browser.close().catch(() => {}), 800); return; }
+      log("  ✓ gõ OTP nhận qua tin nhắn (chờ người " + Math.round((Date.now() - t) / 1000) + "s)");
+      return;
+    }
     // 4) OTP: chỉ gõ khi email & mật khẩu ĐÃ ĐẦY, mã còn ≥10s; GÕ 1 LẦN DUY NHẤT (chống khoá)
     if (SECRET && coOTP && !emailTrong && !passTrong && !st.otpDone) {
       const conLai = otpConLai();
@@ -464,7 +501,10 @@ if (PASSWORD) baoSaiMK = setInterval(async () => {
   } catch { /* trang đang chuyển hướng */ }
 }, 200);
 
-const HAN = AUTO ? 4 * 60 * 1000 : 15 * 60 * 1000;
+/* Hạn 4' của lượt --auto tính cho luồng "bot tự sinh OTP" (không có ai để chờ). Lượt OTP qua tin
+   nhắn phải cộng thời gian con người: đọc app + gõ (chờ tối đa OTP_CHO_GIAY) → nới thành 5' + hạn
+   chờ mã, kẻo hết hạn ngay giữa lúc đang chờ người trả lời. */
+const HAN = AUTO ? (OTP_CHAT ? 5 * 60 * 1000 + OTP_CHO_GIAY * 1000 : 4 * 60 * 1000) : 15 * 60 * 1000;
 const t0 = Date.now();
 // Sau khi đăng nhập OK: chụp LUÔN token hr.hasaki (session đã có) → nạp kho CẢ work + hr,
 // để 1 lần đăng nhập là đủ cho cả 3 bộ, các bộ khác không phải mở trình duyệt/đăng nhập lại.

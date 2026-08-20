@@ -40,10 +40,18 @@ ui_*.png
 .session-ledger-state.json
 # State/cache của nhịp phân tầng (sync-poller 26/07/2026)
 .poller-state.json
+# Sổ của kênh tin nhắn (tin-nhan-bot 19/08/2026): offset Telegram + cooldown + nonce chờ xác nhận.
+# Theo máy, và offset mà chép sang máy khác là bỏ sót/nhận lại lệnh cũ -> không commit.
+.tin-nhan-state.json
+# Yêu cầu OTP đang treo (hop-thu.mjs) — sống vài phút, chỉ có nghĩa trên chính máy đang đăng nhập.
+.otp-cho.json
 # Cầu dao chống khoá tài khoản (login-hasaki 31/07/2026) — trạng thái theo máy
 .login-that-bai.json
 .sheet-hash.json
+# So dong "Ton tai vi tri" da ghi lan truoc (chan ghi de khi quet thieu) — trang thai theo may
+.tvt-last.json
 .pc-cache.json
+.task-baocao-tay.json          # bao cao tay cho nhom B task hang ngay (noi dung cong viec that)
 # Cache danh bạ wshr — CÓ PII, tuyệt đối không commit
 .cache-danhba.json
 # Lịch sử báo cáo vệ sinh 60 ngày (sync-vesinh-all) — CÓ PII (email/tên NV), không commit
@@ -65,3 +73,8 @@ google-script-DEPLOY.gs
 .baseline-tu-chua.json
 .canh-suc-khoe.json
 .dia-chi-hoc.json
+
+# Ban nhap danh muc SKU_MASTER (sync-sku-master.mjs --dry) — 0,6MB, dung cho bo test doi soat
+.sku-master-dry.json
+# Ban thang do nguon du lieu SKU (probe-sku-master.mjs)
+.probe-*.json

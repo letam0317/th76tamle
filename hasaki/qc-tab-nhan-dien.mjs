@@ -887,22 +887,55 @@ const lanKho = await page.evaluate(async () => {
 kiem("Danh sách có 2 khổ tem khác nhau thì CHẶN in và nói rõ (không in sai giấy)",
   lanKho.daIn === 0 && /khổ tem khác nhau/i.test(lanKho.chu), lanKho.chu.slice(0, 80));
 
-/* Áp một mẫu cho tất cả rồi in: kiểm đúng số con tem ra giấy + @page đúng khổ */
-const inThat = await page.evaluate(async () => {
+/* Áp một mẫu cho tất cả rồi bấm Xác nhận in.
+   BẮT BUỘC CHẶN GỬI THẬT: `prIn` bây giờ gửi lệnh vào hàng đợi in của kho, nên nếu để `prGoiGas`
+   chạy thật thì MỖI LẦN chạy bộ test là một đợt tem THẬT ra khỏi máy in — đã xảy ra 20/08/2026, hai
+   con tem của "may-…@hasaki.vn" nằm trong khay mà không ai gọi in. Thay `prGoiGas` bằng bản ghi lại
+   lời gọi: vẫn kiểm được đúng cái gửi đi, mà không tốn con tem nào. */
+const guiDi = await page.evaluate(async () => {
   prMo();
   await new Promise((r) => setTimeout(r, 200));
   prApMau("t40x60"); prApSl(2);
   await new Promise((r) => setTimeout(r, 200));
+  window.__goi = [];
+  prGoiGas = async (body) => { window.__goi.push(body); return { status: "success", id: "PRTEST1", soTem: 4, truoc: 0, agentTre: 1000 }; };
   window.__daIn = 0; window.print = () => { window.__daIn++; };
   prIn();
-  await new Promise((r) => setTimeout(r, 300));
-  return { daIn: window.__daIn, soTem: document.querySelectorAll("#prsheet .pr-tem").length,
-    page: document.getElementById("prPage").textContent, coClass: document.body.classList.contains("in-tem"),
-    tong: prTongTem() };
+  await new Promise((r) => setTimeout(r, 400));
+  const b = window.__goi[0] || {};
+  let dong = [];
+  try { dong = JSON.parse(b.dong || "[]"); } catch (e) { dong = []; }
+  return { soGoi: window.__goi.length, action: b.action, dong: dong, daIn: window.__daIn, tong: prTongTem() };
 });
-kiem("In: đúng số con tem + @page là khổ MỘT HÀNG GIẤY (2 tem + khe), không phải khổ 1 tem",
-  inThat.daIn === 1 && inThat.soTem === inThat.tong && /82mm 60mm/.test(inThat.page) && inThat.coClass,
-  inThat.soTem + " tem · " + inThat.page);
+kiem("Bấm Xác nhận in = GỬI HÀNG ĐỢI của kho (không mở hộp thoại in của máy đang cầm)",
+  guiDi.action === "pr_them" && guiDi.daIn === 0,
+  "action=" + guiDi.action + " · window.print gọi " + guiDi.daIn + " lần");
+kiem("Lệnh gửi đi mang đủ SKU, số tem từng SKU và mẫu tem",
+  guiDi.dong.length > 0 && guiDi.dong.every((d) => d.sku && d.sl >= 1 && d.mau === "t40x60") &&
+  guiDi.dong.reduce((x, d) => x + d.sl, 0) === guiDi.tong,
+  guiDi.dong.length + " SKU · " + guiDi.dong.reduce((x, d) => x + d.sl, 0) + "/" + guiDi.tong + " tem");
+
+/* Hàng đợi hỏng (mất mạng) thì KHÔNG được tự mở hộp thoại in — chỉ hiện THÊM nút "In bằng máy này"
+   để người dùng chủ động chọn. Bấm nút đó mới dựng khung tem và gọi window.print. */
+const luiLai = await page.evaluate(async () => {
+  prGoiGas = async () => { throw new Error("thu nghiem: mat mang"); };
+  window.__daIn = 0; window.print = () => { window.__daIn++; };
+  prIn();
+  await new Promise((r) => setTimeout(r, 600));
+  const nutHien = document.getElementById("prBtnLui").style.display !== "none";
+  const tuIn = window.__daIn;
+  prInLui();
+  await new Promise((r) => setTimeout(r, 300));
+  return { nutHien: nutHien, tuIn: tuIn, daIn: window.__daIn, tong: prTongTem(),
+    soTem: document.querySelectorAll("#prsheet .pr-tem").length,
+    page: document.getElementById("prPage").textContent, coClass: document.body.classList.contains("in-tem") };
+});
+kiem("Gửi hàng đợi thất bại: hiện nút \"In bằng máy này\" chứ KHÔNG tự mở hộp thoại in",
+  luiLai.nutHien && luiLai.tuIn === 0,
+  "nút " + (luiLai.nutHien ? "hiện" : "ẩn") + " · tự in " + luiLai.tuIn + " lần");
+kiem("Nút lùi in đúng số con tem + @page là khổ MỘT HÀNG GIẤY (2 tem + khe), không phải khổ 1 tem",
+  luiLai.daIn === 1 && luiLai.soTem === luiLai.tong && /82mm 60mm/.test(luiLai.page) && luiLai.coClass,
+  luiLai.soTem + " tem · " + luiLai.page);
 
 /* Dọn: khung in phải sạch sau khi hộp thoại in đóng, kẻo trang khác in ra cũng thành tem */
 const donSach = await page.evaluate(async () => {

@@ -65,7 +65,9 @@ var WH_FIX = { "SHOP - 170 QUOC LO 1A": "#2563eb", "WH - 170 QUOC LO 1A": "#0f76
 var PAL = ["#f59e0b", "#8b5cf6", "#ef4444", "#10b981", "#ec4899", "#6366f1", "#0891b2", "#84cc16"];
 
 /* ===== STATE ===== */
-var S = { ok: false, hasPtype: false, all: [], rows: [], wh: "", lastAt: 0, tsData: 0 };
+var S = { ok: false, hasPtype: false, all: [], rows: [], wh: "", lastAt: 0, tsData: 0, agg: null, nTong: 0 };
+var TONG_TAB = TAB + "-tong";
+var _daNapTho = false, _dangNapTho = null;
 var MODAL = { base: [], preset: null };
 var PANE = null, _whColor = {}, _whCi = 0, _deb = null, _debT = null;
 
@@ -210,6 +212,38 @@ function loadData(){
   st.innerHTML = '<div class="ht-spin"></div>Đang tải dữ liệu tồn kho bất thường…';
   $id("htContent").innerHTML = ""; $id("htWhBar").innerHTML = "";
   S.lastAt = Date.now();
+  S.agg = null; _daNapTho = false; _dangNapTho = null;
+  /* ĐO THẬT 15/08: tab thô = 690 KB / 1.887 dòng, trong khi màn hình chính chỉ cần vài chục ô
+     (kho × loại). `sync-tonbatthuong.js` cộng sẵn ra `<tab>-tong`, kèm dòng __all__ mỗi kho
+     (= tổng SỐ DÒNG) vì render() lấy nSku = rows.length, tức đếm dòng chứ không cộng theo loại. */
+  window.htgv_tong = function(resp){
+    var rr = (resp && resp.table && resp.table.rows) || [];
+    /* Tab chưa tồn tại thì gviz KHÔNG báo lỗi — nó trả tab đầu tiên của file. Kiểm hình dạng. */
+    var hopLe = resp && resp.status !== "error" && rr.length && ((rr[0].c || []).length >= 4) &&
+      rr.some(function(x){ var c = x.c || []; return c[1] && String(c[1].v) === "__all__"; });
+    if (!hopLe){ napTho(); return; }
+    var agg = [];
+    rr.forEach(function(x){
+      var c = x.c || [], g = function(i){ return (c[i] && c[i].v != null) ? c[i].v : ""; };
+      var wh = String(g(0)); if (!wh) return;
+      agg.push({ wh: wh, type: String(g(1)), n: Number(g(2)) || 0, qty: Number(g(3)) || 0 });
+    });
+    S.agg = agg; S.ok = true; S.hasPtype = true; S.all = []; S.rows = [];
+    S.nTong = agg.reduce(function(a, o){ return a + (o.type === "__all__" ? o.n : 0); }, 0);
+    render();
+  };
+  var oldT = $id("ht_sc_tong"); if (oldT) oldT.remove();
+  var scT = document.createElement("script"); scT.id = "ht_sc_tong";
+  scT.src = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:htgv_tong" +
+    "&sheet=" + encodeURIComponent(TONG_TAB) + "&headers=1";
+  scT.onerror = function(){ napTho(); };
+  document.body.appendChild(scT);
+  loadMeta();
+  return;
+}
+/* Đường CŨ — giữ nguyên, dùng làm dự phòng VÀ làm nguồn cho pop-up chi tiết. */
+function napTho(){
+  S.agg = null;   // về chế độ dòng
   window.htgv_data = function(resp){ onData(resp); };
   var url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:htgv_data" +
     "&sheet=" + encodeURIComponent(TAB) + "&headers=1";
@@ -217,7 +251,6 @@ function loadData(){
   var sc = document.createElement("script"); sc.id = "ht_sc_data"; sc.src = url;
   sc.onerror = function(){ S.ok = false; render(); };
   document.body.appendChild(sc);
-  loadMeta();
 }
 function onData(resp){
   var out = { ok: false, rows: [], hasPtype: false };
@@ -259,16 +292,61 @@ function loadMeta(){
 }
 function capNhatInfo(){
   var el = $id("htLoadinfo"); if (!el) return;
-  el.textContent = (S.rows.length ? nf(S.rows.length) + " SKU bất thường" : "") +
-    (S.tsData ? (S.rows.length ? " · " : "") + "dữ liệu WMS lúc " + fmtTime(S.tsData) : "");
+  var _n = S.agg ? S.nTong : S.rows.length;
+  el.textContent = (_n ? nf(_n) + " SKU bất thường" : "") +
+    (S.tsData ? (_n ? " · " : "") + "dữ liệu WMS lúc " + fmtTime(S.tsData) : "");
 }
 
 /* ===== LỌC + RENDER ===== */
 function rowsInScope(){ return S.rows.filter(function(r){ return !S.wh || r.wh === S.wh; }); }
+/* Số liệu màn hình chính — từ TAB TỔNG nếu có, không thì cộng từ dòng như cũ. */
+function soLieu(){
+  var tot = {}, cnt = {}, byWh = {};
+  TYPES.forEach(function(t){ tot[t.k] = 0; cnt[t.k] = 0; });
+  if (S.agg){
+    S.agg.forEach(function(o){
+      if (S.wh && o.wh !== S.wh) return;
+      if (!byWh[o.wh]) byWh[o.wh] = { n: 0 };
+      if (o.type === "__all__"){ byWh[o.wh].n = o.n; return; }
+      tot[o.type] = (tot[o.type] || 0) + o.qty;
+      cnt[o.type] = (cnt[o.type] || 0) + o.n;
+      byWh[o.wh][o.type] = (byWh[o.wh][o.type] || 0) + o.qty;
+    });
+    var nS = 0; for (var w in byWh) nS += byWh[w].n;
+    return { tot: tot, cnt: cnt, byWh: byWh, nSku: nS, nWh: Object.keys(byWh).length };
+  }
+  var rows = rowsInScope();
+  rows.forEach(function(r){
+    if (!byWh[r.wh]) byWh[r.wh] = { n: 0 };
+    byWh[r.wh].n++;
+    TYPES.forEach(function(t){ if (r[t.k] > 0){ tot[t.k] += r[t.k]; cnt[t.k]++; byWh[r.wh][t.k] = (byWh[r.wh][t.k] || 0) + r[t.k]; } });
+  });
+  return { tot: tot, cnt: cnt, byWh: byWh, nSku: rows.length, nWh: Object.keys(byWh).length };
+}
+/* Pop-up cần dòng thật → nạp một lần rồi chạy tiếp (người dùng không phải bấm hai lần). */
+function canDong(tiep){
+  if (!S.agg || _daNapTho){ tiep(); return; }
+  if (_dangNapTho){ _dangNapTho.push(tiep); return; }
+  _dangNapTho = [tiep];
+  var st = $id("htState");
+  if (st){ st.style.display = "block"; st.innerHTML = '<div class="ht-spin"></div>Đang tải chi tiết SKU…'; }
+  var agg = S.agg, xong = function(){
+    _daNapTho = true; S.agg = agg;          // giữ chế độ tổng cho màn hình chính
+    if (st) st.style.display = "none";
+    var ds = _dangNapTho || []; _dangNapTho = null;
+    ds.forEach(function(f){ f(); });
+  };
+  /* napTho() tự đặt htgv_data rồi mới chèn thẻ script — ghi đè NGAY SAU đó vẫn kịp vì JSONP
+     chỉ chạy khi script tải xong. Nhờ vậy onData() vẫn chạy nguyên như cũ, chỉ nối thêm xong(). */
+  napTho();
+  window.htgv_data = function(resp){ onData(resp); xong(); };
+}
 function setWh(w){ if (S.wh === w) w = ""; S.wh = w; render(); }
 function renderWhBar(){
   var el = $id("htWhBar"); if (!el) return;
-  var ws = {}; S.rows.forEach(function(r){ if (r.wh) ws[r.wh] = (ws[r.wh] || 0) + 1; });
+  var ws = {};
+  if (S.agg) S.agg.forEach(function(o){ if (o.type === "__all__") ws[o.wh] = o.n; });
+  else S.rows.forEach(function(r){ if (r.wh) ws[r.wh] = (ws[r.wh] || 0) + 1; });
   var keys = Object.keys(ws).sort();
   if (!keys.length){ el.innerHTML = ""; return; }
   el.innerHTML = '<span class="ht-hint" style="font-weight:650">Lọc kho:</span>' +
@@ -294,15 +372,8 @@ function render(){
   }
   st.style.display = "none";
   renderWhBar();
-  var rows = rowsInScope();
-  var tot = {}, cnt = {}; TYPES.forEach(function(t){ tot[t.k] = 0; cnt[t.k] = 0; });
-  var byWh = {};
-  rows.forEach(function(r){
-    if (!byWh[r.wh]) byWh[r.wh] = { n: 0 };
-    byWh[r.wh].n++;
-    TYPES.forEach(function(t){ if (r[t.k] > 0){ tot[t.k] += r[t.k]; cnt[t.k]++; byWh[r.wh][t.k] = (byWh[r.wh][t.k] || 0) + r[t.k]; } });
-  });
-  var nSku = rows.length, nWh = Object.keys(byWh).length;
+  var _so = soLieu();
+  var tot = _so.tot, cnt = _so.cnt, byWh = _so.byWh, nSku = _so.nSku, nWh = _so.nWh;
 
   var tiles = '<div class="ht-tile tot" onclick="HTONBAT.openAll()" title="Xem tất cả SKU bất thường">' +
       '<div class="k">' + nf(nSku) + '</div><div class="l">SKU bất thường</div><div class="s">Product Type = Normal · ' + nf(nWh) + ' kho</div></div>' +
@@ -356,9 +427,9 @@ var FDEF = [
   { k: "type", lb: "Loại bất thường", vals: function(r){ var a = []; TYPES.forEach(function(t){ if (r[t.k] > 0) a.push(t.lb); }); return a; } }
 ];
 function fdefOf(k){ for (var i = 0; i < FDEF.length; i++) if (FDEF[i].k === k) return FDEF[i]; return null; }
-function openAll(){ showModal(rowsInScope(), "Tất cả SKU bất thường" + (S.wh ? (" · " + S.wh) : ""), null); }
-function openWh(w){ showModal(S.rows.filter(function(r){ return r.wh === w; }), "Bất thường tại kho: " + w, null); }
-function openType(k){ var ty = typeOf(k); if (!ty) return; showModal(rowsInScope(), "SKU có " + ty.lb + (S.wh ? (" · " + S.wh) : ""), { k: "type", raw: ty.lb }); }
+function openAll(){ canDong(function(){ showModal(rowsInScope(), "Tất cả SKU bất thường" + (S.wh ? (" · " + S.wh) : ""), null); }); }
+function openWh(w){ canDong(function(){ showModal(S.rows.filter(function(r){ return r.wh === w; }), "Bất thường tại kho: " + w, null); }); }
+function openType(k){ var ty = typeOf(k); if (!ty) return; canDong(function(){ showModal(rowsInScope(), "SKU có " + ty.lb + (S.wh ? (" · " + S.wh) : ""), { k: "type", raw: ty.lb }); }); }
 function showModal(base, title, preset){
   MODAL.base = base || []; MODAL.preset = preset || null;
   $id("htMtitle").textContent = title;

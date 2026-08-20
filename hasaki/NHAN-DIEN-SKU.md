@@ -1944,3 +1944,76 @@ Từ nay dùng **`node deploy-gas.mjs --deploy <mota>`**: sinh `sa.js` từ ngu�
 dừng hẳn nếu thiếu bất kỳ bí mật nào hoặc còn placeholder, push rồi deploy vào **đúng deployment đang
 dùng** nên URL không đổi. Hai bẫy nhỏ của clasp trên Windows cũng đã vá trong script: `npx.cmd` không
 spawn được bằng `execFileSync` (EINVAL), và mô tả nhiều từ bị cắt thành nhiều tham số.
+
+### 12.5 "Sao lâu vậy" — mổ xẻ độ trễ và cắt (20/08/2026, chiều)
+
+Người dùng bấm **Xác nhận in** rồi chỉ thấy *"Đang chờ máy in…"*. Hai chuyện khác nhau, và chuyện thứ
+nhất nặng hơn nhiều:
+
+**① Agent chưa bật → chờ vô hạn.** Lệnh nằm ở `trang_thai: cho`, `agentTre: -1` (chưa hề có ai hỏi
+hàng đợi). Không có lỗi nào để đọc, tem thì không bao giờ ra. Đây mới là nguyên nhân thật của lần
+phàn nàn đó — không phải chậm, mà là **không chạy**.
+Chữa: task Windows **"Factory agent in tem"** — chạy lúc đăng nhập **và** tự kiểm mỗi 5 phút
+(`wscript _AGENT-IN-TEM-AN.vbs`, `MultipleInstances = IgnoreNew`). Bản `.vbs` tự hỏi WMI xem đã có
+`node …in-tem-agent` chưa: có thì thoát ngay, nên nhịp 5 phút là **watchdog** chứ không sinh ra agent
+thứ hai (hai agent cùng nhặt lệnh = tem in đôi). Đã thử cả hai chiều: đang chạy → vẫn 1 tiến trình;
+bị `Stop-Process` → 5 giây sau sống lại.
+Agent chạy ẩn nên không còn cửa sổ để đọc → thêm sổ log `hasaki/.in-tem-agent.log` (tự cắt còn 200KB).
+
+**② Độ trễ thật: đo trước, sửa sau.** Số đo (trung vị, 3 lượt):
+
+| chặng | trước | sau | ghi chú |
+|---|---|---|---|
+| `pr_them` (gửi hàng đợi) | ~2,5–3,5s | **1,4–2,2s** | bỏ mở Sheet |
+| agent nhặt được lệnh | tới 6,5s | **~2–3s** | nhịp 3s→1s, lượt hỏi rỗng rẻ hẳn |
+| tra tên sản phẩm | 0,5–1,1s/SKU | **0ms** | dashboard gửi kèm tên |
+| dựng ảnh tem | ~0,85s | **20–50ms** | danh mục giữ trong bộ nhớ |
+| gửi máy in | 2–22s | **2,3–3,9s** | 1 job/lệnh + dọn job kẹt + hâm nóng |
+| **bấm → tem ra khỏi máy in** | **~28,7s** | **~6–9s** | |
+
+Bốn chỗ cắt được, và **vì sao** nó chậm:
+
+- **Hàng đợi sống rời Sheet, sang Script Properties.** Mỗi lượt gọi Apps Script đã mất ~1,1s trần
+  (chuỗi chuyển hướng của Google — không cắt được), và `SpreadsheetApp.openById` cộng thêm 1,1–2,4s
+  cho **mọi** lượt, kể cả lượt agent hỏi lúc hàng đợi trống. Đo được: `pr_lay` 3,5s · `pr_trangthai`
+  2,2s. Properties đọc/ghi ~50ms và **không bị đuổi** như CacheService (mất một lệnh in = tem không
+  bao giờ ra mà không ai biết). Tab `IN-TEM-CHO` **vẫn còn** nhưng hạ xuống làm **sổ lưu**: ghi lúc
+  agent rảnh, ngoài đường găng — vẫn đối chiếu được ai in bao nhiêu tem.
+- **Tên sản phẩm gửi kèm lệnh.** `.sku-master-dry.json` chỉ có 5.610 dòng nên SKU vắng mặt phải hỏi
+  gviz 0,5–1,1s. Mà dashboard đang hiện tên đó ngay trong pop-up → gửi luôn. Được thêm một cái đúng
+  hơn: tem in ra mang **tên người dùng đã thấy lúc bấm**, không phải tên đọc lại từ Sheet lúc khác.
+- **Một lệnh = một job spooler.** Trước đó mỗi hàng giấy một lần gọi `powershell.exe` (190ms/lần chỉ
+  để mở tiến trình, 20 tem = 10 lần), lại thêm nguy cơ đợt của người khác chen vào giữa.
+- **Hâm nóng + ghim tên máy in.** Lượt gửi đầu sau khi agent khởi động mất 7,9s, lượt sau 2,3s — giá
+  của việc mở kết nối tới spooler máy bên kia. Trả nó ngay lúc khởi động (lệnh `SIZE`+`CLS`, **không**
+  có `PRINT` nên không con tem nào ra), rồi ghim luôn tên máy in đọc được để khỏi `Get-Printer`
+  (~0,47s) mỗi lượt.
+
+Dashboard cũng đổi: hỏi trạng thái **700ms** một lượt trong 12 giây đầu rồi giãn ra 2,5s, và **đếm
+giây** trong dòng trạng thái. Một dòng chữ đứng im chính là thứ làm người ta tưởng máy treo.
+
+### 12.6 Bốn bẫy phải nhớ, cả bốn đều đã cắn trong một buổi chiều
+
+1. **Dọn hàng đợi SAU khi thêm id mới → mất lệnh.** `prDonNhanh_` phán xét từng id bằng ảnh chụp
+   `getProperties()` lấy lúc đầu hàm; id vừa `push` chưa có property trong ảnh đó nên bị coi là **mồ
+   côi và gạch ngay**. Triệu chứng khó lần nhất: `pr_trangthai` vẫn thấy lệnh (`PRQ_<id>` có thật) mà
+   `PR_IDS` không có nó, nên agent quét mãi không ra việc — **không lỗi, không tem**. Thứ tự đúng:
+   dọn trước, thêm sau. Kèm một vòng quét property mồ côi (chỉ xoá cái đã quá 15 phút).
+2. **Job kẹt trong queue làm mọi lượt gửi sau đội lên 22s.** Một job `Spooling` size 0 nằm lại là đủ.
+   Agent giờ tự dọn job già hơn 2 phút (một con tem in xong trong ~2 giây, nên job 2 phút chắc chắn
+   đã chết) — dọn khi gửi lỗi, và cả khi gửi **được** mà chậm bất thường (>8s).
+3. **Bộ test in tem THẬT.** Ca test cũ gọi `prIn()` rồi chỉ chặn `window.print`; từ lúc "Xác nhận in"
+   đổi thành gửi hàng đợi thì mỗi lần chạy test là một đợt tem thật ra khỏi máy in (2 con của
+   `may-…@hasaki.vn` nằm trong khay mà không ai gọi in). Nay ca test thay `prGoiGas` bằng bản ghi lại
+   lời gọi — kiểm được đúng thứ gửi đi mà không tốn tem; thêm một ca khoá luôn hành vi "hàng đợi hỏng
+   thì **không** tự mở hộp thoại in, chỉ hiện nút *In bằng máy này*".
+   Đo tốc độ cũng vậy: `node do-toc-do-in.mjs` mặc định **chế độ đo** (`thu:1` → agent dựng đủ tem rồi
+   bỏ, không gửi máy in); muốn in thật phải gõ thêm `--in-that`.
+4. **Deploy xong, phiên bản cũ còn sống vài giây.** Ngay sau `clasp deploy`, lượt gọi đầu vẫn chạy mã
+   cũ (Apps Script giữ instance đang nóng) — lượt đo đầu tiên vì thế vẫn in ra một con tem thật dù đã
+   bật chế độ đo. Sau khi deploy: chờ ~10 giây rồi hãy tin phiên bản mới.
+
+Thêm một chỗ nữa: **nhịp tim agent đọc bị lệch**. `getProperties()` có lúc trả về rỗng dù agent vừa
+gọi cách đó một giây, và dashboard sẽ báo oan *"máy trạm đang tắt agent"* — một báo động sai kiểu đó
+đắt hơn nhiều một dòng ghi thêm, vì lần sau người dùng sẽ không tin dòng trạng thái nữa. Nay nhịp tim
+ghi vào **cả Cache và Property**, đọc lấy cái tươi hơn: đo lại được 0,5–1,5s ổn định.

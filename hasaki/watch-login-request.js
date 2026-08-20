@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { docTokenCu } from "./token-store.js";
+import { gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -37,11 +38,38 @@ function nenGhiNhipTim(){
 }
 
 // SECRET đi trong POST body (không qua query → không lọt access-log)
-const apiPost = async (act, extra) => { const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: act, key: KEY, ...(extra || {}) }) }).catch(() => null); return r && r.ok ? r.json().catch(() => null) : null; };
+/* gasPost: bộ này chạy mỗi phút để nghe cờ "có người bấm nút đăng nhập trong email". Một cú 404
+   chập chờn của Google trước đây = bỏ qua cả nhịp đó (người bấm nút phải chờ thêm vòng sau). */
+const apiPost = async (act, extra) => gasPost({ action: act, key: KEY, ...(extra || {}) }, () => {}, act).catch(() => null);
 const hoi = (act) => apiPost(act);
 const chay = (file, args = []) => { const c = spawn(process.execPath, [path.join(DIR, file), ...args], { cwd: DIR, detached: true, stdio: "ignore" }); c.unref(); };   // GUI (login): chạy nền, không chờ
 const chayCho = (file) => new Promise((res) => { const c = spawn(process.execPath, [path.join(DIR, file)], { cwd: DIR, stdio: "ignore" }); c.on("exit", res); c.on("error", res); });   // nền (auto-export): CHỜ xong
 const chayGuard = (force = true) => new Promise((res) => { const c = spawn("cmd.exe", ["/c", "node sync-guard.js " + (force ? "--force " : "") + ">> sync-guard.log 2>&1"], { cwd: DIR, stdio: "ignore", windowsHide: true }); c.on("exit", res); c.on("error", res); });   // guard: CHỜ xong, log riêng (force=true bỏ kiểm mới/cũ)
+
+/* 0) TRA UID trên Google Sheet (17/08/2026) — file "TRA UID - Ton kho WMS".
+ * WMS chặn IP ngoài nên Apps Script KHÔNG gọi WMS được ("Địa chỉ không khả dụng"): script trong
+ * Sheet chỉ đánh dấu "⏳ đang tra…", việc hỏi WMS phải chạy ở máy trạm — chính là chỗ này.
+ * Rảnh thì chỉ tốn 1 lượt đọc Sheet rồi thoát; có việc thì ở lại canh nhịp 15 giây để người đang
+ * gõ UID thấy kết quả gần như tức thì.
+ * CHẠY ĐỒNG BỘ, KHÔNG detach: đã thử `spawn(detached)+unref()` — Task Scheduler dọn luôn tiến
+ * trình con khi lượt task kết thúc (đo 17/08: 4 phút Sheet vẫn trắng, không dòng log nào).
+ * Bù lại phải TỰ CHẶN GIỜ: cả bước này ≤ 70 giây để lượt canh luôn xong trước nhịp 2 phút kế
+ * tiếp (Task Scheduler bỏ lượt mới nếu lượt cũ còn chạy → mất cả nhịp kiểm cờ login/sync). */
+try {
+  const ra = await new Promise((res) => {
+    const c = spawn(process.execPath, [path.join(DIR, "tra-uid-sheet.mjs"), "--dien", "--loop", "0.8"],
+      { cwd: DIR, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    const het = setTimeout(() => { try { c.kill(); } catch { /* đã thoát */ } }, 70000);
+    c.stdout.on("data", (d) => { out += d; });
+    c.stderr.on("data", (d) => { out += d; });
+    c.on("exit", () => { clearTimeout(het); res(out); });
+    c.on("error", (e) => { clearTimeout(het); res("lỗi chạy tra-uid-sheet: " + e.message); });
+  });
+  const dong = String(ra).split(/\r?\n/).map((d) => d.trim()).filter((d) => d && !/Dùng lại token/.test(d));
+  if (dong.length) { coViec = true; dong.forEach((d) => log("TRA-UID | " + d)); }
+  else imLang.push("tra UID");
+} catch (e) { log("⚠ tra UID lỗi: " + (e && e.message ? e.message : e)); }
 
 // 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
 const s = await hoi("syncStatus");

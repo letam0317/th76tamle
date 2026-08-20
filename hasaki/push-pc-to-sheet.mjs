@@ -25,7 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
+import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -297,7 +297,8 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     const phan = rows.slice(i, i + CHUNK);
     const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId, header, rows: phan, append: i > 0, apiAt });
-    const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+    // gasPost: gói sau append=true → nonce chặn ghi trùng khi phải thử lại (xem session-rules.js)
+    const j = await gasPost(body, log, tab + " gói " + (i / CHUNK + 1));
     if (j.status !== "success") throw new Error(tab + ": " + (j.message || "?"));
     log("  ✓ " + tab + ": ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + (i === 0 ? " (xoá data cũ trước)" : " (nối tiếp)"));
   }

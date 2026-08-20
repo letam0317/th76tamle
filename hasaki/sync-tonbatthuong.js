@@ -11,14 +11,16 @@
  *
  *  node sync-tonbatthuong.js
  */
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
+import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, gasPost } from "./session-rules.js";
 import { kiemTruocKhiGhi, xacNhanDaGhi } from "./tu-chua.js";
+import { quetTonViTri, dungBangTvt, TVT_TAB, TVT_HEADER, VT_CHO } from "./ton-vitri.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROFILE_DIR = duongDanProfile(DIR);   // EDGE_PATH + profile lấy từ token-store (khả chuyển máy)
@@ -121,6 +123,117 @@ const F = {
 const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Warehouse Name", "Product Type",
   "In Stock", "Available", "Committed", "Committed Outbound", "Unsuitable Product", "UID Temp", "Conflict", "Not Found"];
 
+/* ---------- Tab TỔNG HỢP "<tab>-tong" (15/08/2026) ---------------------------------------------
+ * VÌ SAO: dashboard factory tab "Tồn kho bất thường" tải NGUYÊN tab thô rồi mới cộng trong trình
+ * duyệt. ĐO THẬT 15/08: `stock-inventory-beta` = **21,6 MB / 50.264 dòng / 8,2 s**, trong khi màn
+ * hình chính chỉ cần **25 ô (kho × loại)**.
+ * Đã kiểm: KHÔNG lọc bớt được dòng nào — cả 50.264 dòng đều thật sự bất thường (tầng ghi đã lọc
+ * Product Type=Normal + ≥1 loại >0 rồi). Nên khoản thắng ở đây là GOM, không phải LỌC.
+ * KHÔNG tốn thêm lượt WMS nào: cộng ngay trên `rows` đã có trong RAM của chính lượt sync này.
+ *
+ * Thứ tự loại giữ ĐÚNG ABN_TYPES của dashboard (ưu tiên loại cần xử lý trước, Committed sau cùng)
+ * — thứ tự này quyết định thẻ chỉ số, chú giải và thứ tự cột pop-up bên kia. */
+const TONG_LOAI = [
+  ["conflict", 13], ["uid_temp", 12], ["not_found", 14], ["unsuitable_product", 11],
+  ["committed", 9], ["committed_outbound", 10],
+];
+const TONG_HEADER = ["Warehouse Name", "Type", "SkuCount", "Qty"];
+/* Kèm MỘT dòng `__all__` cho mỗi kho = tổng số dòng bất thường của kho đó.
+ * Vì sao cần: `abnRender()` bên dashboard lấy `nSku = rows.length` và `byWh[wh].n` — tức ĐẾM DÒNG,
+ * không cộng theo loại. Cộng SkuCount của 6 loại lại sẽ ĐẾM TRÙNG (một dòng có thể vướng nhiều loại
+ * cùng lúc), nên phải có con số tổng riêng.
+ * Đã kiểm trên dữ liệu thật 15/08: mỗi cặp (SKU, kho) là DUY NHẤT (8 kho, 50.351 dòng) ⇒ đếm dòng
+ * ≡ đếm SKU khác nhau, hai cách cho cùng số. Nếu ngày nào WMS đổi cách phát hành (1 SKU nhiều dòng
+ * trong cùng kho) thì con số này lệch — kiểm lại bằng chính đoạn đối chiếu trong scratchpad. */
+function tinhTongHop(rows) {
+  const g = new Map();   // "wh␟type" -> {wh, type, sku:Set, qty}
+  const tongKho = new Map();   // wh -> số DÒNG bất thường
+  for (const r of rows) {
+    const wh = String(r[5] || "");
+    tongKho.set(wh, (tongKho.get(wh) || 0) + 1);
+    for (const [ten, i] of TONG_LOAI) {
+      const v = Number(r[i]) || 0;
+      if (v <= 0) continue;
+      const k = wh + "␟" + ten;
+      let o = g.get(k);
+      if (!o) { o = { wh, type: ten, sku: new Set(), qty: 0 }; g.set(k, o); }
+      o.sku.add(String(r[1])); o.qty += v;
+    }
+  }
+  const out = [...g.values()].map((o) => [o.wh, o.type, o.sku.size, o.qty]);
+  for (const [wh, n] of tongKho) out.push([wh, "__all__", n, 0]);
+  return out;
+}
+/* Best-effort: dashboard đọc được tab tổng thì vẽ nhanh, không đọc được thì tự lùi về tab thô —
+   nên hỏng ở đây TUYỆT ĐỐI không được làm hỏng lượt sync chính. */
+async function ghiTongHop(tab, sheetId, rows, apiAt) {
+  const tabT = tab + "-tong";
+  try {
+    const tong = tinhTongHop(rows);
+    if (!tong.length) return;
+    const hash = hashTab(TONG_HEADER, tong);
+    if (tabKhongDoi(DIR, tabT, hash)) { log("  = " + tabT + ": không đổi — bỏ qua ghi (" + tong.length + " ô)."); await chamMocTabs([tabT], apiAt, log); return; }
+    const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: tabT, sheetId, header: TONG_HEADER, rows: tong, apiAt });
+    const j = await gasPost(body, log, tabT);
+    if (j.status !== "success") throw new Error(j.message || "?");
+    luuHashTab(DIR, tabT, hash);
+    log("  ✓ " + tabT + ": " + tong.length + " ô (kho × loại) — dashboard vẽ màn hình chính từ đây.");
+  } catch (e) { log("  ⚠ Không ghi được " + tabT + ": " + e.message + " (dashboard tự lùi về tab thô)."); }
+}
+
+/* ---------- Bước "TỒN TẠI VỊ TRÍ" (19/08/2026) --------------------------------------------------
+ * LUẬT: SKU vải nguyên liệu BẮT BUỘC khai báo UID group. UID nào WMS còn hiện
+ * "Group UID / RFID mapping: 0" thì BUỘC phải nằm ở bãi chờ F0-A0-00-00-00-00; nằm ở vị trí khác
+ * ⇒ bất thường (hàng đã lên kệ mà không truy được theo group ⇒ kiểm kê sẽ lệch).
+ * PHẠM VI: chỉ SKU vải, chỉ 2 kho WH - MATERIAL - MTG + WH - MATERIAL - GARMENT.
+ *
+ * ĐI CHUNG LƯỢT NÀY chứ không dựng script/lịch riêng: cùng token WMS, cùng sheet đích, cùng khung
+ * giờ — thêm một lượt đăng nhập nữa là đi ngược ràng buộc "nhẹ tải upstream" của dự án.
+ * Chi tiết thuật toán + cơ sở đo đạc: xem đầu tệp ton-vitri.mjs.
+ * BEST-EFFORT: hỏng ở đây TUYỆT ĐỐI không được làm hỏng lượt sync tồn bất thường phía trên. */
+const F_TVT_LAST = path.join(DIR, ".tvt-last.json");
+function tvtDocLan() { try { return JSON.parse(fs.readFileSync(F_TVT_LAST, "utf8")); } catch { return { n: 0 }; } }
+function tvtLuuLan(n) { try { fs.writeFileSync(F_TVT_LAST, JSON.stringify({ n, at: new Date().toISOString() })); } catch { /* bỏ qua */ } }
+
+async function ghiTonViTri(token, apiAt) {
+  try {
+    log("— Tồn tại vị trí: quét UID vải chưa khai báo UID group nằm ngoài " + VT_CHO + " (2 kho nguyên liệu) …");
+    const kq = await quetTonViTri(token, log);
+    log("  ✓ " + kq.soGoi + " lượt gọi WMS → " + kq.rows.length + " UID vải sai vị trí" + (kq.duCanh ? "" : " (⚠ quét CHƯA đủ cạnh)"));
+
+    /* Chốt chặn riêng cho bước này (KHÔNG dùng baseline tu-chua): tab này được phép tụt về 0 —
+       kho xử lý xong thì đúng là hết dòng. Chỉ nghi ngờ khi quét THIẾU dữ liệu mà số lại tụt mạnh. */
+    const truoc = tvtDocLan().n || 0;
+    if (!kq.duCanh && truoc >= 50 && kq.rows.length < truoc * 0.5) {
+      log("  ⚠ bỏ ghi " + TVT_TAB + ": quét chưa đủ cạnh mà số dòng tụt " + truoc + " → " + kq.rows.length + " (giữ dữ liệu cũ).");
+      return;
+    }
+
+    let rows = dungBangTvt(kq.rows);
+    /* GAS chặn rows rỗng (chống xoá trắng tab) nhưng "không còn UID nào sai vị trí" là kết quả
+       ĐÚNG và cần được ghi đè lên danh sách cũ — gửi 1 dòng mốc không có UID; dashboard bỏ qua
+       dòng không có UID nên màn hình hiện đúng "không có UID sai vị trí". */
+    if (!rows.length) rows = [[0, "", "", "", "", "", "(không có UID sai vị trí)", "", "", "", 0, "", "", "",
+      new Date().toLocaleString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }).replace("T", " ")]];
+
+    const hash = hashTab(TVT_HEADER, rows);
+    if (tabKhongDoi(DIR, TVT_TAB, hash)) {
+      log("  = " + TVT_TAB + ": không đổi — bỏ qua ghi (" + rows.length + " dòng).");
+      await chamMocTabs([TVT_TAB], apiAt, log); tvtLuuLan(kq.rows.length); return;
+    }
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: TVT_TAB, sheetId: SHEET_FACTORY,
+        header: TVT_HEADER, rows: rows.slice(i, i + CHUNK), append: i > 0, apiAt });
+      const j = await gasPost(body, log, TVT_TAB + (rows.length > CHUNK ? " gói " + (i / CHUNK + 1) : ""));
+      if (j.status !== "success") throw new Error(j.message || "?");
+    }
+    luuHashTab(DIR, TVT_TAB, hash); tvtLuuLan(kq.rows.length);
+    log("  ✓ " + TVT_TAB + ": ghi " + rows.length + " dòng.");
+  } catch (e) {
+    log("  ⚠ Bỏ qua bước Tồn tại vị trí: " + e.message + " (tab cũ giữ nguyên, lượt sau chạy lại).");
+  }
+}
+
 (async () => {
   // Lượt guard chạy VÁ bước khác mà tonbatthuong hôm nay đã xong → thoát sớm (mốc .sync-ok-tonbatthuong).
   if (boQuaNeuDaTuoi(DIR, "tonbatthuong", log)) process.exit(0);
@@ -209,17 +322,27 @@ const HEADER = ["No.", "SKU", "Product Name", "Brand Name", "Category Name", "Wa
     if (!cong.ghi) continue;
     // Chạy 3 lần/ngày (8h40 + 2 slot poller): dữ liệu không đổi thì khỏi ghi lại ~50k dòng, chỉ chạm mốc chip giờ.
     const hash = hashTab(HEADER, rows);
-    if (tabKhongDoi(DIR, tab, hash)) { log("  = " + tab + ": dữ liệu KHÔNG đổi — bỏ qua ghi (" + rows.length + " dòng, tiết kiệm GAS)."); await chamMocTabs([tab], apiAt, log); await xacNhanDaGhi(DIR, tab, rows.length); continue; }
+    if (tabKhongDoi(DIR, tab, hash)) {
+      log("  = " + tab + ": dữ liệu KHÔNG đổi — bỏ qua ghi (" + rows.length + " dòng, tiết kiệm GAS).");
+      await chamMocTabs([tab], apiAt, log); await xacNhanDaGhi(DIR, tab, rows.length);
+      /* Vẫn gọi: lượt ĐẦU sau khi thêm tính năng này, tab thô rất có thể "không đổi" — không gọi
+         ở nhánh này thì tab tổng sẽ không bao giờ được tạo ra. Nó tự có hash riêng nên không ghi thừa. */
+      await ghiTongHop(tab, dich.sheetId, rows, apiAt);
+      continue;
+    }
     for (let i = 0; i < rows.length; i += CHUNK) {
       const phan = rows.slice(i, i + CHUNK);
       const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: tab, sheetId: dich.sheetId, header: HEADER, rows: phan, append: i > 0, apiAt });
-      const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+      // gasPost: gói sau append=true, thử lại không có nonce là nhân đôi ~50k dòng (xem session-rules.js)
+      const j = await gasPost(body, log, tab + " gói " + (i / CHUNK + 1));
       if (j.status !== "success") { log("✗ Ghi " + tab + " lỗi: " + (j.message || "?")); process.exit(2); }
       log("  ✓ " + tab + ": ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + (i === 0 ? " (xoá data cũ trước)" : " (nối tiếp)"));
     }
     luuHashTab(DIR, tab, hash);
     await xacNhanDaGhi(DIR, tab, rows.length);   // ghi mẫu baseline + đóng sự cố nếu trước đó có mở
+    await ghiTongHop(tab, dich.sheetId, rows, apiAt);
   }
+  await ghiTonViTri(token, apiAt);   // bước phụ, chạy ké token — hỏng cũng không ảnh hưởng tab chính
   ghiMocBuoc(DIR, "tonbatthuong");   // mốc thành công cho sync-guard
   log("✓ HOÀN TẤT — các tab Tồn kho bất thường đã có dữ liệu mới.");
   process.exit(0);

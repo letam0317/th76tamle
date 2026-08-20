@@ -15,6 +15,7 @@ import path from "node:path";
 import os from "node:os";
 import XLSX from "xlsx";
 import "dotenv/config";
+import { gasPost } from "./session-rules.js";
 
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
@@ -79,12 +80,9 @@ function fileExportMoiNhat() {
 
   if (!rows.length) { log("✗ 0 task — BỎ QUA POST (không xoá trắng 5S-TASKS)."); process.exit(0); }
   log("→ " + rows.length + " task, " + header.length + " cột. Đang ghi tab 5S-TASKS...");
-  const res = await fetch(APPSCRIPT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header, rows }),
-  });
-  let j = {}; try { j = JSON.parse(await res.text()); } catch {}
+  /* gasPost: đây là ĐƯỜNG LÙI P1 (khi API work chết, người tự bấm Export rồi chạy bộ này) — càng
+     phải chịu được 404 chập chờn của Google, vì lúc dùng tới nó thì không còn đường nào khác. */
+  let j = {}; try { j = await gasPost({ action: "syncTasks", key: APPSCRIPT_KEY, header, rows }, log, "5S-TASKS"); } catch (e) { j = { status: "error", message: e.message }; }
   if (j.status === "success") {
     log("✓ Đã ghi " + j.written + " dòng vào tab 5S-TASKS lúc " + j.at);
     try { fs.writeFileSync(marker, JSON.stringify({ dauVet, at: j.at })); } catch {}

@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi, coSecret, chayAutoLogin } from "./auto-login.js";
 import { voiKhoa, luuToken, EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
+import { chanReLoginNgoaiKhung, layTokenSongWms, thoatTheoLoi, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -235,10 +235,59 @@ async function ghiLichSu(ketQua, apiAt) {
   const rows = tinhLichSu(ketQua, apiAt);
   if (!rows.length) return;
   const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: "history", sheetId: SHEET_ID, header: HIST_HEADER, rows, append: true, apiAt });
-  const r = await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body });
-  const j = JSON.parse(await r.text());
+  /* gasPost: append=true nên thử lại mà không có chốt là NHÂN ĐÔI snapshot — gasPost gắn nonce,
+     GAS nhận ra lượt thử lại của cùng nội dung và trả phản hồi cũ thay vì ghi thêm. */
+  const j = await gasPost(body, log, "history");
   if (j.status !== "success") throw new Error(j.message || "?");
   log("  ✓ history: đã ghi snapshot " + rows.length + " dòng (" + rows[0][0] + ").");
+}
+
+/* ---------- Tab TỔNG HỢP "stockloc-tong" (15/08/2026) ------------------------------------------
+ * VÌ SAO: dashboard factory (tab "Trạng thái lưu trữ") tải NGUYÊN 2 tab thô rồi mới cộng trong
+ * trình duyệt. ĐO THẬT 15/08: `select A,C,D,F,G,M` của mastige = **12,3 MB / 44.467 dòng / 10,2 s**,
+ * garment thêm 0,5 MB — trong khi màn hình chỉ hiển thị **84 nhóm (kho × ngành hàng)**. Tỷ lệ hữu
+ * ích ~1/1000, và nó đã như vậy từ giữa tháng 7 (41.709 → 46.183 SKU, +11%/tháng — KHÔNG phải mới
+ * phình). Cộng sẵn ở đây thì lần vẽ đầu còn ~7 KB.
+ *
+ * KHÔNG tốn thêm một lượt gọi WMS nào: dữ liệu đã nằm sẵn trong RAM của chính lượt sync này.
+ * Chỉ tốn thêm 1 lần ghi Sheet ~84 dòng (hash-skip nên tồn không đổi thì còn không ghi).
+ *
+ * ĐÚNG TỪNG SỐ với dashboard: `aggregate()` gom theo (Warehouse × CategoryName), đếm **SKU KHÁC
+ * NHAU** (Set) và cộng Total, tách kệ/chờ bằng `isShelf()`. Ở đây dùng lại `laPend()` — vốn là phủ
+ * định y hệt của `isShelf()` bên dashboard, đã đối chiếu từng ký tự:
+ *     dashboard: !(loc.startsWith('F0-A0') || loc.startsWith('F00-A00'))
+ *     ở đây    :   loc.startsWith('F0-A0') || loc.startsWith('F00-A00')
+ * Lệch hai hàm này là số trên dashboard sai âm thầm → sửa một chỗ phải sửa cả hai. */
+const TONG_TAB = "stockloc-tong";
+const TONG_HEADER = ["Division", "Warehouse", "CategoryName", "SkuShelf", "QtyShelf", "SkuPend", "QtyPend"];
+function tinhTongHop(ketQua) {
+  const rows = [];
+  for (const { cfg, rows: rs } of ketQua) {
+    /* Map + khoá nối bằng ký tự KHÔNG thể có trong tên kho/ngành hàng, và giữ luôn wh/cat trong
+       object thay vì tách ngược từ khoá — tên kho CÓ dấu cách ("WH - SEMI PRODUCT - MTG") nên
+       tách ngược là chỗ vỡ âm thầm. */
+    const g = new Map();
+    for (const r of rs) {   // toRow: 0 SKU · 3 LocationDescription · 5 CategoryName · 6 Warehouse · 12 Total
+      const wh = r[6] || "", cat = r[5] || "(trống)", k = wh + "␟" + cat;
+      let o = g.get(k);
+      if (!o) { o = { wh, cat, sh: new Set(), ts: 0, pe: new Set(), tp: 0 }; g.set(k, o); }
+      const qty = Number(r[12]) || 0;
+      if (laPend(r[3])) { o.pe.add(r[0]); o.tp += qty; } else { o.sh.add(r[0]); o.ts += qty; }
+    }
+    for (const o of g.values()) rows.push([cfg.ten, o.wh, o.cat, o.sh.size, o.ts, o.pe.size, o.tp]);
+  }
+  return rows;
+}
+async function ghiTongHop(ketQua, apiAt) {
+  const rows = tinhTongHop(ketQua);
+  if (!rows.length) return;   // rỗng thì thôi — GAS cũng chặn ghi đè bằng rows rỗng
+  const hash = hashTab(TONG_HEADER, rows);
+  if (tabKhongDoi(DIR, TONG_TAB, hash)) { log("  = " + TONG_TAB + ": không đổi — bỏ qua ghi (" + rows.length + " nhóm)."); await chamMocTabs([TONG_TAB], apiAt, log); return; }
+  const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: TONG_TAB, sheetId: SHEET_ID, header: TONG_HEADER, rows, apiAt });
+  const j = await gasPost(body, log, TONG_TAB);
+  if (j.status !== "success") throw new Error("Apps Script từ chối (" + TONG_TAB + "): " + (j.message || "?"));
+  luuHashTab(DIR, TONG_TAB, hash);
+  log("  ✓ " + TONG_TAB + ": " + rows.length + " nhóm (kho × ngành hàng) — dashboard vẽ màn hình chính từ đây.");
 }
 
 /* ---------- Ghi 1 tab: gói đầu clear + header, các gói sau append ---------- */
@@ -249,8 +298,8 @@ async function ghiTab(tab, rows, apiAt) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     const phan = rows.slice(i, i + CHUNK);
     const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId: SHEET_ID, header: HEADER, rows: phan, append: i > 0, apiAt });
-    const r = await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body });
-    const j = JSON.parse(await r.text());
+    // Gói sau append=true → BẮT BUỘC đi qua gasPost để nonce chặn ghi trùng khi phải thử lại.
+    const j = await gasPost(body, log, tab + " gói " + (i / CHUNK + 1));
     if (j.status !== "success") throw new Error("Apps Script từ chối (" + tab + "): " + (j.message || "?"));
     log("  ✓ " + tab + ": đã ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + " dòng" + (i === 0 ? " (đã xoá sạch dữ liệu cũ trước khi ghi)" : " (nối tiếp)"));
   }
@@ -262,7 +311,9 @@ async function ghiTab(tab, rows, apiAt) {
   if (!DRY && boQuaNeuDaTuoi(DIR, "stocklocation", log)) process.exit(0);
   // 0) Backend phải là bản hỗ trợ ghi sheet NGOÀI (extSheet) — chưa redeploy thì dừng sớm, không ghi bậy
   if (!DRY) {
-    const caps = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) }).then((r) => r.json()).catch(() => null);
+    /* Qua gasPost: trước đây một cú 404 chập chờn của Google làm caps=null → script tự kết luận
+       "GAS chưa redeploy" rồi exit 3, bỏ luôn cả lượt đồng bộ dù backend hoàn toàn bình thường. */
+    const caps = await gasPost({ action: "caps", key: APPSCRIPT_KEY }, log, "caps").catch(() => null);
     if (!caps || caps.extSheet !== true) { log("✗ Apps Script chưa redeploy bản hỗ trợ sheetId ngoài (caps.extSheet). Dán google-script-DEPLOY.gs và Triển khai lại. BỎ QUA."); process.exit(3); }
   }
 
@@ -296,7 +347,7 @@ async function ghiTab(tab, rows, apiAt) {
   // dùng token này để GAS tự gọi WMS. Best-effort: lỗi không chặn luồng chính.
   if (!DRY) {
     try {
-      const j = await (await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "saveWmsToken", key: APPSCRIPT_KEY, token }) })).json();
+      const j = await gasPost({ action: "saveWmsToken", key: APPSCRIPT_KEY, token }, log, "saveWmsToken");
       log(j.status === "success" ? "  ✓ Đã nạp token WMS lên Apps Script (cho nút Tải lại trên dashboard)." : "  ⚠ Apps Script không nhận token: " + (j.message || "?"));
     } catch (e) { log("  ⚠ Không đẩy được token lên Apps Script: " + e.message); }
   }
@@ -340,11 +391,15 @@ async function ghiTab(tab, rows, apiAt) {
   if (!loi) {
     try { await ghiLichSu(ketQua, apiAt); }
     catch (e) { log("  ⚠ Không ghi được snapshot history: " + e.message); }
+    /* Tab tổng hợp: cũng best-effort. Dashboard đọc được tab này thì vẽ nhanh, đọc không được thì
+       tự lùi về đường cũ (đọc 2 tab thô) — nên hỏng ở đây KHÔNG được làm hỏng lượt sync. */
+    try { await ghiTongHop(ketQua, apiAt); }
+    catch (e) { log("  ⚠ Không ghi được " + TONG_TAB + ": " + e.message + " (dashboard tự lùi về đường cũ)."); }
   }
   // Ghi mốc đồng bộ vào tab Metadata (dashboard hiển thị "cập nhật lúc" + mốc cooldown 4h của nút Tải lại)
   if (!loi) {
     try {
-      const j = await (await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "setStockMeta", key: APPSCRIPT_KEY, at: apiAt }) })).json();
+      const j = await gasPost({ action: "setStockMeta", key: APPSCRIPT_KEY, at: apiAt }, log, "setStockMeta");
       if (j.status === "success") log("  ✓ Đã ghi mốc đồng bộ (Metadata) cho dashboard.");
       else { loi++; log("  ⚠ Không ghi được Metadata: " + (j.message || "?") + " — TÍNH LÀ LỖI (dashboard hiện mốc cũ, guard sẽ chạy vá)."); }
     } catch (e) { loi++; log("  ⚠ Không ghi được Metadata: " + e.message + " — TÍNH LÀ LỖI (dashboard hiện mốc cũ, guard sẽ chạy vá)."); }

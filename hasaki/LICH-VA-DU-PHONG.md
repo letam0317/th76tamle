@@ -13,7 +13,8 @@
 ### A1. Ba tầng
 
 ```
-Tầng 1  Task Scheduler (5 task)         — mốc cố định trong ngày
+Tầng 1  Task Scheduler (8 task, 7 bật)  — mốc cố định trong ngày ("5S Task hang ngay" tắt 19/08)
+Tầng 0  Kênh tin nhắn (Telegram) mỗi 2' — người ra lệnh tay từ điện thoại, KENH-TIN-NHAN.md
 Tầng 2  watch-login-request.js mỗi 2'   — trục thần kinh: cờ + guard + poller + sổ phiên
 Tầng 3  từng script nguồn               — tự tuân session-rules (token sống, khung chặn, hash-skip)
 ```
@@ -26,10 +27,93 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 | **5S Cham cong** | **07:20**/ngày | `pull-timesheet.js` → tab `NHAN-SU` | `cham-cong.log` |
 | **Day bao cao 5S** | mỗi **15'** | `push-5s-to-workflow.js` (chiều **GHI**: inbox 5S → task WF 591) | `day-bao-cao-5s.log` |
 | **5S Canh yeu cau dang nhap** | mỗi **2'** | `watch-login-request.js` | stdout task |
+| **5S Tra UID tren Sheet** | mỗi **2'** | `tra-uid-sheet.mjs` (file Sheet "TRA UID") | `tra-uid.log` |
+| **5S Kenh tin nhan** | mỗi **2'** (mỗi lượt long-poll ~100s) | `tin-nhan-bot.mjs` — nghe lệnh Telegram cho cả 2 dự án (`KENH-TIN-NHAN.md`); chưa có token thì thoát êm | `tin-nhan.log` |
 | **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ — từ 31/07 gọi `AUTO-EXPORT.bat` nên vá được cả bước 5S) | `sync-guard.log` |
+| ~~**5S Task hang ngay**~~ | **ĐÃ TẮT 19/08/2026** (Disabled) | Thay bằng **NÚT BẤM TAY** `NUT-NOP-TASK.bat` → `task-hangngay.mjs --nut` (làm tươi số liệu nếu mốc cũ → in nháp → HỎI rồi mới nộp). Không bấm = người tự bấm Hoàn thành trên work.hasaki.vn | `task-hangngay.log` |
 
 Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và đụng
 khung chặn re-login `07:45–18:00` → cụm hoãn trong im lặng (sự cố 22/07).
+
+**Chốt 19/08/2026 — nộp báo cáo 9 task hằng ngày chuyển sang NÚT BẤM TAY, bot không tự nộp nữa.**
+Chủ máy giữ quyền "hoàn thành": *cần* thì bấm nút, *không cần* thì tự bấm Hoàn thành trên
+work.hasaki.vn. Việc đã làm:
+
+- `Disable-ScheduledTask -TaskName '5S Task hang ngay'` (nhịp 16:00 + lặp 30' đã tắt, task vẫn
+  còn trong Task Scheduler để bật lại 1 dòng nếu đổi ý: `Enable-ScheduledTask -TaskName …`).
+- Nút = `NUT-NOP-TASK.bat`, shortcut **NOP BAO CAO TASK (bam khi can)** ngoài Desktop → chạy
+  `task-hangngay.mjs --nut`: làm tươi số liệu cũ (chỉ khi mốc > `TASK_TUOI_TOI_DA`, mặc định 120')
+  → in bản nháp từng task → **hỏi**: `Enter` nộp cả · `a` chỉ nhóm A (số liệu thật, để việc tay tự
+  báo cáo) · `k` không nộp. Bấm nhiều lần vô hại (task đã nộp tự bỏ qua).
+- `--nut` **không bao giờ** nộp khi chạy nền (stdin không phải TTY) — "bấm nút" luôn nghĩa là có
+  người thật bấm. `TASK-HANG-NGAY.bat` (không hỏi) vẫn còn cho lượt chạy tay/khi bật lại lịch.
+
+Nhẹ tải hơn nhịp cũ: trước đây 16:00–18:00 làm tươi kiểm kê tới 5 lượt; nay 1 lượt/1 lần bấm, và
+bỏ luôn nếu poller vừa kéo trong 120' hoặc không còn task nhóm A nào đang chờ.
+
+**Vá 12/08/2026 — watchdog nay bám TUỔI DỮ LIỆU, không chỉ "đã chạy hôm nay chưa"** (sự cố 11/08,
+mất trọn buổi chiều). `sync-guard.js` sửa 2 chỗ:
+
+1. **Điều kiện CŨ.** Trước: chỉ `mốc < 08:40 hôm nay` ⇒ cụm chạy xong buổi sáng là cả ngày còn lại
+   guard in *"✓ Dữ liệu đã mới — không cần làm gì"*, dù dữ liệu đã đứng 6 tiếng. Nay thêm vế
+   **trễ > 90'** (dùng chung env `CANH_TRE_PHUT` với `canh-suc-khoe.js` để 2 tầng không lệch), chỉ
+   xét trong **07:00–22:30** để máy lỡ bật qua đêm không dội cụm suốt đêm. Backoff 20' vẫn giữ.
+2. **Cửa re-login.** Trước guard chỉ hỏi ĐỒNG HỒ (`duocPhepReLogin`, chặn 07:00–22:30), trong khi
+   tầng dưới `chanReLoginNgoaiKhung` từ 30/07 đã chạy **LUẬT PHIÊN** (không phiên nào sống + đủ cửa
+   im lặng ⇒ được login bất kể mấy giờ, vì không có ai để đá). Lệch 2 tầng ⇒ chiều 11/08 verdict ghi
+   rõ *"bridge đã im 368' ≥ cửa 15' — ĐƯỢC login"* mà guard vẫn hoãn. Nay guard hỏi đúng
+   `trangThaiPhien()`; verdict `khongro` (mất mạng/GAS) vẫn KHÔNG được coi là cớ để login.
+
+Giới hạn còn lại: máy tắt ~19:00, bật ~08:30 ⇒ khoảng đêm vẫn không ai cứu được. Bản vá chỉ giành
+lại phần **13:12→19:08** (~6h) của loại sự cố này.
+
+**Vá 15/08/2026 — bản vá 12/08 mới đi được nửa đường: tầng GỌI đổi thước, tầng LÀM thì chưa.**
+Sự cố 14/08: planogram đứng ở **15:38** tới hết ngày. Guard bắt bệnh đúng ("mốc cũ nhất 151' >
+ngưỡng 90'") và giành được **ba lượt ĐƯỢC login** lúc 16:12 / 16:34 / 16:56 — đúng cửa sổ vàng
+16:00→17:08 khi *không phiên nào sống* nên login không đá ai. Nhưng cụm vừa vào là mọi bước tự thoát
+`✓ Bước … đã tươi hôm nay`: `boQuaNeuDaTuoi` vẫn định nghĩa tươi = **mốc ≥ 08:40 hôm nay**, mà mốc
+của chúng đều sau 08:40. Cụm chạy **29 giây**, không kéo gì; guard đọc lại mốc bằng đúng thước cũ
+(`mocMinMoi >= homNay840`) rồi in **✓ XONG**. Tới 17:10 bridge work/hr sống lại ⇒ luật phiên
+(`trangThaiPhien` → "có người đang làm dù không mở WMS") cấm login ⇒ đứng luôn tới lúc tắt máy.
+
+Đã sửa 2 chỗ, cùng một thước `CANH_TRE_PHUT` (mặc định 90') với guard và `canh-suc-khoe.js`:
+
+1. `session-rules.js` → `boQuaNeuDaTuoi`: bước chỉ tự thoát khi **chính nó** trễ < 90'.
+   Ý đồ cũ ("đừng kéo trùng cả cụm ~25' khi chỉ 1 bước hỏng") giữ nguyên — chỉ đổi thước đo.
+2. `sync-guard.js`: kết luận sau khi chạy dùng lại đúng luật đã dùng để gọi (`conCu()`), thay cho
+   `mocMinMoi >= homNay840`. **Báo thành công giả nguy hơn im lặng**: nó nuốt lượt login hiếm hoi
+   và reset backoff 20' — 3 lượt cuối ngày 14/08 mất theo cách đó.
+
+Bài học chung của cả hai lần: mỗi khi đổi định nghĩa "dữ liệu cũ" ở một tầng, phải soát **cả ba**
+tầng THẤY (`canh-suc-khoe`) — GỌI (`sync-guard`) — LÀM (`boQuaNeuDaTuoi` trong từng bước).
+
+**Vá 15/08/2026 (2) — VÉ ƯU TIÊN "phiên vừa sống lại": chính backoff của guard chặn lượt tươi đầu ngày.**
+Yêu cầu vận hành: *mỗi sáng, ngay khi operator có phiên work/wms/planogram thì làm tươi liền bằng
+bridge — tuyệt đối không đá phiên.* Cảnh hỏng sáng 15/08: 08:34 guard chạy khi mới chỉ mượn được
+token **work/hr** (đủ 5S, 4 bước factory tự hoãn) → ghi mốc `LAN_VA` → phiên **WMS** lên lúc ~08:40
+thì guard đã tự khoá mình sau backoff 20' tới 08:54; chỉ nhờ task lịch 08:40 mới cứu. Nếu operator
+đăng nhập lúc 08:05 hay 09:15 thì không có gì cứu — phải chờ tick giờ kế tiếp.
+
+Cơ chế mới trong `sync-guard.js`:
+
+- **Đảo thứ tự**: dò token **trước** backoff (phải biết kênh nào vừa sống thì mới cấp vé được).
+  Không tốn thêm gì đáng kể — `sync-poller.js` vốn đã `get-me` mỗi tick 2'.
+- **Trạng thái phiên tick trước** lưu ở `.guard-phien-truoc.json` (`{wms, coPhien, veLuc}`).
+  Kênh chết ở tick trước mà sống ở tick này ⇒ **1 vé** đi thẳng, bỏ qua backoff.
+- **Chống phiên chập chờn**: hai vé phải cách nhau ≥ **10'** (`VE_UU_TIEN_MS`).
+- **Vé không mở đường login**: tới nhánh đó đã có token sống nên `nguon` luôn là token *mượn*.
+  Luật phiên (`trangThaiPhien`) không bị nới một ly.
+- Nhịp phủ: watch-login-request gọi guard mỗi **2'** ⇒ operator đăng nhập lúc nào, dữ liệu bắt kịp
+  trong ≤2' lúc đó — không còn phụ thuộc mốc 08:40 hay tick giờ.
+
+Kiểm chứng bằng cờ mới `node sync-guard.js --thu` (chạy khô: in phán quyết, **không** spawn cụm,
+không ghi mốc, không chiếm lock) — 3 kịch bản đã chạy thật 09:02 15/08:
+
+| Kịch bản (tick trước → tick này) | Kỳ vọng | Thực tế |
+|---|---|---|
+| đã có phiên WMS → vẫn có | không vé, backoff chặn | `… chờ đủ backoff 20'` · exit 75 |
+| không phiên nào → có phiên WMS | **cấp vé**, chạy bằng bridge | `⚡ Phiên WMS/planogram VỪA SỐNG LẠI` · exit 0 |
+| vừa cấp vé <10' trước | không cấp tiếp | `… chờ đủ backoff 20'` · exit 75 |
 
 ### A3. Nhịp trong ngày — `sync-poller.js`, chỉ trong khung **08:45–18:00**
 
@@ -51,13 +135,34 @@ Ngoài khung: lượt 8:40 lo buổi sáng, watchdog 18:05 là lượt vét cu�
 | WMS tồn vị trí | `report-management/stock-locations/bins/count/v3` | `sync-stocklocation.js` | `mastige`, `garment` |
 | WMS kiểm kê | `counting-plan/checklists/type-sku\|type-location` + `checklist/tracking` | `push-pc-to-sheet.mjs` | `kiemke-*`, `kiemke-uidgr` |
 | WMS tồn bất thường | `report-management/stock-inventories` | `sync-tonbatthuong.js` | `stock-inventory-beta\|-hasaki` |
+| WMS **tồn tại vị trí** (UID **vải** chưa khai báo UID group mà đã rời bãi chờ `F0-A0-00-00-00-00`; chỉ 2 kho `WH - MATERIAL - MTG` + `WH - MATERIAL - GARMENT`, trừ vị trí tiền tố `F0-KHO-HM`) | `report-management/report-inventories` (mức UID, `category_ids=463`, header `Company-Ids`) | `ton-vitri.mjs` — chạy **ké bước cuối** của `sync-tonbatthuong.js`, không có lịch riêng · ~66 lượt gọi/lần | `ton-vitri` |
 | Planogram vệ sinh | `wms-gw-external` request-of-declaration | `sync-vesinh-all.js` | 4 tab `VESINH-*`, `PHU-TRACH-*` |
 | Phân công phụ trách | g-sheet gốc của bộ phận (gid `341809457` + `584257479`) + bù từ `PHU-TRACH-QUAY-KE` | `sync-phancong.mjs` | `VESINH-PHANCONG` |
 | work 5S | `api/hr/excel-io` (queue → poll → tải file) | `auto-export-sync.js` | `5S-TASKS` |
 | HR chấm công | `api/news/staff/...`, `api/hr/timesheet` | `pull-timesheet.js` | `NHAN-SU` |
+| Tra UID theo yêu cầu | `report-management/report-inventories?uids=` (header `Company-Ids`) | `tra-uid-sheet.mjs --dien` — task **"5S Tra UID tren Sheet"** mỗi 2' (TRA-UID.bat) + bước dự phòng đầu `watch-login-request.js` | `TRA-UID` (file riêng `1a_lsYf…x08U`) |
 
 Cửa ghi **duy nhất** là Apps Script webhook (`action=syncTasks`). Dashboard đọc Sheet qua
 gviz/`readTab` — **không dashboard nào gọi WMS trực tiếp**. Đây là tính chất quyết định ở Phần B.
+
+**Tab TỔNG HỢP (15/08/2026) — 2 tab dẫn xuất, 0 lượt gọi WMS.** Cộng ngay trên dữ liệu đã có trong
+RAM của chính lượt sync, ghi thêm 1 gói nhỏ:
+
+| Tab tổng | Do ai ghi | Thay cho | Kích thước |
+|---|---|---|---|
+| `stockloc-tong` | `sync-stocklocation.js` | `mastige` + `garment` | **6 KB** (84 dòng) ← 12,6 MB |
+| `<tab>-tong` (`stock-inventory-beta-tong`, `stock-inventory-hasaki-tong`) | `sync-tonbatthuong.js` | tab thô tương ứng | **2,5 KB** (34 dòng) ← 21,7 MB |
+
+Dashboard vẽ **màn hình chính** từ tab tổng; **chi tiết từng dòng chỉ nạp khi mở pop-up**. Tab tổng
+thiếu/hỏng ⇒ mọi dashboard tự lùi về đọc tab thô (đường cũ giữ nguyên từng dòng).
+
+Hai điểm phải nhớ khi sửa về sau:
+- Ghi tab MỚI **không cần deploy GAS**: `apiSyncTasks` tự `insertSheet`; whitelist `SERVE_PRIVATE_TABS`
+  chỉ áp cho tab đọc qua `readTab` ở sheet private.
+- Tab tổng của tồn bất thường có dòng **`__all__` mỗi kho = TỔNG SỐ DÒNG**. Dashboard lấy
+  `nSku = rows.length` và `byWh[wh].n` (đếm DÒNG); cộng SkuCount của 6 loại sẽ **đếm trùng** vì một
+  dòng vướng được nhiều loại. Đã kiểm mỗi cặp (SKU, kho) là DUY NHẤT nên đếm dòng ≡ đếm SKU — nếu
+  WMS đổi cách phát hành thì phải kiểm lại chỗ này trước tiên.
 
 ### A5. Luật phiên (`session-rules.js`) — nền của mọi nhịp
 
@@ -69,6 +174,25 @@ gviz/`readTab` — **không dashboard nào gọi WMS trực tiếp**. Đây là 
 4. `fetchThuLai` retry 4 lần (2s→6s→18s) cho 5xx/429.
 5. **Hash-skip**: payload không đổi → không ghi Sheet, chỉ `touchTabs` để chip giờ vẫn chạy.
 6. Mốc từng bước `.sync-ok-<bước>` → guard chạy lại **đúng bước hỏng**, không kéo lại cả cụm ~25'.
+
+### A6. Cảm biến sức khoẻ — `canh-suc-khoe.js` (guard gọi cuối mỗi tick, mỗi giờ 07:05→18:05)
+
+| Cảm biến | Ngưỡng | Ghi chú |
+|---|---|---|
+| Mốc từng bước dừng | **26 giờ** | Bắt ca chết cả ngày. Cố ý thô để không báo giả buổi sáng máy bật muộn. |
+| Cầu dao đăng nhập | ≥3 lượt IdP từ chối | Bắt buộc gọi người — thử thêm là tiến tới khoá tài khoản. |
+| **Cầu nối (extension)** | tắt/chưa cài | **Mới 11/08/2026** — đọc thẳng profile Edge (`trang-thai-bridge.js`). |
+| **Trễ trong ngày** | mốc vệ sinh > **90'** (`CANH_TRE_PHUT`) | **Mới 11/08/2026** — đo đúng cái người dùng thấy; kèm chẩn đoán nguyên nhân. |
+
+Chỉ mở sự cố trong **7h–19h**, **không Chủ nhật**. Chi tiết + khuôn thư: `TU-CHUA-LANH.md`.
+Tầng tự chữa lành **đã bật 11/08/2026** (GAS @51, `caps.tuChua = true`) — trước đó mọi lời gọi
+`moSuCo` đều im lặng bỏ qua, nên 5 tiếng dữ liệu đứng chiều 11/08 không sinh ra thư nào.
+
+**⛔ 15/08/2026 — THƯ CẢNH BÁO ĐÃ TẮT** (`CANH_GUI_THU=0` trong `.env`, theo yêu cầu vận hành).
+Cảm biến vẫn chạy đủ và vẫn in `⛔` vào `sync-guard.log`; **chặn ghi rác vẫn hoạt động**; chỉ
+`moSuCo`/`dongSuCo` trong `tu-chua.js` trả `null` ngay, không chạm GAS. `nhipTim` **cố ý giữ** vì nó
+là thứ *ngăn* thư "máy trạm im" chứ không phải thứ gửi thư. Bảng dưới vì vậy nay là **danh sách
+những gì vẫn được PHÁT HIỆN**, không còn là danh sách thư sẽ nhận. Soi tay: `node canh-suc-khoe.js --xem`.
 
 ---
 

@@ -34,7 +34,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenSongWms, fetchThuLai, hashTab, tabKhongDoi, luuHashTab, chamMocTabs } from "./session-rules.js";
+import { layTokenSongWms, fetchThuLai, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, gasPost, hamCacheTabs } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXPORTS = path.join(DIR, ".exports");
@@ -375,8 +375,11 @@ async function thuBatch(batchInfo, choToiDa) {
   if (/không được phục vụ/i.test(probe)) { log("⚠ GAS chưa whitelist " + TAB_AI + " — kết quả giữ ở cache cục bộ, CHƯA ghi sheet (tránh lộ PII). Deploy google-script.gs mới rồi chạy lại."); return; }
   if (!APPSCRIPT_KEY) { log("⚠ Thiếu APPSCRIPT_KEY — không ghi sheet."); return; }
   const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: TAB_AI, header: HEADER_AI, rows, apiAt: Date.now() });
-  const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+  /* gasPost thay cho fetch().json(): 12/08 Apps Script trả trang HTML lỗi giữa lượt ghi, .json()
+     nổ "Unexpected token '<'" → mất trắng công AI vừa chấm. Xem gasPost trong session-rules.js. */
+  const j = await gasPost(body, log);
   if (j.status !== "success") throw new Error("Ghi " + TAB_AI + " lỗi: " + (j.message || "?"));
   luuHashTab(DIR, TAB_AI, hash);
   log(`✓ ${TAB_AI}: ghi ${rows.length} dòng.`);
+  await hamCacheTabs([TAB_AI], log);   // tab bậc 1 của panel danh sách — để lượt dựng cache không rơi vào người dùng
 })().catch((e) => { console.error("✗", e.message); process.exit(2); });

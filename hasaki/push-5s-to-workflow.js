@@ -18,6 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,10 +91,11 @@ function matchType00(hangMuc, options) {
 }
 
 /* ------------------------- 3) Gọi Apps Script (SECRET trong POST body, không qua query) ------------------------- */
-const apiPost = (act, extra) => fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: act, key: APPSCRIPT_KEY, ...(extra || {}) }) });
+/* gasPost: 404 chập chờn của Google từng làm .json() nổ ở getPending → chết cả lượt đẩy biên bản.
+   Riêng "mark" là ghi mã task vào sheet nên nonce của gasPost cũng chặn ghi trùng khi thử lại. */
+const apiPost = (act, extra) => gasPost({ action: act, key: APPSCRIPT_KEY, ...(extra || {}) }, log, act);
 async function getPending() {
-  const res = await apiPost("pending");
-  const j = await res.json();
+  const j = await apiPost("pending");
   if (j.status !== "success") throw new Error("Apps Script pending lỗi: " + JSON.stringify(j));
   return j.rows || [];
 }
@@ -103,8 +105,7 @@ async function markDone(row, code) {
 /** Gửi cảnh báo qua Apps Script (gửi email) — dùng khi phiên hết hạn / sự cố. Best-effort. */
 async function sendAlert(msg) {
   try {
-    const r = await apiPost("alert", { msg });
-    const j = await r.json().catch(() => ({}));
+    const j = (await apiPost("alert", { msg })) || {};   // apiPost trả JSON sẵn (gasPost), không còn Response
     if (j.sent) log("  ✉ Đã gửi email cảnh báo.");
     else if (j.skipped) log("  ✉ (Đã cảnh báo gần đây, bỏ qua gửi lại.)");
   } catch { /* không chặn luồng chính nếu gửi mail lỗi */ }

@@ -24,7 +24,7 @@
 import "dotenv/config";
 import path from "node:path"; import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { layTokenSongWms, fetchThuLai, hashTab, tabKhongDoi, luuHashTab, ghiMocBuoc } from "./session-rules.js";
+import { layTokenSongWms, fetchThuLai, hashTab, tabKhongDoi, luuHashTab, ghiMocBuoc, gasPost } from "./session-rules.js";
 import { DAY, danhSachO, khoaO, TONG_O } from "./mtg-danhmuc.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -147,7 +147,7 @@ async function ghi(tab, header, rows) {
   for (let i = 0; i < rows.length; i += 4000) {
     const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId: SHEET_ID,
       header, rows: rows.slice(i, i + 4000), append: i > 0, apiAt });
-    const j = JSON.parse(await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).text());
+    const j = await gasPost(body, log, tab + " gói " + (i / 4000 + 1));   // nonce chặn ghi trùng khi thử lại
     if (j.status !== "success") throw new Error("Apps Script từ chối (" + tab + "): " + (j.message || "?"));
   }
   luuHashTab(DIR, tab, h);

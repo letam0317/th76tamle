@@ -135,6 +135,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pr_lay') return keyBodyOK_(duLieu) ? apiPrLay(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_xong') return keyBodyOK_(duLieu) ? apiPrXong(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_trangthai') return apiPrTrangThai(duLieu);
+    if (duLieu && duLieu.action === 'pr_hangdoi') return apiPrHangDoi(duLieu);
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -1376,26 +1377,51 @@ function layHoacTaoThuMuc() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════
- *  HÀNG ĐỢI IN TEM SKU (20/08/2026)
+ *  HÀNG ĐỢI IN TEM SKU — BẢN "TỨC THÌ" (20/08/2026)
  *  ---------------------------------------------------------------------------------------------
  *  Vì sao phải có hàng đợi: máy in tem cắm USB vào một máy trong kho, còn người bấm thì đứng ngoài
- *  kho với cái điện thoại. Trình duyệt không nói được với máy in (đã đo: web thuần không liệt kê nổi
- *  máy in, `http://127.0.0.1` bị Private Network Access chặn, Android/iOS không hiểu máy in share
- *  kiểu Windows). Nên đường duy nhất không cần xin IT là: cả hai đầu chỉ gọi RA NGOÀI.
+ *  kho với cái điện thoại. Trình duyệt không nói được với máy in (web thuần không liệt kê nổi máy
+ *  in, `http://127.0.0.1` bị Private Network Access chặn, Android/iOS không hiểu máy in share kiểu
+ *  Windows). Nên đường duy nhất không cần xin IT là: cả hai đầu chỉ gọi RA NGOÀI.
  *
- *      điện thoại/PC ──(pr_them)──► tab IN-TEM-CHO ◄──(pr_lay/pr_xong)── agent ở máy trạm ──► máy in
+ *      điện thoại/PC ──(pr_them)──► HÀNG ĐỢI ◄──(pr_lay/pr_xong)── agent máy trạm ──► máy in tem
  *
- *  Cả hai đầu đều outbound nên không cần mở cổng, không cần cùng mạng, 4G cũng chạy.
+ *  VÌ SAO HÀNG ĐỢI SỐNG KHÔNG CÒN NẰM Ở SHEET (đo thật 20/08/2026, người bấm nói đúng: "sao lâu"):
+ *    · mỗi lượt gọi Apps Script đã mất ~1,1s trần — chuỗi chuyển hướng của Google, không cắt được;
+ *    · `SpreadsheetApp.openById` cộng thêm 1,1–2,4s NỮA cho MỌI lượt, kể cả lượt hỏi lúc hàng đợi
+ *      đang trống — mà agent thì hỏi liên tục. Đo được: pr_lay 3,5s · pr_trangthai 2,2s → vòng quét
+ *      agent 6,5s, cộng pr_them nữa thì bấm xong phải đợi ~10s mới nghe máy in kêu.
+ *  Nên hàng đợi SỐNG chuyển sang **Script Properties**: đọc/ghi ~50ms, và KHÔNG bị đuổi giữa đường
+ *  như CacheService (mất một lệnh in nghĩa là tem không bao giờ ra mà chẳng ai biết vì sao).
+ *  Sheet `IN-TEM-CHO` vẫn còn nguyên nhưng hạ xuống làm SỔ LƯU: chỉ ghi lúc agent rảnh, ngoài
+ *  đường găng — ai in bao nhiêu tem vẫn đối chiếu được, mà không ai phải đợi cái ghi đó.
  *
- *  Tab `IN-TEM-CHO` (cột):
- *    A id · B luc_gui · C nguoi · D trang_thai · E so_tem · F json_dong · G luc_nhan · H luc_xong · I ghi_chu
- *  `trang_thai`: cho → dang_in → xong | loi
+ *  Giới hạn đã tính trước: 9KB cho MỖI property (một lệnh 40 SKU ~4KB — vừa; dài hơn PR_TRAN_KY_TU
+ *  thì chối thẳng chứ không ghi hụt rồi im lặng), 500KB cả kho → chốt PR_TRAN_SONG lệnh sống.
+ *
+ *  MỘT LỆNH = một property `PRQ_<id>`:
+ *      { id, nguoi, soTem, ts, tt, dong, nhan, xongLuc, ghiChu, luu }
+ *      tt:  cho → dang_in → xong | loi          luu: 0 = chưa vào sổ lưu
+ *  `PR_IDS` giữ thứ tự các lệnh còn sống, `PR_NHIP` là nhịp tim của agent.
  * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
 var PR_TAB = 'IN-TEM-CHO';
 var PR_HEADER = ['id', 'luc_gui', 'nguoi', 'trang_thai', 'so_tem', 'json_dong', 'luc_nhan', 'luc_xong', 'ghi_chu'];
-var PR_TRAN_DONG = 40;          // trần số SKU một lệnh — chặn gửi cả danh mục vì bấm nhầm
-var PR_TRAN_TEM = 400;          // trần số con tem một lệnh
-var PR_GIU_NGAY = 7;            // dọn lệnh cũ hơn 7 ngày
+var PR_TRAN_DONG = 40;            // trần số SKU một lệnh — chặn gửi cả danh mục vì bấm nhầm
+var PR_TRAN_TEM = 400;            // trần số con tem một lệnh
+var PR_TRAN_KY_TU = 8500;         // trần độ dài JSON một lệnh (property tối đa 9KB — payload có
+                                  // thêm tên sản phẩm nên 40 SKU rơi vào khoảng 7KB)
+var PR_TRAN_SONG = 30;            // số lệnh giữ trong hàng đợi nhanh
+var PR_GIU_XONG = 15 * 60000;     // giữ lệnh đã xong 15' để dashboard còn hỏi được trạng thái
+var PR_TREO = 10 * 60000;         // dang_in quá 10' coi như treo (agent chết giữa đợt)
+var PR_GIU_NGAY = 7;              // sổ lưu giữ 7 ngày
+var PR_P_IDS = 'PR_IDS';
+var PR_P_TIEN = 'PRQ_';
+var PR_P_NHIP = 'PR_NHIP';
+var PR_P_LUU = 'PR_LUU_LUC';
+
+function prSP_() { return PropertiesService.getScriptProperties(); }
+function prIds_(all) { try { return JSON.parse(all[PR_P_IDS] || '[]') || []; } catch (e) { return []; } }
+function prLenh_(all, id) { try { return JSON.parse(all[PR_P_TIEN + id] || 'null'); } catch (e) { return null; } }
 
 function prSheet_() {
   var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
@@ -1409,7 +1435,8 @@ function prSheet_() {
   return sh;
 }
 
-/** Dashboard gửi một lệnh in. PUBLIC — tự bảo vệ bằng trần dòng/tem và chống gửi trùng trong 5 giây. */
+/** Dashboard gửi một lệnh in. PUBLIC — tự bảo vệ bằng trần dòng/tem/độ dài và chống gửi trùng 5 giây.
+ *  KHÔNG mở Sheet: đây là chặng người dùng đang ngồi đợi. */
 function apiPrThem(duLieu) {
   var dong;
   try { dong = JSON.parse(String(duLieu.dong || '[]')); } catch (e) { dong = null; }
@@ -1418,90 +1445,239 @@ function apiPrThem(duLieu) {
   var tong = 0;
   for (var i = 0; i < dong.length; i++) tong += Math.max(1, Number(dong[i].sl) || 1);
   if (tong > PR_TRAN_TEM) return phanHoiJson({ status: 'error', message: 'Một lệnh in tối đa ' + PR_TRAN_TEM + ' con tem.' });
+  var chuoi = JSON.stringify(dong);
+  if (chuoi.length > PR_TRAN_KY_TU) return phanHoiJson({ status: 'error', message: 'Lệnh in quá dài — hãy chia thành hai lượt.' });
 
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(8000)) return phanHoiJson({ status: 'error', message: 'Đang có lệnh khác ghi vào hàng đợi — thử lại sau vài giây.' });
   try {
-    var sh = prSheet_(), nguoi = String(duLieu.nguoi || '').slice(0, 60);
-    var now = new Date().getTime();
+    var sp = prSP_(), all = sp.getProperties(), ids = prIds_(all), now = new Date().getTime();
+    var nguoi = String(duLieu.nguoi || '').slice(0, 60);
     /* CHỐNG GỬI TRÙNG: bấm hai lần vì mạng chậm là chuyện thường, mà mỗi lần bấm là tem thật ra khỏi
        máy in. Cùng người + cùng nội dung trong 5 giây thì coi là một lệnh. */
-    var chuoi = JSON.stringify(dong);
-    var n = sh.getLastRow();
-    if (n > 1) {
-      var cuoi = sh.getRange(Math.max(2, n - 4), 1, Math.min(5, n - 1), PR_HEADER.length).getValues();
-      for (var k = cuoi.length - 1; k >= 0; k--) {
-        if (String(cuoi[k][2]) === nguoi && String(cuoi[k][5]) === chuoi && now - Number(cuoi[k][1] || 0) < 5000) {
-          return phanHoiJson({ status: 'success', id: String(cuoi[k][0]), trung: true, message: 'Lệnh này vừa gửi rồi — không gửi lại.' });
-        }
+    for (var k = ids.length - 1; k >= 0 && k >= ids.length - 5; k--) {
+      var cu = prLenh_(all, ids[k]);
+      if (cu && String(cu.nguoi) === nguoi && String(cu.dong) === chuoi && now - Number(cu.ts || 0) < 5000) {
+        return phanHoiJson({ status: 'success', id: String(cu.id), trung: true, message: 'Lệnh này vừa gửi rồi — không gửi lại.' });
       }
     }
+    /* TRƯỚC BẠN CÒN AI: người bấm In đứng ngoài kho, không thấy máy in. Phải nói ngay là tem ra liền
+       hay còn xếp sau đợt của người khác — im lặng rồi để họ ra máy in đợi là chỗ mất lòng tin nhất
+       của cả đường in này. Đếm TRƯỚC khi thêm nên không tính chính mình. */
+    var tr = prTruocP_(all, ids, now);
     var id = 'PR' + now + Math.floor(Math.random() * 900 + 100);
-    sh.appendRow([id, now, nguoi, 'cho', tong, chuoi, '', '', '']);
-    prDon_(sh);
-    return phanHoiJson({ status: 'success', id: id, soTem: tong, soSku: dong.length });
+    /* DỌN TRƯỚC KHI THÊM. Thứ tự này không được đổi: `prDonNhanh_` phán xét từng id bằng bản đọc
+       `all` chụp lúc đầu hàm, nên nếu dọn SAU khi push thì id vừa thêm chưa có property trong `all`
+       → bị coi là id mồ côi và gạch ngay. Bẫy đã cắn thật 20/08/2026: lệnh ghi được `PRQ_<id>` nên
+       `pr_trangthai` vẫn thấy "cho", mà `PR_IDS` lại không có nó nên agent quét mãi không ra việc —
+       tem không bao giờ in mà chẳng có lỗi nào. */
+    var xoa = prDonNhanh_(all, ids, now);
+    ids.push(id);
+    var ghi = {};
+    /* `thu` = lệnh ĐO: agent dựng đủ tem rồi bỏ, không gửi máy in. Giữ nguyên mọi chặng khác để số
+       đo là số thật. */
+    ghi[PR_P_TIEN + id] = JSON.stringify({ id: id, nguoi: nguoi, soTem: tong, ts: now, tt: 'cho',
+      dong: chuoi, luu: 0, thu: duLieu.thu ? 1 : 0 });
+    ghi[PR_P_IDS] = JSON.stringify(ids);
+    sp.setProperties(ghi, false);
+    for (var d = 0; d < xoa.length; d++) sp.deleteProperty(xoa[d]);
+    return phanHoiJson({ status: 'success', id: id, soTem: tong, soSku: dong.length,
+      truoc: tr.soDot, temTruoc: tr.soTem, nguoiTruoc: tr.nguoi, dangIn: tr.dangIn, agentTre: prAgentTre_(all) });
   } finally { lock.releaseLock(); }
 }
 
-/** Agent lấy các lệnh đang chờ. Đánh dấu `dang_in` ngay để hai agent không in trùng một lệnh. */
+/** Agent hỏi việc.
+ *  ĐƯỜNG NHANH (lượt hay xảy ra nhất): hàng đợi trống → trả rỗng luôn, không khoá, không mở Sheet
+ *  → cả lượt chỉ còn ~1,1s trần của Apps Script, nên agent hỏi được mỗi giây mà vẫn nhẹ.
+ *  Có việc thì mới khoá (hai agent không được nhặt trùng một lệnh) và ghi `dang_in`. */
 function apiPrLay(duLieu) {
+  var sp = prSP_(), all = sp.getProperties(), now = new Date().getTime();
+  prNhipGhi_();                                      // nhịp tim: dashboard biết máy trạm còn trực
+  var ids = prIds_(all), co = false;
+  for (var i = 0; i < ids.length; i++) {
+    var o = prLenh_(all, ids[i]);
+    if (o && o.tt === 'cho') { co = true; break; }
+  }
+  if (!co) {
+    /* Agent đang rảnh — đây là lúc RẺ NHẤT để ghi sổ lưu những đợt vừa in xong: mở Sheet tốn ~2s
+       nhưng không có ai đang đợi. Cố tình KHÔNG ghi ở `pr_xong`, vì lúc đó agent còn phải quay lại
+       nhặt lệnh tiếp theo của người khác. */
+    return phanHoiJson({ status: 'success', dsLenh: [], daLuu: prGhiSo_(sp, all, ids) });
+  }
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(8000)) return phanHoiJson({ status: 'success', dsLenh: [] });
   try {
-    var sh = prSheet_(), n = sh.getLastRow();
-    if (n < 2) return phanHoiJson({ status: 'success', dsLenh: [] });
-    var v = sh.getRange(2, 1, n - 1, PR_HEADER.length).getValues();
-    var ra = [], now = new Date().getTime();
-    /* Có bao nhiêu NGƯỜI đang chờ: agent cần biết để quyết có in tem thông báo đợt hay không. */
-    var nguoiCho = {};
-    for (var i = 0; i < v.length; i++) if (String(v[i][3]) === 'cho') nguoiCho[String(v[i][2])] = 1;
-    var soNguoi = Object.keys(nguoiCho).length;
-    for (var j = 0; j < v.length; j++) {
-      if (String(v[j][3]) !== 'cho') continue;
-      sh.getRange(j + 2, 4).setValue('dang_in');
-      sh.getRange(j + 2, 7).setValue(now);
-      var dong = [];
-      try { dong = JSON.parse(String(v[j][5] || '[]')); } catch (e) { dong = []; }
-      ra.push({ id: String(v[j][0]), nguoi: String(v[j][2]), soTem: Number(v[j][4]) || 0, dong: dong, nhieuNguoi: soNguoi > 1 });
-      if (ra.length >= 5) break;                     // mỗi lượt lấy tối đa 5 lệnh, khỏi ôm quá nhiều
+    all = sp.getProperties(); ids = prIds_(all);
+    var ra = [], ghi = {}, nguoiCho = {}, soNguoi = 0;
+    for (var j = 0; j < ids.length; j++) {
+      var x = prLenh_(all, ids[j]);
+      if (x && x.tt === 'cho' && !nguoiCho[String(x.nguoi)]) { nguoiCho[String(x.nguoi)] = 1; soNguoi++; }
     }
+    for (var m = 0; m < ids.length && ra.length < 5; m++) {   // mỗi lượt tối đa 5 lệnh, khỏi ôm quá nhiều
+      var o2 = prLenh_(all, ids[m]);
+      if (!o2 || o2.tt !== 'cho') continue;
+      o2.tt = 'dang_in'; o2.nhan = now;
+      ghi[PR_P_TIEN + ids[m]] = JSON.stringify(o2);
+      var d = [];
+      try { d = JSON.parse(String(o2.dong || '[]')); } catch (e) { d = []; }
+      ra.push({ id: String(o2.id), nguoi: String(o2.nguoi || ''), soTem: Number(o2.soTem) || 0, dong: d,
+        nhieuNguoi: soNguoi > 1, thu: Number(o2.thu) === 1 });
+    }
+    if (ra.length) sp.setProperties(ghi, false);
     return phanHoiJson({ status: 'success', dsLenh: ra, soNguoiCho: soNguoi });
   } finally { lock.releaseLock(); }
 }
 
-/** Agent báo kết quả một lệnh: xong hoặc lỗi (kèm lý do để dashboard nói lại cho người bấm). */
+/** Agent báo kết quả một lệnh: xong hoặc lỗi (kèm lý do để dashboard nói lại cho người bấm).
+ *  Chỉ ghi property — sổ lưu để lượt rảnh sau ghi, đừng giữ chân agent ở đây. */
 function apiPrXong(duLieu) {
   var id = String(duLieu.id || '');
   if (!id) return phanHoiJson({ status: 'error', message: 'Thiếu id.' });
-  var sh = prSheet_(), n = sh.getLastRow();
-  if (n < 2) return phanHoiJson({ status: 'error', message: 'Hàng đợi trống.' });
-  var v = sh.getRange(2, 1, n - 1, 1).getValues();
-  for (var i = 0; i < v.length; i++) {
-    if (String(v[i][0]) !== id) continue;
-    sh.getRange(i + 2, 4).setValue(String(duLieu.loi ? 'loi' : 'xong'));
-    sh.getRange(i + 2, 8).setValue(new Date().getTime());
-    sh.getRange(i + 2, 9).setValue(String(duLieu.loi || duLieu.ghiChu || '').slice(0, 300));
-    return phanHoiJson({ status: 'success' });
-  }
-  return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
+  var sp = prSP_(), o = prLenh_(sp.getProperties(), id);
+  if (!o) return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
+  o.tt = duLieu.loi ? 'loi' : 'xong';
+  o.xongLuc = new Date().getTime();
+  o.ghiChu = String(duLieu.loi || duLieu.ghiChu || '').slice(0, 300);
+  o.luu = 0;
+  sp.setProperty(PR_P_TIEN + id, JSON.stringify(o));
+  return phanHoiJson({ status: 'success' });
 }
 
-/** Dashboard hỏi trạng thái lệnh vừa gửi (PUBLIC — chỉ trả về đúng dòng theo id). */
+/** Dashboard hỏi trạng thái lệnh vừa gửi (PUBLIC — chỉ trả đúng dòng theo id). Property trước,
+ *  Sheet chỉ khi lệnh đã quá cũ và rời hàng đợi nhanh. */
 function apiPrTrangThai(duLieu) {
   var id = String(duLieu.id || '');
   if (!id) return phanHoiJson({ status: 'error', message: 'Thiếu id.' });
+  var all = prSP_().getProperties(), o = prLenh_(all, id);
+  if (!o) return prTrangThaiSo_(id);
+  var tr = prTruocP_(all, prIds_(all), Number(o.ts || 0));
+  return phanHoiJson({ status: 'success', id: id, trangThai: String(o.tt), soTem: Number(o.soTem) || 0,
+    lucNhan: Number(o.nhan) || 0, lucXong: Number(o.xongLuc) || 0, ghiChu: String(o.ghiChu || ''),
+    truoc: tr.soDot, temTruoc: tr.soTem, nguoiTruoc: tr.nguoi, dangIn: tr.dangIn, agentTre: prAgentTre_(all) });
+}
+/** Tra lệnh cũ (đã rời hàng đợi nhanh) trong sổ lưu. Chậm hơn nhưng hiếm khi phải dùng. */
+function prTrangThaiSo_(id) {
   var sh = prSheet_(), n = sh.getLastRow();
-  if (n < 2) return phanHoiJson({ status: 'error', message: 'Hàng đợi trống.' });
+  if (n < 2) return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
   var v = sh.getRange(2, 1, n - 1, PR_HEADER.length).getValues();
   for (var i = v.length - 1; i >= 0; i--) {
     if (String(v[i][0]) !== id) continue;
     return phanHoiJson({ status: 'success', id: id, trangThai: String(v[i][3]), soTem: Number(v[i][4]) || 0,
-      lucNhan: Number(v[i][6]) || 0, lucXong: Number(v[i][7]) || 0, ghiChu: String(v[i][8] || '') });
+      lucNhan: Number(v[i][6]) || 0, lucXong: Number(v[i][7]) || 0, ghiChu: String(v[i][8] || ''),
+      truoc: 0, temTruoc: 0, nguoiTruoc: '', dangIn: null, agentTre: prAgentTre_(null) });
   }
   return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
 }
 
-/** Dọn lệnh cũ: giữ 7 ngày cho đủ truy vết, xoá phần còn lại để tab không phình vô hạn. */
+/* ── NHỊP TIM AGENT + TÌNH HÌNH HÀNG ĐỢI ────────────────────────────────────────────────────────
+ * Bấm "Xác nhận in" xong là người dùng đi tới máy in lấy tem. Nếu agent ở máy trạm đang tắt, hoặc
+ * đang chạy đợt của người khác, mà dashboard im lặng thì họ đứng đợi một tờ tem không bao giờ ra.
+ * (Đúng cảnh đã xảy ra 20/08/2026: agent chưa bật, lệnh nằm im ở `cho`, người bấm chỉ thấy "đang
+ * chờ máy in…".) Nên: mỗi lượt `pr_lay` đóng một dấu thời gian → trễ quá 60 giây là biết máy trạm
+ * tắt, và dashboard nói thẳng ngay khi mở pop-up.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────── */
+/** Đóng dấu nhịp tim vào HAI kho. Vì sao hai: đo 20/08/2026, đọc nhịp từ ảnh chụp
+ *  `getProperties()` có lúc trả về RỖNG dù agent vừa gọi cách đó một giây — và dashboard sẽ báo oan
+ *  "máy trạm đang tắt agent". Một lời báo động sai kiểu đó đắt hơn nhiều so với một dòng ghi thêm:
+ *  người dùng mất tin, rồi lần sau họ đi in bằng máy khác. Cache nhanh nhưng bị đuổi, Property bền
+ *  nhưng đọc có lúc lệch → ghi cả hai, đọc lấy cái TƯƠI HƠN. */
+function prNhipGhi_() {
+  var t = String(new Date().getTime());
+  try { prSP_().setProperty(PR_P_NHIP, t); } catch (e) {}
+  try { CacheService.getScriptCache().put(PR_P_NHIP, t, 600); } catch (e) {}
+}
+function prAgentTre_(all) {
+  var now = new Date().getTime(), moi = 0;
+  try {
+    var a = Number((all ? all[PR_P_NHIP] : prSP_().getProperty(PR_P_NHIP)) || 0);
+    if (a > moi) moi = a;
+  } catch (e) {}
+  try {
+    var b = Number(CacheService.getScriptCache().get(PR_P_NHIP) || 0);
+    if (b > moi) moi = b;
+  } catch (e) {}
+  return moi ? (now - moi) : -1;                      // -1 = chưa bao giờ thấy agent gọi
+}
+/** Đếm đợt còn sống gửi TRƯỚC mốc `moc` (moc = 0 → đếm tất cả). */
+function prTruocP_(all, ids, moc) {
+  var r = { soDot: 0, soTem: 0, nguoi: '', dangIn: null }, now = new Date().getTime();
+  for (var i = 0; i < ids.length; i++) {
+    var o = prLenh_(all, ids[i]);
+    if (!o || (o.tt !== 'cho' && o.tt !== 'dang_in')) continue;
+    /* `dang_in` quá lâu = agent chết giữa đợt. Vẫn giữ để truy vết, nhưng KHÔNG tính vào "trước bạn
+       còn mấy đợt": tính thì một lệnh treo sẽ vu oan cho mọi người xếp sau nó, mãi mãi. */
+    if (o.tt === 'dang_in' && now - Number(o.nhan || o.ts || 0) > PR_TREO) continue;
+    if (moc && Number(o.ts || 0) >= moc) continue;
+    r.soDot++; r.soTem += Number(o.soTem) || 0;
+    if (!r.nguoi) r.nguoi = String(o.nguoi || '');
+    if (o.tt === 'dang_in' && !r.dangIn) r.dangIn = { nguoi: String(o.nguoi || ''), soTem: Number(o.soTem) || 0 };
+  }
+  return r;
+}
+/** PUBLIC: mở pop-up In tem là biết ngay máy in kho sống hay chết, có ai đang in trước mình, và trần
+ *  thật của một lệnh (để dashboard chặn trước chứ không để bị chối sau khi bấm). */
+function apiPrHangDoi(duLieu) {
+  var all = prSP_().getProperties();
+  var t = prTruocP_(all, prIds_(all), 0);
+  return phanHoiJson({ status: 'success', agentTre: prAgentTre_(all), cho: t.soDot, temCho: t.soTem,
+    nguoiCho: t.nguoi, dangIn: t.dangIn, tranSku: PR_TRAN_DONG, tranTem: PR_TRAN_TEM });
+}
+
+/** Dọn hàng đợi nhanh: bỏ lệnh đã xong quá 15 phút VÀ đã vào sổ lưu; nếu quá trần thì bỏ tiếp từ cũ
+ *  nhất. Không bao giờ bỏ lệnh chưa ghi sổ — mất dấu một đợt in là mất luôn khả năng đối chiếu. */
+function prDonNhanh_(all, ids, now) {
+  var xoa = [];
+  for (var i = ids.length - 1; i >= 0; i--) {
+    var o = prLenh_(all, ids[i]);
+    if (!o) { ids.splice(i, 1); continue; }
+    var roi = (o.tt === 'xong' || o.tt === 'loi');
+    if (roi && Number(o.luu) === 1 && now - Number(o.xongLuc || o.ts || 0) > PR_GIU_XONG) {
+      xoa.push(PR_P_TIEN + ids[i]); ids.splice(i, 1);
+    }
+  }
+  while (ids.length > PR_TRAN_SONG) { xoa.push(PR_P_TIEN + ids[0]); ids.splice(0, 1); }
+  /* QUÉT MỒ CÔI: nếu một lượt ghi bị nửa vời (ghi được `PRQ_` mà mất `PR_IDS`) thì property đó nằm
+     lại mãi và gặm dần hạn mức 500KB của kho. Chỉ xoá cái đã quá PR_GIU_XONG để không bao giờ chạm
+     vào lệnh đang được ghi song song. */
+  var song = {};
+  for (var k = 0; k < ids.length; k++) song[PR_P_TIEN + ids[k]] = 1;
+  for (var key in all) {
+    if (key.indexOf(PR_P_TIEN) !== 0 || song[key]) continue;
+    var o2 = null;
+    try { o2 = JSON.parse(all[key]); } catch (e) { o2 = null; }
+    if (!o2 || now - Number(o2.ts || 0) > PR_GIU_XONG) xoa.push(key);
+  }
+  return xoa;
+}
+
+/** Ghi SỔ LƯU cho các đợt đã in xong mà chưa ghi. Chỉ gọi ở lượt agent rảnh, và cách nhau ít nhất
+ *  30 giây, để lượt hỏi rỗng vẫn rẻ. Lỗi ghi sổ KHÔNG được làm vỡ đường in: bọc try/catch, lần rảnh
+ *  sau ghi lại (cờ `luu` vẫn 0). */
+function prGhiSo_(sp, all, ids) {
+  if (new Date().getTime() - Number(all[PR_P_LUU] || 0) < 30000) return 0;
+  var can = [];
+  for (var i = 0; i < ids.length; i++) {
+    var o = prLenh_(all, ids[i]);
+    if (o && (o.tt === 'xong' || o.tt === 'loi') && Number(o.luu) !== 1) can.push(o);
+  }
+  if (!can.length) return 0;
+  try {
+    var sh = prSheet_(), hang = [], ghi = {};
+    for (var j = 0; j < can.length; j++) {
+      var o2 = can[j];
+      hang.push([o2.id, o2.ts, o2.nguoi, o2.tt, o2.soTem, o2.dong, o2.nhan || '', o2.xongLuc || '', o2.ghiChu || '']);
+      o2.luu = 1;
+      ghi[PR_P_TIEN + o2.id] = JSON.stringify(o2);
+    }
+    sh.getRange(sh.getLastRow() + 1, 1, hang.length, PR_HEADER.length).setValues(hang);
+    prDon_(sh);
+    ghi[PR_P_LUU] = String(new Date().getTime());
+    sp.setProperties(ghi, false);
+    return hang.length;
+  } catch (e) { return 0; }
+}
+
+/** Dọn sổ lưu: giữ 7 ngày cho đủ truy vết, xoá phần cũ để tab không phình vô hạn. */
 function prDon_(sh) {
   var n = sh.getLastRow();
   if (n < 200) return;                                // chỉ dọn khi tab đã dài

@@ -31,7 +31,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenSongWms, fetchThuLai } from "./session-rules.js";
+import { layTokenSongWms, fetchThuLai, gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -342,7 +342,7 @@ const donViCua = (ten) => { const p = String(ten || "").split("/"); return (p[p.
     if (!rows.length) { log("  (⚠ " + tab + ": 0 dòng — bỏ qua)"); return; }
     for (let i = 0; i < rows.length; i += CHUNK) {
       const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, sheetId: SHEET_ID, header, rows: rows.slice(i, i + CHUNK), append: i > 0, apiAt });
-      const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+      const j = await gasPost(body, log, tab + " gói " + (i / CHUNK + 1));   // nonce chặn ghi trùng khi thử lại
       if (j.status !== "success") throw new Error(tab + ": " + (j.message || "?"));
     }
     log("  ✓ " + tab + ": " + rows.length + " dòng.");

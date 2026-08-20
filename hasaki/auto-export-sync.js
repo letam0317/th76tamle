@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { layTokenSongWork, ghiMocBuoc, boQuaNeuDaTuoi, DEFER_EXIT } from "./session-rules.js";
+import { layTokenSongWork, ghiMocBuoc, boQuaNeuDaTuoi, DEFER_EXIT, gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXPORT_DIR = path.join(DIR, ".exports");
@@ -241,10 +241,30 @@ async function layBinhLuan(token, byCode, header) {
   return out;
 }
 
+/* Mốc "đã kéo cửa sổ TASK SỐNG CŨ hôm nay chưa" — xem chú thích ở tinhKhoang(). */
+const MOC_CU = path.join(EXPORT_DIR, ".5s-cuaso-cu-ngay");
+function daKeoCuaSoCuHomNay() {
+  try { return fs.readFileSync(MOC_CU, "utf8").trim() === fmt(new Date()); } catch { return false; }
+}
+function chamCuaSoCu() { try { fs.writeFileSync(MOC_CU, fmt(new Date())); } catch { /* best-effort */ } }
+
 // Xác định khoảng ngày CẦN export hôm nay:
 //  - Mặc định: 45 ngày gần nhất (bắt task mới + task bị mở lại trong 45 ngày).
-//  - Mở rộng lùi về: ngày sớm nhất của các task CÒN SỐNG (Processing/None) → task chưa xong luôn được refresh dù cũ.
+//  - Task CÒN SỐNG cũ hơn 45 ngày: gom vào một CỬA SỔ PHỤ hẹp, chỉ kéo 1 lần/ngày (xem dưới).
 //  - Không cache / FULL_RESYNC / có task sống thiếu ngày → chạy full từ SYNC_FROM cho chắc.
+//
+/* VÁ 15/08/2026 — CẮT JOB EXPORT THỪA (đo 15/08: ~13 job/ngày lãng phí trên wshr).
+ * Bản cũ nới cửa sổ CHÍNH lùi về ngày tạo của task còn sống cũ nhất. Chỉ cần MỘT task treo là cả
+ * cửa sổ phình: hôm nay có 5 task 5S kẹt ở status None từ 05/06–17/06 (59–71 ngày) ⇒ cửa sổ
+ * 05/06..15/08 = 71 ngày ⇒ chiaCuaSo() chẻ đôi (trần 61 ngày) ⇒ **2 job export mỗi lượt** thay vì 1,
+ * chạy ~13 lượt/ngày. Trong log có 84 lượt kéo lại y hệt "183 task" của đoạn đã đóng băng.
+ *
+ * Nay tách làm hai:
+ *   • CỬA SỔ CHÍNH  = 45 ngày, mỗi lượt (bắt task mới + task vừa đổi trạng thái) → 1 job.
+ *   • CỬA SỔ PHỤ    = chỉ bao đúng khoảng ngày của các task sống cũ (05/06..17/06 = 13 ngày),
+ *                     kéo **1 lần/ngày** (mốc `.5s-cuaso-cu-ngay`). Chúng đứng yên hàng tháng nên
+ *                     nhịp ngày là thừa tươi; đây chính là khoản cắt.
+ * Không bỏ sót: task sống cũ VẪN được refresh mỗi ngày, chỉ là không refresh 13 lần/ngày. */
 function tinhKhoang(cache) {
   const today = new Date();
   const roll = new Date(today); roll.setDate(roll.getDate() - ROLL_DAYS);
@@ -254,17 +274,27 @@ function tinhKhoang(cache) {
   const H = cache.header;
   const si = H.findIndex(h => h === "Status");                                  // cột trạng thái chính (index 3)
   const ci = H.findIndex(h => String(h || "").toLowerCase().includes("created at")); // cột ngày để chia cửa sổ
-  let earliest = roll, active = 0, thieuNgay = 0;
+  let active = 0, thieuNgay = 0, cuMin = null, cuMax = null, soCu = 0;
   for (const code in cache.rows) {
     const row = cache.rows[code];
     // Bỏ qua, không export lại các task đã ở trạng thái đóng (Terminal)
     if (si >= 0 && laTerminal(row[si])) continue;
     active++;
     const d = ci >= 0 ? parseNgay(row[ci]) : null;
-    if (d) { if (d < earliest) earliest = d; } else thieuNgay++;
+    if (!d) { thieuNgay++; continue; }
+    if (d < roll) { soCu++; if (!cuMin || d < cuMin) cuMin = d; if (!cuMax || d > cuMax) cuMax = d; }
   }
   if (thieuNgay > 0) return { from: SYNC_FROM, to: fmt(today), full: true, note: ` (${thieuNgay} task sống thiếu ngày → full cho chắc)` };
-  return { from: fmt(earliest), to: fmt(today), full: false, active };
+  const kq = { from: fmt(roll), to: fmt(today), full: false, active };
+  if (soCu) {
+    kq.soCu = soCu;
+    // Bao trọn khoảng của nhóm cũ, +1 ngày mỗi đầu cho lệch múi giờ của cột Created At.
+    const a = new Date(cuMin); a.setDate(a.getDate() - 1);
+    const b = new Date(cuMax); b.setDate(b.getDate() + 1);
+    kq.cuaSoCu = [fmt(a), fmt(b)];
+    kq.keoCu = !daKeoCuaSoCuHomNay();
+  }
+  return kq;
 }
 
 async function getToken() {
@@ -311,6 +341,18 @@ const RUN_LOCK = path.join(DIR, ".export-running.lock");
    Nhịp trong ngày mà tự đăng nhập là đá phiên operator — đúng thứ luật phiên cấm. */
 const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
 (async () => {
+  /* --xem-khoang: in ra cửa sổ export sẽ dùng rồi THOÁT. Không token, không job export, không đụng
+     wshr — để soi "lượt này sẽ đặt mấy job" mà không tốn một lượt nào của hệ thống công ty. */
+  if (process.argv.includes("--xem-khoang")) {
+    const c = loadCache();
+    const rg = tinhKhoang(c);
+    const w = chiaCuaSo(rg.from, rg.to);
+    if (rg.cuaSoCu && rg.keoCu) w.push(rg.cuaSoCu);
+    log("Cửa sổ chính: " + rg.from + ".." + rg.to + (rg.full ? " (FULL)" : "") + " · task sống: " + (rg.active ?? "?"));
+    if (rg.cuaSoCu) log("Cửa sổ phụ (task sống cũ): " + rg.cuaSoCu.join("..") + " · " + rg.soCu + " task · " + (rg.keoCu ? "KÉO lượt này" : "đã kéo hôm nay, bỏ qua"));
+    log("→ TỔNG " + w.length + " job export: " + w.map((x) => x.join("..")).join("  |  "));
+    process.exit(0);
+  }
   // Chống chạy chồng (7h sáng + nút Cập nhật ngay) → xung đột profile Edge.
   if (fs.existsSync(RUN_LOCK) && Date.now() - fs.statSync(RUN_LOCK).mtimeMs < 10 * 60 * 1000) {
     log("Đang có phiên auto-export khác chạy, bỏ qua."); process.exit(0);
@@ -340,9 +382,15 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
   }
   const rg = tinhKhoang(cache);
   const windows = chiaCuaSo(rg.from, rg.to);
+  /* Cửa sổ phụ cho task sống cũ hơn ROLL_DAYS — chỉ nối vào lượt ĐẦU TIÊN trong ngày (xem tinhKhoang). */
+  if (rg.cuaSoCu && rg.keoCu) windows.push(rg.cuaSoCu);
   log((rg.full ? "FULL" : "Tăng dần") + " — cửa sổ " + rg.from + ".." + rg.to +
       (rg.note || "") + (rg.active != null ? " (" + rg.active + " task còn sống, " + byCode.size + " task trong kho)" : "") +
       " → " + windows.length + " lần export ≤3 tháng.");
+  if (rg.cuaSoCu) {
+    log("  " + (rg.keoCu ? "+ cửa sổ phụ " + rg.cuaSoCu[0] + ".." + rg.cuaSoCu[1] + " cho " + rg.soCu + " task sống cũ (lượt đầu trong ngày)."
+                         : "· " + rg.soCu + " task sống cũ đã kéo hôm nay — bỏ qua cửa sổ phụ, tiết kiệm 1 job export."));
+  }
 
   let moi = 0, loi = 0;
   for (const [from, to] of windows) {
@@ -368,6 +416,10 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
     moi += n;
     log("  ✓ " + from + ".." + to + ": refresh " + n + " task (kho: " + byCode.size + ").");
   }
+
+  /* Chỉ chạm mốc khi lượt này KHÔNG có cửa sổ nào lỗi — cửa sổ phụ trượt thì lượt sau phải kéo lại,
+     không được coi như đã xong (task sống cũ mà đứng im cả ngày vì 1 lỗi mạng là mất dữ liệu thật). */
+  if (rg.cuaSoCu && rg.keoCu && loi === 0) chamCuaSoCu();
 
   if (!header || !byCode.size) { log("✗ Không lấy được dữ liệu."); process.exit(2); }
   // Cờ "kho hoàn chỉnh": FULL mà mọi cửa sổ OK → complete. FULL còn lỗi → complete=false (lần sau tự chạy full lại).
@@ -429,8 +481,9 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
   log("→ Ghi " + rows.length + " task (" + outHeader.length + " cột, refresh " + moi + ", " + daTra + " dòng có tên NV) vào 5S-TASKS...");
   // apiAt = mốc LẤY DỮ LIỆU TỪ API WMS (vừa export xong) — dashboard hiện chip "Dữ liệu · HH:MM" theo mốc này
   const apiAtMs = Date.now();
-  const res = await fetchRetry(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header: outHeader, rows, apiAt: apiAtMs }) });
-  let j = {}; try { j = JSON.parse(await res.text()); } catch {}
+  /* gasPost: trước đây một cú 404 chập chờn của Google (script ĐÃ ghi xong) làm j={} → log "Ghi tab
+     thất bại" và KHÔNG chạm mốc bước 5s, guard tưởng bộ 5S còn cũ rồi chạy vá lại cả cụm. */
+  let j = {}; try { j = await gasPost({ action: "syncTasks", key: APPSCRIPT_KEY, header: outHeader, rows, apiAt: apiAtMs }, log, "5S-TASKS"); } catch (e) { j = { status: "error", message: e.message }; }
   log(j.status === "success" ? "✓ Đã ghi " + j.written + " dòng lúc " + j.at : "✗ Ghi tab thất bại: " + JSON.stringify(j).slice(0, 200));
   // Mốc bước: chỉ chạm khi 5S-TASKS THẬT SỰ được ghi — guard/poller nhìn mốc này để biết còn cũ hay không.
   if (j.status === "success") ghiMocBuoc(DIR, "5s");

@@ -120,6 +120,53 @@ function tcSoLoai_() {
       nut: null
     },
 
+    /* 11/08/2026 — CẦU NỐI BỊ TẮT. Ca thật: Edge tự tắt extension unpacked (Chế độ nhà phát triển
+     * off), bridge im 5 tiếng, dữ liệu WMS đứng ở 13:03. Đây là sự cố CÓ VIỆC LÀM RÕ RÀNG và làm
+     * xong là hết — nên thư phải nói đúng 3 cú bấm, đừng bắt người đọc suy luận. Màu cam vì lúc
+     * báo thường chưa vỡ: token cũ còn sống thì bảng vẫn tươi, nhưng đã hết đường tự lành. */
+    BRIDGE_TAT: {
+      muc: 'cam', mocNhac: [1, 2, 5],
+      tieuDe: function (sc) { return '🟠 Cầu nối phiên WMS đang bị tắt — máy trạm sắp không lấy được dữ liệu'; },
+      truoc: 'Bật lại trong trình duyệt · Mất khoảng 1 phút',
+      soLieu: function (sc) { return [['Cầu nối', 'Đang tắt', 'cam'], ['Bảng WMS đang cũ', tcDoiPhut_(sc.soLieu.trePhut), 'xam']]; },
+      viSao: function (sc) {
+        return 'Máy trạm <b>không tự đăng nhập WMS được nữa</b> (mã OTP đã chuyển sang app trên điện thoại). '
+          + 'Cách nó lấy dữ liệu bây giờ là <b>mượn phiên đang mở của bạn</b> qua tiện ích “Hasaki WMS Token Bridge” trong Edge.'
+          + '<br><br>Tiện ích đó đang bị tắt, nên không còn đường nào mượn phiên. Hiện tại bảng vẫn có thể còn số cũ dùng được, '
+          + 'nhưng khi vé hiện tại hết hạn thì <b>mọi bảng lấy từ WMS sẽ đứng im</b> và tự nó không lành lại được.'
+          + (sc.chiTiet ? '<br><br><span style="color:#94A3B8">Chi tiết: ' + tcEsc_(sc.chiTiet) + '</span>' : '');
+      },
+      buoc: [
+        { t: 'Mở Edge, gõ vào thanh địa chỉ: edge://extensions', m: 'Trang quản lý tiện ích của trình duyệt.' },
+        { t: 'Bật “Chế độ nhà phát triển”, rồi bật lại “Hasaki WMS Token Bridge — Factory”', m: 'Nếu không thấy tiện ích trong danh sách: bấm “Tải tiện ích đã giải nén” và chọn thư mục factory\\wms-bridge.' },
+        { t: 'F5 một tab wms.inshasaki.com đang đăng nhập', m: 'Trong khoảng 2 phút máy trạm nhận được phiên và tự lấy dữ liệu bù.' },
+        { t: 'Muốn khỏi lặp lại: ghim tiện ích một lần cho xong', m: 'Trên máy trạm chạy: node factory\\wms-bridge\\ghim-extension.mjs — sau đó Edge không tắt được tiện ích này nữa.' }
+      ],
+      nut: null
+    },
+
+    /* 11/08/2026 — KHÔNG CÒN PHIÊN NÀO SỐNG. Khác BRIDGE_TAT ở chỗ: cầu nối vẫn chạy, chỉ là không
+     * có tab WMS/work nào đang đăng nhập để mà nghe. Việc cần làm cũng khác: đăng nhập, không phải
+     * bật tiện ích. Có nút đỏ vì đây đúng ca nút đó được sinh ra để phục vụ. */
+    PHIEN_CHET: {
+      muc: 'do', mocNhac: [1, 2, 5],
+      tieuDe: function (sc) { return '🔴 Không còn phiên WMS nào sống — ' + sc.nguon + ' đang đóng băng'; },
+      truoc: 'Chỉ cần bạn đăng nhập 1 lần · Mất khoảng 2 phút',
+      soLieu: function (sc) { return [['Dữ liệu đang cũ', tcDoiPhut_(sc.soLieu.trePhut), 'do'], ['Cầu nối im lặng', tcDoiPhut_(sc.soLieu.imPhut), 'xam']]; },
+      viSao: function (sc) {
+        return 'Máy trạm chỉ dùng được phiên do <b>người</b> mở (mã OTP nằm trong app điện thoại, bot không sinh được). '
+          + 'Hiện không có tab WMS hay work/hr nào đang đăng nhập, nên không có vé nào để mượn — '
+          + 'hệ thống <b>cố tình không tự đăng nhập</b> để khỏi đá phiên người đang làm và khỏi khoá tài khoản.'
+          + (sc.chiTiet ? '<br><br><span style="color:#94A3B8">Chi tiết: ' + tcEsc_(sc.chiTiet) + '</span>' : '');
+      },
+      buoc: [
+        { t: 'Mở wms.inshasaki.com và đăng nhập như bình thường', m: 'Giữ tab đó mở. Máy trạm tự nhận phiên trong khoảng 2 phút rồi lấy dữ liệu bù.' },
+        { t: 'Hoặc bấm nút đỏ bên dưới', m: 'Máy trạm sẽ mở sẵn cửa sổ đăng nhập; bạn chỉ gõ 6 số từ app Hasaki Authenticator.' },
+        { t: 'Xong — không cần làm gì thêm', m: 'Hệ thống tự chạy bù các bảng đã trễ và gửi thư báo khi dữ liệu chảy lại.' }
+      ],
+      nut: { chu: 'Mở cửa sổ đăng nhập trên máy trạm', loai: 'login' }
+    },
+
     CHO_CAP_PHEP: {
       muc: 'xanh', mocNhac: [7, 14, 28],
       tieuDe: function (sc) { return '🔵 ' + sc.nguon + ' đang chờ bạn cấp phép'; },
@@ -263,6 +310,15 @@ function tcDoiGio_(g) {
   return n + ' ngày' + (l ? ' ' + l + ' giờ' : '');
 }
 
+/* Cảm biến TRONG NGÀY đo bằng phút (11/08/2026): tcDoiGio_ làm tròn "95 phút" thành "2 giờ" — mất
+ * đúng cái thông tin người ta cần ("mới trễ hay trễ lâu rồi?"). Dưới 90' thì nói phút. */
+function tcDoiPhut_(p) {
+  p = Number(p || 0);
+  if (!p) return 'chưa rõ';
+  if (p < 90) return Math.round(p) + ' phút';
+  return tcDoiGio_(p / 60);
+}
+
 function tcNutUrl_(loaiNut) {
   try {
     var base = ScriptApp.getService().getUrl();
@@ -401,7 +457,9 @@ function tcThuNghiem() {
     DANG_NHAP_TAY: { ma: 'THU-DN', loai: 'DANG_NHAP_TAY', nguon: 'Đăng nhập tự động', soLieu: { soLuot: 6, treGio: 27 }, chiTiet: 'Incorrect sign-in details.' },
     BUOC_DUNG: { ma: 'THU-BD', loai: 'BUOC_DUNG', nguon: 'Chấm công · Danh bạ nhân sự', soLieu: { treGio: 27 }, chiTiet: '' },
     DU_LIEU_LECH: { ma: 'THU-DL', loai: 'DU_LIEU_LECH', nguon: 'Tồn kho bất thường', soLieu: { docDuoc: 12, kyVong: 2400 }, chiTiet: 'trung vị 14 lượt gần nhất là 2400' },
-    MAY_TRAM_IM: { ma: 'THU-MT', loai: 'MAY_TRAM_IM', nguon: 'Máy trạm', soLieu: { treGio: 5 }, chiTiet: '' }
+    MAY_TRAM_IM: { ma: 'THU-MT', loai: 'MAY_TRAM_IM', nguon: 'Máy trạm', soLieu: { treGio: 5 }, chiTiet: '' },
+    BRIDGE_TAT: { ma: 'THU-BR', loai: 'BRIDGE_TAT', nguon: 'Cầu nối phiên WMS', soLieu: { trePhut: 120, imPhut: 300 }, chiTiet: 'Extension đã cài nhưng đang bị tắt: bị tắt bằng tay (hoặc Edge tắt vì Chế độ nhà phát triển đã off).' },
+    PHIEN_CHET: { ma: 'THU-PC', loai: 'PHIEN_CHET', nguon: 'Vệ sinh planogram', soLieu: { trePhut: 95, imPhut: 285 }, chiTiet: 'Cầu nối vẫn bật nhưng không nghe được token nào.' }
   };
   for (var k in mau) tcGui_(mau[k], so[k], { mocDaGui: 0 });
   Logger.log('✓ Đã gửi ' + Object.keys(mau).length + ' thư mẫu tới ' + tcEmail_());

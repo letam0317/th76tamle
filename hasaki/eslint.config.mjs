@@ -17,6 +17,9 @@ export default [
         fetch: 'readonly', FormData: 'readonly', Blob: 'readonly',
         AbortController: 'readonly', TextDecoder: 'readonly', TextEncoder: 'readonly',
         atob: 'readonly', btoa: 'readonly', structuredClone: 'readonly',
+        performance: 'readonly',
+        // Trình duyệt (bổ sung 18/08/2026 — bộ test tab Nhận diện SKU dùng trong page.evaluate)
+        getComputedStyle: 'readonly', sessionStorage: 'readonly',
         // Trình duyệt (trong callback page.evaluate)
         window: 'readonly', document: 'readonly', location: 'readonly',
         navigator: 'readonly', XMLHttpRequest: 'readonly', localStorage: 'readonly',

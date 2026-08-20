@@ -51,10 +51,10 @@ export function luuHashTab(DIR, tab, hash) { try { const o = docHashFile(DIR); o
  *   docTabGas(tab)     → { header, rows } | null (null = GAS chưa phục vụ tab đó / lỗi mạng)
  *   gasPhucVuTab(tab)  → true/false: CHỐT PII bắt buộc trước khi ghi tab có email/tên NV, vì GAS
  *                        bản cũ (chưa whitelist) sẽ định tuyến tab đó sang SHEET PUBLIC. */
-export async function docTabGas(tab) {
+export async function docTabGas(tab, log = () => {}) {
   try {
-    const r = await fetchThuLai(APPSCRIPT_URL + "?action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb&_=" + Date.now());
-    const txt = await r.text();
+    // gasGetText: thử lại CHẶNG LẤY NỘI DUNG khi Google trả 404 (script đã chạy xong) — xem gasGoiText_
+    const txt = await gasGetText("action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb&_=" + Date.now(), log, "readTab " + tab);
     if (/không được phục vụ/i.test(txt)) return null;
     const m = txt.match(/^\s*(?:\/\*\*\/)?cb\(([\s\S]*)\)\s*;?\s*$/);
     if (!m) return null;
@@ -62,10 +62,45 @@ export async function docTabGas(tab) {
     return (j && j.status === "success") ? { header: j.header || [], rows: j.rows || [] } : null;
   } catch { return null; }
 }
-export async function gasPhucVuTab(tab) {
+/* ===== HÂM CACHE readTab SAU KHI GHI (12/08/2026) =============================================
+ * GAS @54 phục vụ readTab từ CacheService: lượt DỰNG cache phải mở sheet private + getValues nên
+ * mất 15-100s và hay bị Google trả 404 giữa đường (đo thật 12/08), lượt sau chỉ còn ~2s. Ghi tab
+ * nào là cache tab đó bị xoá → nếu để lượt dựng rơi vào NGƯỜI mở dashboard thì cứ sau mỗi lượt
+ * sync là một người phải ngồi chờ (đúng sự cố "Chưa có dữ liệu vệ sinh" hôm nay).
+ * Đây là chỗ chịu trận thay: bộ sync chạy nền, có fetchThuLai lo thử lại, chậm cũng không ai đợi.
+ * Best-effort — hâm hụt thì chỉ mất lợi thế tốc độ, dữ liệu vẫn đúng. */
+export async function hamCacheTabs(tabs, log = () => {}) {
+  const ds = (tabs || []).filter(Boolean);
+  if (!ds.length) return 0;
+  let ok = 0;
+  for (const tab of ds) {
+    const t0 = Date.now();
+    /* MỘT lượt là đủ: docTabGas nay đi qua gasGetText, bên trong đã thử lại 4 lần chặng lấy nội dung
+       và tối đa 3 vòng chạy lại script. Bọc thêm vòng lặp ở đây là lồng thử-lại (3 × 12 request),
+       một tab hỏng sẽ treo bộ sync hàng phút — đúng cái bẫy đã gặp với fetchThuLai. */
+    const j = await docTabGas(tab, log);
+    if (j) { ok++; log("  ✓ Hâm cache readTab " + tab + " (" + j.rows.length + " dòng, " + Math.round((Date.now() - t0) / 1000) + "s)."); }
+    else log("  ⚠ Hâm cache readTab " + tab + " không xong — người mở dashboard đầu tiên sẽ phải chờ lượt dựng.");
+  }
+  return ok;
+}
+/* Trước 12/08/2026 hàm này probe bằng cách GỌI readTab — tức TẢI CẢ TAB (VESINH-YEUCAU 131KB!) chỉ
+ * để biết tên tab có trong whitelist hay không, 4 lượt mỗi lần sync. Execution dài chính là thứ khiến
+ * Google trả 404 ở khâu lấy nội dung, nên probe kiểu đó tự bơm thêm lỗi cho mình.
+ * Nay hỏi `caps.servedTabs` MỘT lần rồi nhớ trong vòng đời process. GAS chưa có trường đó (bản cũ)
+ * thì rơi về đường probe readTab như trước — không đổi hành vi. */
+let _servedTabs = null;
+export async function gasPhucVuTab(tab, log = () => {}) {
+  if (_servedTabs === null && APPSCRIPT_KEY) {
+    try {
+      const j = await gasPost({ action: "caps", key: APPSCRIPT_KEY }, () => {}, "caps");
+      _servedTabs = Array.isArray(j && j.servedTabs) ? j.servedTabs : false;
+    } catch { _servedTabs = false; }
+  }
+  if (Array.isArray(_servedTabs)) return _servedTabs.indexOf(tab) >= 0;
   try {
-    const r = await fetchThuLai(APPSCRIPT_URL + "?action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb");
-    return !/không được phục vụ/i.test(await r.text());
+    const txt = await gasGetText("action=readTab&tab=" + encodeURIComponent(tab) + "&callback=cb", log, "probe " + tab);
+    return !/không được phục vụ/i.test(txt);
   } catch { return false; }   // lỗi mạng → coi như CHƯA sẵn sàng (an toàn: thà không ghi hơn ghi lộ PII)
 }
 
@@ -79,15 +114,13 @@ export async function chamMocTabs(tabs, apiAt, log = () => {}) {
   if (!APPSCRIPT_KEY || !tabs || !tabs.length) return false;
   if (_touchCap == null) {
     try {
-      const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "caps", key: APPSCRIPT_KEY }) });
-      const j = await r.json().catch(() => null);
+      const j = await gasPost({ action: "caps", key: APPSCRIPT_KEY }, () => {}, "caps");
       _touchCap = !!(j && j.touchTabs);
     } catch { _touchCap = false; }
   }
   if (!_touchCap) return false;   // GAS chưa deploy bản có touchTabs → im lặng bỏ qua (chip giữ mốc cũ như trước)
   try {
-    const r = await fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "touchTabs", key: APPSCRIPT_KEY, tabs, apiAt: apiAt || Date.now() }) });
-    const j = await r.json().catch(() => null);
+    const j = await gasPost({ action: "touchTabs", key: APPSCRIPT_KEY, tabs, apiAt: apiAt || Date.now() }, () => {}, "touchTabs");
     if (j && j.status === "success") { log("  ✓ Chạm mốc giờ " + tabs.join(", ") + " (dữ liệu không đổi, chip vẫn chạy)."); return true; }
   } catch { /* best-effort — hụt 1 lần chạm chỉ làm chip cũ hơn vài chục phút */ }
   return false;
@@ -102,6 +135,18 @@ export async function chamMocTabs(tabs, apiAt, log = () => {}) {
  *    SYNC_SKIP_FRESH=1 (guard đặt khi chạy vá, KHÔNG đặt khi --force): bước đã tươi hôm nay
  *    tự thoát sớm — chỉ bước còn cũ phải chạy lại, khỏi kéo trùng cả cụm ~25 phút.
  * ================================================================================================ */
+/** Dịch lỗi mạng của undici sang câu người đọc được — dùng chung cho mọi bộ có mặt người
+ *  (nút nộp báo cáo, bot tin nhắn). Bẫy 19/08/2026: wshr sau Cloudflare không bắt tay kịp,
+ *  `fetch` ném `TypeError: fetch failed` trống trơn, cửa sổ hiện nguyên stack Node. */
+export function moTaLoiMang(e) {
+  const c = (e && e.cause && e.cause.code) || (e && e.code) || "";
+  if (c === "UND_ERR_CONNECT_TIMEOUT") return "máy chủ không bắt tay kịp (mạng chậm, hoặc bị chặn)";
+  if (c === "ENOTFOUND" || c === "EAI_AGAIN") return "không phân giải được tên miền (mất mạng / DNS hỏng)";
+  if (c === "ECONNRESET" || c === "UND_ERR_SOCKET") return "máy chủ ngắt kết nối giữa chừng";
+  if (c === "UND_ERR_HEADERS_TIMEOUT" || c === "UND_ERR_BODY_TIMEOUT") return "máy chủ nhận rồi nhưng không trả lời kịp";
+  return (e && e.message) || String(e);
+}
+
 export async function fetchThuLai(url, opt, lan = 4) {
   let loiCuoi = null;
   for (let i = 0; i < lan; i++) {
@@ -114,20 +159,115 @@ export async function fetchThuLai(url, opt, lan = 4) {
   throw loiCuoi || new Error("fetch failed");
 }
 
+/* ===== GỌI GAS CHỊU ĐƯỢC 404 CỦA GOOGLE (12/08/2026) =========================================
+ * ĐO THẬT ĐỂ TÌM GỐC (đừng suy đoán lại). Một lượt gọi Apps Script luôn có HAI CHẶNG:
+ *   chặng 1  GET/POST …/exec  → chạy script, trả 302 kèm header Location
+ *   chặng 2  GET script.googleusercontent.com/…/echo?user_content_key=…  → lấy nội dung
+ * Đo 12/08 trên cùng một URL:
+ *   lượt 1: chặng1 302 (4,0s) → chặng2 200 (0,5s) 127.837 byte
+ *   lượt 2: chặng1 302 (11,8s) → chặng2 404 (46,5s) → 404 (16,4s) → 200 (9,3s) CÙNG 127.837 byte
+ * → 404 KHÔNG phải script lỗi: SCRIPT ĐÃ CHẠY XONG, chỉ khâu lấy nội dung hỏng; thử lại chặng 2 là
+ *   nhận được ĐÚNG kết quả đã tính, không chạy lại gì. Đây cũng là lý do 15:17 hôm nay bộ sync báo
+ *   "ghi lỗi" trong khi Sheet thực ra đã được ghi.
+ * VÌ THẾ:
+ *   · Thử lại CHẶNG 2 trước — rẻ, không chạy lại script, không ghi trùng. Cắt timeout 25s để không
+ *     nằm chờ 46s như lượt đo được.
+ *   · Hết đường mới chạy lại chặng 1, và luôn kèm NONCE để GAS nhận ra "lượt thử lại của cùng một
+ *     nội dung" mà trả lại phản hồi cũ thay vì ghi/gửi mail lần nữa (xem doPost trong
+ *     google-script.gs). Nhờ nonce, thử lại an toàn cả với ghi append và action gửi mail.
+ * KHÔNG nới fetchThuLai để thử lại 404 chung: 404 ở endpoint khác (WMS/wshr) là 404 thật. */
+const GAS_TIMEOUT_CHANG1 = 120000;   // chạy script: lượt phải mở Sheet có thể tới ~60s
+const GAS_TIMEOUT_CHANG2 = 25000;    // lấy nội dung: khoẻ thì 0,5-9,3s; quá 25s là đang hỏng
+const GAS_CHANG2_LAN = 4;            // thử lại chặng 2 (rẻ)
+const GAS_CHANG1_LAN = 3;            // chạy lại script (đắt) — chỉ khi chặng 2 chịu thua
+
+function laTrangLoi_(txt) { return /^\s*<(!doctype|html)/i.test(txt || ""); }
+
+/** Gọi GAS, trả về TEXT thân phản hồi. Ném lỗi nếu cả 3 vòng đều không lấy được nội dung. */
+async function gasGoiText_(url, init, log = () => {}, nhan = "GAS") {
+  let loiCuoi = null;
+  for (let v = 0; v < GAS_CHANG1_LAN; v++) {
+    let loc = null;
+    try {
+      const r1 = await fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(GAS_TIMEOUT_CHANG1) });
+      if (r1.status >= 200 && r1.status < 300) {           // không redirect (ít gặp) → nội dung ngay đây
+        const txt = await r1.text();
+        if (txt && !laTrangLoi_(txt)) return txt;
+        loiCuoi = new Error(nhan + ": chặng 1 trả " + r1.status + " kèm trang lỗi");
+      } else {
+        loc = r1.headers.get("location");
+        if (!loc) loiCuoi = new Error(nhan + ": chặng 1 trả " + r1.status + " mà không có Location");
+      }
+    } catch (e) { loiCuoi = e; }
+
+    if (loc) {
+      for (let k = 0; k < GAS_CHANG2_LAN; k++) {
+        try {
+          const r2 = await fetch(loc, { signal: AbortSignal.timeout(GAS_TIMEOUT_CHANG2) });
+          const txt = await r2.text();
+          if (r2.ok && txt && !laTrangLoi_(txt)) return txt;
+          loiCuoi = new Error(nhan + ": chặng 2 trả " + r2.status + (laTrangLoi_(txt) ? " (trang HTML lỗi)" : ""));
+        } catch (e) { loiCuoi = e; }
+        if (k < GAS_CHANG2_LAN - 1) {
+          log("  ⚠ " + nhan + ": Google chưa trả được nội dung (script ĐÃ chạy) — lấy lại lượt " + (k + 2) + "/" + GAS_CHANG2_LAN + "…");
+          await new Promise((s) => setTimeout(s, 1500 * (k + 1)));
+        }
+      }
+    }
+    if (v < GAS_CHANG1_LAN - 1) {
+      log("  ⚠ " + nhan + ": không lấy được nội dung — chạy lại lượt " + (v + 2) + "/" + GAS_CHANG1_LAN + " (có nonce, không ghi trùng)…");
+      await new Promise((s) => setTimeout(s, 3000 * (v + 1)));
+    }
+  }
+  throw loiCuoi || new Error(nhan + ": không lấy được phản hồi");
+}
+
+/** POST lên GAS → trả object JSON. body: chuỗi JSON hoặc object. Tự chèn nonce để thử lại an toàn. */
+export async function gasPost(body, log = () => {}, nhan = "GAS POST") {
+  let chuoi = typeof body === "string" ? body : JSON.stringify(body);
+  try {   // nonce GIỮ NGUYÊN qua mọi lượt thử lại của cùng nội dung này
+    const o = JSON.parse(chuoi);
+    if (o && typeof o === "object" && !o.nonce) { o.nonce = crypto.randomUUID(); chuoi = JSON.stringify(o); }
+  } catch { /* body không phải JSON → gửi y nguyên, chỉ mất lợi thế nonce */ }
+  const txt = await gasGoiText_(APPSCRIPT_URL, {
+    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: chuoi,
+  }, log, nhan);
+  try { return JSON.parse(txt); }
+  catch { throw new Error(nhan + ": phản hồi không phải JSON: " + txt.slice(0, 80).replace(/\s+/g, " ")); }
+}
+
+/** GET GAS (action đọc — JSONP hoặc JSON) → trả TEXT. query: "action=readTab&tab=…" */
+export async function gasGetText(query, log = () => {}, nhan = "GAS GET") {
+  const url = APPSCRIPT_URL + (query.startsWith("?") ? query : "?" + query);
+  return gasGoiText_(url, { method: "GET" }, log, nhan);
+}
+
 /* "5s" thêm 31/07/2026: bộ 5S trước đây đứng NGOÀI cơ chế mốc-bước, nên lượt 8h40 trượt là
  * không ai vá — dữ liệu đóng băng cả ngày (29→31/07) trong khi 4 bước factory vẫn tươi. */
 export const CAC_BUOC_SYNC = ["stocklocation", "kiemke", "tonbatthuong", "vesinh", "5s"];
 export function ghiMocBuoc(DIR, buoc) { try { fs.writeFileSync(path.join(DIR, ".sync-ok-" + buoc), new Date().toISOString()); } catch { /* mốc best-effort, không chặn luồng chính */ } }
 export function docMocBuoc(DIR, buoc) { try { return fs.statSync(path.join(DIR, ".sync-ok-" + buoc)).mtimeMs; } catch { return 0; } }
 
-/** true = bước đã xong sau 08:40 hôm nay và đây là lượt guard chạy VÁ (SYNC_SKIP_FRESH=1) → thoát sớm. */
+/* Ngưỡng TRỄ dùng CHUNG với sync-guard.js và canh-suc-khoe.js — sửa 1 chỗ là cả 3 tầng theo. */
+const NGUONG_TRE_MS = Number(process.env.CANH_TRE_PHUT || 90) * 60000;
+
+/** true = bước còn tươi (trễ < ngưỡng 90') và đây là lượt guard chạy VÁ (SYNC_SKIP_FRESH=1) → thoát sớm.
+ *
+ * VÁ 15/08/2026 — sự cố chiều 14/08 (planogram đóng băng ở 15:38 tới hết ngày). Bản cũ định nghĩa
+ * "tươi" = `mốc ≥ 08:40 hôm nay`, trong khi guard từ 12/08 đã kích hoạt theo `trễ > 90'`. Hai luật
+ * lệch nhau ⇒ chiều 14/08 guard bắt đúng bệnh ("mốc cũ nhất 151' > ngưỡng 90'"), giành đúng ba lượt
+ * ĐƯỢC login lúc 16:12/16:34/16:56 (không phiên nào sống, cửa im lặng đã qua) — nhưng cụm vừa vào
+ * là MỌI bước tự thoát "đã tươi hôm nay" vì mốc của chúng đều sau 08:40. Cụm chạy 29 giây, không
+ * kéo gì, guard in "✓ XONG". Ba cửa sổ login cuối cùng của ngày bị tiêu phí; tới 17:10 bridge
+ * work/hr sống lại ⇒ luật phiên cấm login ⇒ dữ liệu đứng luôn tới lúc tắt máy.
+ * Nay bước chỉ tự thoát khi CHÍNH NÓ còn tươi theo đúng thước đo mà guard dùng để gọi. */
 export function boQuaNeuDaTuoi(DIR, buoc, log = () => {}) {
   if (String(process.env.SYNC_SKIP_FRESH || "") !== "1") return false;
   const t = docMocBuoc(DIR, buoc);
-  const now = new Date();
-  const nguong = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 40, 0).getTime();
-  if (t < nguong) return false;
-  log("✓ Bước '" + buoc + "' đã tươi hôm nay (" + new Date(t).toLocaleString("vi-VN") + ") — bỏ qua, nhường lượt cho bước còn cũ.");
+  const tre = Date.now() - t;
+  if (!t || tre > NGUONG_TRE_MS) return false;
+  log("✓ Bước '" + buoc + "' còn tươi (" + new Date(t).toLocaleString("vi-VN") + ", trễ " + Math.round(tre / 60000)
+      + "' < ngưỡng " + Math.round(NGUONG_TRE_MS / 60000) + "') — bỏ qua, nhường lượt cho bước còn cũ.");
   return true;
 }
 
@@ -154,7 +294,7 @@ const BLOCKS = BLOCKS_RAW.split(",").map((c) => {
 
 /* Phút-trong-ngày theo GIỜ VN THẬT (Asia/Ho_Chi_Minh) — không tin múi giờ máy: luật khung chặn
    mà chạy sai múi giờ là re-login ngay giữa giờ làm = đá phiên operator (rà soát 27/07/2026). */
-function phutVN(d = new Date()) {
+export function phutVN(d = new Date()) {
   const [h, m] = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).format(d).split(":").map(Number);
   return h * 60 + m;
 }
@@ -230,8 +370,9 @@ let _bridgeCap = null;
 async function docBridgeCaps() {
   if (_bridgeCap != null) return _bridgeCap;
   try {
-    const r = await fetch(APPSCRIPT_URL + "?action=bridgeCaps", { redirect: "follow" });
-    const j = await r.json().catch(() => null);
+    // gasGetText: chịu được 404 chặng lấy nội dung — probe này quyết định có dùng token bridge hay không,
+    // trượt oan là cả cụm tồn kho bỏ qua token đang sống rồi đi đăng nhập mới (đá phiên người khác).
+    const j = JSON.parse(await gasGetText("action=bridgeCaps", () => {}, "bridgeCaps"));
     _bridgeCap = { wms: !!(j && j.bridgeToken), wshr: !!(j && j.bridgeWshr) };
   } catch { _bridgeCap = { wms: false, wshr: false }; }
   return _bridgeCap;
@@ -246,11 +387,7 @@ export async function layBridgeToken(log = () => {}) {
   if (!APPSCRIPT_KEY) return null;
   if (!(await coBridgeCap())) return null;   // GAS chưa redeploy bản có bridge → im lặng bỏ qua
   try {
-    const r = await fetch(APPSCRIPT_URL, {
-      method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getBridgeToken", key: APPSCRIPT_KEY }),
-    });
-    const j = await r.json().catch(() => null);
+    const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY }, () => {}, "getBridgeToken").catch(() => null);
     if (!j || j.status !== "success" || !j.token) return null;
     const tk = "Bearer " + String(j.token).replace(/^Bearer\s+/i, "");
     const me = await fetch(GET_ME, { headers: { authorization: tk } }).catch(() => null);
@@ -315,11 +452,7 @@ export async function layBridgeTokenWshr(log = () => {}) {
   if (!APPSCRIPT_KEY) return null;
   if (!(await docBridgeCaps()).wshr) return null;
   try {
-    const r = await fetch(APPSCRIPT_URL, {
-      method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getBridgeToken", kind: "wshr", key: APPSCRIPT_KEY }),
-    });
-    const j = await r.json().catch(() => null);
+    const j = await gasPost({ action: "getBridgeToken", kind: "wshr", key: APPSCRIPT_KEY }, () => {}, "getBridgeToken wshr").catch(() => null);
     if (!j || j.status !== "success" || !j.token) return null;
     const tk = "Bearer " + String(j.token).replace(/^Bearer\s+/i, "");
     const thu = await fetch(WSHR_THU, { headers: { authorization: tk } }).catch(() => null);

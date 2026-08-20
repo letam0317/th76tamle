@@ -27,7 +27,7 @@
 import "dotenv/config";
 import path from "node:path"; import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { layTokenSongWms, fetchThuLai } from "./session-rules.js";
+import { layTokenSongWms, fetchThuLai, gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DRY = process.argv.includes("--dry");
@@ -229,8 +229,7 @@ if (DRY) { log(""); log("(--dry) Không ghi Sheet."); process.exit(0); }
 
 const apiAt = Date.now();
 const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: TAB, sheetId: SHEET_ID, header: HEADER, rows, append: false, apiAt });
-const rp = await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body });
-const jp = JSON.parse(await rp.text());
+const jp = await gasPost(body, log, TAB);
 if (jp.status !== "success") { log("✗ Apps Script từ chối: " + (jp.message || "?")); process.exit(4); }
 log("");
 log(`✓ Đã ghi tab "${TAB}" (${rows.length} dòng × ${HEADER.length} cột) vào Sheet factory.`);

@@ -466,6 +466,112 @@ Từ 01/08 đã có `VESINH-CHAMCONG-NGAY` (60 ngày) nhưng chỉ pop-up dùng.
 | T2 03/08 (hôm nay) | 4 | 84 *(phụ trách CÓ chấm công — cần nhắc)* | 90 | Cần nhắc theo nhân viên · 30 NV · 84 ô |
 | CN 02/08 (ngày cũ) | 19 | **79** *(phụ trách ĐI LÀM mà không báo cáo)* | 80 | **Đi làm mà không báo cáo · 30 NV · 79 ô** |
 
+## 4i. ✅ 18/08/2026 — ẢNH BÁO CÁO GIỮ 7 NGÀY (chia 2 tầng, KHÔNG thêm lượt gọi WMS)
+
+**Câu hỏi:** pop-up chi tiết planogram chỉ xem được ảnh 3 ngày gần nhất — có nâng lên 7 ngày được không?
+
+**Được, và không chạm upstream lượt nào.** Ảnh nằm sẵn trong `request_image[]` của chính bản ghi
+LIST `schedule-requests` mà `sync-vesinh-all.js` vẫn quét (10 ngày ở nhịp poller / 45 ngày ở cụm
+sáng). Giữ 3 hay 7 ngày chỉ là chuyện GHI THÊM DÒNG xuống Sheet.
+
+**Vì sao KHÔNG dồn hết vào 1 tab** (đo thật 18/08, `curl` thẳng `action=readTab`):
+
+| tab | dòng | payload | thời gian |
+|---|---|---|---|
+| `VESINH-ANH` (3 ngày) | 309 | **398 KB** | 2,1–3,3 s |
+| nếu gộp 7 ngày | ~760 | **~990 KB** | ~5–9 s |
+| `VESINH-AI` (tab nặng nhất hiện nay) | — | 681 KB | 2,2 s |
+
+Ảnh nhiều bất ngờ vì mỗi yêu cầu A1 mang trung bình ~16 ảnh (~86 ký tự/URL sau khi cắt tiền tố).
+Gộp 1 tab = mọi lượt mở pop-up đều gánh ~1 MB, trong khi gần như mọi lượt xem là NGÀY HÔM NAY.
+
+**Cách làm — 2 tầng:**
+- `VESINH-ANH` giữ nguyên `VS_ANH_NGAY`=3 ngày → đường nhanh không đổi chi phí (vẫn ~400 KB).
+- Tab mới `VESINH-ANH-CU` = ngày 4→7 (`VS_ANH_CU_NGAY`=7, trần = `VS_YC_DAYS`), 453 dòng ≈ 589 KB.
+  Dashboard **chỉ gọi khi người dùng soi một ngày không có trong tab nhanh** (`canAnhNgay()` — nhận
+  biết bằng chính cột `Ngày` của tab nhanh, không hard-code số 3 ở 2 nơi). Ảnh 2 tab gộp vào chung
+  một sổ `S.anh.by` nên 4 chỗ vẽ ảnh (danh sách NV, pop-up ô, modal yêu cầu, lightbox) không đổi gì.
+- GAS: thêm `VESINH-ANH-CU` vào `SERVE_PRIVATE_TABS` (deploy bằng clasp → **@60**, URL không đổi).
+  Sync probe `gasPhucVuTab` trước khi ghi nên thứ tự bắt buộc vẫn là **GAS trước, sync sau**.
+
+**Nghiệm live** (`qc-anh-7ngay.mjs`, mở đúng URL người dùng):
+
+| bước | kết quả |
+|---|---|
+| pop-up ô HÔM NAY | 24 ảnh · gọi `VESINH-ANH` ×1 · `VESINH-ANH-CU` **×0** |
+| chuyển sang 12/08 rồi mở pop-up | 24 ảnh · `VESINH-ANH-CU` ×1 (trước đây: rỗng) |
+| lỗi console | không |
+
+⚠ **BẪY ĐÃ DÍNH:** lượt QC live ĐẦU TIÊN báo "ngày cũ vẫn không có ảnh" trong khi bản local chạy
+đúng — vì GitHub Pages/CDN còn cache module theo URL cũ `hasaki-planogram.js?v=20260801d`. Đổi
+`?v=` trong `index.html` (nay `v=20260818a`) rồi đợi CDN là hết. Đừng đi sửa logic khi gặp triệu
+chứng này: kiểm `curl` nội dung file live trước.
+
+### Lỗi user bắt được ngay chiều 18/08 (ô `F0-A1-511-08-04-01`, bấm ngày 14/8)
+
+Pop-up báo **"Ảnh báo cáo (0) · ảnh chỉ lưu 7 ngày gần nhất"** trong khi 14/8 cách hôm nay 4 ngày
+và Sheet có đủ **16 ảnh** (`VESINH-ANH-CU` #25370202). Gốc: "ngày đang xem" có **HAI nguồn** —
+`khoang()` của màn hình và `VT.ngay` riêng của pop-up ô (đổi bằng dải ô ngày trong chính pop-up).
+`canAnhNgay()` bản đầu chỉ xét `khoang()`, mà `vtNgay()` thì chỉ `renderVt()` ⇒ đường bấm ngày
+TRONG pop-up không bao giờ kéo tầng ảnh cũ. Chữa: `canAnhNgay()` xét thêm `VT.ngay` khi pop-up đang
+mở, và `vtNgay()` gọi `canAnhNgay()` trước khi vẽ. (QC cũ không bắt được vì nó đổi ngày bằng
+`setNgay()` — đúng đường màn hình, sai đường người dùng thật hay dùng.)
+
+Sửa kèm — **câu thông báo cũ nói dối 3 tình huống khác nhau**: nay tách rõ "đang tải ảnh báo cáo…"
+(nguồn chưa về) ↔ "yêu cầu này không kèm ảnh báo cáo" (nguồn đã phủ ngày đó mà không có ảnh) ↔
+"ảnh chỉ lưu trên dashboard 7 ngày gần nhất" (thật sự ngoài cửa sổ). Nghiệm live `?v=20260818d`:
+bấm 14/8 → "Ảnh báo cáo (16)", 4 ô + nút "+12", tải thêm 2,7 MB, gọi đúng 1 lượt `VESINH-ANH-CU`.
+
+## 4j. ✅ 18/08/2026 — ẢNH: ĐO CHI PHÍ THẬT rồi HOÃN TẢI (không dựng kho ảnh)
+
+**Câu hỏi của user:** lưu sẵn ảnh 7 ngày ở một nơi, chỉ tải ảnh của yêu cầu MỚI, khỏi tải lại —
+để vừa nhanh vừa không đè hệ thống. Đo trước khi làm, và số đo lật ngược một nửa giả thiết:
+
+| đo được (18/08) | số |
+|---|---|
+| Kích thước 1 ảnh báo cáo (8 mẫu) | **451–769 KB**, trung bình ~520 KB (ảnh gốc điện thoại) |
+| Mở 1 pop-up ô | **36 ảnh · 18,6 MB · 16,8 s** (chỉ để vẽ thumbnail 34–56px) |
+| Mở LẠI đúng ô đó | **0 lượt · 0 KB** |
+| Nơi phát ảnh thật | `cdn-media-wms.inshasaki.com` (**Cloudflare**), không phải server WMS |
+| Header WMS `.../filesmanagement/planogram/standard/<f>` | `302` → CDN, `cache-control: public, max-age=518400, immutable` (6 ngày) |
+| Header CDN | `Cache-Control: max-age=604800` (7 ngày) |
+| CDN có đường resize? | **KHÔNG** — `/cdn-cgi/image/width=…` trả 404, `?width=`/`?w=` bị bỏ qua, không thương lượng webp |
+
+**Kết luận 1 — phần "khỏi tải lại" KHÔNG cần làm gì:** trình duyệt đã giữ ảnh 6–7 ngày theo đúng
+header của WMS/CDN; mở lại tốn 0 byte. Dựng kho ảnh riêng chỉ để tránh tải lại là làm lại việc
+hạ tầng đang làm không công.
+
+**Kết luận 2 — kho ảnh riêng KHÔNG đáng:** muốn có thumbnail nhỏ thì máy trạm phải tải **bản gốc
+một lần**: ~2.000 ảnh/ngày × 520 KB ≈ **1,05 GB/ngày** kéo về (đúng thứ cần tránh), rồi resize.
+Chỗ chứa cũng không có: repo GitHub Pages phình vĩnh viễn vì git giữ lịch sử (xoá ảnh ngày thứ 8
+không giảm dung lượng, ~14.000 file/7 ngày); Drive phục vụ ảnh public chậm và hay chặn hotlink;
+GAS phục vụ bytes thì sàn ~2 s/lượt. Biến thể đáng làm sau này: chỉ mirror ảnh của ca **AI chấm
+KHÔNG ĐẠT** (vài chục ảnh/ngày) để giữ hồ sơ bằng chứng lâu hơn 7 ngày — thứ mà cache không thay được.
+
+**Đã làm — 2 lớp, đo lại sau mỗi lớp:**
+
+1. `imgAnh()` + `lazyQuet()` — thumbnail mang `data-src`, chỉ đổi thành `src` khi lọt khung nhìn
+   (IntersectionObserver, đệm 240 px; không hỗ trợ thì tải thẳng như cũ). Áp cho cả 3 chỗ vẽ ảnh
+   (pop-up ô · danh sách theo dõi · modal yêu cầu).
+   **Đo lại: 18,6 MB → 9,2 MB.** Chưa đủ, vì 24 ô thumbnail của pop-up NẰM TRỌN trong tầm nhìn ⇒
+   "hoãn" không hoãn được gì. *(Bài học: lazy chỉ cứu được thứ nằm ngoài màn hình.)*
+2. Pop-up bày sẵn `ANH_XEM_TRUOC` = **4 ô**, phần còn lại giấu sau nút `+N` (`moAnhHet()` trải hết
+   lưới khi người dùng CHỦ ĐỘNG bấm). Lightbox vốn đã chỉ dựng 1 thẻ `<img>` mỗi lượt.
+
+**Số đo live sau cùng** (bản `?v=20260818c`):
+
+| | trước | sau |
+|---|---|---|
+| Mở 1 pop-up ô | 36 ảnh · **18,6 MB** · 16,8 s | 4 ô + nút "+20" · **2,49 MB** · **1,81 s** |
+| Mở lại đúng ô đó | 0 KB | 0 KB (cache trình duyệt) |
+| Bấm "+N" xem cả bộ | — | +11 MB (người dùng chủ động chọn) |
+| Dựng màn hình đầu | không tải ảnh | không tải ảnh (2,93 s) |
+
+Muốn bày nhiều/ít ô hơn: sửa `ANH_XEM_TRUOC` (mỗi ô ≈ 0,5 MB, quy đổi thẳng ra băng thông).
+Kèm theo: sửa lời nhắc "ảnh chỉ lưu 3 ngày" → **7 ngày**. QC: `qc-anh-7ngay.mjs` (nhận `QC_URL=`
+để soi bản localhost trước khi deploy — Pages/CDN trễ 5–8 phút, đừng sửa logic khi gặp triệu chứng
+"bản mới không ăn").
+
 ## 5. Công cụ nghiên cứu đã tạo (read-only, tôn trọng luật phiên)
 `.exports/` chứa bằng chứng: `probe-planogram*.json`, `captured-planogram-authed.json`.
 Script: `capture-planogram.mjs`, `capture-planogram-authed.mjs` (nạp token bridge vào

@@ -34,7 +34,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { fetchThuLai, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab } from "./session-rules.js";
+import { fetchThuLai, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab, gasPost, hamCacheTabs } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -117,10 +117,13 @@ async function ghiTab(tab, header, rows){
     return;
   }
   const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, header, rows, apiAt: Date.now() });
-  const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+  /* gasPost thay cho fetch().json(): Apps Script chập chờn trả 404/trang HTML (12/08), .json() nổ
+     "Unexpected token '<'" là chết cả bước. Xem gasPost trong session-rules.js. */
+  const j = await gasPost(body, log);
   if (j.status !== "success") throw new Error("Ghi " + tab + " lỗi: " + (j.message || "?"));
   luuHashTab(DIR, tab, hash);
   log("  ✓ " + tab + ": ghi " + (j.written || rows.length) + " dòng.");
+  await hamCacheTabs([tab], log);   // bảng phân công là nguồn bậc 1 (tên người phụ trách ở tooltip/pop-up)
 }
 
 /* ===== CHẠY ===== */

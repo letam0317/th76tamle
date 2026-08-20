@@ -17,6 +17,8 @@
  *       trách dự kiến × chấm công. 03/08/2026 CẮT 5 cột suy được (−54% payload, xem HEADER_YC).
  *   • VESINH-ANH        : Request ID | Ngày | Ảnh — ảnh báo cáo tách khỏi VESINH-YEUCAU để tab
  *       nặng nhất lúc mở dashboard nhẹ đi 44KB; dashboard nạp bậc 3 (chỉ khi cần xem ảnh).
+ *   • VESINH-ANH-CU     : cùng 3 cột, phần ảnh của ngày 4→7 (18/08/2026) — dashboard chỉ tải khi
+ *       người dùng soi một ngày không nằm trong tab nhanh. Xem YC_ANH_CU_NGAY.
  *   • VESINH-NHATKY     : nhật ký NV × NGÀY × khu vực → danh sách vị trí đã vệ sinh (60 ngày,
  *       dựng từ VESINH-LICHSU cộng dồn) — pop-up "tra cứu 1 nhân viên làm ở đâu theo ngày".
  *   • VESINH-LICHSU     : LỊCH SỬ TỪNG LƯỢT BÁO CÁO theo VỊ TRÍ + GIỜ, cửa sổ TRƯỢT 60 NGÀY
@@ -42,7 +44,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenSongWms, DeferError, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab } from "./session-rules.js";
+import { layTokenSongWms, DeferError, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab, hamCacheTabs, gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -55,6 +57,7 @@ const TAB_NK = "VESINH-NHATKY";
 const TAB_LS = "VESINH-LICHSU";
 const TAB_CCN = "VESINH-CHAMCONG-NGAY";
 const TAB_ANH = "VESINH-ANH";
+const TAB_ANH_CU = "VESINH-ANH-CU";   // ảnh của ngày 4→7 (xem chú thích YC_ANH_CU_NGAY)
 const EXT = "https://wms-gw-external.hasaki.vn/api/v1";
 const WSHR_DIR = "https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=10000&sort=staff_id";
 const TIMESHEET = "https://wshr.hasaki.vn/api/hr/timesheet";
@@ -74,7 +77,17 @@ const WINDOW_DAYS = Number(process.env.PHUTRACH_DAYS || 45);
 /* VESINH-YEUCAU giữ N ngày (xem lại lịch sử trên sơ đồ). KHÔNG được vượt cửa sổ quét: lượt poller
    quét 10 ngày mà xin 30 ngày yêu cầu thì tab bị cắt cụt rồi ghi đè mất phần cũ. */
 const YC_DAYS = Math.min(Number(process.env.VS_YC_DAYS || 7), WINDOW_DAYS);
-const YC_ANH_NGAY = Number(process.env.VS_ANH_NGAY || 3);   // chỉ đính URL ảnh cho N ngày gần nhất (giảm payload)
+/* ẢNH BÁO CÁO — HAI TẦNG (18/08/2026). Trước đây chỉ giữ 3 ngày vì payload: đo thật hôm nay,
+ * readTab VESINH-ANH = 398KB/3,1s (nặng thứ nhì sau VESINH-AI 681KB) mà mở pop-up là phải tải cả
+ * tab. Nay giữ ĐỦ 7 NGÀY (đúng cửa sổ VESINH-YEUCAU, trần user chốt 15/08) nhưng CHIA ĐÔI:
+ *   VESINH-ANH    = VS_ANH_NGAY ngày gần nhất (3)  → bậc 3, ai mở pop-up cũng tải: giữ nguyên 398KB.
+ *   VESINH-ANH-CU = phần còn lại tới VS_ANH_CU_NGAY (7) → CHỈ tải khi người dùng soi đúng ngày cũ
+ *                   không có trong tab nhanh (~590KB, đo 18/08: 4 ngày × ~140KB).
+ * KHÔNG tốn thêm LƯỢT GỌI WMS nào: ảnh nằm sẵn trong `request_image[]` của chính lượt quét
+ * schedule-requests đang chạy — đây thuần là chuyện ghi thêm dòng xuống Sheet. */
+const YC_ANH_NGAY = Number(process.env.VS_ANH_NGAY || 3);   // tab NHANH: N ngày gần nhất
+/* Không vượt YC_DAYS: dashboard chỉ có dòng yêu cầu trong cửa sổ đó, ảnh cũ hơn không ai gắn vào đâu. */
+const YC_ANH_CU_NGAY = Math.min(Number(process.env.VS_ANH_CU_NGAY || 7), YC_DAYS);
 /* DANH MỤC VỊ TRÍ (03/08/2026) — tập hợp MỌI vị trí F0-A1/F0-A8 từng thấy trên planogram, cộng dồn
  * qua các lượt. Đây là thứ duy nhất mà cửa sổ quét hẹp làm hỏng: tab PHU-TRACH-QUAY-KE vốn = "mọi
  * vị trí thấy trong 45 ngày", quét 10 ngày thì vị trí lâu không có yêu cầu biến mất khỏi tab →
@@ -279,6 +292,10 @@ async function gopChamCong(attNgay, nvTS, byCode, mocGiu, tuNgay, chiCode){
   }
   return { nv, nMoi, nQuaHan, nXoaNgay, nBoQua, nguonCu };
 }
+/* Tab nào dashboard cần để DỰNG MÀN HÌNH ĐẦU (bậc 1) thì cuối lượt phải có cache readTab nóng sẵn.
+ * Các tab còn lại (lịch sử 60 ngày, chấm công theo ngày, ảnh) chỉ nạp khi người dùng mở pop-up →
+ * để chúng tự dựng, chứ hâm cả 7 tab sẽ kéo lượt poller 15' dài thêm vài phút mà không ai đang chờ. */
+const daGhi = new Set();
 async function ghiTab(tab, header, rows){
   if (DRY){ fs.mkdirSync(path.join(DIR, ".exports"), { recursive: true }); fs.writeFileSync(path.join(DIR, ".exports", tab + "-out.json"), JSON.stringify({ header, rows }, null, 2)); log("  (DRY) " + tab + ": " + rows.length + " dòng → .exports/" + tab + "-out.json"); return; }
   if (!rows.length){ log("  ⚠ " + tab + ": 0 dòng — BỎ QUA (giữ dữ liệu cũ)."); return; }
@@ -291,10 +308,13 @@ async function ghiTab(tab, header, rows){
   }
   // KHÔNG truyền sheetId → GAS tự định tuyến 2 tab whitelist (SERVE_PRIVATE_TABS) sang SHEET PRIVATE bí mật.
   const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab, header, rows, apiAt: Date.now() });
-  const j = await (await fetchThuLai(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })).json();
+  /* gasPost thay cho fetch().json(): Apps Script chập chờn trả 404/trang HTML, .json() nổ
+     "Unexpected token '<'" là chết cả bước (đo 15:17 12/08 — YEUCAU/LICHSU không được ghi). */
+  const j = await gasPost(body, log, tab);
   if (j.status !== "success") throw new Error("Ghi " + tab + " lỗi: " + (j.message || "?"));
   luuHashTab(DIR, tab, hash);
   log("  ✓ " + tab + ": ghi " + (j.written || rows.length) + " dòng.");
+  daGhi.add(tab);   // cuối lượt sẽ hâm lại cache readTab cho những tab vừa đổi
 }
 
 (async () => {
@@ -334,6 +354,7 @@ async function ghiTab(tab, header, rows){
   const to = now, from = now - WINDOW_DAYS * DAY;
   const isoNgay = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
   const mocYc = isoNgay(now - (YC_DAYS - 1) * DAY), mocAnh = isoNgay(now - (YC_ANH_NGAY - 1) * DAY);
+  const mocAnhCu = isoNgay(now - (YC_ANH_CU_NGAY - 1) * DAY);   // mốc XA nhất còn giữ ảnh (tab VESINH-ANH-CU)
   const base = `${EXT}/planogram/schedule-requests?company_ids=${COMPANY_IDS}&warehouse_ids=${WAREHOUSE_ID}&from_date=${from}&to_date=${to}`;
   const loc = {};    // location -> { at, email }              (PHU-TRACH — bù thêm từ danh mục + lịch sử)
   const team = {};   // emailLower -> { email, lastAt, todayCount, todayLoc }   (CHAMCONG)
@@ -372,7 +393,7 @@ async function ghiTab(tab, header, rows){
           id: it.request_id, ngay: ngayYC, loc: L,
           stId: it.status_id, stName: it.status_name || "",   // stName chỉ để LOG đối chiếu ánh xạ, không ghi Sheet nữa
           email: email, at: at,
-          anh: ngayYC >= mocAnh ? (it.request_image || []).map((x) => gonAnh(x && x.image)).filter(Boolean).join(" | ") : ""
+          anh: ngayYC >= mocAnhCu ? (it.request_image || []).map((x) => gonAnh(x && x.image)).filter(Boolean).join(" | ") : ""
         });
       }
     }
@@ -545,13 +566,19 @@ async function ghiTab(tab, header, rows){
   /* Ánh xạ Status ID → tên: canh chừng WMS thêm mã lạ. Dashboard có bảng tra tương ứng; mã nào
      ngoài bảng nó hiện "#<id>" chứ không chết, nhưng phải BIẾT để cập nhật cả hai đầu. */
   const stLa = {};
-  for (const r of reqToday) if ([1, 3, 4, 7].indexOf(Number(r.stId)) < 0) stLa[r.stId + " = " + (r.stName || "?")] = (stLa[r.stId + " = " + (r.stName || "?")] || 0) + 1;
+  /* 2 = Processing: gặp thật ngày 12/08/2026, đã thêm nhãn vào ST_TEN của hasaki-planogram.js nên
+     hết là "lạ" — giữ trong danh sách đã biết để cảnh báo này thôi kêu, dành cho status THẬT SỰ mới. */
+  for (const r of reqToday) if ([1, 2, 3, 4, 7].indexOf(Number(r.stId)) < 0) stLa[r.stId + " = " + (r.stName || "?")] = (stLa[r.stId + " = " + (r.stName || "?")] || 0) + 1;
   log("→ YEUCAU: " + rowsYC.length + " yêu cầu (" + YC_DAYS + " ngày, " + nDa + " đã vệ sinh)." +
     (Object.keys(stLa).length ? "  ⚠ STATUS LẠ ngoài bảng tra: " + Object.keys(stLa).map(k => k + " ×" + stLa[k]).join(", ") + " — thêm vào ST_TEN của hasaki-planogram.js." : ""));
 
-  // 4c-bis) Bảng VESINH-ANH — chỉ yêu cầu CÓ ảnh, tách khỏi YEUCAU để dashboard nạp ở bậc 3
-  const rowsANH = ycSap.filter((r) => r.anh).map((r) => [r.id, r.ngay, r.anh]);
-  log("→ ANH: " + rowsANH.length + "/" + rowsYC.length + " yêu cầu có ảnh (" + YC_ANH_NGAY + " ngày gần nhất).");
+  // 4c-bis) 2 bảng ảnh — chỉ yêu cầu CÓ ảnh, tách khỏi YEUCAU để dashboard nạp ở bậc 3
+  const coAnh = ycSap.filter((r) => r.anh);
+  const rowsANH = coAnh.filter((r) => r.ngay >= mocAnh).map((r) => [r.id, r.ngay, r.anh]);
+  const rowsANHCU = coAnh.filter((r) => r.ngay < mocAnh).map((r) => [r.id, r.ngay, r.anh]);
+  const kbCua = (rs) => (rs.reduce((n, r) => n + Buffer.byteLength(r.join(","), "utf8"), 0) / 1024).toFixed(0);
+  log("→ ANH: " + rowsANH.length + "/" + rowsYC.length + " yêu cầu có ảnh (" + YC_ANH_NGAY + " ngày gần nhất, ~" + kbCua(rowsANH) + "KB)" +
+    " · ANH-CU: " + rowsANHCU.length + " yêu cầu (ngày " + (YC_ANH_NGAY + 1) + "→" + YC_ANH_CU_NGAY + ", ~" + kbCua(rowsANHCU) + "KB — dashboard chỉ tải khi soi ngày cũ).");
 
   // 4d) Bảng VESINH-NHATKY — NV × ngày × khu vực (dựng từ lịch sử cộng dồn LS_NGAY ngày)
   const rowsNK = Object.keys(nhatky).map((key) => {
@@ -612,6 +639,10 @@ async function ghiTab(tab, header, rows){
      đỡ phải nhớ "tab này ở sheet nào". Chưa deploy GAS thì bỏ qua: dashboard tự ẩn phần ảnh. */
   if (DRY || await gasPhucVuTab(TAB_ANH)) await ghiTab(TAB_ANH, HEADER_ANH, rowsANH);
   else log("  ⚠ GAS chưa phục vụ " + TAB_ANH + " — BỎ QUA tab ảnh (dashboard tạm không có ảnh báo cáo). Thêm '" + TAB_ANH + "' vào SERVE_PRIVATE_TABS rồi deploy google-script.gs.");
+  /* Tab ảnh CŨ probe riêng: mới thêm 18/08 nên GAS có thể chưa whitelist trong khi VESINH-ANH đã
+     phục vụ từ 03/08. Chưa deploy = dashboard vẫn chạy y như trước (ảnh 3 ngày), không lỗi. */
+  if (DRY || await gasPhucVuTab(TAB_ANH_CU)) await ghiTab(TAB_ANH_CU, HEADER_ANH, rowsANHCU);
+  else log("  ⚠ GAS chưa phục vụ " + TAB_ANH_CU + " — BỎ QUA ảnh ngày cũ (dashboard vẫn có ảnh " + YC_ANH_NGAY + " ngày gần). Thêm '" + TAB_ANH_CU + "' vào SERVE_PRIVATE_TABS rồi deploy google-script.gs.");
   if (DRY || await gasPhucVuTab(TAB_YC)) {
     await ghiTab(TAB_YC, HEADER_YC, rowsYC);
     await ghiTab(TAB_NK, HEADER_NK, rowsNK);
@@ -626,6 +657,12 @@ async function ghiTab(tab, header, rows){
   if (DRY || await gasPhucVuTab(TAB_CCN)) await ghiTab(TAB_CCN, HEADER_CCN, rowsCCN);
   else log("  ⚠ GAS chưa phục vụ " + TAB_CCN + " — chấm công theo ngày vẫn tích luỹ ở " + path.basename(FILE_CCN) +
     ", BỎ QUA ghi Sheet. Thêm '" + TAB_CCN + "' vào SERVE_PRIVATE_TABS rồi deploy google-script.gs.");
+  /* 6) HÂM CACHE readTab cho các tab dựng màn hình đầu — chỉ những tab THẬT SỰ vừa ghi (ghi mới
+        xoá cache; tab hash-skip vẫn còn cache nóng, hâm lại chỉ tốn công). Xem hamCacheTabs. */
+  if (!DRY){
+    const canHam = [TAB_YC, TAB_PT].filter((t) => daGhi.has(t));
+    if (canHam.length) await hamCacheTabs(canHam, log);
+  }
   if (!DRY) ghiMocBuoc(DIR, "vesinh");   // mốc thành công cho sync-guard
   log("✓ HOÀN TẤT (1 lượt quét " + WINDOW_DAYS + " ngày, cả 7 tab).");
   process.exit(0);

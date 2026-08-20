@@ -15,6 +15,9 @@
 #    5S Cham cong              07:20 hằng ngày   danh bạ + chấm công hôm nay
 #    Day bao cao 5S            mỗi 15'           inbox 5S -> task workflow 591
 #    5S Canh yeu cau dang nhap mỗi 2'            cờ dashboard + sync-guard + sync-poller
+#    5S Tra UID tren Sheet     mỗi 2'            tra UID trên file Sheet "TRA UID"
+#    5S Kenh tin nhan          mỗi 2'            nghe lệnh Telegram (KENH-TIN-NHAN.md)
+#    5S Task hang ngay         ĐÃ TẮT 19/08      nộp báo cáo task = bấm NUT-NOP-TASK.bat
 #    Factory watchdog ton kho  logon +5' & mỗi giờ 07:05-18:05   vá bước tồn kho còn cũ
 #  Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và
 #  đụng khung chặn re-login 07:45-18:00 (session-rules.js) -> cụm hoãn trong im lặng.
@@ -54,10 +57,16 @@ if ($loi.Count) {
   $loi | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
 }
 
-# ---------- 2. DANG KY 5 SCHEDULED TASK ----------
+# ---------- 2. DANG KY SCHEDULED TASK ----------
 Write-Host "`n== Dang ky Scheduled Task (ghi de neu da co)..." -ForegroundColor Cyan
 $wscript = "$env:SystemRoot\System32\wscript.exe"
 $hom = (Get-Date).Date
+# BAY 19/08/2026: -RepetitionDuration ([TimeSpan]::MaxValue) KHONG dang ky duoc tren may nay —
+# Register-ScheduledTask tra "The task XML contains a value which is incorrectly formatted or out
+# of range. (8,42):Duration:P99999999DT23H59M59S". Ba task nhip ngan (15'/2'/2') truoc day dung
+# MaxValue => dung script nay tren MAY MOI se DUT ca ba ngay tai buoc dang ky. Cac task dang chay
+# that tren may deu la P3650D (10 nam) — lay dung con so do lam chuan.
+$LAP_MAI = New-TimeSpan -Days 3650
 
 function Dang-Ky($ten, $vbs, $trigger) {
   $action = New-ScheduledTaskAction -Execute $wscript -Argument "`"$DIR\$vbs`""
@@ -74,13 +83,25 @@ Dang-Ky "5S Dong bo dashboard" "auto-export-hidden.vbs" (New-ScheduledTaskTrigge
 Dang-Ky "5S Cham cong" "cham-cong-hidden.vbs" (New-ScheduledTaskTrigger -Daily -At ($hom.AddHours(7).AddMinutes(20)))
 # Moi 15 phut: day bao cao 5S tu inbox WMS-5S-AUDIT -> task workflow
 $t15 = New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7).AddMinutes(5)) `
-       -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration ([TimeSpan]::MaxValue)
+       -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration $LAP_MAI
 Dang-Ky "Day bao cao 5S" "day-bao-cao-hidden.vbs" $t15
 # Moi 2 phut: TRUC THAN KINH — co dashboard (cap nhat/cham cong/tai lai ton kho/dang nhap),
 # so nhat ky phien WMS, goi sync-guard (khong --force) va sync-poller (nhip 15-30' trong ngay).
 $t2 = New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7)) `
-      -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration ([TimeSpan]::MaxValue)
+      -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration $LAP_MAI
 Dang-Ky "5S Canh yeu cau dang nhap" "watch-login-hidden.vbs" $t2
+# Moi 2 phut: TRA UID tren Google Sheet (file "TRA UID - Ton kho WMS"). Lich RIENG chu khong nhet
+# vao bo canh tren, vi bo canh hay ban chay auto-export/sync-guard nhieu phut -> luot tra UID phai
+# xep hang (do that 17/08/2026: 181 giay). WMS chan IP ngoai nen Apps Script khong tu goi WMS duoc.
+$t2b = New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7)) `
+       -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration $LAP_MAI
+Dang-Ky "5S Tra UID tren Sheet" "tra-uid-hidden.vbs" $t2b
+# Moi 2 phut: KENH RA LENH BANG TIN NHAN (Telegram) — xem KENH-TIN-NHAN.md.
+# Moi luot long-poll ~100s roi thoat => phu gan lien tuc ma van tu hoi sinh khi may tat/bat.
+# Chua khai TELEGRAM_BOT_TOKEN trong .env thi script thoat em (exit 0), khong lam gi.
+$t2c = New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7)) `
+       -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration $LAP_MAI
+Dang-Ky "5S Kenh tin nhan" "tin-nhan-hidden.vbs" $t2c
 # WATCHDOG ton kho: khi dang nhap Windows (+5') VA moi gio tu 07:05 keo dai 11h (-> 18:05).
 # Guard tu doc moc tung buoc (.sync-ok-*) va CHI chay lai buoc con cu (SYNC_SKIP_FRESH=1).
 $tgLogon = New-ScheduledTaskTrigger -AtLogOn
@@ -92,6 +113,32 @@ $tgGio.Repetition = (New-ScheduledTaskTrigger -Once -At ($hom.AddHours(7).AddMin
                      -RepetitionInterval (New-TimeSpan -Hours 1) `
                      -RepetitionDuration (New-TimeSpan -Hours 11)).Repetition
 Dang-Ky "Factory watchdog ton kho" "sync-guard-hidden.vbs" @($tgLogon, $tgGio)
+
+# NOP BAO CAO 9 TASK HANG NGAY tren work.hasaki.vn (xem TASK-HANG-NGAY.md).
+# CHOT 19/08/2026: dang ky nhung DE TAT. Chu may giu quyen "hoan thanh" — can bot nop thi BAM NUT
+# (NUT-NOP-TASK.bat / shortcut Desktop, che do --nut co hoi truoc khi nop), khong can thi tu bam
+# tren web. Task van dang ky san de bat lai 1 dong khi muon quay ve nhip tu dong:
+#   Enable-ScheduledTask -TaskName '5S Task hang ngay'
+# (Nhip cu: 16:00 + lap moi 30' trong 2h — lap la de VET khi 16h chua co phien work song.)
+$tgTask = New-ScheduledTaskTrigger -Daily -At ($hom.AddHours(16))
+$tgTask.Repetition = (New-ScheduledTaskTrigger -Once -At ($hom.AddHours(16)) `
+                      -RepetitionInterval (New-TimeSpan -Minutes 30) `
+                      -RepetitionDuration (New-TimeSpan -Hours 2)).Repetition
+Dang-Ky "5S Task hang ngay" "task-hangngay-hidden.vbs" $tgTask
+Disable-ScheduledTask -TaskName "5S Task hang ngay" | Out-Null
+Write-Host "  [TAT] 5S Task hang ngay - nop bao cao bang NUT-NOP-TASK.bat (bam tay)"
+
+# NUT ngoai Desktop: bam de bot nop bao cao 9 task hang ngay (hoi truoc khi nop).
+$deskt = [Environment]::GetFolderPath('Desktop')
+$lnk = Join-Path $deskt 'NOP BAO CAO TASK (bam khi can).lnk'
+$wsh = New-Object -ComObject WScript.Shell
+$sc = $wsh.CreateShortcut($lnk)
+$sc.TargetPath = "$DIR\NUT-NOP-TASK.bat"
+$sc.WorkingDirectory = $DIR
+$sc.Description = 'Bam de bot nop bao cao 9 task hang ngay tren work.hasaki.vn (hoi truoc khi nop)'
+$sc.IconLocation = (Get-Command node).Source + ',0'
+$sc.Save()
+Write-Host "  [OK] Shortcut nut: $lnk"
 
 # ---------- 3. GIAO THUC hasaki5s:// (HKCU, khong can Admin) ----------
 Write-Host "`n== Dang ky giao thuc hasaki5s:// ..." -ForegroundColor Cyan
@@ -108,6 +155,6 @@ Write-Host "`n== XONG PHAN TU DONG. Tiep theo lam tay:" -ForegroundColor Green
 Write-Host "  1. Chay LOGIN-HASAKI.bat 1 lan (tao phien SSO + kho token tren may nay)"
 Write-Host "  2. Chay thu: AUTO-EXPORT.bat roi kiem tra auto-export.log + stocklocation.log + Google Sheet"
 Write-Host "  3. TAT lich tren MAY CU (CA 5 task — 2 may cung chay = 2 phien SSO da nhau + 2 nguon ghi de Sheet):"
-Write-Host "     '5S Dong bo dashboard','5S Cham cong','Day bao cao 5S','5S Canh yeu cau dang nhap','Factory watchdog ton kho' | ForEach-Object { Disable-ScheduledTask -TaskName `$_ }"
+Write-Host "     '5S Dong bo dashboard','5S Cham cong','Day bao cao 5S','5S Canh yeu cau dang nhap','Factory watchdog ton kho','5S Task hang ngay' | ForEach-Object { Disable-ScheduledTask -TaskName `$_ }"
 Write-Host "  4. Chinh nguon dien: khong Sleep (powercfg /change standby-timeout-ac 0) + tu dang nhap user sau khi khoi dong (netplwiz)"
 Write-Host "  5. Chay BAO-MAT-MAY.ps1 (SAU khi da chep du .env + du lieu rieng): siet ACL, ma hoa EFS, tu khoa man hinh"
