@@ -470,8 +470,9 @@ const gio = await page.evaluate(() => ({
 }));
 kiem("Bấm thẻ KHÔNG đổ SKU vào giỏ kiểm kê nữa", gio.n === 0, gio.n + " SKU trong giỏ");
 kiem("Thanh giỏ nổi KHÔNG hiện ở tab Nhận diện SKU", gio.barHien === false, gio.barHien ? "vẫn hiện" : "đã ẩn");
-kiem("Bấm thẻ vẫn GHI SỔ TAY đúng SKU đó (vòng tự học không mất)",
-  gio.hoc > soTruocThe && gio.soTay.indexOf("422322192") >= 0, gio.soTay.join(","));
+kiem("Bấm thẻ KHÔNG ghi nhớ gì nữa (sổ tay đã tắt 21/08/2026 — chống chạm nhầm ghim SKU sai)",
+  gio.hoc === 0 && gio.soTay.length === 0,
+  "sổ tay " + soTruocThe + " → " + gio.hoc + " ghi nhớ · tra được: " + (gio.soTay.join(",") || "(rỗng)"));
 /* Giỏ vẫn phải sống ở 2 tab được phép — nhồi 1 dòng rồi đổi tab để xem thanh giỏ hiện/ẩn đúng chỗ */
 const barTheoTab = await page.evaluate(() => {
   PC.sel = { "WH|1": { wh: "WH", sku: "1", pn: "x", t: 0, src: "test" } }; pcSyncBar();
@@ -526,53 +527,37 @@ kiem("Bấm nút biến thể thì xác nhận ĐÚNG SKU đó (copy mã), khôn
   altKq.chu.indexOf(skuAlt) >= 0 && /copy mã SKU/i.test(altKq.chu) && altKq.gio === 0,
   altKq.chu.slice(0, 70) + " · giỏ " + altKq.gio);
 
-/* ---------- 6c. SỔ TAY TEM: học 1 lần, lần sau ra ngay KHÔNG cần AI ---------- */
-/* Đây là cả mục đích của sổ tay: cùng bộ từ khoá đó, lần sau phải trả về ĐÚNG SKU người đã chọn,
-   ghim #1 với 100%, kể cả khi đối soát theo điểm xếp nó ở hạng khác. */
-const soTruoc = await page.evaluate(() => ndsSoDem());
+/* ---------- 6c. SỔ TAY TEM ĐÃ TẮT (21/08/2026, yêu cầu người dùng) ----------
+   Sổ tay từng ghi nhớ "tem này = SKU kia" mỗi lần người dùng bấm một thẻ gợi ý, để lần sau ra ngay
+   không cần AI. Nhưng đường ghi DUY NHẤT của nó là cú bấm vào thẻ — mà thẻ là một ô lớn trên điện
+   thoại, chạm lệch rất dễ, và bấm nhầm một lần là ghim SKU SAI ở 100% cho mọi lần gặp lại tem đó.
+   Mấy ca dưới khoá việc tắt: không ghi, không đọc, không còn nút nào của sổ, dữ liệu cũ đã dọn. */
+const soT1 = await page.evaluate(() => ndsSoDem());
 await page.evaluate(() => { ndsXoaHet(); document.getElementById("ndsRaw").value = "Chi Irisa F9-5284 Tex 27 Tkt 120 Hong tro"; ndsDoiSoat(); });
 await new Promise((r) => setTimeout(r, 700));
-const truocHoc = await page.evaluate(() => (NDS.ket || []).map((r) => r.sku));
-/* Cố ý chọn thẻ #2 (KHÔNG phải thẻ máy đoán đúng nhất) — có vậy mới chứng minh sổ tay thắng điểm số */
-const skuHoc = await page.evaluate(() => { const r = NDS.ket[1] || NDS.ket[0]; ndsChonSku(r.sku); return r.sku; });
-await new Promise((r) => setTimeout(r, 600));
-const soSau = await page.evaluate(() => ndsSoDem());
-kiem("Chọn SKU xong thì sổ tay ghi thêm ghi nhớ", soSau > soTruoc, soTruoc + " → " + soSau + " ghi nhớ");
-/* Dựng lại đúng bộ từ khoá đó từ đầu (như lần sau quét lại tem cũ) */
+const truocChon = await page.evaluate(() => (NDS.ket || []).map((r) => r.sku));
+/* Cố ý bấm thẻ #2 (KHÔNG phải thẻ máy đoán đúng nhất) — trước đây chính cú bấm này ghim thẻ #2 lên
+   #1 với 100% cho mọi lần sau. */
+const chonThe2 = await page.evaluate(() => { const r = NDS.ket[1] || NDS.ket[0]; ndsChonSku(r.sku); return r.sku; });
+await new Promise((r) => setTimeout(r, 500));
+const soT2 = await page.evaluate(() => ({ dem: ndsSoDem(), tra: ndsSoTra(), luu: !!localStorage.getItem("nds-so-v1") }));
+kiem("Chọn SKU KHÔNG ghi vào sổ tay, và không để lại gì trong máy",
+  soT2.dem === 0 && soT2.tra.length === 0 && !soT2.luu,
+  "bấm " + chonThe2 + " · sổ " + soT1 + " → " + soT2.dem + " ghi nhớ · localStorage " + (soT2.luu ? "CÒN" : "sạch"));
+/* Dựng lại đúng bộ từ khoá đó (như lần sau quét lại tem cũ): thứ tự phải do ĐIỂM quyết định, không
+   phải do cú bấm trước đó. */
 await page.evaluate(() => { ndsXoaHet(); document.getElementById("ndsRaw").value = "Chi Irisa F9-5284 Tex 27 Tkt 120 Hong tro"; ndsDoiSoat(); });
 await new Promise((r) => setTimeout(r, 700));
-const sauHoc = await page.evaluate(() => ({ sku: (NDS.ket[0] || {}).sku, hoc: (NDS.ket[0] || {}).daHoc, pct: (NDS.ket[0] || {}).pct }));
-kiem("Lần sau gặp lại tem đó: SKU đã học lên #1, 100%, không gọi AI",
-  String(sauHoc.sku) === String(skuHoc) && sauHoc.hoc === true && sauHoc.pct === 100,
-  "chọn " + skuHoc + " (trước đó máy xếp: " + truocHoc.join(",") + ") → nay #1 = " + sauHoc.sku + "/" + sauHoc.pct + "%");
-/* Dấu "từ sổ tay" nay nằm ở dòng phụ chứ không phải một badge nữa (thẻ đã rút tới lõi) */
-const nhanHoc = await page.$eval("#ndsCards .nds-card .nds-chead", (e) => e.textContent.trim());
-kiem("Thẻ nói rõ kết quả đến TỪ SỔ TAY (để biết vì sao chắc chắn)", /từ sổ tay/.test(nhanHoc), nhanHoc);
-const gasTruoc = soGoiGas;
-await page.evaluate(() => ndsDoiSoat());
-await new Promise((r) => setTimeout(r, 400));
-kiem("Đường sổ tay KHÔNG gọi Apps Script/AI lần nào", soGoiGas === gasTruoc, soGoiGas - gasTruoc + " lượt gọi");
-/* Quên đi thì phải trở về như cũ — sổ tay sai mà không sửa được thì tệ hơn không có sổ */
-/* Nút "quên ghi nhớ này" phải NHÌN THẤY ĐƯỢC trên thẻ (19/08/2026: hàm có, ca test có, nhưng
-   không có nút nào trong giao diện gọi tới ⇒ chọn nhầm là ghim SKU sai 100% mãi mãi). Và bấm nó
-   KHÔNG được kích chọn SKU của thẻ cha. */
-const nutQuen = await page.evaluate(() => {
-  const b = document.querySelector("#ndsCards .nds-card .nds-quen");
-  return b ? { chu: b.textContent.trim(), trongThe: !!b.closest(".nds-card") } : null;
-});
-kiem("Thẻ \"từ sổ tay\" có nút gỡ ghi nhớ ngay tại chỗ (không phải Xoá sổ tay cả bộ)",
-  !!nutQuen && /quên ghi nhớ/i.test(nutQuen.chu) && nutQuen.trongThe, nutQuen ? nutQuen.chu : "KHÔNG có nút nào");
-/* Thước đo là SỔ TAY (từ 20/08/2026 bấm thẻ không còn vào giỏ nữa): bấm "quên ghi nhớ" mà nổi bọt
-   lên thẻ cha thì thẻ cha sẽ HỌC LẠI ngay cái vừa gỡ ⇒ số ghi nhớ không giảm. */
-const hocTruoc = await page.evaluate(() => ndsSoDem());
-await page.evaluate(() => document.querySelector("#ndsCards .nds-card .nds-quen").click());
-await new Promise((r) => setTimeout(r, 500));
-const hocSau = await page.evaluate(() => ndsSoDem());
-kiem("Bấm \"quên ghi nhớ\" KHÔNG kích xác nhận SKU của thẻ cha (chặn nổi bọt)", hocSau < hocTruoc,
-  "ghi nhớ trước " + hocTruoc + " · sau " + hocSau);
-await new Promise((r) => setTimeout(r, 500));
-const sauQuen = await page.evaluate(() => ({ sku: (NDS.ket[0] || {}).sku, hoc: !!(NDS.ket[0] || {}).daHoc }));
-kiem("\"Quên ghi nhớ này\" gỡ được ghi nhớ sai", sauQuen.hoc === false, "#1 quay lại " + sauQuen.sku);
+const lanSau = await page.evaluate(() => ({ ds: (NDS.ket || []).map((r) => r.sku), hoc: !!(NDS.ket[0] || {}).daHoc,
+  nhanSo: !!document.querySelector("#ndsCards .nds-card .nds-quen"),
+  chuThe: (document.querySelector("#ndsCards .nds-card .nds-chead") || {}).textContent || "",
+  nutXoaSo: (document.getElementById("ndsFoot") || { innerHTML: "" }).innerHTML.indexOf("Xoá sổ tay") >= 0 }));
+kiem("Lần sau gặp lại tem đó: thứ tự vẫn theo ĐIỂM, cú bấm trước không ghim được gì",
+  lanSau.ds.join(",") === truocChon.join(",") && lanSau.hoc === false,
+  "trước " + truocChon.join(",") + " → sau " + lanSau.ds.join(",") + (lanSau.hoc ? " (VẪN ghim!)" : ""));
+kiem("Thẻ không còn nhãn \"từ sổ tay\" và không còn nút \"quên ghi nhớ\"",
+  !lanSau.nhanSo && !/từ sổ tay/.test(lanSau.chuThe), lanSau.nhanSo ? "vẫn có nút quên" : "sạch");
+kiem("Chân trang không còn nút \"Xoá sổ tay\" (không còn gì để xoá)", !lanSau.nutXoaSo);
 
 /* ---------- 6d. Mã vạch: có API thì quét, không có thì nói rõ chứ không im ---------- */
 const mv = await page.evaluate(() => ({ co: ndsCoMaVach(), nut: !!document.getElementById("ndsBtnMV") }));
@@ -601,14 +586,30 @@ const mvKq = await page.evaluate(() => ({ ma: NDS.maVach.slice(), tag: NDS.token
 kiem("Mã vạch đọc được → vào thẳng từ khoá + đối soát ngay, KHÔNG gọi AI",
   mvKq.ma[0] === "8938505970012" && mvKq.tag.indexOf("8938505970012") >= 0 && soGoiGas === gasTruocMV,
   "mã " + mvKq.ma.join(",") + " · " + mvKq.n + " gợi ý · " + (soGoiGas - gasTruocMV) + " lượt gọi AI");
-/* Dạy sổ tay theo mã vạch rồi quét lại: phải ra ngay SKU đó, kể cả khi chữ trên tem đọc không ra */
+/* SỔ TAY ĐÃ TẮT (21/08/2026) nên đường "dạy mã vạch một lần, lần sau ra ngay" KHÔNG còn — đây là cái
+   giá phải trả cho việc chống chạm nhầm, và ca test nói thẳng ra thay vì để nó âm thầm mất.
+   Cái CÒN LẠI vẫn nguyên: quét mã vạch → thành từ khoá → đối soát bằng điểm, không gọi AI (ca trên),
+   và nếu con số quét được TRÙNG một SKU nội bộ thì ăn thẳng, không cần sổ nào. */
 const skuMV = await page.evaluate(() => { const s = NDS.ds[10].sku; ndsChonSku(s); return s; });
 await new Promise((r) => setTimeout(r, 500));
 await page.evaluate(() => { ndsXoaHet(); return ndsThuMaVach(); });
 await new Promise((r) => setTimeout(r, 700));
-const mvHoc = await page.evaluate(() => ({ sku: (NDS.ket[0] || {}).sku, hoc: (NDS.ket[0] || {}).daHoc }));
-kiem("Quét lại đúng mã vạch đó → SKU đã học ra ngay (đường hoàn toàn không cần AI)",
-  String(mvHoc.sku) === String(skuMV) && mvHoc.hoc === true, "mã vạch → " + mvHoc.sku);
+const mvHoc = await page.evaluate(() => ({ sku: (NDS.ket[0] || {}).sku, hoc: !!(NDS.ket[0] || {}).daHoc, so: ndsSoDem() }));
+kiem("Bấm chọn SKU rồi quét lại mã vạch đó: KHÔNG ghim gì (sổ tay đã tắt)",
+  mvHoc.hoc === false && mvHoc.so === 0,
+  "đã bấm " + skuMV + " · sổ " + mvHoc.so + " ghi nhớ · #1 hiện tại " + mvHoc.sku + (mvHoc.hoc ? " (VẪN ghim!)" : ""));
+const mvSku = await page.evaluate(async () => {
+  /* Mã vạch TRÙNG một SKU nội bộ (hàng đã dán tem kho): đường này không đi qua sổ tay bao giờ. */
+  const s = String(NDS.ds[10].sku);
+  window.BarcodeDetector = function () { this.detect = function () { return Promise.resolve([{ rawValue: s }]); }; };
+  NDS_BD = null;
+  ndsXoaHet();
+  await ndsThuMaVach();
+  await new Promise((r) => setTimeout(r, 600));
+  return { can: s, ra: (NDS.ket[0] || {}).sku, laSku: !!(NDS.ket[0] || {}).laSku };
+});
+kiem("Mã vạch TRÙNG SKU nội bộ vẫn ra thẳng SKU đó (không cần sổ tay)",
+  String(mvSku.ra) === String(mvSku.can), "quét " + mvSku.can + " → #1 " + mvSku.ra);
 /* Dọn về trạng thái các ca sau đang trông đợi: bỏ API giả, xoá sổ tay, và DỰNG LẠI từ khoá tem YKK
    (ca "AI lỗi" ở dưới kiểm rằng lỗi AI không làm mất từ khoá đang có — phải có từ khoá thì mới kiểm được). */
 await page.evaluate(() => {
@@ -871,39 +872,62 @@ const xoaDong = await page.evaluate(async () => {
 kiem("Xoá được TỪNG DÒNG trong danh sách in", xoaDong.sau === xoaDong.truoc - 1 && xoaDong.dong === 1,
   xoaDong.truoc + " → " + xoaDong.sau + " SKU");
 
-/* GÕ SỐ LƯỢNG: chấm hàng nghìn xuất hiện NGAY LÚC GÕ (không phải sau khi rời ô). Không có dấu ngăn
-   cách thì đếm số 0 bằng mắt là sai, mà tem sai số lượng thì cả bịch hàng đi sai chỗ. */
+/* Ô SỐ LƯỢNG KIỂU CHIP (21/08/2026, yêu cầu người dùng).
+   Cùng một SKU nhưng hàng chia nhiều bịch số lượng khác nhau (1.000 · 2.000 · 3.000) → mỗi bịch một
+   con tem. Cách nhập: gõ số rồi bấm nút "+"; số đã chốt thành một chip nằm trước ô nhập, ô nhập nhảy
+   về 0 để gõ tiếp. Bản trước bắt người dùng tự gõ dấu phẩy — cú pháp phải học, mà trên điện thoại
+   dấu phẩy còn nằm ở lớp bàn phím khác. */
 const goSo = await page.evaluate(async () => {
-  const o = document.querySelector("#prBody tr td:nth-child(2) input");
+  const o = document.querySelector("#prBody tr td:nth-child(2) input.prsl-v");
   const buoc = [];
   o.value = "";
-  "100000".split("").forEach((c) => { o.value += c; prGoSo(o); buoc.push(o.value); });
-  o.dispatchEvent(new Event("change"));
-  await new Promise((r) => setTimeout(r, 200));
-  return { buoc: buoc, luu: document.querySelector("#prBody tr td:nth-child(2) input").value };
+  const nut = () => document.querySelector("#prBody tr td:nth-child(2) .prsladd");
+  const congTruoc = !!nut() && nut().classList.contains("hien");
+  "100000".split("").forEach((c) => { o.value += c; prGoSo(o); prHienCong(o); buoc.push(o.value); });
+  const congSau = !!nut() && nut().classList.contains("hien");
+  nut().click();
+  await new Promise((r) => setTimeout(r, 250));
+  const chip = Array.prototype.map.call(document.querySelectorAll("#prBody tr td:nth-child(2) .prchip"),
+    (e) => e.textContent.replace(/×/g, "").trim());
+  return { buoc: buoc, congTruoc: congTruoc, congSau: congSau, chip: chip,
+    oSau: document.querySelector("#prBody tr td:nth-child(2) input.prsl-v").value };
 });
 kiem("Gõ số lượng: tự chèn dấu chấm ngay từ hàng nghìn (1.000 … 100.000)",
-  goSo.buoc[3] === "1.000" && goSo.buoc[5] === "100.000" && goSo.luu === "100.000", goSo.buoc.join(" → "));
+  goSo.buoc[3] === "1.000" && goSo.buoc[5] === "100.000", goSo.buoc.join(" → "));
+kiem("Nút \"+\" chỉ hiện khi trong ô ĐANG có số (ô trống thì ẩn)",
+  goSo.congTruoc === false && goSo.congSau === true,
+  "ô trống: " + (goSo.congTruoc ? "hiện" : "ẩn") + " · có số: " + (goSo.congSau ? "hiện" : "ẩn"));
+kiem("Bấm \"+\": số vào chip và ô nhập nhảy về 0 (gõ tiếp được ngay)",
+  goSo.chip.join("|") === "100.000" && goSo.oSau === "0",
+  "chip [" + goSo.chip.join("|") + "] · ô nhập \"" + goSo.oSau + "\"");
 
-/* CÙNG MỘT SKU, NHIỀU BỊCH KHÁC SỐ LƯỢNG (yêu cầu 20/08/2026): SKU A có 3 bịch 12 · 14 · 16 thì phải
-   ra 3 con tem cùng SKU mà khác số lượng — trước đây chỉ in được N con tem GIỐNG nhau. */
-const nhieuSl = await page.evaluate(async () => {
-  const o = document.querySelector("#prBody tr td:nth-child(2) input");
-  o.value = "12, 14, 16"; prGoSo(o);
-  const goXong = o.value;                            // dấu phẩy phải còn nguyên, không bị gộp số
-  o.dispatchEvent(new Event("change"));
-  await new Promise((r) => setTimeout(r, 250));
+/* Ba bịch khác số lượng: gõ–cộng ba lần, ra ba chip đúng thứ tự và ba con tem. */
+const baBich = await page.evaluate(async () => {
+  let x;
+  while ((x = document.querySelector("#prBody tr td:nth-child(2) .prchip .x"))) {   // dọn chip cũ
+    x.click(); await new Promise((r) => setTimeout(r, 90));
+  }
+  const go = async (v) => {
+    const o = document.querySelector("#prBody tr td:nth-child(2) input.prsl-v");
+    o.value = v; prGoSo(o); prHienCong(o);
+    document.querySelector("#prBody tr td:nth-child(2) .prsladd").click();
+    await new Promise((r) => setTimeout(r, 160));
+  };
+  await go("1000"); await go("2000"); await go("3000");
   const tem = document.querySelector("#prBody tr td:nth-child(1) input");
-  return { goXong: goXong, oSl: document.querySelector("#prBody tr td:nth-child(2) input").value,
-    soTem: tem.value, khoa: tem.disabled, tong: prTongTem(), dong: document.querySelectorAll("#prBody tr").length,
-    nutIn: document.getElementById("prBtnIn").textContent };
+  return { chip: Array.prototype.map.call(document.querySelectorAll("#prBody tr td:nth-child(2) .prchip"),
+      (e) => e.textContent.replace(/×/g, "").trim()),
+    soTem: tem.value, khoa: tem.disabled, tong: prTongTem(),
+    o: document.querySelector("#prBody tr td:nth-child(2) input.prsl-v").value };
 });
-kiem("Gõ \"12, 14, 16\" thì dấu phẩy còn nguyên (không gộp thành 1.214)",
-  nhieuSl.goXong === "12, 14, 16" && nhieuSl.oSl === "12, 14, 16", "\"" + nhieuSl.goXong + "\"");
-kiem("Cùng 1 SKU · 3 số lượng → 3 con tem, ô Số tem tự khoá theo danh sách",
-  nhieuSl.soTem === "3" && nhieuSl.khoa === true && nhieuSl.tong === 3 && nhieuSl.dong === 1,
-  nhieuSl.dong + " dòng · số tem " + nhieuSl.soTem + (nhieuSl.khoa ? " (khoá)" : " (CHƯA khoá)") + " · nút \"" + nhieuSl.nutIn + "\"");
+kiem("Ba bịch 1.000 · 2.000 · 3.000 → ba chip đúng thứ tự gõ, ô nhập về 0",
+  baBich.chip.join("|") === "1.000|2.000|3.000" && baBich.o === "0", "[" + baBich.chip.join(" | ") + "]");
+kiem("Ba chip → 3 con tem, ô Số tem tự khoá theo danh sách",
+  baBich.soTem === "3" && baBich.khoa === true && baBich.tong === 3,
+  "số tem " + baBich.soTem + (baBich.khoa ? " (khoá)" : " (CHƯA khoá)") + " · tổng " + baBich.tong);
 
+/* Lệnh gửi đi phải khai đúng 3 tem và mang cả ba số lượng — nếu không thì hàng đợi báo hụt và trần
+   số tem gác sai. */
 const guiNhieu = await page.evaluate(async () => {
   window.__goi = [];
   prGoiGas = async (b) => { window.__goi.push(b); return { status: "success", id: "PRTEST2", trangThai: "xong", soTem: 3 }; };
@@ -913,13 +937,35 @@ const guiNhieu = await page.evaluate(async () => {
   const b = window.__goi[0] || {};
   let d = [];
   try { d = JSON.parse(b.dong || "[]"); } catch (e) { d = []; }
-  prDatSlHang(d[0] ? d[0].sku : "", "1.200");        // dọn lại cho các ca sau
-  await new Promise((r) => setTimeout(r, 150));
-  return { sl: d[0] && d[0].sl, slHang: d[0] && d[0].slHang, daIn: window.__daIn };
+  return { sl: d[0] && d[0].sl, slHang: d[0] && d[0].slHang, daIn: window.__daIn, sku: d[0] && d[0].sku };
 });
-kiem("Lệnh gửi đi khai ĐÚNG 3 tem cho dòng nhiều số lượng (hàng đợi không báo hụt)",
-  guiNhieu.sl === 3 && guiNhieu.slHang === "12, 14, 16" && guiNhieu.daIn === 0,
+kiem("Lệnh gửi đi khai ĐÚNG 3 tem và mang cả ba số lượng",
+  guiNhieu.sl === 3 && guiNhieu.slHang === "1.000, 2.000, 3.000" && guiNhieu.daIn === 0,
   "sl=" + guiNhieu.sl + " · slHang=\"" + guiNhieu.slHang + "\"");
+
+/* Xoá phải xoá ĐÚNG chip được bấm (không phải cái cuối) — nhầm chỗ này là in sai số lượng mà người
+   dùng không hề biết. */
+const xoaChip = await page.evaluate(async () => {
+  const truoc = prTongTem();
+  document.querySelectorAll("#prBody tr td:nth-child(2) .prchip .x")[1].click();   // bỏ chip GIỮA (2.000)
+  await new Promise((r) => setTimeout(r, 250));
+  const chip = Array.prototype.map.call(document.querySelectorAll("#prBody tr td:nth-child(2) .prchip"),
+    (e) => e.textContent.replace(/×/g, "").trim());
+  const tem = document.querySelector("#prBody tr td:nth-child(1) input");
+  return { truoc: truoc, chip: chip, tong: prTongTem(), soTem: tem.value };
+});
+kiem("Xoá chip GIỮA thì bỏ đúng 2.000, còn 1.000 và 3.000 (không phải bỏ cái cuối)",
+  xoaChip.chip.join("|") === "1.000|3.000" && xoaChip.tong === 2 && xoaChip.soTem === "2",
+  xoaChip.truoc + " → " + xoaChip.tong + " tem · [" + xoaChip.chip.join(" | ") + "]");
+
+/* Trả về một số lượng duy nhất cho mấy ca dưới (chúng dùng ô Số tem tự do). */
+await page.evaluate(async () => {
+  let x;
+  while ((x = document.querySelector("#prBody tr td:nth-child(2) .prchip .x"))) { x.click(); await new Promise((r) => setTimeout(r, 90)); }
+  const o = document.querySelector("#prBody tr td:nth-child(2) input.prsl-v");
+  o.value = "1200"; prGoSo(o); prCam(o);
+  await new Promise((r) => setTimeout(r, 200));
+});
 
 /* Hai khổ tem trong một lượt in: phải NÓI RÕ chứ không in bừa ra sai giấy */
 const lanKho = await page.evaluate(async () => {

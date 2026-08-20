@@ -2089,3 +2089,54 @@ cũng đúng, chỉ có RAM là sai. Ba việc đã làm để nó không lặp 
 
 `chay()` (đường `--thu`/`--in`) cũng đã bỏ vòng tự lặp, dùng chung `T.moRong` như `--dich-vu`: một
 đường nở tem duy nhất cho cả ba lối vào.
+
+### 12.9 Ô số lượng kiểu CHIP + bỏ sổ tay tem (21/08/2026)
+
+**① Bớt chữ trong pop-up.** Bỏ ba câu: hướng dẫn cú pháp dấu phẩy ở tiêu đề, dòng phụ
+"N SKU · N tem · N hàng giấy" (nút ở chân đã ghi *Xác nhận in N tem*), và câu *"bấm Xác nhận in là tem
+ra, không có hộp thoại nào"*. Dòng trạng thái nay **im** khi máy in rảnh — nó chỉ để dành cho lúc có
+chuyện thật: đang chờ đợt của ai, máy trạm tắt agent, máy in báo lỗi.
+
+**② Nhập nhiều số lượng bằng nút "+".** Ba bịch 1.000 · 2.000 · 3.000 thì gõ số rồi bấm **+** ba lần;
+mỗi số đã chốt thành một **chip** nằm trước ô nhập, ô nhập nhảy về `0` để gõ tiếp, chip nào sai thì
+bấm `×` ở chính nó. Vì sao đổi khỏi cách gõ `"1000, 2000, 3000"`: cú pháp dấu phẩy phải học, mà trên
+điện thoại dấu phẩy còn nằm ở lớp bàn phím khác. Ô nhập **vẫn hiểu** chuỗi có dấu phẩy (dán vào được),
+nhưng đường chính là nút +.
+
+Chi tiết đáng giữ:
+- Chip tái dùng **nguyên khuôn `.nds-tag`** của tab (popIn · nút `×` · focus ring) — lệ dự án: đã có
+  khuôn thì không dựng control trần mới.
+- Nút **+** nền accent đặc, chữ trắng, có bóng, và **chỉ hiện khi trong ô đang có số** — nó là thao
+  tác chính của ô này, không phải một dấu cộng mờ lẫn vào nền.
+- Chip xếp **trước** ô nhập nên đọc từ trái sang phải là đúng thứ tự sẽ in, và số vừa chốt luôn nằm
+  sát ngay ô nhập.
+- Chốt xong thì **con trỏ về lại ô đó** (`focus` + `select`): nhập ba bịch là ba lần gõ liền tay.
+- Rời ô cũng chốt, và `prIn` gọi `prCamHet()` trước khi gửi — bấm In mà mất con số vừa đánh vì quên
+  bấm + là kiểu mất mát người dùng chỉ phát hiện khi tem đã ra thiếu.
+- Nguồn dữ liệu vẫn **chỉ là `r.slHang`** (chuỗi `"1.000, 2.000, 3.000"`); lõi `tachSl`/`moRong` lo
+  phần nở. Không thêm trường mới nào để hai đầu (dashboard ↔ agent) không có gì lệch.
+- Ô nhập to hơn: `64px/12.5px` → `88px/14px`, điện thoại `82px` cao `42px`.
+
+**③ Bỏ sổ tay tem.** Sổ tay từng ghi nhớ "tem này = SKU kia" mỗi lần người dùng **bấm một thẻ gợi ý**,
+để lần sau ra ngay không cần AI. Đường ghi duy nhất của nó chính là cú bấm đó — mà thẻ là một ô lớn
+trên điện thoại, chạm lệch rất dễ, và **bấm nhầm một lần là ghim SKU sai ở 100% cho mọi lần gặp lại
+tem đó**. Người dùng chốt: bỏ.
+
+Cách tắt (cố ý không xoá cả khối): `ndsSoNap` luôn trả sổ **rỗng** và `ndsSoHoc` không ghi gì. Nhờ vậy
+mọi đường phụ thuộc tự tắt theo mà không phải mổ vào tầng xếp hạng — `ndsSoTra()` rỗng nên luật "ghim
+từ sổ tay" không chạy, `daHoc` không bật nên nhãn *"từ sổ tay"* và nút *"quên ghi nhớ"* không xuất
+hiện, `ndsSoDem()` = 0 nên nút *"Xoá sổ tay"* tự ẩn. **Dữ liệu cũ trên máy cũng bị dọn một lần** khi
+mở trang: chỉ chặn đường ghi mà vẫn đọc thì những ghi nhớ sai đã có từ trước vẫn tiếp tục gợi ý sai —
+đúng cái cần tránh.
+
+**Cái mất, nói thẳng:** đường "quét mã vạch tem NCC → ra ngay SKU" không còn, vì cái làm nó ra ngay
+chính là sổ tay. Còn nguyên: quét mã vạch → thành từ khoá → đối soát bằng điểm (không gọi AI), và mã
+vạch **trùng** một SKU nội bộ thì vẫn ăn thẳng. Muốn có lại vòng tự học thì đường ghi phải là một nút
+**"Ghi nhớ tem này"** bấm có ý, chứ không ăn theo cú bấm thẻ.
+
+**④ Bẫy escaping, lần thứ n trong dự án này.** Nút + ban đầu viết
+`onclick="prCam(this.parentNode.querySelector('input.prsl-v'))"` — dấu nháy lồng trong thuộc tính HTML
+bị mất backslash lúc sinh file, và **cả trang chết** (`Unexpected identifier 'input'`) chứ không phải
+chỉ hỏng cái nút. Đã đổi sang `prCam(this.previousElementSibling)`: nút nằm ngay sau ô nhập nên không
+cần dấu nháy nào. Kèm theo có `probe-loi-trang.mjs` — mở trang trong Edge headless rồi in **mọi** lỗi
+JS, dùng khi bộ test đổ ngay từ ca đầu (lúc đó thông báo của bộ test không chỉ được vào đâu).
