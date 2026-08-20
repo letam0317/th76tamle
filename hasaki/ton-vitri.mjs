@@ -9,9 +9,12 @@
  *
  *  PHẠM VI (người dùng chốt cùng ngày, sau lượt chạy đầu): CHỈ SKU **vải** (xem `nhomVai`),
  *  CHỈ 2 kho **WH - MATERIAL - MTG** + **WH - MATERIAL - GARMENT** (xem `BO_TVT`), và **TRỪ** các
- *  vị trí tiền tố **F0-KHO-HM** (xem `VT_BO_QUA`). Lượt đầu quét cả danh mục 463 ở 13 kho ra
+ *  vị trí tiền tố **F0-KHO-HM** + **F0-AJ** (xem `VT_BO_QUA`) cùng các UID mang trạng thái
+ *  **Adjustment - shipped** (xem `ST_BO_QUA`). Lượt đầu quét cả danh mục 463 ở 13 kho ra
  *  2.039 dòng, nhưng 1.500 trong đó là "Chỉ Lenio" — chỉ/sợi không chịu luật UIDgr nên là nhiễu.
- *  Thu phạm vi: 2.039 → 446 (chỉ vải, 2 kho) → **337** (trừ F0-KHO-HM).
+ *  Thu phạm vi: 2.039 → 446 (chỉ vải, 2 kho) → 337 (trừ F0-KHO-HM) → **95** (trừ F0-AJ +
+ *  Adjustment - shipped). Đo thật trên tab ngày 20/08/2026: 337 dòng, trong đó 221 ở F0-AJ và 240
+ *  mang trạng thái Adjustment - shipped (chồng nhau 219) ⇒ còn 95 dòng là việc thật.
  *
  *  NGUỒN: GET /api/v1/wms/report-management/report-inventories  (bản ghi mức UID)
  *    · header BẮT BUỘC `Company-Ids` (thiếu → 400 "Company not authenticated")
@@ -34,11 +37,24 @@ import { fetchThuLai } from "./session-rules.js";
 export const GW_RPT = "https://wms-gw.inshasaki.com/api/v1/wms/report-management/report-inventories";
 export const VT_CHO = "F0-A0-00-00-00-00";        // vị trí "chờ khai báo UID group" (bãi tập kết)
 export const VT_CHO_TIEN_TO = "F0-A0";            // người dùng phát biểu luật theo TIỀN TỐ F0-A0
-/* Vị trí MIỄN TRỪ (người dùng chốt 19/08/2026): khu `F0-KHO-HM` không tính là sai chỗ dù UID chưa
-   khai báo UID group. Khai theo TIỀN TỐ để phủ hết ô con (F0-KHO-HM-01-01-01, -01-04-01…).
+/* Vị trí MIỄN TRỪ (người dùng chốt 19/08/2026 · bổ sung 20/08/2026): các khu dưới đây không tính là
+   sai chỗ dù UID chưa khai báo UID group. Khai theo TIỀN TỐ để phủ hết ô con.
+     · `F0-KHO-HM`  — khu hàng mẫu/HM (chốt 19/08/2026).
+     · `F0-AJ`      — khu điều chỉnh (adjustment). Hàng ở đây đang chờ xử lý chứng từ, KHÔNG phải
+                      hàng "đã lên kệ mà quên khai UIDgr" nên không đưa vào việc phải đi làm.
+                      ⚠ ĐỪNG lẫn với bãi chờ `F0-A0`: `laBaiCho` khớp tiền tố "F0-A0" nên F0-AJ
+                      KHÔNG rơi vào đó (qc-tvt-quet đã chốt), phải liệt kê riêng ở đây.
    Đổi bằng biến môi trường TVT_VITRI_BO_QUA (ngăn cách bằng dấu phẩy) nếu kho phát sinh khu khác. */
-export const VT_BO_QUA = String(process.env.TVT_VITRI_BO_QUA || "F0-KHO-HM")
+export const VT_BO_QUA = String(process.env.TVT_VITRI_BO_QUA || "F0-KHO-HM,F0-AJ")
   .split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+/* Trạng thái MIỄN TRỪ (người dùng chốt 20/08/2026): UID `Adjustment - shipped` là UID ĐÃ XUẤT theo
+   phiếu điều chỉnh — bản ghi còn treo vị trí cũ chỉ vì WMS giữ lịch sử, hàng thật không còn trên
+   kệ nên "sai vị trí" ở đây là ảo. Ví dụ người dùng chỉ ra: F0-KHO-507-01-03-01 (22 dòng, toàn bộ
+   là Adjustment - shipped). So khớp KHÔNG phân biệt hoa/thường và bỏ khoảng trắng quanh dấu gạch
+   vì WMS ghi lẫn "Adjustment - shipped" / "Adjustment - Shipped".
+   Đổi bằng biến môi trường TVT_STATUS_BO_QUA (ngăn cách bằng dấu phẩy). */
+export const ST_BO_QUA = String(process.env.TVT_STATUS_BO_QUA || "Adjustment - shipped")
+  .split(",").map((s) => chuanSt(s)).filter(Boolean);
 export const SIZE = 1000;                          // trần server (2000 → 400 "size must be less than 1000")
 export const MAX_TRANG = 60;                       // chốt chặn: 60 × 1000 = 60k dòng/kho là quá thừa
 export const MAX_HOI_VT = 40;                      // trần số vị trí đem đi đối chiếu mỗi vòng vá (chặn kho có hàng trăm vị trí lẻ)
@@ -82,10 +98,19 @@ export function chuaKhaiBao(v) {
 export function laBaiCho(loc) {
   return String(loc || "").toUpperCase().startsWith(VT_CHO_TIEN_TO);
 }
-/** Vị trí nằm trong danh sách miễn trừ (F0-KHO-HM…) ⇒ không đưa vào danh sách sai chỗ. */
+/** Vị trí nằm trong danh sách miễn trừ (F0-KHO-HM, F0-AJ…) ⇒ không đưa vào danh sách sai chỗ. */
 export function boQuaViTri(loc) {
   const s = String(loc || "").toUpperCase();
   return VT_BO_QUA.some((p) => s.startsWith(p));
+}
+/** Chuẩn hoá tên trạng thái để so khớp: gom khoảng trắng quanh dấu "-", hạ về chữ thường. */
+export function chuanSt(v) {
+  return String(v == null ? "" : v).replace(/\s*-\s*/g, " - ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+/** Trạng thái nằm trong danh sách miễn trừ (Adjustment - shipped…) ⇒ hàng đã xuất, không phải việc. */
+export function boQuaStatus(st) {
+  const s = chuanSt(st);
+  return !!s && ST_BO_QUA.includes(s);
 }
 
 function url(wh, them) {
@@ -192,8 +217,9 @@ export async function quetNgoaiBaiCho(cty, wh, token, log = () => {}) {
 
 /**
  * Quét 2 kho nguyên liệu → danh sách dòng BẤT THƯỜNG: SKU **vải**, chưa khai báo UID group,
- * mà đang nằm ngoài bãi chờ F0-A0.
- * Trả { rows, soGoi, thongKe:[{ten,wh,ngoai,chuaKb,bt}], duCanh }.
+ * mà đang nằm ngoài bãi chờ F0-A0 — sau khi trừ khu miễn trừ (VT_BO_QUA) và trạng thái đã xuất
+ * (ST_BO_QUA).
+ * Trả { rows, soGoi, thongKe:[{ten,wh,ngoai,chuaKb,vai,ngoaiKhu,bt}], duCanh }.
  */
 export async function quetTonViTri(token, log = () => {}) {
   const rows = [], thongKe = [];
@@ -211,13 +237,16 @@ export async function quetTonViTri(token, log = () => {}) {
         log("  ⚠ kho id " + wh + " của " + bo.ten + " nay là “" + ten + "”, không phải “" + bo.khoTen + "” — BỎ QUA, cần rà lại id kho.");
         duCanh = false; continue;
       }
-      /* Lọc 3 nhịp, đếm từng nhịp để log đọc ra ngay dòng nào rụng vì lý do gì. */
+      /* Lọc 4 nhịp, đếm từng nhịp để log đọc ra ngay dòng nào rụng vì lý do gì. */
       const chuaKb = kq.rows.filter((it) => chuaKhaiBao(it.group_uid) && !laBaiCho(it.location_description));
       const vai = chuaKb.filter((it) => laVai(it.product_name));                    // chỉ SKU vải
-      const bt = vai.filter((it) => !boQuaViTri(it.location_description));          // trừ khu miễn trừ
-      thongKe.push({ ten: bo.ten, wh: ten, ngoai: kq.tongNgoai, chuaKb: chuaKb.length, vai: vai.length, bt: bt.length });
+      const ngoaiKhu = vai.filter((it) => !boQuaViTri(it.location_description));    // trừ khu miễn trừ
+      const bt = ngoaiKhu.filter((it) => !boQuaStatus(it.status_name));             // trừ trạng thái đã xuất
+      thongKe.push({ ten: bo.ten, wh: ten, ngoai: kq.tongNgoai, chuaKb: chuaKb.length, vai: vai.length,
+        ngoaiKhu: ngoaiKhu.length, bt: bt.length });
       log("    · " + ten + ": " + kq.tongNgoai + " ngoài bãi chờ → " + chuaKb.length + " chưa khai báo → " +
-        vai.length + " là vải → " + bt.length + " sau khi trừ " + VT_BO_QUA.join("/") +
+        vai.length + " là vải → " + ngoaiKhu.length + " sau khi trừ " + VT_BO_QUA.join("/") +
+        " → " + bt.length + " sau khi trừ " + ST_BO_QUA.join("/") +
         " (" + kq.soGoi + " lượt, " + ((Date.now() - t0) / 1000).toFixed(0) + "s)");
       for (const it of bt) rows.push({ cty: bo.ten, it });
     }

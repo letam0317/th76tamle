@@ -2,7 +2,7 @@
  * qc-tvt-quet.mjs — kiểm PHẠM VI của bộ quét "Tồn tại vị trí" mà KHÔNG gọi WMS:
  * chỉ 2 kho nguyên liệu, và chỉ SKU vải. Chạy được mọi lúc, kể cả khi không có token.
  */
-import { BO_TVT, nhomVai, laVai, chuaKhaiBao, laBaiCho, boQuaViTri, VT_BO_QUA, dungBangTvt, TVT_HEADER, VT_CHO } from "./ton-vitri.mjs";
+import { BO_TVT, nhomVai, laVai, chuaKhaiBao, laBaiCho, boQuaViTri, boQuaStatus, chuanSt, VT_BO_QUA, ST_BO_QUA, dungBangTvt, TVT_HEADER, VT_CHO } from "./ton-vitri.mjs";
 let loi = 0;
 const ok = (m) => console.log("  ✓ " + m);
 const xau = (m) => { loi++; console.log("  ✗ " + m); };
@@ -41,14 +41,29 @@ console.log("③ Luật 'chưa khai báo' + 'bãi chờ'");
 if (!loi) ok("group_uid 0/rỗng/N/A = chưa khai báo · F0-A0* = bãi chờ (F0-AJ KHÔNG phải)");
 
 console.log("④ Khu miễn trừ " + VT_BO_QUA.join("/"));
-if (!VT_BO_QUA.includes("F0-KHO-HM")) xau("mất khu miễn trừ F0-KHO-HM");
+for (const p of ["F0-KHO-HM", "F0-AJ"]) if (!VT_BO_QUA.includes(p)) xau("mất khu miễn trừ " + p);
+/* F0-AJ (khu điều chỉnh) vào danh sách 20/08/2026 — 221/336 dòng nằm ở đây, KHÔNG phải việc phải đi làm.
+   Bẫy: F0-AJ và bãi chờ F0-A0 chỉ khác 1 ký tự nên laBaiCho() không phủ được, phải là boQuaViTri(). */
 [["F0-KHO-HM-01-04-01", true], ["F0-KHO-HM-01-01-01", true], ["F0-KHO-HM", true],
- ["F0-KHO-503-09-04-01", false], ["F0-AJ-00-00-00-00", false], ["F0-KHO-512-04-04-01", false]].forEach(([v, mong]) => {
+ ["F0-AJ-00-00-00-00", true], ["F0-AJ", true],
+ ["F0-KHO-503-09-04-01", false], ["F0-KHO-507-01-03-01", false], ["F0-KHO-512-04-04-01", false],
+ ["F0-VR-00-00-00-00", false], ["F0-A0-00-00-00-00", false]].forEach(([v, mong]) => {
   if (boQuaViTri(v) !== mong) xau("boQuaViTri('" + v + "') = " + boQuaViTri(v) + ", mong " + mong);
 });
-if (!loi) ok("F0-KHO-HM* bị loại, các ô F0-KHO khác vẫn giữ");
+if (!loi) ok("F0-KHO-HM* + F0-AJ* bị loại, các ô F0-KHO/F0-VR khác vẫn giữ");
 
-console.log("⑤ Bảng ghi Sheet");
+console.log("⑤ Trạng thái miễn trừ " + ST_BO_QUA.join("/"));
+if (!ST_BO_QUA.includes("adjustment - shipped")) xau("mất trạng thái miễn trừ 'Adjustment - shipped'");
+/* WMS ghi lẫn hoa/thường và lẫn khoảng trắng quanh dấu gạch ⇒ chuanSt phải gom về cùng một chuỗi. */
+[["Adjustment - shipped", true], ["Adjustment - Shipped", true], ["ADJUSTMENT-SHIPPED", true],
+ ["adjustment  -  shipped", true],
+ ["In-BIN", false], ["Returned supplier", false], ["Removed", false], ["Not found", false], ["", false]].forEach(([v, mong]) => {
+  if (boQuaStatus(v) !== mong) xau("boQuaStatus('" + v + "') = " + boQuaStatus(v) + ", mong " + mong);
+});
+if (chuanSt("Adjustment-Shipped") !== "adjustment - shipped") xau("chuanSt không chuẩn hoá được dấu gạch");
+if (!loi) ok("Adjustment - shipped bị loại (mọi biến thể hoa/thường/khoảng trắng), trạng thái khác vẫn giữ");
+
+console.log("⑥ Bảng ghi Sheet");
 const bang = dungBangTvt([{ cty: "Mastige", it: { warehouse_name: "WH - MATERIAL - MTG", location_description: "F0-AJ-00-00-00-00",
   uid: "VN001", sku: "422304497", product_name: "Vải single jersey/TN006B", category_name: "Thời Trang (NVL)",
   brand_name: "Vải", qty: 1600, uom: "Cái", status_name: "In-BIN", group_uid: "0", updated_at: "2026-05-26 14:24:06" } }]);

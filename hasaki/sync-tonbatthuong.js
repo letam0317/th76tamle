@@ -192,8 +192,8 @@ async function ghiTongHop(tab, sheetId, rows, apiAt) {
  * Chi tiết thuật toán + cơ sở đo đạc: xem đầu tệp ton-vitri.mjs.
  * BEST-EFFORT: hỏng ở đây TUYỆT ĐỐI không được làm hỏng lượt sync tồn bất thường phía trên. */
 const F_TVT_LAST = path.join(DIR, ".tvt-last.json");
-function tvtDocLan() { try { return JSON.parse(fs.readFileSync(F_TVT_LAST, "utf8")); } catch { return { n: 0 }; } }
-function tvtLuuLan(n) { try { fs.writeFileSync(F_TVT_LAST, JSON.stringify({ n, at: new Date().toISOString() })); } catch { /* bỏ qua */ } }
+function tvtDocLan() { try { return JSON.parse(fs.readFileSync(F_TVT_LAST, "utf8")); } catch { return {}; } }
+function tvtLuuLan(n, ngoai) { try { fs.writeFileSync(F_TVT_LAST, JSON.stringify({ n, ngoai, at: new Date().toISOString() })); } catch { /* bỏ qua */ } }
 
 async function ghiTonViTri(token, apiAt) {
   try {
@@ -202,10 +202,17 @@ async function ghiTonViTri(token, apiAt) {
     log("  ✓ " + kq.soGoi + " lượt gọi WMS → " + kq.rows.length + " UID vải sai vị trí" + (kq.duCanh ? "" : " (⚠ quét CHƯA đủ cạnh)"));
 
     /* Chốt chặn riêng cho bước này (KHÔNG dùng baseline tu-chua): tab này được phép tụt về 0 —
-       kho xử lý xong thì đúng là hết dòng. Chỉ nghi ngờ khi quét THIẾU dữ liệu mà số lại tụt mạnh. */
-    const truoc = tvtDocLan().n || 0;
-    if (!kq.duCanh && truoc >= 50 && kq.rows.length < truoc * 0.5) {
-      log("  ⚠ bỏ ghi " + TVT_TAB + ": quét chưa đủ cạnh mà số dòng tụt " + truoc + " → " + kq.rows.length + " (giữ dữ liệu cũ).");
+       kho xử lý xong thì đúng là hết dòng. Chỉ nghi ngờ khi quét THIẾU dữ liệu mà số lại tụt mạnh.
+       ⚠ ĐO BẰNG SỐ DÒNG QUÉT ĐƯỢC (tổng `ngoai` = dòng nằm ngoài bãi chờ), KHÔNG bằng số dòng
+       SAU LỌC: mỗi lần siết luật lọc là số sau lọc tụt hẳn một bậc một cách CỐ Ý (20/08/2026 thêm
+       F0-AJ + Adjustment - shipped: 337 → 95) — lấy nó làm mốc thì chốt chặn tự bắn vào chân,
+       khoá tab ở dữ liệu cũ mãi vì mốc chỉ được cập nhật khi ghi thành công. Số dòng quét được thì
+       chỉ tụt khi WMS/token thật sự có vấn đề, đúng thứ chốt chặn này muốn bắt. */
+    const ngoai = kq.thongKe.reduce((t, x) => t + (x.ngoai || 0), 0);
+    const lan = tvtDocLan();
+    const truoc = lan.ngoai == null ? 0 : lan.ngoai;   // mốc cũ chỉ có `n` (số sau lọc) ⇒ coi như chưa có mốc
+    if (!kq.duCanh && truoc >= 50 && ngoai < truoc * 0.5) {
+      log("  ⚠ bỏ ghi " + TVT_TAB + ": quét chưa đủ cạnh mà số dòng quét được tụt " + truoc + " → " + ngoai + " (giữ dữ liệu cũ).");
       return;
     }
 
@@ -219,7 +226,7 @@ async function ghiTonViTri(token, apiAt) {
     const hash = hashTab(TVT_HEADER, rows);
     if (tabKhongDoi(DIR, TVT_TAB, hash)) {
       log("  = " + TVT_TAB + ": không đổi — bỏ qua ghi (" + rows.length + " dòng).");
-      await chamMocTabs([TVT_TAB], apiAt, log); tvtLuuLan(kq.rows.length); return;
+      await chamMocTabs([TVT_TAB], apiAt, log); tvtLuuLan(kq.rows.length, ngoai); return;
     }
     for (let i = 0; i < rows.length; i += CHUNK) {
       const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: TVT_TAB, sheetId: SHEET_FACTORY,
@@ -227,7 +234,7 @@ async function ghiTonViTri(token, apiAt) {
       const j = await gasPost(body, log, TVT_TAB + (rows.length > CHUNK ? " gói " + (i / CHUNK + 1) : ""));
       if (j.status !== "success") throw new Error(j.message || "?");
     }
-    luuHashTab(DIR, TVT_TAB, hash); tvtLuuLan(kq.rows.length);
+    luuHashTab(DIR, TVT_TAB, hash); tvtLuuLan(kq.rows.length, ngoai);
     log("  ✓ " + TVT_TAB + ": ghi " + rows.length + " dòng.");
   } catch (e) {
     log("  ⚠ Bỏ qua bước Tồn tại vị trí: " + e.message + " (tab cũ giữ nguyên, lượt sau chạy lại).");

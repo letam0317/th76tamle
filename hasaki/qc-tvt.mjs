@@ -31,7 +31,7 @@ const hamCan = ["tvtLoad", "tvtRender", "tvtRowsInScope", "tvtOpenAll", "tvtOpen
   "tvtShowModal", "tvtmBuildFilters", "tvtmComboMenu", "tvtmComboInput", "tvtmQuick", "tvtmApply",
   "tvtmRender", "tvtmState", "tvtmQval", "tvtmRowsWith", "tvtmFdef", "tvtmFltThu", "tvtmFltClear",
   "tvtmFltBadge", "tvtmCloseCombos", "closeTvtModal", "tvtReason", "tvtNgay", "tvtNum", "tvtIdx",
-  "tvtSetNhom", "tvtNhomBar", "tvtNhan", "tvtGiaiThich", "tvtBoQua"];
+  "tvtSetNhom", "tvtNhomBar", "tvtNhan", "tvtGiaiThich", "tvtBoQua", "tvtBoQuaSt", "tvtChuanSt"];
 hamCan.forEach((h) => (new RegExp("function\\s+" + h + "\\s*\\(").test(html) ? null : xau("thiếu hàm " + h + "()")));
 // mọi onclick/oninput trong khối mục mới phải trỏ vào hàm có thật
 const dungHam = [...html.matchAll(/\b(tvt[A-Za-z]*)\s*\(/g)].map((m) => m[1]);
@@ -98,10 +98,16 @@ else {
     const bar = ctx.tvtNhomBar();
     if (!/Vải/.test(bar) || !/NVL khác/.test(bar)) xau("tvtNhomBar thiếu chip"); else ok("tvtNhomBar dựng đủ 2 chip + Tất cả");
     ctx.TVT.nhom = "";
-    // khu miễn trừ F0-KHO-HM: chốt phòng hờ phía dashboard (bộ sync đã cắt từ đầu)
-    const bq = [["F0-KHO-HM-01-04-01", true], ["F0-KHO-HM", true], ["F0-KHO-503-09-04-01", false], ["F0-AJ-00-00-00-00", false]];
+    /* Khu + trạng thái MIỄN TRỪ: chốt phòng hờ phía dashboard (bộ sync đã cắt từ đầu). Hai danh sách
+       này phải TRÙNG với VT_BO_QUA/ST_BO_QUA bên ton-vitri.mjs — qc-tvt-quet canh phía sync. */
+    const bq = [["F0-KHO-HM-01-04-01", true], ["F0-KHO-HM", true], ["F0-AJ-00-00-00-00", true], ["F0-AJ", true],
+      ["F0-KHO-503-09-04-01", false], ["F0-KHO-507-01-03-01", false], ["F0-A0-00-00-00-00", false]];
     bq.forEach(([v, mong]) => { if (ctx.tvtBoQua(v) !== mong) xau("tvtBoQua('" + v + "') = " + ctx.tvtBoQua(v) + ", mong " + mong); });
-    ok("tvtBoQua: F0-KHO-HM* bị loại, F0-KHO khác giữ nguyên");
+    ok("tvtBoQua: F0-KHO-HM* + F0-AJ* bị loại, F0-KHO khác giữ nguyên");
+    const bqs = [["Adjustment - shipped", true], ["Adjustment - Shipped", true], ["ADJUSTMENT-SHIPPED", true],
+      ["In-BIN", false], ["Returned supplier", false], ["Removed", false], ["Not found", false], ["", false]];
+    bqs.forEach(([v, mong]) => { if (ctx.tvtBoQuaSt(v) !== mong) xau("tvtBoQuaSt('" + v + "') = " + ctx.tvtBoQuaSt(v) + ", mong " + mong); });
+    ok("tvtBoQuaSt: Adjustment - shipped bị loại (mọi biến thể), trạng thái khác giữ nguyên");
   } catch (e) { xau("chạy lõi lỗi: " + e.message); }
 }
 
