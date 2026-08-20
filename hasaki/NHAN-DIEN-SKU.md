@@ -890,6 +890,56 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.13 Nhặt kho MẪU + toast lên đầu + sự cố GHI HỤT DANH MỤC (20/08/2026, chiều)
+
+**① Toast lên ĐẦU màn hình.** Nó đang neo `bottom:28px` — đúng chỗ nút Chụp vừa dời xuống (5b.12),
+nên mỗi lần đọc xong tem là dải "OCR đọc được N từ khoá" **che mất nút Chụp 6 giây**, đúng lúc thủ kho
+muốn chụp lại. Nay `top:calc(14px + env(safe-area-inset-top))`, trượt vào từ trên. Ca test khoá: toast
+`top ≤ 40px`, nằm nửa trên màn hình, **không giao** với hình chữ nhật của nút Chụp.
+
+**② Nhặt kho MẪU một lượt — `sync-sku-master.mjs --bu-kho-mau` (4 lượt gọi, chạy TAY).**
+Chụp nguyên kho `1441 SAMPLE - 130 AP CHANH - MTG` ra `sku-kho-mau.json`; lượt sync thường **merge**
+như file biến thể, nên **cụm hằng ngày vẫn 7 lượt gọi**. Khác file biến thể một điểm: dòng kho mẫu
+**giữ TỒN THẬT** (1.814/3.485 dòng có tồn) vì món mẫu nằm đúng trong kho mẫu — đó là chỗ người ta đếm
+nó; dòng tồn 0 vẫn tra được nhờ luật *định danh thắng phạm vi* của 5b.12.
+
+Kết quả: danh mục **5.625 → 8.087 SKU** (2.462 dòng mới; **1.023 SKU của kho mẫu đã có sẵn** trong 3 kho
+nguyên liệu — phụ liệu để trong phòng mẫu). Quét tem thẻ mẫu giờ ra:
+
+```
+#1 422280648  80%  INACTIVE  tồn 0   Quần mẫu FT/SMPA01/87% Nylon, 13% Lycra/None/Grey/None
+#2 422430797  80%  INACTIVE  tồn 0   Quần mẫu FT/SMPA01/87% Nylon, 13% Lycra/None/Deep Black/Size S
+#3 422494665  25%  ACTIVE    tồn 2   Áo mẫu SizeSet/CWSM0005/…
+```
+
+> **PHÁT HIỆN QUAN TRỌNG — "Mẫu SizeSet của SMPA01" KHÔNG TỒN TẠI trong WMS.** Kho mẫu có **95 dòng
+> `Quần/Áo Mẫu SizeSet/…`** nhưng mã sản phẩm của chúng là `CWPT0018 · CWJE0001 · CWPA0011 · CWSM0005`…
+> Còn `SMPA01` chỉ có **2 dòng, cả hai là "Quần mẫu FT"**. Nên với tấm thẻ *sizeset* thì câu trả lời
+> đúng nhất mà dữ liệu cho phép chính là 2 SKU FT cùng mã sản phẩm ở trên — không phải máy đọc sai.
+> Cả kho mẫu chỉ có 4 dòng chứa "SMPA": `SMPA0003` (Quần mẫu FT) · `SMPA01` ×2 · `SMPA0002` (Áo mẫu FT).
+
+**Giá phải trả, đo thật:** payload gviz **1.088 → 1.564 KB** (+476 KB, tải 1,0 s trên mạng công ty),
+dựng chỉ mục **205 → 304 ms** (Node; trong Edge bóp CPU 4× thì ~2 s nhưng dựng theo lô + nhường luồng
+nên trang KHÔNG đứng — xem 3b), đối soát **3–7 → 10–23 ms**. Mẫu sinh mới liên tục nên bản chụp cũ dần:
+cần thì chạy lại, đúng 4 lượt gọi.
+
+**③ SỰ CỐ TỰ GÂY RA VÀ ĐÃ VÁ: ghi lên Sheet một danh mục THIẾU 3.820 SKU.**
+Lượt sync đầu sau khi có file kho mẫu, log ghi `✓ Mastige · kho nguyên liệu: quét 1000 dòng / 4820`
+rồi vẫn ghi bình thường. Gốc: trong vòng phân trang có `const j = await r.json().catch(() => null);
+if (!j) break;` — **break KHÔNG log gì**. Một lượt trả về không phải JSON ở trang 2 là dừng êm, và:
+
+* tổng số dòng chỉ tụt **5.625 → 5.411 (−4%)** vì phần bù kho mẫu che mất chỗ hụt,
+* nên **cổng chặn ghi rác `kiemTruocKhiGhi`** (bám ngưỡng tụt số dòng) **cho qua**,
+* nghĩa là tem của 3.820 SKU nguyên liệu đó đều ra "không tìm thấy" mà không ai biết vì sao.
+
+**Vá:** ① log rõ khi phản hồi không phải JSON; ② mỗi bộ so `seen` với `total` do API trả, thiếu thì
+đánh dấu; ③ **thiếu bất kỳ bộ nào thì KHÔNG GHI** — `exit 75` (hoãn) để lượt cụm/watchdog sau chạy lại,
+giữ nguyên dữ liệu cũ. Chạy lại ngay sau đó: quét đủ 5.994 dòng → ghi 8.087 SKU.
+
+> **Bài học rộng hơn**: một cổng chặn bám **TỔNG số dòng** sẽ mù khi có hai nguồn cộng vào cùng một tab
+> — nguồn này hụt, nguồn kia phình, tổng trông vẫn "bình thường". Cổng phải bám **từng nguồn**, và
+> nguồn nào tự biết `total` của nó thì phải đối chiếu bằng chính con số đó.
+
 ### 5b.12 Thẻ mẫu SMPA01 → luật "ĐỊNH DANH THẮNG PHẠM VI" + 4 việc gọn giao diện (20/08/2026)
 
 **Ảnh gửi tới không phải tem NCC** mà là **thẻ thông tin mẫu nội bộ** (`THẺ THÔNG TIN MẪU`: Loại mẫu ·

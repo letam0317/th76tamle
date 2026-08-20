@@ -226,6 +226,23 @@ const barChup = await page.evaluate(() => {
   ra.anKhiTat = b.classList.contains("hidden") && !document.body.classList.contains("nds-chup");
   return ra;
 });
+/* 20/08/2026 (yêu cầu user): toast ("OCR đọc được N từ khoá…") phải nằm ở ĐẦU màn hình. Trước đây
+   nó neo bottom:28px — đúng chỗ nút Chụp vừa dời xuống, nên mỗi lần đọc xong tem là toast che nút
+   trong 6 giây, đúng lúc thủ kho muốn chụp lại. */
+const viToast = await page.evaluate(async () => {
+  ndsHienChup(true);
+  toast("OCR đọc được 7 từ khoá.", "ok");
+  await new Promise((r) => setTimeout(r, 320));
+  const t = document.getElementById("toast").getBoundingClientRect();
+  const c = document.getElementById("ndsBtnChup").getBoundingClientRect();
+  const ra = { tren: Math.round(t.top), nuaTren: t.bottom < innerHeight / 2, cheNut: !(t.bottom < c.top || c.bottom < t.top),
+    hien: getComputedStyle(document.getElementById("toast")).opacity };
+  ndsTatCam();
+  return ra;
+});
+kiem("Toast nằm ĐẦU màn hình, không che nút Chụp",
+  viToast.tren >= 0 && viToast.tren <= 40 && viToast.nuaTren && !viToast.cheNut && Number(viToast.hien) > .9,
+  "top " + viToast.tren + "px · nửa trên: " + viToast.nuaTren + " · che nút Chụp: " + viToast.cheNut);
 kiem("Nút CHỤP nổi ở đáy màn hình, màu cam, hiện/ẩn theo camera",
   barChup.ngoaiView && barChup.viTri === "fixed" && barChup.hienKhiBat && barChup.anKhiTat &&
   barChup.nen === "rgb(245, 124, 0)" && barChup.chu === "rgb(255, 255, 255)" &&

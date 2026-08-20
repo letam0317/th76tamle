@@ -78,8 +78,12 @@ const SIZE = 1000, MAX_PAGE = 250, CHUNK = 4000;
 const TAT_CA = process.argv.includes("--tat-ca");
 const DRY = process.argv.includes("--dry");
 const BU = process.argv.includes("--bu-bien-the");
+const BU_MAU = process.argv.includes("--bu-kho-mau");
 /* File "biến thể đơn vị nhỏ nhặt từ ngoài phạm vi" — xem khối ghi chú BÙ BIẾN THỂ bên dưới. */
 const F_BIENTHE = path.join(DIR, "sku-bien-the.json");
+/* Kho MẪU (1441 SAMPLE - 130 AP CHANH - MTG) — xem khối ghi chú BÙ KHO MẪU bên dưới. */
+const F_KHOMAU = path.join(DIR, "sku-kho-mau.json");
+const KHO_MAU = { ten: "SAMPLE - 130 AP CHANH - MTG", company: "1002", warehouses: "1441" };
 
 /* Kho NGUYÊN LIỆU (mặc định) vs MỌI kho factory (--tat-ca). Id ↔ tên đã đối chiếu 18/08/2026. */
 const BO = TAT_CA
@@ -130,12 +134,55 @@ const KHO_NGOAI = [
   { ten: "Mastige", company: "1002", warehouses: "1178,1151,1441,1179,1250,1307" },   // SEMI PRODUCT 127k · OFFICE 5,5k · SAMPLE 3,5k · FINISHED 3k · NG-OFFICE 2,3k · GARMENT-MTG 12
   { ten: "Garment", company: "1005", warehouses: "1340,1266,1516,1341" },             // SEMI PRODUCT 2,6k · SHOP 819 · NG 303 · FINISHED 6
 ];
-/** Đọc file bù biến thể → mảng dòng 6 cột (rỗng nếu chưa chạy `--bu-bien-the` lần nào). */
-function docBienThe() {
+/** Đọc một file bù → mảng dòng 6 cột (rỗng nếu chưa chạy lượt nhặt tay lần nào). */
+function docFileBu(f) {
   try {
-    const o = JSON.parse(fs.readFileSync(F_BIENTHE, "utf8"));
+    const o = JSON.parse(fs.readFileSync(f, "utf8"));
     return { at: o.at || "", rows: Array.isArray(o.rows) ? o.rows : [] };
-  } catch { return { at: "", rows: [] }; }   /* chưa chạy --bu-bien-the lần nào: coi như không có gì để bù */
+  } catch { return { at: "", rows: [] }; }   /* chưa nhặt lần nào: coi như không có gì để bù */
+}
+
+/**
+ * `--bu-kho-mau`: chụp NGUYÊN kho MẪU (1441) ra `sku-kho-mau.json`. 4 lượt gọi, chạy TAY.
+ *
+ *  Vì sao cần (ca 20/08/2026): thủ kho chụp **thẻ thông tin mẫu** nội bộ (mã sản phẩm SMPA01) —
+ *  tab gợi ý ra 3 SKU vải/chỉ chỉ khớp mấy chữ chung "87%/13%/đen". Tra WMS thì SMPA01 CÓ THẬT,
+ *  2 SKU, nhưng cả hai nằm ở kho MẪU nên hoàn toàn ngoài phạm vi danh mục.
+ *  Vì sao KHÔNG đưa vào cụm hằng ngày: user chốt giữ tải upstream. Mẫu sinh mới liên tục nên bản
+ *  chụp sẽ cũ dần — cần thì chạy lại, đúng 4 lượt gọi.
+ *  Tồn ở đây là TỒN THẬT CỦA KHO MẪU (1.793/3.485 dòng có tồn > 0) chứ không để 0 như file biến
+ *  thể: món mẫu nằm ĐÚNG trong kho mẫu, đó là chỗ người ta đếm nó. Dòng tồn 0 vẫn tra được nhờ
+ *  luật "định danh thắng phạm vi" của lõi (mã tem khớp tuyệt đối thì INACTIVE vẫn hiện).
+ */
+async function buKhoMau(token) {
+  const rows = [];
+  let trang = 0;
+  for (let page = 1; page <= MAX_PAGE; page++) {
+    const u = API + "?company_ids=" + KHO_MAU.company + "&warehouse_ids=" + KHO_MAU.warehouses +
+      "&page=" + page + "&size=" + SIZE;
+    const r = await fetchThuLai(u, { headers: { authorization: token, "Company-Ids": KHO_MAU.company } }).catch(() => null);
+    if (!r || !r.ok) { log("  ⚠ kho mẫu trang " + page + ": " + (r ? "HTTP " + r.status : "lỗi mạng") + " — dừng."); break; }
+    const j = await r.json().catch(() => null); if (!j) break;
+    const recs = (j.records || (j.data && j.data.records)) || [];
+    if (!recs.length) break;
+    trang++;
+    for (const it of recs) {
+      const d = bocDong(it); if (!d) continue;
+      rows.push([d.sku, d.pn, d.combo ? "COMBO" : "NORMAL", d.song ? "ACTIVE" : "INACTIVE", Math.round(d.qty), bocDonVi(d.pn)]);
+    }
+    if (recs.length < SIZE) break;
+    await nghi(300);
+  }
+  rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  fs.writeFileSync(F_KHOMAU, JSON.stringify({
+    at: new Date().toISOString(),
+    moTa: "Bản chụp NGUYÊN kho 1441 SAMPLE - 130 AP CHANH - MTG (tồn là tồn thật của kho mẫu). " +
+      "Chạy lại khi cần: node sync-sku-master.mjs --bu-kho-mau",
+    trang, rows,
+  }, null, 1));
+  const soActive = rows.filter((r) => r[3] === "ACTIVE").length;
+  log("✓ Bù kho mẫu: " + trang + " trang → " + rows.length + " SKU (" + soActive + " có tồn). Lưu: " + F_KHOMAU);
+  log("  → chạy `node sync-sku-master.mjs` để đẩy danh mục đã gộp lên tab " + TAB + ".");
 }
 
 /** `--bu-bien-the`: quét kho ngoài phạm vi, lưu những biến thể ĐƠN VỊ NHỎ HƠN còn thiếu. */
@@ -198,10 +245,14 @@ async function buBienThe(token, goc) {
     process.exit(DEFER_EXIT);
   }
 
+  /* Chụp kho mẫu KHÔNG cần danh mục nguyên liệu → chạy ngay, đúng 4 lượt gọi (đặt sau vòng quét
+     dưới thì tốn thêm 7 lượt vô ích — đã cắn 20/08/2026 ở lượt chạy đầu). */
+  if (BU_MAU) { await buKhoMau(token); process.exit(0); }
+
   /* Gộp theo SKU: 1 SKU có thể nằm ở nhiều kho nguyên liệu → INVENTORY_QTY là TỔNG các kho
      trong phạm vi (hợp đồng 5 cột không có cột kho; dashboard ghi rõ điều này ở chú thích tab). */
   const gom = new Map();
-  let quet = 0;
+  let quet = 0, thieu = [];
   for (const cfg of BO) {
     let total = null, seen = 0;
     for (let page = 1; page <= MAX_PAGE; page++) {
@@ -209,7 +260,12 @@ async function buBienThe(token, goc) {
         "&page=" + page + "&size=" + SIZE;
       const r = await fetchThuLai(u, { headers: { authorization: token, "Company-Ids": cfg.company } }).catch(() => null);
       if (!r || !r.ok) { log("  ⚠ " + cfg.ten + " trang " + page + ": " + (r ? "HTTP " + r.status : "lỗi mạng") + " — dừng bộ này."); break; }
-      const j = await r.json().catch(() => null); if (!j) break;
+      /* ⚠ 20/08/2026 — LỖI THẬT: chỗ này `if (!j) break;` KHÔNG log gì. Một lượt trả về không phải
+         JSON là vòng quét dừng ÊM ở trang 2 và bản ghi lên Sheet thiếu 3.820 SKU nguyên liệu mà
+         không dòng log nào bất thường — tổng số dòng chỉ tụt 4% (phần bù kho mẫu che mất) nên cổng
+         chặn ghi rác `kiemTruocKhiGhi` cũng cho qua. Nay: LOG + đánh dấu bộ này là THIẾU. */
+      const j = await r.json().catch(() => null);
+      if (!j) { log("  ⚠ " + cfg.ten + " trang " + page + ": phản hồi không phải JSON — dừng bộ này."); break; }
       if (total === null) total = j.count ?? j.total ?? (j.data && (j.data.count ?? j.data.total)) ?? null;
       const recs = (j.records || (j.data && j.data.records)) || [];
       if (!recs.length) break;
@@ -227,23 +283,41 @@ async function buBienThe(token, goc) {
       if ((total != null && seen >= total) || recs.length < SIZE) break;
       await nghi(300);
     }
-    log("  ✓ " + cfg.ten + ": quét " + seen + " dòng" + (total != null ? " / " + total : "") + ".");
+    const du = total == null || seen >= total;
+    if (!du) thieu.push(cfg.ten + " (" + seen + "/" + total + ")");
+    log((du ? "  ✓ " : "  ⚠ ") + cfg.ten + ": quét " + seen + " dòng" + (total != null ? " / " + total : "") + (du ? "." : " — THIẾU."));
+  }
+  /* QUÉT THIẾU THÌ KHÔNG ĐƯỢC GHI (vá 20/08/2026, sau khi đã ghi hụt một lượt). Danh mục là nguồn
+     DUY NHẤT của tab Nhận diện SKU: ghi bản thiếu lên là tem của mấy nghìn SKU bị mất kia đều ra
+     "không tìm thấy" mà không ai biết vì sao. Thoát 75 (hoãn) để lượt cụm/watchdog sau chạy lại. */
+  if (thieu.length) {
+    log("✗ Quét THIẾU: " + thieu.join(" · ") + " — GIỮ dữ liệu cũ, KHÔNG ghi.");
+    process.exit(DEFER_EXIT);
   }
 
   if (BU) { await buBienThe(token, gom); process.exit(0); }
 
   /* GỘP FILE BÙ BIẾN THỂ (xem khối ghi chú BÙ BIẾN THỂ đầu file). SKU nào đã có ở kho nguyên liệu thì
      giữ bản của kho nguyên liệu — file bù chỉ THÊM cái còn thiếu, không bao giờ đè. */
-  const bt = docBienThe();
-  let soBu = 0;
-  for (const r of bt.rows) {
-    const sku = String(r[0] || "").trim(); if (!sku || gom.has(sku)) continue;
-    gom.set(sku, { sku, pn: String(r[1] || ""), combo: String(r[2]).toUpperCase() === "COMBO", qty: 0, song: false });
-    soBu++;
+  for (const bu of [
+    { ten: "biến thể đơn vị nhỏ", f: F_BIENTHE, co: "--bu-bien-the", giuTon: false },
+    { ten: "kho mẫu (SAMPLE)", f: F_KHOMAU, co: "--bu-kho-mau", giuTon: true },
+  ]) {
+    const bt = docFileBu(bu.f);
+    if (!bt.rows.length) { log("  · Chưa có file bù " + bu.ten + " — chạy `node sync-sku-master.mjs " + bu.co + "` khi cần."); continue; }
+    let soBu = 0;
+    for (const r of bt.rows) {
+      const sku = String(r[0] || "").trim(); if (!sku || gom.has(sku)) continue;
+      /* `giuTon`: dòng kho mẫu mang TỒN THẬT của kho mẫu (món mẫu nằm đúng ở đó); dòng biến thể đơn
+         vị nhỏ thì tồn nằm ở kho khác nên phải để 0, ghi số đó vào đây là nói dối về kho nguyên liệu. */
+      const qty = bu.giuTon ? (Number(r[4]) || 0) : 0;
+      gom.set(sku, { sku, pn: String(r[1] || ""), combo: String(r[2]).toUpperCase() === "COMBO",
+        qty, song: bu.giuTon ? qty > 0 : false });
+      soBu++;
+    }
+    log("  + Bù " + bu.ten + ": " + soBu + "/" + bt.rows.length + " SKU (file chụp " +
+      String(bt.at).slice(0, 10) + (bt.rows.length - soBu ? "; " + (bt.rows.length - soBu) + " cái đã có sẵn trong phạm vi" : "") + ").");
   }
-  if (bt.rows.length) log("  + Bù biến thể đơn vị nhỏ: " + soBu + "/" + bt.rows.length + " SKU (file chụp " +
-    String(bt.at).slice(0, 10) + "; " + (bt.rows.length - soBu) + " cái nay đã có sẵn ở kho nguyên liệu).");
-  else log("  · Chưa có file bù biến thể — chạy `node sync-sku-master.mjs --bu-bien-the` nếu muốn có bản đơn vị nhỏ của kho bán thành phẩm.");
 
   /* Sắp xếp CỐ ĐỊNH theo SKU: hash tab mới ổn định giữa các lượt (không thì ngày nào cũng ghi lại). */
   const rows = [...gom.values()]
