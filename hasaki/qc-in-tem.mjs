@@ -75,16 +75,19 @@ kiem("Mọi mẫu đạt bất biến chuẩn (11 module · 6 phần tử · v�
 
 /* ═══════════ 2. CHECKSUM ═══════════ */
 console.log("\n── 2. Checksum (tính lại bằng công thức, không gọi hàm của trang) ──");
-const checksumTay = (s) => {
-  let tong = 104;                                     // START_B
-  for (let i = 0; i < s.length; i++) tong += (i + 1) * (s.charCodeAt(i) - 32);
+/* Checksum tính lại từ CHÍNH dãy mã (công thức chung của Code 128, không phụ thuộc subset):
+   (mã_start + Σ vị_trí × giá_trị) mod 103. Từ 20/08/2026 mã toàn số đi subset C nên không còn giả
+   định được "một ký tự = một mã" như trước. */
+const checksumTay = (ma) => {
+  let tong = ma[0];
+  for (let i = 1; i < ma.length - 2; i++) tong += i * ma[i];
   return tong % 103;
 };
 for (const ca of ["12345", "422322192", "F9-5284", "A", "0000000000"]) {
   const ma = T.maHoa(ca);
-  const mongCheck = checksumTay(ca);
-  kiem('maHoa("' + ca + '") ra đúng dãy mã + checksum ' + mongCheck,
-    !!ma && ma[0] === 104 && ma[ma.length - 1] === 106 && ma[ma.length - 2] === mongCheck && ma.length === ca.length + 3,
+  const mong = ma ? checksumTay(ma) : -1;
+  kiem('maHoa("' + ca + '"): start hợp lệ · checksum ' + mong + ' · stop 106',
+    !!ma && (ma[0] === 104 || ma[0] === 105) && ma[ma.length - 1] === 106 && ma[ma.length - 2] === mong,
     ma ? ma.join(" ") : "null");
 }
 kiem("Ký tự ngoài tầm 128B thì TRẢ NULL chứ không in bừa (vd chữ Đ)", T.maHoa("ĐVT") === null && T.svg("ĐVT") === "",
@@ -104,12 +107,20 @@ const giaiMa = (bits) => {
     if (v === undefined) return null;
     ma.push(v);
   }
-  if (ma[0] !== 104) return null;
+  if (ma[0] !== 104 && ma[0] !== 105) return null;          // START_B hoặc START_C
   const check = ma[ma.length - 1], chu = ma.slice(1, -1);
-  let tong = 104;
+  let tong = ma[0];
   for (let i = 0; i < chu.length; i++) tong += (i + 1) * chu[i];
   if (tong % 103 !== check) return null;
-  return chu.map((v) => String.fromCharCode(v + 32)).join("");
+  /* Giải cả hai subset: C nhét 2 chữ số vào một mã (dùng cho SKU toàn số, mã vạch ngắn 25%), B là
+     một ký tự ASCII một mã; mã 99 gặp giữa dòng B = chuyển sang C. */
+  let cheDo = ma[0] === 105 ? "C" : "B", ra = "";
+  for (const v of chu) {
+    if (cheDo === "B" && v === 99) { cheDo = "C"; continue; }
+    if (cheDo === "C") ra += String(v).padStart(2, "0");
+    else ra += String.fromCharCode(v + 32);
+  }
+  return ra;
 };
 for (const ca of ["422322192", "422440680", "F9-5284", "JC01262", "8846295", "1", "ABC-123.4"]) {
   const lai = giaiMa(T.bit(ca));
@@ -146,7 +157,7 @@ console.log("\n── 4. SVG mã vạch ──");
 /* ═══════════ 5. MẪU TEM ═══════════ */
 console.log("\n── 5. Mẫu tem ──");
 const dl = { sku: "422322192", pn: "Dây kéo cước thuận #3/8846295_YKK/100% Polyester/None/Soft Citrus-345/Size 38cm/pcs", dv: "pcs", ngay: "20/08/2026" };
-kiem("Có đủ 4 mẫu tem (bốn khổ giấy thật của kho) và mẫu mặc định nằm trong đó", Object.keys(T.MAU).length === 4 && !!T.MAU[T.MAU_MAC_DINH],
+kiem("Có đủ 5 mẫu tem (các khổ giấy thật của kho) và mẫu mặc định nằm trong đó", Object.keys(T.MAU).length === 5 && !!T.MAU[T.MAU_MAC_DINH],
   Object.keys(T.MAU).join(", ") + " · mặc định " + T.MAU_MAC_DINH);
 for (const k of Object.keys(T.MAU)) {
   const m = T.MAU[k], h = m.ve(dl, esc);
@@ -163,24 +174,32 @@ for (const k of Object.keys(T.MAU)) {
     h.indexOf("<script") < 0 && h.indexOf("&lt;script") >= 0);
 }
 {
+  /* Đổi 20/08/2026: tên hàng in NGUYÊN VĂN ("có sao ghi vậy"), nên KHÔNG được cắt chuỗi nữa —
+     chống tràn bằng CSS (`.pr-pn5` giới hạn chiều cao + overflow), không bằng dấu "…" giữa tên. */
   const dai = { sku: "1", pn: "X".repeat(400), dv: "", ngay: "" };
   const h = T.MAU[T.MAU_MAC_DINH].ve(dai, esc);
-  kiem("Tên hàng rất dài bị cắt (không tràn khỏi con tem)", h.indexOf("X".repeat(200)) < 0 && /…/.test(h),
-    "độ dài HTML " + h.length);
+  /* Đổi 20/08/2026 (bản SVG một nguồn): tem giờ là SVG, tên hàng được BẺ DÒNG rồi vẽ từng <text>,
+     và cỡ chữ tự co để phủ đầy khung. Nên phép kiểm là: mọi ký tự của tên đều có mặt (không cắt,
+     không "…"), và cỡ chữ đã co xuống mức nhỏ nhất cho tên cực dài. */
+  const chuTrongSvg = (h.match(/>([^<]*)</g) || []).join("").replace(/[><]/g, "");
+  const soX = (chuTrongSvg.match(/X/g) || []).length;
+  const co = Number((h.match(/font-size="(\d+)"[^>]*>X/) || [])[1] || 0);
+  kiem("Tên hàng cực dài: vẽ hết ký tự, không cắt, cỡ chữ tự co nhỏ nhất",
+    soX >= 380 && h.indexOf("…") < 0 && co >= 7 && co <= 34, soX + "/400 ký tự X · cỡ chữ " + co + " dot (dải cho phép 7..34)");
 }
 
 /* ═══════════ 6. TÍNH TOÁN TRÊN DANH SÁCH CHỜ ═══════════ */
 console.log("\n── 6. Danh sách chờ in ──");
 const ds = [
-  { sku: "1", sl: 3, mau: "t42x62" }, { sku: "2", sl: 1, mau: "t42x62" },
-  { sku: "3", sl: 10, mau: "t42x25" }, { sku: "4", sl: 0, mau: "t42x62" },
+  { sku: "1", sl: 3, mau: "t40x60" }, { sku: "2", sl: 1, mau: "t40x60" },
+  { sku: "3", sl: 10, mau: "t42x25" }, { sku: "4", sl: 0, mau: "t40x60" },
 ];
 kiem("tongTem đếm CON TEM chứ không đếm dòng", T.tongTem(ds) === 14, T.tongTem(ds) + " tem / " + ds.length + " dòng");
 kiem("Số lượng âm hoặc rác không kéo tổng xuống dưới 0",
   T.tongTem([{ sl: -5 }, { sl: "x" }, { sl: 2 }]) === 2, String(T.tongTem([{ sl: -5 }, { sl: "x" }, { sl: 2 }])));
 {
   const g = T.theoMau(ds);
-  kiem("theoMau gom đúng theo khổ giấy (2 khổ khác nhau)", g.thuTu.length === 2 && g.m.t42x62.length === 3 && g.m.t42x25.length === 1,
+  kiem("theoMau gom đúng theo khổ giấy (2 khổ khác nhau)", g.thuTu.length === 2 && g.m.t40x60.length === 3 && g.m.t42x25.length === 1,
     g.thuTu.join(" + "));
   kiem("Mẫu lạ/thiếu thì rơi về mẫu mặc định chứ không mất dòng",
     T.theoMau([{ sku: "9", sl: 1, mau: "khong-co-mau-nay" }]).thuTu[0] === T.MAU_MAC_DINH);
@@ -191,13 +210,13 @@ kiem("cat() cắt đúng và có dấu … để biết là đã cắt", T.cat("
 console.log("\n── 7. Khổ tem khớp form BarTender của kho ──");
 /* Bốn khổ dưới đây đọc ra từ chính các form .btw trên máy cắm máy in (DESKTOP-JE75K38, 20/08/2026).
    Khoá lại để sau này ai đổi khổ thì phải đổi cả ở đây — tránh in ra tem không vừa giấy đang lắp. */
-const KHO_THAT = { t42x62: [42.5, 62], t46x76: [46, 76], t42x25: [42, 25], t22x13: [21.6, 12.7] };
+const KHO_THAT = { t40x60: [40, 60], t42x62: [42.5, 62], t46x76: [46, 76], t42x25: [42, 25], t22x13: [21.6, 12.7] };
 for (const k of Object.keys(KHO_THAT)) {
   const m = T.MAU[k];
   kiem("Mẫu " + k + " đúng khổ giấy thật " + KHO_THAT[k][0] + " × " + KHO_THAT[k][1] + " mm",
     !!m && m.w === KHO_THAT[k][0] && m.h === KHO_THAT[k][1], m ? m.w + " × " + m.h : "(không có mẫu này)");
 }
-kiem("Mẫu mặc định là tem SKU 42,5 × 62 mm (khổ của sku.btw đang dùng)", T.MAU_MAC_DINH === "t42x62", T.MAU_MAC_DINH);
+kiem("Mẫu mặc định là tem 40 × 60 mm (đúng nhãn cuộn giấy đang lắp)", T.MAU_MAC_DINH === "t40x60", T.MAU_MAC_DINH);
 kiem("Không còn khổ tự nghĩ nào (50×30 · 70×40 · 40×20)",
   !T.MAU.t50x30 && !T.MAU.t70x40 && !T.MAU.t40x20, Object.keys(T.MAU).join(", "));
 /* Mã vạch phải vừa bề rộng của TỪNG khổ (tem mini là khổ chật nhất) */
@@ -206,6 +225,165 @@ for (const k of Object.keys(T.MAU)) {
   const w = Number((T.svg("422322192", { mm: m.mm, cao: m.cao }).match(/width="([\d.]+)mm"/) || [])[1]);
   kiem("Mã vạch SKU 9 số vừa khổ " + k + " (" + m.w + "mm)", w <= m.w,
     w.toFixed(1) + "mm / " + m.w + "mm");
+}
+
+/* ═══════════ 8. GIẤY 2 TEM MỖI HÀNG (sự cố in thử 20/08/2026) ═══════════ */
+console.log("\n── 8. Giấy decal 2 tem/hàng ──");
+/* Lần in thử đầu tiên ra một con tem in ĐÈ lên cả hai tem: nửa dữ liệu ở tem trái, nửa ở tem phải.
+   Gốc là một giả định sai — máy in nhãn chỉ dò khe NGANG giữa các hàng, nó coi cả hàng (2 tem + khe)
+   là MỘT nhãn. Nên khổ đi vào @page / SIZE của TSPL phải là khổ HÀNG, không phải khổ một con tem. */
+kiem("Giấy khai đúng 2 tem mỗi hàng", !!T.GIAY && T.GIAY.soCot === 2, JSON.stringify(T.GIAY));
+{
+  const kt = T.khoTrang("t40x60");
+  kiem("Khổ MỘT HÀNG = 2 tem + khe (40 + 2 + 40 = 82mm × 60mm)",
+    kt.w === 82 && kt.h === 60 && kt.cot === 2 && kt.khe === 2,
+    kt.w + " × " + kt.h + " mm · " + kt.cot + " cột · khe " + kt.khe + "mm");
+  kiem("Khổ hàng KHÁC khổ tem (đúng chỗ lần in thử làm sai)", kt.w !== kt.tem.w,
+    "tem " + kt.tem.w + "mm vs hàng " + kt.w + "mm");
+}
+{
+  const t = (n) => Array.from({ length: n }, (_, i) => ({ sku: "S" + i, sl: 1, mau: "t40x60" }));
+  kiem("4 con tem → 2 hàng đầy", T.chiaHang(t(4), "t40x60").length === 2,
+    JSON.stringify(T.chiaHang(t(4), "t40x60").map((h) => h.length)));
+  const le = T.chiaHang(t(5), "t40x60");
+  kiem("5 con tem → 3 hàng, hàng cuối 1 tem (ô còn lại chừa trắng, không in đè)",
+    le.length === 3 && le[2].length === 1, JSON.stringify(le.map((h) => h.length)));
+  kiem("1 con tem → 1 hàng", T.chiaHang(t(1), "t40x60").length === 1);
+  kiem("0 con tem → 0 hàng", T.chiaHang([], "t40x60").length === 0);
+}
+{
+  /* Giấy 1 cột (nếu sau này đổi cuộn): khổ hàng phải bằng khổ tem, không cộng khe */
+  const cu = T.GIAY.soCot;
+  T.GIAY.soCot = 1;
+  const kt1 = T.khoTrang("t40x60");
+  kiem("Đổi sang giấy 1 tem/hàng thì khổ hàng = khổ tem (không cộng khe)", kt1.w === 40 && kt1.cot === 1,
+    kt1.w + "mm · " + kt1.cot + " cột");
+  T.GIAY.soCot = cu;
+}
+
+/* ═══════════ 9. BA YÊU CẦU CHỐT 20/08/2026 (sau khi soi tem in thật) ═══════════ */
+console.log("\n── 9. Một nguồn dựng tem · chữ tự phủ đầy · mã vạch đúng đơn vị ──");
+{
+  const d = { sku: "422430797", pn: "Quần mẫu FT/SMPA01/87% Nylon, 13% Lycra/None/Deep Black/Size S", dv: "Size S", ngay: "20/8/2026" };
+  const svg = T.svgTem(d, "t40x60", { dotMm: 8 });
+  kiem("svgTem trả về SVG đúng khổ tem tính bằng dot (40×60mm ở 203dpi = 320×480)",
+    /width="320" height="480"/.test(svg), (svg.match(/width="\d+" height="\d+"/) || [])[0]);
+  /* `ve()` của mẫu là CỬA DUY NHẤT: nó gọi svgTem kèm tuỳ chọn riêng của khổ đó (dịch trái 2mm...).
+     Ca này khoá đúng chỗ agent từng đi tắt và làm mất phần dịch trái. */
+  const svgLech = T.svgTem(d, "t40x60", { dotMm: 8, lechMm: 2 });
+  kiem("ve() của mẫu = svgTem kèm ĐÚNG tuỳ chọn của khổ (dịch trái 2mm)",
+    T.MAU.t40x60.ve(d) === svgLech, "khớp: " + (T.MAU.t40x60.ve(d) === svgLech));
+  kiem("Bản không dịch KHÁC bản dịch trái (chứng minh lechMm có tác dụng)", svg !== svgLech);
+  /* Mã vạch: module phải là SỐ NGUYÊN dot và bề rộng phải phủ gần hết bề ngang tem — bản đầu chia
+     sai đơn vị (mm trong hệ toạ độ dot) nên cả mã vạch co thành một khối bé xíu. */
+  const v = T.vachRect("422430797", { mm: 0.25, dotMm: 8, cao: 64, x: 12, y: 12 });
+  kiem("vachRect: bề rộng module là SỐ NGUYÊN dot", !!v && Number.isInteger(v.modMm), v ? "module " + v.modMm + " dot" : "null");
+  /* Sau khi chuyển sang subset C, điều đáng kiểm không còn là "phủ rộng" mà là CÒN ĐỦ VÙNG TRẮNG
+     hai đầu: Code 128 cần quiet zone ≥ 10 lần bề rộng module, và nội dung còn bị dịch trái 2mm. */
+  const quiet = (320 - v.rong) / 2 - 16;
+  kiem("Mã vạch còn quiet zone ≥ 10 module cả hai đầu (kể cả sau khi dịch trái 2mm)",
+    !!v && quiet >= v.modMm * 10,
+    v ? "rộng " + v.rong + " dot · quiet zone " + Math.round(quiet) + " dot (cần ≥ " + v.modMm * 10 + ")" : "null");
+  kiem("Mã vạch nằm TRONG svgTem (không nhờ lệnh BARCODE của máy in)",
+    (svg.match(/<rect /g) || []).length > 20, (svg.match(/<rect /g) || []).length + " rect");
+  /* Cỡ chữ tự co: tên ngắn phải được cỡ LỚN hơn tên dài */
+  const nho = T.coChuVua("Chỉ may", 294, 288, 34, 7).co;
+  const dai = T.coChuVua("X".repeat(300), 294, 288, 34, 7).co;
+  kiem("Cỡ chữ tự phủ đầy khung: tên ngắn cỡ lớn hơn tên dài", nho > dai, "ngắn " + nho + " dot · dài " + dai + " dot");
+  kiem("Cỡ chữ trong dải cho phép (7..34 dot)", nho <= 34 && dai >= 7, nho + " / " + dai);
+  /* Bẻ dòng tại dấu "/" — tên hàng WMS ghép bằng "/" nên đó là chỗ ngắt tự nhiên */
+  const dong = T.beDong("Lycra/None/Deep Black", 12);
+  const ghep = dong.join("").replace(/\s/g, "");
+  kiem("Bẻ dòng ngắt tại dấu / và KHÔNG mất ký tự nào",
+    dong.every((x) => x.length <= 12) && ghep === "Lycra/None/DeepBlack", JSON.stringify(dong));
+  /* DÒNG CHÂN đổi 20/08/2026: SỐ LƯỢNG (đậm, dán mép trái, cỡ TỰ CO) · NGÀY IN (dán mép phải, cỡ
+     cố định nhỏ). Bỏ ĐVT và bỏ luôn chữ "Số lượng" — tem chật, chỉ in con số. */
+  const svgSl = T.MAU.t40x60.ve({ sku: "422430797", pn: "Quần mẫu FT/SMPA01", sl: "1200", ngay: "20/8/2026" });
+  kiem("Dòng chân in CON SỐ số lượng, không in chữ 'Số lượng' và không còn ĐVT",
+    svgSl.indexOf(">1.200<") >= 0 && svgSl.indexOf("Số lượng") < 0 && svgSl.indexOf("ĐVT") < 0);
+  kiem("Ngày in dán chết mép PHẢI (text-anchor=end)", /text-anchor="end"[^>]*>20\/8\/2026</.test(svgSl),
+    (svgSl.match(/<text[^>]*text-anchor="end"[^>]*>[^<]*</) || ["(không thấy)"])[0].slice(0, 80));
+  {
+    /* Số lượng phải TỰ CO như mã SKU: số ngắn thì to, số dài thì nhỏ lại cho vừa tem. */
+    /* Số lượng in ra là bản ĐÃ có dấu nghìn (1200 -> 1.200), nên phải tìm theo chuỗi đã định dạng. */
+    const co = (sl) => {
+      const svgX = T.MAU.t40x60.ve({ sku: "1", pn: "x", sl: sl, ngay: "20-08-26" });
+      const dat = T.soGon(sl);
+      const m = svgX.match(/font-size="(\d+)" font-weight="bold">([^<]+)</);
+      return m && m[2] === dat ? Number(m[1]) : 0;
+    };
+    const c3 = co("120"), c8 = co("12345678");
+    kiem("Số lượng tự co: 3 chữ số cỡ lớn hơn 8 chữ số", c3 > 0 && c8 > 0 && c3 > c8,
+      "120 → " + c3 + " dot · 12345678 → " + c8 + " dot");
+    kiem("Số lượng in ĐẬM", svgSl.indexOf('font-weight="bold">1.200<') >= 0);
+  }
+}
+
+/* ═══════════ 10. SUBSET C — thu nhỏ mã vạch (20/08/2026) ═══════════ */
+console.log("\n── 10. Code 128 subset C cho mã toàn số ──");
+{
+  const bC = T.bit("422430797");
+  kiem("Mã 9 chữ số dùng subset C: 101 module (subset B sẽ là 134)", bC.length === 101, bC.length + " module");
+  kiem("Mã có chữ vẫn dùng subset B (start 104)", T.maHoa("F9-5284")[0] === 104, "start = " + T.maHoa("F9-5284")[0]);
+  kiem("Mã số CHẴN chữ số bắt đầu bằng START_C (105)", T.maHoa("12345678")[0] === 105, "start = " + T.maHoa("12345678")[0]);
+  kiem("Mã số LẺ chữ số: START_B + 1 số + chuyển sang C (mã 99)",
+    T.maHoa("123456789")[0] === 104 && T.maHoa("123456789")[2] === 99, T.maHoa("123456789").slice(0, 4).join(" "));
+  /* Giải mã ngược bằng bảng gốc — phép kiểm quan trọng nhất: sai subset là máy quét ra sai số. */
+  for (const ca of ["422430797", "422322192", "12345678", "1234", "F9-5284", "0000000000"]) {
+    kiem('Giải ngược "' + ca + '" ra đúng chuỗi ban đầu', giaiMa(T.bit(ca)) === ca, "đọc lại: " + giaiMa(T.bit(ca)));
+  }
+  const w9 = T.vachRect("422430797", { mm: 0.25, dotMm: 8, cao: 64 }).rong;
+  kiem("Bề rộng mã vạch SKU 9 số ≈ 25mm (trước 33,5mm)", w9 === 202, w9 + " dot = " + (w9 / 8).toFixed(1) + "mm");
+}
+
+/* ═══════════ 11. SỐ LƯỢNG · NGÀY IN · THỨ TỰ XẾP TEM (chốt 20/08/2026) ═══════════ */
+console.log("\n── 11. Dấu nghìn · ngày dd-mm-yy · thứ tự xếp tem trên giấy đôi ──");
+{
+  /* Dấu chấm hàng nghìn — và phải giữ nguyên phần chữ nếu người gõ kèm đơn vị */
+  const caSo = [["1200", "1.200"], ["85", "85"], ["1500000", "1.500.000"], ["999", "999"],
+                ["1200 m", "1.200 m"], ["12,5", "12,5"], ["", ""], ["abc", "abc"]];
+  for (const [vao, mong] of caSo) {
+    kiem('soGon("' + vao + '") → "' + mong + '"', T.soGon(vao) === mong, "ra: " + T.soGon(vao));
+  }
+  /* Ngày in dd-mm-yy */
+  kiem("ngayTem() ra đúng dạng dd-mm-yy", /^\d{2}-\d{2}-\d{2}$/.test(T.ngayTem()), T.ngayTem());
+  kiem("ngayTem(ngày cụ thể) đúng số", T.ngayTem(new Date(2026, 7, 20)) === "20-08-26",
+    T.ngayTem(new Date(2026, 7, 20)));
+  /* Tem in ra phải mang bản ĐÃ định dạng, không phải chuỗi thô */
+  const svg = T.MAU.t40x60.ve({ sku: "1", pn: "x", sl: "1200", ngay: T.ngayTem(new Date(2026, 7, 20)) });
+  kiem("Tem in số lượng có dấu nghìn (1.200) chứ không phải 1200",
+    svg.indexOf(">1.200<") >= 0 && svg.indexOf(">1200<") < 0);
+  kiem("Tem in ngày dạng dd-mm-yy", svg.indexOf(">20-08-26<") >= 0);
+  /* Ngày in nằm DÒNG DƯỚI số lượng (y lớn hơn) và dán mép phải */
+  const ySL = Number((svg.match(/y="(\d+)" font-size="\d+" font-weight="bold">1\.200</) || [])[1] || 0);
+  const yNg = Number((svg.match(/y="(\d+)" font-size="\d+" text-anchor="end">20-08-26</) || [])[1] || 0);
+  /* Chốt lại 20/08/2026: ngày in nằm CÙNG HÀNG với số lượng nhưng dán SÁT VIỀN DƯỚI, mép phải.
+     Bản tách hai hàng đã bỏ vì nó ăn thêm ~20 dot chiều cao, bóp nhỏ ô tên sản phẩm (thấy rõ trên
+     tem in thử). Phép kiểm: cùng đường chân (y bằng nhau) và đường chân đó phải sát đáy tem. */
+  kiem("Ngày in cùng hàng với số lượng, dán sát viền dưới",
+    ySL > 0 && yNg === ySL && ySL >= 480 - 20, "y = " + ySL + " (tem cao 480 dot)");
+
+  /* THỨ TỰ XẾP TEM trên giấy decal đôi (đúng mô tả người dùng 20/08/2026):
+       1 con tem  -> hàng 1: [tem, TRỐNG]
+       2 con tem  -> hàng 1: [A, B]
+       3 con tem  -> hàng 1: [A, B] · hàng 2: [C, TRỐNG]
+     Điền lần lượt trái → phải rồi xuống hàng; ô cuối thiếu thì chừa trắng chứ không in đè. */
+  const t = (n) => Array.from({ length: n }, (_, i) => ({ sku: "SKU" + String.fromCharCode(65 + i), sl: 1, mau: "t40x60" }));
+  const h1 = T.chiaHang(t(1), "t40x60");
+  kiem("1 SKU → in 1 tem vật lý, tem còn lại TRỐNG",
+    h1.length === 1 && h1[0].length === 1, JSON.stringify(h1.map((h) => h.map((x) => x.sku))));
+  const h2 = T.chiaHang(t(2), "t40x60");
+  kiem("2 SKU → tem trái = A, tem phải = B (cùng một hàng)",
+    h2.length === 1 && h2[0][0].sku === "SKUA" && h2[0][1].sku === "SKUB",
+    JSON.stringify(h2.map((h) => h.map((x) => x.sku))));
+  const h3 = T.chiaHang(t(3), "t40x60");
+  kiem("3 SKU → hàng 1 [A,B] · hàng 2 [C, trống]",
+    h3.length === 2 && h3[0].length === 2 && h3[1].length === 1 && h3[1][0].sku === "SKUC",
+    JSON.stringify(h3.map((h) => h.map((x) => x.sku))));
+  const h5 = T.chiaHang(t(5), "t40x60");
+  kiem("5 SKU → 3 hàng, thứ tự A B / C D / E + trống",
+    h5.length === 3 && h5.flat().map((x) => x.sku).join(",") === "SKUA,SKUB,SKUC,SKUD,SKUE" && h5[2].length === 1,
+    JSON.stringify(h5.map((h) => h.map((x) => x.sku))));
 }
 
 console.log("\n" + (truot ? "✗ " + dat + "/" + (dat + truot) + " ca đạt — " + truot + " ca TRƯỢT" : "✓ " + dat + "/" + dat + " ca đạt"));

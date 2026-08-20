@@ -128,6 +128,13 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'setStockMeta') return keyBodyOK_(duLieu) ? apiSetStockMeta(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'touchTabs') return keyBodyOK_(duLieu) ? apiTouchTabs(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 26/07/2026: hash-skip vẫn chạm mốc chip giờ
     // Tồn kho factory — cơ chế CỜ + TOKEN BRIDGE (thêm 21/07/2026, xem chú thích khối STOCKLOC bên dưới):
+    /* HÀNG ĐỢI IN TEM (20/08/2026) — dashboard gửi lệnh in, agent ở máy trạm nhận rồi in ra máy in
+       tem của kho. `pr_them` PUBLIC (người bấm trên điện thoại không có SECRET), hai cái còn lại là
+       máy-gọi-máy nên đòi SECRET. */
+    if (duLieu && duLieu.action === 'pr_them') return apiPrThem(duLieu);
+    if (duLieu && duLieu.action === 'pr_lay') return keyBodyOK_(duLieu) ? apiPrLay(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pr_xong') return keyBodyOK_(duLieu) ? apiPrXong(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pr_trangthai') return apiPrTrangThai(duLieu);
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -1366,6 +1373,143 @@ function luuHinhAnhLenDrive(danhSachAnh, viTri) {
 function layHoacTaoThuMuc() {
   var ds = DriveApp.getFoldersByName(TEN_THU_MUC_ANH);
   return ds.hasNext() ? ds.next() : DriveApp.createFolder(TEN_THU_MUC_ANH);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *  HÀNG ĐỢI IN TEM SKU (20/08/2026)
+ *  ---------------------------------------------------------------------------------------------
+ *  Vì sao phải có hàng đợi: máy in tem cắm USB vào một máy trong kho, còn người bấm thì đứng ngoài
+ *  kho với cái điện thoại. Trình duyệt không nói được với máy in (đã đo: web thuần không liệt kê nổi
+ *  máy in, `http://127.0.0.1` bị Private Network Access chặn, Android/iOS không hiểu máy in share
+ *  kiểu Windows). Nên đường duy nhất không cần xin IT là: cả hai đầu chỉ gọi RA NGOÀI.
+ *
+ *      điện thoại/PC ──(pr_them)──► tab IN-TEM-CHO ◄──(pr_lay/pr_xong)── agent ở máy trạm ──► máy in
+ *
+ *  Cả hai đầu đều outbound nên không cần mở cổng, không cần cùng mạng, 4G cũng chạy.
+ *
+ *  Tab `IN-TEM-CHO` (cột):
+ *    A id · B luc_gui · C nguoi · D trang_thai · E so_tem · F json_dong · G luc_nhan · H luc_xong · I ghi_chu
+ *  `trang_thai`: cho → dang_in → xong | loi
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+var PR_TAB = 'IN-TEM-CHO';
+var PR_HEADER = ['id', 'luc_gui', 'nguoi', 'trang_thai', 'so_tem', 'json_dong', 'luc_nhan', 'luc_xong', 'ghi_chu'];
+var PR_TRAN_DONG = 40;          // trần số SKU một lệnh — chặn gửi cả danh mục vì bấm nhầm
+var PR_TRAN_TEM = 400;          // trần số con tem một lệnh
+var PR_GIU_NGAY = 7;            // dọn lệnh cũ hơn 7 ngày
+
+function prSheet_() {
+  var ss = SpreadsheetApp.openById(STOCKLOC_SHEET_ID);
+  var sh = ss.getSheetByName(PR_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(PR_TAB);
+    sh.getRange(1, 1, 1, PR_HEADER.length).setValues([PR_HEADER])
+      .setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
+    try { sh.setFrozenRows(1); } catch (e) {}
+  }
+  return sh;
+}
+
+/** Dashboard gửi một lệnh in. PUBLIC — tự bảo vệ bằng trần dòng/tem và chống gửi trùng trong 5 giây. */
+function apiPrThem(duLieu) {
+  var dong;
+  try { dong = JSON.parse(String(duLieu.dong || '[]')); } catch (e) { dong = null; }
+  if (!dong || !dong.length) return phanHoiJson({ status: 'error', message: 'Danh sách in trống.' });
+  if (dong.length > PR_TRAN_DONG) return phanHoiJson({ status: 'error', message: 'Một lệnh in tối đa ' + PR_TRAN_DONG + ' SKU.' });
+  var tong = 0;
+  for (var i = 0; i < dong.length; i++) tong += Math.max(1, Number(dong[i].sl) || 1);
+  if (tong > PR_TRAN_TEM) return phanHoiJson({ status: 'error', message: 'Một lệnh in tối đa ' + PR_TRAN_TEM + ' con tem.' });
+
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(8000)) return phanHoiJson({ status: 'error', message: 'Đang có lệnh khác ghi vào hàng đợi — thử lại sau vài giây.' });
+  try {
+    var sh = prSheet_(), nguoi = String(duLieu.nguoi || '').slice(0, 60);
+    var now = new Date().getTime();
+    /* CHỐNG GỬI TRÙNG: bấm hai lần vì mạng chậm là chuyện thường, mà mỗi lần bấm là tem thật ra khỏi
+       máy in. Cùng người + cùng nội dung trong 5 giây thì coi là một lệnh. */
+    var chuoi = JSON.stringify(dong);
+    var n = sh.getLastRow();
+    if (n > 1) {
+      var cuoi = sh.getRange(Math.max(2, n - 4), 1, Math.min(5, n - 1), PR_HEADER.length).getValues();
+      for (var k = cuoi.length - 1; k >= 0; k--) {
+        if (String(cuoi[k][2]) === nguoi && String(cuoi[k][5]) === chuoi && now - Number(cuoi[k][1] || 0) < 5000) {
+          return phanHoiJson({ status: 'success', id: String(cuoi[k][0]), trung: true, message: 'Lệnh này vừa gửi rồi — không gửi lại.' });
+        }
+      }
+    }
+    var id = 'PR' + now + Math.floor(Math.random() * 900 + 100);
+    sh.appendRow([id, now, nguoi, 'cho', tong, chuoi, '', '', '']);
+    prDon_(sh);
+    return phanHoiJson({ status: 'success', id: id, soTem: tong, soSku: dong.length });
+  } finally { lock.releaseLock(); }
+}
+
+/** Agent lấy các lệnh đang chờ. Đánh dấu `dang_in` ngay để hai agent không in trùng một lệnh. */
+function apiPrLay(duLieu) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(8000)) return phanHoiJson({ status: 'success', dsLenh: [] });
+  try {
+    var sh = prSheet_(), n = sh.getLastRow();
+    if (n < 2) return phanHoiJson({ status: 'success', dsLenh: [] });
+    var v = sh.getRange(2, 1, n - 1, PR_HEADER.length).getValues();
+    var ra = [], now = new Date().getTime();
+    /* Có bao nhiêu NGƯỜI đang chờ: agent cần biết để quyết có in tem thông báo đợt hay không. */
+    var nguoiCho = {};
+    for (var i = 0; i < v.length; i++) if (String(v[i][3]) === 'cho') nguoiCho[String(v[i][2])] = 1;
+    var soNguoi = Object.keys(nguoiCho).length;
+    for (var j = 0; j < v.length; j++) {
+      if (String(v[j][3]) !== 'cho') continue;
+      sh.getRange(j + 2, 4).setValue('dang_in');
+      sh.getRange(j + 2, 7).setValue(now);
+      var dong = [];
+      try { dong = JSON.parse(String(v[j][5] || '[]')); } catch (e) { dong = []; }
+      ra.push({ id: String(v[j][0]), nguoi: String(v[j][2]), soTem: Number(v[j][4]) || 0, dong: dong, nhieuNguoi: soNguoi > 1 });
+      if (ra.length >= 5) break;                     // mỗi lượt lấy tối đa 5 lệnh, khỏi ôm quá nhiều
+    }
+    return phanHoiJson({ status: 'success', dsLenh: ra, soNguoiCho: soNguoi });
+  } finally { lock.releaseLock(); }
+}
+
+/** Agent báo kết quả một lệnh: xong hoặc lỗi (kèm lý do để dashboard nói lại cho người bấm). */
+function apiPrXong(duLieu) {
+  var id = String(duLieu.id || '');
+  if (!id) return phanHoiJson({ status: 'error', message: 'Thiếu id.' });
+  var sh = prSheet_(), n = sh.getLastRow();
+  if (n < 2) return phanHoiJson({ status: 'error', message: 'Hàng đợi trống.' });
+  var v = sh.getRange(2, 1, n - 1, 1).getValues();
+  for (var i = 0; i < v.length; i++) {
+    if (String(v[i][0]) !== id) continue;
+    sh.getRange(i + 2, 4).setValue(String(duLieu.loi ? 'loi' : 'xong'));
+    sh.getRange(i + 2, 8).setValue(new Date().getTime());
+    sh.getRange(i + 2, 9).setValue(String(duLieu.loi || duLieu.ghiChu || '').slice(0, 300));
+    return phanHoiJson({ status: 'success' });
+  }
+  return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
+}
+
+/** Dashboard hỏi trạng thái lệnh vừa gửi (PUBLIC — chỉ trả về đúng dòng theo id). */
+function apiPrTrangThai(duLieu) {
+  var id = String(duLieu.id || '');
+  if (!id) return phanHoiJson({ status: 'error', message: 'Thiếu id.' });
+  var sh = prSheet_(), n = sh.getLastRow();
+  if (n < 2) return phanHoiJson({ status: 'error', message: 'Hàng đợi trống.' });
+  var v = sh.getRange(2, 1, n - 1, PR_HEADER.length).getValues();
+  for (var i = v.length - 1; i >= 0; i--) {
+    if (String(v[i][0]) !== id) continue;
+    return phanHoiJson({ status: 'success', id: id, trangThai: String(v[i][3]), soTem: Number(v[i][4]) || 0,
+      lucNhan: Number(v[i][6]) || 0, lucXong: Number(v[i][7]) || 0, ghiChu: String(v[i][8] || '') });
+  }
+  return phanHoiJson({ status: 'error', message: 'Không thấy lệnh ' + id });
+}
+
+/** Dọn lệnh cũ: giữ 7 ngày cho đủ truy vết, xoá phần còn lại để tab không phình vô hạn. */
+function prDon_(sh) {
+  var n = sh.getLastRow();
+  if (n < 200) return;                                // chỉ dọn khi tab đã dài
+  var moc = new Date().getTime() - PR_GIU_NGAY * 86400000;
+  var v = sh.getRange(2, 2, n - 1, 1).getValues();
+  var xoa = 0;
+  for (var i = 0; i < v.length; i++) { if (Number(v[i][0] || 0) < moc) xoa++; else break; }
+  if (xoa > 0) sh.deleteRows(2, xoa);
 }
 
 function phanHoiJson(obj) {

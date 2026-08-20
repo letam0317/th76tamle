@@ -1887,3 +1887,60 @@ tới hệ điều hành (`Get-Printer.PrinterStatus` trả `Normal` cho cả m�
 
 `#prsheet` được xoá sạch khi `afterprint` bắn, kèm một lượt dọn chậm 60 giây làm lưới an toàn: giữ
 khung in đầy tem thì lần **in trang khác** (vd bảng kiểm kê) cũng ra tem.
+
+---
+
+## 12. IN TỨC THÌ — hàng đợi + agent (20/08/2026)
+
+Kịch bản chốt: trên dashboard chọn SKU → số tem → số lượng → bấm **Xác nhận in** → máy in tem của kho
+nhả tem ngay. Không mở BarTender, không hộp thoại in, **không ai phải ngồi trước máy in**.
+
+### 12.1 Vì sao phải có hàng đợi
+
+Máy in TSC PE200 cắm USB vào `DESKTOP-JE75K38`, còn người bấm đứng ngoài kho với cái điện thoại. Đo
+20/08/2026: web thuần **không** liệt kê nổi máy in, `http://127.0.0.1` bị Private Network Access chặn,
+Android/iOS **không hiểu** máy in share kiểu Windows. Nên đường duy nhất không phải xin IT là để **cả
+hai đầu chỉ gọi RA NGOÀI**:
+
+```
+điện thoại/PC ──(pr_them)──► tab IN-TEM-CHO ◄──(pr_lay / pr_xong)── agent máy trạm ──► TSC PE200
+```
+
+4G cũng chạy, không cần cùng mạng, không mở cổng nào.
+
+### 12.2 Bốn action GAS + tab `IN-TEM-CHO`
+
+| Action | Ai gọi | Khoá |
+|---|---|---|
+| `pr_them` | dashboard gửi lệnh in | **public** (người bấm không có SECRET) — tự chặn bằng trần 40 SKU / 400 tem + chống gửi trùng 5 giây |
+| `pr_lay` | agent lấy lệnh đang chờ, đánh dấu `dang_in` ngay | SECRET |
+| `pr_xong` | agent báo `xong` / `loi` + lý do | SECRET |
+| `pr_trangthai` | dashboard hỏi lại lệnh của mình | public, chỉ trả đúng dòng theo id |
+
+Tab: `id · luc_gui · nguoi · trang_thai · so_tem · json_dong · luc_nhan · luc_xong · ghi_chu`,
+trạng thái `cho → dang_in → xong | loi`, tự dọn lệnh cũ hơn 7 ngày.
+
+### 12.3 Agent
+
+`node in-tem-agent.mjs --dich-vu` — hoặc bấm `_AGENT-IN-TEM.bat` (có cửa sổ) / `_AGENT-IN-TEM-AN.vbs`
+(chạy ẩn, dùng khi cho vào Task Scheduler lúc đăng nhập).
+
+Ba thứ đã tính trước vì cả ba từng xảy ra thật: GAS trả HTML thay vì JSON (đọc thô rồi thử lại) ·
+máy in chết giữa đợt (tự nối lại queue 3 lượt, hết lượt thì báo `loi` kèm nguyên văn) · nhiều người
+cùng gửi (GAS trả cờ `nhieuNguoi`, agent in kèm **tem thông báo đợt**: ai gửi · lúc nào · bao nhiêu
+tem — in một mình thì không tốn thêm tem nào).
+
+Dashboard theo dõi 20 lượt × 3 giây rồi nói thẳng: *đang in* → *đã in xong* → hoặc *máy in báo lỗi*.
+Gửi hàng đợi thất bại thì rơi về **đường lùi**: mở hộp thoại in của Windows như trước.
+
+### 12.4 Bẫy đã cắn khi deploy GAS — và cách chặn
+
+`google-script.gs` là bản **git-safe**: `SECRET`, `SYNC_PIN`, `SYNC_PIN_DATA` để placeholder. Bản chạy
+thật là `.clasp-deploy/sa.js` (đã .gitignore). Tôi `cp` thẳng nguồn → `sa.js` rồi push: **mọi endpoint
+đòi SECRET lập tức "Sai key"**, hai PIN của form 5S cũng mất. Khôi phục bằng
+`clasp pull --versionNumber 69` (bản deploy cũ vẫn còn trên server).
+
+Từ nay dùng **`node deploy-gas.mjs --deploy <mota>`**: sinh `sa.js` từ nguồn + chèn bí mật từ `.env`,
+dừng hẳn nếu thiếu bất kỳ bí mật nào hoặc còn placeholder, push rồi deploy vào **đúng deployment đang
+dùng** nên URL không đổi. Hai bẫy nhỏ của clasp trên Windows cũng đã vá trong script: `npx.cmd` không
+spawn được bằng `execFileSync` (EINVAL), và mô tả nhiều từ bị cắt thành nhiều tham số.
