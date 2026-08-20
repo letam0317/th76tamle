@@ -90,18 +90,63 @@ Ghi chú tìm đường: **swagger nội bộ mở công khai tại `https://wsh
 |---|---|---|
 | Kiểm kê SKU / Location / full location | `.pc-cache.json` (push-pc-to-sheet) | số phiếu trong ngày, đã đếm, phiếu lệch, kho, người kiểm, link WMS |
 | Kiểm tra 5S kho tổng | `.exports/tasks-cache.json` (workflow 591) | số lượt vi phạm ghi nhận trong ngày + link dashboard AUDIT |
-| Các vấn đề bất thường F0-A0 ×2 | hỏi lại WMS `stock-locations/bins/count/v3` với `prefix_location_description=F0-A0-00-00-00-00` | số SKU còn treo lúc kiểm tra lại, so với số đầu ngày, danh sách mã |
+| Các vấn đề bất thường F0-A0 ×2 | 2 lượt/kho: `stock-locations/bins/count/v3` (đếm bin) + `report-inventories` (nguồn từng UID) | số SKU còn treo lúc kiểm tra lại, so với số đầu ngày, **và từng mã đi ra F0-A0 từ đâu** |
+
+### Mã đó đi ra F0-A0 từ đâu (chốt 20/08/2026, yêu cầu chủ máy)
+
+Báo cáo cũ chỉ nói *"còn 23 SKU treo ở F0-A0"* + liệt kê 10 mã — người đọc vẫn phải tự mở WMS dò
+từng mã. Nay mỗi mã có thêm **nguồn đưa nó vào bin**:
+
+```
+Nguồn đưa vào F0-A0: 2 UID nhập mua, 1 UID điều chỉnh tồn.
+Chi tiết từng mã (SL · số UID ← phiếu đưa nó vào bin):
+- 422423615 (SL 1 · 1 UID) ← nhập mua phiếu 1001260811014229 · PO 10012607193930 · NCC CÔNG TY ... GEIC · vào bin 14/08 14:38 · Đỗ Thị Thùy Dương
+- 422500682 (SL 174.360 · 1 UID) ← điều chỉnh tồn phiếu 1001260804016203 · PO 100052510157895 · vào bin 04/08 13:24 · Lê Thanh Hiền
+```
+
+Đường lấy: **1 lượt gọi thêm cho CẢ kho** (không phải 1 lượt/SKU) —
+`report-inventories?location_description=F0-A0-00-00-00-00&warehouse_ids=<kho>&skus=<CSV>`,
+header `Company-Ids` BẮT BUỘC. Tên người lấy từ `.cache-danhba.json` đã có trong máy (WMS và wshr
+dùng chung dải `user_id` — đối chứng: 18811 = Lê Chí Tâm, 3490 = Lê Thanh Hiền), **không gọi API nào**.
+
+Ba cái bẫy đã đo được 20/08/2026 (MTG, 23 SKU / 164 dòng):
+
+1. **Phải lọc `status_id === 6` (In-BIN).** Lấy cả dòng `Adjustment - shipped` (29/164) thì số lượng
+   phồng gấp trăm lần: SKU 422432609 từ 2.000 thành 3.002.000. Lọc In-BIN thì tổng qty khớp ĐÚNG
+   `quantity` của `bins/count/v3` trên **23/23** SKU.
+2. **`count` của endpoint không theo bộ lọc** (trả 2,1 triệu) — chỉ tin `records`.
+3. **`uom` không đáng tin** (sợi tính bằng gam, dây kéo tính bằng pcs, cả hai đều trả `"Cái"`) →
+   báo cáo cố ý chỉ in con số, không in đơn vị.
+
+Trần an toàn: tối đa 25 dòng chi tiết **và** 3.500 ký tự cả báo cáo (wshr có chặn dưới 50 ký tự,
+chặn trên thì chưa đo được — thà tự cắt hơn là mất lượt nộp vì 422). Bớt dòng nào thì vẫn đếm
+trong câu `…(+N SKU nữa, xem link)`.
+
+Xem trước không cần task còn hạn (mỗi ngày chỉ nộp được 1 lần):
+
+```bash
+node task-hangngay.mjs --thu-f0a0     # chỉ hỏi WMS rồi in 2 báo cáo ra màn hình, không nộp gì
+```
 
 Cả 3 bộ dựng báo cáo đều **từ chối nộp nếu dữ liệu trong máy cũ hơn 6 giờ** — số liệu cũ nộp lên
 còn tệ hơn không nộp.
 
-**NGOÀI PHẠM VI BOT — chủ máy chốt 19/08/2026: `Sắp xếp hàng hóa tại kho tổng`.** Task này để
+**NGOÀI PHẠM VI BOT — ĐÚNG MỘT TASK (chốt lại 20/08/2026):** task tên **chính xác**
+`Sắp xếp hàng hóa tại kho tổng` **do Huỳnh Trần Như Ý giao** (`created_by` = 17840). Task này để
 riêng, **chủ máy tự bấm Hoàn thành trên web**. Bot không soạn, không nộp, kể cả khi người bấm nút
-chọn "nộp tất cả" — trong `SO_TAY` nó mang cờ `tuBaoCao: true` và cửa sổ nút in
+chọn "nộp tất cả" — trong `SO_TAY` nó mang cờ `tuBaoCao: true` + `nguoiGiao` và cửa sổ nút in
 `→ NGOÀI PHẠM VI BOT — bạn tự bấm Hoàn thành trên web.` Cửa duy nhất để ép: gọi đích danh
 `node task-hangngay.mjs --nop --task=<id>` (phải tự gõ đúng id của ngày hôm đó nên không thể lỡ
-tay). Task **`Sắp xếp hàng hóa trong kho`** (prid 8443) — tên gần giống nhưng là task khác — vẫn
-thuộc nhóm B như cũ.
+tay).
+
+**Mọi task còn lại trong sổ tay — kể cả nhóm B — bot đều báo cáo tự động.** Hai task việc tay
+`Sắp xếp hàng hóa trong kho` (prid 8443) và `Dán tem QC Fail và Block UID Group` nộp bằng một câu
+trung tính; muốn ghi nội dung thật thì viết vào `.task-baocao-tay.json` (mục 6).
+
+Khoá bằng **cả tên neo hai đầu (`^…$`) lẫn người giao**: khớp lỏng kiểu `/tại kho tổng/` sẽ ăn lây
+bất kỳ task nào chứa cụm đó (ví dụ "Sắp xếp hàng hóa tại kho tổng ca 2" của người khác) rồi lặng
+lẽ không nộp. Lệch một trong hai điều kiện ⇒ task rơi vào nhánh **"task LẠ"**: bot kêu to
+`⚠ N task chưa có trong sổ tay (KHÔNG nộp)` và không nộp — hướng sai an toàn.
 
 **Nhóm B — việc tay ngoài kho:** "Sắp xếp hàng hóa trong kho" và "Dán tem QC Fail và Block UID
 Group". Bot không có cách nào biết ngoài kho đã làm gì. Chủ máy chốt
@@ -133,12 +178,18 @@ Trước đó: lịch 16:00 tự nộp. **Nay bot không tự nộp nữa** — 
 Nút mở một cửa sổ đen, chạy `task-hangngay.mjs --nut` và **hỏi trước khi nộp**:
 
 ```
-➜ Nộp lên work.hasaki.vn?  [Enter] nộp CẢ 8 · [a] chỉ 6 task nhóm A · [k] không nộp gì :
+➜ Nộp lên work.hasaki.vn?  [Enter] nộp CẢ 8 task · [k] không nộp gì :
 ```
 
-`[a]` = chỉ nộp nhóm A (bot có số liệu thật), để 2 task việc tay tự báo cáo bằng lời của mình.
-`Sắp xếp hàng hóa tại kho tổng` **không nằm trong cả hai lựa chọn** — nó ngoài phạm vi bot (mục 4).
+`Sắp xếp hàng hóa tại kho tổng` **không nằm trong lựa chọn nào** — nó ngoài phạm vi bot (mục 4).
 Bấm nút bao nhiêu lần cũng vô hại: task đã nộp tự bỏ qua.
+
+**Đã BỎ nhánh `[a] chỉ nhóm A` (20/08/2026) — nó là cái bẫy đã cắn đúng một ngày sau khi thêm.**
+Chiều 20/08 người bấm nút chọn `[a]`; hai task nhóm B — #13371951 *Sắp xếp hàng hóa trong kho* và
+#13373905 *Dán tem QC Fail* — bị lặng lẽ bỏ lại, log chỉ ghi `nộp 6 · bỏ qua 4` mà không một chữ
+nào về hai task bị loại (6 + 4 = 10 trong khi hôm đó có 12 task — đó là dấu vết duy nhất).
+Nay câu hỏi chỉ còn **nộp / không nộp**. Ai thật sự cần lọc riêng nhóm A thì dùng cờ `--nhom=A`
+(nút *Chỉ nhóm A* của bot Telegram) — lựa chọn gõ tay, không phải một phím lỡ tay.
 
 **Mạng rớt giữa chừng thì sao (bẫy 19/08/2026 10:23):** wshr sau Cloudflare có lúc không bắt tay
 kịp — `fetchThuLai` thử 4 lượt (~66s) rồi ném, và vì mọi lời gọi nằm ở top-level await nên bản đầu
@@ -220,7 +271,7 @@ Bấm shortcut Desktop  →  NUT-NOP-TASK.bat  (cửa sổ đen, chcp 65001 cho 
              → node push-pc-to-sheet.mjs (PC_DELTA=1) / node auto-export-sync.js — làm tươi
         5. đọc file cache trong máy (.pc-cache.json, .exports/tasks-cache.json)
            + hỏi WMS số SKU treo F0-A0 → dựng chữ báo cáo → IN BẢN NHÁP ra cửa sổ
-        6. HỎI người bấm:  Enter = cả · a = chỉ nhóm A · k = không nộp
+        6. HỎI người bấm:  Enter = nộp cả · k = không nộp
         7. POST /api/hr/projects/mass-update-field-task-input ×2 nhịp → nộp phần đã chọn
 ```
 
