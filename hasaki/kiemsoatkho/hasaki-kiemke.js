@@ -337,7 +337,7 @@ var KHUNG =
 '    <span id="hkLoadinfo" class="hk-hint"></span>' +
 '    <button id="hkReload" onclick="HKIEMKE.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
 '  </div>' +
-'  <p class="hk-hint" style="margin:0">Dữ liệu phiếu <b>physical-count</b> WMS (type SKU + type Location) — cụm đồng bộ 8h40 ghi tab <code>' + TAB_SKU + '</code> / <code>' + TAB_LOC + '</code>. "Tổng" = distinct (kho|mã) trong phiếu · "Còn lại" = mã chưa có phiếu đã kiểm · bấm số để xem danh sách chi tiết.</p>' +
+/* Khối giảng giải nguồn dữ liệu ĐÃ BỎ khỏi màn (21/08/2026) — cùng luật với 2 dashboard. */
 '</div>';
 
 var MODAL_HTML =

@@ -170,6 +170,47 @@ var CSS = [
 ".ht-mtbl .num{text-align:right!important;font-variant-numeric:tabular-nums;}",
 ".ht-mtbl .cell0{color:var(--muted,#9ca3af);}",
 ".ht-mtbl tbody.is-filtering{opacity:.45;transition:opacity .12s;}",
+/* ===== POP-UP TRÊN ĐIỆN THOẠI = THẺ, KHÔNG PHẢI BẢNG 12 CỘT BÓP (21/08/2026) ====================
+ * Người dùng chỉ ra: bên Audit Hasaki pop-up này còn nguyên bảng 12 cột trong khi bên Audit Factory
+ * đã đổi sang thẻ. Sót vì bộ đo di động chỉ đi các TAB của dashboard 5S, CHƯA BAO GIỜ MỞ pop-up của
+ * nó — nay đã bổ sung bước mở pop-up vào qc-mobile-toan-du-an.
+ * Dùng lại NGUYÊN khuôn `#abnmodal` của dashboard factory: tr → flex-wrap (số ô mỗi dòng KHÔNG cố
+ * định vì 6 cột loại mà mỗi SKU thường chỉ vướng 1-2), thead ẩn, nhãn bằng ::before + attr(data-lb),
+ * và Ô GIÁ TRỊ 0 ẨN HẲN (`.cell0`) — 12 cột mà phần lớn là "0" thì ngốn hết bề ngang mà không nói gì. */
+"@media(max-width:768px){",
+"  .ht-modalbody{overflow-x:hidden;padding:0 10px 12px;}",
+"  .ht-mtbl{display:block;font-size:13px;}",
+"  .ht-mtbl thead{display:none;}",
+"  .ht-mtbl tbody{display:block;}",
+"  .ht-mtbl tr{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 10px;",
+"    padding:10px 12px 10px 40px;margin:0 0 8px;border:1px solid var(--border,#e8ecf1);border-radius:12px;",
+"    background:var(--surface,#fff);box-shadow:0 2px 8px rgba(16,24,40,.06);}",
+/* Ghi đè `white-space:nowrap` của .ht-mtbl td ở trên — trong thẻ thì chữ phải ngắt dòng được */
+"  .ht-mtbl td{display:block;border:0;padding:0;white-space:normal;min-width:0;}",
+"  .ht-mtbl td.hpc-cc{position:absolute;left:0;top:4px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}",
+"  .ht-mtbl td.hpc-cc input,.ht-mtbl th.hpc-cc input{width:22px;height:22px;}",
+"  .ht-mtbl td.absku{order:1;flex:1 1 auto;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text,#1f2937);}",
+"  .ht-mtbl td.abtot{order:2;margin-left:auto;text-align:right!important;white-space:nowrap;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}",
+"  .ht-mtbl td.abtot::before{content:attr(data-lb) ' ';color:var(--muted,#9ca3af);font-size:10px;font-weight:650;}",
+"  .ht-mtbl td.abpn{order:3;flex:1 1 100%;font-size:11.5px;line-height:1.45;color:var(--muted,#6b7280);min-width:0;max-width:none;",
+"    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}",
+"  .ht-mtbl td.abty{order:4;white-space:nowrap;font-size:11px;background:color-mix(in srgb,var(--muted,#9ca3af) 12%,transparent);border-radius:999px;padding:2px 9px;}",
+"  .ht-mtbl td.abty::before{content:attr(data-lb) ' ';color:var(--muted,#9ca3af);font-weight:650;}",
+"  .ht-mtbl td.abav{order:5;white-space:nowrap;font-size:10.5px;color:var(--muted,#9ca3af);font-variant-numeric:tabular-nums;}",
+"  .ht-mtbl td.abav::before{content:attr(data-lb) ' ';color:var(--muted,#9ca3af);}",
+"  .ht-mtbl td.abwh{order:6;flex:1 1 auto;font-size:10.5px;color:var(--muted,#9ca3af);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+"  .ht-mtbl td.abcat{order:7;font-size:10.5px;color:var(--muted,#9ca3af);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}",
+/* BỎ DƯ: ô loại = 0 không mang tin nào */
+"  .ht-mtbl td.cell0{display:none;}",
+"  .ht-mtbl td[colspan]{flex:1 1 100%;text-align:center;}",
+"  .ht-mtbl tr:has(td[colspan]){padding:14px 12px;background:0;border:0;box-shadow:none;}",
+/* Thanh chip lọc kho: một hàng cuộn ngang thay vì wrap răng cưa (khuôn đã dùng ở .kkonebar/.pg-whbar) */
+/* PHẢI có tiền tố #pane-htonbat: rule gốc ở trên khai .ht-whbar CÓ tiền tố (1-1-0) nên bản không
+   tiền tố (0-1-0) thua bất kể thứ tự — bẫy độ ưu tiên đã dính một lần ở khối .prfoot bên factory. */
+"  #pane-htonbat .ht-whbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0;max-width:100%;-webkit-overflow-scrolling:touch;padding-bottom:2px;}",
+"  #pane-htonbat .ht-whbar::-webkit-scrollbar{display:none;}",
+"  #pane-htonbat .ht-whbar>*{flex:0 0 auto;}",
+"}",
 /* mobile: modal tràn màn hình, touch ≥44px */
 "@media(max-width:768px){.ht-modal{padding:0;align-items:stretch;justify-content:stretch;}.ht-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.ht-mclose{font-size:30px;min-width:48px;min-height:48px;}.ht-mfilters input{min-height:44px;}#pane-htonbat .ht-whtab{min-height:44px;}#htReload{min-height:44px;width:100%;}}",
 ].join("\n");
@@ -440,7 +481,10 @@ function openType(k){ var ty = typeOf(k); if (!ty) return; canDong(function(){ s
 function showModal(base, title, preset){
   MODAL.base = base || []; MODAL.preset = preset || null;
   $id("htMtitle").textContent = title;
-  $id("htMsub").textContent = nf(MODAL.base.length) + " dòng (kho | SKU) — combo lọc sinh động, gõ để lọc, đếm số dòng";
+  /* Phụ đề chỉ mang SỐ, không dạy cách dùng: đoạn "combo lọc sinh động, gõ để lọc, đếm số dòng" là
+     hướng dẫn thao tác — cùng loài đã dồn vào nút `i` ở các nơi khác, mà ở đây thì bỏ hẳn vì cái
+     combo tự nói lên nó là combo lọc (21/08/2026). */
+  $id("htMsub").textContent = nf(MODAL.base.length) + " dòng (kho | SKU)";
   buildFilters();
   $id("htMSum").textContent = "";
   $id("htMBody").innerHTML = '<tr><td colspan="' + (7 + TYPES.length) + '" class="empty">Đang hiển thị…</td></tr>';
@@ -519,18 +563,26 @@ function mRender(){
   for (var i = 0; i < rows.length; i++){ var r = rows[i];
     sums.in_stock += r.in_stock; sums.available += r.available; TYPES.forEach(function(t){ sums[t.k] += r[t.k]; });
     if (out.length < CAP){
-      var tds = TYPES.map(function(t){ var v = r[t.k]; return v > 0 ? ('<td class="num" style="color:' + t.c + ';font-weight:700">' + nf(v) + '</td>') : '<td class="num cell0">0</td>'; }).join("");
+      /* `data-lb` + class `ab*`: bố cục THẺ trên điện thoại đọc ô nào là ô nào theo CLASS, không theo
+         `nth-child` (số cột loại đổi theo TYPES). Bảng máy tính không đổi gì. */
+      var tds = TYPES.map(function(t){ var v = r[t.k];
+        return v > 0 ? ('<td class="num abty" data-lb="' + esc(t.lb) + '" style="color:' + t.c + ';font-weight:700">' + nf(v) + '</td>')
+                     : ('<td class="num cell0 abty" data-lb="' + esc(t.lb) + '">0</td>'); }).join("");
       out.push('<tr>' + (window.HPC ? HPC.cell(r.wh, r.sku, r.pn, 1, abnReasonStr(r)) : "") +
-        '<td><span class="ht-dot" style="background:' + whColor(r.wh) + '"></span> ' + esc(r.wh) + '</td>' +
-        '<td>' + esc(r.sku) + '</td><td class="pn">' + esc(r.pn) + '</td><td>' + (r.cat ? esc(r.cat) : "—") + '</td>' +
-        '<td class="num">' + nf(r.in_stock) + '</td><td class="num">' + nf(r.available) + '</td>' + tds + '</tr>');
+        '<td class="abwh"><span class="ht-dot" style="background:' + whColor(r.wh) + '"></span> ' + esc(r.wh) + '</td>' +
+        '<td class="absku">' + esc(r.sku) + '</td><td class="pn abpn">' + esc(r.pn) + '</td><td class="abcat">' + (r.cat ? esc(r.cat) : "—") + '</td>' +
+        '<td class="num abtot" data-lb="Tồn">' + nf(r.in_stock) + '</td><td class="num abav" data-lb="Available">' + nf(r.available) + '</td>' + tds + '</tr>');
     }
   }
   if (rows.length > CAP) out.push('<tr><td colspan="' + NCOL + '" class="empty">Hiển thị ' + nf(CAP) + ' / ' + nf(rows.length) + ' dòng — dùng bộ lọc để thu hẹp.</td></tr>');
   $id("htMBody").innerHTML = out.length ? out.join("") : '<tr><td colspan="' + NCOL + '" class="empty">Không có dòng phù hợp</td></tr>';
   if (window.HPC) HPC.syncAll($id("htModal"), rows);
   var nAct = state.filter(function(f){ return f.v; }).length + (q ? 1 : 0);
-  var parts = TYPES.map(function(t){ return t.lb + ": " + nf(sums[t.k]); });
+  /* CHỈ liệt kê loại có số > 0. Bản cũ in đủ 6 loại nên dòng tổng kết dài ra toàn "Conflict: 0 ·
+     Not Found: 0 · Unsuitable product: 0" — không mang tin nào, mà trên điện thoại thì đẩy dòng số
+     xuống 3-4 hàng. Cùng lẽ với việc ẩn ô 0 trong thẻ (21/08/2026). */
+  var parts = TYPES.filter(function(t){ return sums[t.k] > 0; }).map(function(t){ return t.lb + ": " + nf(sums[t.k]); });
+  if (!parts.length) parts = ["không còn loại nào > 0"];
   $id("htMSum").textContent = nf(rows.length) + " / " + nf(MODAL.base.length) + " dòng" + (nAct ? (" · " + nAct + " bộ lọc đang áp dụng") : "") + " · Tồn " + nf(sums.in_stock) + " · " + parts.join(" · ");
 }
 

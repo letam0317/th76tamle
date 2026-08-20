@@ -113,7 +113,21 @@ const TRANG = [
        khai cứng danh sách: đọc thẳng `.tab[data-tab]` đang có trên thanh, ai thêm tab mới thì bộ đo
        tự đi qua. `viTri` là chỉ số nút trên thanh. */
     manDong: "() => [...document.querySelectorAll('#tabsNav .tab[data-tab]')].map(b => b.getAttribute('data-tab') + '|' + b.textContent.trim())",
-    man: [],
+    /* POP-UP của dashboard 5S — BỔ SUNG 21/08/2026 sau khi người dùng chỉ ra pop-up "Tồn kho bất
+       thường" bên Audit Hasaki còn nguyên bảng 12 cột. Lỗ hổng gốc: bộ đo chỉ đi các TAB của
+       dashboard này (manDong) và KHÔNG BAO GIỜ mở pop-up nào — nên cả một nửa giao diện chưa từng
+       được đo, mà tôi vẫn báo "sạch toàn dự án". Nay pop-up nào mở được bằng API của module thì phải
+       đi qua. `man` chạy SAU danh sách tab động. */
+    man: [
+      { ten: "Pop-up Bất thường (tất cả SKU)", cho: "#htModal.show",
+        mo: "() => { setTab('htonbat'); if (!window.HTONBAT || typeof HTONBAT.openAll !== 'function') return false; HTONBAT.openAll(); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#htMBody td')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try { HTONBAT.closeModal(); } catch(e) { const m=document.getElementById('htModal'); if(m) m.classList.remove('show'); } }" },
+      { ten: "Pop-up Bất thường (1 loại)", cho: "#htModal.show",
+        mo: "() => { setTab('htonbat'); if (!window.HTONBAT || typeof HTONBAT.openType !== 'function') return false; HTONBAT.openType('uid_temp'); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#htMBody td')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try { HTONBAT.closeModal(); } catch(e) { const m=document.getElementById('htModal'); if(m) m.classList.remove('show'); } }" },
+    ],
   },
 ].filter((t) => !LOC_TRANG || t.ma === LOC_TRANG);
 
@@ -325,6 +339,9 @@ for (const may of MAY) {
         return { ten: "Tab " + (ten || ma), mo: "() => { setTab('" + ma + "'); return true; }" }; });
       if (!dsMan.length) dsMan = [{ ten: "Màn mở đầu", mo: "() => true" }];
       console.log("     · " + dsMan.length + " tab: " + dsMan.map((m) => m.ten.replace(/^Tab /, "")).join(", "));
+      /* Nối các pop-up khai tĩnh vào SAU danh sách tab động — tab đi trước cho dữ liệu nạp xong, rồi
+         mới mở pop-up (pop-up nào không mở được thì bước `mo` trả false và bị bỏ qua, không tính lỗi). */
+      dsMan = dsMan.concat(trang.man || []);
     }
     for (const man of dsMan) {
       let mo = false;

@@ -856,13 +856,22 @@ var KHUNG =
 '<div id="hpState" class="hp-state"><div class="hp-spin"></div>Đang tải dữ liệu vệ sinh…</div>' +
 '<div class="hp-srcfoot">' +
 '  <div class="hp-srcbar">' +
-'    <span class="hp-chip">Vệ sinh — SHOP - 170 QUOC LO 1A · khu vực F0-A1 &amp; F0-A8</span>' +
+'    <span class="hp-chip">Vệ sinh — SHOP - 170 QUOC LO 1A · khu vực F0-A1 &amp; F0-A8' +
+  (typeof tipMuc === "function" ? tipMuc(HP_TIP_NGUON) : "") + '</span>' +
 (SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
 '    <span id="hpLoadinfo" class="hp-hint"></span>' +
 '    <button id="hpReload" onclick="HPLANOGRAM.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
 '  </div>' +
-'  <p class="hp-hint" style="margin:0" title="Bộ sync-vesinh-all.js (cụm 8h40 / nút Cập nhật ngay) ghi 6 tab: ' + TAB_YC + ', ' + TAB + ', ' + TAB_CC + ', ' + TAB_LS + ' (lịch sử báo cáo ' + LS_NGAY + ' ngày), ' + TAB_CCN + ' (chấm công theo ngày), ' + TAB_NK_BO + ' (chỉ cho người đọc trên Sheet). Ảnh trong pop-up là ảnh nhân viên chụp khi báo cáo.">Nguồn: <b>planogram</b> · cập nhật lúc 8h40 &amp; khi bấm “Cập nhật ngay”. Bấm ảnh để phóng to.</p>' +
 '</div>';
+/* Đoạn "Nguồn: planogram · cập nhật lúc 8h40…" ĐÃ RỜI KHỎI MÀN (21/08/2026) — dồn vào nút `i` cạnh
+   chip nguồn, cùng luật với dashboard Audit Factory.
+   Gộp luôn cả phần đang nằm ở thuộc tính `title` (danh sách 6 tab mà bộ sync ghi): `title` là tooltip
+   gốc của trình duyệt, trên ĐIỆN THOẠI không có hover nên không ai đọc được — chính là lý do phải
+   dùng nút `i` chứ không dựa vào `title`. VĂN BẢN THUẦN vì tooltip dựng bằng content:attr(). */
+var HP_TIP_NGUON = 'Nguồn: planogram — bộ sync-vesinh-all.js (cụm 8h40, hoặc khi bấm "Cập nhật ngay") ' +
+  'ghi 6 tab: ' + TAB_YC + ', ' + TAB + ', ' + TAB_CC + ', ' + TAB_LS + ' (lịch sử báo cáo ' + LS_NGAY +
+  ' ngày), ' + TAB_CCN + ' (chấm công theo ngày), ' + TAB_NK_BO + ' (chỉ để đọc trên Sheet). ' +
+  'Ảnh trong pop-up là ảnh nhân viên chụp khi báo cáo — bấm ảnh để phóng to.';
 
 /* Skeleton GIỮ CHỖ 2 cột trong lúc tải (chống layout-shift khi F5): khối sơ đồ + khối KPI
  * có sẵn hình khối ~ nội dung thật (tái dùng shimmer .sk của host) — bề rộng/chiều cao khung
@@ -2208,12 +2217,7 @@ function renderMap(){
     '<section class="hp-panel hp-fade">' +
     '<h2>Sơ đồ khu vực <span class="hp-chip">' + esc(nhanKhoang()) + '</span> ' + legend + '</h2>' +
     bannerAlert + (slot ? "" : htmlNhac) + htmlA1 + htmlA8 +
-    '<p class="hp-hint" style="margin:6px 0 0">Bấm một ô để xem chi tiết báo cáo, dải 7 ngày và lịch sử 60 ngày' +
-      (mot ? ' — cách đọc màu: <b>ô có vạch xanh mép trái = đã báo cáo</b> (xanh xong hẳn · hổ phách chờ mình xem lại ảnh · tím phải làm lại), <b>đỏ = chưa vệ sinh mà phụ trách ' +
-               (homNay ? 'đang đi làm</b> (nhắc được ngay)' : 'CÓ đi làm hôm đó</b> (đi truy được)') +
-               ', xám xanh = chưa vệ sinh nhưng phụ trách nghỉ / chưa có người nhận' +
-               (soiPT ? '' : ' — <i>chưa đọc được chấm công của ngày này nên tạm chưa tách được hai nhóm đó</i>')
-           : " — theo khoảng: xanh = mọi ngày đạt, tím = có ngày AI không đạt, đỏ = có ngày chưa vệ sinh") + '.</p>' +
+    /* Khối 'Bấm một ô để xem chi tiết…' ĐÃ BỎ (21/08/2026): chỉ dẫn thao tác. */ '' +
     '</section>';
   fitMaps();
 }

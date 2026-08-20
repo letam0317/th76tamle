@@ -36,6 +36,77 @@ const LIVE = process.argv.includes("--live");
 const URL_TRANG = LIVE ? "https://letam0317.github.io/stocklocationfactory/"
   : pathToFileURL(path.resolve(DIR, "..", "factory", "index.html")).href;
 
+/* ---------- BỘ DÒ KHỐI VĂN XUÔI — DÙNG CHUNG CHO CẢ 2 DASHBOARD -------------------------------
+ * VIẾT LẠI 21/08/2026 vì bản trước ĐỂ SÓT: nó nhắm theo CLASS cụ thể (`p.sub`, `.pcsteps`, `.ht-hint`…)
+ * và chỉ soi 260px ĐẦU tab. Khối "Nguồn: planogram WMS — bộ sync-vesinh-factory.mjs ghi tab … MTG_zigzag
+ * …" lọt qua cả hai cửa: nó mang class `pg-hint` và nằm ở CHÂN tab. Người dùng phải tự nhìn thấy rồi
+ * chỉ ra — đúng thứ bộ đo phải làm hộ.
+ * Nay dò theo HÌNH DẠNG NỘI DUNG, không theo class/vị trí:
+ *   · đang hiển thị · nằm trong tab/pane đang mở (kể cả chân trang)
+ *   · text ≥ 90 ký tự VÀ ≥ 14 từ  → là câu văn, không phải nhãn
+ *   · KHÔNG có con nào cũng là khối văn xuôi (chỉ báo khối TRONG CÙNG, khỏi báo trùng cả cây cha)
+ * Loại trừ có lý do:
+ *   · ô bảng / dòng bảng (td,th,tr) và `.pn` — đó là DỮ LIỆU dài (tên sản phẩm 90 ký tự)
+ *   · thông báo trạng thái (đang tải / chưa có dữ liệu / lỗi mạng) — chỉ hiện khi có chuyện
+ *   · phần tử chủ yếu là số (>60% ký tự là chữ số/dấu) — đó là dải chỉ số, không phải văn
+ *   · nội dung của chính tooltip (.h2tip) — nó vốn là văn, nằm trong attribute lúc ẩn */
+function doVanXuoi() {
+  const trong = (el) => el.closest("td,th,tr,.pn,.pn2,.h2tip,select,textarea,label") !== null;
+  const laTrangThai = (t) => /đang tải|đang đồng bộ|chưa có dữ liệu|không có dữ liệu|không tải được|chưa có tab|lỗi|thử lại|hiển thị \d/i.test(t);
+  const nhieuSo = (t) => (t.replace(/[^0-9.,%/·\s-]/g, "").length / t.length) > 0.6;
+  const hien = (el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+  const vung = [...document.querySelectorAll("[id^=view],[id^=pane-]")].filter((x) => hien(x));
+  const goc = vung.length ? vung : [document.body];
+  /* CHỮ CỦA CHÍNH PHẦN TỬ, không phải `textContent` gộp cả cây con. Bản đầu dùng textContent nên báo
+     cả khung DỮ LIỆU (`tbody`, `.kkstrip`, `.whcard`, `section.cards`) — 40 dòng nhiễu che mất mấy
+     khối thật. Chữ "của chính nó" = các text node trực tiếp + con INLINE (b/code/span/a…), KHÔNG
+     tính con dạng KHỐI (div/section/table/ul/li/p/h*) vì con khối là một khối riêng, tự nó bị xét. */
+  const INLINE = new Set(["B","I","EM","STRONG","CODE","SPAN","A","SMALL","KBD","U","S","MARK","SUP","SUB","BR"]);
+  const chuRieng = (el) => {
+    let t = "";
+    for (const n of el.childNodes) {
+      if (n.nodeType === 3) t += " " + n.textContent;
+      /* Con INLINE chỉ được tính khi nó là span/b/code CHỮ THUẦN (không có con phần tử). Nhiều chỗ
+         dùng <span> làm KHUNG BỌC (vd #kkWhBar bọc cả dãy chip, .pg-chip trong thanh nguồn) — tính
+         cả cây con của nó là gộp lại thành một "đoạn văn" giả và bộ dò báo nhiễu hàng chục dòng. */
+      else if (n.nodeType === 1 && INLINE.has(n.tagName) && n.children.length === 0) t += " " + n.textContent;
+    }
+    return t.replace(/\s+/g, " ").trim();
+  };
+  const la = (el) => {
+    if (!hien(el) || trong(el)) return false;
+    /* Tab "Hạng mục 5S" MIỄN TRỪ: nội dung của nó CHÍNH LÀ văn bản quy định (bảng 5S, mức trừ KPI) —
+       đó là chủ đề của tab, không phải chú thích chắn trước số liệu. */
+    if (el.closest("#pane-hangmuc")) return false;
+    /* MIỄN TRỪ CÓ LÝ DO — không phải "khối hướng dẫn", nên bộ dò phải bỏ qua, kẻo nó đỏ vĩnh viễn
+       và một cái test đỏ mãi thì chẳng ai đọc nữa:
+         · .hm-card / .hm-d  — MÔ TẢ THẺ ở bảng chọn hạng mục. Chức năng của bảng chọn CHÍNH LÀ nói
+           mỗi hạng mục làm gì; bỏ nó đi thì bảng chọn thành 6 cái nút không nhãn.
+         · .pg-tile / .kb-sub — nhãn + phụ đề của THẺ CHỈ SỐ (số liệu, phần lớn đến từ Sheet).
+         · *-srcbar          — thanh nguồn: chip + số dòng + nút Làm mới, bị bộ dò nối lại thành một
+           "câu"; nó là 3 control cạnh nhau, không phải đoạn văn. */
+    if (el.closest(".hm-card,.pg-tile,.kb-tile,.hp-srcbar,.hk-srcbar,.ht-srcbar,.pg-srcbar")) return false;
+    if (el.classList && (el.classList.contains("hm-d") || el.classList.contains("kb-sub"))) return false;
+    const t = chuRieng(el);
+    if (t.length < 90) return false;
+    if (t.split(" ").length < 14) return false;
+    if (laTrangThai(t) || nhieuSo(t)) return false;
+    return true;
+  };
+  const ra = [];
+  for (const v of goc) {
+    for (const el of v.querySelectorAll("*")) {
+      if (!la(el)) continue;
+      /* Không cần lọc "khối trong cùng" nữa: `chuRieng` đã chỉ tính chữ của chính phần tử nên cha
+         chứa toàn con khối sẽ không đạt ngưỡng. */
+      const ten = el.tagName.toLowerCase() +
+        (typeof el.className === "string" && el.className.trim() ? "." + el.className.trim().split(/\s+/)[0] : "");
+      ra.push({ el: ten, chu: chuRieng(el).slice(0, 64) });
+    }
+  }
+  return ra;
+}
+
 let loi = 0, dat = 0;
 const kiem = (ten, ok, ct) => {
   if (ok) { dat++; console.log("  ✓ " + ten + (ct ? "  — " + ct : "")); }
@@ -89,11 +160,11 @@ for (const m of MUC) {
     (r.tip.match(/<[a-z/][^>]*>/i) || ["sạch"])[0]);
 }
 /* Tab không có gì phải nói thì KHÔNG có nút — đúng lệ tab Nhận diện SKU */
-for (const t of ["home", "plg", "sku"]) {
+for (const t of ["home", "sku"]) {
   await p.evaluate((x) => showTab(x), t);
   await nghi(1400);
   const n = await p.evaluate((x) => {
-    const MAP = { home: "viewHome", plg: "viewPlg", sku: "viewNds" };
+    const MAP = { home: "viewHome", sku: "viewNds" };
     return document.querySelectorAll("#" + MAP[x] + " .h2tip").length;
   }, t);
   kiem("Tab " + t + ": KHÔNG có nút chú thích (không có gì cần giảng)", n === 0, n + " nút");
@@ -172,35 +243,28 @@ const TAB = ["home", "stock", "kk", "abn", "plg", "sku", "cd"];
 const sot = [], ngoac = [];
 for (const t of TAB) {
   await p.evaluate((x) => showTab(x), t);
-  await nghi(1600);
-  const r = await p.evaluate(() => {
+  await nghi(2200);
+  const khoi = await p.evaluate(doVanXuoi);
+  khoi.forEach((x) => sot.push(t + " › " + x.el + ' "' + x.chu + '…"'));
+  const ng = await p.evaluate(() => {
     const v = [...document.querySelectorAll("[id^=view]")].find((x) => !x.hidden);
-    if (!v) return { khoi: [], ng: [] };
-    const khoi = [], ng = [];
-    const goc = v.getBoundingClientRect().top;
-    for (const el of v.querySelectorAll("p.sub, .pcsteps")) {
-      if (el.offsetParent === null) continue;
-      const txt = (el.textContent || "").trim();
-      if (txt.length < 90) continue;
-      if (el.getBoundingClientRect().top - goc > 260) continue;
-      khoi.push({ cls: el.className, chu: txt.slice(0, 60) });
-    }
-    /* Nhãn chỉ dẫn thao tác trong ngoặc sau tiêu đề — người dùng chốt bỏ nốt 20/08/2026. GIỮ LẠI
-       nhãn nghiệp vụ "(Type: …)" vì đó là DỮ LIỆU (phiếu thuộc type nào), không phải hướng dẫn. */
-    for (const el of v.querySelectorAll("h2 .hint, h3 .hint")) {
+    if (!v) return [];
+    const ra = [];
+    /* Nhãn chỉ dẫn thao tác trong ngoặc sau tiêu đề. GIỮ nhãn nghiệp vụ "(Type: …)" — đó là DỮ LIỆU
+       (phiếu thuộc type nào), không phải hướng dẫn. */
+    for (const el of v.querySelectorAll("h2 span,h3 span")) {
       if (el.offsetParent === null) continue;
       const txt = (el.textContent || "").trim();
       if (!/^\(/.test(txt)) continue;
-      if (/^\(Type:/i.test(txt) || /type SKU|type vị trí/i.test(txt)) continue;
-      if (/bấm|rê|gõ|chọn|xem|click/i.test(txt)) ng.push(txt.slice(0, 60));
+      if (/^\(type/i.test(txt) || /type SKU|type vị trí/i.test(txt)) continue;
+      if (/bấm|rê|gõ|chọn|xem|click/i.test(txt)) ra.push(txt.slice(0, 56));
     }
-    return { khoi, ng };
+    return ra;
   });
-  r.khoi.forEach((x) => sot.push({ tab: t, ...x }));
-  r.ng.forEach((x) => ngoac.push(t + ": " + x));
+  ng.forEach((x) => ngoac.push(t + ": " + x));
 }
-kiem("Không tab nào còn khối giảng giải ở đầu màn", sot.length === 0,
-  sot.length ? sot.map((x) => x.tab + ":" + x.cls).join(" | ") : "sạch cả 7 tab");
+kiem("Không tab nào còn KHỐI VĂN XUÔI (dò theo hình dạng nội dung, cả chân trang)", sot.length === 0,
+  sot.length ? sot.join("  |  ") : "sạch cả 7 tab");
 kiem('Không còn nhãn chỉ dẫn thao tác trong ngoặc sau tiêu đề (giữ nhãn "(Type: …)")',
   ngoac.length === 0, ngoac.length ? ngoac.join(" | ") : "sạch");
 
@@ -228,36 +292,26 @@ try {
   const sot5 = [], ngoac5 = [];
   for (const t of tabs) {
     await p2.evaluate((x) => setTab(x), t);
-    await nghi(2200);
-    const r = await p2.evaluate(() => {
-      const khoi = [], ng = [];
+    await nghi(2600);
+    const khoi5 = await p2.evaluate(doVanXuoi);
+    khoi5.forEach((x) => sot5.push(t + " › " + x.el + ' "' + x.chu + '…"'));
+    const ng5 = await p2.evaluate(() => {
       const pane = [...document.querySelectorAll("[id^=pane-]")].find((x) => x.offsetParent !== null) || document.body;
-      const goc = pane.getBoundingClientRect().top;
-      /* Đoạn văn DÀI ở đầu pane = khối giảng giải chắn trước số liệu. Bỏ qua thông báo trạng thái. */
-      for (const el of pane.querySelectorAll("p,.ht-hint,.hk-hint,.fs-hint")) {
-        if (el.offsetParent === null) continue;
-        if (el.tagName !== "P" && !/^(P|SPAN|DIV)$/.test(el.tagName)) continue;
-        const txt = (el.textContent || "").trim();
-        if (txt.length < 90) continue;
-        if (/đang tải|chưa có dữ liệu|không có dữ liệu|lỗi/i.test(txt)) continue;
-        if (el.getBoundingClientRect().top - goc > 300) continue;
-        khoi.push(el.className || el.tagName);
-      }
-      /* Nhãn chỉ dẫn thao tác trong ngoặc sau tiêu đề. GIỮ nhãn nghiệp vụ "(type SKU)"/"(type Location)". */
+      const ra = [];
+      /* GIỮ nhãn nghiệp vụ "(type SKU)"/"(type Location)". */
       for (const el of pane.querySelectorAll("h2 span,h3 span")) {
         if (el.offsetParent === null) continue;
         const txt = (el.textContent || "").trim();
         if (!/^\(/.test(txt)) continue;
         if (/^\(type/i.test(txt)) continue;
-        if (/bấm|rê|gõ|chọn|xem|click/i.test(txt)) ng.push(txt.slice(0, 56));
+        if (/bấm|rê|gõ|chọn|xem|click/i.test(txt)) ra.push(txt.slice(0, 56));
       }
-      return { khoi, ng };
+      return ra;
     });
-    r.khoi.forEach((x) => sot5.push(t + ":" + x));
-    r.ng.forEach((x) => ngoac5.push(t + ": " + x));
+    ng5.forEach((x) => ngoac5.push(t + ": " + x));
   }
-  kiem("5S: không tab nào còn khối giảng giải ở đầu pane", sot5.length === 0,
-    sot5.length ? sot5.join(" | ") : "sạch " + tabs.length + " tab");
+  kiem("5S: không tab nào còn KHỐI VĂN XUÔI (dò theo hình dạng, cả chân trang)", sot5.length === 0,
+    sot5.length ? sot5.join("  |  ") : "sạch " + tabs.length + " tab");
   kiem('5S: không còn nhãn chỉ dẫn thao tác trong ngoặc (giữ "(type SKU)")',
     ngoac5.length === 0, ngoac5.length ? ngoac5.join(" | ") : "sạch");
   kiem("5S: không lỗi pageerror", conLoi2.length === 0, [...new Set(conLoi2)].slice(0, 2).join(" | ") || "sạch");
