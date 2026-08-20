@@ -2239,3 +2239,29 @@ Safari (`::-webkit-media-controls`, nó có nút toàn màn hình — chạm nh�
 cao** cho khung trên máy hẹp (`max-height:min(52vh,420px)`) kèm khuôn `padding-top:75%` cho trình
 duyệt không hiểu `aspect-ratio` · và lưới đỡ cuối: nghe `webkitbeginfullscreen` thì gọi
 `webkitExitFullscreen()` ngay.
+
+### 12.14 Hàng nhập liệu trên điện thoại (đặc tả từ video quay máy thật, 21/08/2026)
+
+Ba lỗi thấy trong video, và số đo sau khi vá (đo bằng `getBoundingClientRect` trong bộ test, không
+phải bằng mắt):
+
+| lỗi trong video | sau khi vá |
+|---|---|
+| "Số tem" chiếm gần nửa thẻ dù chỉ nhận 1-2 chữ số | **chôn cứng 82px** ở mép trái, không co giãn |
+| "Số lượng" bị ép sang góc phải, chữ co lại | **232px** (gấp 2,8 lần), cao **44px**, chữ **19px/700** |
+| chip số lượng chen ngang hàng → ô nhập bị bóp, rớt dòng méo | chip thành **dòng riêng phía trên**; thêm 3 chip thì ô nhập vẫn **232px**, kéo ngang **0px** |
+
+Cách làm: thẻ trên điện thoại chuyển sang lưới **3 cột** `82px minmax(0,1fr) auto` với vùng
+`"sku sku del" / "pn pn pn" / "tem sl sl"` — hàng SKU trải hai cột đầu để không bị bóp vào 82px. Ô Số
+lượng tách thành hai dòng: `.prchips` (chip đã chốt, `flex-wrap`) ở trên, `.prgo` (ô nhập + nút `+`) ở
+dưới. Nhãn hai ô đổi sang `display:block` nên nằm **trên** ô nhập thay vì trước nó.
+
+**Bàn phím ảo** (chỗ này mới là phần dễ bỏ sót): bàn phím số ăn ~50% chiều cao màn, mà `vh` **không
+đổi** khi bàn phím mở (nó là khung lớn) — nên pop-up vẫn cao 90% màn và tràn xuống dưới bàn phím, nút
+*Xác nhận in* bị che. Vá bằng `dvh` (chiều cao vùng THẤY ĐƯỢC), khai thành **dòng riêng** để trình
+duyệt không hiểu `dvh` thì chỉ bỏ dòng đó và giữ nguyên `90vh`:
+`.modalbox{max-height:90vh}` rồi `.modalbox{max-height:90dvh}`; phần danh sách cũng vậy
+(`min(40vh,46dvh)`). Kèm hai việc chủ động: `onfocus` thì cuộn ô đang gõ vào giữa vùng còn thấy được
+(chờ 300ms cho bàn phím dựng xong — cuộn sớm thì vị trí tính ra sai), và nghe `visualViewport.resize`
+để cuộn lại một lần nữa đúng lúc bàn phím vừa mở. Cả hai ô đều có `inputmode="numeric"` để bàn phím số
+lên ngay (ô Số lượng phải là `type="text"` vì mình tự chèn dấu chấm hàng nghìn).

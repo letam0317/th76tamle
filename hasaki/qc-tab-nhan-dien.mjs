@@ -1512,6 +1512,58 @@ kiem("Điện thoại: nhãn hai ô \"áp cho tất cả\" nói đúng việc c�
   /SỐ TEM/.test(inMobile.nhanApTem) && /SỐ LƯỢNG/.test(inMobile.nhanApSl),
   inMobile.nhanApTem + " · " + inMobile.nhanApSl);
 
+/* HÀNG NHẬP LIỆU TRÊN ĐIỆN THOẠI (đặc tả user 21/08/2026, sau khi xem video quay máy thật):
+     · "Số tem" chôn cứng ~82px ở mép trái — nó chỉ nhận 1-2 chữ số;
+     · "Số lượng" ăn hết phần còn lại, ô nhập cao ≥44px, chữ ≥18px và đậm;
+     · chip đã chốt nằm THÀNH DÒNG RIÊNG PHÍA TRÊN ô nhập, và thêm chip KHÔNG được bóp ô nhập.
+   Ba con số này đo bằng `getBoundingClientRect` nên không thể "xanh mà giao diện vẫn xấu". */
+const nhapMobile = await page.evaluate(async () => {
+  ndsThemToken("8846295", "code", "chu");
+  NDS.ket = NDS_ENGINE.timTop(NDS_ENGINE.tuAI({ item_codes: ["8846295"], specs: [], colors: [], brands: ["YKK"] }, NDS.cm),
+    NDS.cm, { soLuong: 1, chiActive: true });
+  ndsVeKetQua(7);
+  document.querySelector("#ndsCards .nds-card .nds-tem").click();
+  await new Promise((r) => setTimeout(r, 200));
+  prMo();
+  await new Promise((r) => setTimeout(r, 350));
+  const oTem = () => document.querySelector("#prBody tr td:nth-child(1) input.prsl-t");
+  const oSl = () => document.querySelector("#prBody tr td:nth-child(2) input.prsl-v");
+  const csSl = getComputedStyle(oSl());
+  const truoc = { tem: Math.round(oTem().getBoundingClientRect().width),
+    sl: Math.round(oSl().getBoundingClientRect().width),
+    caoSl: Math.round(oSl().getBoundingClientRect().height),
+    chuSl: Math.round(parseFloat(csSl.fontSize)), damSl: Number(csSl.fontWeight) };
+  /* Thêm 3 chip rồi đo lại: đây đúng lúc bản trước vỡ layout (ô nhập bị bóp rồi rớt dòng). */
+  const go = async (v) => {
+    const o = oSl(); o.value = v; prGoSo(o); prHienCong(o);
+    document.querySelector("#prBody tr td:nth-child(2) .prsladd").click();
+    await new Promise((r) => setTimeout(r, 160));
+  };
+  await go("899"); await go("8"); await go("1200");
+  const chips = document.querySelector("#prBody tr td:nth-child(2) .prchips");
+  const rChip = chips ? chips.getBoundingClientRect() : null;
+  const rIn = oSl().getBoundingClientRect();
+  const sau = { tem: Math.round(oTem().getBoundingClientRect().width), sl: Math.round(rIn.width),
+    soChip: document.querySelectorAll("#prBody tr td:nth-child(2) .prchip").length,
+    chipTren: !!rChip && rChip.bottom <= rIn.top + 1,
+    chipCungHang: !!rChip && Math.abs(rChip.top - rIn.top) < 6,
+    keoNgang: document.querySelector("#prmodal .modalbody").scrollWidth - document.querySelector("#prmodal .modalbody").clientWidth };
+  prDong(); prXoaHet();
+  return { truoc: truoc, sau: sau };
+});
+kiem("Điện thoại: ô \"Số tem\" chôn cứng ~82px, ô \"Số lượng\" rộng gấp mấy lần",
+  nhapMobile.truoc.tem >= 60 && nhapMobile.truoc.tem <= 100 && nhapMobile.truoc.sl >= nhapMobile.truoc.tem * 1.5,
+  "Số tem " + nhapMobile.truoc.tem + "px · Số lượng " + nhapMobile.truoc.sl + "px");
+kiem("Điện thoại: ô Số lượng cao ≥44px, chữ ≥18px và in đậm (đủ chạm + đọc lại được)",
+  nhapMobile.truoc.caoSl >= 44 && nhapMobile.truoc.chuSl >= 18 && nhapMobile.truoc.damSl >= 600,
+  "cao " + nhapMobile.truoc.caoSl + "px · chữ " + nhapMobile.truoc.chuSl + "px/" + nhapMobile.truoc.damSl);
+kiem("Điện thoại: 3 chip số lượng nằm THÀNH DÒNG RIÊNG PHÍA TRÊN ô nhập",
+  nhapMobile.sau.soChip === 3 && nhapMobile.sau.chipTren && !nhapMobile.sau.chipCungHang,
+  nhapMobile.sau.soChip + " chip · chip ở trên: " + nhapMobile.sau.chipTren);
+kiem("Điện thoại: thêm chip KHÔNG bóp ô nhập và không sinh kéo ngang",
+  nhapMobile.sau.sl >= nhapMobile.truoc.sl - 2 && nhapMobile.sau.tem === nhapMobile.truoc.tem && nhapMobile.sau.keoNgang === 0,
+  "ô nhập " + nhapMobile.truoc.sl + "px → " + nhapMobile.sau.sl + "px · Số tem " + nhapMobile.sau.tem + "px · kéo ngang " + nhapMobile.sau.keoNgang + "px");
+
 /* KHUNG CAMERA TRÊN MÁY HẸP (sự cố iOS 21/08/2026: bấm "Bật camera" thì khung phóng to tràn màn hình,
    mất luôn nút "Chụp" màu cam và hàng tỉ lệ zoom).
    Gốc: Safari trên iPhone tự đưa <video> vào TOÀN MÀN HÌNH khi play nếu thiếu `webkit-playsinline`;
