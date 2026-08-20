@@ -856,8 +856,9 @@ var KHUNG =
 '<div id="hpState" class="hp-state"><div class="hp-spin"></div>Đang tải dữ liệu vệ sinh…</div>' +
 '<div class="hp-srcfoot">' +
 '  <div class="hp-srcbar">' +
-'    <span class="hp-chip">Vệ sinh — SHOP - 170 QUOC LO 1A · khu vực F0-A1 &amp; F0-A8' +
-  (typeof tipMuc === "function" ? tipMuc(HP_TIP_NGUON) : "") + '</span>' +
+/* Nút i để NGOÀI chip — nhét trong thì chip nowrap phình ra và tràn mép (bộ rà bắt được ở bản factory) */
+'    <span class="hp-chip">Vệ sinh — SHOP - 170 QUOC LO 1A · khu vực F0-A1 &amp; F0-A8</span>' +
+  (typeof tipMuc === "function" ? tipMuc(HP_TIP_NGUON) : "") +
 (SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
 '    <span id="hpLoadinfo" class="hp-hint"></span>' +
 '    <button id="hpReload" onclick="HPLANOGRAM.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
