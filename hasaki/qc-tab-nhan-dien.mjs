@@ -819,7 +819,8 @@ await new Promise((r) => setTimeout(r, 400));
 const sauBo = await page.evaluate(() => ({ n: prSo(), chu: (document.querySelector("#ndsCards .nds-tem") || {}).textContent,
   bar: !document.getElementById("prbar").classList.contains("hidden") }));
 kiem("Bấm lại nút là BỎ khỏi danh sách in (không cần mở bảng)",
-  sauBo.n === 0 && /＋/.test(sauBo.chu) && sauBo.bar === false, sauBo.n + " SKU · nút \"" + sauBo.chu + "\"");
+  /* Nhãn nút đổi 20/08/2026: "＋ Tem" → "In tem" (chưa thêm) · "✓ Đã thêm" (đã trong danh sách). */
+  sauBo.n === 0 && /In tem/.test(sauBo.chu) && sauBo.bar === false, sauBo.n + " SKU · nút \"" + sauBo.chu + "\"");
 
 /* ---------- 6k2. Bảng danh sách in: mẫu tem · số lượng · xoá từng dòng ---------- */
 const bang = await page.evaluate(async () => {
@@ -888,7 +889,7 @@ kiem("Danh sách có 2 khổ tem khác nhau thì CHẶN in và nói rõ (không 
 const inThat = await page.evaluate(async () => {
   prMo();
   await new Promise((r) => setTimeout(r, 200));
-  prApMau("t42x62"); prApSl(2);
+  prApMau("t40x60"); prApSl(2);
   await new Promise((r) => setTimeout(r, 200));
   window.__daIn = 0; window.print = () => { window.__daIn++; };
   prIn();
@@ -897,8 +898,8 @@ const inThat = await page.evaluate(async () => {
     page: document.getElementById("prPage").textContent, coClass: document.body.classList.contains("in-tem"),
     tong: prTongTem() };
 });
-kiem("In: đúng số con tem vào khung in + @page đặt đúng khổ mẫu",
-  inThat.daIn === 1 && inThat.soTem === inThat.tong && /42.5mm 62mm/.test(inThat.page) && inThat.coClass,
+kiem("In: đúng số con tem + @page là khổ MỘT HÀNG GIẤY (2 tem + khe), không phải khổ 1 tem",
+  inThat.daIn === 1 && inThat.soTem === inThat.tong && /82mm 60mm/.test(inThat.page) && inThat.coClass,
   inThat.soTem + " tem · " + inThat.page);
 
 /* Dọn: khung in phải sạch sau khi hộp thoại in đóng, kẻo trang khác in ra cũng thành tem */

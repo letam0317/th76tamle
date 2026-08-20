@@ -890,6 +890,72 @@ hơn mà lại mất một ca. Muốn thử lại: `qc-loi-cu-moi.mjs` đã có 
   gợi ý chỉ khác nhau ở màu/thông số, máy KHÔNG tự chốt, nhìn tem rồi chọn*. Đây đúng là ca mà OCR
   đọc lệch `345`↔`145` — máy thu hẹp 5.610 dòng còn 3 dòng đúng mã, việc chọn màu để mắt người làm.
 
+### 5b.17 SOÁT 30 TEM THẬT — bảng "mảnh nào vào vai nào" (20/08/2026)
+
+Cách soát: chạy 30 lượt OCR thật (đã có đáp án) qua `tuVanBan`, rồi **đối chiếu vai của từng mảnh với
+vai THẬT của mảnh đó trong tên hàng của đáp án** (`bocTen(pn)`). Chạy 3 giây, 0 lượt gọi mạng.
+
+| Nhóm | Số loại | Ghi chú |
+|---|---|---|
+| Xếp sai vai | **51** | **toàn bộ cùng một hướng: mảnh MÃ bị nhân đôi vào rổ MÀU** |
+| Rác trong rổ MÃ | 8 | `210000` · `21000` · `270000` · `100d-2` · `polyester-50` · `ag00133nh` |
+| Rác trong rổ MÀU | 15 | dẫn đầu là **`tan` xuất hiện 20/30 tem** |
+| Bị bỏ oan | **0** | bộ lọc theo danh mục không làm mất mảnh nào cần thiết |
+
+**① `tan` = ĐỊA CHỈ NHÀ MÁY in trên mọi tem**: "ADD: LOT 24, **TÂN** THỚI HIỆP IP, DIST 12, HCMC" → bỏ
+dấu thành `tan`, trùng từ màu tiếng Anh trong `TU_MAU`. Điểm mỗi vai là `(max + trung bình)/2` trên
+mảnh **của tem**, nên một mảnh không khớp **làm loãng trung bình của MỌI ứng viên**. Chữa: cắt phần sau
+nhãn `ADD/ADDRESS/ĐỊA CHỈ` trên **từng dòng**. Sau khi cắt: `tan` 20 → 0, rác rổ màu 15 → 12, xếp sai
+vai 51 → 47.
+
+**② Mã màu của tem phải CÓ THẬT trong danh mục** (`cm.mauVung`, dựng lúc dựng chỉ mục). Trước đây bất
+kỳ mảnh chữ-số nào trong rổ màu cũng được coi là mã màu ⇒ tem dây kéo SAB có `sab-255lk3557-2` và
+`no.3` trong rổ màu ⇒ dòng **đúng** (có mã màu thật `PD00695MIM`) bị trừ 18%, nhường hạng 1 cho dòng
+**không có mã màu nào**. Cùng họ sự cố "5000 M" (5b.14), và cách này giải luôn ca `165` (lấy từ "NET
+165 KG") đã làm một bản vá trước đó phải lùi.
+
+### 5b.18 Bốn bản vá theo bảng soát — 3 giữ, 1 BÁC (20/08/2026)
+
+Mỗi bản vá **đo riêng** trên 30 tem thật trước khi chốt. Kết quả cuối: **Top-1 77% → 87% (26/30),
+Top-3 90% → 93%, 3 lượt tốt hơn · 0 lượt xấu hơn.**
+
+| # | Bản vá | Đo được | Chốt |
+|---|---|---|---|
+| A1 | **Ghép tỉ lệ chất liệu**: `100% Polyester` → `100%polyester`, áp cho CẢ tem và tên hàng trong `bocTen` nên hai bên khớp nhau | **+2 tem** | GIỮ |
+| A2 | **Cứu mảnh sắp bị bỏ**: sửa đúng 1 ký tự mà thành TỪ MÀU có thật trong `cm.mauVung` thì xếp vào vai MÀU (tem in "Rêu", OCR trả "Riu") | 0 tem trên bộ này, nhưng lấy lại được bằng chứng màu | GIỮ |
+| A5 | **Cỡ nút `16LN` = `16L` áp cho CẢ HAI phía** (trước chỉ áp cho tem ⇒ tem `16l` mà tên hàng `16ln`, chỉ khớp mờ ~0,85) | **+1 tem** | GIỮ |
+| A3 | Phía TEM: mảnh đã ở rổ MÃ thì **đừng nhân đôi** sang rổ MÀU | **2 tốt hơn nhưng 1 XẤU HƠN** (tem 422407140: 89% đúng → 95% SAI); bỏ riêng A3 ra thì 25/30, 0 xấu hơn | **BÁC** |
+
+> **A3 đáng ghi lại**: lý lẽ đúng, dữ liệu bác. Mấy mảnh mã trong rổ màu của tem đang **làm việc** —
+> chúng khớp với mã màu chữ-số của dòng đúng (`V8S41` · `PD00695MIM` · `TN114-TN006B`), tức thứ tách
+> được 102 biến thể dây kéo cùng mã. Muốn bỏ nhân đôi thì phải bù lại phần khớp đó trước.
+
+**6 tem còn sai** — 3 trong số đó không phải lỗi máy:
+
+| Tem | Nguyên nhân |
+|---|---|
+| 422292529 · 422394185 | Máy **cố ý** ưu tiên bản `/mm` thay bản `/cuộn 5000m` (luật kho); đáp án của bộ đề là bản cuộn ⇒ lệch đáp án, **không lệch luật** |
+| 422278015 | Tem **không in chiều dài** mà các dòng chỉ khác nhau 14/16/18cm ⇒ **máy không thể biết** |
+| 422276967 | Sau A2 đã lấy lại màu `reu`, nhưng tên hàng đáp án viết lệch khuôn ("Nút 2 holes - W/…") nên vẫn 75% vs 78% |
+| 422487030 · còn 1 | soi riêng vòng sau |
+
+## Giao diện — bốn việc cùng lượt (yêu cầu user)
+
+* **Thông báo gọn**: toast thành công chỉ còn "Đã đọc xong tem." / "Chưa đọc được tem — chụp gần hơn.";
+  bỏ hết "AI đọc được N từ khoá [model]", "mã vạch đã có trong sổ tay", "bỏ N mảnh giấy tờ".
+  ⚠ **Toast HỎNG thì GIỮ nguyên nhân**: ca test khoá "báo bằng tiếng người + chỉ sang đường gõ mã" (nó
+  đòi thấy chữ "trang HTML" và "Mã trên tem"). Rút hết thành "Không đọc được tem." là **mất đường chỉ
+  dẫn** và ca test đỏ ngay. Thông báo lỗi không phải chỗ để gọn.
+* **Bỏ khỏi giao diện**: dòng "(chụp bằng camera sau…)", dòng "Top 3 · chỉ SKU đang ACTIVE", và **hai
+  nút `ACTIVE | Tất cả`**. Cờ `NDS.chiActive` vẫn còn (mặc định TRUE) vì hai đường đã bù đủ chỗ: dòng
+  mang đúng mã tem thì INACTIVE vẫn hiện (5b.12), và không có dòng ACTIVE nào khớp thì `themInactive`
+  tự trả nhóm INACTIVE kèm dải chữ.
+* **Nút `＋ Tem` → `In tem`**, xuống **cùng hàng** với "N đơn vị khác · N từ khoá khớp" và nhãn "lệch
+  …"; màu **cam cố định** `#f57c00` (như nút CHỤP — không ăn token accent vì accent đổi theo 7 theme),
+  đã thêm thì **xanh + "✓ Đã thêm"** kèm hiệu ứng `nhanIn` (nảy + loé 0,32s).
+  ⚠ Nút nay nằm **trong `<summary>`** nên `event.preventDefault()` là **bắt buộc** — không chặn thì bấm
+  In tem lại mở/đóng luôn khối "vì sao khớp" (đúng họ bẫy với nút "quên ghi nhớ").
+
 ### 5b.16 Tem COATS astra C3185 — OCR dính "Col" vào mã, và lời mời "Ý bạn là…" (20/08/2026)
 
 **Báo lỗi (gắt):** *"hình ảnh có mã màu là c3185 mà gợi ý không có SKU nào có phần tử c3185"* — Top 3
