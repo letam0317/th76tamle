@@ -941,7 +941,7 @@ const goSo = await page.evaluate(async () => {
   const congSau = !!nut() && nut().classList.contains("hien");
   nut().click();
   await new Promise((r) => setTimeout(r, 250));
-  const chip = Array.prototype.map.call(document.querySelectorAll("#prBody tr td:nth-child(2) .prchip"),
+  const chip = Array.prototype.map.call(document.querySelectorAll("#prBody tr.prsl2 .prchip"),
     (e) => e.textContent.replace(/×/g, "").trim());
   return { buoc: buoc, congTruoc: congTruoc, congSau: congSau, chip: chip,
     oSau: document.querySelector("#prBody tr td:nth-child(2) input.prsl-v").value };
@@ -951,14 +951,14 @@ kiem("Gõ số lượng: tự chèn dấu chấm ngay từ hàng nghìn (1.000 �
 kiem("Nút \"+\" chỉ hiện khi trong ô ĐANG có số (ô trống thì ẩn)",
   goSo.congTruoc === false && goSo.congSau === true,
   "ô trống: " + (goSo.congTruoc ? "hiện" : "ẩn") + " · có số: " + (goSo.congSau ? "hiện" : "ẩn"));
-kiem("Bấm \"+\": số vào chip và ô nhập nhảy về 0 (gõ tiếp được ngay)",
-  goSo.chip.join("|") === "100.000" && goSo.oSau === "0",
+kiem("Bấm \"+\": số vào chip và ô nhập TRỐNG lại (gõ tiếp được ngay, không hiện số 0)",
+  goSo.chip.join("|") === "100.000" && goSo.oSau === "",
   "chip [" + goSo.chip.join("|") + "] · ô nhập \"" + goSo.oSau + "\"");
 
 /* Ba bịch khác số lượng: gõ–cộng ba lần, ra ba chip đúng thứ tự và ba con tem. */
 const baBich = await page.evaluate(async () => {
   let x;
-  while ((x = document.querySelector("#prBody tr td:nth-child(2) .prchip .x"))) {   // dọn chip cũ
+  while ((x = document.querySelector("#prBody tr.prsl2 .prchip .x"))) {   // dọn chip cũ
     x.click(); await new Promise((r) => setTimeout(r, 90));
   }
   const go = async (v) => {
@@ -969,13 +969,13 @@ const baBich = await page.evaluate(async () => {
   };
   await go("1000"); await go("2000"); await go("3000");
   const tem = document.querySelector("#prBody tr td:nth-child(1) input");
-  return { chip: Array.prototype.map.call(document.querySelectorAll("#prBody tr td:nth-child(2) .prchip"),
+  return { chip: Array.prototype.map.call(document.querySelectorAll("#prBody tr.prsl2 .prchip"),
       (e) => e.textContent.replace(/×/g, "").trim()),
     soTem: tem.value, khoa: tem.disabled, tong: prTongTem(),
     o: document.querySelector("#prBody tr td:nth-child(2) input.prsl-v").value };
 });
-kiem("Ba bịch 1.000 · 2.000 · 3.000 → ba chip đúng thứ tự gõ, ô nhập về 0",
-  baBich.chip.join("|") === "1.000|2.000|3.000" && baBich.o === "0", "[" + baBich.chip.join(" | ") + "]");
+kiem("Ba bịch 1.000 · 2.000 · 3.000 → ba chip đúng thứ tự gõ, ô nhập trống lại",
+  baBich.chip.join("|") === "1.000|2.000|3.000" && baBich.o === "", "[" + baBich.chip.join(" | ") + "]");
 kiem("Ba chip → 3 con tem, ô Số tem tự khoá theo danh sách",
   baBich.soTem === "3" && baBich.khoa === true && baBich.tong === 3,
   "số tem " + baBich.soTem + (baBich.khoa ? " (khoá)" : " (CHƯA khoá)") + " · tổng " + baBich.tong);
@@ -1001,9 +1001,9 @@ kiem("Lệnh gửi đi khai ĐÚNG 3 tem và mang cả ba số lượng",
    dùng không hề biết. */
 const xoaChip = await page.evaluate(async () => {
   const truoc = prTongTem();
-  document.querySelectorAll("#prBody tr td:nth-child(2) .prchip .x")[1].click();   // bỏ chip GIỮA (2.000)
+  document.querySelectorAll("#prBody tr.prsl2 .prchip .x")[1].click();   // bỏ chip GIỮA (2.000)
   await new Promise((r) => setTimeout(r, 250));
-  const chip = Array.prototype.map.call(document.querySelectorAll("#prBody tr td:nth-child(2) .prchip"),
+  const chip = Array.prototype.map.call(document.querySelectorAll("#prBody tr.prsl2 .prchip"),
     (e) => e.textContent.replace(/×/g, "").trim());
   const tem = document.querySelector("#prBody tr td:nth-child(1) input");
   return { truoc: truoc, chip: chip, tong: prTongTem(), soTem: tem.value };
@@ -1085,7 +1085,7 @@ kiem("Chưa đặt tên thì đoán một cái đọc được (không phải ch
 /* Trả về một số lượng duy nhất cho mấy ca dưới (chúng dùng ô Số tem tự do). */
 await page.evaluate(async () => {
   let x;
-  while ((x = document.querySelector("#prBody tr td:nth-child(2) .prchip .x"))) { x.click(); await new Promise((r) => setTimeout(r, 90)); }
+  while ((x = document.querySelector("#prBody tr.prsl2 .prchip .x"))) { x.click(); await new Promise((r) => setTimeout(r, 90)); }
   const o = document.querySelector("#prBody tr td:nth-child(2) input.prsl-v");
   o.value = "1200"; prGoSo(o); prCam(o);
   await new Promise((r) => setTimeout(r, 200));
@@ -1608,11 +1608,11 @@ const nhapMobile = await page.evaluate(async () => {
     await new Promise((r) => setTimeout(r, 160));
   };
   await go("899"); await go("8"); await go("1200");
-  const chips = document.querySelector("#prBody tr td:nth-child(2) .prchips");
+  const chips = document.querySelector("#prBody tr.prsl2 .prchips");
   const rChip = chips ? chips.getBoundingClientRect() : null;
   const rIn = oSl().getBoundingClientRect();
   const sau = { tem: Math.round(oTem().getBoundingClientRect().width), sl: Math.round(rIn.width),
-    soChip: document.querySelectorAll("#prBody tr td:nth-child(2) .prchip").length,
+    soChip: document.querySelectorAll("#prBody tr.prsl2 .prchip").length,
     chipDuoi: !!rChip && rChip.top >= rIn.bottom - 1,
     chipCungHang: !!rChip && Math.abs(rChip.top - rIn.top) < 6,
     keoNgang: document.querySelector("#prmodal .modalbody").scrollWidth - document.querySelector("#prmodal .modalbody").clientWidth };

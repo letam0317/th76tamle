@@ -508,6 +508,59 @@ console.log("── Lọc theo phần tử tên hàng ──");
       Object.keys(oIdx).length + " dạng OCR · mảnh không ra dáng mã: " + (xauMa.length ? xauMa.slice(0, 4).join(",") + " (" + xauMa.length + ")" : "0"));
   }
 
+  /* SỰ CỐ THẬT 21/08/2026 (user chụp màn hình) — HAI thẻ cùng 93%:
+       #1 422495218 (áo mẫu, 17 từ khoá)   #2 422423807 (cuộn vải, 16 từ khoá, 1 đơn vị khác)
+     Dựng lại được đúng bộ số đó khi `raw_text` của AI **CÒN** nhãn "Thành phần vải:" nhưng **MẤT**
+     nhãn "Mã sản phẩm" ⇒ maChu rỗng ⇒ luật mã chủ im ⇒ cuộn vải leo lên ngang hàng chỉ bằng chữ
+     chung. Luật mã chủ mà chỉ có MỘT đường vào thì quá mong manh: nó phụ thuộc việc AI có giữ đúng
+     chữ nhãn hay không — thứ không ai bảo đảm được.
+     Hai đường vào (cùng kết luận, khác lối):
+       ① nhãn ĐỊNH DANH ("Mã sản phẩm") → mã trong đó LÀ định danh;
+       ② nhãn NGUYÊN LIỆU ("Thành phần vải") → mã trong đó là mã VẬT LIỆU ⇒ mã nào NGOÀI ô đó mới
+          có quyền định danh. Đường này không cần nhãn định danh còn sống. */
+  {
+    const TIEU_DE = "THẺ THÔNG TIN MẪU | ";
+    const VAI_TP = "Vải Single Mesh/S130413 UZM Sheico/88% Re-Polyester, 12%Spandex/170 Gsm, 152cm";
+    const CA_NHAN = [
+      { ten: "còn đủ nhãn (đường ①)",
+        chu: "LOẠI MẪU: Mẫu thông chuyền | Mã sản phẩm: CWHO0006 | Size: S | Thành phần vải: " + VAI_TP + " | Màu sắc: Xanh Tro-Dusky Green" },
+      { ten: "MẤT nhãn mã, CÒN nhãn thành phần (đường ②) — ca của user",
+        chu: "Mẫu thông chuyền | CWHO0006 | Women_Hoodie_Full-zip_Anti-UV_Regular | Size: S | Thành phần vải: " + VAI_TP + " | Màu sắc: Xanh Tro-Dusky Green" },
+      { ten: "nhãn còn nhưng MẤT dấu hai chấm",
+        chu: "LOẠI MẪU Mẫu thông chuyền | Mã sản phẩm CWHO0006 | Size S | Thành phần vải " + VAI_TP + " | Màu sắc Xanh Tro-Dusky Green" },
+    ];
+    if (ds.some((r) => r.sku === "422495218")) {
+      const xauN = [];
+      for (const c of CA_NHAN) {
+        const nh = E.tuVanBan(TIEU_DE + c.chu, cm);
+        const tp = E.timTop(nh, cm, { soLuong: 3, chiActive: true });
+        const ok = (nh.maChu || [])[0] === "cwho0006" && tp[0] && tp[0].sku === "422495218" &&
+          tp.every((x) => x.sku !== "422423807");
+        if (!ok) xauN.push(c.ten + " → maChu=" + JSON.stringify(nh.maChu || []) + " Top3=" + tp.map((x) => x.sku + "/" + x.pct + "%").join(","));
+      }
+      kiem("Thẻ mẫu: mất nhãn kiểu nào cũng phải ra áo mẫu, cuộn vải không được vào Top 3",
+        xauN.length === 0, xauN.length ? xauN.join(" | ") : CA_NHAN.length + "/" + CA_NHAN.length + " biến thể nhãn đều ra 422495218, không có 422423807");
+      /* ⚠ Ô ĐỊNH DANH chỉ lấy MÃ ĐẦU TIÊN. Nhãn định danh không đòi dấu hai chấm, nên khi cả thẻ nằm
+         trên MỘT dòng và nhãn sau cũng mất dấu hai chấm thì "giá trị" chạy tới hết dòng và nuốt luôn
+         mã VẢI ở ô sau — đo được: maChu ra [cwho0006, s130413] và cuộn vải lại chiếm hạng 1 (91%). */
+      const nhMot = E.tuVanBan(TIEU_DE + CA_NHAN[2].chu, cm);
+      kiem("… ô \"Mã sản phẩm\" chỉ lấy MÃ ĐẦU TIÊN, không nuốt mã vải ở ô sau",
+        (nhMot.maChu || []).length === 1, "maChu = " + JSON.stringify(nhMot.maChu || []));
+      /* Ca xấu nhất: AI dẹp phẳng cả thẻ, MẤT SẠCH nhãn. Không có cách nào biết mã nào định danh —
+         nhưng phải TỰ BIẾT là mình không biết, để giao diện cảnh báo (laTheMau bật nhờ tiêu đề). */
+      const nhSach = E.tuVanBan(TIEU_DE + "Mẫu thông chuyền | CWHO0006 | S | " + VAI_TP + " | Xanh Tro-Dusky Green", cm);
+      const tmSach = E.docTheMau(TIEU_DE + "Mẫu thông chuyền | CWHO0006 | S | " + VAI_TP);
+      kiem("Mất SẠCH nhãn → không đoán mã chủ, nhưng vẫn tự biết \"đây là thẻ mẫu\" để cảnh báo",
+        (nhSach.maChu || []).length === 0 && tmSach.laTheMau === true,
+        "maChu = " + JSON.stringify(nhSach.maChu || []) + " · laTheMau = " + tmSach.laTheMau);
+    } else kiem("Thẻ mẫu: mất nhãn kiểu nào cũng phải ra áo mẫu", true, "(danh mục này chưa có kho mẫu)");
+    /* Tem NCC thường KHÔNG được coi là thẻ mẫu — không thì banner cảnh báo nổ ở mọi tem. */
+    const tmNcc = E.docTheMau("THESEUS IRISA Tkt120 Tex 27 60/3 F9-5284 Hồng tro 5000m PHONG VIET CO.,LTD");
+    kiem("Tem NCC thường KHÔNG bị nhận là thẻ mẫu (banner không nổ oan)",
+      tmNcc.laTheMau === false && (tmNcc.maChu || []).length === 0 && (tmNcc.maLieu || []).length === 0,
+      "laTheMau = " + tmNcc.laTheMau);
+  }
+
   /* SỰ CỐ THẬT 20/08/2026 (chiều muộn) — tem cuộn chỉ COATS astra, nhãn màu in "Col C3185":
      OCR trả về DÍNH LIỀN ("ColC3185") hoặc đọc lệch chữ ("COIC3185", l→I) ⇒ token `colc3185` không
      có trong chỉ mục ⇒ luật cứng "CÓ MÃ" không bắn ⇒ tab đưa 3 cuộn chỉ astra khác màu ở 32% kèm

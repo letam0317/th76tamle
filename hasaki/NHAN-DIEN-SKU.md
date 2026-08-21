@@ -1671,7 +1671,7 @@ MỚI #1 422495218  93%  ← đúng
 > chuoiMoi)` hiểu `$&` và `` $' `` trong **chuỗi thay** là tham chiếu — nội dung mới có `')$'` là dán
 > luôn cả phần còn lại của file vào. Phải truyền **hàm** trả về chuỗi.
 
-**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **96/96** · `qc-tab-nhan-dien` **155/155** ·
+**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **100/100** · `qc-tab-nhan-dien` **155/155** ·
 `qc-cham-idf` 8/8 · `qc-tem-vision` **6/6** (gọi AI thật, tem IN) · `qc-tem-tay` **7/7** (gọi AI
 thật, thẻ viết tay).
 
@@ -1768,6 +1768,68 @@ cuộn vải lại chiếm hạng 1 với **94%**. Nay `locMaChu` đi qua đúng
 > 87/93% → cây làm việc 87/93%, *"khớp được mã"* 77% → **80%**. Tức bản vá thẻ mẫu **không đổi gì**
 > trên bộ tem NCC (đúng như thiết kế — tem NCC không có nhãn trường), và thắng ở đúng lớp thẻ mẫu mà
 > bộ đó chưa có mẫu nào.
+
+---
+
+### 5b.23 Hai thẻ cùng 93% (21/08/2026) — luật mã chủ mà chỉ có MỘT đường vào thì quá mong manh
+
+User chụp màn hình và hỏi thẳng: *"sao 2 SKU gợi ý top 1 có 17 từ khoá khớp 93% và top 2 có 16 từ khoá
+khớp vẫn 93%? có sai không"*.
+
+```
+#1 422495218  93%  Mẫu thông chuyền/CWHO0006/…/Xanh Tro-Dusky Green/Size S      17 từ khoá khớp
+#2 422423807  93%  Vải Single Mesh/S130413 UZM Sheico/…/152cm/…/mm              1 đơn vị khác · 16 từ khoá khớp
+```
+
+**Hai câu trả lời, và câu thứ hai mới là chuyện đáng làm.**
+
+**① Bằng nhau % mà khác số từ khoá thì KHÔNG phải lỗi làm tròn.** "N từ khoá khớp" chỉ là ĐẾM ĐẦU
+mảnh khớp được, còn điểm thì cân theo VAI (mã 45 · thông số 25 · màu 20 · loại 10) và mỗi vai lấy
+`(max + trung bình)/2`. Một mảnh mã nặng bằng bốn năm mảnh chữ chung, nên 16 mảnh đặt đúng chỗ ngang
+17 mảnh là chuyện bình thường. Đo được: `diem` hai dòng là 0,9301 và 0,9296 — làm tròn ra 93% cả hai,
+đúng như nó phải thế.
+
+**② Nhưng dòng VẢI lẽ ra không được có mặt ở 93%.** Dựng lại được đúng bộ số của user (đủ cả *"1 đơn
+vị khác"* và *"16 từ khoá"*) khi `raw_text` của AI **CÒN** nhãn `Thành phần vải:` nhưng **MẤT** nhãn
+`Mã sản phẩm` ⇒ `maChu` rỗng ⇒ luật mã chủ (§5b.21) im hẳn ⇒ cuộn vải leo lên ngang hàng chỉ bằng chữ
+chung. Tức bản vá hôm qua đặt cả sức nặng lên **một** điều kiện: AI phải giữ đúng chữ nhãn — thứ không
+ai bảo đảm được, và prompt cũng chưa hề dặn.
+
+**Chữa: cho luật mã chủ HAI ĐƯỜNG VÀO, khác lối mà cùng kết luận.**
+
+| đường | dấu hiệu | suy ra |
+|---|---|---|
+| ① khẳng định | có nhãn `Mã sản phẩm` / `Mã hàng` / `Style` | mã trong ô đó **LÀ** định danh |
+| ② loại trừ | có nhãn `Thành phần vải` / `Nguyên phụ liệu` / `Chất liệu` | mã trong ô đó là mã **VẬT LIỆU** ⇒ mã nào **ngoài** ô đó mới có quyền định danh |
+
+Đường ② không cần nhãn định danh còn sống. Ca của user: rổ mã = `[cwho0006, s130413]`, mã liệu =
+`[s130413]` ⇒ mã chủ = `[cwho0006]`. Xong.
+
+Kèm hai việc nhỏ nhưng cần:
+
+* **Nhãn ĐỊNH DANH không còn đòi dấu hai chấm.** AI nối dòng bằng `" | "` và có lượt nó bỏ luôn dấu
+  hai chấm (`Mã sản phẩm CWHO0006`). Dám nới vì giá trị vẫn phải qua `locMaChu` — chỉ nhận mã có ĐÚNG
+  NGUYÊN VĂN trong danh mục — nên một lần khớp nhãn oan chỉ cho ra `maChu` **rỗng**, không đổi gì.
+  Nhãn nguyên liệu và nhãn chỉ-để-cắt thì VẪN đòi dấu hai chấm (cắt chữ thật là mất luôn bằng chứng).
+* **Ô định danh chỉ lấy MÃ ĐẦU TIÊN.** Hệ quả của việc nới trên: khi cả thẻ nằm một dòng và nhãn sau
+  cũng mất dấu hai chấm thì "giá trị" chạy tới hết dòng, nuốt luôn mã vải ở ô kế — đo được `maChu` ra
+  `[cwho0006, s130413]` và cuộn vải lại chiếm hạng 1 (91%). Ô nguyên liệu thì KHÔNG giới hạn: ở đó
+  càng nhận được nhiều mã liệu càng loại trừ tốt.
+
+**Bốn kiểu mất nhãn, đo bằng cùng một tấm thẻ:**
+
+| raw_text của AI | trước | sau |
+|---|---|---|
+| còn đủ nhãn | ✓ áo mẫu 93% | ✓ áo mẫu 93% |
+| **mất nhãn mã, còn nhãn thành phần** (ca của user) | ✗ vải 93% ngang hàng | ✓ áo mẫu 93%, vải rơi khỏi Top 3 |
+| nhãn còn nhưng mất dấu hai chấm | ✗ vải 91% hạng 1 | ✓ áo mẫu 90% |
+| **mất SẠCH nhãn** (AI dẹp phẳng) | ✗ vải 97% | ✗ vải 98% — *không chữa được, nhưng có cảnh báo* |
+
+Ca cuối là giới hạn thật: không còn nhãn nào thì không có cách nào biết mã nào định danh. Nhưng
+`laTheMau` vẫn bật (nhờ tiêu đề *THẺ THÔNG TIN MẪU*), nên banner *"Đây là THẺ MẪU nhưng chưa đọc được
+ô Mã sản phẩm"* nổ — thà nói "tôi không biết" còn hơn im lặng đưa cuộn vải ở 98%.
+
+Tem NCC thường: `laTheMau = false`, `maChu` rỗng, **không đổi một hành vi nào** (có ca test khoá).
 
 ---
 
@@ -2512,3 +2574,58 @@ trên điện thoại rớt dòng lộn xộn — đúng họ lỗi với hàng 
 Kèm hai việc nhỏ user chỉ ra: nhãn **"Số tem" căn bìa trái** (ô có class `num` nên nhãn thừa hưởng căn
 phải và trôi sang bên phải cột 82px), và **chip số lượng chuyển xuống DƯỚI ô nhập** (tay đang gõ thì ô
 nhập ở trên; danh sách đã chốt là thứ đọc lại nên ở dưới).
+
+### 12.17 Ô Số lượng bị chốt HAI LẦN + dải số lượng ra hàng riêng (21/08/2026)
+
+User báo: *"chỗ này khi gõ thêm số lượng thì bị double lên 2 lần tem"*, kèm ảnh có chip `5 · 6 · 5 · 5`
+— hai số 5 dính nhau đúng kiểu một cú chốt bị nhân đôi.
+
+**Không bộ test nào cũ bắt được vì không bộ nào GÕ VÀO Ô rồi BẤM NÚT như người thật.** `qc-in-tem.mjs`
+chỉ kiểm lõi (mã vạch · khổ giấy · nở danh sách); `qc-tab-nhan-dien.mjs` có chạm ô số lượng nhưng nó
+**gán thẳng `o.value` rồi gọi hàm** — mà lỗi nằm ở **THỨ TỰ SỰ KIỆN**, gán thẳng thì vĩnh viễn không
+thấy. Thêm **`qc-in-tem-popup.mjs`**: dùng chuột/bàn phím THẬT của Chromium
+(`page.keyboard.type` · `ElementHandle.click`), 15 ca.
+
+Bộ mới dựng lại lỗi ngay ở ca thứ hai:
+
+```
+✓ Gõ 5 rồi bấm +        → chip [5]
+✗ Gõ 6 rồi Enter        → chip [5|6|6]      ← MỘT con số, HAI chip
+```
+
+**Gốc:** ô có ba đường chốt (`onclick` của nút +, `onkeydown` Enter, `onchange` khi rời ô). Enter gọi
+`prCam` (chốt lần 1) rồi `prVe()` dựng lại bảng, NHƯNG Enter trong ô text còn làm trình duyệt bắn luôn
+`change` — và `preventDefault()` **không chặn được** `change`: nó là hệ quả của việc *chốt giá trị*,
+không phải hành vi mặc định của phím. Ô cũ dù đã bị tháo khỏi DOM vẫn còn giữ chuỗi `"6"` nên `prCam`
+chạy lần hai.
+
+**Chữa bằng cách làm `prCam` BẤT BIẾN THEO LƯỢT: dọn ô NGAY khi đã đọc xong con số, TRƯỚC lúc vẽ lại.**
+Sự kiện bắn muộn đọc lại ô thì thấy rỗng ⇒ tự thoát. Không cờ, không hẹn giờ, không phụ thuộc thứ tự
+sự kiện của từng trình duyệt — nên đường nút +, đường Enter và đường rời-ô đều an toàn như nhau.
+
+**Cùng lúc đổi cách hiển thị số lượng (user: *"vị trí hiện tại đang chưa thân thiện"*).** Trước đây
+chip đã chốt nằm ngay trong cột "Số lượng" — một cột hẹp, canh phải:
+
+* 4-5 chip là rớt thành 2-3 dòng méo mó, **ngay chỗ tay đang gõ**;
+* ô nhập hiện số **`0`** khi đã có chip — *"Số lượng: 0"* đọc ra thành *"số lượng bằng không"*, đúng
+  thứ làm người dùng hoang mang nhất;
+* và không chỗ nào **nói ra** quan hệ *"mỗi số lượng = một con tem"* — người dùng thấy `Số tem 4` ở
+  cột trước rồi 4 chip ở cột sau mà không biết cái nào sinh ra cái nào.
+
+Nay: cột Số lượng chỉ còn **đúng chỗ để gõ** (ô nhập + nút `+`, placeholder mờ *"gõ số lượng"* /
+*"+ số nữa"*), còn danh sách đã chốt xuống một **dải riêng ăn hết bề rộng dòng**, mở đầu bằng câu
+*"Sẽ in **4** tem — mỗi số lượng một con tem"*.
+
+Ba chi tiết phải làm đúng, cả ba đều do ảnh chụp 390px bắt được:
+
+* **Dải là một `tr` riêng**, mà trên điện thoại mỗi `tr` là một THẺ có viền + bóng ⇒ để nguyên thì nó
+  thành thẻ thứ hai rời rạc. Dán vào đáy thẻ trên: thẻ trên bỏ bo góc dưới bằng class `co-chip` do
+  `prVe` gắn — **không dùng `:has()`** để khỏi phụ thuộc bản trình duyệt.
+* **Nhãn `::before "Số tem"`** của bố cục thẻ điện thoại rơi xuống cả ô đầu của hàng dải, in ra một
+  chữ "Số tem" lạc giữa hai khối. Phải `display:none` cho `tr.prsl2>td::before`.
+* **Nút × của chip lên 40px** trên điện thoại. Khuôn dùng chung `.nds-tag .x` chỉ 18px — đủ cho badge
+  từ khoá ở tab (bấm nhầm thì thêm lại), nhưng ở đây bấm nhầm là mất một con tem đã khai. Dải đã ăn
+  hết bề rộng nên có chỗ cho chip to.
+
+**Đo:** `qc-in-tem-popup` **15/15** (gồm 3 ca màn 390px) · `qc-in-tem` 138/138 · `qc-tab-nhan-dien`
+**155/155** (4 ca phải sửa theo DOM mới: chip đổi sang `tr.prsl2`, ô nhập trống thay vì `0`).

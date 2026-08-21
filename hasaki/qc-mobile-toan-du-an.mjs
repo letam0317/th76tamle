@@ -90,6 +90,19 @@ const TRANG = [
         sanSangMan: "() => document.querySelectorAll('#viewPlg .pg-whbar *').length > 0" },
       { ten: "Nhận diện SKU", mo: "() => { showTab('sku'); return true; }",
         sanSangMan: "() => !!document.getElementById('ndsMa')" },
+      /* POP-UP "IN TEM SKU" — BỔ SUNG 21/08/2026. Lỗ hổng gốc y như panel Planogram: pop-up này chưa
+         từng nằm trong danh sách màn, nên mọi lời hứa "đã đo điện thoại" đều không phủ nó — user phải
+         tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). Nó là bảng 5 cột + hai ô số +
+         dải chip, tức đúng loại màn dễ vỡ nhất.
+         Dựng dữ liệu giả tại chỗ (2 SKU, 3 số lượng) để đo được cả DẢI CHIP — dải chỉ hiện khi đã có
+         số lượng, mở pop-up rỗng thì lại soi trượt đúng cái vừa đổi. */
+      { ten: "Pop-up In tem SKU", cho: "#prmodal.show",
+        mo: "() => { if(typeof prMo!=='function') return false; PR.sel={" +
+            "'422495218':{sku:'422495218',pn:'Mẫu thông chuyền/CWHO0006/Xanh Tro-Dusky Green/Size S',slHang:'1.000, 2.000, 3.000',mau:PR_TEM.MAU_MAC_DINH,sl:1}," +
+            "'422423807':{sku:'422423807',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',slHang:'',mau:PR_TEM.MAU_MAC_DINH,sl:2}}; " +
+            "prLuu(); prMo(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#prBody tr.prsl2 .prchip').length >= 3",
+        dong: "() => { try{ prDong(); prXoaHet(); }catch(e){} }" },
       { ten: "Pop-up Kiểm kê (theo SKU)", cho: "#kkmodal.show",
         mo: "() => { showTab('kk'); const t=document.querySelector('#kkWrap .ks,.ks'); if(!t) return false; t.click(); return true; }",
         dong: "() => { try{ closeKkModal(); }catch(e){} }" },
