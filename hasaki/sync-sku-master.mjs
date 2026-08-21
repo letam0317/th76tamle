@@ -352,6 +352,34 @@ async function buBienThe(token, goc) {
     ghiMocBuoc(DIR, "skumaster");
     process.exit(0);
   }
+  /* ═══ SOÁT TRÙNG SAU KHI GHI (thêm 21/08/2026 — yêu cầu user "SKU ở sheet SKU_MASTER không được
+   *  trùng") ═══
+   *  Bước DỰNG không thể sinh trùng: nó gom bằng `Map` khoá theo SKU. Chỗ có thể sinh trùng là bước
+   *  GHI: ghi theo GÓI 4.000 dòng, gói ĐẦU xoá data cũ rồi mấy gói sau NỐI TIẾP. Một gói bị thử lại
+   *  — mạng hụt, hoặc GAS trả 404 ở CHẶNG 2 trong khi script đã ghi xong (xem NHAN-DIEN-SKU / sự cố
+   *  gas-chap-chon-404) — là nối thêm một lần nữa, và mọi dòng log vẫn "✓".
+   *  Nên phải ĐỌC LẠI tab mà soát. Đọc bằng gviz: 0 lượt gọi WMS, không cần khoá GAS.
+   *  Thấy trùng thì KHÔNG lưu mốc hash — để lượt cụm/watchdog sau ghi lại (lưu hash là lượt sau
+   *  thấy "không đổi" rồi bỏ qua, tab cứ trùng mãi). */
+  async function soatTrung(soDongMong, log2) {
+    const u = "https://docs.google.com/spreadsheets/d/" + SHEET_FACTORY +
+      "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(TAB) + "&t=" + Date.now();
+    const r = await fetchThuLai(u, {}).catch(() => null);
+    if (!r || !r.ok) { log2("  ⚠ Không đọc lại được tab để soát trùng (" + (r ? "HTTP " + r.status : "lỗi mạng") + ") — bỏ qua bước soát."); return { boQua: true }; }
+    const txt = await r.text().catch(() => "");
+    /* Cột A là SKU, gviz luôn bọc nháy và SKU không chứa nháy/phẩy nên đọc bằng một mẫu là đủ. */
+    const dem = new Map();
+    let soDong = 0;
+    for (const d of txt.split(/\r?\n/).slice(1)) {
+      const m = /^"([^"]*)"/.exec(d);
+      if (!m || !m[1]) continue;
+      soDong++;
+      dem.set(m[1], (dem.get(m[1]) || 0) + 1);
+    }
+    const trung = [...dem.entries()].filter(([, c]) => c > 1);
+    return { boQua: false, soDong, rieng: dem.size, trung };
+  }
+
   for (let i = 0; i < rows.length; i += CHUNK) {
     const phan = rows.slice(i, i + CHUNK);
     const body = JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, tab: TAB, sheetId: SHEET_FACTORY,
@@ -359,6 +387,22 @@ async function buBienThe(token, goc) {
     const j = await gasPost(body, log, TAB + " gói " + (i / CHUNK + 1));
     if (j.status !== "success") { log("✗ Ghi " + TAB + " lỗi: " + (j.message || "?")); process.exit(2); }
     log("  ✓ " + TAB + ": ghi " + Math.min(i + CHUNK, rows.length) + "/" + rows.length + (i === 0 ? " (xoá data cũ trước)" : " (nối tiếp)"));
+  }
+  const st = await soatTrung(rows.length, log);
+  if (!st.boQua) {
+    if (st.trung.length) {
+      log("✗ Tab " + TAB + " có " + st.trung.length + " SKU TRÙNG (" +
+        st.trung.slice(0, 5).map(([s, c]) => s + "×" + c).join(" · ") + (st.trung.length > 5 ? " …" : "") +
+        ") — đọc lại thấy " + st.soDong + " dòng / " + st.rieng + " SKU khác nhau.");
+      log("  → KHÔNG lưu mốc hash: lượt cụm/watchdog sau sẽ ghi lại tab này.");
+      process.exit(2);
+    }
+    if (st.soDong !== rows.length) {
+      log("⚠ Tab " + TAB + ": ghi " + rows.length + " dòng nhưng đọc lại thấy " + st.soDong +
+        " — lệch " + (st.soDong - rows.length) + ". Không lưu mốc hash để lượt sau ghi lại.");
+      process.exit(2);
+    }
+    log("  ✓ Soát lại tab: " + st.soDong + " dòng, " + st.rieng + " SKU khác nhau — KHÔNG có SKU trùng.");
   }
   luuHashTab(DIR, TAB, hash);
   await xacNhanDaGhi(DIR, TAB, rows.length);

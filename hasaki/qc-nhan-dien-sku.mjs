@@ -508,6 +508,65 @@ console.log("── Lọc theo phần tử tên hàng ──");
       Object.keys(oIdx).length + " dạng OCR · mảnh không ra dáng mã: " + (xauMa.length ? xauMa.slice(0, 4).join(",") + " (" + xauMa.length + ")" : "0"));
   }
 
+  /* ══ SKU KHÔNG ĐƯỢC TRÙNG + LUẬT ĐƠN VỊ NHỎ NHẤT (yêu cầu user 21/08/2026) ══
+     Bước DỰNG danh mục gom bằng Map khoá theo SKU nên không thể sinh trùng; chỗ sinh trùng được là
+     bước GHI (ghi theo gói 4.000 dòng, gói đầu xoá rồi mấy gói sau NỐI TIẾP — một gói bị thử lại là
+     nối thêm một lần). `sync-sku-master` nay ĐỌC LẠI tab để soát; ca dưới đây soát cùng một việc từ
+     phía TEST, để hỏng thì biết ngay chứ không chờ tới lượt sync sau. */
+  {
+    const demSku = new Map();
+    for (const r of ds) demSku.set(r.sku, (demSku.get(r.sku) || 0) + 1);
+    const trungSku = [...demSku.entries()].filter(([, c]) => c > 1);
+    kiem("Danh mục: KHÔNG có SKU trùng",
+      trungSku.length === 0,
+      ds.length + " dòng · " + demSku.size + " SKU khác nhau" +
+      (trungSku.length ? " · TRÙNG: " + trungSku.slice(0, 5).map(([s, c]) => s + "×" + c).join(" · ") : ""));
+
+    /* Cờ `nho` = đơn vị ĐẾM ĐƯỢC nhỏ nhất. Khai bằng danh sách tên, không lấy min(q) của họ — min
+       của họ khối lượng là `mg`, đơn vị gần như không xuất hiện, nên lấy min sẽ báo oan mọi SKU gam. */
+    const dv = (s) => E.donVi("a/b/" + s);
+    kiem("Đơn vị nhỏ nhất (mm · g · gam · pcs · ml) mang cờ `nho`",
+      ["mm", "g", "gam", "pcs", "ml", "mg"].every((u) => dv(u).nho === true),
+      ["mm", "g", "gam", "pcs", "ml", "mg"].map((u) => u + "=" + dv(u).nho).join(" · "));
+    kiem("… còn đơn vị LỚN (cuộn · mét · yard · cm · kg) thì KHÔNG",
+      ["Cuộn 5000m", "mét", "yard", "cm", "kg"].every((u) => dv(u).nho === false),
+      ["Cuộn 5000m", "mét", "yard", "cm", "kg"].map((u) => u + "=" + dv(u).nho).join(" · "));
+    kiem("… tên hàng KHÔNG có đoạn đơn vị thì không kết luận gì (ma rỗng, nho false)",
+      E.donVi("Điều chỉnh số lẻ").ma === "" && E.donVi("Điều chỉnh số lẻ").nho === false,
+      "ma=" + JSON.stringify(E.donVi("Điều chỉnh số lẻ").ma));
+
+    /* Mặt hàng còn sống TOÀN đơn vị lớn mà có bản đơn vị nhỏ (tồn 0) ⇒ bản nhỏ phải LÊN đại diện.
+       Điều kiện cũ chỉ xét "hàng đóng gói" nên bỏ sót ca cm/mét — nới 21/08/2026 sang "không còn
+       dòng mang cờ nho nào sống". Tìm một nhóm như vậy trong danh mục thật rồi kiểm. */
+    const theoKhoa = new Map();
+    for (const r of ds) { const k = E.khoaHang(r.pn); if (!theoKhoa.has(k)) theoKhoa.set(k, []); theoKhoa.get(k).push(r); }
+    let caNoi = null, caLon = null;
+    for (const [, v] of theoKhoa) {
+      const w = v.map((r) => ({ ...r, d: E.donVi(r.pn) }));
+      const song = w.filter((x) => x.status !== "INACTIVE");
+      if (!caNoi && song.length && !song.some((x) => x.d.nho) &&
+          w.some((x) => x.status === "INACTIVE" && x.d.nho && x.type !== "COMBO")) caNoi = w;
+      if (!caLon && w.length && !w.some((x) => x.d.nho) && w.some((x) => x.d.ma)) caLon = w;
+    }
+    if (caNoi) {
+      const nh = { code: [], spec: [], color: [], brand: [E.chuan(String(caNoi[0].pn).split("/")[0])] };
+      const tp = E.timTop(nh, cm, { soLuong: 3, chiActive: true, loc: [String(caNoi[0].pn).split("/")[0]] });
+      const dd = tp.find((x) => E.khoaHang(x.pn) === E.khoaHang(caNoi[0].pn));
+      kiem("Nhóm sống toàn đơn vị LỚN mà có bản nhỏ (tồn 0) → bản NHỎ lên đại diện",
+        !!dd && dd.nho === true && dd.dvNhoThay === true,
+        dd ? ("đại diện " + dd.sku + " · đơn vị " + dd.dv + " · nho=" + dd.nho + " · dvNhoThay=" + dd.dvNhoThay)
+           : "(không lọc ra được nhóm đó — bỏ qua)");
+    } else kiem("Nhóm sống toàn đơn vị LỚN mà có bản nhỏ → bản NHỎ lên đại diện", true, "(danh mục này không có ca nào)");
+    if (caLon) {
+      const manh = String(caLon[0].pn).split("/")[0];
+      const tp2 = E.timTop({ code: [], spec: [], color: [], brand: [] }, cm, { soLuong: 3, chiActive: false, loc: [manh] });
+      const dd2 = tp2.find((x) => E.khoaHang(x.pn) === E.khoaHang(caLon[0].pn));
+      kiem("Mặt hàng CHỈ có đơn vị lớn → thẻ phải mang cờ báo `khongCoDvNho`",
+        !!dd2 && dd2.khongCoDvNho === true,
+        dd2 ? (dd2.sku + " · đơn vị " + (dd2.dv || "(rỗng)") + " · khongCoDvNho=" + dd2.khongCoDvNho) : "(không lọc ra được nhóm đó)");
+    } else kiem("Mặt hàng CHỈ có đơn vị lớn → cờ khongCoDvNho", true, "(danh mục này không có ca nào)");
+  }
+
   /* SỰ CỐ THẬT 21/08/2026 (user chụp màn hình) — HAI thẻ cùng 93%:
        #1 422495218 (áo mẫu, 17 từ khoá)   #2 422423807 (cuộn vải, 16 từ khoá, 1 đơn vị khác)
      Dựng lại được đúng bộ số đó khi `raw_text` của AI **CÒN** nhãn "Thành phần vải:" nhưng **MẤT**

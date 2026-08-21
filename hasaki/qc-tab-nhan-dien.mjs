@@ -640,6 +640,36 @@ if (maLa.coTrongDanhMuc) {
     " · Top: " + maLa.ket.join(" · "));
 }
 
+/* THẺ PHẢI NÓI RA khi mặt hàng không có bản ĐƠN VỊ NHỎ NHẤT (yêu cầu user 21/08/2026: "nếu không
+   có đơn vị nhỏ nhất mà đơn vị lớn (vd cuộn 5000m) thì phải báo"). Tìm ngay trong danh mục của
+   TRANG một mặt hàng chỉ có đơn vị lớn, gõ đúng mảnh đầu tên nó, rồi soi chữ trên thẻ. */
+const dvLon = await page.evaluate(async () => {
+  const ds = NDS.ds || [];
+  const nhom = new Map();
+  for (const r of ds) { const k = NDS_ENGINE.khoaHang(r.pn); if (!nhom.has(k)) nhom.set(k, []); nhom.get(k).push(r); }
+  let manh = "", sku = "";
+  for (const [, v] of nhom) {
+    const w = v.map((r) => ({ r, d: NDS_ENGINE.donVi(r.pn) }));
+    if (w.some((x) => x.d.nho) || !w.some((x) => x.d.ma)) continue;
+    const p0 = String(v[0].pn).split("/")[0].trim();
+    if (p0.length < 6) continue;                       // mảnh quá ngắn thì lọc ra cả trăm dòng
+    manh = p0; sku = v[0].sku; break;
+  }
+  if (!manh) return { co: false };
+  ndsXoaHet();
+  NDS.loc = [manh];
+  await ndsDoiSoat();
+  return { co: true, manh, sku,
+    html: (document.getElementById("ndsCards") || { innerHTML: "" }).innerHTML,
+    ket: (NDS.ket || []).map((r) => r.sku + "/" + (r.dv || "?") + "/" + !!r.khongCoDvNho) };
+});
+if (!dvLon.co) kiem("Thẻ báo \"chưa có bản ĐƠN VỊ NHỎ NHẤT\"", true, "(danh mục live không có mặt hàng nào chỉ đơn vị lớn)");
+else {
+  kiem("Mặt hàng chỉ có đơn vị LỚN → thẻ nói thẳng \"chưa có bản ĐƠN VỊ NHỎ NHẤT\"",
+    /ĐƠN VỊ NHỎ NHẤT/i.test(dvLon.html),
+    "mảnh \"" + dvLon.manh.slice(0, 34) + "\" → " + dvLon.ket.slice(0, 3).join(" · "));
+}
+
 /* ---------- 6d. Mã vạch: có API thì quét, không có thì nói rõ chứ không im ---------- */
 const mv = await page.evaluate(() => ({ co: ndsCoMaVach(), nut: !!document.getElementById("ndsBtnMV") }));
 kiem("Có nút \"Quét mã vạch\" (đường nhanh nhất, không cần AI)", mv.nut, mv.co ? "trình duyệt CÓ BarcodeDetector" : "trình duyệt không có API — tab phải nói rõ ở dòng chân");
@@ -1626,6 +1656,7 @@ const nhapMobile = await page.evaluate(async () => {
   const csSl = getComputedStyle(oSl());
   const truoc = { tem: Math.round(oTem().getBoundingClientRect().width),
     sl: Math.round(oSl().getBoundingClientRect().width),
+    cotSl: Math.round(oSl().parentElement.getBoundingClientRect().width),
     caoSl: Math.round(oSl().getBoundingClientRect().height),
     chuSl: Math.round(parseFloat(csSl.fontSize)), damSl: Number(csSl.fontWeight) };
   /* Thêm 3 chip rồi đo lại: đây đúng lúc bản trước vỡ layout (ô nhập bị bóp rồi rớt dòng). */
@@ -1646,9 +1677,16 @@ const nhapMobile = await page.evaluate(async () => {
   prDong(); prXoaHet();
   return { truoc: truoc, sau: sau };
 });
-kiem("Điện thoại: ô \"Số tem\" chôn cứng ~82px, ô \"Số lượng\" rộng gấp mấy lần",
-  nhapMobile.truoc.tem >= 60 && nhapMobile.truoc.tem <= 100 && nhapMobile.truoc.sl >= nhapMobile.truoc.tem * 1.5,
-  "Số tem " + nhapMobile.truoc.tem + "px · Số lượng " + nhapMobile.truoc.sl + "px");
+/* CẬP NHẬT 21/08/2026 (chiều): ô nhập Số lượng chỉ còn MỘT NỬA bề rộng cột — user xem máy thật rồi
+   bảo "bự quá, làm nhỏ lại 1 nửa kích thước ô" (ghi trong CSS `#prmodal .mtbl td:nth-child(2)
+   input.prsl`). Ca này trước đó đòi "rộng gấp mấy lần ô Số tem" theo đặc tả CŨ, nên khi CSS đổi thì
+   nó đỏ mà giao diện vẫn đúng ý — sửa lại thành đúng luật hiện hành: nửa cột, và vẫn phải to hơn ô
+   Số tem. Hai ràng buộc KHÔNG đổi (cao ≥44px, chữ ≥18px đậm) nằm ở ca ngay dưới. */
+kiem("Điện thoại: ô \"Số tem\" chôn cứng ~82px, ô \"Số lượng\" bằng NỬA cột (yêu cầu 21/08)",
+  nhapMobile.truoc.tem >= 60 && nhapMobile.truoc.tem <= 100 &&
+  nhapMobile.truoc.sl > nhapMobile.truoc.tem &&
+  nhapMobile.truoc.sl >= nhapMobile.truoc.cotSl * 0.4 && nhapMobile.truoc.sl <= nhapMobile.truoc.cotSl * 0.62,
+  "Số tem " + nhapMobile.truoc.tem + "px · Số lượng " + nhapMobile.truoc.sl + "px / cột " + nhapMobile.truoc.cotSl + "px");
 kiem("Điện thoại: ô Số lượng cao ≥44px, chữ ≥18px và in đậm (đủ chạm + đọc lại được)",
   nhapMobile.truoc.caoSl >= 44 && nhapMobile.truoc.chuSl >= 18 && nhapMobile.truoc.damSl >= 600,
   "cao " + nhapMobile.truoc.caoSl + "px · chữ " + nhapMobile.truoc.chuSl + "px/" + nhapMobile.truoc.damSl);

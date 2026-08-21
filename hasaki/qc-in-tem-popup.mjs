@@ -197,7 +197,7 @@ await cho(700);
 const mb = await page.evaluate(() => {
   const dong = document.querySelector("#prBody tr.prdong.co-chip");
   const dai = document.querySelector("#prBody tr.prsl2");
-  const bar = document.querySelector("#prBody .prslbar");
+  const bar = document.querySelector("#prBody tr.prsl2 .prchips");
   const oSl = document.querySelector("#prBody input.prsl-v");
   const chip = document.querySelector("#prBody .prchip");
   const nutX = document.querySelector("#prBody .prchip button.x");
@@ -213,7 +213,7 @@ const mb = await page.evaluate(() => {
     tranRa: rb && body ? Math.round(rb.right - r(body).right) : null,
     caoO: ro ? Math.round(ro.height) : 0,
     caoX: rx ? Math.round(Math.max(rx.width, rx.height)) : 0,
-    chuNhan: cs(document.querySelector("#prBody .prslnhan"), "fontSize"),
+    rongO: ro && rd ? Math.round((ro.width / rd.width) * 100) : 0,
     chuChip: cs(chip, "fontSize"),
     soDongChip: rc && rb ? Math.round(rb.height / rc.height) : 0,
   };
@@ -224,9 +224,11 @@ kiem("Điện thoại: dải số lượng DÁN LIỀN đáy thẻ trên (không
 kiem("Điện thoại: không sinh kéo ngang, dải không tràn khỏi thân pop-up",
   mb.keoNgang <= 0 && mb.tranRa !== null && mb.tranRa <= 0,
   "kéo ngang = " + mb.keoNgang + "px · tràn phải = " + mb.tranRa + "px");
-kiem("Điện thoại: ô nhập ≥44px, nút × của chip ≥40px (vùng chạm thật), chữ ≥10,5px",
-  mb.caoO >= 44 && mb.caoX >= 40 && mb.chuNhan >= 10.5 && mb.chuChip >= 10.5,
-  "ô nhập " + mb.caoO + "px · nút × " + mb.caoX + "px · nhãn " + mb.chuNhan + "px · chip " + mb.chuChip + "px");
+/* Ô nhập chỉ được ăn ~MỘT NỬA bề rộng thẻ (user 21/08/2026: "bự quá"), vẫn phải cao ≥44px và
+   nút × của chip ≥40px — hai ràng buộc vùng chạm của dự án. */
+kiem("Điện thoại: ô nhập chỉ ~nửa bề rộng, vẫn cao ≥44px; nút × chip ≥40px; chữ chip ≥10,5px",
+  mb.rongO > 0 && mb.rongO <= 42 && mb.caoO >= 44 && mb.caoX >= 40 && mb.chuChip >= 10.5,
+  "ô nhập rộng " + mb.rongO + "% thẻ · cao " + mb.caoO + "px · nút × " + mb.caoX + "px · chip " + mb.chuChip + "px");
 if (LUU_ANH) await page.screenshot({ path: path.join(OUT, "popup-390.png") });
 await page.setViewport({ width: 1360, height: 950 });
 await cho(400);

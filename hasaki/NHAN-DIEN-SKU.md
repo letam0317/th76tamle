@@ -1886,6 +1886,57 @@ thật: **87%/93% không đổi**, "khớp được mã" 80% không đổi.
 
 ---
 
+### 5b.25 Đơn vị nhỏ nhất — làm cho thành LUẬT, và chống SKU trùng (21/08/2026)
+
+Ba yêu cầu user chốt cùng lúc: *"SKU ở sheet SKU_MASTER không được trùng"* · *"SKU gợi ý phải LUÔN là
+SKU đơn vị nhỏ nhất (mm, gr, g); nếu không có đơn vị nhỏ nhất mà đơn vị lớn (vd cuộn 5000m) thì phải
+báo"* · và gọn lại pop-up In tem (xem §12.17).
+
+**Cờ `nho` = đơn vị ĐẾM ĐƯỢC nhỏ nhất**: `mm · mg · g/gam/gr · ml · pcs/cái/chiếc/sợi/tấm/tờ/viên/lá`.
+
+> Vì sao khai bằng **danh sách tên** chứ không lấy `min(q)` của từng họ: min của họ khối lượng là
+> `mg` — đơn vị gần như không xuất hiện trong danh mục — nên lấy min sẽ báo oan **mọi** SKU tính bằng
+> gam là "chưa phải đơn vị nhỏ nhất". `mét/yard/inch/cm/kg/lít` **không** mang cờ này: chúng đếm được
+> nhưng vẫn là bội của đơn vị nhỏ, và luật kho là đếm bằng cái nhỏ nhất.
+
+**① Nới ngoại lệ "đại diện phải là bản đơn vị nhỏ nhất".** Điều kiện cũ (§5b.10, sự cố C2080) là
+*"mọi dòng còn sống đều là hàng ĐÓNG GÓI"* — nên nó bỏ sót một ca hay gặp không kém: nhóm còn sống một
+dòng **cm** (hoặc mét/yard) mà bản **mm** thì tồn 0. cm không phải hàng đóng gói ⇒ ngoại lệ cũ im ⇒
+đại diện thành cm, bản mm chỉ nằm ở dòng *"cùng mặt hàng, khác đơn vị"*. Điều kiện mới: **không còn
+dòng nào mang cờ `nho` còn sống**. Đo trên danh mục thật: **50 nhóm** rơi vào ca này (ví dụ dây dệt
+Triều Vĩ — cm ACTIVE, mm tồn 0).
+
+**② Không có bản đơn vị nhỏ nào thì thẻ phải NÓI RA.** Chip *"chưa có bản ĐƠN VỊ NHỎ NHẤT — chỉ có
+«mét»"* nằm ở **hàng đầu cạnh %**, không xuống dòng phụ: nó đổi hẳn việc thủ kho phải làm (đếm bằng
+gì), nên phải đọc cùng lúc với mã SKU.
+
+Chốt quan trọng để không thành nhiễu — **chỉ báo khi mặt hàng CÓ đơn vị mà toàn là đơn vị lớn**. Đo
+trên 6.800 nhóm mặt hàng của danh mục thật:
+
+| nhóm | số lượng | xử lý |
+|---|---|---|
+| có bản đơn vị nhỏ (mm/g/ml/pcs) | 3.747 | im lặng — đã đúng |
+| **KHÔNG RÕ** đơn vị (tên hàng không có đoạn đơn vị) | 1.003 | **im lặng** — máy không biết, nói ra là nói quá điều mình biết |
+| chỉ có đơn vị LỚN | 2.050 | **báo** (cuộn 650 · m/mét 682 · kg 130 · yard 117 · cm 113 · lít · set/đôi…) |
+
+> ⚠ **Bẫy đã cắn:** `donVi()` dựng một đối tượng `best` rồi mới trả về. Thêm cờ vào bảng `DV` mà
+> **không cho `best` mang theo** thì `nho` luôn false ở mọi nơi — và cách nó lộ ra rất khó chịu: chỉ
+> **một** ca test đỏ (C2080, 105/106), vì luật mới "không còn dòng `nho` sống" khi `nho` luôn false
+> thì… luôn đúng, nên nó bắn bừa thay vì im. Test đỏ ở chỗ khác hẳn chỗ sai.
+
+**③ SKU không được trùng.** Bước DỰNG danh mục gom bằng `Map` khoá theo SKU nên **không thể** sinh
+trùng. Chỗ sinh trùng được là bước **GHI**: ghi theo gói 4.000 dòng, gói đầu xoá data cũ rồi mấy gói
+sau **NỐI TIẾP**. Một gói bị thử lại — mạng hụt, hoặc GAS trả 404 ở **chặng 2** trong khi script đã
+ghi xong (§gas-chap-chon-404) — là nối thêm một lần nữa, mà mọi dòng log vẫn `✓`.
+
+Nay `sync-sku-master` **đọc lại tab bằng gviz** sau khi ghi (0 lượt gọi WMS, không cần khoá GAS) và
+soát hai thứ: số dòng đúng như đã ghi, và **số SKU khác nhau = số dòng**. Thấy trùng thì **không lưu
+mốc hash** rồi thoát 2 — phải làm vậy vì lưu hash là lượt sau thấy *"không đổi"* rồi bỏ qua, tab cứ
+trùng mãi. Kèm một ca trong `qc-nhan-dien-sku` soát cùng việc đó từ phía test (hiện: **8.116 dòng /
+8.116 SKU khác nhau**, không trùng).
+
+---
+
 ## 6. Lõi đối soát (`NDS_ENGINE`, trong `factory/index.html`)
 
 Nằm giữa 2 mốc `/*<NDS-ENGINE>*/ … /*</NDS-ENGINE>*/` — **thuần tính toán, không chạm DOM**, để 2 bộ
@@ -2680,5 +2731,18 @@ Ba chi tiết phải làm đúng, cả ba đều do ảnh chụp 390px bắt đ�
   từ khoá ở tab (bấm nhầm thì thêm lại), nhưng ở đây bấm nhầm là mất một con tem đã khai. Dải đã ăn
   hết bề rộng nên có chỗ cho chip to.
 
+
+**Bổ sung 21/08/2026 (chiều), theo yêu cầu user** — *"ô số lượng bự quá, làm nhỏ lại 1 nửa kích thước
+ô; bỏ dòng ghi chú trong ô số lượng"*, nhấn mạnh **cải tiến trên điện thoại**:
+
+* **Ô nhập còn MỘT NỬA bề rộng cột** (`flex:1` → `width:50%`). Bản trước nó ăn hết phần còn lại của
+  thẻ — trên màn 390px là một khối **232px**, to hơn cả ô SKU. Giữ nguyên **cao 44px** và **chữ
+  19px/700**: đó là hai ràng buộc user đã chốt trước đó (đủ chạm + đọc lại được con số), cái "bự" nằm
+  ở **bề rộng**, không ở chữ. Đo lại: ô nhập còn **33% bề rộng thẻ**.
+* **Bỏ hai dòng chữ trong dải số lượng** (*"Số lượng in trên tem"* và *"Sẽ in N tem — mỗi số lượng một
+  con tem"*). Trên điện thoại chúng ăn trọn một dòng ngay giữa hai khối số, mà cột **Số tem** ngay bên
+  cạnh đã in đúng con số đó rồi. Dải giờ chỉ còn **chip**, vẫn là hàng riêng ăn hết bề rộng, nút × của
+  chip vẫn 40px.
+
 **Đo:** `qc-in-tem-popup` **15/15** (gồm 3 ca màn 390px) · `qc-in-tem` 138/138 · `qc-tab-nhan-dien`
-**155/155** (4 ca phải sửa theo DOM mới: chip đổi sang `tr.prsl2`, ô nhập trống thay vì `0`).
+**158/158** (4 ca phải sửa theo DOM mới: chip đổi sang `tr.prsl2`, ô nhập trống thay vì `0`).
