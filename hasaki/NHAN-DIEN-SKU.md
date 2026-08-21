@@ -693,6 +693,9 @@ tem **RẤT KHÓ** nó đọc lệch ký tự (`Đen-580-AA` → `Ben-380-AA`, `
 ```
 ① mã vạch (0,1s, offline) → ② sổ tay tem (0s) → ③ AI (~5s) → ④ OCR Google (~7,4s, MIỄN PHÍ — chỉ khi ③ chưa lập được mã hoặc chết)
 ```
+> **21/08/2026 — ③ và ④ nay chạy SONG SONG** (OCR bắn ở giây 2,5), kèm lượt AI "đua" ở giây 6 và mốc
+> chốt 17 giây. Thứ tự TIN CẬY vẫn đúng như trên; chỉ có cái giá thời gian của việc tụt bậc là gần
+> bằng 0 thay vì +7,4 giây. Xem §5b.26.
 
 > Bậc thang này từng đặt OCR ở vị trí ③ (sáng 19/08, lý do "miễn phí thì cho chạy trước"). Thủ kho
 > dùng thật rồi báo **"đọc quá lâu >20s"** — phản hồi đúng, xem 5b.6 để biết 20 giây đi đâu.
@@ -836,6 +839,11 @@ không phải quyết định kỹ thuật.
 > lúc mở: một lượt `chuanDoan` rỗng, không ảnh, **không tốn hạn mức nào**, chỉ để Google dựng sẵn
 > instance trước khi thủ kho chụp tem.
 > Đừng đọc một lần đo rồi kết luận nhanh/chậm: phải đo vài lượt.
+>
+> **CẬP NHẬT 21/08/2026 — mục này chỉ còn đúng một nửa, đọc §5b.26 trước khi tin nó.** Câu "nguyên
+> nhân nằm ở phía Google, không ép được từ phía mình" đã được đo lại và **sai**: hai lượt 17,9 s /
+> 28,5 s là do CHUỖI MODEL của mình rơi xuống `gemini-flash-latest` (đo được **24,5 giây**). Bậc
+> thang cũng không còn tuần tự (AI và OCR chạy song song, có lượt đua và có mốc chốt 17 giây).
 
 > **Bẫy async đã cắn khi đảo thứ tự**: `ndsNhanKetQua` không phải `async` mà bên trong có `await`
 > (nạp danh mục), nên bậc thang hỏi `ndsDuCanCu()` ngay sau đó **đọc `NDS.ket` của LƯỢT TRƯỚC** rồi
@@ -1937,6 +1945,170 @@ trùng mãi. Kèm một ca trong `qc-nhan-dien-sku` soát cùng việc đó từ
 
 ---
 
+### 5b.26 "Nhận diện quá lâu" lần hai (21/08/2026) — đo phân phối, rồi ép dưới 20 giây
+
+Thủ kho báo lại đúng một câu: *"thời gian nhận diện quá lâu"*, kèm yêu cầu **dưới 20 giây** mà vẫn
+đúng cho **cả tem in máy và chữ viết tay**. §5b.5 đã đo TRUNG BÌNH (5,1–7,6 s) và đã ghi ĐỘ TẢN
+(4,8 · 6,7 · **17,9** s, xấu nhất **28,5** s) rồi kết luận *"jitter phía Google, không ép được"*.
+Kết luận đó **sai một nửa** — và nửa sai là nửa đắt nhất.
+
+Bộ đo mới: **`hasaki/do-toc-do-tem.mjs`** (5 pha, mỗi pha ghi số ra `.exports/do-tem-*.json` để pha
+mô phỏng chạy lại **không tốn lượt gọi** nào).
+
+#### Đo từng chặng trước, đừng đo cả cục
+
+| Pha | Đo gì | Cách đo | Kết quả |
+|---|---|---|---|
+| A `--chang` | phí 2 chặng Apps Script | 34 lượt `sku_ocr` + `chuanDoan=1` (không ảnh, **miễn phí**), 3 nhịp: liên tiếp · cách 30 s · cách 90 s | p50 **1,7 s** · p90 2,8 s · **max 3,1 s** · 0 lượt trả HTML |
+| B `--model` | chặng Gemini | 48 lượt gọi TRỰC TIẾP bằng khoá `.env`, 4 ảnh × 4 biến thể | khuôn cũ p50 **1,8 s** · khuôn chữ-thô p50 **1,4 s** |
+| C2 `--ocr` | đường OCR đầu-cuối | 6 lượt thật (miễn phí) | p50 **7,5 s** · lập được mã 6/6 |
+| E `--trang` | ĐẦU-CUỐI trên trang thật | điện thoại giả lập 390 px + CDP bóp mạng 4G yếu (1,6/0,75 Mbps · 300 ms) | xem cuối mục |
+
+Cộng lại: **1,7 + 1,4 + ~1,7 (đẩy ảnh 4G) ≈ 4,8 giây** cho một lượt bình thường. Tức **cái sàn
+không phải vấn đề**; toàn bộ vấn đề nằm ở ĐUÔI. Và đuôi có **ba nguồn**, phải chữa ba chỗ khác nhau.
+
+#### Nguồn đuôi ① — CHUỖI MODEL, không phải "jitter bí ẩn"
+
+Đo từng model trên cùng một ảnh (bảng này là lý do phải đo, không đoán):
+
+| Model | Thời gian | Token "nghĩ" |
+|---|---|---|
+| `gemini-flash-lite-latest` | **1,2 s** | 0 |
+| `gemini-3.5-flash-lite` | **1,2 s** | 0 |
+| `gemini-3.1-flash-lite` | 4,0 s | 0 |
+| `gemini-3.6-flash` | 6,4 s → **19,9 s** ở lượt đo thứ hai | 822 |
+| `gemini-3.5-flash` | 7,7 s → **3,1 s** khi ép `thinkingLevel:'low'` | 1.965 |
+| `gemini-flash-latest` | **24,5 s** | 261 |
+| `gemini-2.5-flash`, `gemini-2.0-flash` | **404 — tên đã chết** | — |
+
+Chuỗi cũ là `lite-latest → 3.5-flash-lite → 3.1-flash-lite → 3.5-flash → flash-latest → 2.5-flash`.
+Nghĩa là: hai model đầu **hết hạn mức trong ngày** (429, đúng thứ đã ghi ở §5b.5) thì lượt đọc tem
+rơi xuống một model **24,5 giây**. Đó chính là hai lượt live 17,9 s và 28,5 s — **không phải jitter,
+là cấu hình của mình**. Bản `flash` thường NGHĨ 800–2.000 token trước khi trả, mà việc ở đây chỉ là
+ĐỌC CHỮ nên phần nghĩ đó là tiền tiêu vô ích.
+
+**Chốt:** chuỗi còn `lite-latest → 3.5-flash-lite → 3.1-flash-lite → 3.5-flash`, hai tên chết bị
+loại, và model không phải `lite` thì gửi kèm `thinkingConfig.thinkingLevel:'low'`.
+⚠ `thinkingBudget: 0` bị API trả **400 INVALID_ARGUMENT** — không tắt nghĩ được bằng đường đó.
+
+#### Nguồn đuôi ② — bậc thang TUẦN TỰ cộng dồn thời gian
+
+Bậc thang 19/08 là "AI (~5 s) → chưa lập được mã thì OCR (~7,4 s)". Thứ tự tin cậy đúng (AI đọc tem
+khó hơn OCR hẳn: 58% vs 42% Top-1) nhưng **thời gian thì cộng dồn: 13 giây** cho đúng cái ca hay gặp
+nhất là tem mờ. Nay hai người đọc **chạy chồng nhau**, thứ tự tin cậy giữ nguyên:
+
+```
+giây 0      bắn AI (người đọc chính)
+giây 2,5    bắn OCR song song (MIỄN PHÍ — không bắn ở giây 0 vì trên 4G yếu hai ảnh cùng lên
+            sẽ giành băng thông của nhau, làm chậm chính lượt AI)
+giây 6      AI còn im → bắn THÊM một lượt AI, GIỮ NGUYÊN nonce (lượt "đua")
+giây 11     OCR đã lập được mã mà AI vẫn im → lấy OCR, đừng nhường nữa
+giây 17     MỐC CHỐT: trả màn hình lại cho người dùng
+```
+
+Ba mốc là ba biến `NDS_T_OCR` · `NDS_T_DUA` · `NDS_T_UU_AI` · `NDS_T_CHOT` trong `factory/index.html`.
+
+**Vì sao 11 giây mới nhường cho OCR, không phải 9:** đo 6 lượt OCR thật thì OCR lập được mã **6/6**,
+nhưng với **thẻ mẫu viết tay** nó chỉ ra đúng SKU **1/2** — lượt kia ra `422423807`, đúng cái bẫy
+"cuộn vải nằm trong ô Thành phần vải" của §5b.21. Tức **"OCR có mã" ≠ "OCR đúng hàng"**, nên phải
+nhường AI lâu hơn một nhịp. Lượt AI bình thường về trong ~5 s và lượt đua bắn ở giây 6, nên mốc 11 s
+chỉ chạm tới khi **cả hai lượt AI đều im** — lúc đó lấy OCR là đúng, còn hơn không có gì.
+
+#### Nguồn đuôi ③ — không có mốc chốt, nên chờ bao lâu cũng được
+
+Đây là chỗ quyết định lời hứa "dưới 20 giây". **Không ép Google nhanh hơn được, nhưng CHỜ tới bao lâu
+thì mình quyết được.** Quá 17 giây: dừng đồng hồ, nói *"Mạng đang chậm — gõ MÃ trên tem là ra ngay
+(máy vẫn đọc tiếp phía sau)"*, trỏ con trỏ vào ô mã. Hai lượt gọi **vẫn để bay tiếp**: về sau mà ảnh
+chưa đổi và màn hình còn trống thì lặng lẽ hiện kết quả (`ndsHetHan`). Nghĩa là mốc chốt **không đánh
+đổi kết quả nào** — nó chỉ đổi *"đứng nhìn đồng hồ tới giây 28"* thành *"làm việc khác được ngay"*.
+
+#### Cắt luôn cái sàn: cổng chỉ xin CHỮ THÔ (`SV_CHI_CHU`)
+
+Đo 4 ảnh × 3 lượt cho mỗi khuôn:
+
+| Khuôn trả về | token ra | p50 | p90 | mã trên tem đọc đúng | Top-1 thẻ mẫu |
+|---|---|---|---|---|---|
+| 5 mảng vai + `raw_text` (cũ) | 256 | 1,8 s | 2,0 s | 58% | 100% |
+| **chỉ `raw_text`** | **97** | **1,4 s** | **1,7 s** | **83%** | 100% |
+
+Bắt model tự xếp vai (`item_codes/specs/colors/brands/others`) là phần token **đắt nhất** mà lại là
+phần lõi làm tốt hơn — §5b.2 đã đo từ 19/08: đường "AI chữ thô → `tuVanBan`" lập được mã **83%** so
+với **75%** của đường tin-vai-AI, vì vai được chấm bằng **bằng chứng của danh mục** chứ không phải
+suy đoán. `quality` cũng bỏ luôn (§5b.22 đã đo là vô dụng: ảnh mờ loá vẫn tự nhận `"ro"`).
+Dashboard **không cần sửa gì** — `ndsNhanKetQua` vốn đã tách `raw_text` bằng `tuVanBan`; 5 mảng vẫn
+được trả về nhưng rỗng. Muốn quay lại: `SV_CHI_CHU = false`, một dòng.
+
+#### Mô phỏng: mỗi tầng đáng bao nhiêu
+
+`node do-toc-do-tem.mjs --mo-phong` ghép ba phân phối đã đo (40.000 lượt Monte Carlo), cộng 1,7 s đẩy
+ảnh 4G, `q` = 12% lượt rơi xuống model sau, `r` = 5% lượt bị treo 12–28 s:
+
+| Chiến lược | p50 | p90 | p99 | max | quá 20 s | lượt AI/tem |
+|---|---|---|---|---|---|---|
+| ① đang chạy (1 lượt, chuỗi model cũ) | 5,3 s | 27,6 s | 29,0 s | 29,7 s | **14,3%** | 1,00 |
+| ② + chuỗi model đã sửa | 4,9 s | 6,8 s | 26,5 s | 29,7 s | 3,1% | 1,00 |
+| ③ + hâm nóng Apps Script | 4,7 s | 6,6 s | 26,3 s | 29,7 s | 3,1% | 1,00 |
+| ④ + đua lượt AI ở giây 6 | 4,7 s | 6,6 s | 11,3 s | 29,3 s | 0,2% | 1,17 |
+| ⑤ + OCR song song | 4,7 s | 6,6 s | 11,0 s | 24,1 s | ~0% | 1,17 |
+| ⑥ + mốc chốt 17 s (**cái người dùng thấy**) | **4,7 s** | **6,6 s** | **11,2 s** | **17,0 s** | **0%** | 1,16 |
+
+Đọc bảng này phải đọc kèm `r`: 34 lượt đo pha A **không bắt được lượt treo nào** (max 3,1 s), nên tỉ
+lệ treo là **tham số, không phải số đo** — nó là chỗ duy nhất mà "đua" và "mốc chốt" tỏ tác dụng.
+Bằng chứng rằng treo có thật: một lượt đo live ở pha C có **lượt đua mất 19,5 giây** trong khi lượt
+đầu về sau 5,6 giây — nếu chỉ có một lượt gọi thì đó là 19,5 giây người dùng phải chờ.
+
+#### Số đo đầu-cuối trên TRANG THẬT (pha E)
+
+Bản live `letam0317.github.io/stocklocationfactory`, điện thoại giả lập 390 px, mạng bóp về 4G yếu,
+tính từ lúc có ảnh tới lúc Top 3 hiện ra (kể cả nạp danh mục 8.112 SKU):
+
+| Ảnh | 10 lượt đo | Kết quả #1 |
+|---|---|---|
+| tem IN dây kéo | 4,3 · **10,6** · 4,2 s | `422322192` 91% |
+| tem IN cuộn chỉ (nghiêng+mờ+loá) | 5,1 · 4,9 · 3,3 s | `422377978` 98% |
+| thẻ VIẾT TAY (nét rời) | 4,6 · 4,4 s | `422495218` 93% ✓ |
+| thẻ VIẾT TAY (viết nhanh + chụp khó) | 4,8 · 4,4 s | `422495218` 93% ✓ |
+
+**p50 4,6 s · max 10,6 s · 0/10 lượt quá 20 giây · 0,1 lượt đua/tem.**
+
+Lượt **10,6 s** là ca đáng giá nhất của cả buổi: nó là một lượt bị treo thật, **lượt đua đã bắn**
+(`đua 1`) và kết quả vẫn ra ĐÚNG SKU. Trên bản cũ, đúng lượt đó là 20–28 giây — chính con số làm thủ
+kho báo lỗi. Chín lượt còn lại không cần đua ⇒ **đường thường gặp không tốn thêm hạn mức nào**.
+
+#### Bốn bẫy đã cắn trong lúc làm (cả bốn đều do bộ đo bắt, không phải do đoán)
+
+1. **`throw` trong nhánh THÀNH CÔNG của `then(ok, err)`** không rơi vào `err` của cùng lời gọi — nó
+   thành promise bị từ chối mà không ai bắt. Hậu quả: cổng trả `status:'error'` (hết hạn mức) thì
+   trang nổ "unhandled rejection", nhánh xử lý lỗi **không chạy**, nên lượt đua vẫn bắn ⇒ tốn 2 lượt
+   AI cho một lỗi chắc chắn. Bộ đo tab bắt 6 ca đỏ cùng lúc vì cờ `dangDoc` bị giữ 6 giây, khoá luôn
+   nút "Đọc tem" của mấy ca sau.
+2. **Lỗi thì phải CHỐT NGAY, đừng chờ tới mốc đua.** Lượt bị `abort` (người dùng chụp tem khác) cũng
+   là "lỗi": chờ thêm 6 giây ở đó là **tấm tem thứ hai không được đọc** — đúng lỗi §5b.8 tái phát
+   theo một đường khác.
+3. **`ndsTuDongNhanDien` phải CHỜ cả `tuDong` lẫn `dangDoc`, không `return` thẳng.** Vòng đợi 150 ms
+   của bậc thang mới làm lượt cũ nhả cờ **muộn ~150 ms**, mà `setTimeout(...,0)` của ảnh mới chạy
+   trước đó ⇒ lại là ca "tem thứ hai không được đọc". Trần chờ 25 nhịp × 60 ms.
+4. **Cờ "đang đọc" phía GAS chặn oan chính mình.** Nó khoá theo EMAIL trong 60 giây, nên nó chặn cả
+   lượt **thử lại cùng nonce** (cơ chế chống lỗi chặng-2-trả-HTML) và lượt **đua**. Nay cờ ghi
+   `mốc|nonce`: **cùng nonce = cùng tấm tem ⇒ cho đi**, khác nonce trong 60 giây vẫn chặn (đó mới là
+   ca "bấm 2 lần vì tưởng máy treo"). Có ca test riêng cho cả hai chiều.
+
+**Đo:** `qc-nhan-dien-sku` **97/97** · `qc-tab-nhan-dien` **157/157** · `qc-sku-vision-live` **9/9**
+(thêm ca "lượt đua cùng nonce không bị chặn") · `qc-tem-tay` **7/7** bàn tay · `qc-tem-vision`
+**6/6** ảnh · GAS deploy **@81**.
+
+> **Bẫy đo lường mất một lượt deploy:** `deploy-gas.mjs` sinh lại `sa.js` từ nguồn git-safe, mà nguồn
+> luôn để `SV_KHOA_CUNG = ''` ⇒ **bản deploy mất khoá Gemini**, cổng trả *"Apps Script chưa có khoá
+> AI"* cho mọi lượt đọc tem. Thứ tự đúng: `node deploy-gas.mjs --deploy` → `node
+> gas-nap-khoa-gemini.mjs` → `clasp push -f` + `clasp deploy -i <id>`.
+
+> **Ca test cũ đỏ mà giao diện vẫn đúng:** ca *"ô Số lượng rộng gấp mấy lần ô Số tem"* đo theo đặc tả
+> cũ; CSS đã đổi sang **nửa cột** theo yêu cầu mới của user ("bự quá — làm nhỏ lại 1 nửa"). Đã sửa ca
+> test thành "bằng NỬA cột (40–62%) và vẫn to hơn ô Số tem" — cách phân biệt "test đỏ vì hỏng" với
+> "test đỏ vì đặc tả đã đổi" là đọc chú thích trong CSS: ở đó có ghi câu user nói.
+
+---
+
 ## 6. Lõi đối soát (`NDS_ENGINE`, trong `factory/index.html`)
 
 Nằm giữa 2 mốc `/*<NDS-ENGINE>*/ … /*</NDS-ENGINE>*/` — **thuần tính toán, không chạm DOM**, để 2 bộ
@@ -2042,6 +2214,7 @@ khoá đã khớp · dòng "Lệch: …" khi có xung đột · dòng **"Cùng m
 | `node qc-sku-ocr-live.mjs` | **cổng OCR thật** (`sku_ocr`): deploy đã lên chưa · email lạ · ảnh quá lớn không bao giờ được OCR · đọc đúng mã trên tem · **đo thời gian từng chặng** · chặn 2 lượt song song · ảnh trắng thì nói "không thấy chữ" | **10/10** (19/08) |
 | `node qc-ocr-doi-chung.mjs [--so 30] [--duong ABCDEFG] [--dung-dem]` | **đo người đọc nào tốt hơn**: 7 đường (tin vai AI · +bằng chứng · chữ thô AI · OCR · OCR không lọc · ghép AI · ghép cả 2) trên cùng bộ tem, nhãn cắt từ SKU thật + chữ giấy tờ, 3 bậc khó. `--dung-dem` chạy lại **0 lượt gọi** | OCR **77%** Top-1 / 83% Top-3 (30 tem) |
 | `node qc-loi-cu-moi.mjs [--rev e7c0753]` | **đối chứng lõi cũ (từ git) với lõi mới trên CÙNG chữ đã đọc** — cách duy nhất kết luận một lần sửa lõi là tốt hay xấu; có sẵn cột **"MỚI, tắt IDF"** để đo riêng phần trọng số | 1 tốt hơn · **0 xấu hơn** · 29 y cũ · Top-1 77→80% · lập được mã 70→77% |
+| `node do-toc-do-tem.mjs --chang\|--song-song\|--model\|--ocr\|--mo-phong\|--trang\|--live` | **đo TỐC ĐỘ theo từng chặng rồi mô phỏng chiến lược** (§5b.26): phí 2 chặng Apps Script (miễn phí) · chặng Gemini + độ chính xác của từng khuôn prompt · đường OCR · Monte Carlo p50/p90/p99 + số lượt gọi/tem · đầu-cuối trên trang thật với mạng 4G giả lập. Số đo lưu ở `.exports/do-tem-*.json` nên pha mô phỏng chạy lại **0 lượt gọi** | trang thật **p50 4,6s · max 10,6s · 0/10 lượt >20s** (21/08) |
 | `node probe-sku-master.mjs` | thăm dò lại nguồn dữ liệu khi WMS đổi trường | — |
 
 Hai bộ test đầu **cắt mã ra khỏi file thật** (`NDS-ENGINE` trong `factory/index.html`, `SV_PROMPT`/

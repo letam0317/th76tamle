@@ -36,7 +36,13 @@ fs.mkdirSync(OUT, { recursive: true });
 const gs = fs.readFileSync(F_GS, "utf8");
 const i1 = gs.indexOf("var SV_TRAN_NGAY"), i2 = gs.indexOf("/** Cài khoá Gemini");
 if (i1 < 0 || i2 < 0) { console.error("✗ Không thấy khối sku_vision trong google-script.gs"); process.exit(2); }
-const { SV_PROMPT, SV_SCHEMA, SV_MODELS } = new Function(gs.slice(i1, i2) + "\n return {SV_PROMPT:SV_PROMPT, SV_SCHEMA:SV_SCHEMA, SV_MODELS:SV_MODELS};")();
+const SV_ = new Function(gs.slice(i1, i2) + "\n return {SV_PROMPT:SV_PROMPT, SV_SCHEMA:SV_SCHEMA, SV_MODELS:SV_MODELS, SV_CHI_CHU:(typeof SV_CHI_CHU!=='undefined'&&SV_CHI_CHU), SV_PROMPT_CHU:(typeof SV_PROMPT_CHU!=='undefined'?SV_PROMPT_CHU:''), SV_SCHEMA_CHU:(typeof SV_SCHEMA_CHU!=='undefined'?SV_SCHEMA_CHU:null)};")();
+/* CHẾ ĐỘ CỦA CỔNG QUYẾT ĐỊNH KHUÔN GỬI (21/08/2026): `SV_CHI_CHU` bật thì production chỉ xin
+   `raw_text` (đo được: 97 token ra thay vì 256, p50 1,4s thay vì 1,8s). Bộ đo phải gửi ĐÚNG khuôn
+   đang phục vụ — gửi khuôn cũ thì con số đo được là của một cấu hình không ai dùng. */
+const SV_MODELS = SV_.SV_MODELS;
+const SV_PROMPT = SV_.SV_CHI_CHU ? SV_.SV_PROMPT_CHU : SV_.SV_PROMPT;
+const SV_SCHEMA = SV_.SV_CHI_CHU ? SV_.SV_SCHEMA_CHU : SV_.SV_SCHEMA;
 console.log("✓ Prompt + schema lấy từ google-script.gs (" + SV_PROMPT.length + " ký tự prompt, model đầu: " + SV_MODELS[0] + ")");
 
 /* ---------- 2. Lấy lõi đối soát TỪ CHÍNH dashboard ---------- */
@@ -166,8 +172,11 @@ for (const a of anh) {
   const chapNhan = a.chapNhan || mong;                    // được phép đứng #1
   const top3 = top.map((x) => String(x.sku));
   const ok = top.length && chapNhan.indexOf(top3[0]) >= 0 && mong.every((m) => top3.indexOf(m) >= 0);
-  console.log((ok ? "  ✓ " : "  ✗ ") + nhan + "  [" + r.model + " · chất lượng ảnh AI tự đánh giá: " + r.kq.quality + "]");
-  console.log("      AI đọc: mã=" + JSON.stringify(r.kq.item_codes) + " thông số=" + JSON.stringify(r.kq.specs) +
+  console.log((ok ? "  ✓ " : "  ✗ ") + nhan + "  [" + r.model + (SV_.SV_CHI_CHU ? " · khuôn CHỈ CHỮ THÔ" : " · chất lượng ảnh AI tự đánh giá: " + r.kq.quality) + "]");
+  /* Chế độ chỉ-chữ-thô thì 5 mảng vai rỗng là ĐÚNG (lõi tự xếp vai bằng tuVanBan) — in chữ thô ra
+     thay vì in "undefined" bốn lần, không thì đọc log tưởng AI hỏng. */
+  if (SV_.SV_CHI_CHU) console.log("      AI đọc (chữ thô): " + String(r.kq.raw_text || "").replace(/\s+/g, " ").slice(0, 150));
+  else console.log("      AI đọc: mã=" + JSON.stringify(r.kq.item_codes) + " thông số=" + JSON.stringify(r.kq.specs) +
     " màu=" + JSON.stringify(r.kq.colors) + " hiệu=" + JSON.stringify(r.kq.brands));
   if (CHI_TIET) console.log("      raw: " + String(r.kq.raw_text || "").slice(0, 260));
   top.forEach((x, i) => console.log("      #" + (i + 1) + " " + x.sku + " " + String(x.pct).padStart(3) + "%  " +

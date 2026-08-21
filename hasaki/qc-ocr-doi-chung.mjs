@@ -49,9 +49,15 @@ if (fs.existsSync(F_DEM)) { try { DEM = JSON.parse(fs.readFileSync(F_DEM, "utf8"
 const html = fs.readFileSync(F_HTML, "utf8");
 const E = new Function(html.slice(html.indexOf("/*<NDS-ENGINE>*/"), html.indexOf("/*</NDS-ENGINE>*/")) + "\n return NDS_ENGINE;")();
 const gs = fs.readFileSync(F_GS, "utf8");
-const { SV_PROMPT, SV_SCHEMA, SV_MODELS } = new Function(
+const SV_ = new Function(
   gs.slice(gs.indexOf("var SV_TRAN_NGAY"), gs.indexOf("/** Cài khoá Gemini")) +
-  "\n return {SV_PROMPT:SV_PROMPT, SV_SCHEMA:SV_SCHEMA, SV_MODELS:SV_MODELS};")();
+  "\n return {SV_PROMPT:SV_PROMPT, SV_SCHEMA:SV_SCHEMA, SV_MODELS:SV_MODELS, SV_CHI_CHU:(typeof SV_CHI_CHU!=='undefined'&&SV_CHI_CHU), SV_PROMPT_CHU:(typeof SV_PROMPT_CHU!=='undefined'?SV_PROMPT_CHU:''), SV_SCHEMA_CHU:(typeof SV_SCHEMA_CHU!=='undefined'?SV_SCHEMA_CHU:null)};")();
+/* CHẾ ĐỘ CỦA CỔNG QUYẾT ĐỊNH KHUÔN GỬI (21/08/2026): `SV_CHI_CHU` bật thì production chỉ xin
+   `raw_text` (đo được: 97 token ra thay vì 256, p50 1,4s thay vì 1,8s). Bộ đo phải gửi ĐÚNG khuôn
+   đang phục vụ — gửi khuôn cũ thì con số đo được là của một cấu hình không ai dùng. */
+const SV_MODELS = SV_.SV_MODELS;
+const SV_PROMPT = SV_.SV_CHI_CHU ? SV_.SV_PROMPT_CHU : SV_.SV_PROMPT;
+const SV_SCHEMA = SV_.SV_CHI_CHU ? SV_.SV_SCHEMA_CHU : SV_.SV_SCHEMA;
 
 const dsFile = path.join(DIR, ".sku-master-dry.json");
 if (!fs.existsSync(dsFile)) { console.error("✗ Chưa có .sku-master-dry.json — chạy `node sync-sku-master.mjs --dry` trước."); process.exit(2); }

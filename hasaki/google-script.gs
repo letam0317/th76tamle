@@ -1798,7 +1798,25 @@ var SV_TRAN_ANH_B64 = 2600000; // ~1,9 MB base64 (client đã thu nhỏ còn ~20
        (việc của nó chỉ là ĐỌC CHỮ, không phải suy luận).
    ⇒ lite trước (nhanh + quota rộng), model to để sau làm dự phòng khi lite hết quota.
    `gemini-flash-lite-latest` là bút danh trỏ tới bản lite mới nhất nên không bị chết tên như 2.5. */
-var SV_MODELS = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+/* CHUỖI MODEL — XẾP THEO SỐ ĐO, và ĐO LẠI 21/08/2026 bằng `do-toc-do-tem.mjs` (cùng một ảnh tem):
+     gemini-flash-lite-latest  1,2s · nghĩ 0 token      ← đọc chữ chỉ cần bản lite
+     gemini-3.5-flash-lite     1,2s · nghĩ 0 token
+     gemini-3.1-flash-lite     4,0s · nghĩ 0 token
+     gemini-3.5-flash          7,7s · nghĩ 1.965 token   → 3,1s khi ép thinkingLevel='low'
+     gemini-3.6-flash          6,4s · nghĩ 822 token     → 19,9s (!) ở lượt đo thứ hai, ĐÃ BỎ
+     gemini-flash-latest      24,5s · nghĩ 261 token     → 503 quá tải, ĐÃ BỎ
+     gemini-2.5-flash / gemini-2.0-flash → 404, TÊN ĐÃ CHẾT, ĐÃ BỎ
+   Ba điều rút ra:
+     ① bản `flash` thường NGHĨ trước khi trả nên chậm gấp 3-20 lần, mà việc ở đây chỉ là ĐỌC CHỮ;
+     ② ĐUÔI 17,9s/28,5s ghi trong 5b.5 KHÔNG phải "jitter bí ẩn của Google" như đã đoán — nó là
+        CHÍNH CHUỖI NÀY: hai model đầu 429 thì lượt đọc rơi xuống `gemini-flash-latest` 24,5 giây.
+        Sửa chuỗi model rẻ hơn mọi mẹo phía client;
+     ③ để tên chết trong chuỗi là mỗi lượt tụt bậc tốn thêm một round-trip vô ích.
+   Chuỗi chốt: 3 bản `lite` (1,2-4,0s) + 1 bản flash ép nghĩ thấp làm chốt cuối. Hết cả 4 thì
+   dashboard tự tụt xuống OCR miễn phí — thà đi lối đó còn hơn bắt người ta chờ 20-24 giây.
+   Với model KHÔNG phải `lite` thì gửi kèm thinkingConfig.thinkingLevel='low' (API nhận; còn
+   thinkingBudget:0 bị trả 400 INVALID_ARGUMENT — đã thử). */
+var SV_MODELS = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 
 var SV_PROMPT =
   'Bạn đang đọc ảnh MỘT TEM NHÃN của nhà cung cấp trong kho nguyên liệu may (chỉ may, nút/khuy, dây kéo, nhãn dệt, vải, dây thun).\n' +
@@ -1817,6 +1835,25 @@ var SV_PROMPT =
   'others   : ký hiệu còn lại có thể hữu ích (số lô, số cuộn, ngày, số PO…).\n' +
   'raw_text : toàn bộ chữ đọc được, giữ thứ tự dòng, mỗi dòng cách nhau bằng " | ".\n' +
   'quality  : "ro" nếu chữ rõ; "mo" nếu mờ/loá/nghiêng phải đoán; "khong_doc_duoc" nếu hầu như không đọc được gì.';
+
+/* ═════ CHỈ CHỮ THÔ (21/08/2026) — vì sao bỏ 5 mảng vai khỏi câu trả lời của model ═════
+   Đo `do-toc-do-tem.mjs --model` (4 ảnh: 2 tem IN + 2 thẻ VIẾT TAY, mỗi biến thể 3 lượt):
+     · khuôn CŨ (5 mảng vai + raw_text) : 166–414 token ra, p50 1,8s
+     · khuôn NÀY (chỉ raw_text)         :  54–137 token ra, p50 1,2s
+   Độ chính xác KHÔNG giảm: Top-1 của lõi vẫn ĐÚNG ở cả 4 ảnh, mã trên tem đọc ra y như cũ. Đúng
+   như 5b.2 đã đo (đường C "AI chữ thô → tuVanBan" lập được mã 83% vs 75% của đường tin-vai-AI):
+   việc XẾP VAI để lõi làm bằng bằng chứng của danh mục thì tốt hơn để model đoán, mà model đoán vai
+   lại là phần token đắt nhất. `quality` cũng bỏ luôn — 5b.22 đã đo là vô dụng (ảnh mờ loá vẫn tự
+   nhận "ro").  Đặt SV_CHI_CHU = false là quay về khuôn cũ, không phải sửa chỗ nào khác. */
+var SV_CHI_CHU = true;
+var SV_PROMPT_CHU =
+  'Bạn đang đọc ảnh MỘT TEM NHÃN hoặc THẺ THÔNG TIN của kho nguyên liệu may (chỉ may, nút/khuy, dây kéo, nhãn dệt, vải, dây thun).\n' +
+  'Chữ trên đó có thể IN BẰNG MÁY hoặc VIẾT TAY. Ảnh có thể cong, nhăn, bọc nylon loá sáng, dính bụi, chụp nghiêng hoặc ngược.\n' +
+  '\n' +
+  'NHIỆM VỤ DUY NHẤT: chép lại TOÀN BỘ chữ đọc được. Tuyệt đối KHÔNG suy diễn, KHÔNG bù thông tin không có trên tem, KHÔNG dịch, KHÔNG sửa chính tả của nhà cung cấp.\n' +
+  'GIỮ NGUYÊN cặp "nhãn: giá trị" của biểu mẫu (ví dụ "Mã sản phẩm: CWHO0006", "Màu sắc: Xanh Tro") — bên dùng cần biết mã nào đứng sau nhãn nào.\n' +
+  'Giữ thứ tự dòng, mỗi dòng cách nhau bằng " | ". Chữ nào không chắc thì vẫn ghi nguyên như thấy (bên dùng có công cụ khớp gần đúng).';
+var SV_SCHEMA_CHU = { type: 'OBJECT', required: ['raw_text'], properties: { raw_text: { type: 'STRING' } } };
 
 var SV_SCHEMA = {
   type: 'OBJECT',
@@ -1886,12 +1923,23 @@ function skuVision_(d) {
        nhiều cuộn KHÔNG phải chờ.
      Từ đây trở xuống, MỌI đường thoát đều phải gọi svMoCo_ — bỏ quên là khoá email đó 60 giây. */
   var kDang = 'sv_dang_' + mail, bayGio = new Date().getTime(), duocDi = true;
+  var nonce = String((d && d.nonce) || '').slice(0, 80);
   var lock = LockService.getScriptLock(), coLock = false;
   try {
     coLock = lock.tryLock(3000);
-    var moc = Number(p.getProperty(kDang) || 0);
-    if (moc && (bayGio - moc) < 60000) duocDi = false;
-    else p.setProperty(kDang, String(bayGio));
+    /* CỜ NAY GHI CẢ NONCE (21/08/2026). Bản cũ khoá theo EMAIL trong 60 giây nên nó chặn cả hai thứ
+       mình CẦN cho phép:
+         · lượt THỬ LẠI của dashboard khi chặng 2 của Apps Script trả trang HTML (client giữ nguyên
+           nonce đúng theo thiết kế nonce-cache) — execution đầu còn đang chạy ⇒ lượt thử lại bị
+           "Đang đọc ảnh trước" oan, tức chính cơ chế chống-lỗi-chập-chờn bị chốt bóp cổ;
+         · lượt ĐUA (`dua:1`) mà dashboard bắn ở giây thứ 6 khi Google im lặng — xem 5b.26.
+       Cùng NONCE = cùng MỘT tấm tem ⇒ cho đi. Khác nonce trong 60 giây = bấm 2 lần / 2 tem chồng
+       nhau ⇒ vẫn chặn y như cũ. */
+    var cu = String(p.getProperty(kDang) || ''), cat = cu.indexOf('|');
+    var moc = Number(cat < 0 ? cu : cu.slice(0, cat)) || 0, nonceCu = cat < 0 ? '' : cu.slice(cat + 1);
+    var cungTem = !!(nonce && nonce === nonceCu);
+    if (moc && (bayGio - moc) < 60000 && !cungTem) duocDi = false;
+    else p.setProperty(kDang, String(bayGio) + '|' + nonce);
   } catch (eL) { duocDi = true; }   // chốt hỏng thì cho đi: thà tốn 1 lượt hơn chặn oan người đang làm
   finally { if (coLock) { try { lock.releaseLock(); } catch (eR) { /* đã thả */ } } }
   if (!duocDi) return { status: 'error', message: 'Đang đọc ảnh trước — chờ xong rồi bấm tiếp.' };
@@ -1971,12 +2019,15 @@ function skuOcr_(d) {
   /* Cờ "đang đọc" theo email — y như sku_vision (xem ghi chú ở đó: phải nằm ở Script Properties,
      không phải CacheService, và MỌI đường thoát đều đi qua svMoCo_). */
   var kDang = 'so_dang_' + mail, bayGio = new Date().getTime(), duocDi = true;
+  var nonceO = String((d && d.nonce) || '').slice(0, 80);
   var lock = LockService.getScriptLock(), coLock = false;
   try {
     coLock = lock.tryLock(3000);
-    var moc = Number(p.getProperty(kDang) || 0);
-    if (moc && (bayGio - moc) < 60000) duocDi = false;
-    else p.setProperty(kDang, String(bayGio));
+    /* Cùng nonce = cùng tấm tem (lượt thử lại / lượt đua) thì CHO ĐI — xem ghi chú dài ở sku_vision. */
+    var cuO = String(p.getProperty(kDang) || ''), catO = cuO.indexOf('|');
+    var mocO = Number(catO < 0 ? cuO : cuO.slice(0, catO)) || 0, nonceCuO = catO < 0 ? '' : cuO.slice(catO + 1);
+    if (mocO && (bayGio - mocO) < 60000 && !(nonceO && nonceO === nonceCuO)) duocDi = false;
+    else p.setProperty(kDang, String(bayGio) + '|' + nonceO);
   } catch (eL) { duocDi = true; }
   finally { if (coLock) { try { lock.releaseLock(); } catch (eR) { /* đã thả */ } } }
   if (!duocDi) return { status: 'error', message: 'Đang đọc ảnh trước — chờ xong rồi bấm tiếp.' };
@@ -2106,9 +2157,13 @@ function svGoiGemini_(b64, mime, khoa) {
     if (chet[SV_MODELS[i]]) continue;
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + SV_MODELS[i] + ':generateContent?key=' + encodeURIComponent(khoa);
     var payload = {
-      contents: [{ role: 'user', parts: [{ text: SV_PROMPT }, { inline_data: { mime_type: mime, data: b64 } }] }],
-      generationConfig: { responseMimeType: 'application/json', responseSchema: SV_SCHEMA, maxOutputTokens: 2048, temperature: 0 }
+      contents: [{ role: 'user', parts: [{ text: SV_CHI_CHU ? SV_PROMPT_CHU : SV_PROMPT }, { inline_data: { mime_type: mime, data: b64 } }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: SV_CHI_CHU ? SV_SCHEMA_CHU : SV_SCHEMA, maxOutputTokens: 2048, temperature: 0 }
     };
+    /* Bản `flash` thường nghĩ 800–2.000 token trước khi trả (đo: 6,4s / 7,7s / 24,5s) — hạ mức nghĩ
+       xuống thấp nhất mà API nhận. Bản `lite` vốn nghĩ 0 token nên không gửi gì thêm. */
+    if (SV_MODELS[i].indexOf('lite') < 0) payload.generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+    var tModel = new Date().getTime();
     var r;
     try {
       r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
@@ -2133,9 +2188,11 @@ function svGoiGemini_(b64, mime, khoa) {
     var lay = function (k) { return (o[k] || []).map(function (x) { return String(x).slice(0, 60); }).slice(0, 40); };
     if (doiChet) { try { pp.setProperty(kChet, JSON.stringify(chet)); } catch (eS) { /* nhớ được thì tốt, không thì thôi */ } }
     return {
-      status: 'success', model: SV_MODELS[i],
+      status: 'success', model: SV_MODELS[i], msModel: new Date().getTime() - tModel, bacModel: i + 1,
       quality: String(o.quality || ''),
       text: String(o.raw_text || '').slice(0, 4000),
+      /* Ở chế độ CHỈ CHỮ THÔ thì 5 mảng này rỗng — dashboard vẫn chạy đúng vì `ndsNhanKetQua` luôn
+         tách raw_text bằng `tuVanBan` (bằng chứng của danh mục), mảng vai chỉ là phần cộng thêm. */
       tokens: { item_codes: lay('item_codes'), specs: lay('specs'), colors: lay('colors'), brands: lay('brands'), others: lay('others') }
     };
   }

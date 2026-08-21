@@ -9,12 +9,16 @@
  *
  *  node qc-sku-vision-live.mjs [--mail ten@hasaki.vn]
  */
+import fs from "node:fs";
 import puppeteer from "puppeteer";
 import "dotenv/config";
 import { EDGE_PATH } from "./token-store.js";
 
 const URL_GAS = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
 const MAIL = process.argv.includes("--mail") ? process.argv[process.argv.indexOf("--mail") + 1] : "qc.nhandiensku@hasaki.vn";
+
+/* Đọc cờ chế độ THẲNG TỪ NGUỒN: ca test không được đoán cổng đang chạy khuôn nào. */
+const CHI_CHU = /^var SV_CHI_CHU = true;/m.test(fs.readFileSync(new URL("./google-script.gs", import.meta.url), "utf8"));
 
 const goi = async (body) => {
   const r = await fetch(URL_GAS, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) });
@@ -73,13 +77,20 @@ const tk = r3.tokens || {};
 kiem("Đọc được tem qua cổng production", r3.status === "success",
   r3.status === "success" ? (r3.model + " · " + ms + "ms · còn " + r3.conLai + " lượt hôm nay") : r3.message);
 if (r3.status === "success") {
-  kiem("Trả về đủ 5 nhóm từ khoá", ["item_codes", "specs", "colors", "brands", "others"].every((k) => Array.isArray(tk[k])),
-    JSON.stringify(tk).slice(0, 190));
-  kiem("Bóc đúng mã hàng 8846295", (tk.item_codes || []).some((x) => /8846295/.test(x)), (tk.item_codes || []).join(","));
-  kiem("Bóc đúng chiều dài 38 + màu 345",
-    (tk.specs || []).some((x) => /38/.test(x)) && (tk.colors || []).some((x) => /345/.test(x)),
-    "specs=" + (tk.specs || []).join(",") + " colors=" + (tk.colors || []).join(","));
-  kiem("Tự đánh giá chất lượng ảnh", /^(ro|mo|khong_doc_duoc)$/.test(r3.quality || ""), r3.quality);
+  /* CHUYỂN KHUÔN 21/08/2026: cổng chạy chế độ CHỈ CHỮ THÔ (`SV_CHI_CHU`) — model chỉ trả `raw_text`,
+     5 mảng vai vẫn CÓ nhưng RỖNG, `quality` bỏ luôn. Lý do là số đo: 97 token ra thay vì 256, p50
+     1,4s thay vì 1,8s, mà độ chính xác không giảm (lõi xếp vai bằng `tuVanBan` + bằng chứng danh
+     mục — vẫn tốt hơn để model đoán vai, xem 5b.2 đường C). Nên ca test đổi từ "bóc đúng vai" sang
+     "ĐỌC ĐÚNG CHỮ" — đó mới là việc của model. Khuôn cũ bật lại thì hai ca dưới vẫn xanh. */
+  const chuTho = String(r3.text || "").replace(/\s+/g, " ");
+  const vaiRong = ["item_codes", "specs", "colors", "brands", "others"].every((k) => Array.isArray(tk[k]));
+  kiem("Vẫn trả đủ 5 nhóm từ khoá (dạng mảng, được phép rỗng)", vaiRong, JSON.stringify(tk).slice(0, 120));
+  kiem("Đọc đúng mã hàng 8846295 trong chữ trên tem", /8846295/.test(chuTho), chuTho.slice(0, 120));
+  kiem("Đọc đúng chiều dài 38 + màu 345",
+    /38[.,]?0?\s*CM/i.test(chuTho) && /345/.test(chuTho), chuTho.slice(0, 120));
+  const daySo = (tk.item_codes || []).length + (tk.specs || []).length + (tk.colors || []).length;
+  kiem("Đúng chế độ đang khai trong google-script.gs (chỉ chữ thô ⇒ mảng vai rỗng)",
+    CHI_CHU ? daySo === 0 : daySo > 0, (CHI_CHU ? "SV_CHI_CHU=true" : "SV_CHI_CHU=false") + " · " + daySo + " mảnh vai");
 }
 
 /* 4. Hai lượt gửi SONG SONG: đúng 1 lượt được chạy, lượt kia bị cờ "đang đọc" chặn.
@@ -93,6 +104,19 @@ const soChan = [pa, pb].filter((x) => x.status === "error" && /đang đọc/i.te
 const soOk = [pa, pb].filter((x) => x.status === "success").length;
 kiem("Chặn 2 lượt gửi song song (cờ \"đang đọc\")", soChan === 1 && soOk === 1,
   "chạy=" + soOk + " · chặn=" + soChan + " · " + [pa, pb].map((x) => x.status + (x.message ? ": " + x.message.slice(0, 34) : "")).join(" | "));
+
+/* 5. LƯỢT ĐUA (21/08/2026): dashboard bắn thêm một lượt AI ở giây thứ 6 khi Google im lặng, GIỮ
+   NGUYÊN nonce + kèm `dua:1`. Cờ "đang đọc" phải CHO ĐI (cùng nonce = cùng tấm tem), không thì
+   chính cơ chế chống-treo bị chốt bóp cổ — và lượt thử lại khi chặng 2 trả HTML cũng chết theo. */
+const nonceDua = LAN + "-dua";
+const [da, db] = await Promise.all([
+  goi({ action: "sku_vision", email: MAIL, mime: "image/jpeg", anh, nonce: nonceDua }),
+  new Promise((r) => setTimeout(r, 150)).then(() => goi({ action: "sku_vision", email: MAIL, mime: "image/jpeg", anh, nonce: nonceDua, dua: 1 })),
+]);
+const chanDua = [da, db].filter((x) => x.status === "error" && /đang đọc/i.test(x.message || "")).length;
+kiem("Lượt ĐUA cùng nonce KHÔNG bị cờ \"đang đọc\" chặn",
+  chanDua === 0 && [da, db].some((x) => x.status === "success"),
+  "chặn=" + chanDua + " · " + [da, db].map((x) => x.status).join(" | "));
 
 console.log("\n" + (truot ? "✗ " : "✓ ") + dat + "/" + (dat + truot) + " mục đạt" + (truot ? " — " + truot + " TRƯỢT" : ""));
 process.exit(truot ? 1 : 0);
