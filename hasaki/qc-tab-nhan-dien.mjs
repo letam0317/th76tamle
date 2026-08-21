@@ -581,6 +581,7 @@ const theMau = await page.evaluate(() => ({
   pct: (NDS.ket || []).map((r) => r.pct),
   maChu: (NDS.tokens || []).map((k) => k.t),
   coHang: (NDS.ds || []).some((r) => String(r.sku) === "422495218"),
+  html: (document.getElementById("ndsCards") || { innerHTML: "" }).innerHTML,
 }));
 if (theMau.coHang) {
   kiem("Thẻ mẫu CWHO0006 trên TRANG: #1 là áo mẫu 422495218, không phải cuộn vải 422423807",
@@ -592,6 +593,25 @@ if (theMau.coHang) {
 kiem("Badge của thẻ mẫu không có màu BẠC bịa ra từ nhãn \"Màu sắc\"",
   theMau.maChu.indexOf("bac") < 0 && theMau.maChu.indexOf("sac") < 0,
   "badge = " + theMau.maChu.slice(0, 14).join(",") + "…");
+kiem("Thẻ mẫu ĐỌC ĐƯỢC mã thì KHÔNG hiện cảnh báo \"chưa đọc được ô Mã sản phẩm\"",
+  !/chưa đọc được ô/i.test(theMau.html), /chưa đọc được ô/i.test(theMau.html) ? "vẫn cảnh báo oan" : "sạch");
+
+/* RỦI RO CÒN LẠI của luật mã chủ: thẻ mẫu mà ô "Mã sản phẩm" không đọc được (để trống, chữ quá xấu,
+   lệch ≥2 ký tự) thì lõi tụt về chấm bằng chữ chung — trên thẻ mẫu, "chữ chung" phần lớn là dòng
+   Thành phần vải, tức tên NGUYÊN LIỆU ⇒ cuộn vải lại lên hạng 1. Banner cũ IM LẶNG vì nó chỉ xét
+   "có khớp mã nào không", mà mã VẢI thì có khớp. Ca này khoá cái cảnh báo đó. */
+await page.evaluate((chu) => { ndsXoaHet(); document.getElementById("ndsRaw").value = chu; return ndsDoiSoat(); },
+  THE_MAU.replace("CWHO0006", "CVVHO0006"));
+await new Promise((r) => setTimeout(r, 900));
+const theXau = await page.evaluate(() => ({
+  html: (document.getElementById("ndsCards") || { innerHTML: "" }).innerHTML,
+  maChu: (NDS.theMau || {}).maChu || [], coNhan: !!(NDS.theMau || {}).coNhan,
+  ket: (NDS.ket || []).map((r) => r.sku),
+}));
+kiem("Thẻ mẫu mà KHÔNG đọc được ô \"Mã sản phẩm\" → phải cảnh báo, không im lặng đưa cuộn vải",
+  theXau.coNhan && theXau.maChu.length === 0 && /chưa đọc được ô/i.test(theXau.html),
+  "có nhãn mã: " + theXau.coNhan + " · mã chủ: " + JSON.stringify(theXau.maChu) + " · #1: " + (theXau.ket[0] || "-") +
+  " · có cảnh báo: " + /chưa đọc được ô/i.test(theXau.html));
 
 /* ---------- 6d. Mã vạch: có API thì quét, không có thì nói rõ chứ không im ---------- */
 const mv = await page.evaluate(() => ({ co: ndsCoMaVach(), nut: !!document.getElementById("ndsBtnMV") }));

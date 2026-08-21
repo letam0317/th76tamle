@@ -1586,7 +1586,7 @@ ghim SKU tem A sang tem B"*.
 
 ---
 
-### 5b.11 Sự cố 21/08/2026 — thẻ mẫu CWHO0006: "gợi ý SKU sai hoàn toàn"
+### 5b.21 Sự cố 21/08/2026 — thẻ mẫu CWHO0006: "gợi ý SKU sai hoàn toàn"
 
 Người dùng gửi ảnh thẻ *THẺ THÔNG TIN MẪU* của xưởng và nói thẳng: mã đúng là **422495218**, nhưng tab
 trả về **422423807**.
@@ -1671,9 +1671,103 @@ MỚI #1 422495218  93%  ← đúng
 > chuoiMoi)` hiểu `$&` và `` $' `` trong **chuỗi thay** là tham chiếu — nội dung mới có `')$'` là dán
 > luôn cả phần còn lại của file vào. Phải truyền **hàm** trả về chuỗi.
 
-**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **92/92** (thêm 13 ca) · `qc-tab-nhan-dien` **153/153**
-(thêm 2 ca) · `qc-cham-idf` 8/8 · và bộ đối chứng lõi cũ/lõi mới trên **30 lượt OCR thật**:
-**Top-1 80% → 87%**, Top-3 90% → 93%, **2 lượt tốt hơn · 0 lượt xấu hơn**.
+**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **96/96** · `qc-tab-nhan-dien` **155/155** ·
+`qc-cham-idf` 8/8 · `qc-tem-vision` **6/6** (gọi AI thật, tem IN) · `qc-tem-tay` **7/7** (gọi AI
+thật, thẻ viết tay).
+
+Trên **30 lượt OCR thật** (toàn tem NCC, không có thẻ mẫu nào) thì bản vá này **không đổi gì**:
+87%/93% trước và sau — đúng như thiết kế, vì tem NCC không có nhãn trường nên luật mã chủ không bao
+giờ bắn. Nó thắng ở đúng lớp **thẻ mẫu** mà bộ đó chưa có mẫu nào; số của lớp đó ở §5b.22.
+
+> ⚠ Đừng đọc số của `qc-loi-cu-moi.mjs` như "trước vs sau" — xem cảnh báo cuối §5b.22.
+
+---
+
+### 5b.22 Chữ VIẾT TAY trên thẻ mẫu (21/08/2026) — đo được gì và còn hở gì
+
+Thẻ mẫu của xưởng: **nhãn in sẵn, giá trị người viết tay**. Mà đúng cái giá trị viết tay đó mới định
+danh món hàng. `qc-tem-vision.mjs` chỉ dựng tem IN nên không chạm được khúc này ⇒ thêm
+**`qc-tem-tay.mjs`**: dựng 7 "bàn tay" (font viết tay + jitter từng dòng: nghiêng · lệch chân · giãn
+chữ), gọi Gemini **y như Apps Script gọi** (cắt `SV_PROMPT`/`SV_SCHEMA` từ `google-script.gs`), rồi
+chấm bằng lõi thật. Lượt đọc được **lưu vào `.exports/qc-tay-dem.json`** để `--phat-lai` chấm lại
+bằng lõi khác mà không tốn thêm hạn mức AI.
+
+> ⚠ **Font viết tay KHÔNG PHẢI chữ viết tay.** Font đều tay, đúng khoảng, không lệch dòng, không
+> nhoè mực, không dính nét, không ai viết chữ "a" hai kiểu trong một dòng. Mọi con số dưới đây là
+> **chặn TRÊN lạc quan** — chúng trả lời được *"đường ống sập ở khúc nào"* và *"lõi tự chữa được lỗi
+> đọc nào"*, nhưng KHÔNG thay được việc chụp 5-10 tấm thẻ THẬT có người viết rồi đo lại.
+
+**Khúc AI đọc chữ: khá tốt, và quan trọng hơn là ĐỌC ĐÚNG CẤU TRÚC.** `raw_text` giữ nguyên cặp
+*nhãn → giá trị* (`Mã sản phẩm: CWH00006 | Tên sản phẩm: … | Size: S`) ở cả 7 bàn tay, kể cả bản
+nghiêng + mờ + loá. Đó là điều kiện sống của `docTheMau` — mất cặp nhãn→giá trị là mất luôn mã chủ.
+
+**Nhưng AI đọc LỆCH MÃ ở 4/7 lượt, và cả 4 đều là một lỗi duy nhất: lẫn O ↔ 0.**
+
+| bàn tay | AI đọc mã | lõi chốt |
+|---|---|---|
+| chữ máy (đối chứng) | `CWHO0006` | `cwho0006` |
+| nét rời, mã in hoa | `CWH00006` | `cwho0006` |
+| Comic Sans | `CWH00006` | `cwho0006` |
+| nét nối (Segoe Script) | `CWHOOOO6` | `cwho0006` |
+| thư pháp (Gabriola) | `CWHOoo06` | `cwho0006` |
+| viết nhanh | `CWH00006` | `cwho0006` |
+| viết nhanh + chụp khó | `CWH00006` | `cwho0006` |
+
+**Bộ chữa cũ KHÔNG đỡ nổi lỗi này.** `ocr()` (O↔0 · I/L↔1 · S↔5 · B↔8 · Z↔2 · G↔6) chỉ được dùng lúc
+CHẤM ĐIỂM; còn bước SỬA mã (`suaMaTheoDanhMuc`) chỉ có bậc *"lệch 1 ký tự, CÙNG độ dài"* — vốn là bộ
+lỗi của chữ IN. Chữ tay lẫn O/0 ở **nhiều ký tự một lúc** và hay **thiếu/thừa một ký tự** vì viết
+dính. Thêm hai bậc, cả hai vẫn giữ luật cũ *"chỉ đổi khi bản sửa CÓ THẬT trong danh mục và chỉ có
+DUY NHẤT một ứng viên"*:
+
+* **bậc ②** — chỉ mục `ocrIdx` (dạng chịu lỗi OCR → mã thật), dựng lúc dựng chỉ mục, chỉ cho mảnh ra
+  dáng mã: **một lượt tra**, không quét gì. Phủ mọi số lượng ký tự lẫn O/0.
+* **bậc ④** — lệch 1 ký tự nhưng **±1 độ dài** (thiếu/thừa, chỉ khi mã dài ≥6).
+
+Đo trên bộ 12 cách đọc lệch (không gọi AI): **3/12 → 10/12** ra đúng SKU. Hai ca còn trượt là
+`CVVHO0006` (W viết rời thành VV) và `CWH0OO6` (thiếu 1 + lệch 2) — cách xa ≥2 ký tự, **cố ý không
+sửa**: thà không khớp còn hơn khớp sai.
+
+**Một lỗi của chính bản vá hôm nay, do phân tích chữ tay lôi ra.** `locMaChu` bản đầu tra thẳng
+`cm.idx[t]` trên chuỗi **THÔ**, trong khi rổ MÃ ở ngay dưới thì đã được `suaMaTheoDanhMuc` chữa. Hậu
+quả: thẻ đọc thành `CWH00006` ⇒ lõi **biết** mã đúng nhưng luật mã chủ không bắn ⇒ tụt về đường cũ và
+cuộn vải lại chiếm hạng 1 với **94%**. Nay `locMaChu` đi qua đúng bộ chữa đó.
+
+**Công của từng bản vá, đo trên cùng 7 lượt đọc đã lưu:**
+
+| lõi | hạng 1 đúng | ghi chú |
+|---|---|---|
+| `fb5a47d` (trước hôm nay) | **0/7** | mọi bàn tay đều ra cuộn vải; Top-3 chỉ 2/7 |
+| `0764902` (mã chủ + ghép cỡ) | 7/7 | nhưng `maChu` rỗng ở 6/7 và cuộn vải nằm sát ở **93-94%** — thắng bằng tie-break, không bằng bằng chứng |
+| cây làm việc (+ bậc ② ④) | **7/7** | cuộn vải rơi khỏi Top 3 (#2 còn 68-73%) — thắng bằng bằng chứng |
+
+**Còn hở gì (rủi ro thật, không phải giả định):**
+
+1. **Ô "Mã sản phẩm" không đọc được** (để trống, chữ quá xấu, lệch ≥2 ký tự) ⇒ mã chủ rỗng ⇒ lõi tụt
+   về chấm bằng chữ chung, mà trên thẻ mẫu "chữ chung" phần lớn là dòng **Thành phần vải** ⇒ cuộn vải
+   lên hạng 1. Banner cũ **im lặng** vì nó chỉ xét *"có khớp mã nào không"* — mà mã VẢI thì có khớp.
+   ⇒ Đã thêm cảnh báo riêng cho đúng ca này (*"Đây là THẺ MẪU nhưng chưa đọc được ô Mã sản phẩm"*),
+   kèm nút Nhập mã và lời mời "Ý bạn là…". Có ca browser khoá lại.
+2. **`quality` của AI không dùng được làm tín hiệu.** Cả 7 ảnh, kể cả bản nghiêng + mờ + loá, AI đều
+   tự đánh giá `"ro"`. Đừng xây luật nào dựa trên trường này.
+3. **Prompt chưa biết đến BIỂU MẪU.** `SV_PROMPT` mô tả bài toán là *"tem nhãn của nhà cung cấp"*, có
+   một chữ "tem viết tay" nhưng không có một câu nào về *nhãn: giá trị*. Hôm nay Gemini tự giữ được
+   cặp nhãn→giá trị nên chưa cần sửa — nhưng đây là chỗ **rẻ nhất** để cải thiện nếu ảnh thật cho kết
+   quả kém: dặn nó (a) giữ nguyên cặp *nhãn: giá trị* trong `raw_text`, (b) với ký tự nhập nhằng
+   (O/0, 1/7, 5/S) thì ghi thêm phương án hai vào `others`. **Chưa làm** — sửa prompt là phải deploy
+   GAS bằng clasp, và không nên đổi mù trước khi có ảnh thật để đo.
+4. **Diacritic viết tay chưa đo.** Bộ thử này viết màu bằng "Xanh Tro-Dusky Green" (có phần tiếng
+   Anh gánh). Thẻ chỉ ghi tiếng Việt có dấu ("Xanh rêu") thì chưa có số — `boDau` làm dấu thành vô
+   hại, nhưng sai CHỮ thì vẫn sai.
+
+> ⚠ **Bẫy đo lường đã dính hôm nay — đừng đọc số của `qc-loi-cu-moi.mjs` như "trước vs sau".** File
+> đó cố ý cho hai bên đi **hai đường khác nhau**: bên "cũ" tách chữ bằng `bocTen` trần (hành vi
+> trước 19/08), bên "mới" dùng `tuVanBan`. Nó trả lời *"đường tuVanBan có hơn đường cũ không"*, nên
+> `--rev` trỏ vào mốc nào cũng ra **80%** — dùng nó để tính công bản vá là **gán sai công** (đã báo
+> nhầm một lần trong ngày). Muốn so LÕI thì dùng **`qc-moc-lo-trinh.mjs`** (giữ đường đọc cố định,
+> thay lõi theo mốc git). Đo lại bằng file đó trên 30 lượt OCR thật: `fb5a47d` 87/93% → `0764902`
+> 87/93% → cây làm việc 87/93%, *"khớp được mã"* 77% → **80%**. Tức bản vá thẻ mẫu **không đổi gì**
+> trên bộ tem NCC (đúng như thiết kế — tem NCC không có nhãn trường), và thắng ở đúng lớp thẻ mẫu mà
+> bộ đó chưa có mẫu nào.
 
 ---
 

@@ -447,6 +447,67 @@ console.log("── Lọc theo phần tử tên hàng ──");
       "maChu = " + JSON.stringify(nhanNcc.maChu || []) + " · code = " + JSON.stringify(nhanNcc.code));
   }
 
+  /* CHỮ VIẾT TAY (21/08/2026) — thẻ mẫu của xưởng có NHÃN in sẵn nhưng GIÁ TRỊ do người viết tay,
+     mà đúng cái giá trị đó mới định danh món hàng. Đo thật bằng `qc-tem-tay.mjs` (7 "bàn tay" dựng
+     bằng font viết tay, gọi Gemini y như Apps Script gọi): AI đọc lệch mã ở **4/7** lượt, tất cả
+     đều là lẫn O ↔ 0 ("CWH00006", "CWHOOOO6", "CWHOoo06").
+     Vì sao bộ chữa cũ KHÔNG đỡ nổi: `ocr()` (O↔0 · I/L↔1 · S↔5 · B↔8 · Z↔2 · G↔6) chỉ được dùng lúc
+     CHẤM ĐIỂM, còn bước SỬA mã thì chỉ có "lệch 1 ký tự, cùng độ dài" — viết tay lẫn O/0 ở nhiều ký
+     tự một lúc, và hay thiếu/thừa một ký tự vì viết dính. Thêm bậc ② (chỉ mục `ocrIdx`) và bậc ④
+     (±1 độ dài) vào `suaMaTheoDanhMuc`; cả hai vẫn đòi DUY NHẤT một ứng viên.
+     Kết quả trên bộ 12 cách đọc lệch: 3/12 → 10/12 ra đúng SKU. */
+  {
+    const theTay = (ma) => [
+      "THẺ THÔNG TIN MẪU", "LOẠI MẪU: Mẫu thông chuyền", "Mã sản phẩm: " + ma, "Size: S",
+      "Thành phần vải: Vải Single Mesh/S130413 UZM Sheico/88% Re-Polyester, 12%Spandex/170 Gsm, 152cm",
+      "Màu sắc: Xanh Tro-Dusky Green",
+    ].join("\n");
+    const coHoodie2 = ds.some((r) => r.sku === "422495218");
+    /* Mấy cách đọc lệch NÀY là ca thật do AI trả về khi đọc thẻ viết tay (xem qc-tem-tay). */
+    const LECH = [
+      ["CWH00006", "O → 0 (chữ O tay tròn hở)"],
+      ["CWHOOOO6", "0 → O (số 0 tay không gạch chéo)"],
+      ["CWHOoo06", "lẫn cả hai chiều, có chữ thường"],
+      ["CWHO006", "thiếu một ký tự (viết dính)"],
+      ["CWHO00006", "thừa một ký tự"],
+    ];
+    if (coHoodie2) {
+      const xau = [];
+      for (const [ma, vi] of LECH) {
+        const nh = E.tuVanBan(theTay(ma), cm);
+        const tp = E.timTop(nh, cm, { soLuong: 1, chiActive: true });
+        const ok = (nh.maChu || [])[0] === "cwho0006" && tp[0] && tp[0].sku === "422495218";
+        if (!ok) xau.push(ma + " (" + vi + ") → maChu=" + JSON.stringify(nh.maChu || []) + " #1=" + ((tp[0] || {}).sku || "-"));
+      }
+      kiem("Đọc lệch kiểu CHỮ TAY (lẫn O/0 · thiếu · thừa 1 ký tự) → lõi vẫn chốt đúng mã chủ",
+        xau.length === 0, xau.length ? xau.join(" | ") : LECH.length + "/" + LECH.length + " cách đọc lệch đều ra 422495218");
+    } else kiem("Đọc lệch kiểu CHỮ TAY → lõi vẫn chốt đúng mã chủ", true, "(danh mục này chưa có kho mẫu)");
+    /* ⚠ CHẶN ĐOÁN BỪA: lệch ≥2 ký tự VÀ không phải lẫn O/0 thì KHÔNG được tự sửa. "CVVHO0006"
+       (W viết rời thành VV) là ca thật đã bỏ — thà không khớp còn hơn khớp sai. */
+    const nhBua = E.tuVanBan(theTay("CVVHO0006"), cm);
+    kiem("… nhưng lệch ≥2 ký tự (W → VV) thì KHÔNG tự sửa (không đoán bừa)",
+      (nhBua.maChu || []).length === 0, "maChu = " + JSON.stringify(nhBua.maChu || []));
+    /* Bậc ② chỉ được sửa khi dạng OCR trỏ tới DUY NHẤT một mã. Tìm trong danh mục thật một dạng OCR
+       bị HAI mã cùng dùng; có thì khoá lại việc "không đổi", không có thì nói rõ là không có. */
+    const oIdx = cm.ocrIdx || {};
+    const moHo = Object.keys(oIdx).find((k) => oIdx[k].length > 1);
+    if (moHo) {
+      const [a1] = oIdx[moHo];
+      const nhMoHo = E.tuVanBan("THẺ THÔNG TIN MẪU\nMã sản phẩm: " + oIdx[moHo][1] + "\nMàu sắc: Đen", cm);
+      kiem("Dạng OCR bị ≥2 mã dùng chung thì KHÔNG được tự đổi sang mã kia",
+        (nhMoHo.maChu || []).indexOf(a1) < 0,
+        "dạng " + moHo + " có " + oIdx[moHo].length + " mã: " + oIdx[moHo].slice(0, 3).join(" · ") + " → maChu=" + JSON.stringify(nhMoHo.maChu || []));
+    } else kiem("Dạng OCR bị ≥2 mã dùng chung thì KHÔNG được tự đổi", true, "(danh mục này không có dạng OCR trùng)");
+    /* Chỉ mục chỉ được chứa mảnh RA DÁNG MÃ: nhét cả từ thường ("polyester") vào là mọi chữ chung
+       cũng thành đường tự sửa mã. Đừng kiểm bằng ĐỘ DÀI KHOÁ — khoá là dạng OCR, mà ocr() gọi loi()
+       bỏ dấu ngăn trước, nên "v9-b11" (6 ký tự) ra khoá 5 ký tự. Kiểm bằng chính các mảnh đã lưu. */
+    const raDang = (w) => (/[a-z]/.test(w) && /[0-9]/.test(w)) || (!/[a-z]/.test(w) && w.replace(/[^0-9]/g, "").length >= 5);
+    const xauMa = Object.keys(oIdx).flatMap((k) => oIdx[k]).filter((w) => !raDang(w));
+    kiem("Chỉ mục ocrIdx chỉ chứa mảnh RA DÁNG MÃ (không có chữ chung)",
+      Object.keys(oIdx).length > 0 && xauMa.length === 0,
+      Object.keys(oIdx).length + " dạng OCR · mảnh không ra dáng mã: " + (xauMa.length ? xauMa.slice(0, 4).join(",") + " (" + xauMa.length + ")" : "0"));
+  }
+
   /* SỰ CỐ THẬT 20/08/2026 (chiều muộn) — tem cuộn chỉ COATS astra, nhãn màu in "Col C3185":
      OCR trả về DÍNH LIỀN ("ColC3185") hoặc đọc lệch chữ ("COIC3185", l→I) ⇒ token `colc3185` không
      có trong chỉ mục ⇒ luật cứng "CÓ MÃ" không bắn ⇒ tab đưa 3 cuộn chỉ astra khác màu ở 32% kèm
