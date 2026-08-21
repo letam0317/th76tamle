@@ -1586,6 +1586,97 @@ ghim SKU tem A sang tem B"*.
 
 ---
 
+### 5b.11 Sự cố 21/08/2026 — thẻ mẫu CWHO0006: "gợi ý SKU sai hoàn toàn"
+
+Người dùng gửi ảnh thẻ *THẺ THÔNG TIN MẪU* của xưởng và nói thẳng: mã đúng là **422495218**, nhưng tab
+trả về **422423807**.
+
+```
+Mã sản phẩm   : CWHO0006                                    ← ĐỊNH DANH của món đang cầm (áo mẫu)
+Tên sản phẩm  : Women_Hoodie_Full-zip_Anti-UV_Regular
+Size          : S
+Thành phần vải: Vải Single Mesh/S130413 UZM Sheico/88% Re-Polyester, 12%Spandex/170 Gsm, 152cm
+Màu sắc       : Xanh Tro-Dusky Green
+```
+
+Tái hiện được **đúng con số user thấy** (danh mục live 8.112 SKU):
+
+```
+CŨ  #1 422423807  93%  Vải Single Mesh/S130413 UZM Sheico/…/170 Gsm, 152cm/Xanh Tro-Dusky Green/mm
+    #4 422495218  87%  Mẫu thông chuyền/CWHO0006/S130413 UZM/…/170gsm/Regular/Xanh Tro-Dusky Green/Size S
+```
+
+**Gốc: thẻ mẫu là BIỂU MẪU, mà lõi đọc nó như một TÚI CHỮ.** Dòng *"Thành phần vải"* là tên **nguyên
+liệu dùng để may** cái mẫu đó — nó chép gần như nguyên văn `PRODUCTNAME` của một SKU **vải** có thật.
+Đổ cả thẻ vào một túi chữ thì SKU vải khớp 5/6 phần tử và thắng. Ba lỗi tách rời, thẻ này trúng cả ba
+(mổ ra bằng bảng điểm từng vai):
+
+| vai | dòng VẢI 422423807 | dòng ĐÚNG 422495218 |
+|---|---|---|
+| mã (45%) | `s130413`=1 · `cwho0006`=0 → **1,00** | cả hai =1 → **1,00** |
+| thông số (25%) | `170gsm`=1 · `152cm`=1 → **1,00** | `170gsm`=1 · `152cm`=0 → **0,75** |
+| màu (20%) | 0,83 | 0,83 |
+| loại (10%) | 0,66 | 0,66 |
+
+① **Vai MÃ chấm theo mã khớp TỐT NHẤT** (`chiTiet.code = cao`). Luật đó có lý cho tem NCC — tem in
+   nhiều mã (mã NCC, mã khách, số PO, số lô) nên khớp **một** cái là định danh xong. Nhưng ở thẻ mẫu
+   thì "khớp mã VẢI" ăn điểm y như "khớp cả mã vải lẫn mã áo": mã sau nhãn **Mã sản phẩm** hoàn toàn
+   không có tiếng nói. Luật cứng *CÓ MÃ* cũng vô hiệu vì `maKhop` là HỢP của mọi mã ⇒ **cả hai dòng**
+   đều được đánh dấu "có mã".
+
+② **Vai THÔNG SỐ phạt ngược dòng đúng.** `152cm` là **khổ vải**, thuộc cuộn vải chứ không thuộc cái
+   áo; dòng vải có ghi nên được thưởng, dòng áo không có nên bị trừ — càng ghi đầy đủ về nguyên liệu
+   thì máy càng chắc chắn trả về nguyên liệu.
+
+③ **`Size: S` bị đánh rơi ở CẢ HAI PHÍA** nên không bù lại được: `size` nằm trong `TU_BO`, còn `S`
+   chỉ 1 ký tự nên bị vòng lọc chữ bỏ. Nghĩa là hôm nay **S/M/L bị đối xử khác XS/XL/2XL** (mấy cỡ
+   kia may mắn ≥2 ký tự nên còn sống) — không có lý do gì.
+
+**Chữa — đọc thẻ ĐÚNG NHƯ BIỂU MẪU** (`docTheMau` trong lõi, ngay trên `chuanChuoiTem`):
+
+* **MÃ CHỦ.** Trường có nhãn định danh (`Mã sản phẩm` · `Mã hàng` · `Mã SP` · `Style` · `Item code` …)
+  cho ra mã chủ — mã nói món hàng này **là gì**. Khi có mã chủ thì (a) vai MÃ chấm **theo đúng mã đó**
+  (`chiTiet.code = caoChu`), và (b) luật cứng *CÓ MÃ* bám **nhúm mã chủ** thay vì hợp của mọi mã. Mã
+  vải / mã phụ liệu / số PO in trên cùng tấm thẻ vẫn được chấm như bằng chứng phụ, chỉ mất quyền nói
+  "tôi là món hàng này".
+* **Cắt CHỮ NHÃN.** Nó là chữ của biểu mẫu, không của món hàng — và nó gây hại thật: nhãn `Màu sắc:`
+  cho ra mảnh `sac`, rồi `suaMauTheoDanhMuc` đổi `sac` → **`bac`** (BẠC), tức thẻ tự dựng ra một màu
+  không hề có trên tem. Nhãn phải **có dấu hai chấm** mới được nhận (chốt an toàn), và mẫu được dựng
+  từ bảng nguyên âm nên khớp cả bản có dấu lẫn bản OCR làm mất dấu.
+* **Ghép cỡ có nhãn** (`RE_GHEP_CO`): `Size: S` và `…/Size S` cùng ra một mảnh `szs` ở rổ **thông số**
+  — rổ đó có cơ chế xung đột nên tem cỡ S gặp dòng cỡ XL thì bị trừ. Đây là thứ tách 5 biến thể cỡ
+  của cùng một mã (CWHO0006 có XS/S/M/L/XL cùng màu Navy).
+
+```
+MỚI #1 422495218  93%  ← đúng
+    #6 422423807  48%  (coMa=false — không mang mã chủ)
+```
+
+**Ba chốt an toàn (đều có ca test khoá):**
+
+* **Danh mục làm chứng.** Mã chủ chỉ được công nhận khi có **đúng nguyên văn** trong `cm.idx`. Đọc
+  lệch một ký tự, hoặc thẻ ghi mã chưa có trong danh mục ⇒ `maChu` **rỗng** và lõi chấm y như trước —
+  không có đường nào để tự tin sai, và không loại oan mọi ứng viên.
+* **Tem NCC thường không đổi hành vi.** Không có nhãn trường ⇒ không có mã chủ ⇒ đi đúng đường cũ.
+* **Mảnh cỡ TRẦN được giữ lại** bên cạnh mảnh `szs`: tem NCC in `20-52mm-XS` (không có nhãn Size) vẫn
+  phải khớp được với dòng ghi `Size XS` y như trước. Đây là **thêm** mảnh, không lấy đi mảnh cũ.
+
+> ⚠ **Bẫy của tầng giao diện, đắt nhất trong lần vá này.** `ndsDoiSoat` không dùng thẳng kết quả của
+> `tuVanBan`: nó vẽ badge, rồi **gom badge lại và xếp vai bằng `tuAI`** (để trang và 2 bộ test dùng
+> cùng một cách xếp vai). Bước gom đó **mất ngữ cảnh nhãn**, nên lõi đúng mà trang vẫn trả về cuộn
+> vải. Phải đọc lại mã chủ từ ô chữ thô (`NDS_ENGINE.maChuTem`) và **lọc theo badge còn lại** — thủ
+> kho bấm × bỏ một mã đọc nhầm thì luật mã chủ tắt theo. Có ca browser khoá riêng đường này.
+
+> ⚠ **Bẫy khi viết script vá file** (không thuộc sản phẩm nhưng đã cắn 2 lần): `String.replace(chuoi,
+> chuoiMoi)` hiểu `$&` và `` $' `` trong **chuỗi thay** là tham chiếu — nội dung mới có `')$'` là dán
+> luôn cả phần còn lại của file vào. Phải truyền **hàm** trả về chuỗi.
+
+**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **92/92** (thêm 13 ca) · `qc-tab-nhan-dien` **153/153**
+(thêm 2 ca) · `qc-cham-idf` 8/8 · và bộ đối chứng lõi cũ/lõi mới trên **30 lượt OCR thật**:
+**Top-1 80% → 87%**, Top-3 90% → 93%, **2 lượt tốt hơn · 0 lượt xấu hơn**.
+
+---
+
 ## 6. Lõi đối soát (`NDS_ENGINE`, trong `factory/index.html`)
 
 Nằm giữa 2 mốc `/*<NDS-ENGINE>*/ … /*</NDS-ENGINE>*/` — **thuần tính toán, không chạm DOM**, để 2 bộ

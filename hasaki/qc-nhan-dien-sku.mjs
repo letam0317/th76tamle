@@ -353,6 +353,100 @@ console.log("── Lọc theo phần tử tên hàng ──");
       "kiểm " + nhaTrang.length + " dòng · số dòng bị gán oan white: " + bleed.length);
   }
 
+  /* SỰ CỐ THẬT 21/08/2026 (ảnh thẻ mẫu CWHO0006 do user gửi) — "gợi ý SKU sai hoàn toàn".
+     Thẻ "THẺ THÔNG TIN MẪU" in đủ 10 trường; trường "Thành phần vải" chép gần như NGUYÊN VĂN
+     PRODUCTNAME của một SKU VẢI có thật. Đọc cả thẻ như một túi chữ thì SKU vải THẮNG:
+       cũ:  #1 422423807 Vải Single Mesh/S130413 UZM Sheico/…/152cm/Xanh Tro-Dusky Green/mm   93%
+            #4 422495218 Mẫu thông chuyền/CWHO0006/…/Xanh Tro-Dusky Green/Size S             87%
+     Hai nguyên nhân tách rời, thẻ này trúng cả hai:
+       ① vai MÃ chấm theo mã khớp TỐT NHẤT ⇒ dòng vải chỉ khớp mã VẢI (s130413) ăn điểm y như dòng
+          đúng khớp CẢ mã vải lẫn mã áo (cwho0006). Mã sau nhãn "Mã sản phẩm" mới là ĐỊNH DANH.
+       ② vai THÔNG SỐ: dòng vải còn ăn thêm "152cm" (KHỔ VẢI, thuộc nguyên liệu chứ không thuộc cái
+          áo) ⇒ dòng ĐÚNG bị phạt vì KHÔNG có khổ vải. Còn "Size: S" trên thẻ thì bị đánh rơi cả hai
+          phía ("size" trong TU_BO, "S" 1 ký tự) nên không bù lại được. */
+  {
+    const CHU_HOODIE = [
+      "THẺ THÔNG TIN MẪU",
+      "LOẠI MẪU: Mẫu thông chuyền",
+      "Mã sản phẩm: CWHO0006",
+      "Tên sản phẩm: Women_Hoodie_Full-zip_Anti-UV_Regular",
+      "Size: S",
+      "Nguyên phụ liệu: Đúng X Thay thế",
+      "Thành phần vải: Vải Single Mesh/S130413 UZM Sheico/88% Re-Polyester, 12%Spandex/170 Gsm, 152cm",
+      "Màu sắc: Xanh Tro-Dusky Green",
+      "Phụ liệu: Đầy đủ",
+      "NV may mẫu:",
+      "Ngày thực hiện:",
+    ].join("\n");
+    const nhanH = E.tuVanBan(CHU_HOODIE, cm);
+    /* Khoá được ở MỌI đường nạp danh mục: nhãn trường không được sinh ra bằng chứng giả. */
+    kiem("Nhãn \"Màu sắc:\" KHÔNG được biến thành màu BẠC (sac → bac)",
+      nhanH.color.indexOf("bac") < 0,
+      "color = " + JSON.stringify(nhanH.color));
+    kiem("Chữ NHÃN của thẻ (loại mẫu · mã sản phẩm · ngày thực hiện) không vào rổ nào",
+      !["loai", "san", "pham", "sac", "thuc", "hien"].some((t) => nhanH.brand.indexOf(t) >= 0),
+      "brand = " + JSON.stringify(nhanH.brand.slice(0, 12)) + "…");
+    kiem("\"Size: S\" được ghép thành mảnh cỡ szs ở rổ THÔNG SỐ (trước đây rơi mất)",
+      nhanH.spec.indexOf("szs") >= 0,
+      "spec = " + JSON.stringify(nhanH.spec));
+    kiem("… và tên hàng WMS \"…/Size S\" cũng ghép ra szs (hai phía dùng CÙNG một hàm)",
+      (E.bocTen("Mẫu thông chuyền/CWHO0006/170gsm/Regular/Xanh Tro-Dusky Green/Size S").spec || []).indexOf("szs") >= 0,
+      "spec của tên hàng = " + JSON.stringify(E.bocTen("…/Regular/Xanh Tro-Dusky Green/Size S").spec));
+    /* Cỡ S · XL · XS phải là BA mảnh khác nhau, không được khớp mờ với nhau — nếu không thì 5 biến
+       thể cỡ của cùng một mã lại cào bằng như trước. */
+    kiem("Cỡ szs / szxl / szxs không khớp mờ lẫn nhau",
+      E.khopTot("szs", ["szxl"]) < 0.75 && E.khopTot("szs", ["szxs"]) < 0.75 && E.khopTot("szxl", ["szxxl"]) < 0.75,
+      "szs~szxl=" + E.khopTot("szs", ["szxl"]).toFixed(2) + " · szs~szxs=" + E.khopTot("szs", ["szxs"]).toFixed(2) +
+      " · szxl~szxxl=" + E.khopTot("szxl", ["szxxl"]).toFixed(2));
+    /* ⚠ BẪY ĐÃ CẮN NGAY LÚC VIẾT: mẫu cỡ dùng \\b thì dấu gạch/chấm cũng là biên, nên một mã NCC
+       kiểu "SZL-123" bị cắt thành "szl" + "123" — mất sạch bằng chứng định danh mà không một dấu
+       hiệu nào. Biên phải là KHOẢNG TRẮNG (RE_GHEP_CO luôn nhả mảnh có khoảng trắng hai đầu). */
+    kiem("Mã NCC chứa \"sz\" (SZL-123 · F9-SZM.44) KHÔNG bị mẫu cỡ cắt đôi",
+      (E.bocTen("SZL-123 Coats").code || []).indexOf("szl-123") >= 0 &&
+      (E.bocTen("F9-SZM.44").code || []).indexOf("f9-szm.44") >= 0,
+      "SZL-123 → " + JSON.stringify(E.bocTen("SZL-123 Coats").code) +
+      " · F9-SZM.44 → " + JSON.stringify(E.bocTen("F9-SZM.44").code));
+    /* ⚠ MẶT NGƯỢC PHẢI GIỮ: tem NCC KHÔNG có nhãn "Size" (in "20-52mm-XS") vẫn phải khớp được với
+       dòng ghi "Size XS" — mảnh cỡ TRẦN được giữ lại bên cạnh mảnh szxs, không bị thay thế. */
+    kiem("Tem không có nhãn Size vẫn giữ mảnh cỡ TRẦN (xs) để khớp dòng \"Size XS\"",
+      (E.bocTen("Nhãn care 20-52mm-XS").all || []).indexOf("xs") >= 0 &&
+      (E.bocTen("Nhãn dệt/None/Size XS/pcs").all || []).indexOf("xs") >= 0,
+      "tem = " + JSON.stringify(E.bocTen("Nhãn care 20-52mm-XS").all) +
+      " · tên hàng = " + JSON.stringify(E.bocTen("Nhãn dệt/None/Size XS/pcs").all));
+
+    const coHoodie = ds.some((r) => r.sku === "422495218");
+    if (coHoodie) {
+      kiem("Nhãn \"Mã sản phẩm:\" cho ra MÃ CHỦ cwho0006 (mã vải s130413 thì không)",
+        (nhanH.maChu || []).length === 1 && nhanH.maChu[0] === "cwho0006",
+        "maChu = " + JSON.stringify(nhanH.maChu || []));
+      const topH = E.timTop(nhanH, cm, { soLuong: 3, chiActive: true });
+      kiem("Thẻ mẫu CWHO0006 → #1 phải là ÁO MẪU đúng màu/cỡ (422495218), không phải cuộn vải",
+        topH.length > 0 && topH[0].sku === "422495218",
+        topH.map((r) => r.sku + "/" + r.pct + "%").join(" · ") + " · #1: " + String((topH[0] || {}).pn || "").slice(0, 70));
+      kiem("… và Top 3 KHÔNG còn dòng nào là vải Single Mesh (422423807)",
+        topH.every((r) => r.sku !== "422423807"),
+        "Top 3 = " + topH.map((r) => r.sku).join(" · "));
+      /* Dòng vải vẫn được chấm (nó có mặt trên thẻ thật), chỉ mất quyền nói "tôi là món hàng này". */
+      const vai = E.diemMot(nhanH, ds.find((r) => r.sku === "422423807")._b, cm);
+      const ao = E.diemMot(nhanH, ds.find((r) => r.sku === "422495218")._b, cm);
+      kiem("… điểm phải nói đúng chuyện: áo mẫu (có mã chủ) cao hơn cuộn vải (không có)",
+        ao.diem > vai.diem && ao.coMa && !vai.coMa,
+        "áo " + Math.round(ao.diem * 100) + "% (coMa=" + ao.coMa + ") · vải " + Math.round(vai.diem * 100) + "% (coMa=" + vai.coMa + ")");
+    } else kiem("Thẻ mẫu CWHO0006 → #1 là áo mẫu 422495218", true, "(danh mục này chưa có kho mẫu)");
+
+    /* AN TOÀN: mã chủ chỉ được công nhận khi DANH MỤC LÀM CHỨNG. Thẻ ghi mã chưa có trong danh mục
+       thì maChu phải RỖNG và lõi chấm y như trước — không được im lặng loại sạch mọi ứng viên. */
+    const nhanLa = E.tuVanBan("THẺ THÔNG TIN MẪU\nMã sản phẩm: ZZQQ9999\nMàu sắc: Đen", cm);
+    kiem("Mã chủ KHÔNG có trong danh mục → maChu rỗng (không loại oan mọi ứng viên)",
+      (nhanLa.maChu || []).length === 0,
+      "maChu = " + JSON.stringify(nhanLa.maChu || []));
+    /* Tem NCC thường (không phải biểu mẫu) phải đi y đường cũ: không nhãn, không mã chủ. */
+    const nhanNcc = E.tuVanBan("THESEUS IRISA Tkt120 Tex 27 60/3 F9-5284 Hồng tro 5000m", cm);
+    kiem("Tem NCC thường (không có nhãn trường) → maChu rỗng, đi đúng đường cũ",
+      (nhanNcc.maChu || []).length === 0 && nhanNcc.code.indexOf("f9-5284") >= 0,
+      "maChu = " + JSON.stringify(nhanNcc.maChu || []) + " · code = " + JSON.stringify(nhanNcc.code));
+  }
+
   /* SỰ CỐ THẬT 20/08/2026 (chiều muộn) — tem cuộn chỉ COATS astra, nhãn màu in "Col C3185":
      OCR trả về DÍNH LIỀN ("ColC3185") hoặc đọc lệch chữ ("COIC3185", l→I) ⇒ token `colc3185` không
      có trong chỉ mục ⇒ luật cứng "CÓ MÃ" không bắn ⇒ tab đưa 3 cuộn chỉ astra khác màu ở 32% kèm

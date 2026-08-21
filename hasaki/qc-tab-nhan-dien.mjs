@@ -559,6 +559,40 @@ kiem("Thẻ không còn nhãn \"từ sổ tay\" và không còn nút \"quên ghi
   !lanSau.nhanSo && !/từ sổ tay/.test(lanSau.chuThe), lanSau.nhanSo ? "vẫn có nút quên" : "sạch");
 kiem("Chân trang không còn nút \"Xoá sổ tay\" (không còn gì để xoá)", !lanSau.nutXoaSo);
 
+/* ---------- 6d. THẺ MẪU CÓ NHÃN TRƯỜNG — MÃ CHỦ (sự cố 21/08/2026, thẻ CWHO0006) ----------
+   Lõi đã có ca khoá trong qc-nhan-dien-sku. Ca này khoá riêng ĐƯỜNG CỦA TRANG: chữ thô đi qua
+   tuVanBan để vẽ badge, rồi badge được gom lại và xếp vai bằng tuAI — bước đó KHÔNG mang theo ngữ
+   cảnh nhãn, nên ndsDoiSoat phải tự đọc lại mã chủ từ ô chữ thô. Thiếu bước đó thì lõi đúng mà
+   trang vẫn trả về cuộn vải. */
+const THE_MAU = [
+  "THẺ THÔNG TIN MẪU",
+  "LOẠI MẪU: Mẫu thông chuyền",
+  "Mã sản phẩm: CWHO0006",
+  "Tên sản phẩm: Women_Hoodie_Full-zip_Anti-UV_Regular",
+  "Size: S",
+  "Nguyên phụ liệu: Đúng X Thay thế",
+  "Thành phần vải: Vải Single Mesh/S130413 UZM Sheico/88% Re-Polyester, 12%Spandex/170 Gsm, 152cm",
+  "Màu sắc: Xanh Tro-Dusky Green",
+].join("\n");
+await page.evaluate((chu) => { ndsXoaHet(); document.getElementById("ndsRaw").value = chu; return ndsDoiSoat(); }, THE_MAU);
+await new Promise((r) => setTimeout(r, 900));
+const theMau = await page.evaluate(() => ({
+  ket: (NDS.ket || []).map((r) => r.sku),
+  pct: (NDS.ket || []).map((r) => r.pct),
+  maChu: (NDS.tokens || []).map((k) => k.t),
+  coHang: (NDS.ds || []).some((r) => String(r.sku) === "422495218"),
+}));
+if (theMau.coHang) {
+  kiem("Thẻ mẫu CWHO0006 trên TRANG: #1 là áo mẫu 422495218, không phải cuộn vải 422423807",
+    theMau.ket[0] === "422495218" && theMau.ket.indexOf("422423807") < 0,
+    theMau.ket.map((s, i) => s + "/" + theMau.pct[i] + "%").join(" · "));
+} else {
+  kiem("Thẻ mẫu CWHO0006 trên TRANG: #1 là áo mẫu 422495218", true, "(danh mục live chưa có SKU này)");
+}
+kiem("Badge của thẻ mẫu không có màu BẠC bịa ra từ nhãn \"Màu sắc\"",
+  theMau.maChu.indexOf("bac") < 0 && theMau.maChu.indexOf("sac") < 0,
+  "badge = " + theMau.maChu.slice(0, 14).join(",") + "…");
+
 /* ---------- 6d. Mã vạch: có API thì quét, không có thì nói rõ chứ không im ---------- */
 const mv = await page.evaluate(() => ({ co: ndsCoMaVach(), nut: !!document.getElementById("ndsBtnMV") }));
 kiem("Có nút \"Quét mã vạch\" (đường nhanh nhất, không cần AI)", mv.nut, mv.co ? "trình duyệt CÓ BarcodeDetector" : "trình duyệt không có API — tab phải nói rõ ở dòng chân");
