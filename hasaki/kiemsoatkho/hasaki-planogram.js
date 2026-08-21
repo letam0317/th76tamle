@@ -1997,7 +1997,7 @@ function htmlNhanVien(){
     '<div class="hp-ccwrap"><table class="hp-cctbl mbcard"><thead><tr>' +
     '<th>Nhân viên</th><th>Code</th><th>Giờ vào</th><th>Giờ ra</th><th class="num">Đã vệ sinh</th><th>Vị trí gần nhất</th><th>Trạng thái</th>' +
     '</tr></thead><tbody>' + body + '</tbody></table></div>' +
-    '<p class="hp-hint" style="margin:10px 0 0">' + nf(rows.length) + ' / ' + nf(nTot) + ' nhân viên · đi làm hôm nay ' + nf(nDiLam) + (S.cc.ts ? ' · cập nhật ' + fmtTime(S.cc.ts) : '') + ' · bấm dòng xem nhật ký làm việc theo ngày.</p>';
+    '<p class="hp-hint" style="margin:10px 0 0">' + nf(rows.length) + ' / ' + nf(nTot) + ' nhân viên · đi làm hôm nay ' + nf(nDiLam) + (S.cc.ts ? ' · cập nhật ' + fmtTime(S.cc.ts) : '') + '.</p>';
 }
 
 /* ===== SƠ ĐỒ MẶT BẰNG KHU ĐÓNG GÓI F0-A8 (theo bản vẽ BDG 25/07/2026) =====
