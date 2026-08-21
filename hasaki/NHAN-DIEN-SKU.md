@@ -2109,6 +2109,47 @@ kho báo lỗi. Chín lượt còn lại không cần đua ⇒ **đường thư�
 
 ---
 
+### 5b.27 Video tem HWA-IL PANDA (21/08/2026) — cặp từ hiếm là định danh + 4 chỉnh giao diện
+
+User quay video màn hình: quét hộp phấn bay **HWA-IL PANDA** (garment chalk, tem Hàn), *"lần hiển thị
+đầu nhận diện đúng SKU nhưng sau khi báo quét thành công lại nhận diện SKU khác không liên quan"* —
+sau "Đã đọc xong tem", hạng 1–2 là **Màu keo silicon …/Blue/mg** và **Chỉ may astra C5935** (18%),
+còn 422279782 (Phấn bay/HWA-IL PANDA) biến mất.
+
+**Tái hiện được nguyên si bằng danh mục thật** (không cần đoán): AI đọc ra `hwa · il · panda` — mỗi
+từ chỉ **1/5.610** dòng danh mục mang nó — nhưng đọc **kèm màu `blue`** từ hoạ tiết hộp. Cách chấm
+theo vai (45/25/20/10) cho MỘT chữ màu khớp **trọn 20 điểm**, còn BA chữ tên riêng **chia nhau 10
+điểm** vai NCC ⇒ dòng silicon/Blue 46%, dòng đúng ~23%, văng khỏi Top 3. (Trong video mọi thứ còn
+tụt xuống 18% vì rổ MÃ dính thêm EAN của mã vạch NCC — không đổi thứ tự, chỉ đổi mẫu số.)
+
+**Chữa — cùng triết lý với luật CÓ MÃ:** một dòng khớp **nguyên văn ≥2 TỪ HIẾM** (mỗi từ xuất hiện ở
+**≤6 dòng** danh mục — cùng cỡ df với mã hàng thật: `tx300ha`=6, `c5935`=4, `morito`=5; còn
+`blue`=358, `black`=905 nên chữ màu/chất liệu không lọt) thì được xếp hạng **như dòng mang mã**
+(`hiem>=2` trong `soSanh`, cờ `hiem` do `timTop` đếm bằng chính `cm.idx`). **Một từ hiếm đơn lẻ thì
+KHÔNG** — rất có thể là từ đọc lệch. Từ <3 ký tự không được tính (`il` khỏi kích hoạt bừa).
+
+Bốn chỉnh theo cùng video/ảnh chụp:
+
+1. **Đơn vị nhỏ nhất thành luật cứng KHI HAI BÊN CÙNG MANG ĐỊNH DANH** (ca keo dựng TX300HA: ba dòng
+   cùng mã, hai bản "m" 76% từng đè bản "mm" 63% xuống cuối — kho đếm bằng mm). Đặt trong nhánh
+   `ma1===ma2` của `soSanh`, sau luật COMBO/gộp, **chỉ khi `!ma1`**: chưa lập được định danh thì điểm
+   vẫn quyết trước, không thì một dòng chỉ-may "mm" 18% vô quan sẽ đè dòng đúng "Hộp" 50% (đúng ca
+   video — phấn bay chỉ có bản Hộp).
+2. **Badge đầu thẻ = LOẠI SKU** (`Normal`/`Combo`, `.nds-rank`, combo tô màu warn) thay số hạng
+   1·2·3 — số hạng không mang tin, loại mới là thứ quyết định "có đếm được không". Badge `COMBO`
+   riêng phía sau bỏ vì trùng tin. Kèm nới nhóm: mọi dòng còn sống đều COMBO mà không có bản đơn vị
+   nhỏ nào để kéo lên thì kéo **bản NORMAL đã tắt** lên đại diện (*"luôn hiển thị SKU normal"*).
+3. **Bỏ dải "chưa có bản ĐƠN VỊ NHỎ NHẤT"** (đảo yêu cầu buổi sáng cùng ngày sau khi nhìn màn thật):
+   đơn vị đã in ngay cạnh tồn ("Tồn 47 Hộp"). Cờ `khongCoDvNho` lõi **vẫn tính** cho bộ đo.
+4. **Bỏ banner "Đây là THẺ MẪU nhưng chưa đọc được ô Mã sản phẩm"** (6 dòng trên điện thoại, lối
+   thoát trùng banner "Chưa khớp được MÃ HÀNG nào"). `NDS.theMau` vẫn ghi. **Rủi ro nhận lại:** ca
+   thẻ mẫu mất ô mã giờ có thể đưa cuộn vải hạng 1 mà không còn dải cảnh báo riêng — user chấp nhận
+   đổi lấy màn gọn; đường ② loại-trừ-mã-nguyên-liệu (5b.23) vẫn đỡ phần lớn ca.
+
+**Đo:** `qc-nhan-dien-sku` **107/107** (4 ca mới: cặp từ hiếm thắng `blue` · chịu được EAN rác · một
+từ hiếm không kích hoạt · tx300ha→mm đứng đầu; kèm sửa ca "bản nhỏ tồn 0 lên đại diện" trượt oan vì
+`soLuong:3` quá hẹp) · `qc-tab-nhan-dien` **159/159** (3 ca đổi lời hứa theo #2–#4).
+
 ## 6. Lõi đối soát (`NDS_ENGINE`, trong `factory/index.html`)
 
 Nằm giữa 2 mốc `/*<NDS-ENGINE>*/ … /*</NDS-ENGINE>*/` — **thuần tính toán, không chạm DOM**, để 2 bộ

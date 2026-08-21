@@ -421,6 +421,21 @@ const theDvNho = await page.evaluate(() => {
 kiem("Đại diện là bản đơn vị nhỏ TỒN 0 → thẻ nói rõ 'đếm theo mm · tồn ở bản Cuộn 5000m'",
   /đếm theo mm/.test(theDvNho.chu) && /Cuộn 5000m/.test(theDvNho.chu) && theDvNho.badge.indexOf("INACTIVE") >= 0,
   theDvNho.chu + " · huy hiệu: " + theDvNho.badge.join(","));
+/* 21/08/2026 (yêu cầu user): badge đầu thẻ = LOẠI SKU (Normal/Combo) thay cho số hạng 1·2·3;
+   badge COMBO riêng phía sau bỏ vì trùng tin. */
+const theLoai = await page.evaluate(() => {
+  const ve = (type) => {
+    const html = ndsTheKetQua({ sku: "1", pn: "x/y/mm", type, status: "ACTIVE", qty: 1, donVi: "mm", dv: "mm",
+      q: 0.001, pct: 50, diem: 0.5, khop: {}, xungDot: [], bienThe: [] }, 1);
+    const d = document.createElement("div"); d.innerHTML = html;
+    return { rank: (d.querySelector(".nds-rank") || {}).textContent || "",
+      bProc: !!d.querySelector(".badge.b-proc") };
+  };
+  return { n: ve("NORMAL"), c: ve("COMBO") };
+});
+kiem("Badge đầu thẻ = LOẠI SKU (Normal/Combo) thay số hạng, không còn badge COMBO trùng",
+  theLoai.n.rank === "Normal" && theLoai.c.rank === "Combo" && !theLoai.n.bProc && !theLoai.c.bProc,
+  "NORMAL→\"" + theLoai.n.rank + "\" · COMBO→\"" + theLoai.c.rank + "\"");
 const viSao = await page.$$eval("#ndsCards .nds-card details.nds-more", (a) => a.map((d) => ({ mo: d.open, tt: d.querySelector("summary").textContent.trim() })));
 kiem("Biến thể + từ khoá khớp gộp chung MỘT <details>, mặc định đóng",
   viSao.length > 0 && viSao.every((d) => !d.mo && /từ khoá khớp|đơn vị khác/.test(d.tt)), (viSao[0] || {}).tt || "(không có)");
@@ -596,10 +611,11 @@ kiem("Badge của thẻ mẫu không có màu BẠC bịa ra từ nhãn \"Màu s
 kiem("Thẻ mẫu ĐỌC ĐƯỢC mã thì KHÔNG hiện cảnh báo \"chưa đọc được ô Mã sản phẩm\"",
   !/chưa đọc được ô/i.test(theMau.html), /chưa đọc được ô/i.test(theMau.html) ? "vẫn cảnh báo oan" : "sạch");
 
-/* RỦI RO CÒN LẠI của luật mã chủ: thẻ mẫu mà ô "Mã sản phẩm" không đọc được (để trống, chữ quá xấu,
-   lệch ≥2 ký tự) thì lõi tụt về chấm bằng chữ chung — trên thẻ mẫu, "chữ chung" phần lớn là dòng
-   Thành phần vải, tức tên NGUYÊN LIỆU ⇒ cuộn vải lại lên hạng 1. Banner cũ IM LẶNG vì nó chỉ xét
-   "có khớp mã nào không", mà mã VẢI thì có khớp. Ca này khoá cái cảnh báo đó. */
+/* Banner "Đây là THẺ MẪU nhưng chưa đọc được ô Mã sản phẩm" ĐÃ BỎ (yêu cầu user 21/08/2026 kèm
+   video — đảo yêu cầu buổi sáng cùng ngày): 6 dòng chữ trên điện thoại, mà lối thoát trùng với
+   banner "Chưa khớp được MÃ HÀNG nào". Cái CÒN PHẢI GIỮ: lõi vẫn ghi `NDS.theMau` (coNhan + maChu)
+   để chẩn đoán, và thẻ không được hiện cái banner đã bỏ. Rủi ro nhận diện của ca này (cuộn vải lên
+   hạng 1 khi mất ô mã) đã ghi ở NHAN-DIEN-SKU.md — người dùng chấp nhận đổi lấy màn gọn. */
 await page.evaluate((chu) => { ndsXoaHet(); document.getElementById("ndsRaw").value = chu; return ndsDoiSoat(); },
   THE_MAU.replace("CWHO0006", "CVVHO0006"));
 await new Promise((r) => setTimeout(r, 900));
@@ -608,10 +624,10 @@ const theXau = await page.evaluate(() => ({
   maChu: (NDS.theMau || {}).maChu || [], coNhan: !!(NDS.theMau || {}).coNhan,
   ket: (NDS.ket || []).map((r) => r.sku),
 }));
-kiem("Thẻ mẫu mà KHÔNG đọc được ô \"Mã sản phẩm\" → phải cảnh báo, không im lặng đưa cuộn vải",
-  theXau.coNhan && theXau.maChu.length === 0 && /chưa đọc được ô/i.test(theXau.html),
+kiem("Thẻ mẫu KHÔNG đọc được ô \"Mã sản phẩm\" → lõi vẫn ghi NDS.theMau, banner đã bỏ thì không hiện",
+  theXau.coNhan && theXau.maChu.length === 0 && !/chưa đọc được ô/i.test(theXau.html),
   "có nhãn mã: " + theXau.coNhan + " · mã chủ: " + JSON.stringify(theXau.maChu) + " · #1: " + (theXau.ket[0] || "-") +
-  " · có cảnh báo: " + /chưa đọc được ô/i.test(theXau.html));
+  " · còn banner: " + /chưa đọc được ô/i.test(theXau.html));
 
 /* MÃ ĐỌC ĐƯỢC MÀ DANH MỤC KHÔNG CÓ — khác hẳn ca "chưa đọc được mã", và phải nói câu khác (sự cố
    thẻ CWPT0019: SKU_MASTER chỉ có tới CWPT0018). Nói "chưa khớp mã" thì thủ kho đi soi lại tấm tem,
@@ -640,9 +656,10 @@ if (maLa.coTrongDanhMuc) {
     " · Top: " + maLa.ket.join(" · "));
 }
 
-/* THẺ PHẢI NÓI RA khi mặt hàng không có bản ĐƠN VỊ NHỎ NHẤT (yêu cầu user 21/08/2026: "nếu không
-   có đơn vị nhỏ nhất mà đơn vị lớn (vd cuộn 5000m) thì phải báo"). Tìm ngay trong danh mục của
-   TRANG một mặt hàng chỉ có đơn vị lớn, gõ đúng mảnh đầu tên nó, rồi soi chữ trên thẻ. */
+/* Dòng "chưa có bản ĐƠN VỊ NHỎ NHẤT" ĐÃ BỎ (yêu cầu user 21/08/2026, nhắc lần 2 kèm video —
+   đảo ngược yêu cầu buổi sáng cùng ngày): đơn vị của dòng đã in ngay cạnh tồn ("Tồn 47 Hộp") nên
+   dải đỏ đó chỉ chiếm chỗ. Cờ `khongCoDvNho` thì lõi VẪN phải tính (bộ đo và chẩn đoán dùng).
+   Tìm ngay trong danh mục của TRANG một mặt hàng chỉ có đơn vị lớn rồi soi cả hai điều đó. */
 const dvLon = await page.evaluate(async () => {
   const ds = NDS.ds || [];
   const nhom = new Map();
@@ -663,10 +680,10 @@ const dvLon = await page.evaluate(async () => {
     html: (document.getElementById("ndsCards") || { innerHTML: "" }).innerHTML,
     ket: (NDS.ket || []).map((r) => r.sku + "/" + (r.dv || "?") + "/" + !!r.khongCoDvNho) };
 });
-if (!dvLon.co) kiem("Thẻ báo \"chưa có bản ĐƠN VỊ NHỎ NHẤT\"", true, "(danh mục live không có mặt hàng nào chỉ đơn vị lớn)");
+if (!dvLon.co) kiem("Cờ khongCoDvNho còn tính, dải chữ đã bỏ", true, "(danh mục live không có mặt hàng nào chỉ đơn vị lớn)");
 else {
-  kiem("Mặt hàng chỉ có đơn vị LỚN → thẻ nói thẳng \"chưa có bản ĐƠN VỊ NHỎ NHẤT\"",
-    /ĐƠN VỊ NHỎ NHẤT/i.test(dvLon.html),
+  kiem("Mặt hàng chỉ đơn vị LỚN → cờ khongCoDvNho vẫn tính, nhưng thẻ KHÔNG còn dải \"chưa có bản ĐƠN VỊ NHỎ NHẤT\"",
+    dvLon.ket.some((s) => /\/true$/.test(s)) && !/ĐƠN VỊ NHỎ NHẤT/i.test(dvLon.html),
     "mảnh \"" + dvLon.manh.slice(0, 34) + "\" → " + dvLon.ket.slice(0, 3).join(" · "));
 }
 

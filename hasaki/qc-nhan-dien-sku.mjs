@@ -550,7 +550,10 @@ console.log("── Lọc theo phần tử tên hàng ──");
     }
     if (caNoi) {
       const nh = { code: [], spec: [], color: [], brand: [E.chuan(String(caNoi[0].pn).split("/")[0])] };
-      const tp = E.timTop(nh, cm, { soLuong: 3, chiActive: true, loc: [String(caNoi[0].pn).split("/")[0]] });
+      /* soLuong RỘNG hẳn: mảnh lọc là chữ đầu tên ("Keo bonding") nên hàng chục nhóm cùng phủ 1/1
+         = 100% — nhóm đích có thể không lọt Top 3, mà thứ ca này kiểm là ĐẠI DIỆN của nhóm, không
+         phải hạng của nhóm. Trước để 3 nên ca này trượt oan khi danh mục thay đổi (21/08/2026). */
+      const tp = E.timTop(nh, cm, { soLuong: 500, chiActive: true, loc: [String(caNoi[0].pn).split("/")[0]] });
       const dd = tp.find((x) => E.khoaHang(x.pn) === E.khoaHang(caNoi[0].pn));
       kiem("Nhóm sống toàn đơn vị LỚN mà có bản nhỏ (tồn 0) → bản NHỎ lên đại diện",
         !!dd && dd.nho === true && dd.dvNhoThay === true,
@@ -565,6 +568,53 @@ console.log("── Lọc theo phần tử tên hàng ──");
         !!dd2 && dd2.khongCoDvNho === true,
         dd2 ? (dd2.sku + " · đơn vị " + (dd2.dv || "(rỗng)") + " · khongCoDvNho=" + dd2.khongCoDvNho) : "(không lọc ra được nhóm đó)");
     } else kiem("Mặt hàng CHỈ có đơn vị lớn → cờ khongCoDvNho", true, "(danh mục này không có ca nào)");
+  }
+
+  /* SỰ CỐ THẬT 21/08/2026 (user quay video màn hình) — tem phấn bay HWA-IL PANDA:
+     AI đọc ra "hwa · il · panda" (mỗi từ chỉ 1 SKU trong danh mục mang nó) nhưng đọc KÈM màu "blue"
+     từ hoạ tiết hộp. Chấm theo vai cho MỘT chữ màu trọn 20 điểm còn BA chữ tên riêng chia nhau 10
+     điểm vai NCC ⇒ "Màu keo silicon …/Blue/mg" chiếm hạng 1, SKU đúng văng khỏi Top 3.
+     Luật mới: khớp NGUYÊN VĂN ≥2 TỪ HIẾM (df ≤ 6 dòng) = bằng chứng định danh, xếp như CÓ MÃ. */
+  {
+    if (ds.some((r) => r.sku === "422279782")) {
+      const nh = E.tuAI({ item_codes: [], specs: [], colors: ["blue"], brands: ["hwa", "il", "panda"], others: [] }, cm);
+      nh.maChu = [];
+      const tp = E.timTop(nh, cm, { soLuong: 3, chiActive: true });
+      kiem("CẶP TỪ HIẾM định danh: hwa+panda thắng chữ màu 'blue' — ra đúng phấn bay HWA-IL",
+        !!tp[0] && tp[0].sku === "422279782" && tp[0].hiem >= 2,
+        tp.map((x) => x.sku + "/" + x.pct + "%/hiem=" + x.hiem).join(" · "));
+      /* Luồng thật của tab: mã vạch NCC (EAN không có trong danh mục) đã vào rổ MÃ trước khi AI về */
+      const nh2 = E.tuAI({ item_codes: ["8801234567890"], specs: [], colors: ["blue"], brands: ["hwa", "il", "panda"], others: [] }, cm);
+      nh2.maChu = [];
+      const tp2 = E.timTop(nh2, cm, { soLuong: 3, chiActive: true });
+      kiem("… kể cả khi rổ mã đã dính EAN rác của mã vạch NCC",
+        !!tp2[0] && tp2[0].sku === "422279782",
+        tp2.map((x) => x.sku + "/" + x.pct + "%").join(" · "));
+    } else kiem("CẶP TỪ HIẾM định danh (tem HWA-IL PANDA)", true, "(danh mục này chưa có 422279782)");
+    /* MỘT từ hiếm đơn lẻ rất có thể là từ đọc lệch — không được làm định danh */
+    const nh3 = E.tuAI({ item_codes: [], specs: [], colors: ["blue"], brands: ["panda"], others: [] }, cm);
+    nh3.maChu = [];
+    const tp3 = E.timTop(nh3, cm, { soLuong: 3, chiActive: true });
+    kiem("… nhưng MỘT từ hiếm đơn lẻ thì KHÔNG kích hoạt (đề phòng từ đọc lệch)",
+      !tp3.length || (tp3[0].hiem || 0) < 2,
+      tp3.length ? ("#1 " + tp3[0].sku + " · hiem=" + (tp3[0].hiem || 0)) : "(trống)");
+  }
+
+  /* YÊU CẦU USER 21/08/2026 (ảnh chụp keo dựng TX300HA — đúng bộ 32 từ khoá trên máy thủ kho):
+     ba dòng cùng mang mã `tx300ha`, hai bản "m" 76% từng đè bản "mm" 63% xuống cuối. Kho đếm bằng
+     đơn vị nhỏ nhất, nên khi HAI BÊN CÙNG MANG ĐỊNH DANH thì cờ `nho` là luật cứng đứng trên điểm. */
+  {
+    if (ds.some((r) => r.sku === "422377812")) {
+      const nh = E.tuAI({ item_codes: ["tx300ha"], specs: ["150cm"], colors: ["100", "black", "bac", "tan", "dark"],
+        brands: ["ss", "weaving", "oeko", "tex", "width", "kho", "co", "mau", "dai", "composition", "polyester",
+          "thang", "su", "dung", "xu", "vietnam", "interlining", "keo", "may", "mac", "bao", "quan", "duc", "hoa", "tay"],
+        others: [] }, cm);
+      nh.maChu = [];
+      const tp = E.timTop(nh, cm, { soLuong: 3, chiActive: true });
+      kiem("CÙNG MANG MÃ (tx300ha) → bản mm đứng TRÊN bản m, dù điểm chữ thấp hơn",
+        !!tp[0] && tp[0].sku === "422377812" && tp[0].dv === "mm" && tp[0].nho === true && tp[0].coMa === true,
+        tp.map((x) => x.sku + "/" + x.dv + "/" + x.pct + "%").join(" · "));
+    } else kiem("Cùng mang mã → đơn vị nhỏ nhất đứng đầu (TX300HA)", true, "(danh mục này chưa có 422377812)");
   }
 
   /* SỰ CỐ THẬT 21/08/2026 (user chụp màn hình) — HAI thẻ cùng 93%:
