@@ -102,6 +102,28 @@ const TRANG = [
       { ten: "Pop-up Tồn tại vị trí", cho: "#tvtmodal.show",
         mo: "() => { showTab('abn'); if(typeof TVT==='undefined'||!TVT.ok) return false; const d={}; tvtRowsInScope().forEach(r=>d[r.loc]=(d[r.loc]||0)+1); const k=Object.keys(d).sort((a,b)=>d[b]-d[a])[0]; if(!k) return false; tvtOpenLoc(k); return true; }",
         dong: "() => { try{ closeTvtModal(); }catch(e){} }" },
+      /* PANEL "Danh sách theo dõi" của tab Planogram — BỔ SUNG 21/08/2026. Lỗ hổng gốc: bộ đo chỉ
+         mở tab Planogram và chờ `.pg-whbar` (nằm ở ĐẦU tab), rồi đo. Panel danh sách nằm CUỐI tab
+         nên chưa từng bị soi — mà nó là bảng 8 cột `min-width:820px` đi đường cuộn ngang. Người
+         dùng phải tự mở điện thoại rồi gửi ảnh về. Hai chế độ 'vt'/'day' là HAI bảng khác nhau nên
+         phải đo riêng từng cái. */
+      { ten: "Planogram › Danh sách theo dõi (từng vị trí)",
+        mo: "() => { showTab('plg'); if(typeof plgSetList!=='function') return false; plgSetList('vt'); const b=document.getElementById('plgList'); if(b) b.scrollIntoView({block:'start'}); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#plgList tbody tr td')].some(x => /\\d/.test(x.textContent))" },
+      { ten: "Planogram › Danh sách theo dõi (từng dãy kệ)",
+        mo: "() => { showTab('plg'); if(typeof plgSetList!=='function') return false; plgSetList('day'); const b=document.getElementById('plgList'); if(b) b.scrollIntoView({block:'start'}); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#plgList tbody tr td')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try{ plgSetList('vt'); }catch(e){} }" },
+      { ten: "Pop-up Toàn bộ vị trí (planogram)", cho: "#plgallmodal.show",
+        mo: "() => { showTab('plg'); if(typeof plgOpenAll!=='function'||!PLG.ok) return false; plgOpenAll(); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#plgallBody tbody tr td')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try{ closePlgAll(); }catch(e){} }" },
+      { ten: "Pop-up Tra cứu dãy kệ", cho: "#plgtramodal.show",
+        mo: "() => { showTab('plg'); if(typeof plgOpenTra!=='function'||!PLG.ok) return false; plgOpenTra(); return true; }",
+        dong: "() => { try{ closePlgTra(); }catch(e){} }" },
+      { ten: "Pop-up Chi tiết 1 vị trí (planogram)", cho: "#plgmodal.show",
+        mo: "() => { showTab('plg'); if(typeof plgOpen!=='function'||!PLG.ok) return false; const os=plgOTrongPhamVi(); if(!os.length) return false; plgOpen(os[0].loc); return true; }",
+        dong: "() => { try{ closePlgModal(); }catch(e){} }" },
     ],
   },
   {
@@ -127,6 +149,63 @@ const TRANG = [
         mo: "() => { setTab('htonbat'); if (!window.HTONBAT || typeof HTONBAT.openType !== 'function') return false; HTONBAT.openType('uid_temp'); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#htMBody td')].some(x => /\\d/.test(x.textContent))",
         dong: "() => { try { HTONBAT.closeModal(); } catch(e) { const m=document.getElementById('htModal'); if(m) m.classList.remove('show'); } }" },
+      /* PANEL "Danh sách theo dõi" của tab Planogram Hasaki — BỔ SUNG 21/08/2026, cùng lỗ hổng với
+         bên factory: `manDong` chỉ bấm sang tab rồi đo NGAY, mà panel này nằm cuối tab và render
+         theo chế độ (ai/nv). Chế độ 'ai' là bảng 8 cột `min-width:980px` trong đó có cột lý do AI
+         dài cả đoạn văn — chính chỗ người dùng chụp ảnh gửi về.
+         `[0-9]` thay cho ký hiệu chữ-số có gạch chéo: chuỗi nguồn qua nhiều tầng thoát dấu rất dễ
+         rụng gạch chéo (bẫy số 1 trong memory), lớp ký tự thì không bao giờ rụng. */
+      { ten: "Planogram › Danh sách theo dõi (AI xét duyệt ảnh)",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.setListMode('ai'); const b=document.getElementById('hpAI'); if(b) b.scrollIntoView({block:'start'}); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hpAI tbody tr td')].some(x => /[0-9]/.test(x.textContent))" },
+      { ten: "Planogram › Danh sách theo dõi (Nhân viên hôm nay)",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.setListMode('nv'); const b=document.getElementById('hpAI'); if(b) b.scrollIntoView({block:'start'}); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hpAI tbody tr td')].some(x => /[0-9]/.test(x.textContent))",
+        dong: "() => { try { HPLANOGRAM.setListMode('ai'); } catch(e) {} }" },
+      { ten: "Pop-up Tất cả vị trí (planogram Hasaki)", cho: "#hpModal.show",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openAll(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#hpMBody tr').length > 0",
+        dong: "() => { try { HPLANOGRAM.closeModal(); } catch(e) {} }" },
+      { ten: "Pop-up Vị trí thiếu yêu cầu vệ sinh", cho: "#hpModal.show",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openThieu(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#hpMBody tr').length > 0",
+        dong: "() => { try { HPLANOGRAM.closeModal(); } catch(e) {} }" },
+      { ten: "Pop-up Tra cứu nhân viên", cho: "#hpNkModal.show",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openNk(); return true; }",
+        dong: "() => { try { HPLANOGRAM.closeNk(); } catch(e) {} }" },
+      { ten: "Pop-up Chi tiết 1 vị trí (planogram Hasaki)", cho: "#hpVtModal.show",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; const a=document.querySelector('#hpMap .hp-mapcell[data-l],#hpMap [data-l]'); if(!a) return false; HPLANOGRAM.openViTri(a.getAttribute('data-l')); return true; }",
+        dong: "() => { try { HPLANOGRAM.closeVt(); } catch(e) {} }" },
+      /* Pop-up CHI TIẾT TASK (stepper) của tab Task vi phạm — người dùng chỉ thẳng vào khối
+         "Thông tin chung" của nó. Chưa từng được đo vì bộ đo chỉ bấm qua các tab. */
+      { ten: "Pop-up Chi tiết task 5S (stepper)", cho: "#modal.show",
+        /* ⚠ `let ROWS` ở cấp tệp KHÔNG tạo thuộc tính trên `window` (chỉ `var` mới tạo) — bản đầu
+           dò bằng `window.ROWS` nên màn này luôn bị bỏ qua mà báo là "chưa có dữ liệu". Dò bằng
+           `typeof` mới đúng cho cả hai kiểu khai báo. */
+        mo: "() => { setTab('task'); if(typeof moChiTiet!=='function' || typeof ROWS==='undefined' || !ROWS.length) return false; moChiTiet(0); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#modal .step').length > 0",
+        dong: "() => { try { dongModal(); } catch(e) {} }" },
+      /* Tab Kiểm kê là tab CHÍNH mà pop-up của nó chưa từng được đo (bộ đo chỉ bấm qua các tab) —
+         cùng loại lỗ hổng đã để lọt bảng 8 cột của panel Danh sách theo dõi. */
+      { ten: "Pop-up Kiểm kê Hasaki (theo SKU)", cho: "#hkKkModal.show",
+        mo: "() => { setTab('kk'); if(!window.HKIEMKE) return false; HKIEMKE.open('sku','total'); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hkKkModal tbody td')].some(x => /[0-9]/.test(x.textContent))",
+        dong: "() => { try { HKIEMKE.closeModal(); } catch(e) {} }" },
+      { ten: "Pop-up Kiểm kê Hasaki (theo vị trí)", cho: "#hkKkModal.show",
+        mo: "() => { setTab('kk'); if(!window.HKIEMKE) return false; HKIEMKE.open('loc','total'); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hkKkModal tbody td')].some(x => /[0-9]/.test(x.textContent))",
+        dong: "() => { try { HKIEMKE.closeModal(); } catch(e) {} }" },
+      /* Sổ kế hoạch đọc WMS qua cầu nối extension — chạy headless thì không có cầu nối, pop-up dừng ở
+         trạng thái lỗi/đang tải và `sanSangMan` sẽ bỏ qua. Vẫn khai để ngày nào đo trên máy có cầu
+         nối là tự có mặt trong danh sách màn. */
+      { ten: "Pop-up Kế hoạch chờ push (WMS)", cho: "#hplmodal.show",
+        mo: "() => { setTab('kk'); if(!window.HPC || typeof HPC.planOpen !== 'function') return false; HPC.planOpen(); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hplBody td')].some(x => /[0-9]/.test(x.textContent))",
+        dong: "() => { try { HPC.planClose(); } catch(e) {} }" },
+      { ten: "Pop-up Luỹ kế KPI trừ (Tổng quan)", cho: "#statModal.show",
+        mo: "() => { setTab('tong'); const r=document.querySelector('#kpiPanel tbody tr[data-kpi]'); if(!r) return false; r.click(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#stBody tr,#stBody .stat-empty').length > 0",
+        dong: "() => { try { dongThongKe(); } catch(e) {} }" },
     ],
   },
 ].filter((t) => !LOC_TRANG || t.ma === LOC_TRANG);
@@ -190,7 +269,14 @@ function raSoat() {
     if (!td) return null;
     if (/^(TD|TH)$/.test(td.tagName) && !document.body.dataset.pccTap) return null;
     return td; };
-  const CT = '.modalhd .mclose, .mfbtn, .mfok, .prfoot button, .pcall, td .pcr, .pin-acts button';
+  /* Mỗi pop-up trong dự án đặt tên nút đóng một kiểu (`.mclose` · `#mClose` · `.hp-mclose` ·
+     `#lbClose`) nên danh sách phải kể đủ, không thì "đo vùng chạm" chỉ đo được một phần giao diện —
+     đúng loại lỗ hổng đã làm cả nửa dashboard 5S chưa từng được đo. */
+  /* Thêm BỘ CHUYỂN CHẾ ĐỘ (`.pg-seg` / `.hp-seg`): bấm nó là đổi hẳn nội dung panel, nên nó thuộc
+     nhóm "bắt buộc bấm được", khác chip lọc dày-thông-tin (chip nhỏ là cố ý, xem memory). Đo thật
+     21/08/2026: `.pg-seg.sm button` chỉ 27px. */
+  const CT = '.modalhd .mclose, #mClose, .hp-mclose, #lbClose, .lb-btn, .mfbtn, .mfok, ' +
+    '.prfoot button, .pcall, td .pcr, .pin-acts button, .pg-seg button, .hp-seg button';
   for (const el of document.querySelectorAll(CT)) {
     if (!thay(el)) continue;
     const dich = (el.matches('.pcr,.pcall') && oBamDuoc(el)) || el;
@@ -204,7 +290,7 @@ function raSoat() {
      trần ở góc phải). Số đo bố cục KHÔNG bắt được lỗi này — phải soi ảnh mới thấy — nên đưa thành
      luật ở đây để lần sau máy bắt hộ. */
   const moCoi = [];
-  for (const tr of document.querySelectorAll('.modal tbody tr')) {
+  for (const tr of document.querySelectorAll('tbody tr')) {
     if (!thay(tr)) continue;
     const d = getComputedStyle(tr).display;
     if (d !== 'flex' && d !== 'grid' && d !== 'block') continue;    // chỉ xét chế độ THẺ
@@ -249,7 +335,23 @@ function raSoat() {
      Nhận diện: thanh có >=4 món nhìn thấy xếp thành >=4 HÀNG (đếm số mốc `top` khác nhau), hoặc cao
      hơn 1/4 màn hình. Ngưỡng 4 hàng để 2-3 hàng ngay ngắn (kiểu 2 cột) vẫn được coi là ổn. */
   const rangCua = [];
-  for (const bar of document.querySelectorAll('.kkbar,.mfilters,.pg-whbar,.nds-ctl')) {
+  /* Danh sach thanh KHONG khai cung theo class nua (21/08/2026): thanh moi them sau nay se lot het —
+     da lot that voi `.hp-whbar` cua tab Planogram Hasaki (thanh "Ket luan: ..." + thanh "Khu vuc/Ngay").
+     Nhan dien theo HINH DANG: phan tu co >=4 con NHIN THAY va da so con la CONTROL (nut/o nhap/chip). */
+  const thanhCtl = new Set(document.querySelectorAll('.kkbar,.mfilters,.pg-whbar,.nds-ctl,.hp-whbar,.filters'));
+  for (const el of document.querySelectorAll('div,section,header,nav,span,p')) {
+    if (!thay(el)) continue;
+    const con0 = [...el.children].filter((x) => thay(x));
+    if (con0.length < 4) continue;
+    const nCtl = con0.filter((x) => x.matches('button,input,select,a,label,.hp-whtab,.pg-whtab,.kktab,.chip,.fld')).length;
+    if (nCtl < Math.ceil(con0.length * 0.6)) continue;
+    /* CHI xet thanh NGANG-tu-wrap. Menu doc (display:block / flex-direction:column) von la nhieu
+       hang theo THIET KE — dem hang o do la bao oan, ma sua theo bao oan la lam xau giao dien. */
+    const cs0 = getComputedStyle(el);
+    const ngang = /flex/.test(cs0.display) && cs0.flexWrap === 'wrap' && !/column/.test(cs0.flexDirection);
+    if (ngang) thanhCtl.add(el);
+  }
+  for (const bar of thanhCtl) {
     if (!thay(bar)) continue;
     const con = [...bar.querySelectorAll(':scope > *')].filter((x) => thay(x) &&
       getComputedStyle(x).display !== 'contents');
@@ -261,6 +363,64 @@ function raSoat() {
     if (tops.length >= 4 || cao > de.clientHeight / 4)
       rangCua.push({ el: ten(bar), hang: tops.length, cao, mon: mon.length,
         phanTramMan: Math.round(cao / de.clientHeight * 100) });
+  }
+  /* ⑩ BẢNG NHIỀU CỘT ĐI ĐƯỜNG CUỘN NGANG — lỗ hổng lớn nhất của bản trước (người dùng phải tự chỉ ra
+     21/08/2026). Luật ② cố tình BỎ QUA mọi phần tử nằm trong khung `overflow-x:auto`, vì cuộn ngang
+     trong khung là cách chữa hợp lệ cho bảng dày-số. Nhưng "hợp lệ" đó bị dùng làm chỗ trú cho cả
+     bảng 8 cột có cột đoạn văn (`.hp-cctbl` min-width 980px, `.pg-tbl` min-width 820px): trên điện
+     thoại người dùng thấy 3 cột, muốn đọc cột thứ 4 phải kéo ngang từng dòng. Không tràn, không bóp
+     ⇒ bộ đo cũ báo XANH. Nay: bảng còn ở chế độ BẢNG (tr không phải flex/grid) mà ≥5 cột và rộng
+     hơn màn thì tính là LỖI, trừ khi tự khai miễn trừ bằng `data-mb-cuon` (chỉ `#kkmodal` — bảng
+     nhiều view, mỗi view một bộ cột; xem memory qc-bo-cuc-dien-thoai). */
+  const cuonNgang = [];
+  for (const tb of document.querySelectorAll('table')) {
+    if (!thay(tb)) continue;
+    if (tb.closest('[data-mb-cuon]')) continue;
+    const tr0 = [...tb.querySelectorAll('tbody tr')].filter(thay)[0];
+    if (!tr0) continue;
+    const d0 = getComputedStyle(tr0).display;
+    if (d0 === 'flex' || d0 === 'grid' || d0 === 'block') continue;      // đã là THẺ ⇒ đạt
+    const cot = [...tr0.children].filter((x) => thay(x) && !x.hasAttribute('colspan')).length;
+    if (cot < 5) continue;
+    let khung = null;
+    for (let q = tb.parentElement; q && q !== de; q = q.parentElement) {
+      const ox2 = getComputedStyle(q).overflowX;
+      if (ox2 === 'auto' || ox2 === 'scroll') { khung = q; break; }
+    }
+    const rongTb = Math.round(tb.getBoundingClientRect().width);
+    const thua = khung ? khung.scrollWidth - khung.clientWidth : rongTb - W;
+    if (thua > 8) cuonNgang.push({ el: ten(tb), cot, rong: rongTb, thua: Math.round(thua) });
+  }
+  /* ⑪ TƯỜNG CHỮ trong một ô — đoạn văn AI dài 300-600 ký tự nhồi vào 1 ô bảng/1 dòng thẻ thì cả
+     màn hình chỉ còn một khối chữ đặc, không ai đọc. Luật cũ không bắt: chữ ngắt dòng đàng hoàng
+     nên không tràn, ô rộng nên không bóp. Chuẩn: ô có >=180 ký tự mà vẽ ra >=6 dòng và KHÔNG kẹp
+     dòng (`-webkit-line-clamp`) ⇒ phải kẹp dòng + cho bấm mở rộng, hoặc tách thành danh sách. */
+  const tuong = [];
+  for (const el of document.querySelectorAll('td,.fld-v,.hp-lydo,.pg-lydo')) {
+    if (!thay(el)) continue;
+    const t3 = (el.textContent || '').trim();
+    if (t3.length < 180) continue;
+    /* "Đã kẹp dòng" tính cả khi CON bị kẹp: cách chữa đúng là bọc đoạn văn vào một span rồi kẹp span
+       đó (ô bảng còn phải chứa cả danh sách chi tiết + nút mở rộng nên không kẹp được ở cấp ô).
+       Bản đầu chỉ soi chính phần tử ⇒ ô ĐÃ chữa vẫn bị báo đỏ, mà test đỏ mãi thì không ai đọc nữa. */
+    const kep = (x) => { const c = getComputedStyle(x); return c.webkitLineClamp && c.webkitLineClamp !== 'none'; };
+    if (kep(el) || [...el.querySelectorAll('*')].some(kep)) continue;
+    const n3 = soDong(el);
+    if (n3 >= 6) tuong.push({ el: ten(el), kytu: t3.length, dong: n3, chu: t3.slice(0, 24) });
+  }
+  /* ⑫ Ô CHỈ CÓ DẤU GẠCH trong chế độ THẺ. Trên máy tính "—" giữ cột thẳng hàng, có nghĩa. Trong thẻ
+     thì không còn cột nào để giữ thẳng, nên nó chỉ còn là một dòng rỗng có nhãn — đúng loại "ô không
+     mang tin" mà luật ③ đòi ẩn hẳn (đã áp cho `.abncell0`). */
+  const gach = [];
+  for (const tr of document.querySelectorAll('tbody tr')) {
+    if (!thay(tr)) continue;
+    const d4 = getComputedStyle(tr).display;
+    if (d4 !== 'flex' && d4 !== 'grid' && d4 !== 'block') continue;
+    for (const td of tr.children) {
+      if (!thay(td) || td.hasAttribute('colspan')) continue;
+      const t4 = (td.textContent || '').trim();
+      if (t4 && t4.length <= 2 && /^[—–-]+$/.test(t4)) gach.push({ el: ten(td) });
+    }
   }
   /* Chữ quá nhỏ để đọc trên điện thoại. Gom theo SELECTOR (không liệt kê từng phần tử) để sửa được
      bằng một rule, và bỏ qua phần tử ẩn/không có chữ thật. */
@@ -282,7 +442,11 @@ function raSoat() {
   const gon = (a, n) => a.slice(0, n);
   const mcU = [...new Map(moCoi.map((x) => [x.el, x])).values()];
   const catU = [...new Map(cat.map((x) => [x.el, x])).values()];
+  const gachU = [...new Map(gach.map((x) => [x.el, x])).values()];
   return { keoTrang: de.scrollWidth - W, W,
+    cuonNgang: cuonNgang.slice(0, 5), nCuonNgang: cuonNgang.length,
+    tuong: tuong.slice(0, 5), nTuong: tuong.length,
+    gach: gachU.slice(0, 5), nGach: gachU.length,
     cat: catU.slice(0, 6), nCat: catU.length,
     rangCua: rangCua.slice(0, 4), nRangCua: rangCua.length,
     tran: gon(tran, 6), nTran: tran.length,
@@ -365,6 +529,9 @@ for (const may of MAY) {
       if (r.nTran) xau.push(r.nTran + " phần tử tràn mép");
       if (r.nBop) xau.push(r.nBop + " ô bị bóp (chữ xếp dọc)");
       if (r.nCham) xau.push(r.nCham + " control chạm <40px");
+      if (r.nCuonNgang) xau.push(r.nCuonNgang + " BẢNG nhiều cột phải KÉO NGANG");
+      if (r.nTuong) xau.push(r.nTuong + " ô TƯỜNG CHỮ (không kẹp dòng)");
+      if (r.nGach) xau.push(r.nGach + " ô rỗng chỉ có dấu gạch");
       if (r.nMoCoi) xau.push(r.nMoCoi + " ô số MỒ CÔI (không nhãn)");
       if (r.nCat) xau.push(r.nCat + " nhãn BỊ CẮT chữ");
       if (r.nRangCua) xau.push(r.nRangCua + " cụm control RĂNG CƯA");
@@ -376,6 +543,11 @@ for (const may of MAY) {
         r.tran.forEach((x) => console.log("        tràn  " + x.el + "  rộng " + x.rong + "px, vượt phải " + x.phai + "px"));
         r.bop.forEach((x) => console.log("        bóp   " + x.el + "  rộng " + x.rong + "px → " + x.dong + " dòng  \"" + x.chu + "…\""));
         r.cham.forEach((x) => console.log("        chạm  " + x.el + "  " + x.co + "px"));
+        r.cuonNgang.forEach((x) => console.log("        kéo ngang " + x.el + "  " + x.cot + " cột · rộng " +
+          x.rong + "px · thừa " + x.thua + "px ngoài màn"));
+        r.tuong.forEach((x) => console.log("        tường chữ " + x.el + "  " + x.kytu + " ký tự → " + x.dong +
+          " dòng  \"" + x.chu + "…\""));
+        r.gach.forEach((x) => console.log("        ô gạch " + x.el + "  (chỉ có \"—\", nên ẩn hẳn)"));
         r.moCoi.forEach((x) => console.log("        mồ côi " + x.el + "  = \"" + x.chu + "\" (không nhãn)"));
         r.cat.forEach((x) => console.log("        cắt   " + x.el + "  thiếu " + x.thieu + "px  \"" + x.chu + "\""));
         r.rangCua.forEach((x) => console.log("        răng cưa " + x.el + "  " + x.mon + " món / " + x.hang +

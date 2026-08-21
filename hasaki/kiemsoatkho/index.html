@@ -1131,6 +1131,76 @@ body.side-anim{overflow-x:clip;}
   .h2tip::before{content:none;}
   .h2tip:focus::after{display:block; animation:popIn .18s ease both;}
 }
+
+/* ===== VÙNG CHẠM + SÀN CỠ CHỮ — BỔ SUNG 21/08/2026 =============================================
+ * Do bằng `hasaki/qc-mobile-toan-du-an.mjs` sau khi bộ đo được nới ra để MỞ pop-up (trước đây nó
+ * chỉ bấm qua các tab, nên cả nhóm pop-up của dashboard này chưa từng được đo):
+ *   · nút "Đóng" của pop-up chi tiết task chỉ cao 34px — dưới ngưỡng 40px, ngón tay dễ trượt.
+ *   · nhãn trường trong pop-up luỹ kế (`th.vd-f`, chữ in hoa) đang 9,5px.
+ * KHỐI NÀY PHẢI Ở CUỐI <style>: hai rule gốc nằm trong `@media(max-width:700px)` phía trên, cùng
+ * độ ưu tiên nên rule ĐỨNG SAU mới thắng. */
+@media(max-width:768px){
+  #mClose{min-height:44px; min-width:64px; padding:10px 16px;}
+  #lbClose{min-height:44px;}
+  .vdoc th.vd-f{font-size:10.5px;}
+}
+
+/* ===== KHUÔN THẺ DI ĐỘNG DÙNG CHUNG — `table.mbcard` (21/08/2026) ================================
+ * Bảng nào thêm `class="mbcard"` là tự có chế độ THẺ trên điện thoại. Ô gắn `data-lb="Nhãn"` +
+ * một trong:
+ *   mb-hd   ô TIÊU ĐỀ thẻ (SKU / mã vị trí / tên người) — chữ to, miễn nhãn
+ *   mb-tag  nhãn trạng thái — ghim mép phải cùng hàng với tiêu đề
+ *   mb-full ô chiếm trọn một hàng (đoạn văn, thanh tiến độ)
+ *   mb-act  link/nút — tự nới thành viên chip ≥34px cho ngón tay
+ *   mb-0    ô KHÔNG mang tin (rỗng / chỉ có "—") ⇒ ẩn hẳn (luật ③)
+ * Thứ tự `<td>` vẫn phải khớp `<thead>` (bản máy tính còn là bảng); thứ tự ĐỌC trên thẻ do `order`.
+ *
+ * KHAI Ở HOST, không khai trong từng module: trước đây mỗi pop-up tự chép một bộ rule y hệt
+ * (`#prmodal`, `#tvtmodal`, `#abnmodal`, `.ht-mtbl`…) nên bảng thêm sau lại phải chép lần nữa — và
+ * lần nào cũng có bảng bị bỏ sót. Host thì mọi module (`hasaki-planogram`, `hasaki-kiemke`,
+ * `hasaki-pc`…) dùng chung một bộ. Cùng tên lớp với `factory/index.html` — lệ đồng bộ của dự án.
+ *
+ * ⚠ VÌ SAO `!important`: CSS của module được bơm SAU và khai ở specificity cấp ID
+ * (`#pane-kk .hk-wrap tbody td`, `#pane-planogram .hp-cctbl td`, `.hk-wrap .num{...!important}`)
+ * nên rule thẻ viết bằng `table.mbcard td` luôn thua. Chỉ đánh vào ĐÚNG mấy thuộc tính tranh nhau
+ * (display / white-space / min-width / max-width / padding / border / text-align), không quét cả khối.
+ * Và `min-width` phải `!important` vì bảng còn mang `style="min-width:980px"` INLINE. */
+@media(max-width:768px){
+  table.mbcard{display:block; width:100%; min-width:0 !important; border-collapse:separate; border-spacing:0;}
+  table.mbcard thead{display:none;}
+  table.mbcard tbody{display:block;}
+  table.mbcard tr{display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 10px; position:relative;
+    padding:11px 12px; margin:0 0 8px; border:1px solid var(--border); border-radius:12px; background:var(--surface);}
+  table.mbcard tr:last-child{margin-bottom:0;}
+  table.mbcard td{display:block !important; order:5; min-width:0 !important; max-width:100% !important;
+    padding:0 !important; border:0 !important; white-space:normal !important; text-align:left !important;
+    font-size:11.5px; color:var(--muted); vertical-align:baseline;}
+  table.mbcard td[data-lb]::before{content:attr(data-lb) ' '; color:var(--muted); font-size:10.5px; font-weight:650;}
+  /* `.num` khai `text-align:right!important` ở module với 2 class ⇒ phải 2 class mới đè được */
+  table.mbcard td.num{text-align:left !important;}
+  table.mbcard td.mb-hd{order:1; flex:1 1 auto; font-size:15px; font-weight:700; color:var(--text);
+    font-variant-numeric:tabular-nums;}
+  /* Tên hàng đi kèm mã trong CÙNG một ô tiêu đề: hạ về cỡ chữ phụ, xuống dòng riêng */
+  table.mbcard td.mb-hd .pn2, table.mbcard td.mb-hd .pn{display:block; margin-top:2px;
+    font-size:11.5px; font-weight:400; color:var(--muted); min-width:0 !important; max-width:none !important;}
+  table.mbcard td.mb-tag{order:2; flex:0 0 auto; margin-left:auto; text-align:right !important;}
+  table.mbcard td.mb-full{order:3; flex:1 1 100%; line-height:1.5;}
+  table.mbcard td.mb-act{order:6; margin-left:auto; flex:0 0 auto;}
+  table.mbcard td.mb-act a{display:inline-flex; align-items:center; min-height:34px; padding:6px 13px;
+    border:1px solid var(--border); border-radius:999px; font-size:11.5px;}
+  table.mbcard td.mb-0{display:none !important;}
+  table.mbcard td[colspan]{flex:1 1 100%; text-align:center !important; font-size:12.5px;}
+  table.mbcard tr:has(td[colspan]){padding:16px 12px; background:0; border:0;}
+  /* Ô TICK giỏ tạo lệnh: neo góc trái thẻ, vùng chạm 40px THẬT (hộp kiểm gốc chỉ 22px và CSS không
+     nới được — xem luật ⑤ trong memory quy-chuan-hien-thi-dien-thoai). */
+  table.mbcard tr:has(td.hpc-cc){padding-left:50px;}
+  table.mbcard td.hpc-cc{position:absolute; left:4px; top:8px; width:40px; height:40px;
+    display:flex !important; align-items:center; justify-content:center;}
+  table.mbcard td.hpc-cc input{width:22px; height:22px;}
+  /* Khung bảng: bỏ cuộn-trong-cuộn ngang (giữ cuộn dọc của pop-up). Ngón tay kéo trang mà trúng
+     khung con là bẫy chạm kinh điển. */
+  .hk-wrap:has(table.mbcard){overflow-x:visible; border:0;}
+}
 </style>
 </head>
 <body>
@@ -1238,7 +1308,12 @@ body.side-anim{overflow-x:clip;}
     <div class="panel" id="kpiPanel" style="margin-bottom:0">
       <div class="panel-head"><span>Luỹ kế KPI trừ trong tháng</span>
         <select id="kpiThang" title="Chọn tháng/năm"></select></div>
-      <div class="kpi-wrap" id="kpiWrap"><div style="padding:16px"><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:60%"></div></div></div>
+      <!-- `data-mb-cuon`: MIỄN TRỪ CÓ CHỦ ĐÍCH khỏi luật ⑩ (bảng ≥5 cột không được bắt kéo ngang).
+           Đây là BẢNG XẾP HẠNG: mọi cột đều ngắn (#, họ tên, số lượt, giá trị, so tháng trước) và giá
+           trị của nó nằm ở chỗ ĐỌC SO SÁNH ĐƯỢC giữa các dòng — đổi sang thẻ là mất luôn cái đó. Chủ
+           đích giữ họ tên trọn một hàng (biến --tenW) cũng đã ghi rõ ở khối CSS phía trên. Trên màn
+           360px nó thừa 25px và tự cuộn ngang trong khung — đúng ngoại lệ mà luật ⑩ chừa ra. -->
+      <div class="kpi-wrap" id="kpiWrap" data-mb-cuon="bang-xep-hang-cot-ngan"><div style="padding:16px"><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:60%"></div></div></div>
     </div>
     <!-- Dải 4 chỉ số tháng (gọn, DƯỚI bảng luỹ kế) -->
     <div class="kpi-band" id="kpiBand">
@@ -2422,7 +2497,10 @@ function rowsTableDocHTML(rows, kpiOf){
   const colgroup = `<colgroup><col style="width:${WF}px">${cols.map(()=>`<col style="width:${WL}px">`).join('')}</colgroup>`;
   // data-w = bề rộng chuẩn theo số lần -> moKpiChiTiet đặt width khung modal ĐÚNG px này
   // (ôm khít, không khoảng trắng phải); bảng width:100% giãn lấp đầy khung, thiếu chỗ thì cuộn ngang
-  return `<div class="vdoc-wrap" data-w="${WF + cols.length*WL}"><table class="vdoc" style="table-layout:fixed; width:100%; min-width:${WF + cols.length*WL}px">${colgroup}<thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  /* `data-mb-cuon`: miễn trừ luật ⑩ — bảng này là MA TRẬN đã lật (mỗi HÀNG là một trường, mỗi CỘT là
+     một LẦN vi phạm) với cột trường đóng băng bên trái. Không phải "bảng nhiều cột bị bóp" mà là
+     dạng so sánh nhiều lượt cạnh nhau; đổi sang thẻ thì mất đúng phép so sánh đó. */
+  return `<div class="vdoc-wrap" data-mb-cuon="ma-tran-lan-vi-pham" data-w="${WF + cols.length*WL}"><table class="vdoc" style="table-layout:fixed; width:100%; min-width:${WF + cols.length*WL}px">${colgroup}<thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 function moThongKe(key){
   const s=STATS[key]; if(!s) return;
@@ -2456,10 +2534,19 @@ function moChiTiet(i){
   const r=ROWS[i];
   $('mTitle').innerHTML = esc(r[iCode])+' — '+esc(r[iName]) + (safeUrl(r[iLink])?` · <a href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener">mở task</a>`:'');
 
+  /* BA CỘT BỎ HẲN khỏi bước "Thông tin chung" (21/08/2026): chúng lặp lại NGUYÊN VĂN dòng tiêu đề
+     của chính pop-up này — tiêu đề đã là `Mã — Tên công việc · mở task`. Người dùng chỉ đúng chỗ
+     này: khối đầu pop-up mở ra là "Mã công việc HSK-… / Liên kết công việc https://work.hasaki.vn/
+     tasks?task_id=13374021 / Tên công việc [5S] 507-03-04-02 - Hàng hoá phải được sắp xếp…" — trong
+     đó cái URL trần vừa dài vừa KHÔNG bấm được (giá trị đi qua esc() nên chỉ là chữ), còn tên công
+     việc thì bị nguồn cắt ngang ở 100 ký tự. Đây đúng loại "ô không mang tin" của luật ③.
+     Lọc theo TÊN CỘT GỐC, không theo nhãn đã dịch: nhãn dịch có thể đổi, tên cột là hợp đồng dữ liệu. */
+  const BO_TRUNG = ["task code", "task name", "link task"];
   // Gom cột theo bước (tiền tố trước "▸"), giữ thứ tự xuất hiện
   const order=[], groups={};
   for(let c=0;c<H.length;c++){
     const h=H[c], parts=h.split("▸");
+    if(parts.length===1 && BO_TRUNG.includes(h.trim().toLowerCase())) continue;
     const g = parts.length>1 ? parts[0].trim() : "Thông tin chung";
     const label = dichNhan(parts.length>1 ? parts.slice(1).join("▸").trim() : h.trim());
     if(!groups[g]){ groups[g]=[]; order.push(g); }

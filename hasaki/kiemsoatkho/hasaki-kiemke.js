@@ -103,7 +103,15 @@ function evalDiff(inv, cnt){ if (cnt == null || cnt === "") return { d: 0, count
 function stKey(r){ return String(r.st || "").trim().toUpperCase() || "NOT COUNT"; }
 function stMeta(s){ return ST_META[s] || [s, PAL[s.length % PAL.length]]; }
 function dash(v){ return v ? esc(v) : "—"; }
-function dcell(d){ return '<td class="num ' + (d < 0 ? "d-am" : d > 0 ? "d-duong" : "d-khop") + '">' + (d > 0 ? "+" : "") + nf(d) + "</td>"; }
+/* `mb0` = ô KHÔNG mang tin thì gắn lớp ẩn-trong-thẻ (luật ③): trên máy tính dấu "—" giữ cột
+   thẳng hàng nên có nghĩa, trong thẻ thì không còn cột nào để giữ — nó chỉ là một dòng rỗng có
+   nhãn. Xem khuôn `table.mbcard` ở cuối <style> của kiemsoatkho/index.html. */
+function mb0(v){ return v ? "" : " mb-0"; }
+/* Ô nhãn-giá trị cho chế độ thẻ: `lb` là nhãn dán bằng ::before (nhắm theo THUỘC TÍNH, không
+   theo nth-child — nth-child âm thầm sai ngày nào thêm/bớt cột). */
+function tdl(v, lb, cls){ return '<td class="' + (cls || "") + mb0(v) + '" data-lb="' + lb + '">' + dash(v) + "</td>"; }
+function tdh(html, co, lb, cls){ return '<td class="' + (cls || "") + (co ? "" : " mb-0") + '" data-lb="' + lb + '">' + html + "</td>"; }
+function dcell(d, lb){ return '<td class="num ' + (d < 0 ? "d-am" : d > 0 ? "d-duong" : "d-khop") + '" data-lb="' + (lb || "Lệch") + '">' + (d > 0 ? "+" : "") + nf(d) + "</td>"; }
 function emptyRow(n){ return '<tr><td colspan="' + n + '" style="text-align:center;color:var(--muted,#9ca3af);padding:28px;white-space:normal">Không có dòng phù hợp</td></tr>'; }
 /* Định tuyến URL WMS theo ngữ cảnh — location KHÔNG có /detail/, sku CÓ /detail/ (y hệt factory) */
 function idLink(id, kind){
@@ -143,6 +151,12 @@ var CSS = [
 "#hkReload:disabled{background:color-mix(in srgb, var(--muted,#9ca3af) 42%, var(--surface,#fff));color:var(--muted,#9ca3af);cursor:not-allowed;}",
 /* chip lọc kho (cross-filter cấp tab) */
 "#pane-kk .hk-whbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px;}",
+/* Tên kho dài ("WH - MATERIAL - GARMENT") nên trên màn 360px mỗi chip ăn trọn một hàng ⇒ thanh
+   vỡ 4 hàng / 144px = 18% màn hình trước khi thấy số liệu (bộ đo bắt được 21/08/2026). Về MỘT
+   hàng cuộn ngang — cùng khuôn `.toptabs` của dự án, và cũng là cách đã dùng cho dải chip trạng
+   thái bên Audit Factory. Không có menu neo absolute bên trong nên cuộn ngang không cắt gì. */
+"@media(max-width:768px){#pane-kk .hk-whbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;padding-bottom:3px;}",
+"#pane-kk .hk-whbar>*{flex:0 0 auto;}}",
 "#pane-kk .hk-whtab{border:1px solid var(--border,#e8ecf1);background:var(--surface,#fff);color:var(--text,#374151);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;min-height:32px;display:inline-flex;align-items:center;gap:7px;transition:background .16s ease,border-color .16s ease;}",
 "#pane-kk .hk-whtab:hover{background:color-mix(in srgb, var(--accent,#326e51) 8%, transparent);}",
 "#pane-kk .hk-whtab.active{background:var(--accent,#326e51);color:var(--accent-text,#fff);border-color:var(--accent,#326e51);}",
@@ -306,7 +320,14 @@ var CSS = [
 ".hk-datepop .dp-foot .dpsel{font-size:12px;color:var(--muted,#9ca3af);} .hk-datepop .dp-foot button{margin-left:6px;}",
 "@media(max-width:640px){.hk-datepop .dp-months{flex-direction:column;gap:14px;}}",
 /* mobile: modal tràn màn hình, touch ≥44px */
-"@media(max-width:768px){.hk-modal{padding:0;align-items:stretch;justify-content:stretch;}.hk-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hk-mclose{font-size:30px;min-width:48px;min-height:48px;}.hk-mfilters input{min-height:44px;}#pane-kk .hk-whtab{min-height:44px;}#hkReload{min-height:44px;width:100%;}}"
+"@media(max-width:768px){.hk-modal{padding:0;align-items:stretch;justify-content:stretch;}.hk-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hk-mclose{font-size:30px;min-width:48px;min-height:48px;}.hk-mfilters input{min-height:44px;}#pane-kk .hk-whtab{min-height:44px;}#hkReload{min-height:44px;width:100%;}",
+/* Ba ô lọc xếp DỌC ăn 203px = 25% màn 800px trước khi thấy dòng dữ liệu đầu tiên (đo thật
+   21/08/2026). Về GRID 2 CỘT + ô Tìm nhanh trọn hàng — khuôn đã chốt cho thanh lọc tab Kiểm kê
+   bên Audit Factory: đừng để basis 190px/250px tự thương lượng, hai con số đánh nhau là ra
+   răng cưa. Còn ~130px. */
+".hk-mfilters{padding:10px 12px;gap:6px 6px;}",
+".hk-mfilters .fld{flex:1 1 calc(50% - 3px);min-width:0;}",
+".hk-mfilters .fld.q{flex:1 1 100%;}}"
 ].join("\n");
 
 /* ===== KHUNG HTML ===== */
@@ -991,33 +1012,54 @@ function tablePhieu(kind, rs){
   var out = [];
   if (kind === "sku"){
     for (var i = 0; i < rs.length && out.length < CAP; i++){ var r = rs[i], e = evalDiff(r.inv, r.cnt);
-      out.push("<tr>" + (_hpc() ? HPC.cell(r.wh, r.sku, r.pn, pcType(r.type), reasonKk(r)) : "") + "<td>" + idLink(r.id, "sku") + "</td><td><b>" + esc(r.sku) + '</b><div class="pn2">' + esc(r.pn) + "</div></td><td>" + dash(r.cat) + "</td>" +
-        dcell(r.cnt == null ? 0 : e.d) + '<td class="num">' + nf(r.inv) + '</td><td class="num">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td><td>" + dash(r.type) + "</td><td>" + dash(r.req) + "</td><td>" + dash(r.by) + "</td><td>" + fmtD(parseDate(r.cdate)) + "</td><td>" + fmtD(parseDate(r.plan), true) + '</td><td><span class="hk-badge ' + badgeCls(r.st) + '">' + (r.st ? esc(r.st) : "—") + "</span></td></tr>");
+      /* Thứ tự <td> PHẢI khớp <thead> (bản máy tính còn là bảng); thứ tự ĐỌC trên thẻ do CSS `order`. */
+      out.push("<tr>" + (_hpc() ? HPC.cell(r.wh, r.sku, r.pn, pcType(r.type), reasonKk(r)) : "") +
+        tdh(idLink(r.id, "sku"), r.id, "ID") +
+        '<td class="mb-hd"><b>' + esc(r.sku) + '</b><div class="pn2">' + esc(r.pn) + "</div></td>" +
+        tdl(r.cat, "Category") +
+        dcell(r.cnt == null ? 0 : e.d, "Lệch") +
+        '<td class="num" data-lb="Tồn">' + nf(r.inv) + "</td>" +
+        '<td class="num' + (r.cnt == null ? " mb-0" : "") + '" data-lb="Đã đếm">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td>" +
+        tdl(r.type, "Type") + tdl(r.req, "Phiếu") + tdl(r.by, "Người đếm") +
+        tdh(fmtD(parseDate(r.cdate)), r.cdate, "Ngày đếm") +
+        tdh(fmtD(parseDate(r.plan), true), r.plan, "Ngày kế hoạch") +
+        '<td class="mb-tag"><span class="hk-badge ' + badgeCls(r.st) + '">' + (r.st ? esc(r.st) : "—") + "</span></td></tr>");
     }
-    return '<div class="hk-wrap"><table><thead><tr>' + (_hpc() ? HPC.headCell() : "") + '<th>ID</th><th>SKU</th><th>Category</th><th class="num">Diff</th><th class="num">Inventory</th><th class="num">Qty count</th><th>Type</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' + (out.join("") || emptyRow(_hpc() ? 13 : 12)) + "</tbody></table></div>" +
+    return '<div class="hk-wrap"><table class="mbcard"><thead><tr>' + (_hpc() ? HPC.headCell() : "") + '<th>ID</th><th>SKU</th><th>Category</th><th class="num">Diff</th><th class="num">Inventory</th><th class="num">Qty count</th><th>Type</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' + (out.join("") || emptyRow(_hpc() ? 13 : 12)) + "</tbody></table></div>" +
       '<div class="hk-note">' + (rs.length > CAP ? ("Hiển thị " + nf(CAP) + " / " + nf(rs.length) + " dòng — lọc để thu hẹp.") : (nf(rs.length) + " dòng.")) + "</div>";
   }
   for (var j = 0; j < rs.length && out.length < CAP; j++){ var l = rs[j];
-    out.push("<tr><td>" + idLink(l.id, "loc") + "</td><td><b>" + esc(l.loc) + "</b></td><td>" + dash(l.wh) + "</td><td>" + dash(l.type) + "</td><td>" + dash(l.pri) + "</td>" + dcell(l.diff) + "<td>" + dash(l.req) + "</td><td>" + dash(l.by) + "</td><td>" + fmtD(parseDate(l.cdate)) + "</td><td>" + fmtD(parseDate(l.plan), true) + '</td><td><span class="hk-badge ' + badgeCls(l.st) + '">' + (l.st ? esc(l.st) : "—") + "</span></td></tr>");
+    out.push("<tr>" + tdh(idLink(l.id, "loc"), l.id, "ID") +
+      '<td class="mb-hd"><b>' + esc(l.loc) + "</b></td>" +
+      tdl(l.wh, "Kho") + tdl(l.type, "Type") + tdl(l.pri, "Ưu tiên") + dcell(l.diff, "Lệch") +
+      tdl(l.req, "Phiếu") + tdl(l.by, "Người đếm") +
+      tdh(fmtD(parseDate(l.cdate)), l.cdate, "Ngày đếm") +
+      tdh(fmtD(parseDate(l.plan), true), l.plan, "Ngày kế hoạch") +
+      '<td class="mb-tag"><span class="hk-badge ' + badgeCls(l.st) + '">' + (l.st ? esc(l.st) : "—") + "</span></td></tr>");
   }
-  return '<div class="hk-wrap"><table><thead><tr><th>ID</th><th>Location</th><th>Warehouse</th><th>Type</th><th>Priority</th><th class="num">Diff</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' + (out.join("") || emptyRow(11)) + "</tbody></table></div>" +
+  return '<div class="hk-wrap"><table class="mbcard"><thead><tr><th>ID</th><th>Location</th><th>Warehouse</th><th>Type</th><th>Priority</th><th class="num">Diff</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' + (out.join("") || emptyRow(11)) + "</tbody></table></div>" +
     '<div class="hk-note">' + (rs.length > CAP ? ("Hiển thị " + nf(CAP) + " / " + nf(rs.length) + " dòng — lọc để thu hẹp.") : (nf(rs.length) + " dòng.")) + "</div>";
 }
 /* Bảng DANH SÁCH MÃ distinct (kho|mã) — metric total (coKiem=true, kèm cột trạng thái) & notcount */
 function tableRemain(kind, rs, coKiem){
   var out = [];
-  var cot = function(m){ return coKiem ? ('<td><span class="hk-badge ' + (m.chk ? "ok" : "pend") + '">' + (m.chk ? "ĐÃ KIỂM" : "CHƯA KIỂM") + "</span></td>") : ""; };
+  var cot = function(m){ return coKiem ? ('<td class="mb-tag"><span class="hk-badge ' + (m.chk ? "ok" : "pend") + '">' + (m.chk ? "ĐÃ KIỂM" : "CHƯA KIỂM") + "</span></td>") : ""; };
   var ckSku = (kind === "sku" && _hpc());   // chỉ khối SKU có ô tick tạo lệnh
   for (var i = 0; i < rs.length && out.length < CAP_REMAIN; i++){ var m = rs[i];
     out.push(kind === "sku"
-      ? "<tr>" + (ckSku ? HPC.cell(m.wh, m.sku, m.pn, pcType(m.type), reasonKk(m)) : "") + "<td><b>" + esc(m.sku) + '</b></td><td class="pn2">' + esc(m.pn) + "</td><td>" + dash(m.cat) + "</td><td>" + esc(m.wh) + '</td><td class="num">' + nf(m.qty) + "</td>" + cot(m) + "</tr>"
-      : "<tr><td><b>" + esc(m.loc) + "</b></td><td>" + esc(m.wh) + "</td><td>" + dash(m.type) + "</td>" + cot(m) + "</tr>");
+      ? "<tr>" + (ckSku ? HPC.cell(m.wh, m.sku, m.pn, pcType(m.type), reasonKk(m)) : "") +
+        '<td class="mb-hd"><b>' + esc(m.sku) + "</b></td>" +
+        '<td class="pn2 mb-full">' + esc(m.pn) + "</td>" +
+        tdl(m.cat, "Category") + tdl(m.wh, "Kho") +
+        '<td class="num" data-lb="Tồn (theo phiếu)">' + nf(m.qty) + "</td>" + cot(m) + "</tr>"
+      : "<tr>" + '<td class="mb-hd"><b>' + esc(m.loc) + "</b></td>" +
+        tdl(m.wh, "Kho") + tdl(m.type, "Type") + cot(m) + "</tr>");
   }
   var head = (ckSku ? HPC.headCell() : "") + (kind === "sku"
     ? '<th>SKU</th><th>Tên sản phẩm</th><th>Category</th><th>Kho</th><th class="num">Tồn (theo phiếu)</th>'
     : "<th>Mã vị trí</th><th>Kho</th><th>Type</th>") + (coKiem ? "<th>Kiểm kê</th>" : "");
   var nCol = (kind === "sku" ? 5 : 3) + (coKiem ? 1 : 0) + (ckSku ? 1 : 0);
-  return '<div class="hk-wrap"><table><thead><tr>' + head + "</tr></thead><tbody>" + (out.join("") || emptyRow(nCol)) + "</tbody></table></div>" +
+  return '<div class="hk-wrap"><table class="mbcard"><thead><tr>' + head + "</tr></thead><tbody>" + (out.join("") || emptyRow(nCol)) + "</tbody></table></div>" +
     '<div class="hk-note">' + (rs.length > CAP_REMAIN ? ("Hiển thị " + nf(CAP_REMAIN) + " / " + nf(rs.length) + " dòng — lọc để thu hẹp.") : (nf(rs.length) + (coKiem ? " dòng — distinct (kho|mã) từ phiếu WMS." : " dòng chưa kiểm."))) + "</div>";
 }
 function openModal(kind, metric){
