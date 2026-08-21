@@ -561,6 +561,53 @@ console.log("── Lọc theo phần tử tên hàng ──");
       "laTheMau = " + tmNcc.laTheMau);
   }
 
+  /* SỰ CỐ THẬT 21/08/2026 (user chụp màn hình điện thoại) — "phần tử khớp có cwpt0019 nhưng tên SKU
+     lại là CWPT0015, sai hoàn toàn".
+     Thẻ ghi **CWPT0019** (mẫu mới, `SKU_MASTER` chỉ có tới CWPT0018). Mã đó không có trong chỉ mục
+     nên luật cứng "CÓ MÃ" không bắn — nhưng `tyLe` cho phép lệch 2 ký tự khi chuỗi dài ≥8, nên
+     "cwpt0019" ↔ "cwpt0015" ra 1−1/8 = 0,875 ×0,92 = **0,805**, thừa ngưỡng 0,6 để tính là KHỚP.
+     Hậu quả: hai thẻ mang CWPT0015 lên hạng 1-2 (86% · 75%) và còn dán chip "MÃ cwpt0019" lên chính
+     hai thẻ đó — nói với thủ kho rằng "dòng này khớp mã trên tem", trong khi là mặt hàng khác hẳn.
+     Càng dài — tức càng định danh — thì luật lại càng dễ dãi, ngược hẳn chiều đáng lẽ phải có.
+     Chốt chặn: hai mảnh CÙNG ra dáng mã mà PHẦN SỐ khác nhau ⇒ khác mặt hàng, điểm 0. Lỗi đọc thật
+     giữa chữ và số (O↔0 · S↔5) đã có đường `ocr()` lo và nó chạy TRƯỚC, nên không cắn vào ca đó. */
+  {
+    kiem("Mã khác SỐ THỨ TỰ là khác mặt hàng: cwpt0019 KHÔNG được khớp mờ với cwpt0015/0018",
+      E.khopTot("cwpt0019", ["cwpt0015"]) === 0 && E.khopTot("cwpt0019", ["cwpt0018"]) === 0 &&
+      E.khopTot("8846295", ["8846296"]) === 0,
+      "cwpt0019~cwpt0015 = " + E.khopTot("cwpt0019", ["cwpt0015"]).toFixed(3) +
+      " · 8846295~8846296 = " + E.khopTot("8846295", ["8846296"]).toFixed(3));
+    /* ⚠ MẶT NGƯỢC PHẢI GIỮ — chốt chặn này KHÔNG được cắn vào lỗi đọc thật: */
+    kiem("… nhưng lỗi đọc chữ↔số (Tkt12O · JCO1262 · F9 5284) vẫn khớp như cũ",
+      E.khopTot("tkt12o", ["tkt120"]) >= 0.9 && E.khopTot("jco1262", ["jc01262"]) >= 0.9 &&
+      E.khopTot("f95284", ["f9-5284"]) >= 0.9,
+      "tkt12o~tkt120 = " + E.khopTot("tkt12o", ["tkt120"]).toFixed(2) +
+      " · jco1262~jc01262 = " + E.khopTot("jco1262", ["jc01262"]).toFixed(2) +
+      " · f95284~f9-5284 = " + E.khopTot("f95284", ["f9-5284"]).toFixed(2));
+    kiem("… và THÔNG SỐ (155gsm ↔ 170gsm) không bị chốt chặn của MÃ đụng tới",
+      E.khopTot("155gsm", ["155gsm"]) === 1 && E.khopTot("szs", ["szs"]) === 1,
+      "chốt chặn chỉ áp khi CẢ HAI mảnh ra dáng mã");
+    const coCwpt = ds.some((r) => /CWPT0015/i.test(r.pn)) && !ds.some((r) => /CWPT0019/i.test(r.pn));
+    if (coCwpt) {
+      const theQ = ["THẺ THÔNG TIN MẪU", "LOẠI MẪU: Mẫu thông chuyền", "Mã sản phẩm: CWPT0019",
+        "Size: S", "Màu sắc: Đen-Deep Black"].join("\n");
+      const nhQ = E.tuVanBan(theQ, cm);
+      const tpQ = E.timTop(nhQ, cm, { soLuong: 3, chiActive: true });
+      const banCwpt = tpQ.filter((r) => /CWPT001[0-8]/i.test(r.pn));
+      kiem("Thẻ CWPT0019 (danh mục chưa có) → KHÔNG dòng nào được nhận là khớp mã",
+        !tpQ.coMaKhop && tpQ.every((r) => !(r.khop.code || []).length),
+        "coMaKhop = " + !!tpQ.coMaKhop + " · số dòng tự nhận khớp mã: " +
+        tpQ.filter((r) => (r.khop.code || []).length).length + "/" + tpQ.length);
+      kiem("… và Top 3 không còn dòng CWPT0015/0018 nào đứng nhờ mã lệch số",
+        banCwpt.length === 0, "dòng cùng họ CWPT001x trong Top 3: " + banCwpt.length);
+      /* Mã đọc được mà danh mục thiếu thì phải MỜI CHỌN mã có thật gần nhất — đó là đường duy nhất
+         còn lại cho thủ kho (và cũng là dấu hiệu "danh mục chưa đồng bộ"). */
+      kiem("… nhưng vẫn mời chọn mã CÓ THẬT gần nhất (\"Ý bạn là…\")",
+        E.maGanGiong("cwpt0019", cm, 4).length >= 2,
+        "gợi ý: " + JSON.stringify(E.maGanGiong("cwpt0019", cm, 4)));
+    } else kiem("Thẻ CWPT0019 → không dòng nào tự nhận khớp mã", true, "(danh mục này đã có CWPT0019 hoặc chưa có CWPT0015)");
+  }
+
   /* SỰ CỐ THẬT 20/08/2026 (chiều muộn) — tem cuộn chỉ COATS astra, nhãn màu in "Col C3185":
      OCR trả về DÍNH LIỀN ("ColC3185") hoặc đọc lệch chữ ("COIC3185", l→I) ⇒ token `colc3185` không
      có trong chỉ mục ⇒ luật cứng "CÓ MÃ" không bắn ⇒ tab đưa 3 cuộn chỉ astra khác màu ở 32% kèm

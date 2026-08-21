@@ -1671,7 +1671,7 @@ MỚI #1 422495218  93%  ← đúng
 > chuoiMoi)` hiểu `$&` và `` $' `` trong **chuỗi thay** là tham chiếu — nội dung mới có `')$'` là dán
 > luôn cả phần còn lại của file vào. Phải truyền **hàm** trả về chuỗi.
 
-**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **100/100** · `qc-tab-nhan-dien` **155/155** ·
+**Đo lại toàn bộ:** `qc-nhan-dien-sku --gviz` **106/106** · `qc-tab-nhan-dien` **157/157** ·
 `qc-cham-idf` 8/8 · `qc-tem-vision` **6/6** (gọi AI thật, tem IN) · `qc-tem-tay` **7/7** (gọi AI
 thật, thẻ viết tay).
 
@@ -1830,6 +1830,59 @@ Ca cuối là giới hạn thật: không còn nhãn nào thì không có cách 
 ô Mã sản phẩm"* nổ — thà nói "tôi không biết" còn hơn im lặng đưa cuộn vải ở 98%.
 
 Tem NCC thường: `laTheMau = false`, `maChu` rỗng, **không đổi một hành vi nào** (có ca test khoá).
+
+---
+
+### 5b.24 Chip ghi "MÃ cwpt0019" mà SKU lại là CWPT0015 (21/08/2026) — khớp mờ quá dễ dãi với mã dài
+
+User chụp màn hình điện thoại: hai thẻ gợi ý đều mang **CWPT0015** (86% · 75%), mà dòng *"từ khoá
+khớp"* của chính hai thẻ đó lại dán chip **`MÃ cwpt0019`**. Tem thật ghi **CWPT0019**.
+
+**Danh mục có CWPT0008…CWPT0018, KHÔNG có CWPT0019** (mẫu mới, tạo sau lượt sync gần nhất). Vậy tại
+sao nó vẫn "khớp mã"?
+
+`tyLe` đặt ngưỡng chịu lỗi **theo ĐỘ DÀI**: `dai>=8 ? 2 : (dai>=5 ? 1 : 0)` — dài ≥8 ký tự thì tha
+tới **2** ký tự lệch. `"cwpt0019"` ↔ `"cwpt0015"` lệch 1 trên 8 ⇒ `1 − 1/8 = 0,875` ⇒ ×0,92 =
+**0,805**, thừa ngưỡng 0,6 để tính là KHỚP.
+
+> Nghĩa là **càng dài — tức càng định danh — thì luật càng dễ dãi.** Ngược hẳn chiều đáng lẽ phải có.
+> Ngưỡng đó viết cho CHỮ (tên màu, tên NCC, chất liệu), nơi lệch một chữ cái gần như luôn là lỗi đọc.
+> Mã hàng của xưởng thì là **tiền tố + số thứ tự**: CWPT0015 · CWPT0018 · CWPT0019 là **ba mặt hàng
+> khác nhau**, khác một chữ số không phải lỗi đọc.
+
+**Chốt chặn:** hai mảnh **cùng ra dáng mã** mà **phần SỐ khác nhau** ⇒ điểm **0** (`lechSoMa` trong
+`diemCap`). Đặt SAU đường `loi()` và đường `ocr()` nên không cắn vào lỗi đọc thật:
+
+| cặp | trước | sau | vì sao |
+|---|---|---|---|
+| `cwpt0019` ↔ `cwpt0015` | 0,805 | **0** | khác số thứ tự = khác mặt hàng |
+| `8846295` ↔ `8846296` | 0,789 | **0** | cùng lẽ |
+| `tkt12o` ↔ `tkt120` | 0,90 | 0,90 | đường `ocr()` (O↔0) chạy trước |
+| `jco1262` ↔ `jc01262` | 0,90 | 0,90 | cùng đường |
+| `f95284` ↔ `f9-5284` | 0,95 | 0,95 | đường `loi()` (chỉ khác dấu ngăn) |
+| `155gsm` ↔ `170gsm` | như cũ | như cũ | không phải mã ⇒ chốt chặn không áp |
+
+**Lối cứu cho tem đọc lệch một chữ số vẫn còn nguyên, và nằm đúng chỗ của nó:**
+`suaMaTheoDanhMuc` sửa về mã CÓ THẬT khi chỉ có **DUY NHẤT** một ứng viên. `cwpt0019` có tới **6**
+ứng viên (0009 · 0015 · 0012 · 0018 · 0014 · 0010) ⇒ mơ hồ ⇒ không sửa, không khớp mờ, và giao diện
+phải nói thẳng.
+
+**Kèm việc thứ hai — banner nói SAI chỗ phải sửa.** Trước đây mọi ca không khớp mã đều ra một câu
+*"Chưa khớp được MÃ HÀNG nào"*, mà hai ca này khác nhau hẳn:
+
+* **đọc KHÔNG ra mã** → lỗi ở khâu ĐỌC ⇒ chụp lại tem / gõ mã tay;
+* **đọc ra rồi mà DANH MỤC KHÔNG CÓ** → lỗi ở khâu ĐỒNG BỘ ⇒ chụp lại tem bao nhiêu lần cũng vô ích.
+
+Nay ca thứ hai có câu riêng: *"**Danh mục chưa có mã CWPT0019.** Tem đọc ra mã này rồi, nhưng tab
+`SKU_MASTER` không có nó — thường là hàng/mẫu **mới tạo sau lượt đồng bộ gần nhất**. Mấy gợi ý dưới
+đây **KHÔNG mang mã đó**"*, kèm nút **Tải lại danh mục** và lời mời *"Ý bạn là: cwpt0018 · cwpt0015…"*.
+
+Sau bản vá, thẻ CWPT0019 ra Top 3 toàn dòng **53%** không mang mã nào — trông "kém" hơn 86% cũ, nhưng
+đó là con số THẬT: máy không biết mã này, và nó nói ra điều đó.
+
+**Đo:** `qc-nhan-dien-sku --gviz` **106/106** (thêm 6 ca) · `qc-tab-nhan-dien` **157/157** (thêm 2 ca)
+· `qc-in-tem-popup` 15/15 · `qc-tem-tay` 7/7 · `qc-cham-idf` 8/8 · `qc-moc-lo-trinh` trên 30 lượt OCR
+thật: **87%/93% không đổi**, "khớp được mã" 80% không đổi.
 
 ---
 

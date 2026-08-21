@@ -613,6 +613,33 @@ kiem("Thẻ mẫu mà KHÔNG đọc được ô \"Mã sản phẩm\" → phải 
   "có nhãn mã: " + theXau.coNhan + " · mã chủ: " + JSON.stringify(theXau.maChu) + " · #1: " + (theXau.ket[0] || "-") +
   " · có cảnh báo: " + /chưa đọc được ô/i.test(theXau.html));
 
+/* MÃ ĐỌC ĐƯỢC MÀ DANH MỤC KHÔNG CÓ — khác hẳn ca "chưa đọc được mã", và phải nói câu khác (sự cố
+   thẻ CWPT0019: SKU_MASTER chỉ có tới CWPT0018). Nói "chưa khớp mã" thì thủ kho đi soi lại tấm tem,
+   trong khi chỗ phải sửa là ĐỒNG BỘ danh mục. */
+await page.evaluate(() => { ndsXoaHet();
+  document.getElementById("ndsRaw").value = "THẺ THÔNG TIN MẪU | LOẠI MẪU: Mẫu thông chuyền | Mã sản phẩm: CWPT0019 | Size: S | Màu sắc: Đen-Deep Black";
+  return ndsDoiSoat(); });
+await new Promise((r) => setTimeout(r, 900));
+const maLa = await page.evaluate(() => ({
+  html: (document.getElementById("ndsCards") || { innerHTML: "" }).innerHTML,
+  coTrongDanhMuc: !!(NDS.cm && NDS.cm.idx && NDS.cm.idx["cwpt0019"]),
+  badge: (NDS.tokens || []).map((k) => k.t),
+  ket: (NDS.ket || []).map((r) => r.sku + "/" + r.pct),
+  khopMa: (NDS.ket || []).reduce((n, r) => n + ((r.khop && r.khop.code) || []).length, 0),
+}));
+if (maLa.coTrongDanhMuc) {
+  kiem("Mã đọc được mà danh mục không có → nói \"Danh mục chưa có mã\"", true, "(danh mục live đã có cwpt0019)");
+} else {
+  kiem("Mã đọc được mà danh mục KHÔNG CÓ → banner nói đúng chỗ phải sửa (đồng bộ, không phải chụp lại tem)",
+    /Danh mục chưa có mã/i.test(maLa.html) && /CWPT0019/i.test(maLa.html) &&
+    /Tải lại danh mục/i.test(maLa.html) && !/chưa đọc được ô/i.test(maLa.html),
+    "có banner: " + /Danh mục chưa có mã/i.test(maLa.html) + " · có nút tải lại: " + /Tải lại danh mục/i.test(maLa.html));
+  kiem("… và KHÔNG dòng nào tự nhận khớp mã (cwpt0019 không được khớp mờ với cwpt0015)",
+    maLa.khopMa === 0 && maLa.badge.indexOf("cwpt0019") >= 0,
+    "số mảnh mã được tính khớp: " + maLa.khopMa + " · badge vẫn giữ mã đọc được: " + (maLa.badge.indexOf("cwpt0019") >= 0) +
+    " · Top: " + maLa.ket.join(" · "));
+}
+
 /* ---------- 6d. Mã vạch: có API thì quét, không có thì nói rõ chứ không im ---------- */
 const mv = await page.evaluate(() => ({ co: ndsCoMaVach(), nut: !!document.getElementById("ndsBtnMV") }));
 kiem("Có nút \"Quét mã vạch\" (đường nhanh nhất, không cần AI)", mv.nut, mv.co ? "trình duyệt CÓ BarcodeDetector" : "trình duyệt không có API — tab phải nói rõ ở dòng chân");
