@@ -1183,7 +1183,11 @@ body.side-anim{overflow-x:clip;}
   /* Tên hàng đi kèm mã trong CÙNG một ô tiêu đề: hạ về cỡ chữ phụ, xuống dòng riêng */
   table.mbcard td.mb-hd .pn2, table.mbcard td.mb-hd .pn{display:block; margin-top:2px;
     font-size:11.5px; font-weight:400; color:var(--muted); min-width:0 !important; max-width:none !important;}
-  table.mbcard td.mb-tag{order:2; flex:0 0 auto; margin-left:auto; text-align:right !important;}
+  /* `flex:1 0 auto` (không phải `0 0 auto`): nhãn trạng thái GIÃN hết phần trống còn lại của dòng
+     rồi canh phải. Với `0 0 auto` thì `margin-left:auto` ăn khoảng trống NGAY TRƯỚC nó, nên khi
+     mã vị trí dài đẩy nhãn xuống dòng 2, nhãn nằm lửng giữa dòng và ô nhỏ kế tiếp bám ngay sau —
+     nhìn ra một khoảng hở vô cớ (soi ảnh mới thấy, số đo vẫn xanh). */
+  table.mbcard td.mb-tag{order:2; flex:1 0 auto; margin-left:auto; text-align:right !important;}
   table.mbcard td.mb-full{order:3; flex:1 1 100%; line-height:1.5;}
   table.mbcard td.mb-act{order:6; margin-left:auto; flex:0 0 auto;}
   table.mbcard td.mb-act a{display:inline-flex; align-items:center; min-height:34px; padding:6px 13px;
