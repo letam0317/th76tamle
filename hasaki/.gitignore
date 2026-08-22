@@ -78,3 +78,6 @@ google-script-DEPLOY.gs
 .sku-master-dry.json
 # Ban thang do nguon du lieu SKU (probe-sku-master.mjs)
 .probe-*.json
+.inside-cookie
+.otp-in
+.otp-in.wanted

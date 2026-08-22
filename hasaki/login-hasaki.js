@@ -72,6 +72,11 @@ const SECRET = OTP_TAY ? "" : (process.env.HASAKI_2FA_SECRET || "").replace(/\s+
  * sang app Hasaki Authenticator, không xuất được). Không lách MFA: mã vẫn do người thật đọc từ app.
  * Mọi cửa kiểm cũ giữ nguyên — cầu dao chống khoá tài khoản, khoá chống chạy chồng, luật phiên. */
 const OTP_CHAT = process.argv.includes("--otp-chat") || String(process.env.LOGIN_OTP_CHAT || "") === "1";
+/* OTP QUA FILE — Đường 2c (22/08/2026). Giống 2b (người thật đọc 6 số) nhưng nạp qua FILE thay vì
+ * Telegram: dùng khi người điều khiển ngồi ở một phiên khác (vd Claude Code) — bot điền email+mật
+ * khẩu+Turnstile trước, tới bước OTP thì GHI marker `<OTP_FILE>.wanted` rồi CHỜ; người ghi 6 số
+ * vào OTP_FILE là bot gõ + nộp NGAY (mã còn tươi vì đã qua Turnstile). Vẫn 1 lần nộp (chống khoá). */
+const OTP_FILE = process.env.LOGIN_OTP_FILE || "";
 const OTP_CHO_GIAY = Number(process.env.LOGIN_OTP_CHO_GIAY || 300);
 const AUTO = process.argv.includes("--auto");
 const DRY_OTP = process.argv.includes("--dry-otp") || process.env.DRY_OTP === "1";
@@ -392,6 +397,24 @@ async function tick() {
     // 3) Điền mật khẩu vào ô mật khẩu trống
     if (PASSWORD && passTrong) {
       if (await goVao('input[type=password]', PASSWORD) && !st.loggedPass) { log("  ✓ gõ mật khẩu"); st.loggedPass = true; }
+      return;
+    }
+    /* 4-file) OTP QUA FILE (Đường 2c): email+mật khẩu đã đầy, đang ở màn OTP. Ghi marker để phía
+       ngoài biết "cần OTP bây giờ", rồi mỗi tick đọc OTP_FILE; có đúng 6 số thì gõ + nộp 1 LẦN. */
+    if (!SECRET && OTP_FILE && coOTP && !emailTrong && !passTrong && !st.otpDone) {
+      if (!st.otpWanted) {
+        try { fs.writeFileSync(OTP_FILE + ".wanted", new Date().toISOString()); } catch { /* marker best-effort */ }
+        st.otpWanted = true;
+        log("  🔐 Đã tới màn OTP — CHỜ 6 số ghi vào " + path.basename(OTP_FILE) + " …");
+      }
+      let ma = "";
+      try { ma = (fs.readFileSync(OTP_FILE, "utf8") || "").replace(/\D/g, ""); } catch { /* chưa có file */ }
+      if (!/^\d{6}$/.test(ma)) return;              // chưa có mã hợp lệ → chờ tiếp
+      await goOTP(ma); st.otpDone = true;
+      try { fs.unlinkSync(OTP_FILE); } catch {}      // dọn mã, không để lượt sau đọc lại
+      try { fs.unlinkSync(OTP_FILE + ".wanted"); } catch {}
+      if (DRY_OTP) { log("  ✓ [DRY-OTP] đã GÕ OTP từ file nhưng KHÔNG nộp. Kết thúc test."); setTimeout(() => browser.close().catch(() => {}), 800); return; }
+      log("  ✓ gõ OTP (từ file)");
       return;
     }
     /* 4-chat) OTP QUA TIN NHẮN (Đường 2b): không có seed thì nhắn xin chủ máy 6 số và CHỜ NGAY

@@ -19,11 +19,17 @@
  *  · TYPE   : `product_type` của WMS. Combo → COMBO; Normal/Material/khác → NORMAL (hợp đồng
  *             dashboard chỉ có 2 giá trị; tên hàng vẫn giữ tiền tố "(Combo)" của WMS nên không
  *             mất thông tin).
- *  · STATUS : WMS **KHÔNG** có cờ active/inactive trong báo cáo này (đã kiểm 18/08/2026: 18 trường,
- *             không có status/is_active; `last_modified` bị làm tươi liên tục — 100% dòng ≤ 90 ngày
- *             — nên không dùng để suy ra "SKU chết"). STATUS ở đây là SUY RA, hiểu đúng nghĩa:
+ *  · STATUS : NGUỒN CHÍNH = inside.mastige.vn (22/08/2026) — trạng thái thật do hệ nội bộ quản, đổ
+ *             sang tab INSIDE-STATUS bằng `sync-inside-status.mjs`; ở cuối hàm này MERGE đè lên cột D
+ *             (ACTIVE giữ nguyên, INACTIVE/PENDING/REJECT → INACTIVE). SKU inside không có (~2,4%)
+ *             thì DỰ PHÒNG bằng cách SUY TỪ TỒN dưới đây.
+ *             WMS **KHÔNG** có cờ active/inactive trong báo cáo tồn (đã kiểm 18/08/2026: 18 trường,
+ *             không status/is_active; `last_modified` làm tươi liên tục) nên KHÔNG suy được từ WMS —
+ *             chỉ suy theo TỒN, hiểu đúng nghĩa (dự phòng khi thiếu inside):
  *               ACTIVE   = còn dấu hiệu đang dùng: in_stock > 0 hoặc available > 0 hoặc in_coming > 0
- *               INACTIVE = không tồn, không hàng đang về (≈ 2.200/5.600 SKU)
+ *               INACTIVE = không tồn, không hàng đang về
+ *             ⚠ Suy-từ-tồn SAI với SKU còn Active mà tồn 0 (vd 422364500) — đó chính là lý do lấy
+ *             STATUS thật từ inside làm nguồn chính.
  *             Dashboard mặc định chỉ gợi ý ACTIVE (theo đặc tả) nhưng CÓ công tắc xem cả INACTIVE
  *             — vì SKU vừa nhập lần đầu, chưa có PO ghi nhận, cũng nằm ở nhóm INACTIVE.
  *             Thẻ gợi ý trên dashboard LUÔN hiện chữ ACTIVE/INACTIVE (không chỉ khi chết).
@@ -323,6 +329,39 @@ async function buBienThe(token, goc) {
   const rows = [...gom.values()]
     .sort((a, b) => (a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : 0))
     .map((o) => [o.sku, o.pn, o.combo ? "COMBO" : "NORMAL", o.song ? "ACTIVE" : "INACTIVE", Math.round(o.qty), bocDonVi(o.pn)]);
+
+  /* ── STATUS THẬT từ inside.mastige.vn (22/08/2026) ─────────────────────────────────────────────
+   * Cột D vừa gán ở trên là SUY TỪ TỒN (ACTIVE nếu còn tồn/hàng về) — SAI với SKU còn Active mà tồn 0
+   * (vd 422364500 "Dây bánh phở": inside=Active, suy-ra=INACTIVE). Trạng thái ĐÚNG do inside quản, đã
+   * đổ sang tab INSIDE-STATUS bằng `sync-inside-status.mjs` (chạy riêng, cần phiên SSO). Ở đây ƯU TIÊN
+   * inside: ACTIVE→ACTIVE, còn INACTIVE/PENDING/REJECT→INACTIVE (giữ hợp đồng 2 giá trị của dashboard).
+   * SKU nào inside KHÔNG có (≈2,4%, hoặc tab lỗi/mạng) thì GIỮ suy-từ-tồn — không làm hỏng lượt sync. */
+  try {
+    const uSt = "https://docs.google.com/spreadsheets/d/" + SHEET_FACTORY + "/gviz/tq?tqx=out:csv&sheet=INSIDE-STATUS";
+    const t = await (await fetch(uSt)).text();
+    const dong = t.split("\n");
+    if (dong[0] && /"?SKU"?/.test(dong[0]) && /STATUS/i.test(dong[0])) {
+      const mapSt = new Map();
+      for (const l of dong.slice(1)) {
+        const m = l.match(/^"?(\d{6,})"?\s*,\s*"?([A-Z]+)"?/);
+        if (m) mapSt.set(m[1], m[2]);
+      }
+      let tuInside = 0, doiSang = 0;
+      for (const r of rows) {
+        const st = mapSt.get(String(r[0]));
+        if (!st) continue;
+        const moi = st === "ACTIVE" ? "ACTIVE" : "INACTIVE";
+        if (moi !== r[3] && moi === "ACTIVE") doiSang++;   // suy-ra INACTIVE nhưng inside ACTIVE (ca 422364500)
+        r[3] = moi; tuInside++;
+      }
+      log("  ✓ STATUS theo inside: " + tuInside + "/" + rows.length + " SKU (" + (rows.length - tuInside) +
+        " giữ suy-từ-tồn); trong đó " + doiSang + " SKU tồn 0 nhưng Active được sửa về ACTIVE.");
+    } else {
+      log("  ⚠ Tab INSIDE-STATUS chưa có/không đọc được — GIỮ STATUS suy-từ-tồn cho lượt này.");
+    }
+  } catch (e) {
+    log("  ⚠ Không đọc được INSIDE-STATUS (" + e.message + ") — GIỮ STATUS suy-từ-tồn.");
+  }
 
   const soActive = rows.filter((r) => r[3] === "ACTIVE").length;
   const soCombo = rows.filter((r) => r[2] === "COMBO").length;
