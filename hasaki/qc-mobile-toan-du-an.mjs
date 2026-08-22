@@ -127,6 +127,8 @@ const TRANG = [
             "NDS.ds=[{sku:'422533333',pn:'Chỉ astra/C9700_Coats Phong Phú/Polyester /None/Black/None/Text 27- 60-3-Tkt 120/mm',type:'NORMAL',status:'ACTIVE',qty:9}]; " +
             "try{ localStorage.setItem('cd-quycach', JSON.stringify({qc:5000000,loi:'50'})); }catch(e){} " +
             "csMo('422533333'); " +
+            /* Số cuộn thừa BẮT BUỘC từ 22/08/2026 (mở pop-up là ô trống) — phải điền mới chốt được. */
+            "document.getElementById('csCuon').value='1'; " +
             "document.getElementById('csCan').value='117.5'; csTinh(); csChot(); " +
             "document.getElementById('csCan').value='185'; csTinh(); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#csKq .abntile .k')].some(x => /\\d/.test(x.textContent)) && document.querySelectorAll('#csDaChot b').length > 0",

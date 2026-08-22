@@ -214,18 +214,47 @@ await cho(500);
 let cs = await page.evaluate(() => ({
   show: document.getElementById("csmodal").classList.contains("show"),
   daThem: prCo("422533333"),
-  tex: document.getElementById("csTex").value, loi: document.getElementById("csLoi").value }));
+  tex: document.getElementById("csTex").value, loi: document.getElementById("csLoi").value,
+  cuon: document.getElementById("csCuon").value,
+  conThieu: (document.getElementById("csKq").textContent || "").trim(),
+  hintThua: !!document.querySelector('label[for="csTex"] .hint') || !!document.querySelector('label[for="csLoi"] .hint') ||
+    !!document.querySelector('label[for="csCuon"] .hint'),
+  subSku: (document.querySelector("#csSub b") || {}).textContent }));
 kiem("Cân→SL: SKU Chỉ TỰ vào danh sách in + prefill Tex 27 từ tên + lõi 50 đã nhớ",
-  cs.show && cs.daThem && cs.tex === "27" && cs.loi === "50", JSON.stringify(cs));
+  cs.show && cs.daThem && cs.tex === "27" && cs.loi === "50", JSON.stringify(cs).slice(0, 160));
+/* Bản 22/08/2026 tối: Số cuộn thừa BẮT BUỘC (không còn mặc định 1), 3 cụm hint thừa đã bỏ,
+   mã SKU ở dòng phụ đề tô nổi bằng <b>. */
+kiem("Số cuộn thừa BẮT BUỘC: mở pop-up là ô trống + khối \"Còn thiếu\" kể tên nó",
+  cs.cuon === "" && /số cuộn thừa/i.test(cs.conThieu), "ô = \"" + cs.cuon + "\" · " + cs.conThieu.slice(0, 80));
+kiem("3 cụm hint thừa đã bỏ (Tex/lõi/cuộn) + SKU tô nổi ở dòng phụ đề",
+  !cs.hintThua && cs.subSku === "422533333", "hint còn: " + cs.hintThua + " · sub b = " + cs.subSku);
 await page.click("#csCan", { clickCount: 3 });
 await page.keyboard.type("185", { delay: 10 });
 await cho(300);
-const nutChot = await page.$eval("#csBtnChot", (e) => ({ dis: e.disabled, chu: e.textContent }));
-kiem("Cân cuộn 185 gr → nút chốt bật và ghi rõ 5,000,000 mm", !nutChot.dis && /5,000,000 mm/.test(nutChot.chu), nutChot.chu);
+/* Sự cố máy thật 22/08/2026: bàn phím ảo che ô "Số cuộn thừa", người dùng không biết còn ô phải
+   nhập. Nay Enter ở ô cân khi CÒN THIẾU → nhảy thẳng sang ô thiếu; gõ xong Enter lần nữa (đủ cả,
+   đứng ở ô cuộn) → BLUR để bàn phím rút xuống cho thấy kết quả + nút Chốt. */
+let nutChot = await page.$eval("#csBtnChot", (e) => ({ dis: e.disabled, chu: e.textContent }));
+kiem("Gõ 185 gr mà CHƯA khai số cuộn thừa → nút Chốt vẫn khoá (bắt buộc đủ 2 giá trị)",
+  nutChot.dis === true, nutChot.chu);
+await page.keyboard.press("Enter");
+await cho(250);
+const focusSauEnter = await page.evaluate(() => (document.activeElement || {}).id || "(không)");
+kiem("Enter ở ô cân khi còn thiếu → focus NHẢY sang ô Số cuộn thừa",
+  focusSauEnter === "csCuon", "focus = " + focusSauEnter);
+await page.keyboard.type("1", { delay: 10 });
+await page.keyboard.press("Enter");
+await cho(250);
+const sauCuon = await page.evaluate(() => ({
+  focus: (document.activeElement || {}).id || "(không)",
+  dis: document.getElementById("csBtnChot").disabled, chu: document.getElementById("csBtnChot").textContent }));
+kiem("Đủ 2 giá trị + Enter ở ô cuộn → BLUR (bàn phím rút xuống), nút chốt bật đúng 5,000,000 mm",
+  sauCuon.focus !== "csCuon" && sauCuon.focus !== "csCan" && !sauCuon.dis && /5,000,000 mm/.test(sauCuon.chu),
+  "focus = " + sauCuon.focus + " · " + sauCuon.chu);
 await page.click("#csBtnChot");
 await cho(300);
 await page.keyboard.type("117.5", { delay: 10 });   // focus đã tự quay về ô cân — nhịp cân cuộn tiếp
-await page.keyboard.press("Enter");
+await page.keyboard.press("Enter");                 // đủ cả + đứng Ô CÂN → Enter = chốt luôn (nhịp cũ)
 await cho(300);
 cs = await page.evaluate(() => {
   const r = PR.sel["422533333"];
@@ -268,11 +297,19 @@ await cho(700);   // chờ JSONP dàn dựng về + csApThat điền lại
 cs = await page.evaluate(() => ({
   show: document.getElementById("csmodal").classList.contains("show"),
   loi: document.getElementById("csLoi").value,
-  texDoc: document.getElementById("csTexDoc").textContent }));
+  texDoc: document.getElementById("csTexDoc").textContent,
+  moTex: document.getElementById("csTex").classList.contains("cs-mo"),
+  moLoi: document.getElementById("csLoi").classList.contains("cs-mo") }));
 kiem("Cân thật: lõi tự điền 14 (đè số nhớ 50) + dòng nguồn ghi CÂN THẬT Irisa",
   cs.show && cs.loi === "14" && /CÂN THẬT/.test(cs.texDoc) && /Irisa/.test(cs.texDoc), JSON.stringify(cs).slice(0, 180));
+/* Có sổ cân CAN-LOI-CHI → hai ô Tex + lõi LÀM MỜ (cs-mo) vì là số máy điền (user 22/08/2026 tối). */
+kiem("Có sổ cân → số ở ô Tex + lõi LÀM MỜ (cs-mo, số máy điền)",
+  cs.moTex && cs.moLoi, "Tex mờ: " + cs.moTex + " · lõi mờ: " + cs.moLoi);
 await page.click("#csCan", { clickCount: 3 });
 await page.keyboard.type("171.5", { delay: 10 });
+await page.keyboard.press("Enter");                 // còn thiếu số cuộn thừa → nhảy sang ô đó
+await page.keyboard.type("1", { delay: 10 });
+await page.keyboard.press("Enter");                 // đủ cả → blur, bàn phím rút
 await cho(300);
 let nutThat = await page.$eval("#csBtnChot", (e) => ({ dis: e.disabled, chu: e.textContent }));
 kiem("Cân 1 cuộn nguyên 171,5 gr → đúng 5,000,000 mm theo mật độ CÂN THẬT (không phải 5,833,333 theo Tex 27)",
@@ -282,8 +319,10 @@ await page.keyboard.type("30", { delay: 10 });
 await cho(300);
 nutThat = await page.$eval("#csBtnChot", (e) => ({ chu: e.textContent }));
 const texDocSau = await page.$eval("#csTexDoc", (e) => e.textContent);
+const moTexSau = await page.$eval("#csTex", (e) => e.classList.contains("cs-mo"));
 kiem("Gõ Tex 30 (khác prefill) = chủ động ghi đè → quay về thước Tex: 157,5 gr × 10⁶/30 = 5,250,000 mm",
   /Chốt 5,250,000 mm/.test(nutThat.chu) && !/CÂN THẬT/.test(texDocSau), nutThat.chu);
+kiem("Gõ đè Tex → ô hết mờ (số người gõ, không còn là số máy điền)", moTexSau === false, "cs-mo = " + moTexSau);
 /* ══════════ CA 13: thanh nổi "Chờ in" không được ĐÈ lên pop-up cân (ảnh user 22/08 14:03) ══════════
    Cùng khuôn prm-open của prmodal: mở #csmodal thì body mang csm-open → #prbar display:none;
    đóng pop-up thì thanh hiện lại (đang ở tab sku + có SKU chờ in). csmodal của CA 12 còn mở. */
@@ -346,8 +385,10 @@ kiem("Điện thoại: \"Số tem: 6\" NGANG HÀNG mã SKU, chôn cứng kế n�
 kiem("Điện thoại: chip dồn bìa trái (chỗ ô Số tem cũ), NGANG HÀNG ô nhập; ô nhập dính bìa phải",
   mb.chipTrai <= 16 && mb.chipNgangO && mb.oSatPhai >= 0 && mb.oSatPhai <= 16,
   "chip cách trái " + mb.chipTrai + "px · ngang hàng ô nhập: " + mb.chipNgangO + " · ô cách phải " + mb.oSatPhai + "px");
-kiem("Điện thoại: ô nhập ~2/5 thẻ, vẫn cao ≥44px; nút × chip ≥40px; chữ chip ≥10,5px",
-  mb.rongO > 0 && mb.rongO <= 45 && mb.caoO >= 44 && mb.caoX >= 40 && mb.chuChip >= 10.5,
+/* 22/08/2026 đêm user hạ chiều cao khung gõ số lượng + chip còn ~1/2 (ô 44→~24px, × 40→20px) —
+   ngưỡng chạm 40px được user chủ động đánh đổi, bộ đo canh theo đặc tả MỚI. */
+kiem("Điện thoại: ô nhập ~2/5 thẻ, cao ~1/2 cũ (22–32px); nút × chip ≥20px; chữ chip ≥10,5px",
+  mb.rongO > 0 && mb.rongO <= 45 && mb.caoO >= 22 && mb.caoO <= 32 && mb.caoX >= 20 && mb.chuChip >= 10.5,
   "ô nhập rộng " + mb.rongO + "% thẻ · cao " + mb.caoO + "px · nút × " + mb.caoX + "px · chip " + mb.chuChip + "px");
 if (LUU_ANH) await page.screenshot({ path: path.join(OUT, "popup-390.png") });
 await page.setViewport({ width: 1360, height: 950 });

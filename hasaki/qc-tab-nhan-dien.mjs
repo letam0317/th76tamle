@@ -250,7 +250,9 @@ const trongKhung = await page.evaluate(() => {
   /* BÓ HẸP VÀO #viewNds: từ 19/08/2026 tab "Chuyển đổi cân" cũng dùng lại .nds-ctl (đúng luật
      tái dùng control của dự án), quét toàn trang là bắt luôn "Lô tiếp theo · Xoá hết" của tab đó. */
   const ngoai = Array.prototype.map.call(document.querySelectorAll("#viewNds .nds-ctl .kktab"), (b) => b.textContent.trim());
+  const ctl = document.querySelector("#viewNds .nds-ctl");
   return { ten, ngoai,
+    ctlAn: !!ctl && getComputedStyle(ctl).display === "none",
     lot: !!r && r.top >= st.top - 1 && r.bottom <= st.bottom + 1 && r.left >= st.left - 1 && r.right <= st.right + 1 };
 });
 kiem("Bật camera · Chọn ảnh · ⟲ · ⟳ nằm TRONG khung (Chụp đã dời ra thanh nổi)",
@@ -301,11 +303,13 @@ const anHet = await page.evaluate(() => Array.prototype.filter.call(
   .map((e) => e.id || e.className));
 kiem("Mọi phần tử [hidden] trong tab đều THẬT SỰ bị ẩn (không bị class display đè)",
   anHet.length === 0, anHet.join(", ") || "sạch");
-/* 3 nút từ 19/08/2026: mã vạch · OCR Google (miễn phí) · AI — đúng 3 người đọc của bậc thang, và
-   phải đúng thứ tự rẻ→đắt để ai nhìn cũng biết nên bấm cái nào trước. */
-kiem("Ngoài khung chỉ còn nút hành động với KẾT QUẢ (mã vạch · OCR · AI, đúng thứ tự rẻ→đắt)",
+/* 3 nút mã vạch · OCR · AI: từ 22/08/2026 BỎ HIỂN THỊ (user — chụp/chọn ảnh là 3 người đọc tự chạy
+   song song, nút chỉ là đường chạy lại thủ công không ai bấm). NODE PHẢI CÒN trong DOM: JS khoá/mở
+   disabled bám thẳng getElementById 3 id này (có chỗ không guard null), giấu bằng display:none. */
+kiem("3 nút đọc (mã vạch · OCR · AI) đã BỎ HIỂN THỊ nhưng node còn đó cho nhịp đọc tự động",
+  trongKhung.ctlAn &&
   trongKhung.ngoai.length === 3 && /mã vạch/i.test(trongKhung.ngoai[0]) && /OCR/i.test(trongKhung.ngoai[1]) && /AI/i.test(trongKhung.ngoai[2]),
-  trongKhung.ngoai.join(" · "));
+  (trongKhung.ctlAn ? "ẩn" : "ĐANG HIỆN") + " · " + trongKhung.ngoai.join(" · "));
 
 /* ---------- 3b. KHUNG XEM TRƯỚC: đúng MỘT lớp hiện, không chia đôi ----------
    Bẫy đã cắn 19/08/2026: `.nds-stage{display:flex}` + `.nds-stage video,img{display:block}` đè lên
@@ -1597,9 +1601,12 @@ const tran = await page.evaluate(() => {
   };
 });
 const nut = await page.evaluate(() => {
-  const c = document.querySelector(".nds-ctl");
+  /* Hàng .nds-ctl (3 nút đọc) đã BỎ HIỂN THỊ 22/08/2026 — cụm control còn lại của tab là thanh
+     TRONG khung camera (.nds-tools: Bật camera · Chọn ảnh · ⟲ · ⟳); đo cụm đó thay vì cái đã ẩn
+     (đo hàng ẩn thì 0 nút và min() ra vô nghĩa). */
+  const c = document.querySelector(".nds-tools");
   /* BỎ QUA nút đang ẩn: phần tử hidden trả rect 0×0 ở toạ độ (0,0) nên luôn bị tính là "tràn" */
-  const bs = Array.from(c.querySelectorAll(".kktab,.pg-seg")).filter((b) => b.offsetParent !== null)
+  const bs = Array.from(c.querySelectorAll("button")).filter((b) => b.offsetParent !== null)
     .map((b) => b.getBoundingClientRect());
   const cr = c.getBoundingClientRect();
   return { tran: bs.some((b) => b.right > cr.right + 1 || b.left < cr.left - 1),
@@ -1746,8 +1753,10 @@ kiem("Điện thoại: ô Số lượng ~2/5 thẻ, dính bìa phải (chỗ tr�
   nhapMobile.truoc.sl >= nhapMobile.truoc.cotSl * 0.3 && nhapMobile.truoc.sl <= nhapMobile.truoc.cotSl * 0.5 &&
   nhapMobile.truoc.satPhai <= 4,
   "ô " + nhapMobile.truoc.sl + "px / cột " + nhapMobile.truoc.cotSl + "px · cách bìa phải " + nhapMobile.truoc.satPhai + "px");
-kiem("Điện thoại: ô Số lượng cao ≥44px, chữ ≥18px và in đậm (đủ chạm + đọc lại được)",
-  nhapMobile.truoc.caoSl >= 44 && nhapMobile.truoc.chuSl >= 18 && nhapMobile.truoc.damSl >= 600,
+/* 22/08/2026 đêm: user hạ chiều cao ô còn ~1/2 (44→~24px, chữ 19→15px vẫn đậm) — ngưỡng đo theo
+   đặc tả MỚI, không còn chuẩn 44px cho khung này. */
+kiem("Điện thoại: ô Số lượng cao ~1/2 cũ (22–32px), chữ ≥14px và in đậm (đọc lại được con số)",
+  nhapMobile.truoc.caoSl >= 22 && nhapMobile.truoc.caoSl <= 32 && nhapMobile.truoc.chuSl >= 14 && nhapMobile.truoc.damSl >= 600,
   "cao " + nhapMobile.truoc.caoSl + "px · chữ " + nhapMobile.truoc.chuSl + "px/" + nhapMobile.truoc.damSl);
 kiem("Điện thoại: chip đã chốt NGANG HÀNG ô nhập, dồn bìa trái (đúng chỗ ô Số tem cũ)",
   nhapMobile.hai.soChip === 2 && nhapMobile.hai.chipNgang && nhapMobile.hai.chipTrai <= 2,
