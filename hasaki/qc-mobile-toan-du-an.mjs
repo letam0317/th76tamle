@@ -90,21 +90,57 @@ const TRANG = [
         sanSangMan: "() => document.querySelectorAll('#viewPlg .pg-whbar *').length > 0" },
       { ten: "Nhận diện SKU", mo: "() => { showTab('sku'); return true; }",
         sanSangMan: "() => !!document.getElementById('ndsMa')" },
+      /* TAB "CHUYỂN ĐỔI CÂN" — BỔ SUNG 22/08/2026 cùng lúc thêm thước Tex + chip Tex từ danh mục.
+         Lỗ hổng cũ y hệt In tem/Planogram: tab chưa từng nằm trong danh sách màn nên chưa từng được
+         đo. Dựng trạng thái ĐẦY nhất tại chỗ: seed cache danh mục để dải chip Tex hiện, điền đủ số
+         để 4 thẻ kết quả + phiếu tính + cờ đỏ + dòng đối chứng cùng vẽ — đo lúc màn đông chữ nhất. */
+      { ten: "Chuyển đổi cân",
+        mo: "() => { if(typeof cdTinh!=='function') return false; " +
+            "try{ localStorage.setItem('nds-master-v1', JSON.stringify({at:Date.now(),rows:[" +
+            "{sku:'1',pn:'Chỉ may/COATS Phong Phú/Polyester/None/White/None/Text 27 - Tkt 120/mm',type:'NORMAL',status:'ACTIVE',qty:1}," +
+            "{sku:'2',pn:'(Combo) Chỉ FILTEX/F2/Polyester/None/Đỏ/None/Tex 24-100D-2/Cuộn 5000m',type:'COMBO',status:'ACTIVE',qty:1}]})); }catch(e){} " +
+            "showTab('cd'); CD.texNap=false; cdNapTexKho(); " +
+            "[['cdTong','10000'],['cdCuon','10'],['cdLoi','50'],['cdNguyen','120']].forEach(function(c){ document.getElementById(c[0]).value=c[1]; }); " +
+            "var chipTex=[...document.querySelectorAll('#cdTexKhoBar .kktab')].filter(function(b){ return Number(b.getAttribute('data-tex'))>0; })[0]; " +
+            "if(chipTex && !chipTex.classList.contains('active')) chipTex.click(); " +
+            "cdTinh(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#cdTexKhoBar .kktab').length >= 3 && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try{ cdXoaHet(); }catch(e){} }" },
       /* POP-UP "IN TEM SKU" — BỔ SUNG 21/08/2026. Lỗ hổng gốc y như panel Planogram: pop-up này chưa
          từng nằm trong danh sách màn, nên mọi lời hứa "đã đo điện thoại" đều không phủ nó — user phải
-         tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). Nó là bảng 5 cột + hai ô số +
-         dải chip, tức đúng loại màn dễ vỡ nhất.
-         Dựng dữ liệu giả tại chỗ (2 SKU, 3 số lượng) để đo được cả DẢI CHIP — dải chỉ hiện khi đã có
+         tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). BẢN 22/08/2026: cột Số tem
+         đã bỏ — chip số lượng nằm cùng ô với ô nhập, "Số tem: n" là chữ ở ô SKU.
+         Dựng dữ liệu giả tại chỗ (2 SKU, 3 số lượng) để đo được cả CHIP — chip chỉ hiện khi đã có
          số lượng, mở pop-up rỗng thì lại soi trượt đúng cái vừa đổi. */
       { ten: "Pop-up In tem SKU", cho: "#prmodal.show",
         mo: "() => { if(typeof prMo!=='function') return false; PR.sel={" +
             "'422495218':{sku:'422495218',pn:'Mẫu thông chuyền/CWHO0006/Xanh Tro-Dusky Green/Size S',slHang:'1.000, 2.000, 3.000',mau:PR_TEM.MAU_MAC_DINH,sl:1}," +
             "'422423807':{sku:'422423807',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',slHang:'',mau:PR_TEM.MAU_MAC_DINH,sl:2}}; " +
             "prLuu(); prMo(); return true; }",
-        sanSangMan: "() => document.querySelectorAll('#prBody tr.prsl2 .prchip').length >= 3",
+        sanSangMan: "() => document.querySelectorAll('#prBody .prgo .prchip').length >= 3 && !!document.querySelector('#prBody .prtemso b')",
         dong: "() => { try{ prDong(); prXoaHet(); }catch(e){} }" },
+      /* POP-UP "CÂN → SỐ LƯỢNG" — BỔ SUNG 22/08/2026 cùng lúc ra đời (luật: pop-up mới phải vào
+         danh sách màn ngay từ đầu, đừng để thành lỗ hổng như In tem/Planogram trước đây). Dựng
+         trạng thái ĐẦY: đã chốt 1 chip + đang tính cuộn kế → tile kết quả + dòng "Đã chốt" cùng vẽ. */
+      { ten: "Pop-up Cân → Số lượng", cho: "#csmodal.show",
+        mo: "() => { if(typeof csMo!=='function') return false; " +
+            "NDS.ds=[{sku:'422533333',pn:'Chỉ astra/C9700_Coats Phong Phú/Polyester /None/Black/None/Text 27- 60-3-Tkt 120/mm',type:'NORMAL',status:'ACTIVE',qty:9}]; " +
+            "try{ localStorage.setItem('cd-quycach', JSON.stringify({qc:5000000,loi:'50'})); }catch(e){} " +
+            "csMo('422533333'); " +
+            "document.getElementById('csCan').value='117.5'; csTinh(); csChot(); " +
+            "document.getElementById('csCan').value='185'; csTinh(); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#csKq .abntile .k')].some(x => /\\d/.test(x.textContent)) && document.querySelectorAll('#csDaChot b').length > 0",
+        dong: "() => { try{ csDong(); prXoaHet(); }catch(e){} }" },
       { ten: "Pop-up Kiểm kê (theo SKU)", cho: "#kkmodal.show",
         mo: "() => { showTab('kk'); const t=document.querySelector('#kkWrap .ks,.ks'); if(!t) return false; t.click(); return true; }",
+        dong: "() => { try{ closeKkModal(); }catch(e){} }" },
+      /* Pop-up KHỐI VỊ TRÍ theo trạng thái ("Mã vị trí · trạng thái …") — BỔ SUNG 22/08/2026 cùng lúc
+         rút bảng còn 6 cột + Diff đếm dòng lệch + khuôn thẻ mbcard. Trước đó bộ đo chỉ mở pop-up
+         khối SKU (bấm thẻ đầu tiên), bảng khối vị trí chưa từng được soi. Ưu tiên đúng trạng thái
+         nhiều phiếu chờ duyệt; không có thì lấy trạng thái đông phiếu nhất — miễn là mở được bảng. */
+      { ten: "Pop-up Kiểm kê (mã vị trí · trạng thái)", cho: "#kkmodal.show",
+        mo: "() => { showTab('kk'); if(typeof kkOpen!=='function'||typeof KK==='undefined'||!KK.data||!KK.data.loc||!KK.data.loc.length) return false; const dem={}; KK.data.loc.forEach(r=>{ const s=String(r.st||'').trim().toUpperCase(); if(s) dem[s]=(dem[s]||0)+1; }); const s0=dem['WAITING FOR APPROVE']?'WAITING FOR APPROVE':Object.keys(dem).sort((a,b)=>dem[b]-dem[a])[0]; if(!s0) return false; kkOpen('loc','st:'+s0); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#kkmBody tbody td')].some(x => /[0-9]/.test(x.textContent))",
         dong: "() => { try{ closeKkModal(); }catch(e){} }" },
       { ten: "Pop-up Bất thường (tất cả SKU)", cho: "#abnmodal.show",
         mo: "() => { showTab('abn'); if(typeof ABN==='undefined'||!ABN.ok) return false; abnOpenAll(); return true; }",

@@ -38,6 +38,19 @@ page.on("console", (m) => { if (m.type() === "error") loiTrang.push("console: " 
 await page.setRequestInterception(true);
 page.on("request", (req) => {
   const u = req.url();
+  /* gviz tab CAN-LOI-CHI (số cân thật cho pop-up Cân → SL): trả bản DÀN DỰNG chỉ có Irisa —
+     ca 11 (Astra) phải RƠI VỀ thước Tex như cũ, còn ca cân-thật kiểm bằng số Irisa đã cân 22/08
+     (lõi 14 · cả cuộn 171,5 → 157,5 gr chỉ / 5.000.000 mm). Không chặn thì QC ăn dữ liệu Sheet
+     thật — số đổi theo người nhập là QC gãy vô cớ. */
+  if (/docs\.google\.com\/spreadsheets/.test(u) && u.includes("CAN-LOI-CHI")) {
+    const cb = (u.match(/responseHandler:([^&]+)/) || [])[1] || "gviz_canloi";
+    return req.respond({ status: 200, contentType: "text/javascript",
+      body: cb + "(" + JSON.stringify({ status: "ok", table: {
+        cols: [{ label: "MÃ NHÓM" }, { label: "NHÃN" }, { label: "CỠ CHỈ" }, { label: "QUY CÁCH" },
+          { label: "CÂN LÕI RỖNG (g) ← NHẬP" }, { label: "CÂN CẢ CUỘN NGUYÊN (g) ← NHẬP" }],
+        rows: [{ c: [{ v: "IRISA-TEX-27-5000M" }, { v: "Irisa" }, { v: "Tex 27" }, { v: "5000m" }, { v: 14 }, { v: 171.5 }] }],
+      } }) + ");" });
+  }
   if (/script\.google\.com/.test(u)) {
     if (/callback=/.test(u)) {
       const cb = (u.match(/callback=([^&]+)/) || [])[1] || "cb";
@@ -79,12 +92,13 @@ const trangThai = () => page.evaluate(() => {
   const r1 = PR.sel["422495218"], r2 = PR.sel["422423807"];
   const chip = (s) => (PR_TEM.tachSl(s) || []).join("|");
   const oSl = document.querySelector('#prBody input.prsl-v[data-s="422495218"]');
-  const oTem = document.querySelector('#prBody input.prsl-t[data-s="422495218"]');
+  /* 22/08/2026: ô nhập Số tem ĐÃ BỎ — "Số tem: n" giờ là chữ .prtemso dán ở ô SKU cùng dòng. */
+  const tag = oSl ? oSl.closest("tr").querySelector(".prtemso b") : null;
   return {
     chip1: chip(r1.slHang), chip2: chip(r2.slHang),
     sl1: r1.sl, tem1: PR_TEM.temCuaDong(r1), tong: PR_TEM.tongTem(prDs()),
     oSlVal: oSl ? oSl.value : "(không có ô)",
-    oTemVal: oTem ? oTem.value : "(không có ô)", oTemDis: oTem ? oTem.disabled : null,
+    tagSo: tag ? tag.textContent.trim() : "(không có)",
     nutIn: (document.querySelector("#prfoot .primary, .prfoot .primary") || {}).textContent || "",
   };
 });
@@ -119,7 +133,9 @@ kiem("Gõ 6 rồi Enter → thành chip thứ hai (không double)",
 /* ══════════ CA 3: gõ số rồi RỜI Ô (bấm ra ngoài) ══════════
    Đường này cố ý có để "không ai mất con số vừa đánh chỉ vì quên bấm +". */
 await goSl(7);
-await page.click("#prBody tr:first-child td:nth-child(4)");
+/* td 3 = Tên sản phẩm (bảng 22/08 còn 4 ô: SL · SKU · tên · ×) — bấm ra đó để ô mất focus;
+   TUYỆT ĐỐI không bấm td 4: đó là nút × xoá cả dòng. */
+await page.click("#prBody tr:first-child td:nth-child(3)");
 await cho(400);
 t = await trangThai();
 kiem("Gõ 7 rồi bấm ra ngoài ô → thành chip thứ ba (không double)",
@@ -134,11 +150,14 @@ t = await trangThai();
 kiem("Gõ 8 rồi bấm sang ô dòng khác → chip thứ tư, dòng khác vẫn trống",
   t.chip1 === "5|6|7|8" && t.chip2 === "", "dòng 1 = [" + t.chip1 + "] · dòng 2 = [" + t.chip2 + "]");
 
-/* ══════════ CA 5: SỐ TEM phải khớp số chip, và ô Số tem bị chốt ══════════ */
+/* ══════════ CA 5: "Số tem" hiển thị đúng (22/08/2026: cột + ô nhập Số tem ĐÃ BỎ) ══════════
+   Số tem giờ là CHỮ "Số tem: n" dán ở ô SKU (con số phải khớp số chip), và không còn cái
+   input.prsl-t nào để hai con số chỏi nhau nữa. */
 t = await trangThai();
-kiem("Có nhiều số lượng → SỐ TEM = số chip, và ô Số tem bị vô hiệu (khỏi hai con số chỏi nhau)",
-  t.tem1 === 4 && t.oTemVal === "4" && t.oTemDis === true,
-  "số tem = " + t.tem1 + " · ô hiện " + t.oTemVal + " · disabled = " + t.oTemDis);
+const oTemCu = await page.evaluate(() => !!document.querySelector("#prBody input.prsl-t"));
+kiem("Có nhiều số lượng → chữ \"Số tem: n\" ở ô SKU khớp số chip, ô nhập Số tem đã BỎ HẲN",
+  t.tem1 === 4 && t.tagSo === "4" && !oTemCu,
+  "số tem = " + t.tem1 + " · chữ hiện " + t.tagSo + " · còn input cũ: " + oTemCu);
 
 /* ══════════ CA 6: ô trống thì KHÔNG có gì để chốt ══════════
    Nút "+" chỉ hiện khi trong ô ĐANG có số (class ) — ô trống thì nó phải ẩn, và Enter trên ô
@@ -161,73 +180,174 @@ await cho(400);
 t = await trangThai();
 kiem("Bấm × trên chip thứ 2 → chỉ mất đúng chip đó", t.chip1 === "5|7|8", "chip = [" + t.chip1 + "]");
 
-/* ══════════ CA 8: "Áp SỐ LƯỢNG cho tất cả" ══════════ */
-await page.click("#prSlhAll", { clickCount: 3 });
-await page.keyboard.type("42", { delay: 12 });
-await page.click("#prSlAll");                     // rời ô -> change
-await cho(400);
-t = await trangThai();
-kiem("Áp SỐ LƯỢNG 42 cho tất cả → mỗi dòng đúng MỘT số 42, không nhân đôi",
-  t.chip1 === "42" && t.chip2 === "42" && t.tong === 2,
-  "dòng 1 = [" + t.chip1 + "] · dòng 2 = [" + t.chip2 + "] · tổng tem = " + t.tong);
-
-/* ══════════ CA 9: "Áp SỐ TEM cho tất cả" ══════════ */
-await page.click("#prSlAll", { clickCount: 3 });
-await page.keyboard.type("3", { delay: 12 });
-await page.click("#prSlhAll");
-await cho(400);
-t = await trangThai();
-kiem("Áp SỐ TEM 3 → mỗi dòng 3 tem (dòng chỉ có MỘT số lượng thì số tem do người gõ)",
-  t.tong === 6, "tổng tem = " + t.tong + " · số tem dòng 1 = " + t.tem1);
+/* ══════════ CA 8 (đổi vai 22/08/2026 tối): HÀNG ĐIỀU KHIỂN ĐẦU POP-UP ĐÃ GỠ ══════════
+   User bỏ cả hàng "Áp SỐ TEM cho tất cả / Áp SỐ LƯỢNG cho tất cả / Thêm SKU ngoài" (nhắc lần 2
+   "vẫn còn hiển thị") — pop-up chỉ còn bảng dòng tem. Hai ca "Áp…" cũ và 4 ca "Thêm SKU ngoài"
+   (thêm sáng cùng ngày) đi theo hàng đó; hàm prApSl/prApSlHang/prThemNgoai vẫn nằm trong JS
+   nhưng không còn lối gọi nào. */
+const hangGo = await page.evaluate(() => ({
+  slAll: !!document.getElementById("prSlAll"), slhAll: !!document.getElementById("prSlhAll"),
+  themSku: !!document.getElementById("prThemSku"), mfilters: !!document.querySelector("#prmodal .mfilters") }));
+kiem("Hàng 'Áp SỐ TEM / Áp SỐ LƯỢNG / Thêm SKU ngoài' đã GỠ khỏi pop-up",
+  !hangGo.slAll && !hangGo.slhAll && !hangGo.themSku && !hangGo.mfilters, JSON.stringify(hangGo));
 
 /* ══════════ CA 10: gõ nhiều số một lần bằng dấu phẩy ══════════ */
 await goSl("12, 14, 16");
 (await nutCong()).click();
 await cho(400);
 t = await trangThai();
-kiem("Dán \"12, 14, 16\" rồi bấm + → ba chip, không nhân đôi",
-  t.chip1 === "42|12|14|16", "chip = [" + t.chip1 + "]");
+kiem("Dán \"12, 14, 16\" rồi bấm + → thêm đúng ba chip, không nhân đôi",
+  t.chip1 === "5|7|8|12|14|16", "chip = [" + t.chip1 + "]");
 
-/* ══════════ ĐIỆN THOẠI 390px — dải số lượng mới phải theo đúng 9 luật của dự án ══════════
-   Luật bắt buộc: mục nào có pop-up thì phải có ca đo màn 390px (xem qc-bo-cuc-dien-thoai). Dải
-   `.prslbar` là hàng `tr` RIÊNG, mà trên điện thoại mỗi `tr` là một THẺ có viền + bóng — phải kiểm
-   đúng cái chỗ dễ vỡ đó: nó có dán liền đáy thẻ trên hay tách ra thành thẻ thứ hai rời rạc. */
+/* ══════════ CA 11: CÂN → SỐ LƯỢNG (user chốt 22/08/2026 tối) ══════════
+   Nút ⚖ trên thẻ nhận diện (chỉ nhóm Chỉ*) — ở đây gọi thẳng csMo để kiểm LÕI luồng: SKU tự vào
+   danh sách in QUA prTick, prefill Tex từ tên hàng + lõi đã nhớ của tab Chuyển đổi cân, cân từng
+   cuộn chốt thành chip mm TRƠN (tachSl cắt theo dấu phẩy nên "5,000,000" là vỡ 3 chip — bẫy đã né).
+   Số đẹp để soi tay: Tex 27, lõi 50 → cuộn 185gr = (185−50)×10⁶/27 = 5.000.000 mm;
+   cuộn 117.5gr = 67.5×10⁶/27 = 2.500.000 mm. */
+await page.evaluate(() => {
+  NDS.ds = [{ sku: "422533333", pn: "Chỉ astra/C9700_Coats Phong Phú/Polyester /None/Black/None/Text 27- 60-3-Tkt 120/mm", type: "NORMAL", status: "ACTIVE", qty: 9 }];
+  localStorage.setItem("cd-quycach", JSON.stringify({ qc: 5000000, loi: "50" }));
+  csMo("422533333");
+});
+await cho(500);
+let cs = await page.evaluate(() => ({
+  show: document.getElementById("csmodal").classList.contains("show"),
+  daThem: prCo("422533333"),
+  tex: document.getElementById("csTex").value, loi: document.getElementById("csLoi").value }));
+kiem("Cân→SL: SKU Chỉ TỰ vào danh sách in + prefill Tex 27 từ tên + lõi 50 đã nhớ",
+  cs.show && cs.daThem && cs.tex === "27" && cs.loi === "50", JSON.stringify(cs));
+await page.click("#csCan", { clickCount: 3 });
+await page.keyboard.type("185", { delay: 10 });
+await cho(300);
+const nutChot = await page.$eval("#csBtnChot", (e) => ({ dis: e.disabled, chu: e.textContent }));
+kiem("Cân cuộn 185 gr → nút chốt bật và ghi rõ 5,000,000 mm", !nutChot.dis && /5,000,000 mm/.test(nutChot.chu), nutChot.chu);
+await page.click("#csBtnChot");
+await cho(300);
+await page.keyboard.type("117.5", { delay: 10 });   // focus đã tự quay về ô cân — nhịp cân cuộn tiếp
+await page.keyboard.press("Enter");
+await cho(300);
+cs = await page.evaluate(() => {
+  const r = PR.sel["422533333"];
+  return { slHang: r.slHang, tem: PR_TEM.temCuaDong(r), oCan: document.getElementById("csCan").value,
+    daChot: document.getElementById("csDaChot").textContent };
+});
+kiem("Chốt 2 cuộn (nút + / Enter) → 2 chip mm TRƠN, 2 tem, ô cân tự dọn cho cuộn tiếp",
+  cs.slHang === "5000000, 2500000" && cs.tem === 2 && cs.oCan === "" && /Đã chốt 2/.test(cs.daChot),
+  JSON.stringify(cs));
+await page.evaluate(() => { csMoInTem(); });
+await cho(500);
+cs = await page.evaluate(() => {
+  const o = document.querySelector('#prBody input.prsl-v[data-s="422533333"]');
+  const tag = o && o.closest("tr").querySelector(".prtemso b");
+  return {
+    prShow: document.getElementById("prmodal").classList.contains("show"),
+    csShow: document.getElementById("csmodal").classList.contains("show"),
+    chips: [...document.querySelectorAll("#prBody .prchip")].filter((c) => /5000000|2500000/.test(c.textContent)).length,
+    tagSo: tag ? tag.textContent.trim() : "(không có)" };
+});
+kiem("Mở In tem từ pop-up cân: 2 chip mm nằm đúng dòng, chữ \"Số tem: 2\" theo luật chip",
+  cs.prShow && !cs.csShow && cs.chips === 2 && cs.tagSo === "2", JSON.stringify(cs));
+const cuNguyen = await page.evaluate(() => PR_TEM.tachSl(PR.sel["422495218"].slHang).join("|"));
+kiem("Luồng in tem CŨ nguyên vẹn: chip của SKU trước không suy suyển", cuNguyen === "5|7|8|12|14|16", cuNguyen);
+
+/* ══════════ CA 12: CÂN → SL theo SỐ CÂN THẬT (tab CAN-LOI-CHI, 22/08/2026 chiều) ══════════
+   Nhãn ĐÃ cân (Irisa, dữ liệu dàn dựng ở request-interception): lõi thật 14 gr đè số nhớ 50,
+   mật độ lấy 5.000.000/(171,5−14)=31.746,03 mm/gr thay vì Tex 27 danh nghĩa (37.037 — lệch
+   +16,7%, đúng phát hiện 22/08: "Tex 27" 60/3 cân ra ~31,5 g/km). Số đẹp soi tay: cân đúng
+   1 cuộn nguyên 171,5 gr phải ra ĐÚNG 5.000.000 mm. Gõ Tex khác prefill = chủ động ghi đè →
+   quay về thước Tex (157,5 × 10⁶/30 = 5.250.000). Ca 11 (Astra, KHÔNG có trong dữ liệu cân)
+   đứng trên đã chứng minh đường cũ nguyên vẹn. */
+await page.evaluate(() => { prDong(); });   // ca trước để prmodal mở — về hiện trường thẻ kết quả
+await cho(300);
+await page.evaluate(() => {
+  NDS.ds.push({ sku: "422544444", pn: "Chỉ Irisa/F1-1214_Phong Việt/100% Polyester/White/Tex 27-60-3/mm", type: "NORMAL", status: "ACTIVE", qty: 9 });
+  csMo("422544444");
+});
+await cho(700);   // chờ JSONP dàn dựng về + csApThat điền lại
+cs = await page.evaluate(() => ({
+  show: document.getElementById("csmodal").classList.contains("show"),
+  loi: document.getElementById("csLoi").value,
+  texDoc: document.getElementById("csTexDoc").textContent }));
+kiem("Cân thật: lõi tự điền 14 (đè số nhớ 50) + dòng nguồn ghi CÂN THẬT Irisa",
+  cs.show && cs.loi === "14" && /CÂN THẬT/.test(cs.texDoc) && /Irisa/.test(cs.texDoc), JSON.stringify(cs).slice(0, 180));
+await page.click("#csCan", { clickCount: 3 });
+await page.keyboard.type("171.5", { delay: 10 });
+await cho(300);
+let nutThat = await page.$eval("#csBtnChot", (e) => ({ dis: e.disabled, chu: e.textContent }));
+kiem("Cân 1 cuộn nguyên 171,5 gr → đúng 5,000,000 mm theo mật độ CÂN THẬT (không phải 5,833,333 theo Tex 27)",
+  !nutThat.dis && /Chốt 5,000,000 mm/.test(nutThat.chu), nutThat.chu);
+await page.click("#csTex", { clickCount: 3 });
+await page.keyboard.type("30", { delay: 10 });
+await cho(300);
+nutThat = await page.$eval("#csBtnChot", (e) => ({ chu: e.textContent }));
+const texDocSau = await page.$eval("#csTexDoc", (e) => e.textContent);
+kiem("Gõ Tex 30 (khác prefill) = chủ động ghi đè → quay về thước Tex: 157,5 gr × 10⁶/30 = 5,250,000 mm",
+  /Chốt 5,250,000 mm/.test(nutThat.chu) && !/CÂN THẬT/.test(texDocSau), nutThat.chu);
+/* ══════════ CA 13: thanh nổi "Chờ in" không được ĐÈ lên pop-up cân (ảnh user 22/08 14:03) ══════════
+   Cùng khuôn prm-open của prmodal: mở #csmodal thì body mang csm-open → #prbar display:none;
+   đóng pop-up thì thanh hiện lại (đang ở tab sku + có SKU chờ in). csmodal của CA 12 còn mở. */
+await page.evaluate(() => { TOPTAB = "sku"; prSyncBar(); });
+let barCs = await page.$eval("#prbar", (e) => getComputedStyle(e).display);
+kiem("Pop-up cân mở → thanh nổi Chờ in ẨN (trước đây đè lên pop-up)", barCs === "none", "display=" + barCs);
+await page.evaluate(() => { csDong(); });
+await cho(300);
+barCs = await page.$eval("#prbar", (e) => getComputedStyle(e).display);
+kiem("Đóng pop-up cân → thanh nổi hiện lại ở tab Nhận diện", barCs === "flex", "display=" + barCs);
+
+/* Dọn: bỏ SKU của ca này và MỞ LẠI prmodal — các ca điện thoại phía sau đo phần tử bên trong
+   pop-up In tem (trước khi có ca 12, prmodal đang mở sẵn từ ca csMoInTem). */
+await page.evaluate(() => { prXoa("422544444"); NDS.ds.pop(); prMo(); });
+await cho(400);
+
+/* ══════════ ĐIỆN THOẠI 390px — thẻ BẢN 22/08/2026 (bỏ cột Số tem) theo 9 luật của dự án ══════════
+   Đặc tả user 22/08/2026: chip số lượng nằm CHỖ Ô "SỐ TEM" CŨ — dồn bìa trái, NGANG HÀNG với ô
+   nhập số lượng; "Số tem: n" cùng hàng với mã SKU, chôn cứng kế nút ×; dải chip rời `tr.prsl2`
+   và ô nhập Số tem không được còn. Đo bằng getBoundingClientRect nên không thể "xanh mà giao
+   diện vẫn xấu". */
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
 await cho(700);
+/* Cho dòng 2 (đang trống) MỘT chip để đo ca "chip ngang hàng ô nhập": dòng 1 có 6 chip thì ô nhập
+   được phép rớt xuống dòng dưới (flex-wrap là chủ đích, không bóp chip) — đo ở đó là đo sai đặc tả. */
+await page.evaluate(() => { PR.sel["422423807"].slHang = "12"; prLuu(); prVe(); });
+await cho(400);
 const mb = await page.evaluate(() => {
-  const dong = document.querySelector("#prBody tr.prdong.co-chip");
-  const dai = document.querySelector("#prBody tr.prsl2");
-  const bar = document.querySelector("#prBody tr.prsl2 .prchips");
-  const oSl = document.querySelector("#prBody input.prsl-v");
-  const chip = document.querySelector("#prBody .prchip");
-  const nutX = document.querySelector("#prBody .prchip button.x");
+  const r = (el) => el.getBoundingClientRect();
+  const giua = (a) => a.top + a.height / 2;
+  const tr1 = document.querySelector('#prBody input.prsl-v[data-s="422495218"]').closest("tr");
+  const tr2 = document.querySelector('#prBody input.prsl-v[data-s="422423807"]').closest("tr");
   const body = document.querySelector("#prmodal .modalbody");
-  const r = (el) => (el ? el.getBoundingClientRect() : null);
-  const rd = r(dong), rl = r(dai), rb = r(bar), ro = r(oSl), rc = r(chip), rx = r(nutX);
-  const cs = (el, p) => (el ? parseFloat(getComputedStyle(el)[p]) : 0);
+  const sku = tr1.querySelector("td.prsku>b"), tag = tr1.querySelector(".prtemso"), del = tr1.querySelector(".prdel");
+  const nutX = tr1.querySelector(".prchip button.x");
+  const chip2 = tr2.querySelector(".prchip"), oSl2 = tr2.querySelector("input.prsl-v");
+  const rs = r(sku), rg = r(tag), rd = r(del), rx = r(nutX), rc = r(chip2), ro = r(oSl2), rt2 = r(tr2);
   return {
-    co: !!(dong && dai && bar),
-    ke: rd && rl ? Math.round(rl.top - rd.bottom) : null,     // khe giữa thẻ trên và dải
-    traiBang: rd && rl ? Math.abs(rl.left - rd.left) < 2 : false,
-    keoNgang: body ? body.scrollWidth - body.clientWidth : -1,
-    tranRa: rb && body ? Math.round(rb.right - r(body).right) : null,
-    caoO: ro ? Math.round(ro.height) : 0,
-    caoX: rx ? Math.round(Math.max(rx.width, rx.height)) : 0,
-    rongO: ro && rd ? Math.round((ro.width / rd.width) * 100) : 0,
-    chuChip: cs(chip, "fontSize"),
-    soDongChip: rc && rb ? Math.round(rb.height / rc.height) : 0,
+    daiCu: !!document.querySelector("#prBody tr.prsl2"),
+    oTemCu: !!document.querySelector("#prBody input.prsl-t"),
+    keoNgang: body.scrollWidth - body.clientWidth,
+    tagSo: (tag.querySelector("b") || {}).textContent,
+    tagNgangSku: Math.abs(giua(rg) - giua(rs)) < 12,
+    tagSatX: Math.round(rd.left - rg.right),
+    chipTrai: Math.round(rc.left - rt2.left),
+    chipNgangO: Math.abs(giua(rc) - giua(ro)) < 12,
+    oSatPhai: Math.round(rt2.right - ro.right),
+    caoO: Math.round(ro.height),
+    caoX: Math.round(Math.max(rx.width, rx.height)),
+    rongO: Math.round((ro.width / rt2.width) * 100),
+    chuChip: parseFloat(getComputedStyle(chip2).fontSize),
   };
 });
-kiem("Điện thoại: dải số lượng DÁN LIỀN đáy thẻ trên (không thành thẻ rời)",
-  mb.co && mb.ke !== null && mb.ke <= 1 && mb.traiBang,
-  "khe = " + mb.ke + "px · cùng lề trái: " + mb.traiBang);
-kiem("Điện thoại: không sinh kéo ngang, dải không tràn khỏi thân pop-up",
-  mb.keoNgang <= 0 && mb.tranRa !== null && mb.tranRa <= 0,
-  "kéo ngang = " + mb.keoNgang + "px · tràn phải = " + mb.tranRa + "px");
-/* Ô nhập chỉ được ăn ~MỘT NỬA bề rộng thẻ (user 21/08/2026: "bự quá"), vẫn phải cao ≥44px và
-   nút × của chip ≥40px — hai ràng buộc vùng chạm của dự án. */
-kiem("Điện thoại: ô nhập chỉ ~nửa bề rộng, vẫn cao ≥44px; nút × chip ≥40px; chữ chip ≥10,5px",
-  mb.rongO > 0 && mb.rongO <= 42 && mb.caoO >= 44 && mb.caoX >= 40 && mb.chuChip >= 10.5,
+kiem("Điện thoại: hết dải chip rời + hết ô Số tem, không kéo ngang",
+  !mb.daiCu && !mb.oTemCu && mb.keoNgang <= 0,
+  "dải cũ: " + mb.daiCu + " · ô tem cũ: " + mb.oTemCu + " · kéo ngang = " + mb.keoNgang + "px");
+kiem("Điện thoại: \"Số tem: 6\" NGANG HÀNG mã SKU, chôn cứng kế nút ×",
+  mb.tagSo === "6" && mb.tagNgangSku && mb.tagSatX >= 0 && mb.tagSatX <= 30,
+  "số " + mb.tagSo + " · ngang hàng: " + mb.tagNgangSku + " · cách nút × " + mb.tagSatX + "px");
+kiem("Điện thoại: chip dồn bìa trái (chỗ ô Số tem cũ), NGANG HÀNG ô nhập; ô nhập dính bìa phải",
+  mb.chipTrai <= 16 && mb.chipNgangO && mb.oSatPhai >= 0 && mb.oSatPhai <= 16,
+  "chip cách trái " + mb.chipTrai + "px · ngang hàng ô nhập: " + mb.chipNgangO + " · ô cách phải " + mb.oSatPhai + "px");
+kiem("Điện thoại: ô nhập ~2/5 thẻ, vẫn cao ≥44px; nút × chip ≥40px; chữ chip ≥10,5px",
+  mb.rongO > 0 && mb.rongO <= 45 && mb.caoO >= 44 && mb.caoX >= 40 && mb.chuChip >= 10.5,
   "ô nhập rộng " + mb.rongO + "% thẻ · cao " + mb.caoO + "px · nút × " + mb.caoX + "px · chip " + mb.chuChip + "px");
 if (LUU_ANH) await page.screenshot({ path: path.join(OUT, "popup-390.png") });
 await page.setViewport({ width: 1360, height: 950 });

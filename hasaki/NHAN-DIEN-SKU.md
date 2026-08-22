@@ -2150,6 +2150,37 @@ Bốn chỉnh theo cùng video/ảnh chụp:
 từ hiếm không kích hoạt · tx300ha→mm đứng đầu; kèm sửa ca "bản nhỏ tồn 0 lên đại diện" trượt oan vì
 `soLuong:3` quá hẹp) · `qc-tab-nhan-dien` **159/159** (3 ca đổi lời hứa theo #2–#4).
 
+### 5b.28 Gõ thẳng SKU nội bộ vào ô "Phần tử trên tem" (22/08/2026) — sự cố 422448952
+
+User gõ **422448952** (SKU có thật: *Vải Rib 1x1/5MR 4862_Song Thủy…*, ACTIVE, tồn 132.040) mà máy
+báo *"Không SKU nào trong danh mục chứa 422448952"*. **Hai lỗi cộng lại**, cái nào cũng đủ giết ca này:
+
+1. `locDong` chỉ soi **TÊN HÀNG** (`_pnc`) — tên không bao giờ chứa số SKU của chính nó, nên bộ lọc
+   trả rỗng dù danh mục CÓ dòng đó.
+2. Trong `timTop`, `return []` của ca "bộ lọc rỗng" (vá 19/08 cho lỗi gecko/c3298) chạy **TRƯỚC**
+   nhánh khớp-tuyệt-đối `thangSku` — nhánh này ĐÃ tìm ra đúng dòng rồi mới bị vứt.
+
+**Chữa (4 việc, cùng một yêu cầu "cho gõ trực tiếp SKU"):**
+
+* `locDong`: mảnh **toàn số ≥6 chữ số** được tra thêm vào **cột SKU, khớp ĐẦU mã** — chỉ khớp đầu để
+  mã NCC 7 số kiểu `8916123` không vớ nhầm khúc giữa của một SKU 9 số không liên quan (SKU thật bắt
+  đầu bằng 32/42 nên hai họ số không giẫm nhau).
+* `timTop`: bộ lọc rỗng mà `thangSku` có dòng thì **dòng đó là câu trả lời** (khớp tuyệt đối SKU là
+  bằng chứng mạnh hơn mọi bộ lọc theo tên), không `return []` nữa.
+* **Gợi ý ngay khi gõ** (`ndsGoiSku`): gõ toàn số ≥4 chữ số là tra cột SKU, nút gợi ý kèm **tên hàng
+  rút gọn** (`.nds-skupn`, 10,5px + ellipsis) để chọn bằng mắt. KHÔNG thay gợi ý mã NCC — hai danh
+  sách ghép: **≥6 số → SKU đứng trước** (đang chép SKU 9 số), 4–5 số → mã NCC đứng trước (ca "5374"
+  → F9-5374 giữ nguyên lời hứa cũ). Nhãn ô đổi thành "SKU / phần tử trên tem", placeholder có ví dụ SKU.
+* Dải **"Ý bạn là…"** khi gõ sai: nhánh cũ đòi mã "chữ lẫn số" nên SKU bấm nhầm 1 phím là câm lặng —
+  thêm nhánh toàn số: gợi ý các dãy số của danh mục lệch ≤1 bước gõ (`tyLe ≥ 0.8`, chênh dài ≤1).
+
+Gõ **đích danh SKU của dòng INACTIVE** vẫn ra (định danh thắng phạm vi, 5b.12 — `coMa` nhận cả dãy
+toàn số nên nhánh cứu `maChet` tự chạy).
+
+**Đo:** `qc-nhan-dien-sku` **110/110** (3 ca mới: gõ đúng SKU → #1·100%·`laSku` · SKU không có thật →
+rỗng, không đoán bừa · SKU dòng INACTIVE vẫn ra đích danh) · `qc-tab-nhan-dien` **159/159** (ca gõ
+"5374" gợi ý mã NCC giữ nguyên — gợi ý SKU chỉ nối thêm, không thay).
+
 ## 6. Lõi đối soát (`NDS_ENGINE`, trong `factory/index.html`)
 
 Nằm giữa 2 mốc `/*<NDS-ENGINE>*/ … /*</NDS-ENGINE>*/` — **thuần tính toán, không chạm DOM**, để 2 bộ
@@ -2960,3 +2991,41 @@ Ba chi tiết phải làm đúng, cả ba đều do ảnh chụp 390px bắt đ�
 
 **Đo:** `qc-in-tem-popup` **15/15** (gồm 3 ca màn 390px) · `qc-in-tem` 138/138 · `qc-tab-nhan-dien`
 **158/158** (4 ca phải sửa theo DOM mới: chip đổi sang `tr.prsl2`, ô nhập trống thay vì `0`).
+
+
+## 5b.29 · Pop-up In tem: BỎ CỘT "SỐ TEM" — chip là số tem, "Số tem: n" thành chữ ở ô SKU (22/08/2026)
+
+**Yêu cầu user (nguyên văn ý):** cột Số tem bỏ đi, thay bằng chính *những số lượng người dùng nhập*;
+con số Số tem chuyển sang hiển thị (1) **web**: dưới mã SKU, cỡ chữ một nửa, con số được làm nổi so
+với nhãn "Số tem"; (2) **điện thoại**: ngang hàng với mã SKU, chôn cứng kế nút ×, đồng thời chip số
+lượng đã nhập nằm ngang hàng với ô nhập — tức đúng chỗ ô Số tem cũ. Kèm QC màu + khoảng cách: các cột
+đang 2 màu chữ, các mục cách nhau quá xa.
+
+**Đổi trong `prVe` + CSS (factory/index.html):**
+
+* **Ô nhập Số tem (`input.prsl-t`) đi hẳn** — số tem = số chip đã chốt (`temCuaDong` giữ nguyên: >1
+  chip thì đếm chip, còn lại `r.sl`=1). Muốn in N tem thì chốt N số lượng. `prDatSl` vẫn nằm trong JS
+  nhưng không còn lối gọi (đúng lệ giữ hàm khi gỡ lối vào).
+* **Hàng chip rời `tr.prsl2` + class `co-chip` gỡ hẳn** — chip dọn về NGAY TRƯỚC ô nhập, cùng ô
+  `td.prslo` (`.prgo` thêm `flex-wrap`). Mỗi dòng SKU giờ đúng MỘT `tr`; thead còn **3 cột**: Số
+  lượng · SKU · Tên sản phẩm.
+* **`"Số tem: <b>n</b>"` = span `.prtemso` trong ô SKU.** Máy bàn: dòng nhỏ DƯỚI mã (nhãn 10,5px màu
+  mờ, con số 12px accent đậm — "highlight so với nhãn"). Điện thoại: `display:inline` +
+  `margin-left:auto` trong ô SKU flex → NGANG HÀNG mã, dính sát nút × (đo được 10px).
+* **Thẻ điện thoại còn 2 cột lưới** (`"sku del" / "pn pn" / "sl sl"`): chip dồn bìa trái (chỗ ô Số
+  tem cũ 82px), ô nhập `flex:0 1 40%` + `margin-left:auto` dính bìa phải (giữ cao 44px, chữ 19px/700,
+  min 96px — chật thì rớt dòng chứ không bóp). **Nhãn `::before` "Số tem"/"Số lượng" bỏ hẳn**
+  (placeholder "gõ số lượng" nói đủ). Ô bám theo **class** (`prslo/prsku/pn/prxoa`) — hết bẫy
+  nth-child dán nhãn sai.
+* **QC màu + khoảng cách (máy bàn):** cả bảng MỘT màu chữ `--ink` (cột Tên trước ăn `--ink2` mờ nên
+  nhìn thành 2 tông); cột SKU/nút × đóng `width:1%` ôm sát nội dung, cột Số lượng 36%, phần dư dồn
+  hết cho cột Tên → hết cảnh các cột số dạt xa nhau; padding ô 8×9px.
+
+**Bẫy dính lúc làm:** khối desktop đóng `width:1%/36%` cho cột — sang thẻ lưới điện thoại các rule đó
+vẫn ăn (media chỉ THÊM chứ không tự gỡ), ô co còn cái tăm → phải khai lại `width:auto` ở cả 3 ô trong
+khối `@media`.
+
+**Đo:** `qc-in-tem-popup` **25/25** (viết lại 5 ca đụng `prsl-t`/`tr.prsl2`; ca blur đổi sang
+`td:nth-child(3)` — td 4 giờ là nút ×, bấm là XOÁ DÒNG) · `qc-tab-nhan-dien` **160/160** (đầu bảng 3
+cột, số tem đọc từ `.prtemso b`, ca "chip dòng riêng phía dưới" đảo thành "ngang hàng ô nhập") ·
+`qc-mobile-toan-du-an --file --trang=factory` **76 màn × 4 máy đạt** (sanSangMan đổi selector chip).
