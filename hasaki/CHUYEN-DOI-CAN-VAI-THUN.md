@@ -304,6 +304,41 @@ lại cắn lần nữa hôm nay: sửa xong hai chỗ đầu, chạy `--thu` th
   sai. ② gán `CD.kho=180` mà để ô "Khác…" rỗng là **trạng thái không có thật** (khổ 180 không nằm
   trong 3 chip nên nó phải nằm ở ô gõ) — test đo trúng cái trạng thái ma đó rồi báo đỏ oan.
 
+## Bổ sung 23/08 (user báo): quy cách phải là quy cách CỦA LOẠI HÀNG ĐÓ
+
+*"Ở mục Thun cần hiển thị đúng số đơn vị độ dài của các SKU thun, ví dụ 1kg-6700m, chứ không phải
+lấy chỉ số của chỉ (2.500 / 3.000 / 5.000 m)."*
+
+Đúng, và nó tệ hơn vẻ ngoài: hàng chip quy cách chôn cứng ba con số của CHỈ MAY, mà chip **5.000 m
+vẫn SÁNG** khi chuyển sang Thun/Vải — tức máy lặng lẽ tính bằng cuộn chỉ 5.000 m cho một cuộn thun.
+
+**① Chip quy cách nay ĐẾM TỪ DANH MỤC theo từng loại** (cùng nguồn cache với chip Tex, 0 lượt mạng),
+sau khi **bóc bỏ hệ số cân↔dài** khỏi tên — `1kg-6700m` có chữ "6700m" nhưng đó là TỈ LỆ CÂN, không
+phải chiều dài một cuộn; nhận nhầm là sai hàng nghìn lần:
+
+| Loại | Chip hiện ra | Vì sao |
+|---|---|---|
+| Chỉ | 2.500 · 3.000 · 5.000 m | giữ nguyên bản user chốt 22/08 (trùng nhóm đầu bảng: 5.000m có 343 SKU) |
+| Thun | **100 m** | cả danh mục Thun chỉ có đúng một quy cách ghi trong tên |
+| Vải | *(chỉ còn "Khác…")* | **không SKU vải nào** ghi quy cách cuộn |
+
+Đổi loại mà quy cách cũ không còn trong danh sách ⇒ **bỏ chọn**, chuyển sang ô gõ tay. Thà để trống
+còn hơn mượn số của mặt hàng khác.
+
+**② Đọc luôn hệ số cân↔dài ghi sẵn trong tên hàng** (`NDS_ENGINE.heSoCan`) — 4 kiểu viết có thật,
+đếm trên cả 8.143 dòng: `22g-260m` (10) · `1kg-6700m` (2) · `7m 1kg` (2) · `6300m - 1kg` (1).
+
+* **Thun**: gõ SKU → ô g/m tự điền, dòng soi nói đúng chữ của tem: *"tên hàng ghi **1 kg = 6.700 m**
+  → 0,149 g/m"*. Thứ tự tin: **sổ tay (đã cân thật) > hệ số trong tên** — có cả hai thì lấy cân
+  nhưng vẫn in ra cả hai số.
+* **Vải**: chỉ để SOI, **không tự dùng**. Đo thật thấy hai số chọi nhau: SKU 422462136 ghi *"Mỏng 7m
+  1kg"* (143 g/m) trong khi *"228gsm, W160cm"* ra 365 g/m — **lệch 2,6 lần**. Máy không có quyền
+  chọn hộ; nó in cả hai kèm cảnh báo *"chọi với định lượng… kiểm lại trước khi tin"*.
+
+**Đo thêm:** `qc-chuyen-doi-can` **61/61** (+7 ca: 3 ca chip theo loại · 1 ca đổi loại phải bỏ quy
+cách của chỉ · 2 ca lõi `heSoCan` gồm cả ca *"Cuộn 5000m là QUY CÁCH, không phải hệ số"* · 1 ca Thun
+tự điền g/m từ tên).
+
 ## Còn lại (chưa làm)
 
 * **P3 vá dữ liệu gốc**: 230 SKU vải còn tồn thiếu gsm trong tên + 2 SKU ghi sai `Width 1650cm`.

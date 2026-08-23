@@ -286,6 +286,8 @@ await page.evaluate(() => {
       { sku: "422268715", pn: "Vải mẫu Dobby/WD68182_Winmatex/64% Poly/Dark blue/150gsm,57 - 58inch/m", type: "NORMAL", status: "ACTIVE", qty: 10 },
       { sku: "422265782", pn: "Vải Cotton/TN050/Single 4C, 95% Cotton Supima 30S,5% Spandex/Width 165cm+3cm/ Black /g", type: "NORMAL", status: "ACTIVE", qty: 5 },
       { sku: "422999999", pn: "Vải Interlock/TN043/87% Cotton/170gsm, 165cm/Be/mm", type: "NORMAL", status: "ACTIVE", qty: 9 },
+      { sku: "422295389", pn: "Thun chỉ/NSB#560-3.0-150-1-W_Triều Vĩ/65%polyester,35% spandex/None/White/None/DTY 150-48+Spandex 560D/1kg-6700m/mm", type: "NORMAL", status: "ACTIVE", qty: 1 },
+      { sku: "322229990", pn: "Thun cổ/bản thun 4mm, 100m/cuộn", type: "NORMAL", status: "ACTIVE", qty: 1 },
       { sku: "422328160", pn: "Thun lưng/59P601522_Paiho/Polyester, Spandex/None/White/None/40mm/mm", type: "NORMAL", status: "ACTIVE", qty: 4270250 },
       { sku: "422440680", pn: "Chỉ may Tex 27-60-3/Đen 345/100% Polyester/mm", type: "NORMAL", status: "ACTIVE", qty: 1 }
     ] }));
@@ -373,6 +375,53 @@ const thieuGsm = await page.evaluate(() => {
 });
 kiem("Tên hàng không ghi định lượng → nói thẳng \"không ghi định lượng\", KHÔNG đoán bừa",
   !thieuGsm.gsm && /không ghi định lượng/.test(thieuGsm.doc), thieuGsm.doc.replace(/\s+/g, " ").slice(0, 92));
+
+/* ⑥b QUY CÁCH CUỘN NGUYÊN PHẢI THEO LOẠI HÀNG (user báo 23/08/2026).
+   Trước đây hàng chip chôn cứng 2.500/3.000/5.000 m — quy cách của CHỈ MAY — và chip 5.000 m vẫn
+   SÁNG khi chuyển sang Thun/Vải, tức máy lặng lẽ tính bằng cuộn chỉ. Nay đếm từ danh mục theo loại:
+   chỉ giữ 3 chip đã chốt · thun có 100 m · vải không SKU nào ghi quy cách nên chỉ còn "Khác…". */
+const chipQc = await page.evaluate(() => {
+  const doc = () => ({ chip: [...document.querySelectorAll("#cdQCBar .kktab")].map((b) => b.textContent.trim()),
+    sang: [...document.querySelectorAll("#cdQCBar .kktab.active")].map((b) => b.textContent.trim()), qc: CD.qc, tuDo: CD.tuDo });
+  cdChonLoai("chi"); cdChonQC(5000000); const chi = doc();
+  cdChonLoai("thun"); const thun = doc();
+  cdChonLoai("vai"); const vai = doc();
+  return { chi, thun, vai };
+});
+kiem("Chỉ may: giữ nguyên 3 chip quy cách đã chốt 22/08",
+  chipQc.chi.chip.join("|") === "2,500 m|3,000 m|5,000 m|Khác…" && chipQc.chi.sang.join("") === "5,000 m",
+  chipQc.chi.chip.join(" | "));
+kiem("Thun: chip quy cách đếm từ danh mục Thun (100 m), KHÔNG mượn số của chỉ",
+  chipQc.thun.chip.join("|") === "100 m|Khác…", chipQc.thun.chip.join(" | "));
+kiem("Vải: danh mục không SKU nào ghi quy cách → chỉ còn \"Khác…\"",
+  chipQc.vai.chip.join("|") === "Khác…", chipQc.vai.chip.join(" | "));
+kiem("Đổi loại hàng thì BỎ luôn quy cách 5.000 m của chỉ (không tính lén bằng cuộn chỉ)",
+  chipQc.thun.qc !== 5000000 && chipQc.thun.tuDo === true && chipQc.vai.qc !== 5000000,
+  "thun qc=" + chipQc.thun.qc + " tuDo=" + chipQc.thun.tuDo + " · vải qc=" + chipQc.vai.qc);
+
+/* ⑥c HỆ SỐ CÂN↔DÀI GHI SẴN TRONG TÊN HÀNG — 4 kiểu viết có thật trong danh mục (17 dòng) */
+const hs = await page.evaluate(() => {
+  const f = (pn) => { const h = NDS_ENGINE.heSoCan(pn); return h ? { chu: h.chu, gMet: Math.round(h.gMet * 1e4) / 1e4 } : null; };
+  return {
+    a: f("Thun chỉ/NSB#560/…/1kg-6700m/mm"), b: f("Chỉ quấn chân nút/MMS TF/None/Đen/None/22g-260m/None/pcs"),
+    c: f("Chỉ thun/6300m - 1kg/cuộn"), d: f("Vải lót/95% Polyester/Mỏng 7m 1kg/W 160cm, 228gsm/Đen/g"),
+    quyCach: f("Chỉ astra/Coats/Text 27 - 60-3/Cuộn 5000m"), khong: f("Thun lưng/Paiho/None/White/None/40mm/mm")
+  };
+});
+kiem("Đọc được cả 4 kiểu ghi hệ số cân↔dài trong tên hàng",
+  hs.a && hs.a.gMet === 0.1493 && hs.b && hs.b.gMet === 0.0846 && hs.c && hs.c.gMet === 0.1587 && hs.d && hs.d.gMet === 142.8571,
+  ["1kg-6700m", "22g-260m", "6300m - 1kg", "7m 1kg"].map((k, i) => k + "→" + [hs.a, hs.b, hs.c, hs.d][i]?.gMet).join(" · "));
+kiem("\"Cuộn 5000m\" là QUY CÁCH, KHÔNG phải hệ số cân — không được nhận nhầm",
+  hs.quyCach === null && hs.khong === null, "cuộn 5000m → " + hs.quyCach + " · thun 40mm → " + hs.khong);
+
+/* ⑥d Thun: gõ SKU có hệ số trong tên → tự điền g/m và NÓI RÕ lấy từ đâu */
+const thunTen = await page.evaluate(() => {
+  cdChonLoai("thun");
+  const o = document.getElementById("cdSku"); o.value = "422295389"; o.dispatchEvent(new Event("input", { bubbles: true }));
+  return { gm: document.getElementById("cdGm").value, doc: document.getElementById("cdSkuDoc").textContent.replace(/\s+/g, " ") };
+});
+kiem("Thun: tên hàng ghi \"1kg-6700m\" → tự điền 0,149 g/m và nói rõ \"1 kg = 6.700 m\"",
+  Number(thunTen.gm) === 0.149 && /1 kg = 6\.700 m/.test(thunTen.doc), thunTen.gm + " g/m · " + thunTen.doc.slice(-64));
 
 /* ⑦ THUN: cân 1 cuộn nguyên (quy cách 100 m, cân 520 gr cả lõi 40 gr) ⇒ 4,8 g/m, và NHỚ vào sổ tay */
 await bam('#cdLoaiBar .kktab[data-loai="thun"]');
