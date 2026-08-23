@@ -1024,11 +1024,13 @@ const doiSl = await page.evaluate(async () => {
     await new Promise((r) => setTimeout(r, 200));
   };
   await cam("5"); await cam("8");
-  const tag = document.querySelector("#prBody tr .prtemso b");
-  return { tong: prTongTem(), tagSo: tag ? tag.textContent.trim() : "(không có)",
+  const tag = document.querySelector("#prBody tr .prtemin");
+  return { tong: prTongTem(), tagSo: tag ? String(tag.value).trim() : "(không có)",
     nutIn: document.getElementById("prBtnIn").textContent };
 });
-kiem("Chốt 2 số lượng → dòng thành 2 tem, tổng đổi theo, chữ \"Số tem: 2\" hiện đúng",
+/* 23/08/2026: "Số tem: n" là Ô NHẬP (`input.prtemin`), không còn là chữ `.prtemso b` — nhưng với
+   dòng khai NHIỀU số lượng thì nó `readonly`, con số vẫn phải khớp số chip. */
+kiem("Chốt 2 số lượng → dòng thành 2 tem, tổng đổi theo, ô \"Số tem\" hiện đúng 2",
   doiSl.tong === 3 && doiSl.tagSo === "2" && /3 tem/.test(doiSl.nutIn),
   doiSl.tong + " tem · tag " + doiSl.tagSo + " · nút \"" + doiSl.nutIn + "\"");
 
@@ -1044,9 +1046,12 @@ kiem("Xoá được TỪNG DÒNG trong danh sách in", xoaDong.sau === xoaDong.t
 
 /* Ô SỐ LƯỢNG KIỂU CHIP (21/08/2026, yêu cầu người dùng).
    Cùng một SKU nhưng hàng chia nhiều bịch số lượng khác nhau (1.000 · 2.000 · 3.000) → mỗi bịch một
-   con tem. Cách nhập: gõ số rồi bấm nút "+"; số đã chốt thành một chip nằm trước ô nhập, ô nhập nhảy
-   về 0 để gõ tiếp. Bản trước bắt người dùng tự gõ dấu phẩy — cú pháp phải học, mà trên điện thoại
-   dấu phẩy còn nằm ở lớp bàn phím khác. */
+   con tem. Cách nhập: gõ số rồi bấm nút "+"; số đã chốt thành một chip, ô nhập dọn trống để gõ tiếp.
+   Bản trước bắt người dùng tự gõ dấu phẩy — cú pháp phải học, mà trên điện thoại dấu phẩy còn nằm ở
+   lớp bàn phím khác.
+   ⚠ 23/08/2026: chip đứng SAU ô nhập và vẽ theo THỨ TỰ NGƯỢC (mới nhất trước) để ô nhập đứng yên một
+   chỗ — nên kỳ vọng thứ tự chip trong các ca dưới là mới→cũ, KHÔNG phải thứ tự gõ. `r.slHang` (dữ
+   liệu gửi máy in) vẫn theo thứ tự gõ; ca "Lệnh gửi đi" bên dưới canh đúng chỗ đó. */
 const goSo = await page.evaluate(async () => {
   const o = document.querySelector("#prBody td.prslo input.prsl-v");
   const buoc = [];
@@ -1084,15 +1089,15 @@ const baBich = await page.evaluate(async () => {
     await new Promise((r) => setTimeout(r, 160));
   };
   await go("1000"); await go("2000"); await go("3000");
-  const tag = document.querySelector("#prBody tr .prtemso b");
+  const tag = document.querySelector("#prBody tr .prtemin");
   return { chip: Array.prototype.map.call(document.querySelectorAll("#prBody .prchip"),
       (e) => e.textContent.replace(/×/g, "").trim()),
-    soTem: tag ? tag.textContent.trim() : "(không có)", tong: prTongTem(),
+    soTem: tag ? String(tag.value).trim() : "(không có)", tong: prTongTem(),
     o: document.querySelector("#prBody td.prslo input.prsl-v").value };
 });
-kiem("Ba bịch 1.000 · 2.000 · 3.000 → ba chip đúng thứ tự gõ, ô nhập trống lại",
-  baBich.chip.join("|") === "1.000|2.000|3.000" && baBich.o === "", "[" + baBich.chip.join(" | ") + "]");
-kiem("Ba chip → 3 con tem, chữ \"Số tem: 3\" ở ô SKU nói đúng (ô nhập Số tem đã bỏ)",
+kiem("Ba bịch 1.000 · 2.000 · 3.000 → ba chip MỚI-NHẤT-TRƯỚC (sát ô nhập), ô nhập trống lại",
+  baBich.chip.join("|") === "3.000|2.000|1.000" && baBich.o === "", "[" + baBich.chip.join(" | ") + "]");
+kiem("Ba chip → 3 con tem, ô \"Số tem\" ở cột SKU nói đúng 3 (và bị khoá vì là số dẫn xuất)",
   baBich.soTem === "3" && baBich.tong === 3,
   "số tem " + baBich.soTem + " · tổng " + baBich.tong);
 
@@ -1121,11 +1126,14 @@ const xoaChip = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 250));
   const chip = Array.prototype.map.call(document.querySelectorAll("#prBody .prchip"),
     (e) => e.textContent.replace(/×/g, "").trim());
-  const tag = document.querySelector("#prBody tr .prtemso b");
-  return { truoc: truoc, chip: chip, tong: prTongTem(), soTem: tag ? tag.textContent.trim() : "" };
+  const tag = document.querySelector("#prBody tr .prtemin");
+  return { truoc: truoc, chip: chip, tong: prTongTem(), soTem: tag ? String(tag.value).trim() : "" };
 });
+/* Chip GIỮA vẫn là 2.000 sau khi đảo chiều hiển thị (3.000 · 2.000 · 1.000) — nhưng `data-i` của nó
+   trỏ vào chỉ số THẬT trong `r.slHang`, nên ca này chính là chốt chống lỗi "đảo hiển thị làm xoá
+   nhầm chip". Kết quả còn lại đọc theo thứ tự MỚI→CŨ. */
 kiem("Xoá chip GIỮA thì bỏ đúng 2.000, còn 1.000 và 3.000 (không phải bỏ cái cuối)",
-  xoaChip.chip.join("|") === "1.000|3.000" && xoaChip.tong === 2 && xoaChip.soTem === "2",
+  xoaChip.chip.join("|") === "3.000|1.000" && xoaChip.tong === 2 && xoaChip.soTem === "2",
   xoaChip.truoc + " → " + xoaChip.tong + " tem · [" + xoaChip.chip.join(" | ") + "]");
 
 /* CHIP TÌNH TRẠNG MÁY IN (21/08/2026) — sự cố: máy in hết giấy mà pop-up không báo gì, người dùng
@@ -1453,23 +1461,46 @@ kiem("Cả AI lẫn OCR hỏng → nói thẳng một lần + chỉ sang ô gõ 
   soGoiAi === 1 && soGoiOcr === 1 && /gõ mã in trên tem/i.test(baoHong),
   soGoiAi + " AI · " + soGoiOcr + " OCR · toast: " + baoHong.slice(0, 64));
 
-/* Đồng hồ giây trong hộp "đang đọc": không rút được 4–8 giây của Google, nhưng phải cho thấy máy
-   đang làm chứ không treo (chính cảm giác treo làm thủ kho báo "quá lâu"). */
+/* Hộp "đang đọc" (đổi 23/08/2026): VÒNG CHẠY kiểu CH Play + đúng một câu, KHÔNG còn số giây.
+   Không rút được 4–8 giây của Google, nhưng phải cho thấy máy đang làm chứ không treo (chính cảm
+   giác treo làm thủ kho báo "quá lâu"). Ba điều phải đúng:
+     · vòng ĐẦY DẦN theo thời gian (dashoffset giảm) và KHÔNG chạm 100% — đứng ở 100% mà màn hình
+       chưa đổi là nói dối;
+     · trên màn hình KHÔNG còn con số giây nào (giây vẫn ghi ở data-giay cho bộ đo);
+     · quá 12 giây thì vòng ngả màu cảnh báo (mốc "mạng yếu" cũ, chỉ đổi cách nói). */
 traLoi = AI_OK; traLoiOcr = OCR_OK;
-const coDongHo = await page.evaluate(async () => {
+const vongCho = await page.evaluate(async () => {
+  const doc = (id) => document.getElementById(id);
   ndsBusy(true, "đang thử");
-  await new Promise((r) => setTimeout(r, 350));
-  const el = document.getElementById("ndsDongHo");
-  const chu = el ? el.textContent : "";
-  /* ĐỌC HỘP TRƯỚC khi tắt — bẫy pass oan: tắt rồi thì hộp không còn, "không còn chữ" luôn đúng. */
-  const box = document.getElementById("ndsBusyBox");
-  const conChu = box ? box.textContent.replace(chu, "").trim() : "KHÔNG THẤY HỘP";
+  await new Promise((r) => setTimeout(r, 300));
+  const arc = doc("ndsVongArc");
+  const d1 = arc ? Number(arc.getAttribute("stroke-dashoffset")) : -1;
+  await new Promise((r) => setTimeout(r, 900));
+  const d2 = arc ? Number(arc.getAttribute("stroke-dashoffset")) : -1;
+  const box = doc("ndsBusyBox");
+  const chu = box ? box.textContent.trim() : "KHÔNG THẤY HỘP";
+  const giay = box ? box.getAttribute("data-giay") : null;
+  /* Mốc "mạng yếu": KHÔNG chờ thật 12 giây — đẩy đồng hồ của trang lên 13 giây rồi đợi một nhịp.
+     Đây là đo ĐÚNG luật đang chạy (ngưỡng 12 trong `ndsBusy`), không phải cắm cờ giả cho test. */
+  const goc = Date.now;
+  Date.now = () => goc.call(Date) + 13000;
+  await new Promise((r) => setTimeout(r, 520));   // đủ cho nhịp 100ms + transition màu 350ms
+  const lau = doc("ndsVong").classList.contains("lau");
+  const mauLau = getComputedStyle(doc("ndsVongArc")).stroke;
+  Date.now = goc;
+  await new Promise((r) => setTimeout(r, 520));
+  const mauThuong = getComputedStyle(doc("ndsVongArc")).stroke;
   ndsBusy(false);
-  return { chu: chu, conChu: conChu, conSau: !!document.getElementById("ndsDongHo") };
+  return { d1, d2, chu, giay, lau, mauLau, mauThuong, conSau: !!doc("ndsVong"), conSo: /\d+[,.]\d+\s*s/.test(chu) };
 });
-kiem("Hộp \"đang đọc\" CHỈ còn đồng hồ giây (không còn câu 'đang thử OCR…'), tắt sạch khi xong",
-  /^0,[1-9]s$/.test(coDongHo.chu) && coDongHo.conChu === "" && !coDongHo.conSau,
-  "sau 0,35s hiện " + coDongHo.chu + " · chữ kèm theo: \"" + coDongHo.conChu + "\"");
+kiem("Hộp \"đang đọc\": vòng chạy ĐẦY DẦN, không chạm 100%, không còn số giây trên màn",
+  vongCho.d2 < vongCho.d1 && vongCho.d2 > 0 && vongCho.chu === "Đợi chút nhe cục dzàng" &&
+  !vongCho.conSo && Number(vongCho.giay) > 1 && !vongCho.conSau,
+  "vòng " + vongCho.d1.toFixed(0) + "→" + vongCho.d2.toFixed(0) + "/125,7 · chữ: \"" + vongCho.chu +
+  "\" · data-giay " + vongCho.giay + " · tắt sạch khi xong: " + !vongCho.conSau);
+kiem("Quá 12 giây → vòng ngả màu cảnh báo (mốc \"mạng yếu\" cũ, nói bằng màu thay vì bằng số)",
+  vongCho.lau && vongCho.mauLau !== vongCho.mauThuong,
+  "13s: " + vongCho.mauLau + " · bình thường: " + vongCho.mauThuong);
 
 /* ---------- 12b. TIẾT KIỆM THỜI GIAN CHỜ (19/08/2026) ----------------------------------------
    Ba việc đo được: nén ảnh ĐÚNG MỘT LẦN cho mỗi tấm (dù bậc thang dùng 2 người đọc), ảnh gửi lên
@@ -1656,19 +1687,22 @@ const inMobile = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 350));
   const body = document.querySelector("#prmodal .modalbody");
   const tr = document.querySelector("#prBody tr");
-  const td = tr ? tr.children : [];
-  /* 4 ô, ĐÚNG thứ tự prVe bản 22/08/2026: 1 Số lượng (chip + ô nhập) · 2 SKU (+ chữ "Số tem: n") ·
-     3 Tên sản phẩm · 4 nút xoá. Nhãn ::before đã BỎ HẲN — có nhãn nào mọc lại là dán sai (bài học
-     "ĐVT: 422424151" 20/08/2026: nhãn theo nth-child âm thầm sai khi số cột đổi). */
+  /* 5 ô, ĐÚNG thứ tự prVe bản 23/08/2026: 1 ô nhập Số lượng · 2 dải chip · 3 SKU (+ ô "Số tem") ·
+     4 Tên sản phẩm · 5 nút × xoá SKU. Nhãn ::before đã BỎ HẲN — có nhãn nào mọc lại là dán sai.
+     Ô lấy theo CLASS chứ không theo chỉ số con: bài học "ĐVT: 422424151" 20/08/2026 (nhãn theo
+     nth-child âm thầm sai khi số cột đổi) áp cho cả bộ đo, không riêng CSS — chính lượt 23/08 này
+     đổi 4 ô thành 5 ô. */
   const nhan = (el) => {
     const c = el ? String(getComputedStyle(el, "::before").content || "") : "";
     return (c === "none" || c === "normal") ? "" : c;
   };
+  const q = (s) => (tr ? tr.querySelector(s) : null);
   const r = (el) => (el ? el.getBoundingClientRect() : null);
-  const pn = r(td[2]), sku = r(td[1]);
-  const skuB = r(tr && tr.querySelector("td.prsku>b"));
-  const tag = r(tr && tr.querySelector(".prtemso"));
-  const del = r(tr && tr.querySelector(".prdel"));
+  const pn = r(q("td.pn")), sku = r(q("td.prsku"));
+  const skuB = r(q("td.prsku>b"));
+  const tag = r(q(".prtemso"));
+  const del = r(q(".prdel"));
+  const oSl = r(q("input.prsl-v"));
   const loc = document.querySelectorAll("#prmodal .mfilters .fld");
   const r1 = r(loc[0]), r2 = r(loc[1]);
   const ra = { keoNgang: body.scrollWidth - body.clientWidth,
@@ -1676,10 +1710,14 @@ const inMobile = await page.evaluate(async () => {
     anThead: getComputedStyle(document.querySelector("#prmodal .mtbl thead")).display,
     pnRong: pn ? Math.round(pn.width) : -1,
     pnDuoiSku: !!(pn && sku) && pn.top > sku.top - 1,
-    nhanCon: [nhan(td[0]), nhan(td[1]), nhan(td[2]), nhan(td[3])].join(""),
+    nhanCon: ["td.prslo", "td.prchipso", "td.prsku", "td.pn", "td.prxoa"].map((s) => nhan(q(s))).join(""),
     nhanApTem: nhan(loc[0] && loc[0].querySelector("label")), nhanApSl: nhan(loc[1] && loc[1].querySelector("label")),
     tagNgangSku: !!(tag && skuB) && Math.abs((tag.top + tag.height / 2) - (skuB.top + skuB.height / 2)) < 12,
-    tagSatX: (tag && del) ? Math.round(del.left - tag.right) : null,
+    /* 23/08/2026 ĐẢO CHIỀU: nút × XOÁ SKU về BÌA TRÁI, đứng TRƯỚC mã — nên đo "× trước mã" thay cho
+       "Số tem sát ×" của bản 22/08, và "Số tem" nay kẹp giữa mã và ô gõ số lượng. */
+    xTruocSku: (del && skuB) ? Math.round(skuB.left - del.right) : null,
+    temTruocO: !!(tag && oSl) && tag.right <= oSl.left + 2,
+    laOTem: !!q("input.prtemin"),
     locCungHang: !!(r1 && r2) && Math.abs(r1.top - r2.top) < 6,
     locDeNhau: !!(r1 && r2) && !(r1.bottom <= r2.top || r2.bottom <= r1.top) && Math.abs(r1.top - r2.top) > 6,
     tranTrang: document.documentElement.scrollWidth - document.documentElement.clientWidth };
@@ -1700,14 +1738,18 @@ kiem("Điện thoại: hàng \"áp cho tất cả\" đã GỠ khỏi pop-up (use
    nhãn dán, kể cả "ĐVT" của sự cố 20/08. */
 kiem("Điện thoại: nhãn ::before đã bỏ hẳn — không ô nào còn nhãn dán (kể cả \"ĐVT\")",
   inMobile.nhanCon === "", "nhãn còn sót: " + (inMobile.nhanCon || "(không)"));
-kiem("Điện thoại: chữ \"Số tem: n\" NGANG HÀNG mã SKU, chôn cứng kế nút ×",
-  inMobile.tagNgangSku && inMobile.tagSatX !== null && inMobile.tagSatX >= 0 && inMobile.tagSatX <= 30,
-  "ngang hàng: " + inMobile.tagNgangSku + " · cách nút × " + inMobile.tagSatX + "px");
+/* ĐẢO CHIỀU 23/08/2026 (đặc tả user): × / mã SKU / ô "Số tem" / ô gõ số lượng. */
+kiem("Điện thoại: nút × ĐỨNG TRƯỚC mã SKU, và ô \"Số tem\" kẹp giữa mã với ô gõ số lượng",
+  inMobile.laOTem && inMobile.xTruocSku !== null && inMobile.xTruocSku >= 0 && inMobile.xTruocSku <= 20 &&
+  inMobile.temTruocO,
+  "là ô nhập: " + inMobile.laOTem + " · × cách mã " + inMobile.xTruocSku +
+  "px · Số tem trước ô gõ: " + inMobile.temTruocO);
 
-/* HÀNG NHẬP LIỆU TRÊN ĐIỆN THOẠI (đặc tả user 22/08/2026, thay bản 21/08):
-     · cột Số tem ĐÃ BỎ — chip đã chốt nằm ĐÚNG CHỖ CŨ của nó: bìa trái, NGANG HÀNG với ô nhập;
-     · ô nhập ~2/5 thẻ (giữ tinh thần "nửa ô" 21/08), dính bìa phải, cao ≥44px, chữ ≥18px đậm;
-     · thêm chip thì ô nhập KHÔNG bị bóp dưới 96px — chật quá nó rớt xuống dòng dưới (flex-wrap).
+/* HÀNG NHẬP LIỆU TRÊN ĐIỆN THOẠI (đặc tả user 23/08/2026, thay bản 22/08):
+     · ô nhập nằm CUỐI hàng đầu (sau × / mã SKU / ô "Số tem"), dính bìa phải thẻ;
+     · chip đã chốt XUỐNG HÀNG RIÊNG dưới tên sản phẩm, mới nhất đứng đầu bên trái;
+     · thêm chip thì ô nhập KHÔNG bị bóp một pixel nào — nó ở hàng khác, không tranh chỗ với chip nữa
+       (bản 22/08 chỉ hứa "không tụt dưới 96px" vì hai thứ đó chung một hàng).
    Các con số đo bằng `getBoundingClientRect` nên không thể "xanh mà giao diện vẫn xấu". */
 const nhapMobile = await page.evaluate(async () => {
   ndsThemToken("8846295", "code", "chu");
@@ -1719,51 +1761,58 @@ const nhapMobile = await page.evaluate(async () => {
   prMo();
   await new Promise((r) => setTimeout(r, 350));
   const oSl = () => document.querySelector("#prBody td.prslo input.prsl-v");
+  const the = () => oSl().closest("tr").getBoundingClientRect();
   const csSl = getComputedStyle(oSl());
+  /* Vị trí ô nhập đo TRONG THẺ (không theo toạ độ màn): pop-up căn giữa dọc nên thẻ cao thêm là cả
+     hộp nhích lên — đo theo màn sẽ báo "ô nhập nhảy" trong khi nó nằm y nguyên. */
+  const vt = () => { const b = oSl().getBoundingClientRect(), t = the();
+    return Math.round(b.left - t.left) + "," + Math.round(b.top - t.top) + "," + Math.round(b.width); };
   const rTruoc = oSl().getBoundingClientRect();
-  const truoc = { sl: Math.round(rTruoc.width),
-    cotSl: Math.round(oSl().parentElement.getBoundingClientRect().width),
-    satPhai: Math.round(oSl().parentElement.getBoundingClientRect().right - rTruoc.right),
-    caoSl: Math.round(rTruoc.height),
+  const truoc = { sl: Math.round(rTruoc.width), theRong: Math.round(the().width),
+    satPhai: Math.round(the().right - parseFloat(getComputedStyle(oSl().closest("tr")).paddingRight) - rTruoc.right),
+    caoSl: Math.round(rTruoc.height), vt: vt(),
     chuSl: Math.round(parseFloat(csSl.fontSize)), damSl: Number(csSl.fontWeight) };
   const go = async (v) => {
     const o = oSl(); o.value = v; prGoSo(o); prHienCong(o);
     document.querySelector("#prBody td.prslo .prsladd").click();
     await new Promise((r) => setTimeout(r, 160));
   };
-  /* 2 chip: còn lọt một hàng — chip phải NGANG HÀNG ô nhập, dồn trái. */
   await go("899"); await go("8");
-  const giua = (a) => a.top + a.height / 2;
+  /* Chip phải nằm DƯỚI tên sản phẩm (đặc tả 23/08), bám bìa trái thẻ — và ô nhập không được nhích. */
   const rChip = document.querySelector("#prBody .prchip").getBoundingClientRect();
-  const rGo = document.querySelector("#prBody td.prslo .prgo").getBoundingClientRect();
-  let rIn = oSl().getBoundingClientRect();
+  const rPn = document.querySelector("#prBody td.pn").getBoundingClientRect();
+  const tr0 = oSl().closest("tr"), padL = parseFloat(getComputedStyle(tr0).paddingLeft);
   const hai = { soChip: document.querySelectorAll("#prBody .prchip").length,
-    chipNgang: Math.abs(giua(rChip) - giua(rIn)) < 12,
-    chipTrai: Math.round(rChip.left - rGo.left) };
-  /* Chip thứ 3: hàng chật, ô nhập được phép rớt dòng nhưng KHÔNG được bóp + không kéo ngang. */
+    chipDuoiTen: rChip.top >= rPn.bottom - 1,
+    chipTrai: Math.round(rChip.left - (the().left + padL)),
+    vt: vt(), chipDau: document.querySelector("#prBody .prchip").textContent.replace(/[×\s]/g, "") };
+  /* Chip thứ 3: ô nhập ở hàng khác nên KHÔNG được bóp, không được nhích, không sinh kéo ngang. */
   await go("1200");
-  rIn = oSl().getBoundingClientRect();
-  const sau = { sl: Math.round(rIn.width),
+  const sau = { sl: Math.round(oSl().getBoundingClientRect().width), vt: vt(),
     soChip: document.querySelectorAll("#prBody .prchip").length,
     keoNgang: document.querySelector("#prmodal .modalbody").scrollWidth - document.querySelector("#prmodal .modalbody").clientWidth };
   prDong(); prXoaHet();
   return { truoc: truoc, hai: hai, sau: sau };
 });
-kiem("Điện thoại: ô Số lượng ~2/5 thẻ, dính bìa phải (chỗ trống bên trái là của chip)",
-  nhapMobile.truoc.sl >= nhapMobile.truoc.cotSl * 0.3 && nhapMobile.truoc.sl <= nhapMobile.truoc.cotSl * 0.5 &&
-  nhapMobile.truoc.satPhai <= 4,
-  "ô " + nhapMobile.truoc.sl + "px / cột " + nhapMobile.truoc.cotSl + "px · cách bìa phải " + nhapMobile.truoc.satPhai + "px");
+kiem("Điện thoại: ô Số lượng ≤45% thẻ, dính bìa phải (đứng cuối hàng × / SKU / Số tem)",
+  nhapMobile.truoc.sl > 0 && nhapMobile.truoc.sl <= nhapMobile.truoc.theRong * 0.45 &&
+  nhapMobile.truoc.satPhai >= -1 && nhapMobile.truoc.satPhai <= 4,
+  "ô " + nhapMobile.truoc.sl + "px / thẻ " + nhapMobile.truoc.theRong + "px · cách bìa phải " + nhapMobile.truoc.satPhai + "px");
 /* 22/08/2026 đêm: user hạ chiều cao ô còn ~1/2 (44→~24px, chữ 19→15px vẫn đậm) — ngưỡng đo theo
    đặc tả MỚI, không còn chuẩn 44px cho khung này. */
 kiem("Điện thoại: ô Số lượng cao ~1/2 cũ (22–32px), chữ ≥14px và in đậm (đọc lại được con số)",
   nhapMobile.truoc.caoSl >= 22 && nhapMobile.truoc.caoSl <= 32 && nhapMobile.truoc.chuSl >= 14 && nhapMobile.truoc.damSl >= 600,
   "cao " + nhapMobile.truoc.caoSl + "px · chữ " + nhapMobile.truoc.chuSl + "px/" + nhapMobile.truoc.damSl);
-kiem("Điện thoại: chip đã chốt NGANG HÀNG ô nhập, dồn bìa trái (đúng chỗ ô Số tem cũ)",
-  nhapMobile.hai.soChip === 2 && nhapMobile.hai.chipNgang && nhapMobile.hai.chipTrai <= 2,
-  nhapMobile.hai.soChip + " chip · ngang hàng: " + nhapMobile.hai.chipNgang + " · cách trái " + nhapMobile.hai.chipTrai + "px");
-kiem("Điện thoại: thêm chip thứ 3 KHÔNG bóp ô nhập (≥96px) và không sinh kéo ngang",
-  nhapMobile.sau.soChip === 3 && nhapMobile.sau.sl >= 96 && nhapMobile.sau.keoNgang === 0,
-  "ô nhập " + nhapMobile.truoc.sl + "px → " + nhapMobile.sau.sl + "px · kéo ngang " + nhapMobile.sau.keoNgang + "px");
+kiem("Điện thoại: chip nằm DƯỚI tên sản phẩm, bám bìa trái, chip mới nhất (8) đứng đầu",
+  nhapMobile.hai.soChip === 2 && nhapMobile.hai.chipDuoiTen && nhapMobile.hai.chipTrai >= -1 &&
+  nhapMobile.hai.chipTrai <= 4 && nhapMobile.hai.chipDau === "8",
+  nhapMobile.hai.soChip + " chip · dưới tên: " + nhapMobile.hai.chipDuoiTen +
+  " · cách trái " + nhapMobile.hai.chipTrai + "px · chip đầu " + nhapMobile.hai.chipDau);
+kiem("Điện thoại: thêm chip thứ 3 → ô nhập KHÔNG nhích, KHÔNG bị bóp, không sinh kéo ngang",
+  nhapMobile.sau.soChip === 3 && nhapMobile.sau.vt === nhapMobile.truoc.vt &&
+  nhapMobile.hai.vt === nhapMobile.truoc.vt && nhapMobile.sau.keoNgang === 0,
+  "vị trí trong thẻ " + nhapMobile.truoc.vt + " → " + nhapMobile.hai.vt + " → " + nhapMobile.sau.vt +
+  " · kéo ngang " + nhapMobile.sau.keoNgang + "px");
 
 /* (Ca "nhãn Số tem căn bìa trái" ĐÃ GỠ 22/08/2026 — cột Số tem và nhãn ::before đi hẳn theo đặc tả
    mới; phần chân pop-up của ca đó giữ nguyên dưới đây.) */

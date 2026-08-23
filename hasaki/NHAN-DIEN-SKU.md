@@ -3029,3 +3029,192 @@ khối `@media`.
 `td:nth-child(3)` — td 4 giờ là nút ×, bấm là XOÁ DÒNG) · `qc-tab-nhan-dien` **160/160** (đầu bảng 3
 cột, số tem đọc từ `.prtemso b`, ca "chip dòng riêng phía dưới" đảo thành "ngang hàng ô nhập") ·
 `qc-mobile-toan-du-an --file --trang=factory` **76 màn × 4 máy đạt** (sanSangMan đổi selector chip).
+
+
+## 5b.30 · Pop-up In tem: "Số tem" nhập được · ô nhập đứng yên · nút × đổi bên (23/08/2026)
+
+**Yêu cầu user (ba mục, nguyên văn):**
+
+1. mục *"Số tem: 1"* **cho phép nhập số lượng**;
+2. **web** — *"ô nhập số lượng là cố định 1 chỗ và các chip số đã nhập thì di chuyển dần về bên phải và
+   đầy thì xuống dưới (chip số mới nhập luôn đứng gần ô gõ số lượng) — thay vì ngược lại như hiện nay"*
+   (kèm ảnh `Screenshot_23-8-2026_8463`: **24 chip** đẩy ô *"+ số nữa"* xuống **hàng thứ năm**);
+3. **điện thoại** — chuyển dấu `×` xoá SKU từ bên phải *"Số tem"* về **bên trái dãy số SKU**:
+   `× / 422386260 / Số tem: 1 (nhập được) / Gõ số lượng`, còn **chip thể hiện bên dưới tên sản phẩm**.
+   Cả hai bố cục: `×` phải **nổi bật — màu đỏ** để người dùng biết.
+
+### Đổi trong `factory/index.html`
+
+* **`"Số tem"` là ô nhập lại** (`input.prtemin`, hàm `prTemSoHtml`). Hai vai rạch ròi theo đúng luật lõi
+  `PR_TEM.temCuaDong`:
+  * dòng khai **một** số lượng → gõ `N` là in **N con tem cùng số lượng đó** (`prDatSl` sống lại lối
+    gọi, vẫn chặn trần `PR_TRAN_SL`). Trước đó muốn 12 tem giống nhau phải chốt cùng con số 12 lần.
+  * dòng khai **từ 2** số lượng → số tem là **dẫn xuất** (mỗi số lượng một con tem) ⇒ ô `readonly`, bỏ
+    viền/nền cho đọc như chữ, `title` nói rõ vì sao. Thà khoá còn hơn nhận số rồi âm thầm bỏ qua.
+* **Cột "Số lượng" tách thành HAI Ô BẢNG**: `td.prslo` (ô nhập + nút `+`) rồi `td.prchipso` (dải chip),
+  `thead` dùng `<th colspan="2">Số lượng</th>` vì chúng là một việc. Đây là thứ giữ lời hứa *"cố định
+  một chỗ"*: bề rộng ô nhập không phụ thuộc số chip nên nó **không nhích một pixel nào**.
+* **Nút `+` vào TRONG ô nhập** (`position:absolute`, ô chừa `padding-right`). Trước đó nó hiện/ẩn theo
+  việc đang gõ → khối ô nhập phình ra rồi co lại, tức ô vẫn nhảy dù chip đã dọn đi chỗ khác.
+* **Chip vẽ theo thứ tự NGƯỢC** (mới nhất trước) để số vừa chốt luôn sát ô nhập. `data-i` vẫn là chỉ số
+  **thật** trong `r.slHang` nên `prXoaChip` không đổi một dòng nào — và ca test "xoá chip giữa" thành
+  chốt chống lỗi cho chính việc đảo chiều này. Đánh đổi đã ghi: đọc chip trái→phải **không còn** là thứ
+  tự ra giấy; chấp nhận vì mỗi chip là một con tem độc lập.
+* **Nút × xoá SKU: đỏ sẵn, có nền/viền đỏ nhạt, 32×32 trên điện thoại** — bản trước là dấu × xám chỉ đỏ
+  khi hover, mà **điện thoại không có hover**: người dùng không phân biệt nó với nút × bỏ một chip số
+  lượng (hai việc lệch nhau cả trời hậu quả). Trên điện thoại nó sang **bìa trái**, cách dải chip cả
+  một hàng tên sản phẩm.
+* **Thẻ điện thoại 3 cột lưới** `auto | minmax(0,1fr) auto`, vùng `"del sku go" / "pn pn pn"`; dải chip
+  là item **tự rơi** xuống hàng 3 (`grid-column:1/-1`, không đặt tên vùng) nên dòng chưa có chip không
+  để lại hàng lưới rỗng (`td.prchipso:empty{display:none}` — vì vậy markup **không được** có khoảng
+  trắng trong ô đó).
+* **`prLuu` dọn `sl` về 1 khi dòng có từ 2 số lượng.** Không phải chi tiết làm đẹp: `sl` nhập được trở
+  lại nên một dòng đang `sl = 5` mà chốt thêm số lượng thứ hai sẽ nhảy về 2 tem — rồi **bỏ bớt chip về
+  lại một số lượng thì con số 5 cũ SỐNG LẠI**, in 5 tem trong khi màn hình vừa hiện 2. Dọn ở `prLuu`
+  (chỗ **mọi** đường sửa đều đi qua) thay vì ở từng hàm, để đường mới thêm sau cũng không lọt.
+
+### Bốn bẫy đã dính trong lượt này
+
+| Bẫy | Vì sao đau | Chữa |
+|---|---|---|
+| `display:flex` lên một `<td>` **thật** | Tháo ô khỏi bảng (trình duyệt sinh ô ẩn danh thay thế) → bảng máy bàn vỡ. Bản nháp đầu dính đúng chỗ này | Chip xếp bằng **dòng chữ** (`.nds-tag` vốn `inline-flex` + margin), flex chỉ dùng trên `<div>` |
+| `.mtbl td{white-space:nowrap}` + không có chỗ ngắt dòng giữa hai chip | Hai hộp `inline-flex` dán sát nhau **không tự sinh cơ hội ngắt** ⇒ 24 chip chạy thẳng ra ngoài, đẩy cả cột SKU/Tên/× **rơi khỏi pop-up** (ảnh QC bắt được) | `white-space:normal` cho `td.prchipso` + `<wbr>` giữa các chip (rộng 0px, khoảng cách vẫn do margin quyết) |
+| `width:auto` trên `<input>` readonly | Không co về bề rộng con số mà **nở ra bề rộng mặc định của ô text (~177px)** → con số bị đẩy xa hẳn nhãn "Số tem:" | `.cd` chỉ bỏ viền/nền, **giữ nguyên** khung như dòng nhập được |
+| Đo "ô nhập có nhích không" bằng toạ độ **màn** | Pop-up căn giữa dọc ⇒ bảng cao thêm là cả hộp nhích lên; bộ đo báo *"nhích 18 lần"* trong khi ô nằm y nguyên trong thẻ | Đo **trong thẻ** (`left/top` trừ `left/top` của `<tr>`) |
+
+### Van an toàn 344px (không phải bố cục mong muốn)
+
+Hàng đầu điện thoại giờ gánh **bốn món**. Đo thật: ở 360px + thanh cuộn dọc, `"Số tem:[n]"` **đè lên**
+ô gõ số lượng **12px** — mà `overflow-x:hidden` của modalbody che mất, không ai thấy cho tới lúc dùng
+thật. Chữa bằng `flex-wrap` trong ô SKU: dưới ~344px thì `"Số tem:[n]"` **tự tụt xuống dòng thứ hai
+trong chính ô SKU** thay vì đè. Bộ đo vì vậy chạy **hai bề rộng** (390 + 360) và ràng buộc là *"không
+đè ô gõ số lượng"*, còn *"cùng một dòng"* chỉ **bắt buộc từ 390px** — bề rộng máy trong ảnh user.
+
+**Đo:** `qc-in-tem-popup` **44/44** (thêm 8 ca: 4 ca ô "Số tem" gồm *số cũ không sống lại* · 2 ca máy
+bàn *ô nhập không nhích / chip đầy thì xuống dòng* · bộ ca điện thoại chạy lại ở 360px) ·
+`qc-tab-nhan-dien` **160/160** (thứ tự chip đảo mới→cũ; ô đo theo **class** chứ không theo chỉ số con —
+lượt này đổi 4 ô thành 5 ô, đúng loại thay đổi làm `nth-child` âm thầm sai) · `qc-in-tem` 138/138 ·
+`qc-mobile-toan-du-an --file`.
+
+### 5b.30b · *"Số tem: 1 không nhập được trên bản web"* — hai nguyên nhân, cả hai đều thật
+
+User báo ngay sau khi đẩy 5b.30. **Bước đầu là ĐO, không phải đoán:** lái Chromium thật vào chính bản
+live `letam0317.github.io/stocklocationfactory`, bấm rồi gõ `15` → nút đổi thành *Xác nhận in 15 tem*.
+Tức mã live **nhận số**. Hai nguyên nhân thật đứng sau lời báo đó:
+
+1. **Cache 10 phút của GitHub Pages** (`Cache-Control: max-age=600`). Ai mở trang trước lúc đẩy sẽ còn
+   bản cũ — mà bản cũ *"Số tem: n"* là **chữ `<b>`**, bấm đúng nghĩa là không nhập được. Cần `Ctrl+F5`.
+2. **Ô không ĐỌC RA là ô nhập.** 44×20px, viền `--line` mờ, nằm trên một dòng phụ cỡ **nửa** dưới mã
+   SKU. Nhắm bằng chuột lệch ra chữ *"Số tem:"* bên cạnh một lần là người dùng kết luận nó không nhận —
+   và họ đúng theo cái họ thấy. Đây là lỗi của tôi, không phải của cache.
+
+**Chữa mục 2 (giữ nguyên nghiệp vụ):**
+* `<span class="prtemso">` → **`<label>`** bọc luôn input: bấm vào CHỮ *"Số tem:"* là con trỏ vào ô,
+  không cần một dòng JS nào. Vùng nhắm rộng gấp ~3 lần.
+* Ô **44×20 → 54×24px**, viền **pha accent 45%** thay vì `--line`, `cursor:text`, hover có quầng accent.
+* Dòng số tem **dẫn xuất** (≥2 số lượng) giữ nguyên vẻ ngoài chữ: viền trong suốt, `cursor:default`,
+  không quầng hover — **không mời bấm vào chỗ không sửa được**.
+
+**Bài học cho bộ đo:** ca cũ *"gõ 5 vào ô Số tem"* xanh mà giao diện vẫn hỏng, vì nó gọi
+`page.$('input.prtemin')` rồi `.click()` — **bấm đúng tâm ô, việc mà người dùng thật hay bấm lệch**.
+Ca mới bấm bằng `page.mouse.click(x, y)` với `x` nằm **giữa phần CHỮ, ngoài ô hẳn** — đó mới là điều
+kiện thật. Kèm ca đảo chiều cho dòng dẫn xuất (`cursor` phải là `default`).
+
+**Đo:** `qc-in-tem-popup` **46/46** · `qc-tab-nhan-dien` 160/160 · `qc-in-tem` 138/138 ·
+`qc-mobile-toan-du-an --file --trang=factory` 76 màn × 4 máy. Live đã kiểm lại bằng trình duyệt thật
+(bấm vào chữ → vào ô → gõ 8 → *Xác nhận in 8 tem*). Push factory `13bd13e`.
+
+## 5b.31 · *"Đang dựng chỉ mục danh mục… 98% lâu quá"* — chỉ mục CẤT SẴN (23/08/2026)
+
+User báo dòng tiến độ đứng ở **98%**. Hai chuyện khác nhau nằm sau một lời báo:
+
+**① Vì sao đứng ở 98% chứ không phải 100%.** Bước dựng chia làm hai: thân (bóc từ khoá từng dòng, đã
+chia lô 200 từ 20/08) và **đuôi** `hoanTat` (chỉ mục 2-gram · `loiIdx` · `ocrIdx` · `theoSku` · IDF) —
+đuôi chạy **một hơi**, không chia lô. Trên PC đuôi chỉ 27–52ms nên không ai thấy; bóp CPU 6× là
+**~200ms đứng hình**, mà dòng tiến độ lúc đó đã vẽ xong con số cuối cùng của thân. Cộng thêm bản cũ chỉ
+vẽ lại **mỗi 5 lô** nên con số cuối tuỳ số dòng danh mục mà rơi vào 89% hay 98%.
+Chữa: đuôi cũng chia lô (`loTuVung` · `loTheoSku` · `loIdf` · `chotSo`), `tienDo()` tính theo pha
+(thân 85% · từ vựng 10% · còn lại 5%) nên chạy tới **100%**; dòng tiến độ vẽ **theo thời gian**
+(≥120ms/lần) và **250ms đầu không vẽ gì** — máy nhanh thì không thấy chớp.
+
+**② Vì sao phải dựng lại mỗi lần mở trang — câu trả lời là KHÔNG CẦN.** Rows đã nằm trong
+localStorage nên mở lại tab không tốn mạng, nhưng chỉ mục thì dựng lại từ đầu. Hồ sơ CPU: `bocTen`
+ngốn **121ms/226ms** — bóc 5.610 tên hàng bằng ~15 lượt regex mỗi tên. Không có cách nào bóc nhanh gấp
+10, nhưng **danh mục hôm nay giống hệt lúc nãy**, nên dựng xong thì **đóng gói cất vào IndexedDB**
+(4,25MB — vượt quota localStorage, mà IndexedDB cất thẳng object nên không tốn cả stringify lẫn parse).
+
+**Đo trong Edge thật, `hasaki/do-toc-do-chimuc.mjs`** (5.610 dòng, chặn mạng, mỗi mức một ngăn lưu trữ
+sạch — một lượt = một lần mở trang):
+
+| bóp CPU | lần đầu (dựng lại) | lần sau (cất sẵn) | nhanh hơn |
+|---|---|---|---|
+| 1× (máy bàn) | 226ms | **11ms** | 20,5× |
+| 4× | 1.407ms | **51ms** | 27,6× |
+| 6× (tầm điện thoại) | 2.486ms | **79ms** | 31,5× |
+
+Hai chỗ cắt thêm sau khi bóc đường nhanh thành từng chặng (bóp 6×: vân danh mục 82ms · đọc kho 203ms):
+* **vân danh mục băm một lần lúc cất rows**, nằm luôn trong bản localStorage (`vanDm`) — rows trong
+  cache không thể tự đổi, băm lại 1,1MB mỗi lần mở trang là trả tiền cho câu trả lời đã biết.
+* **lượt đọc IndexedDB bắn từ `ndsHamNong`**, lúc trang vừa mở, trước cả khi có rows — đọc kho không
+  cần danh mục. Tới lúc rows sẵn sàng thì gói đã nằm trong tay.
+
+**Chỗ nguy hiểm là HẠN DÙNG, không phải tốc độ** — gói cũ mà vẫn được tin là đúng thì lặng lẽ trả SKU
+sai. Gói chỉ được dùng lại khi trùng **cả hai vân**:
+* **vân DANH MỤC** — FNV-1a trên `sku|status|type|pn` **từng dòng** (có nút ngăn giữa các trường, kẻo
+  `ab|c` và `a|bc` ra cùng vân). Cố ý băm **nội dung** chứ không lấy mốc `LAST_SYNC`: máy trạm chép lại
+  y nguyên danh mục mỗi sáng, lấy mốc thì ngày nào cũng dựng lại vô ích. Cố ý **không** băm
+  `INVENTORY_QTY`: tồn đổi hằng ngày nhưng không tham gia chỉ mục, và tồn hiển thị đọc thẳng từ rows
+  mới.
+* **vân LÕI** — băm **thẳng mã nguồn khối lõi** đọc từ `document.scripts` của chính trang đang chạy
+  (~114KB, ~1ms). Bản đầu chỉ băm mã nguồn từng hàm + *"bóc thử 2 tên mẫu"*, và bộ đo bắt được ngay:
+  **thêm một cặp màu vào `CAP_MAU` mà không dính tới tên mẫu thì vân KHÔNG đổi** — tức sửa bảng dữ
+  liệu xong vẫn dùng gói cũ. Đường băm cả khối nguồn không phải nhớ đánh số phiên bản bằng tay. (Đường
+  lùi khi không đọc được nguồn: băm nguồn từng hàm + **dựng thử chỉ mục 3 dòng mẫu** rồi băm kết quả.)
+
+Hỏng ở bất kỳ khâu nào (trình duyệt riêng tư, hết chỗ, DB không mở được, gói thiếu dòng) thì **im lặng
+quay về đường dựng lại** — chậm như cũ, không sai. `indexedDB.open` có hàng rào 1,2 giây: đã gặp máy
+mà nó không gọi lại callback nào, không có hàng rào thì cả tab treo chờ vô hạn.
+
+**Bẫy của bộ đo (mất 2 lượt mới ra số đúng):** *"xoá IndexedDB rồi tải lại trang"* không cho kho sạch —
+`deleteDatabase` gặp kết nối đang mở thì nằm chờ (`onblocked`) và chỉ xoá lúc trang đóng, nên gói mà
+trang đầu vừa cất bị xoá theo. Phải dùng **ngăn lưu trữ riêng** (`createBrowserContext`) cho mỗi phép đo.
+
+**Đo:** `qc-chimuc-cat-san` **20/20** (mở gói = chỉ mục vừa dựng *từng byte* · 20 lượt đối soát Top 3 +
+% trùng khít · 6 ca vân danh mục · 5 ca vân lõi · 3 ca gói hỏng phải từ chối) · `qc-nhan-dien-sku`
+**110/110** · `qc-cham-idf` 8/8 · `qc-tab-nhan-dien` **160/160** · chỉ mục dựng theo lô và dựng một hơi
+vẫn giống nhau từng byte với bản trước khi sửa.
+
+## 5b.32 · Hộp "đang đọc tem": VÒNG CHẠY kiểu CH Play + *"Đợi chút nhe cục dzàng"* (23/08/2026)
+
+Chỗ này đổi ba lần trong một ngày, và hai lần đầu **bị bác** — chép lại đủ để lần sau khỏi đi lại:
+
+**① Rồng vẽ bằng path toán học — BÁC ("xấu quá").** Tôi dựng rồng bằng vệt đi qua + uốn sóng + vây
+lưng + chân vuốt, sửa ba vòng theo ảnh chụp thật. Kết quả ra "con lươn có vây", không ra rồng. Bài
+học: **cái làm nên con rồng đẹp là NÉT VẼ, không phải công thức** — đừng lấy code thay hoạ sĩ.
+
+**② Lottie / rồng vẽ thật — BÁC (user dẹp luôn hướng rồng).** Trước khi bỏ có đo được vài thứ đáng
+giữ lại: `lottiefiles.com` trả **403** cho `curl` (kể cả có User-Agent thật) VÀ cho cả Edge thật chạy
+puppeteer (Cloudflare), `assets*.lottiefiles.com` cũng 403, WebFetch cũng 403; IconScout bắt đăng
+nhập mới tải `.json`. Mạng lúc đó vẫn thông (google/unpkg/api.github.com đều 200) ⇒ **chặn có chủ ý,
+không phải hỏng mạng**. Đường lấy được là Wikimedia Commons qua API (`upload.wikimedia.org` mở, có
+rồng **CC0** dùng thương mại không phải ghi công). Ghi lại phòng khi sau này cần ảnh/animation.
+
+**③ ĐANG CHẠY — vòng chạy kiểu CH Play.** Thứ ai cũng đã nhìn quen lúc tải app, nên không phải học:
+
+* Vòng **đầy dần** theo đường cong tiệm cận `p = 0,94·(1 − e^(−t/4,2))`, **trần 94% — cố ý không
+  chạm 100%**. Lượt đọc thường 4-8 giây nhưng đuôi tới 17 (xem BA MỐC THỜI GIAN): không ai biết
+  trước còn bao lâu, mà vòng đứng ở 100% trong khi màn hình chưa đổi là kiểu nói dối ai cũng nhận ra.
+* Vòng **vừa đầy vừa quay chậm** (2,6s/vòng). Đầy dần trả lời *"còn bao nhiêu"*, quay trả lời *"vẫn
+  đang chạy"* — thiếu cái sau thì lúc đường cong chững lại (mạng yếu) nhìn y hệt treo máy.
+* Dưới vòng đúng **một câu**: *"Đợi chút nhe cục dzàng"* (user đặt). Có `text-shadow` vì lớp phủ chỉ
+  mờ 50-72%, chữ trắng nằm trên tem trắng loá là mất tăm.
+* **Bỏ hẳn số giây** (user chốt). Mốc "mạng yếu" ở giây 12 vẫn còn nguyên, chỉ đổi cách nói: vòng ngả
+  màu `--warn`. Số giây vẫn ghi vào `data-giay` của hộp — bộ đo và lúc chẩn đoán cần, người dùng không.
+* `prefers-reduced-motion` thì tắt phần quay, vòng vẫn đầy dần.
+
+**Đo:** `qc-tab-nhan-dien` **161/161** (ca cũ *"hộp chỉ còn đồng hồ giây"* thay bằng 2 ca mới: vòng
+phải ĐẦY DẦN + không chạm 100% + trên màn không còn con số nào; và mốc 12 giây phải đổi màu — ca này
+**đẩy đồng hồ của trang lên 13 giây** rồi đợi một nhịp, tức đo đúng luật đang chạy chứ không cắm cờ
+giả cho test) · `qc-mobile-toan-du-an --file --trang=factory` **80 màn × 4 máy**, trong đó **thêm màn
+mới "Nhận diện SKU › vòng chờ đọc tem"** — lớp phủ này trước nay chưa từng nằm trong danh sách màn,
+đúng lỗ hổng đã cắn ở Pop-up In tem hồi 21/08.

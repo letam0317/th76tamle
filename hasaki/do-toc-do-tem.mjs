@@ -589,7 +589,9 @@ async function phaTrang() {
       });
       return { ms: Date.now() - t0, the: the, nDua: NDS.nDua || 0,
         nguon: (NDS.tokens || []).map((t) => t.nguon).filter((v, k, a) => a.indexOf(v) === k).join(","),
-        dongHo: (document.getElementById("ndsDongHo") || {}).textContent || "", tokens: (NDS.tokens || []).length };
+        /* 23/08/2026: hộp "đang đọc" bỏ đồng hồ giây trên màn (nay là vòng chạy), giây còn ở data-giay */
+        dongHo: (document.getElementById("ndsBusyBox") || { getAttribute: () => "" }).getAttribute("data-giay") || "",
+        tokens: (NDS.tokens || []).length };
     }, b64);
     kq.mau.push({ de: d.ma, ...r, loi: loi.slice(0, 2) });
     console.log(`  #${i + 1} ${d.ma.padEnd(11)} ${f1(r.ms).padStart(6)} · ${r.tokens} từ khoá (${r.nguon || "—"})` +

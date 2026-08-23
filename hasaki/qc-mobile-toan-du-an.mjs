@@ -90,6 +90,13 @@ const TRANG = [
         sanSangMan: "() => document.querySelectorAll('#viewPlg .pg-whbar *').length > 0" },
       { ten: "Nhận diện SKU", mo: "() => { showTab('sku'); return true; }",
         sanSangMan: "() => !!document.getElementById('ndsMa')" },
+      /* HỘP "ĐANG ĐỌC TEM" — BỔ SUNG 23/08/2026 cùng lúc đổi vòng xoay + đồng hồ giây thành VÒNG
+         CHẠY kiểu CH Play + câu "Đợi chút nhe cục dzàng". Lỗ hổng cũ y như Pop-up In tem: lớp phủ
+         này chưa từng nằm trong danh sách màn, mà nó là thứ thủ kho nhìn 4-8 giây MỖI lượt quét. */
+      { ten: "Nhận diện SKU › vòng chờ đọc tem",
+        mo: "() => { showTab('sku'); if(typeof ndsBusy!=='function') return false; ndsBusy(true); return true; }",
+        sanSangMan: "() => !!document.getElementById('ndsVongArc')",
+        dong: "() => { try{ ndsBusy(false); }catch(e){} }" },
       /* TAB "CHUYỂN ĐỔI CÂN" — BỔ SUNG 22/08/2026 cùng lúc thêm thước Tex + chip Tex từ danh mục.
          Lỗ hổng cũ y hệt In tem/Planogram: tab chưa từng nằm trong danh sách màn nên chưa từng được
          đo. Dựng trạng thái ĐẦY nhất tại chỗ: seed cache danh mục để dải chip Tex hiện, điền đủ số
@@ -108,8 +115,9 @@ const TRANG = [
         dong: "() => { try{ cdXoaHet(); }catch(e){} }" },
       /* POP-UP "IN TEM SKU" — BỔ SUNG 21/08/2026. Lỗ hổng gốc y như panel Planogram: pop-up này chưa
          từng nằm trong danh sách màn, nên mọi lời hứa "đã đo điện thoại" đều không phủ nó — user phải
-         tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). BẢN 22/08/2026: cột Số tem
-         đã bỏ — chip số lượng nằm cùng ô với ô nhập, "Số tem: n" là chữ ở ô SKU.
+         tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). BẢN 23/08/2026: chip số lượng
+         nằm Ô RIÊNG `td.prchipso` (điện thoại: hàng riêng dưới tên hàng), "Số tem" là Ô NHẬP
+         `input.prtemin` ở ô SKU, nút × xoá SKU chuyển sang BÌA TRÁI.
          Dựng dữ liệu giả tại chỗ (2 SKU, 3 số lượng) để đo được cả CHIP — chip chỉ hiện khi đã có
          số lượng, mở pop-up rỗng thì lại soi trượt đúng cái vừa đổi. */
       { ten: "Pop-up In tem SKU", cho: "#prmodal.show",
@@ -117,7 +125,7 @@ const TRANG = [
             "'422495218':{sku:'422495218',pn:'Mẫu thông chuyền/CWHO0006/Xanh Tro-Dusky Green/Size S',slHang:'1.000, 2.000, 3.000',mau:PR_TEM.MAU_MAC_DINH,sl:1}," +
             "'422423807':{sku:'422423807',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',slHang:'',mau:PR_TEM.MAU_MAC_DINH,sl:2}}; " +
             "prLuu(); prMo(); return true; }",
-        sanSangMan: "() => document.querySelectorAll('#prBody .prgo .prchip').length >= 3 && !!document.querySelector('#prBody .prtemso b')",
+        sanSangMan: "() => document.querySelectorAll('#prBody td.prchipso .prchip').length >= 3 && !!document.querySelector('#prBody input.prtemin')",
         dong: "() => { try{ prDong(); prXoaHet(); }catch(e){} }" },
       /* POP-UP "CÂN → SỐ LƯỢNG" — BỔ SUNG 22/08/2026 cùng lúc ra đời (luật: pop-up mới phải vào
          danh sách màn ngay từ đầu, đừng để thành lỗ hổng như In tem/Planogram trước đây). Dựng
