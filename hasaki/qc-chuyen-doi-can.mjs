@@ -53,7 +53,10 @@ const bam = (sel) => page.evaluate((s) => { const e = document.querySelector(s);
 /* Gõ số rồi để trang tự tính (đúng đường người dùng đi: oninput -> cdTinh) */
 const go = (o) => page.evaluate((o) => {
   for (const k in o) { const e = document.getElementById(k); e.value = o[k]; e.dispatchEvent(new Event("input", { bubbles: true })); }
-  return { mm: CD.mm, tiles: document.getElementById("cdTiles").hidden, note: document.getElementById("cdNote").textContent.trim() };
+  /* `tiles` = CHƯA CÓ KẾT QUẢ THẬT. Từ 23/08/2026 khối thẻ không ẩn nữa mà bày 4 thẻ MỜ giữ chỗ
+     (user: "1 bên trống quá nhiều"), nên "chưa có kết quả" = đang ẩn HOẶC đang là thẻ mờ. */
+  const oT = document.getElementById("cdTiles");
+  return { mm: CD.mm, tiles: oT.hidden || oT.classList.contains("mo"), note: document.getElementById("cdNote").textContent.trim() };
 }, o);
 
 await page.goto(URL_TRANG, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -146,10 +149,17 @@ kiem("Cân cả lô ≤ tổng khối lượng lõi → dừng, nhắc ô tổng
 /* ---------- 9. Chỉ còn GRAM (nút kg đã bỏ) + quy cách hiện MÉT ---------- */
 kiem("Ô tổng cân chỉ còn GRAM — 2 nút kg/gr đã bỏ hẳn",
   await page.evaluate(() => !document.getElementById("cdDvKg") && !document.getElementById("cdDvG") &&
-    /gr/.test(document.querySelector("#cdTong").parentElement.querySelector(".dv").textContent)));
-const nutM = await page.evaluate(() => [...document.querySelectorAll("#cdQCBar .kktab")].map((b) => b.textContent.trim()));
-kiem("Nút quy cách hiện MÉT cho gọn (5,000 m thay vì 5,000,000 mm)",
-  nutM[0] === "2,500 m" && nutM[1] === "3,000 m" && nutM[2] === "5,000 m" && nutM[3] === "Khác…", nutM.join(" | "));
+    /gr/.test(document.querySelector("#cdTong").parentElement.querySelector(".cd-dv").textContent)));
+/* Chip là SỐ TRẦN, đơn vị nằm ở CHIP ĐVT cạnh ô nhập (đổi 23/08/2026, user: "không để thừa đơn vị
+   kế bên ô chip") — nhưng vẫn phải là MÉT chứ không phải 5.000.000 mm. */
+const nutM = await page.evaluate(() => ({
+  chip: [...document.querySelectorAll("#cdQCBar .kktab")].map((b) => b.textContent.trim()),
+  dv: (document.getElementById("cdQCDv") || {}).textContent,
+  soDv: document.querySelectorAll("#cdQCBar .kktab").length && [...document.querySelectorAll("#cdQCBar .kktab")].filter((b) => /m|yard/i.test(b.textContent)).length
+}));
+kiem("Chip quy cách là SỐ TRẦN theo MÉT, đơn vị chỉ hiện MỘT chỗ ở chip ĐVT",
+  nutM.chip.join("|") === "2,500|3,000|5,000|Khác…" && /^m$/.test(String(nutM.dv).trim()),
+  nutM.chip.join(" | ") + "  · chip ĐVT: " + String(nutM.dv).trim());
 await bam('#cdQCBar .kktab[data-mm="2500000"]');
 const r25 = await go({ cdTong: "900" });
 kiem("Đổi quy cách 2,500 m: mật độ đổi theo, kết quả bằng nửa — VẪN ra mm",
@@ -389,10 +399,10 @@ const chipQc = await page.evaluate(() => {
   return { chi, thun, vai };
 });
 kiem("Chỉ may: giữ nguyên 3 chip quy cách đã chốt 22/08",
-  chipQc.chi.chip.join("|") === "2,500 m|3,000 m|5,000 m|Khác…" && chipQc.chi.sang.join("") === "5,000 m",
+  chipQc.chi.chip.join("|") === "2,500|3,000|5,000|Khác…" && chipQc.chi.sang.join("") === "5,000",
   chipQc.chi.chip.join(" | "));
 kiem("Thun: chip quy cách đếm từ danh mục Thun (100 m), KHÔNG mượn số của chỉ",
-  chipQc.thun.chip.join("|") === "100 m|Khác…", chipQc.thun.chip.join(" | "));
+  chipQc.thun.chip.join("|") === "100|Khác…", chipQc.thun.chip.join(" | "));
 kiem("Vải: danh mục không SKU nào ghi quy cách → chỉ còn \"Khác…\"",
   chipQc.vai.chip.join("|") === "Khác…", chipQc.vai.chip.join(" | "));
 kiem("Đổi loại hàng thì BỎ luôn quy cách 5.000 m của chỉ (không tính lén bằng cuộn chỉ)",
@@ -501,6 +511,86 @@ const lechVai = await page.evaluate(() => {
 });
 kiem("Vải: cân cuộn nguyên lệch >5% với định lượng danh nghĩa → cờ đỏ nói cả hai số",
   /lệch nhau/.test(lechVai.note) && /g\/m/.test(lechVai.note), lechVai.note.slice(0, 104));
+
+/* ---------- 12e. BỐ CỤC + ĐƠN VỊ + DẤU "MÁY ĐIỀN / CÒN PHẢI NHẬP" (user 23/08/2026) ---------- */
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.evaluate(() => { try { localStorage.removeItem("cd-quycach"); } catch (e) {} });
+await bam("#ttCd");
+const boCuc = await page.evaluate(() => {
+  const doi = (a, b) => {
+    const x = document.getElementById(a).getBoundingClientRect(), y = document.getElementById(b).getBoundingClientRect();
+    return Math.abs(x.top - y.top) < 6 && x.left !== y.left;
+  };
+  const nhan = (id) => document.querySelector('label[for="' + id + '"]').textContent.replace(/\s+/g, " ").trim();
+  return { skuUid: doi("cdSku", "cdUid"), tongCuon: doi("cdTong", "cdCuon"), loiNguyen: doi("cdLoi", "cdNguyen"),
+    nhanSku: nhan("cdSku"), nhanUid: nhan("cdUid") };
+});
+kiem("Ô giá trị NGẮN xếp hai-một-hàng (SKU/UIDgr · tổng/số cuộn · lõi/cuộn nguyên)",
+  boCuc.skuUid && boCuc.tongCuon && boCuc.loiNguyen, JSON.stringify(boCuc).slice(0, 96));
+kiem("Đã bỏ câu giải nghĩa dài ở nhãn Mã SKU và UIDgr",
+  boCuc.nhanSku === "Mã SKU" && boCuc.nhanUid === "UIDgr code", boCuc.nhanSku + " · " + boCuc.nhanUid);
+
+/* Chip ĐVT của khổ: cm ⇄ inch. Danh mục có 92 SKU ghi khổ bằng inch nên đây là đường thật, không
+   phải tiện ích cho vui — bắt thủ kho tự nhân 2,54 là mời gọi sai số. */
+const dvKho = await page.evaluate(() => {
+  cdChonLoai("vai");
+  const dat = (id, v) => { const o = document.getElementById(id); o.value = v; o.dispatchEvent(new Event("input", { bubbles: true })); };
+  cdChonKho(0); dat("cdKho", "57"); dat("cdGsm", "230"); dat("cdTong", "10000"); dat("cdCuon", "1"); dat("cdLoi", "0");
+  const cm = { dv: document.getElementById("cdKhoDv").textContent.trim(), mm: CD.mm };
+  cdDoiDv("kho");                                   // → inch
+  const inch = { dv: document.getElementById("cdKhoDv").textContent.trim(), mm: CD.mm,
+    doc: document.getElementById("cdKhoDoc").textContent.replace(/\s+/g, " ").trim() };
+  return { cm, inch };
+});
+/* 57cm × 230gsm = 131,1 g/m → 10.000 gr = 76,2776 m = 76.278 mm
+   57 inch = 144,78 cm → 332,99 g/m → 30,0305 m = 30.031 mm */
+kiem("Chip ĐVT khổ đổi cm ⇄ inch và KẾT QUẢ đổi theo (57cm vs 57 inch)",
+  dvKho.cm.dv === "cm" && dvKho.inch.dv === "inch" && dvKho.cm.mm === 76278 && dvKho.inch.mm === 30031,
+  "cm → " + dvKho.cm.mm + " mm · inch → " + dvKho.inch.mm + " mm");
+kiem("Gõ bằng inch thì dòng soi nói rõ ra bao nhiêu cm", /144[.,]8 cm/.test(dvKho.inch.doc), dvKho.inch.doc.slice(0, 70));
+
+/* Dấu phân biệt: số MÁY TỰ ĐIỀN (từ tên hàng) vs số NGƯỜI PHẢI NHẬP — bằng hình, không bằng chữ */
+const dau = await page.evaluate(() => {
+  cdDoiDv("kho");                                    // trả về cm
+  ["cdTong", "cdCuon", "cdLoi", "cdKho", "cdGsm"].forEach((id) => {
+    const o = document.getElementById(id); o.value = ""; o.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const o = document.getElementById("cdSku"); o.value = "422273473"; o.dispatchEvent(new Event("input", { bubbles: true }));
+  const lay = (id) => { const e = document.getElementById(id); return { td: e.classList.contains("tu-dien"), cn: e.classList.contains("can-nhap"), v: e.value }; };
+  const sau = { gsm: lay("cdGsm"), kho: lay("cdKho"), tong: lay("cdTong"), cuon: lay("cdCuon") };
+  const g = document.getElementById("cdGsm"); g.value = "300"; g.dispatchEvent(new Event("input", { bubbles: true }));
+  return { sau, goDe: lay("cdGsm") };
+});
+kiem("Số MÁY TỰ ĐIỀN từ tên hàng được đánh dấu riêng (khổ + định lượng)",
+  dau.sau.gsm.td && dau.sau.kho.td && dau.sau.gsm.v === "220", "gsm " + dau.sau.gsm.v + " · khổ " + dau.sau.kho.v);
+kiem("Ô CÒN PHẢI NHẬP được đánh dấu riêng (tổng cân · số cuộn đang trống)",
+  dau.sau.tong.cn && dau.sau.cuon.cn && !dau.sau.tong.td, JSON.stringify(dau.sau.tong) + " " + JSON.stringify(dau.sau.cuon));
+kiem("Gõ đè lên số máy điền → hết là \"máy điền\" (số đó giờ là của người dùng)",
+  dau.goDe.td === false && dau.goDe.v === "300", JSON.stringify(dau.goDe));
+
+/* PHIẾU TÍNH PHẢI LẦN LẠI ĐƯỢC BẰNG MÁY TÍNH CẦM TAY. Mật độ của vải là số nhỏ (2,469 mm/gr) —
+   làm tròn 0 số lẻ thì dòng cuối đọc ra "23,400 gr × 2 mm/gr = 57,778 mm", ai kiểm cũng ra 46.800
+   và kết luận máy tính sai. (Bẫy thật, thấy trên ảnh chụp 23/08.) */
+const phieu = await page.evaluate(() => {
+  cdChonLoai("vai");
+  const dat = (id, v) => { const o = document.getElementById(id); o.value = v; o.dispatchEvent(new Event("input", { bubbles: true })); };
+  /* ĐẶT trạng thái ô "Khác…", KHÔNG bấm `cdChonKho(0)` — nó là hành vi của ngón tay (bấm lại =
+     tắt), gọi bừa thì tắt mất ô đang mở và bài đo lại đi đo trạng thái cũ còn sót trong DOM. */
+  CD.khoTuDo = true; CD.kho = 0; CD.dvKho = "cm"; cdVeKhoChon(); cdVeDv();
+  dat("cdKho", "135"); dat("cdGsm", "300");
+  dat("cdTong", "25000"); dat("cdCuon", "2"); dat("cdLoi", "800"); dat("cdNguyen", "");
+  const b = [...document.querySelectorAll("#cdSteps .cd-step")].map((e) => e.querySelector(".t").textContent + " → " + e.querySelector(".v").textContent);
+  return { mm: CD.mm, cuoi: b[b.length - 1] || "", hint: document.getElementById("cdKQHint").textContent };
+});
+const soCuoi = (phieu.cuoi.match(/([\d.,]+)\s*gr\s*×\s*([\d.,]+)\s*mm\/gr/) || []).slice(1)
+  /* Trang in số kiểu en-US: dấu PHẨY là hàng nghìn, dấu CHẤM là thập phân ("23,400" · "2.469").
+     Bẫy đã dính: bộ đo bỏ mọi dấu đứng trước 3 chữ số ⇒ "2.469" thành 2469, sai 1.000 lần. */
+  .map((x) => Number(String(x).replace(/,/g, "")));
+kiem("Phiếu tính lần lại được bằng tay: gr × mm/gr ra ĐÚNG số mm cuối",
+  soCuoi.length === 2 && Math.abs(soCuoi[0] * soCuoi[1] - phieu.mm) / phieu.mm < 0.005,
+  phieu.cuoi.replace(/\s+/g, " "));
+kiem("Mật độ nhỏ thì hiện đủ số lẻ (vải ≈ 2,469 mm/gr, không phải \"2\")",
+  /2[.,]4\d/.test(phieu.hint), phieu.hint);
 
 /* ---------- 13. Điện thoại: 1 cột, không tràn ngang ---------- */
 await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

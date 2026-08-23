@@ -339,6 +339,43 @@ còn hơn mượn số của mặt hàng khác.
 cách của chỉ · 2 ca lõi `heSoCan` gồm cả ca *"Cuộn 5000m là QUY CÁCH, không phải hệ số"* · 1 ca Thun
 tự điền g/m từ tên).
 
+## Dựng lại bố cục bước 1 (23/08 tối, user duyệt màn hình)
+
+Bốn ý user nêu, không ý nào là chuyện thẩm mỹ suông:
+
+**① "1 bên dài sọc, 1 bên trống quá nhiều".** Bước 1 xếp mỗi ô một hàng nên cột trái dài gấp đôi
+cột phải. Nay ô nào **giá trị NGẮN thì đi cặp**: `Mã SKU | UIDgr` · `Tổng khối lượng | Số cuộn` ·
+`Khối lượng lõi | Cuộn nguyên` (điện thoại vẫn 1 cột — 2 ô cạnh nhau ở 390px là bóp cả hai).
+Cột phải thì: **panel bám theo khi cuộn** + **4 thẻ MỜ giữ chỗ** đúng chỗ 4 con số sắp hiện, nên
+lúc chưa đủ số nó không còn là mảng trắng.
+
+**② "Chip nhập chỉ số không để thừa đơn vị kế bên ô chip".** Trước đây một đơn vị hiện **ba lần**:
+trên từng chip ("150 cm"), ở ô nhập ("cm"), và trong dòng soi. Nay đơn vị nằm **đúng một chỗ** — chip
+ĐVT cạnh ô nhập — còn chip số là **số trần**: `150 · 152 · 190` và `2,500 · 3,000 · 5,000`.
+
+**③ "Số đã có sẵn phải phân biệt được với số phải nhập" (bỏ làm mờ, không thêm chữ).**
+Phân biệt bằng HÌNH: ô **máy tự điền** → nền accent nhạt + viền accent + **dấu ✓ trong ô**; ô **còn
+phải nhập** → **viền nét đứt**. Gõ đè lên số máy điền thì dấu ✓ mất ngay — lúc đó nó là số của người
+dùng, không phải của máy.
+
+**④ "Khổ vải ghi bằng inch thì sao?"** Chip ĐVT có **mũi tên sổ xuống**, bấm để đổi `cm ⇄ inch`
+(và quy cách `m ⇄ yard`). Đây là đường thật chứ không phải tiện ích cho vui: danh mục có **92 SKU
+ghi khổ bằng inch** và **85 SKU vải khai bằng yard**; bắt thủ kho tự nhân 2,54 hay 0,9144 trước khi
+gõ là mời gọi sai số. Máy vẫn tính bằng cm/mm như cũ, chip chỉ đổi cách NGƯỜI GÕ.
+
+**Và một lỗi thật lộ ra khi soi ảnh chụp:** mật độ của vải là số nhỏ (2,469 mm/gr) mà đang làm tròn
+0 chữ số, nên phiếu tính đọc ra `23,400 gr × 2 mm/gr = 57,778 mm` — ai cầm máy tính kiểm lại cũng ra
+46.800 rồi kết luận máy tính sai. Phiếu tính mà không lần lại được bằng tay thì mất sạch công dụng.
+Nay số lẻ theo độ lớn: ≥100 → 0 số lẻ (chỉ may 37.037) · ≥10 → 1 · nhỏ hơn → 3.
+
+**Đo:** `qc-chuyen-doi-can` **70/70** (+9 ca: cặp hai-ô-một-hàng · nhãn đã bỏ câu dài · chip số trần
++ đơn vị một chỗ · đổi cm⇄inch và kết quả đổi theo · dòng soi nói ra bao nhiêu cm · dấu ô máy điền ·
+dấu ô còn phải nhập · gõ đè thì mất dấu · **phiếu tính phải lần lại được bằng tay**) ·
+`qc-mobile-toan-du-an --file` 89 màn × 4 máy · `qc-tab-nhan-dien` 161/161 · `qc-in-tem-popup` 46/46.
+
+**Bẫy của bộ đo lần này**: trang in số kiểu en-US (phẩy = hàng nghìn, chấm = thập phân) mà bộ đo bóc
+số lại xoá mọi dấu đứng trước 3 chữ số ⇒ `2.469` thành `2469`, sai 1.000 lần và báo đỏ oan.
+
 ## Còn lại (chưa làm)
 
 * **P3 vá dữ liệu gốc**: 230 SKU vải còn tồn thiếu gsm trong tên + 2 SKU ghi sai `Width 1650cm`.
