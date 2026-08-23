@@ -64,7 +64,10 @@ async function anhTem(r, maMau) {
      20/08/2026 không được dịch trái vì agent gọi tắt, trong khi pop-up thì có. */
   const svg = r._dot
     ? T.svgTemDot({ nguoi: r.nguoi, luc: r.luc, soTem: r.soTem, soSku: r.soSku }, maMau)
-    : T.mau(maMau).ve({ sku: r.sku, pn: r.pn, sl: r.sl, ngay: r.ngay });
+    /* Bẫy y hệt vừa nói, lần thứ hai (23/08/2026): DỰNG LẠI `d` ở đây thì mọi trường MỚI của con
+       tem đều rơi mất — thêm `uid` cho lõi mà quên chỗ này thì dòng UIDgr không bao giờ ra giấy,
+       trong khi pop-up xem trước lại có. Chuyển NGUYÊN dòng vào `ve()`, chỉ đổi tên `slHang`→`sl`. */
+    : T.mau(maMau).ve({ sku: r.sku, pn: r.pn, sl: r.sl, ngay: r.ngay, uid: r.uid || "" });
   const raw = await sharp(Buffer.from(svg), { density: 72 * SIEU })
     .resize(W, H, { kernel: "lanczos3", fit: "fill" })
     .greyscale().threshold(170).raw().toBuffer({ resolveWithObject: true });
@@ -382,6 +385,13 @@ const GAS_URL = process.env.APPSCRIPT_URL || "";
 const GAS_KEY = process.env.APPSCRIPT_KEY || "";
 
 async function goiGas(body) {
+  /* NONCE NGOÀI vòng thử lại (audit 23/08/2026): 2 lượt thử không nonce nghĩa là GAS có thể chạy
+     THẬT cả hai (lượt 1 xong nhưng chặng trả nội dung 404) → pr_xong/pr_hoan ghi đôi, tệ nhất là
+     in đôi tem. Cùng một cú gọi = cùng một nonce; GAS (doPost nonce-cache 10') lượt sau chỉ trả
+     lại phản hồi cũ, không chạy lại thân hàm. */
+  if (body && typeof body === "object" && !body.nonce) {
+    body = { ...body, nonce: "ag-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8) };
+  }
   let cuoi = "";
   for (let i = 0; i < 2; i++) {
     if (i) await nghi(900);
@@ -426,9 +436,12 @@ async function inMotLenh(lenh) {
     const k = String(o.sku);
     const tt = (dm && dm.get(k)) || bu.get(k);
     return { sku: k, pn: String(o.pn || "").trim() || (tt ? tt.pn : "") || "(không thấy trong danh mục)",
-      slHang: o.slHang || "", sl: o.sl, mau: o.mau };
+      slHang: o.slHang || "", sl: o.sl, mau: o.mau,
+      /* UIDgr (23/08/2026): mã group của cuộn, dashboard gửi kèm dòng in; lõi tem in nó thành một
+         dòng trên con tem. Chuyển tiếp NGUYÊN VĂN, agent không sinh cũng không sửa mã này. */
+      uid: String(o.uid || "").slice(0, 24) };
   });
-  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay }));
+  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay, uid: x.uid || "" }));
   if (!conTem.length) return { loi: "lệnh rỗng" };
   /* Tem thông báo đợt: chỉ khi hàng đợi đang có nhiều người — in một mình thì không tốn thêm tem. */
   if (lenh.nhieuNguoi) {
@@ -633,6 +646,10 @@ const GAP_MM = Number(layCo("--gap", String((T.GIAY && T.GIAY.kheNgang) || 3)));
 const DENSITY = Number(layCo("--dam", "10"));    // 0..15 — 8 in ra nhạt trên giấy decal này
 const LECH_MM = Number(layCo("--lech", "2"));    // dịch trái (mm) cho khớp khuôn tem vật lý
 const NGUOI = layCo("--nguoi", "");               // ai gửi đợt in này -> in kèm tem thông báo đợt
+/* `--uidgr <mã>`: dán MỘT mã group cho mọi con tem của lượt chạy tay — chỉ để THỬ dòng UIDgr trên
+   máy in trước khi giao cho thủ kho. Đường thật thì mã đi theo TỪNG DÒNG từ dashboard (mỗi cuộn một
+   group), chứ không phải một mã cho cả lệnh. */
+const UIDGR = layCo("--uidgr", "");
 const dsThu = argv.indexOf("--thu") >= 0 ? layCo("--thu", "") : "";
 const dsIn = argv.indexOf("--in") >= 0 ? layCo("--in", "") : "";
 
@@ -720,9 +737,12 @@ async function chay(ds, chiThu) {
     let tt = dm && dm.get(o.sku);
     if (!tt) tt = await traGviz(o.sku);            // chưa có trong file đồng bộ -> tra Sheet một lượt
     dongCoTen.push({ sku: o.sku, pn: tt ? tt.pn : "(không thấy trong danh mục)",
-      slHang: o.sl || "", sl: o.soTem || 1, mau: MAU });
+      slHang: o.sl || "", sl: o.soTem || 1, mau: MAU, uid: o.uid || UIDGR || "" });
   }
-  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay }));
+  /* `uid` phải đi cả đường này: `--thu` tự nhận là "y hệt đường --dich-vu gửi", mà thiếu nó thì bản
+     chạy khô in ra tem KHÔNG có dòng UIDgr trong khi bản thật thì có — đúng loại lệch làm người ta
+     tin nhầm vào ảnh xem trước. */
+  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay, uid: x.uid || "" }));
   if (!conTem.length) { console.error("Không có SKU nào để in."); process.exit(1); }
   /* TEM THÔNG BÁO ĐỢT IN: chỉ chèn khi biết đợt này của AI (--nguoi) — dùng khi máy in là chỗ dùng
      chung và hàng đợi có nhiều người. In một mình thì không tốn thêm tem. */
@@ -763,5 +783,6 @@ else if (dsIn) await chay(bocDanhSach(dsIn), false);
 else if (argv.includes("--dich-vu")) await chayDichVu(Math.max(0, Number(layCo("--nhip", "0"))));
 else {
   console.log('Dùng: node in-tem-agent.mjs --thu "422430797x2" | --in "422430797x2,422322192" | --dich-vu');
+  console.log('  --uidgr <mã>  in thêm dòng UIDgr lên mọi tem của lượt chạy tay (chỉ để thử máy in)');
   console.log('      tuỳ chọn: --mau t40x60 --may "<tên máy in>" --gap 3 --dam 10 --lech 2');
 }

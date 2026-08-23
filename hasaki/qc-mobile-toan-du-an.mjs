@@ -79,6 +79,17 @@ const TRANG = [
         sanSangMan: "() => document.querySelectorAll('#viewHome .hm-t').length > 0" },
       { ten: "Trạng thái lưu trữ", mo: "() => { showTab('stock'); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#viewStock .card .k')].some(x => /\\d/.test(x.textContent))" },
+      /* POP-UP "CHI TIẾT SKU THEO KHO" — BỔ SUNG 23/08/2026 cùng lúc renderRows đổi sang CAP 200
+         + nút "Xem thêm 1.000 dòng" (audit). Lỗ hổng cũ y như In tem/Planogram: pop-up này chưa
+         từng nằm trong danh sách màn. Dựng WH_DATA giả 260 dòng để chắc chắn VƯỢT CAP 200 — đo
+         được cả hàng "Đang hiện … / …" + nút Xem thêm (đúng cái vừa thêm). */
+      { ten: "Pop-up Chi tiết SKU theo kho", cho: "#modal.show",
+        mo: "() => { showTab('stock'); if(typeof openModal!=='function') return false; " +
+            "_daNapTho=true; WH_DATA={'WH - MATERIAL - MTG':{shelf:[['422495218','Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm','F0-KHO-503-03-04-01','Vải nguyên liệu',120,'WH - MATERIAL - MTG']]," +
+            "pend:Array.from({length:260},function(_,i){ return ['4224'+(10000+i),'Chỉ astra/C9700_Coats Phong Phú/Polyester/None/Black/None/Text 27-60-3-Tkt 120/mm','F0-A0-00-00-00','Chỉ may',i+1,'WH - MATERIAL - MTG']; })}}; " +
+            "WH_COLOR['WH - MATERIAL - MTG']=WH_COLOR['WH - MATERIAL - MTG']||'#2563eb'; openModal('WH - MATERIAL - MTG'); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#mbody tr').length > 10 && !!document.querySelector('#mbody button.whnum')",
+        dong: "() => { try{ closeModal(); _daNapTho=false; WH_DATA={}; }catch(e){} }" },
       { ten: "Kiểm kê", mo: "() => { showTab('kk'); return true; }",
         /* Phải chờ ĐỦ BA thứ: dải chỉ số, ô lọc, VÀ chip kho. Bản trước thiếu chip kho nên đo lúc
            thanh còn ngắn ⇒ tab báo ĐẠT trong khi cùng thanh đó bị pop-up bắt là 215px/5 hàng. Cùng
@@ -113,6 +124,28 @@ const TRANG = [
             "cdTinh(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#cdTexKhoBar .kktab').length >= 3 && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
         dong: "() => { try{ cdXoaHet(); }catch(e){} }" },
+      /* HAI THƯỚC MỚI của tab Chuyển đổi cân (23/08/2026): Vải (khổ × định lượng) và Thun (g/m).
+         Mỗi thước là một MÀN KHÁC — khối nhập khác nhau, dòng ghi chú khác nhau — nên phải đo
+         riêng, không đo một cái rồi hứa cả ba (luật "phạm vi đo = phạm vi lời hứa"). */
+      { ten: "Chuyển đổi cân › thước Vải",
+        mo: "() => { if(typeof cdChonLoai!=='function') return false; " +
+            "try{ localStorage.setItem('nds-master-v1', JSON.stringify({at:Date.now(),rows:[" +
+            "{sku:'422273473',pn:'Vải Rib 1x1 USA/TN035_Trang Nhã/93% Cotton 36S, 7% Spandex 30D/220gsm, 180cm/Đen_Black/g',type:'NORMAL',status:'ACTIVE',qty:7814}]})); }catch(e){} " +
+            "showTab('cd'); cdChonLoai('vai'); " +
+            "[['cdSku','422273473'],['cdUid','1028260605000316'],['cdTong','25000'],['cdCuon','1'],['cdLoi','1000'],['cdNguyen','']]" +
+            ".forEach(function(c){ var o=document.getElementById(c[0]); o.value=c[1]; o.dispatchEvent(new Event('input',{bubbles:true})); }); " +
+            "return true; }",
+        sanSangMan: "() => !document.getElementById('cdVaiF').hidden && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try{ cdXoaHet(); }catch(e){} }" },
+      { ten: "Chuyển đổi cân › thước Thun",
+        mo: "() => { if(typeof cdChonLoai!=='function') return false; " +
+            "try{ localStorage.setItem('cd-gm-sotay', JSON.stringify({'422328160':{gm:4.8,at:Date.now()}})); }catch(e){} " +
+            "showTab('cd'); cdChonLoai('thun'); " +
+            "[['cdSku','422328160'],['cdGm','4,8'],['cdTong','1000'],['cdCuon','3'],['cdLoi','40'],['cdNguyen','']]" +
+            ".forEach(function(c){ var o=document.getElementById(c[0]); o.value=c[1]; o.dispatchEvent(new Event('input',{bubbles:true})); }); " +
+            "return true; }",
+        sanSangMan: "() => !document.getElementById('cdThunF').hidden && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
+        dong: "() => { try{ cdXoaHet(); localStorage.removeItem('cd-gm-sotay'); }catch(e){} }" },
       /* POP-UP "IN TEM SKU" — BỔ SUNG 21/08/2026. Lỗ hổng gốc y như panel Planogram: pop-up này chưa
          từng nằm trong danh sách màn, nên mọi lời hứa "đã đo điện thoại" đều không phủ nó — user phải
          tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). BẢN 23/08/2026: chip số lượng
@@ -123,7 +156,7 @@ const TRANG = [
       { ten: "Pop-up In tem SKU", cho: "#prmodal.show",
         mo: "() => { if(typeof prMo!=='function') return false; PR.sel={" +
             "'422495218':{sku:'422495218',pn:'Mẫu thông chuyền/CWHO0006/Xanh Tro-Dusky Green/Size S',slHang:'1.000, 2.000, 3.000',mau:PR_TEM.MAU_MAC_DINH,sl:1}," +
-            "'422423807':{sku:'422423807',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',slHang:'',mau:PR_TEM.MAU_MAC_DINH,sl:2}}; " +
+            "'422423807':{sku:'422423807',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',slHang:'',mau:PR_TEM.MAU_MAC_DINH,sl:2,uid:'1028260605000316'}}; " +
             "prLuu(); prMo(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#prBody td.prchipso .prchip').length >= 3 && !!document.querySelector('#prBody input.prtemin')",
         dong: "() => { try{ prDong(); prXoaHet(); }catch(e){} }" },

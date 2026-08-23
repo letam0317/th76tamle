@@ -284,6 +284,23 @@ console.log("\n── 9. Một nguồn dựng tem · chữ tự phủ đầy · 
   kiem("Mã vạch còn quiet zone ≥ 10 module cả hai đầu (kể cả sau khi dịch trái 2mm)",
     !!v && quiet >= v.modMm * 10,
     v ? "rộng " + v.rong + " dot · quiet zone " + Math.round(quiet) + " dot (cần ≥ " + v.modMm * 10 + ")" : "null");
+  /* ═══ DÒNG UIDgr (23/08/2026, user chốt: mã group in LÊN TEM) ═══
+     Ba điều: có mã thì in ra; KHÔNG có mã thì tem phải giống HỆT bản trước (không chừa chỗ trống,
+     kẻo mọi con tem chỉ may đều bị bóp nhỏ tên hàng vì một dòng không bao giờ dùng tới); và mã dài
+     thì bị CẮT chứ không tràn ra ngoài mép giấy. */
+  const chuCuaSvg = (x) => String(x).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const svgUid = T.MAU.t40x60.ve({ ...d, uid: "1028260605000316" });
+  kiem("Có UIDgr → tem in thêm dòng \"UIDgr <mã>\"", /UIDgr 1028260605000316/.test(chuCuaSvg(svgUid)),
+    (chuCuaSvg(svgUid).match(/UIDgr[^<]{0,24}/) || ["(không thấy)"])[0].trim());
+  kiem("KHÔNG có UIDgr → tem giống HỆT bản cũ (không chừa chỗ trống)",
+    T.MAU.t40x60.ve({ ...d, uid: "" }) === T.MAU.t40x60.ve(d), "hai bản trùng khít");
+  kiem("Có UIDgr thì tên hàng phải NHƯỜNG chỗ (bố cục đổi thật, không phải vẽ đè)",
+    svgUid !== T.MAU.t40x60.ve(d));
+  const uidDai = "1".repeat(40);
+  const svgDai = T.MAU.t40x60.ve({ ...d, uid: uidDai });
+  kiem("Mã group dài quá khổ tem → CẮT bớt (không tràn ra ngoài mép)",
+    chuCuaSvg(svgDai).indexOf("UIDgr " + uidDai) < 0 && /UIDgr 1111/.test(chuCuaSvg(svgDai)),
+    (chuCuaSvg(svgDai).match(/UIDgr[^<]{0,44}/) || ["(không thấy)"])[0].trim());
   kiem("Mã vạch nằm TRONG svgTem (không nhờ lệnh BARCODE của máy in)",
     (svg.match(/<rect /g) || []).length > 20, (svg.match(/<rect /g) || []).length + " rect");
   /* Cỡ chữ tự co: tên ngắn phải được cỡ LỚN hơn tên dài */
