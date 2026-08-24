@@ -11,6 +11,14 @@ var TEN_SHEET = 'WMS-5S-AUDIT';
 var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
 var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';   // ⚠ ĐẶT GIÁ TRỊ THẬT (= APPSCRIPT_KEY trong .env) khi dán vào Apps Script
 var SYNC_PIN = 'DAT_PIN_RIENG_O_DAY';        // PIN chung: form Ghi nhận 5S + Cập nhật chấm công
+/* KÊNH TELEGRAM CỦA GAS (24/08/2026) — để GAS TỰ nhắn mã OTP cho quản trị, không qua máy trạm.
+   Đi theo đúng đường của SECRET/SYNC_PIN: giá trị thật nằm ở .env, deploy-gas.mjs chèn vào bản
+   .clasp-deploy/sa.js lúc đẩy. VÌ SAO KHÔNG làm một action GAS để đặt Script Properties từ xa:
+   đợt audit 23/08 vừa đóng đúng loại lỗ "endpoint công khai đặt được bí mật" (pc_set_key TOFU),
+   thêm một cái nữa là đi ngược chính mình. Ai đã đặt tay trong Script Properties thì giá trị đó
+   THẮNG (tbBaoTele_ đọc Properties trước), nên đổi token gấp không cần deploy lại. */
+var TELE_TOKEN = 'DAT_TELEGRAM_BOT_TOKEN_O_DAY';
+var TELE_CHAT = 'DAT_TELEGRAM_CHAT_ID_O_DAY';
 var SYNC_PIN_DATA = 'DAT_PIN_TAI_DU_LIEU';  // PIN RIÊNG cho "Cập nhật ngay" (ép tải dữ liệu 5S)
 var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
 var COL_MA_TASK = 6;
@@ -109,7 +117,10 @@ function tbBaoTele_(text) {
   // Chưa cấu hình token thì im lặng bỏ qua — yêu cầu vẫn nằm ở sổ chờ, quản trị xem bằng /choduyet.
   try {
     var p = PropertiesService.getScriptProperties();
-    var tok = p.getProperty('TELEGRAM_BOT_TOKEN'), chat = p.getProperty('TELEGRAM_CHAT_ID');
+    /* Ưu tiên Script Properties (đổi được tại chỗ, không cần deploy); chưa đặt thì dùng hằng
+       do deploy-gas.mjs chèn từ .env. Cả hai rỗng (bản git-safe) thì im lặng bỏ qua. */
+    var tok = p.getProperty('TELEGRAM_BOT_TOKEN') || (TELE_TOKEN.indexOf('DAT_') === 0 ? '' : TELE_TOKEN);
+    var chat = p.getProperty('TELEGRAM_CHAT_ID') || (TELE_CHAT.indexOf('DAT_') === 0 ? '' : TELE_CHAT);
     if (!tok || !chat) return false;
     UrlFetchApp.fetch('https://api.telegram.org/bot' + tok + '/sendMessage',
       { method: 'post', payload: { chat_id: chat, text: text }, muteHttpExceptions: true });
@@ -410,6 +421,12 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'tb_tra') return apiTbTra_(duLieu);
     if (duLieu && duLieu.action === 'tb_otp') return apiTbOtp_(duLieu);   // gõ 4 số quản trị nhắn cho → cấp quyền ngay, KHÔNG qua laptop
     if (duLieu && duLieu.action === 'tb_ip') return apiTbIp_(duLieu);     // máy ĐÃ duyệt báo IP → sổ mẫu mạng công ty tự học
+    /* teleTest: bắn 1 tin thử để biết GAS có gửi Telegram được hay không, KHÔNG phải bật khoá thiết
+       bị mới thử được (bật khoá giữa giờ làm là chặn In tem của cả kho). ĐÒI SECRET nên chỉ máy trạm
+       gọi được — kẻ có SECRET thì đã ghi được Sheet, thêm quyền nhắn 1 tin không mở rộng gì. */
+    if (duLieu && duLieu.action === 'teleTest') return keyBodyOK_(duLieu)
+      ? phanHoiJson({ status: 'success', gui: tbBaoTele_('\ud83e\uddea GAS th\u1eed k\u00eanh Telegram — n\u1ebfu b\u1ea1n th\u1ea5y tin n\u00e0y th\u00ec l\u1ed1i b\u1eafn m\u00e3 OTP \u0111\u00e3 s\u1ed1ng (' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'HH:mm dd/MM') + ').') ? 1 : 0 })
+      : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'tb_duyet') return keyBodyOK_(duLieu) ? apiTbDuyet_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'tb_cho') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', ds: tbDsDoc_('TB_CHO'), daDuyet: Object.keys(tbDsDoc_('TB_DUYET')).length }) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pc_adjust') return pcJson_(pcKeyOK_(duLieu) ? pcAdjust_(duLieu) : pcKeyErr_());   // 27/07/2026: lưu SL điều chỉnh Physical Count Detail vào tab kiemke-adjust

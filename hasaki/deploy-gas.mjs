@@ -30,6 +30,10 @@ const BIMAT = [
   ["SECRET", "APPSCRIPT_KEY"],
   ["SYNC_PIN", "SYNC_PIN"],
   ["SYNC_PIN_DATA", "SYNC_PIN_DATA"],
+  /* 24/08/2026: GAS tự bắn Telegram (mã OTP cấp quyền máy mới) nên cần token ngay trong bản deploy
+     — không phải đặt tay Script Properties nữa. Properties vẫn THẮNG nếu đã đặt (xem tbBaoTele_). */
+  ["TELE_TOKEN", "TELEGRAM_BOT_TOKEN"],
+  ["TELE_CHAT", "TELEGRAM_CHAT_ID"],
 ];
 
 let src = fs.readFileSync(NGUON, "utf8");

@@ -28,7 +28,7 @@ if (iBatDau < 0 || iKetThuc < 0 || iKetThuc < iBatDau) {
 const KHOI = NGUON.slice(iBatDau, iKetThuc);
 
 /* ── Sân giả cho Apps Script ─────────────────────────────────────────────────────────────── */
-function dungSan() {
+function dungSan(tele) {   // tele = { token, chat } — hằng do deploy-gas.mjs chèn; mặc định là placeholder
   /* Mặc định CÓ cấu hình Telegram để mọi ca đều soi được nội dung tin; ca "chưa cấu hình" tự xoá. */
   const props = { TELEGRAM_BOT_TOKEN: "tok-gia", TELEGRAM_CHAT_ID: "999" };
   const cache = {};
@@ -57,11 +57,17 @@ function dungSan() {
   const phanHoiJson = (o) => o;                       // trả thẳng object cho dễ soi
   const keyBodyOK_ = (d) => String((d && d.key) || "") === "SECRET-GIA";
 
+  /* TELE_TOKEN/TELE_CHAT khai ở ĐẦU google-script.gs (ngoài khối tb*), nên phải truyền vào sân giả.
+     Không truyền thì `tbBaoTele_` ném ReferenceError, bị try/catch của chính nó ăn mất và trả false
+     — bài đo "chưa cấu hình thì im lặng" sẽ XANH VÌ LÝ DO SAI. Đã dính đúng chỗ này 24/08. */
+  const T = tele || {};
   const fn = new Function(
     "PropertiesService", "CacheService", "UrlFetchApp", "Utilities", "phanHoiJson", "keyBodyOK_",
+    "TELE_TOKEN", "TELE_CHAT",
     KHOI + "\nreturn { tbOK_, tbTuChoi_, tbDuyetCo_, tbIpDuocPhep_, apiTbIp_, apiTbXin_, apiTbTra_, apiTbOtp_, apiTbDuyet_, tbOtpSinh_ };"
   );
-  const api = fn(PropertiesService, CacheService, UrlFetchApp, Utilities, phanHoiJson, keyBodyOK_);
+  const api = fn(PropertiesService, CacheService, UrlFetchApp, Utilities, phanHoiJson, keyBodyOK_,
+    T.token || "DAT_TELEGRAM_BOT_TOKEN_O_DAY", T.chat || "DAT_TELEGRAM_CHAT_ID_O_DAY");
   const doc = (k) => { try { return JSON.parse(props[k] || "{}"); } catch { return {}; } };
   const ghi = (k, v) => { props[k] = JSON.stringify(v); };
   return { api, props, cache, teleGui, doc, ghi };
@@ -286,14 +292,49 @@ console.log("\nD. Nhánh còn lại");
   ktra("Mã máy sai định dạng → chặn", s.api.apiTbXin_({ tb: "hack", ten: "A · kho", ip: IP_KHO }).status === "error");
   ktra("OTP không đủ 4 số → chặn trước khi tra sổ", s.api.apiTbOtp_({ tb: MAY, otp: "12" }).status === "error");
 }
-{
+console.log("\nD2. Kênh Telegram của GAS — 3 nhánh của tbBaoTele_ (24/08: token đi theo .env → deploy)");
+{ /* (a) Cả Script Properties LẪN hằng đều chưa có (bản git-safe) → im lặng, KHÔNG nổ */
   const s = dungSan();
   s.props.DEVICE_KEY = "K";
-  delete s.props.TELEGRAM_BOT_TOKEN; delete s.props.TELEGRAM_CHAT_ID;   // KHÔNG cấu hình Telegram
+  delete s.props.TELEGRAM_BOT_TOKEN; delete s.props.TELEGRAM_CHAT_ID;
   const r = s.api.apiTbXin_({ tb: MAY, ten: "A · kho", ip: IP_KHO });
-  ktra("Telegram chưa cấu hình → VẪN sinh mã, nói rõ phải liên hệ trực tiếp",
+  ktra("Chưa cấu hình gì cả → VẪN sinh mã, nói rõ phải liên hệ trực tiếp",
     r.choOtp === 1 && r.guiTele === 0 && /liên hệ trực tiếp/i.test(r.message), r.message);
   ktra("…mã vẫn nằm trong sổ để quản trị tra được", !!s.doc("TB_OTP")[MAY]);
+  ktra("…và KHÔNG có tin nào bị bắn ra", s.teleGui.length === 0);
+}
+{ /* (b) Properties TRỐNG nhưng HẰNG có giá trị (đường .env → deploy-gas.mjs) → PHẢI gửi được */
+  const s = dungSan({ token: "1234:token-gia-tu-env", chat: "555" });
+  s.props.DEVICE_KEY = "K";
+  delete s.props.TELEGRAM_BOT_TOKEN; delete s.props.TELEGRAM_CHAT_ID;
+  const r = s.api.apiTbXin_({ tb: MAY, ten: "A · kho", ip: IP_KHO });
+  ktra("Properties trống + hằng deploy có giá trị → GỬI ĐƯỢC (khỏi đặt tay Script Properties)",
+    r.guiTele === 1 && s.teleGui.length === 1, "guiTele=" + r.guiTele + " · " + s.teleGui.length + " tin");
+  ktra("…gọi đúng bot của hằng deploy", /\/bot1234:token-gia-tu-env\//.test(s.teleGui[0] ? s.teleGui[0].url : ""),
+    s.teleGui[0] ? s.teleGui[0].url.replace(/bot[^/]*/, "bot***") : "(khong co)");
+  ktra("…tin có mã 4 số", /^\d{4}$/.test(layOtp(s.teleGui)), "mã = " + layOtp(s.teleGui));
+}
+{ /* (c) Cả hai có → Script Properties THẮNG (đổi token gấp không cần deploy lại) */
+  const s = dungSan({ token: "9999:hang-deploy", chat: "111" });
+  s.props.DEVICE_KEY = "K";
+  s.props.TELEGRAM_BOT_TOKEN = "1111:properties-thang"; s.props.TELEGRAM_CHAT_ID = "222";
+  s.api.apiTbXin_({ tb: MAY, ten: "A · kho", ip: IP_KHO });
+  ktra("Có cả hai → Script Properties THẮNG hằng deploy",
+    /\/bot1111:properties-thang\//.test(s.teleGui[0] ? s.teleGui[0].url : ""),
+    s.teleGui[0] ? s.teleGui[0].url.replace(/bot[^/]*/, "bot***") : "(khong co)");
+}
+{ /* (d) Bản trong git PHẢI là placeholder — token thật chỉ được nằm ở .env */
+  const gs = NGUON;
+  ktra("google-script.gs (bản tracked) giữ TELE_TOKEN/TELE_CHAT ở dạng placeholder",
+    /var TELE_TOKEN = 'DAT_[A-Z_]+';/.test(gs) && /var TELE_CHAT = 'DAT_[A-Z_]+';/.test(gs));
+  ktra("…và KHÔNG có token bot thật lọt vào file", !/[0-9]{8,}:[A-Za-z0-9_-]{30,}/.test(gs));
+  const dg = fs.readFileSync(path.join(DIR, "deploy-gas.mjs"), "utf8");
+  ktra("deploy-gas.mjs chèn TELE_TOKEN + TELE_CHAT từ .env",
+    /\["TELE_TOKEN", "TELEGRAM_BOT_TOKEN"\]/.test(dg) && /\["TELE_CHAT", "TELEGRAM_CHAT_ID"\]/.test(dg));
+  ktra("deploy-gas.mjs vẫn CHẶN nếu còn placeholder sau khi chèn (không deploy bản hỏng)",
+    /Vẫn còn placeholder/.test(dg));
+  ktra("teleTest ĐÒI SECRET (không phải cửa công khai)",
+    /action === 'teleTest'\) return keyBodyOK_\(duLieu\)/.test(gs));
 }
 {
   const s = dungSan();
