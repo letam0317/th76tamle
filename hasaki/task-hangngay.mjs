@@ -29,6 +29,15 @@
  *      cách nào biết đã làm gì, nên nộp bằng MỘT CÂU TRUNG TÍNH (không khai đã làm hay
  *      chưa làm). Muốn ghi nội dung thật thì viết vào .task-baocao-tay.json, bot lấy đó.
  *
+ *  THỜI GIAN THỰC TẾ (chốt 24/08/2026): ô "Thời gian thực tế" của web tính bằng PHÚT (planned_hours
+ *  của 9 task là 20/30/60/120 — đúng số phút web hiện, quỹ 1 ngày = 480'). Bot không điền cứng 1'
+ *  nữa mà đo từ MỐC THẬT của chính số liệu đã dùng để viết báo cáo (checklist_at/approved_at của
+ *  phiếu kiểm kê, giờ ghi nhận vi phạm 5S), gộp theo phiên làm việc; task không có mốc nào (F0-A0,
+ *  việc tay) giữ mặc định 1'. Muốn tự khai thì ghi .task-giothucte.json:
+ *      { "ngay": "2026-08-24", "phut": { "<task_id hoặc tên task>": 45 } }
+ *  Cuối phần nháp bot in bảng quỹ công: từng task mấy phút · đã ghi sẵn bao nhiêu · CÒN LẠI so với
+ *  480'. Tổng vượt quỹ thì hạ đều theo tỉ lệ (mốc các task chồng nhau nên cộng thô là đếm trùng).
+ *
  *  KHÔNG BAO GIỜ tự đăng nhập: chỉ chạy khi phiên work của người đang sống
  *  (layTokenSongWork) — đúng ý "sau khi người dùng đăng nhập vào nền tảng work".
  *
@@ -74,7 +83,22 @@ const BIN_A0 = "F0-A0-00-00-00-00";                              // bin "chờ x
 const NGUOI_GIAO_TU_BAO_CAO = 17840;
 const DASH_5S = "https://letam0317.github.io/kiemsoatkho/?company=hasaki&tab=task";
 const CHO_DUYET = 5;                                             // 5 = Chờ duyệt (nhân viên đã nộp)
-const GIO_THUC_TE = Number(process.env.TASK_GIO_THUC_TE || 1);   // "giờ thực tế" — web bắt điền trước khi đổi trạng thái
+const GIO_THUC_TE = Number(process.env.TASK_GIO_THUC_TE || 1);   // mặc định khi KHÔNG có mốc nào (1 phút)
+/* ── THỜI GIAN THỰC TẾ — ô "Thời gian thực tế" của web (chốt 24/08/2026) ──────────────────────
+ * ĐƠN VỊ là PHÚT, không phải giờ: planned_hours của 9 task hôm nay là 20/30/60/120 — đúng bằng số
+ * phút web hiện, và quỹ công một ngày là 480 phút. Trước đây bot điền cứng 1 phút cho MỌI task;
+ * nay tính từ MỐC THẬT của chính số liệu dùng để viết báo cáo:
+ *   · kiểm kê SKU / Location / full-location → checklist_at + approved_at của phiếu HÔM NAY
+ *   · 5S kho tổng                            → giờ ghi nhận từng lượt vi phạm hôm nay
+ * Gộp mốc thành PHIÊN: hai mốc cách nhau > KHE_PHIEN là hai lần ngồi làm khác nhau; mỗi phiên cộng
+ * BU_PHIEN cho phần việc xảy ra TRƯỚC mốc đầu tiên (mở phiếu, đi tới vị trí, đếm rồi mới bấm).
+ * Không có mốc nào (F0-A0, việc tay) ⇒ giữ mặc định 1 phút — đúng yêu cầu "không có dữ liệu thì 1".
+ * Tổng cả ngày được KẸP trong PHUT_NGAY: mốc của nhiều task chồng lên nhau nên cộng thô là đếm
+ * trùng, thà thấp còn hơn khai vượt 8h. */
+const PHUT_NGAY = Number(process.env.TASK_PHUT_NGAY || 480);     // quỹ công 1 ngày, để trừ ra phần còn lại
+const KHE_PHIEN = Number(process.env.TASK_KHE_PHIEN || 30);      // phút: cách nhau hơn ngần này ⇒ phiên mới
+const BU_PHIEN = Number(process.env.TASK_BU_PHIEN || 5);         // phút cộng thêm cho mỗi phiên
+const FILE_GIO = path.join(DIR, ".task-giothucte.json");         // người tự khai số phút (ưu tiên cao nhất)
 const TEN_TT = { 0: "chưa làm", 1: "đang làm", 2: "đã duyệt", 3: "trễ", 4: "huỷ", 5: "chờ duyệt", 6: "thất bại" };
 const FILE_TAY = path.join(DIR, ".task-baocao-tay.json");         // báo cáo người tự viết (ưu tiên hơn bản tự dựng)
 // Máy chủ CHẶN nộp khi "kết quả công việc" quá ngắn (≤50 ký tự) và không đính kèm file:
@@ -127,6 +151,48 @@ const gioVN = () => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho
 const docJson = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
 const linkTrongNote = (t) => (String(t.note || "").match(/https?:\/\/[^\s)"']+/) || [""])[0];
 
+/* ═════════════════ 0b) BỘ ĐO THỜI GIAN THỰC TẾ ═════════════════ */
+/** "2026-08-24 09:07:47" (giờ VN — WMS và work đều trả kiểu này) → ms. Khác ngày `ngay` ⇒ 0 (bỏ). */
+const msVN = (s, ngay) => {
+  const t = String(s || "");
+  if (t.length < 16) return 0;
+  if (ngay && t.slice(0, 10) !== ngay) return 0;
+  const ms = Date.parse(t.slice(0, 10) + "T" + t.slice(11, 19) + "+07:00");
+  return Number.isFinite(ms) ? ms : 0;
+};
+const hhmm = (ms) => new Date(ms).toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false });
+/** Gộp mốc rời rạc thành phiên làm việc → { phut, vi }. Không có mốc nào ⇒ null (nơi gọi tự lùi về
+ *  mặc định 1 phút). Sàn 1 phút vì web không nhận 0. */
+function phutTuMoc(mocs) {
+  const t = [...new Set((mocs || []).filter(Boolean))].sort((a, b) => a - b);
+  if (!t.length) return null;
+  let tong = 0, dau = t[0], truoc = t[0], phien = 1;
+  for (const x of t.slice(1)) {
+    if (x - truoc > KHE_PHIEN * 60000) { tong += (truoc - dau) / 60000 + BU_PHIEN; dau = x; truoc = x; phien++; continue; }
+    truoc = x;
+  }
+  tong += (truoc - dau) / 60000 + BU_PHIEN;
+  return { phut: Math.max(1, Math.round(tong)), vi: `${t.length} mốc · ${phien} phiên · ${hhmm(t[0])}→${hhmm(t[t.length - 1])}` };
+}
+/** Số phút người TỰ KHAI trong .task-giothucte.json:
+ *    { "ngay": "YYYY-MM-DD", "phut": { "<id task hoặc tên task>": 45 } }
+ *  Chỉ ăn khi đúng ngày hôm nay — khai hôm qua không được dùng lại cho hôm nay. */
+function phutTay(id, ten) {
+  const j = docJson(FILE_GIO);
+  if (!j || j.ngay !== ngayVN()) return 0;
+  const p = j.phut || {};
+  const v = Number(p[String(id)] ?? p[ten] ?? 0);
+  return v > 0 ? Math.round(v) : 0;
+}
+/** Số phút ĐÃ ghi sẵn trên task (sub_type=1 tính theo TỪNG NGƯỜI nên đọc dòng của mình trước). */
+function phutDaGhi(t) {
+  if (Number(t.sub_type) === 1) {
+    const me = (t.staff || []).find((x) => Number(x.staff_id) === TOI);
+    if (me && Number(me.reality_hours) > 0) return Number(me.reality_hours);
+  }
+  return Number(t.reality_hours) || 0;
+}
+
 /* ═════════════════ 1) BỘ DỰNG BÁO CÁO (chỉ số liệu thật) ═════════════════ */
 
 /** Đổi user_id sang TÊN người bằng danh bạ đã có trong máy (.cache-danhba.json do auto-export-sync
@@ -178,13 +244,16 @@ function tomTatKiemKe(nhan, rows, tuoi, link) {
   const lech = rows.filter((r) => String(r.is_diff || "").toUpperCase() === "YES").length;
   const kho = [...new Set(rows.map((r) => r.warehouse_name).filter(Boolean))];
   const nguoi = [...new Set(rows.map((r) => r.checklist_by_name).filter(Boolean))];
+  /* Thời gian thực tế: chỉ lấy mốc ĐẾM và mốc DUYỆT rơi vào hôm nay — phiếu có thể được tạo từ
+     hôm kia nên created_at không phải giờ làm việc của ngày này, cố ý không dùng. */
+  const moc = phutTuMoc(rows.flatMap((r) => [msVN(r.checklist_at, ngayVN()), msVN(r.approved_at, ngayVN())]));
   const dong = [
     `${nhan} ngày ${hn}: ${dem} phiếu (${daDem} đã đếm, ${lech} phiếu lệch).`,
     `Kho: ${kho.join(", ") || "-"}.`,
     nguoi.length ? `Người kiểm: ${nguoi.slice(0, 6).join(", ")}${nguoi.length > 6 ? ` và ${nguoi.length - 6} người khác` : ""}.` : "",
     link ? `Chi tiết: ${link}` : "",
   ].filter(Boolean);
-  return { du: true, text: dong.join("\n") };
+  return { du: true, text: dong.join("\n"), phut: moc?.phut, vi: moc?.vi };
 }
 const bcKiemKeSku = async (t) => { const { rows, tuoi } = phieuKiemKe("fSku", /SKU/i); return tomTatKiemKe("Kiểm kê SKU", rows, tuoi, linkTrongNote(t)); };
 const bcKiemKeLoc = async (t) => { const { rows, tuoi } = phieuKiemKe("fLoc", /^LOCATION/i); return tomTatKiemKe("Kiểm kê Location", rows, tuoi, linkTrongNote(t)); };
@@ -202,6 +271,7 @@ async function bc5S() {
   const tuoi = moc ? moc.toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "?";
   if (!moc || Date.now() - moc.getTime() > 6 * 3600 * 1000)
     return { du: false, text: `Dữ liệu 5S trong máy đã cũ (${tuoi}) — chạy auto-export-sync trước khi nộp.` };
+  const mocPhut = phutTuMoc(rows.map((r) => msVN(r[5], hn)));   // giờ ghi nhận từng lượt vi phạm
   const dong = [
     `Báo cáo 5S kho tổng ngày ${ngayGon(hn)}:`,
     rows.length
@@ -209,7 +279,7 @@ async function bc5S() {
       : "không có lượt vi phạm nào được ghi nhận trong ngày.",
     `Số liệu đối chiếu lúc ${tuoi}. Chi tiết: [AUDIT](${DASH_5S})`,
   ];
-  return { du: true, text: dong.join("\n") };
+  return { du: true, text: dong.join("\n"), phut: mocPhut?.phut, vi: mocPhut?.vi };
 }
 
 /* ── NGUỒN CỦA HÀNG ĐANG TREO Ở F0-A0 ────────────────────────────────────────────────────────────
@@ -432,12 +502,13 @@ async function datField(work, body) {
 
 /* Web BẮT phải có "giờ thực tế" trước khi đổi trạng thái (nếu thiếu: 422 "Vui lòng cập nhật giờ
    thực tế!"). Nên nộp 2 nhịp: đặt reality_hours rồi mới đẩy status — đúng thứ tự người bấm trên web. */
-async function nopBaoCao(work, t, text) {
+async function nopBaoCao(work, t, text, phut) {
   const id = t.id;
+  const phutNop = Math.max(1, Math.round(Number(phut) || GIO_THUC_TE));   // web không nhận 0
   // LUÔN đặt lại giờ thực tế: với sub_type=1 nó tính theo TỪNG NGƯỜI — task cha đã có giờ (do
   // đồng nghiệp nộp trước) mà dòng của mình chưa, vẫn dính 422 "Vui lòng cập nhật giờ thực tế!".
   {
-    const kq = await datField(work, { id, field: "reality_hours", value: GIO_THUC_TE });
+    const kq = await datField(work, { id, field: "reality_hours", value: phutNop });
     if (!kq.ok) return { ok: false, moTa: "đặt giờ thực tế lỗi · " + kq.moTa };
   }
   const kq = await datField(work, { id, field: "status", value: CHO_DUYET, extra_data: { configs: { virtual_text: text } } });
@@ -537,6 +608,29 @@ async function lamTuoiSoLieu() {
  *  chữ nào về hai task bị loại. Nay mọi task TRONG SỔ TAY đều nộp (trừ đúng một task cờ tuBaoCao),
  *  câu hỏi chỉ còn nộp / không nộp. Ai thật sự cần lọc riêng nhóm A thì dùng cờ --nhom=A (nút
  *  "Chỉ nhóm A" của bot tin nhắn) — đó là lựa chọn gõ tay, không phải một phím lỡ tay. */
+/* MỘT readline DÙNG CHUNG cho mọi câu hỏi của nút — hàng đợi dòng, KHÔNG dùng rl.question.
+   Hai bẫy bắt được 24/08/2026 khi chạy thử: (1) mỗi câu hỏi mở readline riêng rồi đóng —
+   readline đọc trước cả khối stdin, close() vứt phần chưa dùng, câu sau treo; (2) rl.question
+   chỉ bắt dòng ĐẾN SAU khi hỏi — dòng đến sớm bị nhả ra sự kiện line không ai nghe rồi mất,
+   và stdin đóng thì promise question treo vĩnh viễn (thoát im lặng giữa chừng). Nghe line MỘT
+   lần vào hàng đợi + nghe close ⇒ câu trả lời không bao giờ lạc, đứt stdin trả null tức thì. */
+let _rl = null, _rlDong = false, _rlHang = [], _rlBao = null;
+async function hoiNguoi(cau) {
+  if (!_rl && !_rlDong) {
+    _rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    _rl.on("line", (l) => { _rlHang.push(l); _rlBao?.(); });
+    _rl.on("close", () => { _rlDong = true; _rlBao?.(); });
+  }
+  process.stdout.write(cau);
+  while (!_rlHang.length) {
+    if (_rlDong) { process.stdout.write("\n"); return null; }
+    await new Promise((r) => { _rlBao = r; });
+    _rlBao = null;
+  }
+  return _rlHang.shift().trim();
+}
+function dongHoi() { try { _rl?.close(); } catch { /* đã đóng */ } _rl = null; _rlDong = true; }
+
 async function hoiLuaChon(hangDoi) {
   const soA = hangDoi.filter((x) => x.nhom === "A").length;
   console.log("");
@@ -544,13 +638,10 @@ async function hoiLuaChon(hangDoi) {
   /* Chốt 19/08/2026: bot chỉ nộp khi CÓ NGƯỜI BẤM. Chạy nền (Task Scheduler, vbs ẩn) thì stdin
      không phải TTY — hỏi sẽ treo mãi, nên dừng thẳng thay vì "im lặng nộp hộ". */
   if (!process.stdin.isTTY) { log("✗ Không có bàn phím (đang chạy nền) — chế độ nút không tự nộp. Dừng."); return "k"; }
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  let tl = "";
-  try {
-    tl = (await rl.question(`\n➜ Nộp lên work.hasaki.vn?  [Enter] nộp CẢ ${hangDoi.length} task · [k] không nộp gì : `)).trim().toLowerCase();
-  } finally { rl.close(); }
-  // Chỉ "k" là KHÔNG nộp; gõ gì khác (kể cả "a" của bản cũ theo quán tính) đều là nộp cả.
-  return tl === "k" ? "k" : "tatca";
+  const tl = ((await hoiNguoi(`\n➜ Nộp lên work.hasaki.vn?  [Enter] nộp CẢ ${hangDoi.length} task · [g] sửa giờ trước · [k] không nộp gì : `)) ?? "k").toLowerCase();
+  // Chỉ "k" là KHÔNG nộp, "g" là quay ra sửa giờ; gõ gì khác (kể cả "a" của bản cũ theo quán
+  // tính) đều là nộp cả.
+  return tl === "k" ? "k" : tl === "g" ? "g" : "tatca";
 }
 
 /* ═════════════════ 4) LUỒNG CHÍNH ═════════════════ */
@@ -588,7 +679,7 @@ if (CO.lamtuoi) {
 }
 
 /* ── Nhịp 3: dựng + in bản nháp, xếp hàng đợi nộp ── */
-let boQua = 0; const la = [], hangDoi = [];
+let boQua = 0; const la = [], hangDoi = [], xemPhut = [];
 for (const { id, ten, t, st, sot } of bang) {
   const nhan = `#${id} · ${ten}`;
   console.log(`── ${nhan}`);
@@ -601,50 +692,144 @@ for (const { id, ten, t, st, sot } of bang) {
   if (sot.tuBaoCao && !CO.task) { console.log("   → NGOÀI PHẠM VI BOT — bạn tự bấm Hoàn thành trên web.\n"); boQua++; continue; }
   if (sot.tuBaoCao) console.log("   ⚠ Task này vốn NGOÀI phạm vi bot — nhưng bạn gọi đích danh --task nên vẫn soạn.");
 
-  let text = null, du = false;
+  let text = null, du = false, phut = 0, viPhut = "";
   if (sot.nhom === "A") {
     const kq = await sot.dung(t);
     text = kq.text; du = kq.du;
+    if (kq.phut) { phut = kq.phut; viPhut = kq.vi || ""; }
   } else {
     text = baoCaoTay(id, ten) || BC_NHOM_B;   // người viết tay thì ưu tiên, không thì câu trung tính
     du = true;
   }
   if (du) text = duDaiToiThieu(text);
+  /* Ưu tiên: người tự khai > mốc thật của số liệu > mặc định 1 phút (task không có mốc nào). */
+  const tay = phutTay(id, ten);
+  if (tay) { phut = tay; viPhut = "người tự khai trong .task-giothucte.json"; }
+  if (!phut) { phut = GIO_THUC_TE; viPhut = "không có mốc thời gian nào -> mặc định " + GIO_THUC_TE + " phút"; }
   console.log("   ┌ báo cáo:");
   console.log(String(text).split("\n").map((s) => "   │ " + s).join("\n"));
   console.log("   └");
+  console.log("   thời gian thực tế: " + phut + " phút" + (viPhut ? " (" + viPhut + ")" : ""));
 
-  if (!CO.nop) { console.log(""); continue; }
+  if (!CO.nop) { xemPhut.push({ id, ten, phut, viPhut }); console.log(""); continue; }
   if (!du) { console.log("   → thiếu dữ liệu thật → KHÔNG nộp.\n"); boQua++; continue; }
   if (conSom) { console.log(`   → chưa tới giờ báo cáo (${GIO_SOM_NHAT}h) — để dành.\n`); boQua++; continue; }
   console.log("   → xếp hàng chờ nộp.\n");
-  hangDoi.push({ id, ten, t, text, nhom: sot.nhom });
+  hangDoi.push({ id, ten, t, text, nhom: sot.nhom, phut, viPhut });
+}
+
+/* ── Nhịp 3b: QUỸ CÔNG 480' — bot ĐỀ XUẤT số phút, người bấm sửa được ──
+   Cộng thô số phút từng task là ĐẾM TRÙNG (mốc của các task chồng lên nhau trong cùng một ngày),
+   nên khi tổng vượt quỹ CÒN LẠI của ngày thì hạ ĐỀU theo tỉ lệ — mỗi task vẫn giữ sàn 1 phút vì
+   web không nhận 0. Quỹ còn lại = 480 trừ phần ĐÃ ghi sẵn ở các task khác hôm nay.
+   SỐ NGƯỜI TỰ NHẬP KHÔNG BỊ HẠ: người đã gõ tay là người chịu trách nhiệm con số đó, bot chỉ co
+   những task do chính nó đo để nhường chỗ. */
+const dsPhut = CO.nop ? hangDoi : xemPhut;
+for (const x of dsPhut) { x.phutDo = x.phut; if (x.viPhut.startsWith("người tự khai")) x.nguoiSua = true; }
+const daGhi = bang.filter((x) => x.st != null && !dsPhut.some((y) => y.id === x.id))   // task của người khác không tính vào quỹ của mình
+  .reduce((a, x) => a + phutDaGhi(x.t), 0);
+const quyConLai = Math.max(0, PHUT_NGAY - daGhi);
+const tongPhut = () => dsPhut.reduce((a, x) => a + x.phut, 0);
+
+/** Dựng lại số phút sẽ nộp từ số ĐO GỐC + số người tự nhập, rồi hạ phần bot đo cho vừa quỹ.
+ *  Gọi lại được nhiều lần (mỗi lượt người sửa giờ xong gọi một lượt). */
+function tinhLaiQuy() {
+  const tay = dsPhut.filter((x) => x.nguoiSua), tuDong = dsPhut.filter((x) => !x.nguoiSua);
+  for (const x of tuDong) x.phut = x.phutDo;
+  const quyTuDong = quyConLai - tay.reduce((a, x) => a + x.phut, 0);
+  const tong = () => tuDong.reduce((a, x) => a + x.phut, 0);
+  if (!tuDong.length || tong() <= quyTuDong) return;
+  /* Hạ ĐỀU theo tỉ lệ, không gọt trụi mỗi task dài nhất — giữ đúng thứ tự "việc nào lâu hơn việc
+     nào" mà người duyệt nhìn thấy. Làm tròn xuống nên thường còn dư vài phút, gọt nốt từ task dài
+     nhất; task nào cũng có sàn 1 phút. */
+  const ti = Math.max(0, quyTuDong) / tong();
+  for (const x of tuDong) x.phut = Math.max(1, Math.floor(x.phut * ti));
+  while (tong() > quyTuDong) {
+    const lon = tuDong.filter((x) => x.phut > 1).sort((a, b) => b.phut - a.phut)[0];
+    if (!lon) break;                                   // mọi task đã chạm sàn 1 phút — không hạ nữa
+    lon.phut--;
+  }
+}
+function inBangPhut() {
+  if (!dsPhut.length && !daGhi) return;
+  const tong = tongPhut(), con = PHUT_NGAY - daGhi - tong;
+  console.log("── THỜI GIAN THỰC TẾ (phút · quỹ ngày " + PHUT_NGAY + "')");
+  for (const x of dsPhut)
+    console.log("   " + String(x.phut).padStart(4) + "'  #" + x.id + " " + x.ten
+      + (x.nguoiSua ? "  ← BẠN NHẬP" + (x.phutDo !== x.phut ? " (bot đo " + x.phutDo + "')" : "")
+        : x.phut !== x.phutDo ? " (bot đo " + x.phutDo + "', hạ theo quỹ)" : "")
+      + (x.viPhut && !x.nguoiSua ? " — " + x.viPhut : ""));
+  if (daGhi) console.log("   " + String(daGhi).padStart(4) + "'  (đã ghi sẵn ở task khác trong ngày)");
+  console.log("   ─────");
+  console.log("   " + String(daGhi + tong).padStart(4) + "' / " + PHUT_NGAY + "'  →  CÒN LẠI " + con + " phút"
+    + (con < 0 ? "  ⚠ VƯỢT quỹ ngày" : ""));
+  console.log("");
+}
+tinhLaiQuy();
+inBangPhut();
+
+/** Chỗ NHẬP GIỜ MÌNH MUỐN: đi từng task, Enter suông = giữ số bot đề xuất. */
+async function suaGioTay() {
+  let doi = 0;
+  console.log("");
+  log("Nhập số phút bạn muốn cho từng task — Enter suông = GIỮ số bot đề xuất · [x] = thôi, giữ hết");
+  for (const x of dsPhut) {
+    const tl = await hoiNguoi("   #" + x.id + " " + x.ten + "  [" + x.phut + "'] : ");
+    if (tl == null || tl.toLowerCase() === "x") break;   // đứt stdin cũng dừng ở đây
+    if (!tl) continue;
+    const v = Math.round(Number(tl.replace(",", ".")));
+    if (!Number.isFinite(v) || v < 1) { console.log("      (không phải số phút hợp lệ — giữ nguyên)"); continue; }
+    x.phut = v; x.nguoiSua = true; doi++;   // giữ nguyên phutDo để bảng còn khoe số bot đo
+  }
+  return doi;
+}
+/** Nhớ số người vừa nhập vào .task-giothucte.json để bấm nút lại trong ngày không phải gõ lại. */
+function ghiGioTay() {
+  const cu = docJson(FILE_GIO);
+  const phut = (cu && cu.ngay === ngayVN() && cu.phut) ? { ...cu.phut } : {};
+  for (const x of dsPhut) if (x.nguoiSua) phut[String(x.id)] = x.phut;
+  try { fs.writeFileSync(FILE_GIO, JSON.stringify({ ngay: ngayVN(), phut }, null, 2)); return true; }
+  catch { return false; }
 }
 
 /* ── Nhịp 4: nộp (chế độ nút thì HỎI trước; không hỏi = nộp cả hàng đợi như cũ) ── */
-let daNop = 0;
+let daNop = 0, phutDaNop = 0;
 if (CO.nop && hangDoi.length) {
-  const chon = CO.hoi ? await hoiLuaChon(hangDoi) : "tatca";
+  let chon = "tatca";
+  while (CO.hoi) {
+    chon = await hoiLuaChon(hangDoi);
+    if (chon !== "g") break;
+    const doi = await suaGioTay();
+    tinhLaiQuy();
+    console.log("");
+    inBangPhut();
+    if (doi) log(ghiGioTay()
+      ? `Đã nhớ ${doi} số phút bạn nhập vào .task-giothucte.json — bấm nút lại trong ngày khỏi gõ lại.`
+      : "⚠ Không ghi được .task-giothucte.json — số phút vẫn dùng cho lượt nộp này.");
+  }
+  dongHoi();
   const canNop = (chon === "k" ? [] : hangDoi.filter((x) => chon === "tatca" || x.nhom === "A"))
     .filter((x) => !CO.nhom || x.nhom === CO.nhom);   // --nhom=A: lọc thêm (đường không-hỏi)
   if (chon === "k") log(`→ KHÔNG nộp gì. ${hangDoi.length} task để dành — tự bấm Hoàn thành trên work.hasaki.vn.`);
   else if (chon === "a") log(`→ Chỉ nộp ${canNop.length} task nhóm A; ${hangDoi.length - canNop.length} task việc tay để người tự báo cáo.`);
   console.log("");
   for (const x of canNop) {
-    const kq = await nopBaoCao(work, x.t, x.text);
-    console.log(kq.ok ? `   ✓ ĐÃ NỘP #${x.id} · ${x.ten} (chờ duyệt).` : `   ✗ nộp lỗi #${x.id} · ${x.ten}: ${kq.moTa}`);
-    if (kq.ok) daNop++; else boQua++;
+    const kq = await nopBaoCao(work, x.t, x.text, x.phut);
+    console.log(kq.ok ? `   ✓ ĐÃ NỘP #${x.id} · ${x.ten} (chờ duyệt · thời gian thực tế ${x.phut} phút).` : `   ✗ nộp lỗi #${x.id} · ${x.ten}: ${kq.moTa}`);
+    if (kq.ok) { daNop++; phutDaNop += x.phut; } else boQua++;
   }
 } else if (CO.nop) log("Không có task nào đang chờ nộp — khỏi bấm nút.");
 
 console.log("");
 log(`Xong: nộp ${daNop} · bỏ qua ${boQua}.`);
+if (CO.nop) log(`Thời gian thực tế đã nộp ${phutDaNop} phút · đã ghi trước ${daGhi} phút`
+  + ` → ${daGhi + phutDaNop}/${PHUT_NGAY} phút · CÒN LẠI ${PHUT_NGAY - daGhi - phutDaNop} phút.`);
 /* Lượt bấm nút in ra màn hình rồi cửa sổ đóng là mất — chốt lại 1 dòng vào sổ để sau này tra
    được "hôm đó ai nộp, nộp mấy cái" mà không phải nhớ. */
 if (CO.hoi) {
   try {
     fs.appendFileSync(path.join(DIR, "task-hangngay.log"),
-      `[nút ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false })}] nộp ${daNop} · bỏ qua ${boQua}${hangDoi.length ? "" : " (không có gì chờ nộp)"}\r\n`);
+      `[nút ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false })}] nộp ${daNop} (${phutDaNop}'/${PHUT_NGAY}', còn ${PHUT_NGAY - daGhi - phutDaNop}') · bỏ qua ${boQua}${hangDoi.length ? "" : " (không có gì chờ nộp)"}\r\n`);
   } catch { /* sổ best-effort */ }
 }
 /* Sổ tay khớp theo TÊN (task_id đổi mỗi ngày). Tên bị đổi/ thêm task mới ⇒ rơi vào đây và KHÔNG

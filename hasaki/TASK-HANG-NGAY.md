@@ -51,13 +51,17 @@ dùng chung / bridge extension), **không tự đăng nhập**.
 |---|---|
 | Biết hôm nay được giao task nào | `GET /news/notifications?limit=200` → lọc `object_type = 4`, `created_at` = hôm nay. `object_id` chính là `task_id`. |
 | Chi tiết + trạng thái từng người | `GET /hr/projects/task-input/{id}` |
-| Đặt "giờ thực tế" (bắt buộc) | `POST /hr/projects/mass-update-field-task-input` `{ "id": …, "field": "reality_hours", "value": 1 }` |
+| Đặt "giờ thực tế" (bắt buộc) | `POST /hr/projects/mass-update-field-task-input` `{ "id": …, "field": "reality_hours", "value": <số PHÚT> }` |
 | **Nộp báo cáo** | `POST /hr/projects/mass-update-field-task-input`<br>`{ "id": <task_id>, "field": "status", "value": 5, "extra_data": { "configs": { "virtual_text": "…" } } }` |
 
 **Bẫy 1: phải nộp 2 nhịp.** Đẩy thẳng `status` → `422 "Vui lòng cập nhật giờ thực tế!"`. Phải đặt
 `reality_hours` trước rồi mới đổi `status` (đúng thứ tự người bấm trên web). Và phải đặt **mỗi
 lượt nộp**, không được nhìn `task.reality_hours` để bỏ qua: với `sub_type=1` giờ thực tế tính theo
 TỪNG NGƯỜI — task cha đã có giờ (đồng nghiệp nộp trước) mà dòng của mình chưa thì vẫn 422.
+
+**Bẫy 1b — `reality_hours` là PHÚT, không phải giờ.** Đối chứng 24/08/2026: `planned_hours` của bộ
+task hôm nay là 20 / 30 / 60 / 120 — đúng bằng số phút web hiện, và quỹ công một ngày là 480 phút.
+Điền 8 vào đây là khai 8 **phút**, không phải 8 giờ.
 
 **Bẫy 2 — nội dung phải dài hơn 50 ký tự.** Máy chủ chặn `422 "Vui lòng mô tả chi tiết những công
 việc đã thực hiện trong kết quả công việc, hoặc đính kèm file kết quả!"` khi `virtual_text` quá
@@ -225,6 +229,52 @@ node task-hangngay.mjs --nop --task=<id>   # chỉ 1 task
 Tự bỏ qua task đã nộp, task không phải của mình, task lạ chưa có trong sổ tay, và mọi trường hợp
 thiếu dữ liệu thật. Nộp xong chạm mốc `.sync-ok-task-hangngay` và ghi 1 dòng tổng kết vào
 `task-hangngay.log` (cửa sổ đen đóng là mất chữ, sổ thì còn).
+
+## 6b. Thời gian thực tế & quỹ 480 phút/ngày (chốt 24/08/2026)
+
+Ô **"Thời gian thực tế"** của web tính bằng **PHÚT** (xem Bẫy 1b). Trước 24/08 bot điền cứng `1`
+cho mọi task; nay mỗi task được đo từ **mốc thật của chính số liệu đã dùng để viết báo cáo**:
+
+| Task | Mốc dùng để đo |
+|---|---|
+| Kiểm kê SKU / Location / full location | `checklist_at` (giờ đếm) + `approved_at` (giờ duyệt) của phiếu **rơi vào hôm nay** — `created_at` KHÔNG dùng vì phiếu có thể tạo từ hôm kia |
+| Kiểm tra 5S kho tổng | giờ ghi nhận từng lượt vi phạm hôm nay (cột 6 của `tasks-cache.json`) |
+| F0-A0 MTG/GARMENT · việc tay (nhóm B) | **không có mốc nào ⇒ 1 phút** (mặc định `TASK_GIO_THUC_TE`) |
+
+**Gộp mốc thành phiên:** hai mốc cách nhau hơn `TASK_KHE_PHIEN` (mặc định **30'**) là hai lần ngồi
+làm khác nhau. Mỗi phiên cộng thêm `TASK_BU_PHIEN` (**5'**) cho phần việc xảy ra *trước* mốc đầu
+tiên (mở phiếu, đi tới vị trí, đếm rồi mới bấm). Sàn 1 phút — web không nhận 0.
+
+**Quỹ ngày `TASK_PHUT_NGAY` = 480'.** Trước khi hỏi nộp, bot in bảng:
+
+```
+── THỜI GIAN THỰC TẾ (phút · quỹ ngày 480')
+    242'  #13422677 Kiểm kê theo vị trí … — 213 mốc · 2 phiên · 08:42→13:44
+      1'  #13424791 Kiểm kê SKU — không có mốc thời gian nào -> mặc định 1 phút
+      7'  (đã ghi sẵn ở task khác trong ngày)
+   ─────
+    256' / 480'  →  CÒN LẠI 224 phút
+```
+
+"Đã ghi sẵn" = `reality_hours` của các task hôm nay **của mình** đã nộp trước đó (`sub_type=1` đọc
+dòng riêng của mình trong `staff[]`). Tổng vượt quỹ ⇒ **hạ đều theo tỉ lệ** (mốc của các task chồng
+lên nhau trong cùng một ngày nên cộng thô là đếm trùng), mỗi task vẫn giữ sàn 1'; dòng đó ghi rõ
+`(đo N', hạ theo quỹ)`. Nộp xong dòng tổng kết và `task-hangngay.log` đều mang số phút và phần còn lại.
+
+**Nhập tay ngay ở nút (chốt 24/08/2026):** câu hỏi nộp có thêm phím **[g] sửa giờ trước** — đi
+từng task, đề xuất của bot hiện trong ngoặc `[242']`, **Enter suông = giữ nguyên đề xuất**, gõ số
+= dùng số của mình, `x` = thôi giữ hết phần còn lại. Sửa xong bot in lại bảng quỹ (dòng sửa gắn
+`← BẠN NHẬP (bot đo N')`) rồi hỏi nộp lại — bấm [g] thêm lượt nữa cũng được. **Số người tự nhập
+KHÔNG bị hạ theo quỹ** (người gõ chịu trách nhiệm con số đó, bot chỉ co phần nó đo để nhường chỗ),
+và được tự nhớ vào `.task-giothucte.json` — bấm nút lại trong ngày khỏi gõ lại.
+
+**Tự khai đè trước bằng file** — cùng chỗ nhớ đó, ghi `hasaki/.task-giothucte.json` (chỉ ăn đúng ngày ghi trong file):
+
+```json
+{ "ngay": "2026-08-24", "phut": { "13422671": 45, "Dán tem QC Fail và Block UID Group": 30 } }
+```
+
+Khoá là **task_id hoặc tên task**. File này không commit (đã gitignore).
 
 ## 7. Lịch — ĐÃ TẮT
 

@@ -72,3 +72,10 @@ hasaki/TAI-UPSTREAM-*.md
 # File nho trang thai chay (memo endpoint/co trang) — khong phai ma nguon
 hasaki/.tbt-endpoint.json
 hasaki/.sku-master-gviz.json
+
+# Thu muc clasp tam khi day script gan trong Sheet (khong phai ma nguon)
+hasaki/.clasp-abn/
+
+# So phut "Thoi gian thuc te" + bao cao tay cua task hang ngay - state cuc bo tung ngay, khong commit
+hasaki/.task-giothucte.json
+hasaki/.task-baocao-tay.json
