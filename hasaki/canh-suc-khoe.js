@@ -65,7 +65,9 @@ const BUOC_NHANH = "vesinh";
 /* Chỉ MỞ sự cố trong giờ người ta còn đọc mail. ĐÓNG thì lúc nào cũng được — tin vui
  * không cần chờ giờ hành chính, và đóng muộn sẽ khiến thư nhắc hôm sau gửi thừa. */
 const gioVN = () => Number(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }));
-const trongGioBao = () => { const h = gioVN(); return h >= 7 && h < 19; };
+/* 18h thay 19h (23/08/2026): sync-guard nay chỉ chạy cụm 07:00–18:00 T2–T7 — sau 18h dữ liệu
+ * CỐ Ý để cũ, báo động lúc đó là báo động giả dạy người ta bỏ qua cảnh báo thật. */
+const trongGioBao = () => { const h = gioVN(); return h >= 7 && h < 18; };
 /* Chủ nhật kho không làm: không ai mở WMS thì không có phiên để mượn, mà đó là bình thường —
  * báo động ngày đó chỉ dạy người ta bỏ qua thư. Cảm biến trong ngày vì vậy nghỉ Chủ nhật. */
 const laNgayLam = () => new Date().toLocaleDateString("en-US", { timeZone: "Asia/Ho_Chi_Minh", weekday: "short" }) !== "Sun";
@@ -228,10 +230,41 @@ async function canhTreTrongNgay() {
   return 1;
 }
 
+/* ══════════ KÊNH TELEGRAM (audit 23/08/2026) ══════════
+ * Thư đã tắt (CANH_GUI_THU=0) nên "cầu dao ngắt chờ người" từng là chết CÂM vô thời hạn.
+ * Kênh Telegram có sẵn (tin-nhan-bot.mjs) → mượn luôn: hỏng thì nhắn 1 tin, nhắc lại tối đa
+ * mỗi 12h; lành thì nhắn tin xanh 1 lần. Thiếu TELEGRAM_BOT_TOKEN/CHAT_ID thì im lặng bỏ qua. */
+async function baoTelegram(hong, tomTat) {
+  const token = process.env.TELEGRAM_BOT_TOKEN, chat = String(process.env.TELEGRAM_CHAT_ID || "").split(",")[0];
+  if (!token || !chat) return;
+  const gui = async (text) => {
+    try {
+      await fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chat, text }),
+      });
+    } catch { /* mất mạng thì thôi — tick sau thử lại */ }
+  };
+  if (hong > 0 && trongGioBao() && laNgayLam()) {
+    if (Date.now() - Number(_tt.tgLuc || 0) < 12 * 3600 * 1000) return;   // nhắc lại tối đa mỗi 12h
+    await gui("⛔ Máy trạm 5S: " + hong + " hạng mục cần người xử lý.\n" + tomTat + "\nXem chi tiết: node canh-suc-khoe.js --xem");
+    _tt.tgLuc = Date.now(); _tt.tgDangHong = 1; luuTrangThai();
+  } else if (hong === 0 && _tt.tgDangHong) {
+    await gui("✅ Máy trạm 5S: mọi hạng mục đã bình thường trở lại.");
+    _tt.tgLuc = 0; _tt.tgDangHong = 0; luuTrangThai();
+  }
+}
+
 (async () => {
   log("Soát sức khoẻ các bước đồng bộ" + (CHI_XEM ? " (chỉ xem)" : "") + "...");
-  const hong = (await canhCacBuoc()) + (await canhCauDao()) + (await canhCauNoi()) + (await canhTreTrongNgay());
-  if (!CHI_XEM) { luuTrangThai(); await nhipTim("canh-suc-khoe"); }   // nhịp tim: GAS canh nhịp này để bắt ca máy trạm tắt
+  const dsHong = [];
+  const hongBuoc = await canhCacBuoc(); if (hongBuoc) dsHong.push(hongBuoc + " bước đồng bộ đứng");
+  const hongCauDao = await canhCauDao(); if (hongCauDao) dsHong.push("cầu dao đăng nhập NGẮT (chờ người gỡ)");
+  const hongCauNoi = await canhCauNoi(); if (hongCauNoi) dsHong.push("cầu nối extension tắt");
+  const hongTre = await canhTreTrongNgay(); if (hongTre) dsHong.push("dữ liệu trễ trong ngày");
+  const hong = hongBuoc + hongCauDao + hongCauNoi + hongTre;
+  // nhịp tim MANG sức khoẻ (audit 23/08/2026): GAS thấy tim đập + n bước hỏng → tự cảnh báo được
+  if (!CHI_XEM) { luuTrangThai(); await nhipTim("canh-suc-khoe", { soBuocHong: hong }); await baoTelegram(hong, dsHong.join(" · ")); }
   /* Log phải nói ĐÚNG cái đã xảy ra: từ 15/08/2026 có công tắc CANH_GUI_THU=0 (ngưng gửi mail
      cảnh báo) — lúc đó vẫn soát, vẫn in ⛔, nhưng không có thư nào rời máy. Ghi "đã báo lên hộp thư"
      trong trạng thái đó là nói dối người đọc log. */

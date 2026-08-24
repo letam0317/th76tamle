@@ -16,6 +16,7 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
+import { gasPost } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -109,12 +110,12 @@ const tenNguoi = (t) => (t && t.staff && (t.staff.full_name || t.staff.name)) ||
   log("  Cha (task vi phạm): " + soCha + " | Bước con: " + soBuoc);
 
   if (!rows.length) { log("✗ 0 dòng — BỎ QUA POST (không xoá trắng 5S-TASKS)."); process.exit(0); }
-  const res = await fetch(APPSCRIPT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: "syncTasks", key: APPSCRIPT_KEY, header, rows }),
-  });
-  let r = {}; try { r = JSON.parse(await res.text()); } catch {}
+  /* gasPost thay fetch trần (audit 23/08/2026): fetch 1 phát không nonce/không thử lại chặng 2 —
+     GAS 404 ở chặng lấy nội dung (đã ghi XONG) là báo "thất bại" giả; gasPost có nonce + thử lại
+     phân chặng nên vừa hết báo giả vừa không ghi trùng. */
+  let r = {};
+  try { r = await gasPost({ action: "syncTasks", key: APPSCRIPT_KEY, header, rows }, log, "5S-TASKS"); }
+  catch (e) { r = { status: "error", message: String(e && e.message || e) }; }
   if (r.status === "success") log("✓ Đã ghi " + r.written + " dòng vào tab 5S-TASKS lúc " + r.at);
   else log("✗ Ghi tab thất bại: " + JSON.stringify(r).slice(0, 200));
   await new Promise((rs) => setTimeout(rs, 200));   // né crash teardown undici/libuv trên Windows

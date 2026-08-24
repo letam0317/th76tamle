@@ -44,7 +44,7 @@ import path from "node:path";
 import { spawn, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { docMocBuoc, trangThaiPhien, moTaLoiMang } from "./session-rules.js";
+import { docMocBuoc, trangThaiPhien, moTaLoiMang, gasPost } from "./session-rules.js";
 /* Hộp thư (gửi/nhận Telegram + sổ offset) nằm ở hop-thu.mjs vì bộ ĐĂNG NHẬP cũng dùng chung:
    chỉ được MỘT bộ long-poll `getUpdates` cùng lúc, nên hai bên phải chung một sổ offset và một
    luật nhường lượt (xem dangChoOtp bên dưới). */
@@ -90,6 +90,7 @@ const SO_LENH = [
   { ten: "trangthai", biet: ["tt", "status"], duAn: "chung", loai: "doc", mo: "tuổi dữ liệu + phiên + cụm đang chạy" },
   { ten: "log", biet: [], duAn: "chung", loai: "doc", mo: "20 dòng cuối 1 log · /log kiemke 30" },
   { ten: "dangnhap", biet: ["login", "sso"], duAn: "chung", loai: "dn", mo: "đăng nhập SSO — bot sẽ XIN BẠN mã OTP 6 số" },
+  { ten: "choduyet", biet: ["duyet", "xinduyet"], duAn: "chung", loai: "doc", mo: "máy đang xin cấp quyền dashboard · duyệt bằng /duyet_<mã>" },
 
   // ── dự án 5S (dashboard kiemsoatkho) ─────────────────────────────────────
   { ten: "5s", biet: ["audit"], duAn: "5S", loai: "ghi", cool: 20, script: "auto-export-sync.js", env: { KHONG_LOGIN: "1" }, mo: "kéo lại task 5S (workflow 591)" },
@@ -262,6 +263,33 @@ async function lenhDangNhap(chatId) {
 
 /* ═════════════════ 7) THÔNG DỊCH 1 TIN NHẮN ═════════════════ */
 
+/* ═════════════════ DUYỆT TRUY CẬP DASHBOARD (23/08/2026) ═════════════════
+ * GAS (action tb_xin) bắn tin "máy lạ xin cấp quyền" kèm lệnh bấm được /duyet_<mã> · /tuchoi_<mã>.
+ * Bot gọi lại GAS tb_duyet bằng SECRET (APPSCRIPT_KEY) — duyệt/THU HỒI theo TỪNG MÁY; /tuchoi_<mã>
+ * với máy ĐÃ duyệt chính là đường thu hồi, không phải xoay DEVICE_KEY chung. */
+async function lenhDuyetTb(chatId, dongY, tb) {
+  if (!process.env.APPSCRIPT_KEY) return guiTin(chatId, "Thiếu APPSCRIPT_KEY trong .env — không gọi được GAS.");
+  try {
+    const j = await gasPost({ action: "tb_duyet", key: process.env.APPSCRIPT_KEY, tb, ok: dongY ? "1" : "0" }, log, "tb_duyet");
+    if (!j || j.status !== "success") return guiTin(chatId, `✗ GAS từ chối: ${(j && j.message) || "?"}`);
+    return guiTin(chatId, dongY
+      ? `✓ ĐÃ DUYỆT máy ${tb}${j.ten ? ` (${j.ten})` : ""} — trang bên đó tự mở khoá trong ~30 giây. Tổng ${j.daDuyet} máy được duyệt.`
+      : `✓ Đã TỪ CHỐI/THU HỒI máy ${tb}${j.ten ? ` (${j.ten})` : ""}.`);
+  } catch (e) { return guiTin(chatId, `✗ Không gọi được GAS: ${moTaLoiMang(e)}`); }
+}
+async function lenhChoDuyet(chatId) {
+  if (!process.env.APPSCRIPT_KEY) return guiTin(chatId, "Thiếu APPSCRIPT_KEY trong .env — không gọi được GAS.");
+  try {
+    const j = await gasPost({ action: "tb_cho", key: process.env.APPSCRIPT_KEY }, log, "tb_cho");
+    if (!j || j.status !== "success") return guiTin(chatId, `✗ GAS từ chối: ${(j && j.message) || "?"}`);
+    const ds = Object.entries(j.ds || {});
+    if (!ds.length) return guiTin(chatId, `Không có máy nào đang chờ duyệt. Tổng ${j.daDuyet || 0} máy đã được duyệt.`);
+    const dong = ds.map(([tb, t]) =>
+      `· ${t.ten || "?"} — ${t.trang || "?"} — ${t.luc ? gioVN(Date.parse(t.luc)) : "?"}\n  /duyet_${tb} · /tuchoi_${tb}`);
+    return guiTin(chatId, `${ds.length} máy đang chờ duyệt:\n\n${dong.join("\n\n")}`);
+  } catch (e) { return guiTin(chatId, `✗ Không gọi được GAS: ${moTaLoiMang(e)}`); }
+}
+
 function quaHan(msg) { return Date.now() / 1000 - Number(msg.date || 0) > HAN_PHUT * 60; }
 
 function chatDuoc(chatId) { return CHO_PHEP.includes(String(chatId)); }
@@ -299,6 +327,14 @@ async function xuLyTin(msg, st) {
       : "Không có lượt đăng nhập nào đang xin OTP nên tôi bỏ qua mã này (mã chỉ nhận trong đúng lúc hỏi).\nMuốn đăng nhập: /dangnhap");
   }
 
+  /* Lệnh duyệt mang MÃ MÁY trong tên (/duyet_mabc123) nên bắt bằng regex TRƯỚC sổ lệnh
+     (sổ lệnh chỉ khớp tên cố định). Chat lạ đã bị chặn ở trên — chỉ chủ bot duyệt được. */
+  const mDuyet = text.match(/^\/?(duyet|tuchoi)_([a-z0-9]{6,20})$/i);
+  if (mDuyet) {
+    log(`▶ /${mDuyet[1].toLowerCase()} máy ${mDuyet[2].toLowerCase()} — chat ${chatId}`);
+    return lenhDuyetTb(chatId, mDuyet[1].toLowerCase() === "duyet", mDuyet[2].toLowerCase());
+  }
+
   const phan = text.split(/\s+/);
   const ten = phan[0].replace(/^\//, "").replace(/@.*$/, "").toLowerCase();
   const thamSo = phan.slice(1);
@@ -310,6 +346,7 @@ async function xuLyTin(msg, st) {
   if (l.ten === "trangthai") return guiTin(chatId, await lenhTrangThai());
   if (l.ten === "log") return guiTin(chatId, lenhLog(thamSo));
   if (l.ten === "dangnhap") return lenhDangNhap(chatId);
+  if (l.ten === "choduyet") return lenhChoDuyet(chatId);
   if (l.ten === "nop") return lenhNopBuoc1(chatId, st);
 
   if (l.ten === "uid") {

@@ -23,17 +23,40 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 
 | Task | Lịch | Chạy gì | Ghi log |
 |---|---|---|---|
-| **5S Dong bo dashboard** | **08:40**/ngày | `AUTO-EXPORT.bat` → `auto-export-sync.js` rồi `SYNC-STOCK.bat` (5 bước) | `auto-export.log` + log từng bước |
+| **5S Dong bo dashboard** | **08:40**/ngày | `AUTO-EXPORT.bat` → `auto-export-sync.js` rồi `SYNC-STOCK.bat` (**8 bước**: stocklocation · kiemke · tonbatthuong · sku-master · vesinh-all · phancong · vesinh-factory · vesinh-ai — đối chiếu audit 23/08/2026, doc cũ ghi 5) | `auto-export.log` + log từng bước |
 | **5S Cham cong** | **07:20**/ngày | `pull-timesheet.js` → tab `NHAN-SU` | `cham-cong.log` |
 | **Day bao cao 5S** | mỗi **15'** | `push-5s-to-workflow.js` (chiều **GHI**: inbox 5S → task WF 591) | `day-bao-cao-5s.log` |
 | **5S Canh yeu cau dang nhap** | mỗi **2'** | `watch-login-request.js` | stdout task |
-| **5S Tra UID tren Sheet** | mỗi **2'** | `tra-uid-sheet.mjs` (file Sheet "TRA UID") | `tra-uid.log` |
+| **5S Tra UID tren Sheet** | mỗi **1'** (đo task thật 23/08/2026 — doc cũ ghi 2'; mỗi lượt ở lại ~51s, nhịp canh trong lượt **10s** từ 23/08) | `tra-uid-sheet.mjs` (file Sheet "TRA UID") | `tra-uid.log` |
+| **Factory agent in tem** | mỗi **5'** (bổ sung vào bảng 23/08/2026 — task đã chạy từ trước mà A2 thiếu; agent CHÍNH nay ở `Desktop-JE75K38`, task này là lớp phụ trên laptop) | `_AGENT-IN-TEM-AN.vbs` → `in-tem-agent.mjs --dich-vu` | `in-tem-agent.log` |
 | **5S Kenh tin nhan** | mỗi **2'** (mỗi lượt long-poll ~100s) | `tin-nhan-bot.mjs` — nghe lệnh Telegram cho cả 2 dự án (`KENH-TIN-NHAN.md`); chưa có token thì thoát êm | `tin-nhan.log` |
 | **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ — từ 31/07 gọi `AUTO-EXPORT.bat` nên vá được cả bước 5S) | `sync-guard.log` |
+| **Factory co cho may tram** | logon · **cắm/rút sạc** (Kernel-Power 105) · **máy thức dậy** (Power-Troubleshooter 1) · mỗi **2'** | `co-cho-hidden.vbs` → `CO-CHO-MAY-TRAM.ps1` — dựng lại agent in tem khi nó chết/treo, gỡ Offline·Pause·job mắc của máy in, áp lại cài đặt nguồn 1 lần/ngày (`CO-CHO-MAY-IN.md`) | `.co-cho.log` + `.co-cho.json` |
+| **Factory co cho bat may sang** | **06:50**/ngày, **được đánh thức máy** | cùng script — task RIÊNG vì `WakeToRun` là thuộc tính của cả task, gắn chung vào nhịp 2' thì máy bị dựng dậy 720 lần/ngày | như trên |
 | ~~**5S Task hang ngay**~~ | **ĐÃ TẮT 19/08/2026** (Disabled) | Thay bằng **NÚT BẤM TAY** `NUT-NOP-TASK.bat` → `task-hangngay.mjs --nut` (làm tươi số liệu nếu mốc cũ → in nháp → HỎI rồi mới nộp). Không bấm = người tự bấm Hoàn thành trên work.hasaki.vn | `task-hangngay.log` |
 
 Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và đụng
 khung chặn re-login `07:45–18:00` → cụm hoãn trong im lặng (sự cố 22/07).
+
+**Chốt 21/08/2026 — "máy hay bật muộn" nay có số đo, và có cò chờ.** Event 1074 mười ngày gần nhất
+cho thấy nếp *tắt máy cuối ngày, bật khi tới nơi*: 12/08 17:22 · 13/08 13:26 · 14/08 17:52 ·
+15/08 12:26 · 17/08 18:07 · 21/08 00:32. Sáng 21/08 kho bấm in từ **07:57** mà máy tới **09:00:31**
+mới bật → 5 lệnh in nằm chờ hơn một tiếng, và **mọi task trong bảng này cũng nằm im trong khoảng
+đó**. Đêm đó **cả `Desktop-JE75K38` (máy cắm máy in) cũng tắt** — lượt đọc cuối còn thấy máy chủ in
+là 20:33:30, sau đó 22 lượt liền chỉ còn bản cache cục bộ. Tức là đường in tem cần **HAI máy cùng
+bật**, và đêm 20/08 mất cả hai.
+
+**Cách chữa đã chốt: ĐỔI CHỖ ĐỨNG CỦA AGENT, không chỉ vá lịch.** Agent nhặt lệnh in nay chạy **ngay
+trên `Desktop-JE75K38`** bằng task **SYSTEM** (`_CO-CHO-MAY-IN.bat` trong gói `_GOI-MAY-IN`, dựng
+bằng `node TAO-GOI-MAY-IN.mjs`) ⇒ **máy in bật là mọi lượt gửi in đều ra tem, không phụ thuộc laptop
+này nữa** — máy đó cũng không cần ai đăng nhập, và không cần cài Node (gói mang theo `node.exe`).
+Chi tiết + phần BIOS *Restore on AC Power Loss* / *Wake on LAN*: `CO-CHO-MAY-IN.md`.
+Phía laptop còn 2 task cuối bảng này làm lớp phụ: tự chữa agent dự phòng và gửi **Wake-on-LAN** đánh
+thức máy in trong khung 06:30–19:30 (`pr_lay` bên GAS chạy trong `LockService` nên hai agent cùng
+chạy **không bao giờ in đôi**).
+Hai phát hiện đi kèm: `RTCWAKE` trên laptop đang là **0 = Disable** (mọi hẹn giờ đánh thức từ trước
+tới nay **không bao giờ nổ** — đã mở), và task nền của dự án đều kiểu *Interactive* nên **máy bật mà
+không đăng nhập Windows thì không task nào chạy** (mắt xích tự đăng nhập, chưa bật).
 
 **Chốt 19/08/2026 — nộp báo cáo 9 task hằng ngày chuyển sang NÚT BẤM TAY, bot không tự nộp nữa.**
 Chủ máy giữ quyền "hoàn thành": *cần* thì bấm nút, *không cần* thì tự bấm Hoàn thành trên
@@ -58,6 +81,13 @@ mất trọn buổi chiều). `sync-guard.js` sửa 2 chỗ:
    guard in *"✓ Dữ liệu đã mới — không cần làm gì"*, dù dữ liệu đã đứng 6 tiếng. Nay thêm vế
    **trễ > 90'** (dùng chung env `CANH_TRE_PHUT` với `canh-suc-khoe.js` để 2 tầng không lệch), chỉ
    xét trong **07:00–22:30** để máy lỡ bật qua đêm không dội cụm suốt đêm. Backoff 20' vẫn giữ.
+   **SIẾT 23/08/2026 (audit):** guard TỰ Ý chỉ chạy cụm trong **07:00–18:00 các ngày T2–T7**
+   (đo log 22-23/08: cụm 8 bước nổ 19:14/20:48/22:20 và cả 07:00 Chủ nhật — ngoài giờ không ai xem
+   dashboard, chạy chỉ tốn WMS/wshr). Cửa đặt **đầu `main()`** nên tick ngoài giờ không tốn cả lượt
+   soi tiến trình lẫn lượt gviz. `--force` (nút "Tải lại dữ liệu" / chạy tay) **vẫn chạy bất kể giờ**.
+   `canh-suc-khoe.js` cũng hạ cửa báo động 19h → **18h** cho khớp (sau 18h dữ liệu CỐ Ý để cũ,
+   báo động lúc đó là báo động giả). `cumDangChay` của guard + poller đổi **fail-open → fail-closed**
+   (PowerShell lỗi = coi như CÓ cụm đang chạy, kèm log to — hết cảnh 2 tiến trình cùng ghi 1 tab).
 2. **Cửa re-login.** Trước guard chỉ hỏi ĐỒNG HỒ (`duocPhepReLogin`, chặn 07:00–22:30), trong khi
    tầng dưới `chanReLoginNgoaiKhung` từ 30/07 đã chạy **LUẬT PHIÊN** (không phiên nào sống + đủ cửa
    im lặng ⇒ được login bất kể mấy giờ, vì không có ai để đá). Lệch 2 tầng ⇒ chiều 11/08 verdict ghi

@@ -249,25 +249,39 @@ async function ghiTonViTri(token, apiAt) {
   if (me.status === 401 || me.status === 403) { token = await voiKhoa(DIR, getWmsToken, { log }); luuToken(DIR, "wms", token, "bot"); }
   log("✓ Token WMS sẵn sàng.");
 
-  // Chốt endpoint: thử từng ứng viên trên trang 1 của bộ đầu tiên
-  let API = null;
-  for (const cand of API_CANDS) {
-    const u = cand + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=5";
-    const r = await fetchThuLai(u, { headers: { authorization: token } }).catch(() => null);
-    if (r && r.ok) { const j = await r.json().catch(() => null); const recs = j && (j.records || (j.data && j.data.records)); if (Array.isArray(recs)) { API = cand; log("✓ Endpoint: " + cand + " (mẫu " + recs.length + " dòng)"); if (recs[0]) log("  keys mẫu: " + Object.keys(recs[0]).slice(0, 24).join(",")); break; } }
-    log("  … " + cand + " -> " + (r ? "HTTP " + r.status : "không gọi được"));
-  }
-  if (!API) { log("✗ Không tìm được endpoint stock-inventories — cần capture lại API từ trang WMS."); process.exit(2); }
+  /* NHỚ ENDPOINT + SIZE (audit 23/08/2026): mỗi lượt dò lại endpoint (2 call) + dò size (1 call
+     kéo THẬT 2000 dòng) × 3 lượt/ngày là tải vô ích — endpoint WMS đổi theo THÁNG chứ không theo
+     giờ. Nhớ vào .tbt-endpoint.json 7 ngày; endpoint chết giữa lượt (trang 1 !ok) thì xoá memo
+     để lượt sau dò lại từ đầu. */
+  const TBT_MEMO = path.join(DIR, ".tbt-endpoint.json");
+  let API = null, size = SIZE;
+  try {
+    const m = JSON.parse(fs.readFileSync(TBT_MEMO, "utf8"));
+    if (m.api && API_CANDS.includes(m.api) && Date.now() - m.at < 7 * 24 * 3600 * 1000) {
+      API = m.api; size = Number(m.size) || SIZE;
+      log("✓ Endpoint (nhớ <7 ngày): " + API + " · size " + size + " (khỏi dò lại).");
+    }
+  } catch { /* chưa có memo → dò như cũ */ }
+  if (!API) {
+    // Chốt endpoint: thử từng ứng viên trên trang 1 của bộ đầu tiên
+    for (const cand of API_CANDS) {
+      const u = cand + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=5";
+      const r = await fetchThuLai(u, { headers: { authorization: token } }).catch(() => null);
+      if (r && r.ok) { const j = await r.json().catch(() => null); const recs = j && (j.records || (j.data && j.data.records)); if (Array.isArray(recs)) { API = cand; log("✓ Endpoint: " + cand + " (mẫu " + recs.length + " dòng)"); if (recs[0]) log("  keys mẫu: " + Object.keys(recs[0]).slice(0, 24).join(",")); break; } }
+      log("  … " + cand + " -> " + (r ? "HTTP " + r.status : "không gọi được"));
+    }
+    if (!API) { log("✗ Không tìm được endpoint stock-inventories — cần capture lại API từ trang WMS."); process.exit(2); }
 
-  // Tự dò SIZE lớn nhất server chịu (giảm số trang -> chạy nhanh, đỡ chết token giữa chừng).
-  // Chỉ nhận size lớn khi trang 1 trả về NHIỀU HƠN 500 dòng thật — server âm thầm cap thì giữ 500
-  // (nếu nhận nhầm, điều kiện dừng recs.length < SIZE sẽ cắt cụt dữ liệu ngay trang đầu).
-  let size = SIZE;
-  for (const thu of [2000, 1000]) {
-    const r = await fetchThuLai(API + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=" + thu, { headers: { authorization: token } }).catch(() => null);
-    if (r && r.ok) { const j = await r.json().catch(() => null); const recs = (j && (j.records || (j.data && j.data.records))) || []; if (recs.length > 500) { size = thu; break; } }
+    // Tự dò SIZE lớn nhất server chịu (giảm số trang -> chạy nhanh, đỡ chết token giữa chừng).
+    // Chỉ nhận size lớn khi trang 1 trả về NHIỀU HƠN 500 dòng thật — server âm thầm cap thì giữ 500
+    // (nếu nhận nhầm, điều kiện dừng recs.length < SIZE sẽ cắt cụt dữ liệu ngay trang đầu).
+    for (const thu of [2000, 1000]) {
+      const r = await fetchThuLai(API + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=" + thu, { headers: { authorization: token } }).catch(() => null);
+      if (r && r.ok) { const j = await r.json().catch(() => null); const recs = (j && (j.records || (j.data && j.data.records))) || []; if (recs.length > 500) { size = thu; break; } }
+    }
+    log("✓ Cỡ trang: " + size + " dòng/lần.");
+    try { fs.writeFileSync(TBT_MEMO, JSON.stringify({ api: API, size, at: Date.now() })); } catch { /* memo best-effort */ }
   }
-  log("✓ Cỡ trang: " + size + " dòng/lần.");
 
   // Token WMS sống ngắn (~vài phút) — 401/403 giữa chừng thì ĐĂNG NHẬP LẠI rồi thử lại đúng trang đó
   let lanDoiToken = 0;
@@ -293,7 +307,12 @@ async function ghiTonViTri(token, apiAt) {
     for (let page = 1; page <= MAX_PAGE; page++) {
       const u = API + "?company_ids=" + cfg.company + "&warehouse_ids=" + encodeURIComponent(cfg.warehouses) + "&page=" + page + "&size=" + size;
       const r = await fetchTrang(u);
-      if (!r.ok) { log("  ⚠ " + cfg.ten + " trang " + page + " HTTP " + r.status); break; }
+      if (!r.ok) {
+        // Trang 1 đã !ok (không phải 401 vì fetchTrang đã tự làm mới token) → endpoint nhớ có thể
+        // đã chết: xoá memo để lượt sau dò lại từ danh sách ứng viên.
+        if (page === 1) { try { fs.rmSync(TBT_MEMO, { force: true }); } catch { /* best-effort */ } }
+        log("  ⚠ " + cfg.ten + " trang " + page + " HTTP " + r.status); break;
+      }
       const j = await r.json().catch(() => null); if (!j) break;
       if (total === null) total = j.count ?? j.total ?? (j.data && (j.data.count ?? j.data.total)) ?? null;
       const recs = (j.records || (j.data && j.data.records)) || [];

@@ -74,7 +74,12 @@ function cumDangChay() {
       "Get-CimInstance Win32_Process -Filter \"Name='node.exe' or Name='cmd.exe'\" | Select-Object -ExpandProperty CommandLine"],
       { windowsHide: true, timeout: 30000 },
       (err, out) => {
-        if (err || !out) return res(false);
+        /* FAIL-CLOSED (audit 23/08/2026): Get-CimInstance lỗi mà trả "không cụm nào chạy" thì guard
+           + poller cùng spawn cụm CHỒNG nhau — 2 tiến trình cùng kéo WMS + clearContents 1 tab.
+           Lỗi → coi như CÓ cụm đang chạy (đứng ngoài) + log TO để không chết câm chiều ngược lại
+           (PowerShell hỏng dai dẳng = mọi lượt đều nhường → dữ liệu cũ, phải thấy được trong log). */
+        if (err) { log("⚠ cumDangChay: Get-CimInstance lỗi (" + (err.message || err) + ") — FAIL-CLOSED, coi như có cụm đang chạy."); return res(true); }
+        if (!out) return res(false);   // PowerShell chạy OK nhưng không có node/cmd nào → thật sự rảnh
         const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-factory\.mjs|sync-vesinh-ai\.mjs|auto-export-sync\.js|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
         res(out.split(/\r?\n/).some((l) => dau.test(l)));
       });
@@ -94,6 +99,19 @@ async function docMocMeta() {
 const fmtVN = (ms) => new Date(ms).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
 
 async function main() {
+  /* CỬA GIỜ CỤM NẶNG (audit 23/08/2026) — đặt TRƯỚC MỌI THỨ: tick ngoài giờ thoát ngay, không tốn
+     cả lượt Get-CimInstance lẫn lượt gviz đọc Metadata (guard chạy mỗi 2', đêm + CN là ~600 lượt
+     vô ích/ngày). Đo log 22-23/08: cụm AUTO-EXPORT 8 bước nổ 19:14/20:48/22:20 và 07:00 Chủ nhật.
+     --force (người bấm "Tải lại dữ liệu" / chạy tay) vẫn đi tiếp vì đó là chủ đích của con người. */
+  {
+    const nowSom = new Date();
+    const pSom = phutVN(nowSom);
+    const ngaySom = new Date(nowSom.getTime() + 7 * 3600 * 1000).getUTCDay();   // 0 = Chủ nhật (giờ VN)
+    if (!FORCE && (ngaySom === 0 || pSom < 7 * 60 || pSom >= 18 * 60)) {
+      log("… Ngoài khung 07:00–18:00 T2–T7 (giờ VN) — cụm nặng nghỉ, dữ liệu ngoài giờ chấp nhận cũ. (--force vẫn chạy được)");
+      return 0;
+    }
+  }
   if (!THU && await cumDangChay()) { log("Cụm đồng bộ khác đang chạy (task 7h / chạy tay) — guard đứng ngoài."); return 0; }
 
   const moc = await docMocMeta();
@@ -117,7 +135,7 @@ async function main() {
    * Chỉ xét trong 07:00–22:30 (khung có người làm, cùng khung với cuaImLangMs) — để máy lỡ bật
    * qua đêm thì không dội cụm suốt đêm. Backoff 20' ở dưới vẫn chặn spam. */
   const p = phutVN(now);   // giờ VN thật, không tin múi giờ máy (dùng chung hàm của session-rules)
-  const trongGioCanh = p >= 7 * 60 && p < 22 * 60 + 30;
+  const trongGioCanh = p >= 7 * 60 && p < 18 * 60;   // đồng bộ với CỬA GIỜ đầu main() (trước là 22:30)
   const treMs = bayGio - mocMin;
   const treTrongNgay = trongGioCanh && treMs > NGUONG_TRE_MS;
   const cu = FORCE || (mocMin < homNay840 && bayGio >= homNay925) || treTrongNgay;

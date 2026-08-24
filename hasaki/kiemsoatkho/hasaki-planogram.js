@@ -92,6 +92,128 @@ var TAB_AI = "VESINH-AI";           // AI xét duyệt ảnh (sync-vesinh-ai.mjs
  * đối chiếu 7 ngày báo cáo thật cho thấy 205/205 lượt đều do đúng người được giao làm. */
 var TAB_PC = "VESINH-PHANCONG";
 var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
+/* ===== KHOÁ THIẾT BỊ cho readTab (audit 23/08/2026) ============================================
+ * Các tab vệ sinh phục vụ qua readTab có tên + email + giờ chấm công NV — endpoint từng trả cho
+ * BẤT KỲ AI trên Internet. Nay mỗi máy được cấp quyền MỘT LẦN bằng link
+ *   https://letam0317.github.io/kiemsoatkho/#khoa=<DEVICE_KEY>
+ * (lưu localStorage, xoá khỏi thanh địa chỉ — người dùng không phải gõ gì). GAS chưa bật siết
+ * (DEVICE_KEY trống) thì mọi thứ chạy y như cũ. */
+function tbKhoa(){ try{ return localStorage.getItem("tb-khoa") || ""; }catch(e){ return ""; } }
+(function(){
+  try{
+    var m = (location.hash || "").match(/[#&]khoa=([^&]+)/);
+    if (m){
+      localStorage.setItem("tb-khoa", decodeURIComponent(m[1]).trim());
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  }catch(e){ /* localStorage bị chặn — readTab sẽ báo "chưa được cấp quyền" khi GAS siết */ }
+})();
+
+/* ===== XIN QUYỀN BẰNG MÃ OTP 4 SỐ (24/08/2026 — user chốt) =====================================
+ * Máy mới không phải chờ ai gửi link: màn khoá có form XIN — tự khai tên, trang sinh MÃ MÁY
+ * (localStorage tb-may) + đọc IP công cộng của mình rồi gọi GAS (action tb_xin). GAS kiểm ĐANG Ở
+ * MẠNG CÔNG TY, sinh OTP 4 số rồi TỰ bắn Telegram cho quản trị — không qua máy trạm laptop, nên
+ * laptop tắt/quản trị nghỉ vẫn nhận được tin. Người dùng gõ 4 số quản trị nhắn cho → action tb_otp
+ * → GAS cấp quyền ngay cho ĐÚNG mã máy đó.
+ * · Vẫn giữ vòng chờ tb_tra 30 giây: khi laptop sống, quản trị bấm /duyet_<mã> cho nhanh thì trang
+ *   tự vào mà người dùng không cần gõ gì.
+ * · Máy ĐÃ có quyền báo IP về mỗi ngày một lượt (action tb_ip) → sổ mẫu "mạng công ty" của GAS tự
+ *   cập nhật khi nhà mạng đổi IP động. Không có nó thì cửa mạng sẽ tự đóng sập sau vài ngày.
+ * · Cùng khuôn hàm với factory/index.html — lệ đồng bộ 2 dashboard. */
+function tbMayId(){
+  try{
+    var id = localStorage.getItem("tb-may");
+    if (!id || !/^m[a-z0-9]{7,19}$/.test(id)){
+      id = "m" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-4);
+      localStorage.setItem("tb-may", id);
+    }
+    return id;
+  }catch(e){ return ""; }   // chế độ riêng tư chặn localStorage → báo ở tbXinGui
+}
+function tbGoiGas_(body, cb){
+  fetch(APPSCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body),
+    signal: (typeof AbortSignal !== "undefined" && AbortSignal.timeout) ? AbortSignal.timeout(45000) : undefined })
+  .then(function(r){ return r.text(); })
+  .then(function(t){   // GAS lỗi chập chờn trả HTML — đừng r.json() thẳng (bẫy 12/08/2026)
+    t = String(t || "").trim();
+    cb(t.charAt(0) === "{" ? JSON.parse(t) : { status: "error", message: "Apps Script trả trang HTML (lỗi chập chờn) — bấm lại." });
+  })
+  .catch(function(e){ cb({ status: "error", message: "Không gửi được: " + ((e && e.message) || e) }); });
+}
+/* IP công cộng của máy đang mở trang — GAS không thấy IP client nên TRANG phải tự khai.
+   Hai nguồn nối tiếp (cloudflare trace → ipify): chỉ trả về IP của CHÍNH người gọi, không gửi gì
+   của mình đi. Đọc xong nhớ trong sessionStorage — mỗi phiên chỉ đi hỏi một lần. */
+function tbLayIp_(cb){
+  var nho = "";
+  try{ nho = sessionStorage.getItem("tb-ip") || ""; }catch(e){}
+  if (nho) return cb(nho);
+  var xong = false;
+  var tra = function(ip){ if (xong) return; xong = true;
+    ip = String(ip || "").trim();
+    if (ip){ try{ sessionStorage.setItem("tb-ip", ip); }catch(e){} }
+    cb(ip);
+  };
+  var het = (typeof AbortSignal !== "undefined" && AbortSignal.timeout) ? function(){ return AbortSignal.timeout(8000); } : function(){ return undefined; };
+  fetch("https://www.cloudflare.com/cdn-cgi/trace", { signal: het() })
+    .then(function(r){ return r.text(); })
+    .then(function(t){ var m = String(t).match(/^ip=(.+)$/m); if (m) tra(m[1]); else throw new Error("khong co ip"); })
+    .catch(function(){
+      fetch("https://api.ipify.org?format=json", { signal: het() })
+        .then(function(r){ return r.json(); })
+        .then(function(j){ tra(j && j.ip); })
+        .catch(function(){ tra(""); });   // không đọc được → gửi rỗng, GAS quyết (có mẫu thì từ chối)
+    });
+}
+function tbXinGui(ten, cb){
+  var id = tbMayId();
+  if (!id) return cb({ status: "error", message: "Trình duyệt đang chặn lưu trữ (cửa sổ riêng tư?) — mở cửa sổ thường rồi thử lại." });
+  tbLayIp_(function(ip){
+    tbGoiGas_({ action: "tb_xin", tb: id, ten: ten, ip: ip, trang: "kiemsoatkho",
+      ua: (navigator.userAgent || "").slice(0, 160) }, cb);
+  });
+}
+function tbOtpGui(otp, cb){
+  var id = tbMayId();
+  if (!id) return cb({ status: "error", message: "Trình duyệt đang chặn lưu trữ (cửa sổ riêng tư?) — mở cửa sổ thường rồi thử lại." });
+  tbGoiGas_({ action: "tb_otp", tb: id, otp: otp }, cb);
+}
+/* Máy ĐÃ có quyền: báo IP về 1 lượt/ngày để sổ mẫu mạng công ty của GAS luôn theo kịp IP động.
+   Hãm bằng localStorage nên không tốn thêm lượt gọi nào trong ngày. */
+function tbBaoIpNeuCan_(){
+  var k = tbKhoa(); if (!k) return;
+  /* file:// = bản nội bộ trên đĩa / bộ đo: đừng đi hỏi IP (mạng bị chặn sạch trong bộ đo,
+     và IP của máy đang mở bản đĩa không nói được gì về mạng công ty). */
+  if (location.protocol === 'file:') return;
+  var nay = new Date().toISOString().slice(0, 10), cu = "";
+  try{ cu = localStorage.getItem("tb-ip-ngay") || ""; }catch(e){ return; }
+  if (cu === nay) return;
+  tbLayIp_(function(ip){
+    if (!ip) return;
+    try{ localStorage.setItem("tb-ip-ngay", nay); }catch(e){}
+    tbGoiGas_({ action: "tb_ip", tb: k, ip: ip }, function(){ /* im lặng — việc nền, hỏng thì mai báo lại */ });
+  });
+}
+var _tbPoll = 0, _tbPollN = 0;
+/* Dừng vòng chờ (24/08/2026): cấp quyền bằng ĐƯỜNG OTP rồi thì tb_tra thành vô nghĩa — không tắt
+   là máy đã có quyền vẫn hỏi GAS mỗi 30 giây tới hết trần 60 lượt. */
+function tbXinDungPoll_(){ if(_tbPoll){ clearInterval(_tbPoll); _tbPoll = 0; } }
+function tbXinPoll(onDuyet, onTuChoi){
+  if (_tbPoll) return;   // đã có vòng chờ — không dựng vòng thứ hai
+  _tbPollN = 0;
+  _tbPoll = setInterval(function(){
+    if (++_tbPollN > 60){ clearInterval(_tbPoll); _tbPoll = 0; return; }   // trần 30' — không hỏi GAS vô hạn
+    tbGoiGas_({ action: "tb_tra", tb: tbMayId() }, function(j){
+      if (j && j.duyet){
+        clearInterval(_tbPoll); _tbPoll = 0;
+        try{ localStorage.setItem("tb-khoa", tbMayId()); }catch(e){}
+        onDuyet && onDuyet();
+      } else if (j && j.tuChoi){ clearInterval(_tbPoll); _tbPoll = 0; onTuChoi && onTuChoi(); }
+      /* lỗi/HTML chập chờn → im lặng, lượt sau hỏi lại */
+    });
+  }, 30000);
+}
+
 var PG_BASE = "https://planogram.hasaki.vn/asset-management/request-of-declaration";
 var STALE_MS = 5 * 60 * 1000;
 var CAP = 500;
@@ -1079,12 +1201,15 @@ function loadTab(tab, cbName, cbBuild, onFail, lan){
     /* GAS trả success mà header rỗng = tab thật sự trống (hoặc chưa được tạo) → thử lại vô ích,
        và đây KHÔNG phải lỗi mạng nên phải phân biệt để màn hình nói đúng nguyên nhân. */
     if (j && j.status === "success" && rieng){ delete DANG_THU[tab]; LOI_NGUON[tab] = "rong"; onFail && onFail(); return; }
+    /* Máy chưa được cấp khoá thiết bị (GAS đã bật siết): thử lại vô ích — render() sẽ nói việc cần làm. */
+    if (j && j.canKhoa){ delete DANG_THU[tab]; LOI_NGUON[tab] = "khoa"; onFail && onFail(); return; }
     thuLai();
   };
   /* Đánh dấu TRƯỚC KHI bắn: khe hở gây ra sự cố 12/08 là lượt ĐẦU chỉ đang chậm (chưa lỗi) —
      DANG_THU rỗng nên watchdog 25s kết luận "Chưa có dữ liệu" trong khi request vẫn đang bay. */
   if (rieng) DANG_THU[tab] = lan + 1;
   injectJSONP(APPSCRIPT_URL + "?action=readTab&tab=" + encodeURIComponent(tab) + "&callback=" + cbName +
+    "&tb=" + encodeURIComponent(tbKhoa()) +   // khoá thiết bị (audit 23/08/2026) — GAS chưa siết thì vô hại
     "&_=" + Date.now() + (lan ? "&thu=" + lan : ""), "hp_sc_" + cbName, thuLai);
 }
 
@@ -1923,7 +2048,62 @@ function hamNongCC(){
   var go = function(){ canCC(); };
   if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 });
   else setTimeout(go, 1200);
+  /* Nhân lượt rảnh này báo IP luôn (1 lượt/ngày) — sổ mẫu mạng công ty của GAS tự theo IP động. */
+  setTimeout(function(){ try{ tbBaoIpNeuCan_(); }catch(e){} }, 4000);
 }
+/* Gắn hành vi cho form xin cấp quyền trên màn khoá (dựng lại mỗi lần render nên gắn lại mỗi lần). */
+function tbGanXinQ_(st){
+  var inp = st.querySelector("#hpXinTen"), btn = st.querySelector("#hpXinBtn"), tt = st.querySelector("#hpXinTT");
+  var oq = st.querySelector("#hpOtpQ"), oi = st.querySelector("#hpOtpMa"), ob = st.querySelector("#hpOtpBtn");
+  if (!inp || !btn || !tt) return;
+  var noi = function(msg, mau){ tt.textContent = msg; tt.style.color = mau || "var(--muted,#6b7280)"; };
+  var vao = function(){ noi("✓ Máy này đã có quyền — đang tải lại…", "var(--text,#1f2937)"); location.reload(); };
+  var capKhoa = function(){ try{ localStorage.setItem("tb-khoa", tbMayId()); }catch(e){} };
+  /* Mở ô OTP + vòng chờ tb_tra: người dùng gõ 4 số là xong, mà nếu quản trị bấm /duyet_ (laptop
+     sống) thì vòng chờ cũng đưa họ vào — hai đường song song, đường nào tới trước thì thắng. */
+  var moOtp = function(loi){
+    if (oq){ oq.classList.add("mo"); }
+    if (loi) noi(loi);
+    if (oi) setTimeout(function(){ try{ oi.focus(); }catch(e){} }, 60);
+    tbXinPoll(function(){ capKhoa(); vao(); },
+              function(){ noi("Quản trị đã từ chối lượt xin này.", "#b91c1c"); });
+  };
+  var gui = function(){
+    var ten = (inp.value || "").replace(/\s+/g, " ").trim();
+    if (ten.length < 2){ noi("Cho quản trị biết bạn là ai (tên · bộ phận) thì mới cấp mã được.", "#b91c1c"); inp.focus(); return; }
+    btn.disabled = true; noi("Đang gửi…");
+    tbXinGui(ten, function(j){
+      btn.disabled = false;   // trả nút trong MỌI nhánh — tbXinGui luôn gọi cb (kể cả timeout 45s)
+      if (!j || j.status !== "success"){ noi((j && j.message) || "Không gửi được — bấm lại.", "#b91c1c"); return; }
+      if (j.duyet){ capKhoa(); vao(); return; }
+      moOtp((j.message || "Đã gửi yêu cầu cho quản trị.") + " Nhận được 4 số thì gõ vào ô bên dưới.");
+    });
+  };
+  var kichHoat = function(){
+    if (!oi || !ob) return;
+    var ma = (oi.value || "").replace(/[^0-9]/g, "");
+    if (ma.length !== 4){ noi("Mã OTP gồm 4 số.", "#b91c1c"); oi.focus(); return; }
+    ob.disabled = true; noi("Đang kiểm mã…");
+    tbOtpGui(ma, function(j){
+      ob.disabled = false;
+      if (j && j.duyet){ tbXinDungPoll_(); capKhoa(); vao(); return; }
+      noi((j && j.message) || "Không kiểm được mã — bấm lại.", "#b91c1c");
+      oi.value = ""; oi.focus();
+    });
+  };
+  btn.addEventListener("click", gui);
+  inp.addEventListener("keydown", function(ev){ if (ev.key === "Enter") gui(); });
+  if (ob) ob.addEventListener("click", kichHoat);
+  if (oi){
+    oi.addEventListener("keydown", function(ev){ if (ev.key === "Enter") kichHoat(); });
+    /* Gõ đủ 4 số là tự kích hoạt — thủ kho đứng giữa kho, bớt được một cú bấm. */
+    oi.addEventListener("input", function(){
+      oi.value = (oi.value || "").replace(/[^0-9]/g, "").slice(0, 4);
+      if (oi.value.length === 4) kichHoat();
+    });
+  }
+}
+
 /* --- KHỐI 2: TỔNG ĐIỀU PHỐI (dữ liệu PT/NK về sau thì vẽ lại các khối dùng tên NV) --- */
 function render(){
   var st = $id("hpState"); if (!st) return;
@@ -1936,8 +2116,39 @@ function render(){
        Google Sheet" — trong khi Sheet vẫn đủ dòng, chỉ Apps Script không trả được. Chẩn đoán sai
        như vậy đẩy người đọc đi kiểm bộ sync (vô can) thay vì bấm Làm mới là xong. */
     var loiGas = [TAB_YC, TAB].filter(function(t){ return LOI_NGUON[t] === "gas"; });
+    var loiKhoa = [TAB_YC, TAB].filter(function(t){ return LOI_NGUON[t] === "khoa"; });
     st.innerHTML = '<div style="max-width:720px;margin:0 auto;text-align:left;line-height:1.75;color:var(--muted,#6b7280)">' +
-      (loiGas.length
+      (loiKhoa.length
+        ? '<b style="color:var(--text,#1f2937)">🔒 Máy này chưa được cấp quyền đọc dữ liệu vệ sinh.</b><br>' +
+          'Dữ liệu vệ sinh có tên/giờ chấm công nhân viên nên chỉ máy được cấp quyền mới đọc được. ' +
+          'Khai tên rồi bấm <b>Xin mã OTP</b> — <b>liên hệ quản trị</b> để nhận <b>4 số</b>, gõ vào ô ' +
+          'là máy này dùng được luôn (làm một lần). Chỉ xin được mã khi đang dùng <b>Wi-Fi công ty</b>:' +
+          /* Form xin cấp quyền: input 16px (iOS không zoom), nút ≥40px, focus ring theo lệ dự án */
+          '<style>#hpXinQ{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}' +
+          '#hpXinQ input{flex:1 1 220px;min-width:0;min-height:40px;padding:8px 12px;font-size:16px;' +
+          'border:1px solid var(--line,#d1d5db);border-radius:10px;background:var(--bg,#fff);color:var(--text,#1f2937)}' +
+          '#hpXinQ input:focus{outline:none;border-color:var(--accent,#2563eb);box-shadow:0 0 0 3px rgba(37,99,235,.16)}' +
+          '#hpXinQ button{flex:0 0 auto;min-height:40px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;' +
+          'border:1px solid var(--accent,#2563eb);border-radius:10px;background:var(--accent,#2563eb);color:#fff}' +
+          '#hpXinQ button:disabled{opacity:.55;cursor:default}' +
+          '#hpXinTT{flex:1 1 100%;font-size:12.5px;min-height:1em}' +
+          '#hpOtpQ{display:none;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}' +
+          '#hpOtpQ.mo{display:flex}' +
+          '#hpOtpQ input{flex:0 0 132px;min-width:0;min-height:40px;padding:8px 12px;font-size:20px;font-weight:700;' +
+          'letter-spacing:.32em;text-align:center;border:1px solid var(--line,#d1d5db);border-radius:10px;' +
+          'background:var(--bg,#fff);color:var(--text,#1f2937)}' +
+          '#hpOtpQ input:focus{outline:none;border-color:var(--accent,#2563eb);box-shadow:0 0 0 3px rgba(37,99,235,.16)}' +
+          '#hpOtpQ button{flex:0 0 auto;min-height:40px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;' +
+          'border:1px solid var(--accent,#2563eb);border-radius:10px;background:var(--accent,#2563eb);color:#fff}' +
+          '#hpOtpQ button:disabled{opacity:.55;cursor:default}' +
+          '#hpOtpQ .nl{flex:1 1 160px;font-size:12.5px;min-width:0}</style>' +
+          '<div id="hpXinQ"><input id="hpXinTen" maxlength="60" placeholder="Bạn là ai? (tên · bộ phận)">' +
+          '<button id="hpXinBtn" type="button">Xin mã OTP</button><div id="hpXinTT"></div></div>' +
+          '<div id="hpOtpQ"><input id="hpOtpMa" inputmode="numeric" autocomplete="one-time-code" maxlength="4" ' +
+          'placeholder="••••" aria-label="Mã OTP 4 số">' +
+          '<button id="hpOtpBtn" type="button">Kích hoạt</button>' +
+          '<span class="nl">Gõ 4 số quản trị nhắn cho bạn</span></div>'
+        : loiGas.length
         ? '<b style="color:var(--text,#1f2937)">Không đọc được dữ liệu từ Apps Script.</b><br>' +
           'Đã thử lại ' + (GAS_CHO.length + 1) + ' lượt cho <code>' + loiGas.map(esc).join('</code>, <code>') + '</code> mà vẫn không có phản hồi — ' +
           'Apps Script hay trả 404 chập chờn lúc quá tải. <b>Dữ liệu trong Google Sheet không mất</b>; ' +
@@ -1946,6 +2157,7 @@ function render(){
           'Tab này đọc từ các sheet <code>' + esc(TAB_YC) + '</code>, <code>' + esc(TAB) + '</code>… — bộ đồng bộ <code>sync-vesinh-all.js</code> (cụm 8h40) sẽ ghi dữ liệu ' +
           'khu vực F0-A1 &amp; F0-A8 (kho SHOP - 170 QUOC LO 1A, nguồn planogram) vào đó.') +
       '</div>';
+    if (loiKhoa.length) tbGanXinQ_(st);
     capNhatInfo();
     return;
   }

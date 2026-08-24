@@ -84,7 +84,10 @@ function cumDangChay() {
       "Get-CimInstance Win32_Process -Filter \"Name='node.exe' or Name='cmd.exe'\" | Select-Object -ExpandProperty CommandLine"],
       { windowsHide: true, timeout: 30000 },
       (err, out) => {
-        if (err || !out) return res(false);
+        /* FAIL-CLOSED (audit 23/08/2026, cùng vá với sync-guard): lỗi soi tiến trình → coi như
+           CÓ cụm đang chạy để không bao giờ spawn chồng; log to để thấy khi PowerShell hỏng lâu. */
+        if (err) { log("⚠ cumDangChay: Get-CimInstance lỗi (" + (err.message || err) + ") — FAIL-CLOSED, poller đứng ngoài."); return res(true); }
+        if (!out) return res(false);
         const dau = /sync-stocklocation\.js|push-pc-to-sheet\.mjs|sync-tonbatthuong\.js|sync-vesinh-all\.js|sync-vesinh-ai\.mjs|auto-export-sync\.js|SYNC-STOCK\.bat|AUTO-EXPORT\.bat/i;
         res(out.split(/\r?\n/).some((l) => dau.test(l)));
       });
@@ -132,6 +135,12 @@ async function main() {
   // 0) Trong khung hoạt động? (ngoài khung: lịch 8h40 + guard 18:05 đã lo phần còn lại)
   const [wa, wb] = WINDOW.split("-").map(phut);
   if (wa == null || wb == null || pNow < wa || pNow >= wb) return 0;   // im lặng — ngoài giờ poller
+  /* CỔNG NGÀY LÀM (24/08/2026 — nối tiếp cửa giờ của sync-guard): guard đã nghỉ Chủ nhật, nhưng
+     poller thì chỉ có khung GIỜ nên CN vẫn tự phát vệ sinh 15'/AI 30'/5S 45' + 2 slot tồn kho.
+     Đo log CN 23/08: 116 trang planogram + 6 lượt quét 178k dòng + 284 call chi tiết kiểm kê cho
+     một ngày KHÔNG AI LÀM VIỆC. Chủ nhật thì dữ liệu đứng yên — nghỉ luôn cho nhẹ upstream.
+     Muốn chạy CN (đợt kiểm kê cuối tuần): đặt POLLER_CHU_NHAT=1 trong .env. */
+  if (now.getDay() === 0 && process.env.POLLER_CHU_NHAT !== "1") return 0;   // im lặng — Chủ nhật
 
   // 1) Có việc gì tới hạn không? (tính TRƯỚC khi động tới token cho rẻ)
   const st = docState();

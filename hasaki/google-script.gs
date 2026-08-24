@@ -49,6 +49,250 @@ var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU
 function layKeyBody_(duLieu) { return String((duLieu && (duLieu.key || duLieu.secret)) || ''); }
 function keyBodyOK_(duLieu) { return layKeyBody_(duLieu) === SECRET; }
 
+/* ===== KHOÁ THIẾT BỊ (audit 23/08/2026 — user chốt: KHÔNG bắt gõ PIN, trừ ghi nhận 5S) =====
+ * Vấn đề: repo public + URL /exec nhúng trang public ⇒ pr_them (in tem thật), sku_vision/sku_ocr
+ * (đốt quota AI), pc_uidgr_edit (ghi đè tab), readTab (tên/email/giờ chấm công NV vệ sinh) đều
+ * gọi được ẨN DANH từ Internet. Chữa mà không thêm bước gõ tay:
+ *   · DEVICE_KEY đặt trong Script Properties (qua action setDeviceKey, cần SECRET — máy trạm làm).
+ *   · CÁCH CHÍNH (24/08/2026): máy mới bấm "Xin mã OTP" → GAS tự nhắn Telegram cho quản trị kèm 4
+ *     số → gõ 4 số là xong (xem khối "CẤP QUYỀN BẰNG MÃ OTP 4 SỐ" bên dưới). Không cần laptop.
+ *   · Cách phụ (vẫn dùng được): link https://…/index.html#khoa=<DEVICE_KEY> — trang lưu vào
+ *     localStorage rồi xoá hash; từ đó mọi request tự đính kèm `tb`, người dùng không gõ gì.
+ *   · DEVICE_KEY đang TRỐNG ⇒ tbOK_ luôn cho qua (bật siết SAU khi 2 dashboard đã phát bản có khoá
+ *     — thứ tự rollout an toàn, không làm trắng màn máy đang mở).
+ *   · SECRET (máy trạm) luôn qua. */
+function tbKhoaCauHinh_() { return PropertiesService.getScriptProperties().getProperty('DEVICE_KEY') || ''; }
+function tbOK_(duLieu, e) {
+  var k = tbKhoaCauHinh_();
+  if (!k) return true;   // chưa cấu hình → chưa siết
+  var tb = String((duLieu && duLieu.tb) || (e && e.parameter && e.parameter.tb) || '');
+  if (tb && (tb === k || tbDuyetCo_(tb))) return true;   // khoá chung HOẶC máy đã duyệt qua bot (tb_xin/tb_duyet)
+  return keyBodyOK_(duLieu || {});
+}
+function tbTuChoi_() {
+  return phanHoiJson({ status: 'error', code: 403, canKhoa: 1,
+    message: 'Máy này chưa được cấp quyền — bấm "Xin mã OTP", liên hệ quản trị nhận 4 số rồi gõ vào (làm MỘT LẦN cho máy này).' });
+}
+
+/* ===== CẤP QUYỀN BẰNG MÃ OTP 4 SỐ (24/08/2026 — thay đường "gửi link #khoa=") =================
+ * VÌ SAO ĐỔI (user chốt 24/08): đường cũ dựa vào máy trạm laptop ở HAI chỗ — quản trị phải tự gửi
+ * link `#khoa=` cho từng máy, và lệnh /duyet_<mã> phải do tin-nhan-bot.mjs (chạy trên laptop) nhặt
+ * rồi gọi lại GAS. Giờ hành chính quản trị có thể nghỉ, laptop ĐÓNG ⇒ người trong kho đứng chờ vô
+ * thời hạn. Luồng mới KHÔNG cần laptop ở bất kỳ khâu nào:
+ *
+ *   máy mới mở dashboard → màn khoá "liên hệ quản trị nhận mã OTP" → bấm Xin mã
+ *     → GAS kiểm ĐANG Ở MẠNG CÔNG TY → sinh OTP 4 số (gắn ĐÚNG mã máy đó, hạn 60')
+ *     → GAS TỰ bắn Telegram cho quản trị (UrlFetchApp chạy trên máy Google — laptop tắt vẫn gửi)
+ *     → quản trị nhắn 4 số cho người kia → người kia gõ vào ô → máy được cấp quyền ngay.
+ *
+ * · "Mạng công ty" mà KHÔNG xin IT: GAS không thấy IP client, nên TRANG tự báo IP công cộng của nó
+ *   (cloudflare trace). GAS so với 2 nguồn: WIFI_IP_ALLOW (đặt tay, nhận cả tiền tố "14.224.") và
+ *   TB_IP_OK — sổ IP TỰ HỌC từ chính các máy ĐÃ ĐƯỢC DUYỆT (action tb_ip, 1 lượt/máy/ngày). IP nhà
+ *   mạng VN đổi động nên sổ tự học là cách duy nhất sống lâu mà không phải sửa tay mỗi tuần.
+ *   Chưa có mẫu nào để so ⇒ vẫn cho xin nhưng ĐÁNH DẤU trong tin Telegram (không dead-end rollout).
+ * · IP do client tự khai NÊN GIẢ ĐƯỢC — nó là cửa chống spam, không phải cửa bảo mật. Cửa thật là:
+ *   OTP chỉ quản trị biết, và quản trị đọc thấy tên + IP + có khớp mạng công ty hay không rồi mới
+ *   quyết định nhắn 4 số đi hay không.
+ * · Chống dò OTP: 4 số = 10.000 khả năng, nhưng mỗi mã chỉ 5 lần gõ sai là chết, mỗi máy 10' mới
+ *   xin lại được (mỗi lượt xin đều bắn tin cho quản trị thấy), trần 30 lượt xin + 50 lần gõ sai
+ *   mỗi ngày cho TOÀN hệ ⇒ tối đa ~50 phép thử/ngày trên 10.000.
+ * · Đường cũ /duyet_<mã> · /tuchoi_<mã> GIỮ NGUYÊN làm đường phụ (laptop sống thì bấm nhanh hơn),
+ *   và /tuchoi_<mã> vẫn là cách THU HỒI quyền của một máy đã cấp.
+ * · GAS không thấy IP/header client ⇒ "thông tin người xin" = tên tự khai + UA client gửi + giờ.
+ * · TUYỆT ĐỐI không ghi mã máy lên Sheet public (sheet anyone:reader — mã máy sau duyệt là chìa
+ *   khoá, lộ là ai cũng chép vào localStorage được). Trạng thái chỉ nằm ở Script Properties.
+ * · Chống spam: 1 máy 1 lượt/10' (cache), trần 30 lượt xin/ngày (Properties), sổ chờ tối đa 30. */
+function tbDsDoc_(khoa) { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(khoa) || '{}') || {}; } catch (e) { return {}; } }
+function tbDsGhi_(khoa, ds) { PropertiesService.getScriptProperties().setProperty(khoa, JSON.stringify(ds)); }
+function tbDuyetCo_(tb) { return !!tbDsDoc_('TB_DUYET')[tb]; }
+function tbBaoTele_(text) {
+  // Chưa cấu hình token thì im lặng bỏ qua — yêu cầu vẫn nằm ở sổ chờ, quản trị xem bằng /choduyet.
+  try {
+    var p = PropertiesService.getScriptProperties();
+    var tok = p.getProperty('TELEGRAM_BOT_TOKEN'), chat = p.getProperty('TELEGRAM_CHAT_ID');
+    if (!tok || !chat) return false;
+    UrlFetchApp.fetch('https://api.telegram.org/bot' + tok + '/sendMessage',
+      { method: 'post', payload: { chat_id: chat, text: text }, muteHttpExceptions: true });
+    return true;
+  } catch (eT) { return false; }
+}
+function tbXinDemNgay_() {
+  var p = PropertiesService.getScriptProperties();
+  var ngay = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd');
+  var d = {}; try { d = JSON.parse(p.getProperty('TB_XIN_DEM') || '{}') || {}; } catch (eD) {}
+  if (d.ngay !== ngay) d = { ngay: ngay, so: 0 };
+  d.so = Number(d.so || 0) + 1;
+  p.setProperty('TB_XIN_DEM', JSON.stringify(d));
+  return d.so;
+}
+/* --- Mạng công ty: chuẩn hoá IP + đối chiếu + sổ IP tự học ------------------------------------ */
+function tbIpChuan_(ip) {
+  ip = String(ip || '').trim();
+  return /^[0-9a-fA-F:.]{7,45}$/.test(ip) ? ip : '';
+}
+function tbIpCoMau_() {
+  var tay = String(PropertiesService.getScriptProperties().getProperty('WIFI_IP_ALLOW') || '').trim();
+  return !!tay || Object.keys(tbDsDoc_('TB_IP_OK')).length > 0;
+}
+function tbIpDuocPhep_(ip) {
+  var coMau = tbIpCoMau_();
+  if (!ip) return { ok: false, coMau: coMau, vi: 'trang không đọc được IP' };
+  var tay = String(PropertiesService.getScriptProperties().getProperty('WIFI_IP_ALLOW') || '')
+    .split(',').map(function (x) { return x.trim(); }).filter(function (x) { return !!x; });
+  for (var i = 0; i < tay.length; i++) {
+    var m = tay[i];
+    if (m === ip) return { ok: true, coMau: coMau, vi: 'khớp WIFI_IP_ALLOW' };
+    if (m.charAt(m.length - 1) === '.' && ip.indexOf(m) === 0) return { ok: true, coMau: coMau, vi: 'khớp tiền tố ' + m };
+  }
+  var so = tbDsDoc_('TB_IP_OK'), gh = so[ip];
+  if (gh && (new Date().getTime() - new Date(gh.luc).getTime()) < 14 * 24 * 3600 * 1000)
+    return { ok: true, coMau: coMau, vi: 'IP máy đã duyệt vừa dùng (' + String(gh.luc).slice(0, 10) + ')' };
+  return { ok: false, coMau: coMau, vi: 'IP lạ' };
+}
+/* Máy ĐÃ ĐƯỢC DUYỆT báo IP về (1 lượt/máy/ngày, trang tự hãm bằng localStorage) → sổ mẫu mạng công
+   ty tự cập nhật khi nhà mạng đổi IP. CHỈ nhận từ máy đã duyệt / khoá chung / SECRET: không thì kẻ
+   lạ tự nhồi IP của mình vào sổ rồi hợp lệ hoá chính nó. */
+function apiTbIp_(duLieu) {
+  var tb = String(duLieu.tb || '').trim().toLowerCase(), ip = tbIpChuan_(duLieu.ip);
+  var k = tbKhoaCauHinh_();
+  if (!ip) return phanHoiJson({ status: 'error', message: 'Thiếu IP' });
+  if (!(tb && (tb === k || tbDuyetCo_(tb))) && !keyBodyOK_(duLieu))
+    return phanHoiJson({ status: 'error', code: 403, message: 'Máy chưa được cấp quyền' });
+  var so = tbDsDoc_('TB_IP_OK');
+  so[ip] = { luc: new Date().toISOString(), tb: tb.slice(0, 8) };
+  var ks = Object.keys(so);
+  while (ks.length > 20) { delete so[ks[0]]; ks.shift(); }   // rụng IP cũ nhất theo thứ tự chèn
+  tbDsGhi_('TB_IP_OK', so);
+  return phanHoiJson({ status: 'success', so: Object.keys(so).length });
+}
+
+/* --- OTP 4 số --------------------------------------------------------------------------------- */
+var TB_OTP_HAN_MS = 60 * 60 * 1000;   // 60' — quản trị có thể đang họp/nghỉ, 15' là quá gấp
+function tbOtpDonRac_(ds) {
+  var nay = new Date().getTime(), doi = false;
+  for (var k in ds) if (!ds[k] || Number(ds[k].het || 0) < nay) { delete ds[k]; doi = true; }
+  return doi;
+}
+function tbOtpSinh_(tb, ten) {
+  var ds = tbDsDoc_('TB_OTP'); tbOtpDonRac_(ds);
+  var otp = ('000' + Math.floor(Math.random() * 10000)).slice(-4);
+  ds[tb] = { otp: otp, het: new Date().getTime() + TB_OTP_HAN_MS, sai: 0, ten: ten };
+  var ks = Object.keys(ds);
+  while (ks.length > 30) { delete ds[ks[0]]; ks.shift(); }
+  tbDsGhi_('TB_OTP', ds);
+  return otp;
+}
+function tbSaiDemNgay_() {
+  var p = PropertiesService.getScriptProperties();
+  var ngay = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd');
+  var d = {}; try { d = JSON.parse(p.getProperty('TB_OTP_SAI_NGAY') || '{}') || {}; } catch (eD) {}
+  if (d.ngay !== ngay) d = { ngay: ngay, so: 0 };
+  d.so = Number(d.so || 0) + 1;
+  p.setProperty('TB_OTP_SAI_NGAY', JSON.stringify(d));
+  return d.so;
+}
+/* Gõ OTP: đúng thì cấp quyền NGAY cho ĐÚNG mã máy đã xin (không phải mã nào khác). */
+function apiTbOtp_(duLieu) {
+  var tb = String(duLieu.tb || '').trim().toLowerCase();
+  var otp = String(duLieu.otp || '').replace(/[^0-9]/g, '');
+  if (!/^m[a-z0-9]{7,19}$/.test(tb)) return phanHoiJson({ status: 'error', message: 'Mã máy không hợp lệ — tải lại trang rồi thử lại.' });
+  if (!tbKhoaCauHinh_() || tbDuyetCo_(tb)) return phanHoiJson({ status: 'success', duyet: 1 });
+  if (otp.length !== 4) return phanHoiJson({ status: 'error', message: 'Mã OTP gồm 4 số.' });
+  var ds = tbDsDoc_('TB_OTP'); if (tbOtpDonRac_(ds)) tbDsGhi_('TB_OTP', ds);
+  var g = ds[tb];
+  if (!g) return phanHoiJson({ status: 'error', hetHan: 1, message: 'Chưa có mã cho máy này (hoặc mã đã hết hạn) — bấm "Xin mã OTP" lại.' });
+  if (String(g.otp) !== otp) {
+    g.sai = Number(g.sai || 0) + 1;
+    var saiNgay = tbSaiDemNgay_();
+    var chet = g.sai >= 5 || saiNgay > 50;
+    if (chet) {
+      delete ds[tb];
+      tbBaoTele_('\u26d4 M\u00c3 OTP B\u1eca G\u00d5 SAI QU\u00c1 NHI\u1ec0U \u2014 \u0111\u00e3 hu\u1ef7 m\u00e3 c\u1ee7a m\u00e1y ' + tb.slice(0, 10) +
+        '\u2026\n\u00b7 Sai ' + g.sai + ' l\u1ea7n \u00b7 t\u1ed5ng sai h\u00f4m nay: ' + saiNgay +
+        '\nNg\u01b0\u1eddi th\u1eadt th\u00ec b\u1ea3o h\u1ecd b\u1ea5m "Xin m\u00e3 OTP" l\u1ea1i.');
+    }
+    tbDsGhi_('TB_OTP', ds);
+    return phanHoiJson({ status: 'error', sai: 1, huy: chet ? 1 : 0,
+      message: chet ? 'Sai quá nhiều lần — mã đã bị huỷ. Bấm "Xin mã OTP" để nhận mã mới.'
+                    : 'Mã không đúng (còn ' + (5 - g.sai) + ' lần thử).' });
+  }
+  delete ds[tb]; tbDsGhi_('TB_OTP', ds);
+  var duyet = tbDsDoc_('TB_DUYET'), tc = tbDsDoc_('TB_TUCHOI'), cho = tbDsDoc_('TB_CHO');
+  duyet[tb] = { ten: (g.ten || (cho[tb] && cho[tb].ten) || ''), luc: new Date().toISOString(), qua: 'otp' };
+  if (tc[tb]) delete tc[tb];
+  if (cho[tb]) { delete cho[tb]; tbDsGhi_('TB_CHO', cho); }
+  tbDsGhi_('TB_DUYET', duyet); tbDsGhi_('TB_TUCHOI', tc);
+  tbBaoTele_('\u2705 \u0110\u00c3 K\u00cdCH HO\u1ea0T b\u1eb1ng OTP: ' + (g.ten || '(kh\u00f4ng t\u00ean)') +
+    '\n\u00b7 M\u00e1y: ' + tb.slice(0, 10) + '\u2026\n\u00b7 L\u00fac: ' +
+    Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'HH:mm dd/MM') +
+    '\n\nThu h\u1ed3i m\u00e1y n\u00e0y: /tuchoi_' + tb);
+  return phanHoiJson({ status: 'success', duyet: 1 });
+}
+function apiTbXin_(duLieu) {
+  var tb = String(duLieu.tb || '').trim().toLowerCase();
+  if (!/^m[a-z0-9]{7,19}$/.test(tb)) return phanHoiJson({ status: 'error', message: 'Mã máy không hợp lệ — tải lại trang rồi thử lại.' });
+  if (!tbKhoaCauHinh_() || tbDuyetCo_(tb)) return phanHoiJson({ status: 'success', duyet: 1 });   // chưa siết / đã duyệt → khỏi xin
+  var ten = String(duLieu.ten || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (ten.length < 2) return phanHoiJson({ status: 'error', message: 'Cho quản trị biết bạn là ai (tên · bộ phận) thì mới cấp mã được.' });
+  /* CỬA MẠNG CÔNG TY (24/08/2026, user chốt): chỉ máy đang dùng Wi-Fi công ty mới XIN được mã.
+     Chưa có mẫu IP nào để đối chiếu (rollout ngày đầu) thì vẫn cho xin, nhưng tin Telegram phải
+     nói rõ là "chưa đối chiếu được" để quản trị không nhắn mã cho người ngoài. */
+  var ip = tbIpChuan_(duLieu.ip), mang = tbIpDuocPhep_(ip);
+  if (!mang.ok && mang.coMau) {
+    return phanHoiJson({ status: 'error', code: 403, ngoaiMang: 1,
+      message: 'Chỉ xin được mã khi máy đang dùng Wi-Fi của công ty. Nối vào Wi-Fi công ty (đừng dùng 4G) rồi bấm lại.' });
+  }
+  var c = CacheService.getScriptCache();
+  if (c.get('tbxin_' + tb)) return phanHoiJson({ status: 'success', choOtp: 1, lai: 1,
+    message: 'Vừa gửi yêu cầu cho quản trị rồi — chờ nhận 4 số rồi gõ vào ô bên dưới. (10 phút nữa mới xin lại được.)' });
+  if (tbXinDemNgay_() > 30) return phanHoiJson({ status: 'error', message: 'Hôm nay nhận quá nhiều lượt xin cấp quyền — thử lại ngày mai hoặc liên hệ quản trị trực tiếp.' });
+  c.put('tbxin_' + tb, '1', 600);
+  var trang = String(duLieu.trang || '').slice(0, 24), ua = String(duLieu.ua || '').replace(/\s+/g, ' ').slice(0, 160);
+  /* Vẫn ghi sổ chờ: để đường phụ /choduyet + /duyet_<mã> (khi laptop sống) dùng được như cũ. */
+  var cho = tbDsDoc_('TB_CHO');
+  cho[tb] = { ten: ten, trang: trang, ua: ua, ip: ip, luc: new Date().toISOString() };
+  var ks = Object.keys(cho);
+  while (ks.length > 30) { delete cho[ks[0]]; ks.shift(); }   // sổ chờ đầy → rụng lượt cũ nhất (thứ tự chèn của JSON)
+  tbDsGhi_('TB_CHO', cho);
+  var otp = tbOtpSinh_(tb, ten);
+  var nhanMang = mang.ok ? ('\u2713 m\u1ea1ng c\u00f4ng ty (' + mang.vi + ')')
+                         : '\u26a0 CH\u01afA \u0110\u1ed0I CHI\u1ebeU \u0110\u01af\u1ee2C M\u1ea0NG (ch\u01b0a c\u00f3 IP m\u1eabu) \u2014 h\u1ecfi l\u1ea1i xem ng\u01b0\u1eddi n\u00e0y c\u00f3 \u1edf kho kh\u00f4ng';
+  var gui = tbBaoTele_('\ud83d\udd11 M\u00c3 OTP C\u1ea4P QUY\u1ec0N DASHBOARD\n\n\u27a4 M\u00e3: ' + otp +
+    '   (h\u1ea1n 60 ph\u00fat, ch\u1ec9 d\u00f9ng cho \u0111\u00fang m\u00e1y n\u00e0y)\n\n\u00b7 Ng\u01b0\u1eddi xin: ' + ten +
+    '\n\u00b7 Trang: ' + (trang || '?') + '\n\u00b7 IP: ' + (ip || '?') + '  \u2014 ' + nhanMang +
+    '\n\u00b7 M\u00e1y: ' + (ua || '?') +
+    '\n\u00b7 L\u00fac: ' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'HH:mm dd/MM') +
+    '\n\nN\u1ebfu \u0110\u00daNG ng\u01b0\u1eddi: nh\u1eafn 4 s\u1ed1 tr\u00ean cho h\u1ecd.\nN\u1ebfu KH\u00d4NG: b\u1ecf qua tin n\u00e0y (m\u00e3 t\u1ef1 h\u1ebft h\u1ea1n).\nDuy\u1ec7t nhanh kh\u00f4ng c\u1ea7n m\u00e3: /duyet_' + tb +
+    '\nCh\u1eb7n m\u00e1y n\u00e0y: /tuchoi_' + tb);
+  return phanHoiJson({ status: 'success', choOtp: 1, guiTele: gui ? 1 : 0, han: 60,
+    message: gui ? 'Đã gửi yêu cầu cho quản trị. Liên hệ quản trị để nhận 4 số, rồi gõ vào ô bên dưới.'
+                 : 'Đã ghi nhận yêu cầu, nhưng kênh Telegram chưa cấu hình — liên hệ trực tiếp quản trị để nhận mã.' });
+}
+function apiTbTra_(duLieu) {
+  var tb = String(duLieu.tb || '').trim().toLowerCase();
+  if (!tbKhoaCauHinh_() || (tb && tbDuyetCo_(tb))) return phanHoiJson({ status: 'success', duyet: 1 });
+  if (tb && tbDsDoc_('TB_TUCHOI')[tb]) return phanHoiJson({ status: 'success', tuChoi: 1 });
+  return phanHoiJson({ status: 'success', choDuyet: tbDsDoc_('TB_CHO')[tb] ? 1 : 0 });
+}
+function apiTbDuyet_(duLieu) {
+  var tb = String(duLieu.tb || '').trim().toLowerCase(), ok = String(duLieu.ok || '') === '1';
+  if (!/^m[a-z0-9]{7,19}$/.test(tb)) return phanHoiJson({ status: 'error', message: 'Mã máy không hợp lệ: ' + tb });
+  var cho = tbDsDoc_('TB_CHO'), tt = cho[tb] || null;
+  if (cho[tb]) { delete cho[tb]; tbDsGhi_('TB_CHO', cho); }
+  var duyet = tbDsDoc_('TB_DUYET'), tc = tbDsDoc_('TB_TUCHOI');
+  if (ok) {
+    duyet[tb] = { ten: (tt && tt.ten) || (duyet[tb] && duyet[tb].ten) || '', luc: new Date().toISOString() };
+    if (tc[tb]) delete tc[tb];
+  } else {
+    if (duyet[tb]) delete duyet[tb];   // từ chối máy ĐÃ duyệt = THU HỒI quyền máy đó
+    tc[tb] = { luc: new Date().toISOString() };
+    var kt = Object.keys(tc);
+    while (kt.length > 50) { delete tc[kt[0]]; kt.shift(); }
+  }
+  tbDsGhi_('TB_DUYET', duyet); tbDsGhi_('TB_TUCHOI', tc);
+  return phanHoiJson({ status: 'success', tb: tb, ok: ok ? 1 : 0, ten: (tt && tt.ten) || '', daDuyet: Object.keys(duyet).length });
+}
+
 // Chống brute-force PIN: đếm số lần sai theo "định danh" (mã NV / obj), khoá 15' sau 5 lần.
 function pinBiKhoa_(dinhDanh) {
   var c = CacheService.getScriptCache();
@@ -107,7 +351,7 @@ function doPostGoc_(e) {
     /* servedTabs (12/08/2026): trả thẳng whitelist để client khỏi "probe bằng cách TẢI CẢ TAB".
        gasPhucVuTab cũ gọi readTab cho 4 tab mỗi lượt sync chỉ để biết tên tab có trong danh sách —
        execution dài chính là thứ làm Google trả 404 ở khâu lấy nội dung. */
-    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true, touchTabs: true, tuChua: true, servedTabs: SERVE_PRIVATE_TABS }) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true, touchTabs: true, tuChua: true, deviceKey: true, dangSietTb: !!tbKhoaCauHinh_(), servedTabs: SERVE_PRIVATE_TABS }) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pending') return keyBodyOK_(duLieu) ? apiPendingData_() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'mark') return keyBodyOK_(duLieu) ? apiMarkData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'alert') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); apiAlert({ parameter: { key: SECRET, msg: String(duLieu.msg || '') } }); return phanHoiJson({ status: 'success' }); }
@@ -129,9 +373,9 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'touchTabs') return keyBodyOK_(duLieu) ? apiTouchTabs(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 26/07/2026: hash-skip vẫn chạm mốc chip giờ
     // Tồn kho factory — cơ chế CỜ + TOKEN BRIDGE (thêm 21/07/2026, xem chú thích khối STOCKLOC bên dưới):
     /* HÀNG ĐỢI IN TEM (20/08/2026) — dashboard gửi lệnh in, agent ở máy trạm nhận rồi in ra máy in
-       tem của kho. `pr_them` PUBLIC (người bấm trên điện thoại không có SECRET), hai cái còn lại là
-       máy-gọi-máy nên đòi SECRET. */
-    if (duLieu && duLieu.action === 'pr_them') return apiPrThem(duLieu);
+       tem của kho. `pr_them` gác bằng KHOÁ THIẾT BỊ (audit 23/08/2026 — trước đây public, ai trên
+       Internet cũng đẩy được lệnh in tem thật); hai cái còn lại là máy-gọi-máy nên đòi SECRET. */
+    if (duLieu && duLieu.action === 'pr_them') return tbOK_(duLieu) ? apiPrThem(duLieu) : tbTuChoi_();
     if (duLieu && duLieu.action === 'pr_lay') return keyBodyOK_(duLieu) ? apiPrLay(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_xong') return keyBodyOK_(duLieu) ? apiPrXong(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_hoan') return keyBodyOK_(duLieu) ? apiPrHoan(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -149,11 +393,29 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pc_token') return pcJson_(pcKeyOK_(duLieu) ? pcToken_() : pcKeyErr_());
     if (duLieu && duLieu.action === 'pc_save_whcode') return pcJson_(pcKeyOK_(duLieu) ? pcSaveWhcode_(duLieu) : pcKeyErr_());
     if (duLieu && duLieu.action === 'pc_sync_whcode') return pcJson_(pcKeyOK_(duLieu) ? pcSyncWarehouses() : pcKeyErr_());
-    if (duLieu && duLieu.action === 'pc_set_key') return pcJson_(pcSetKey_(duLieu));
+    // pc_set_key ĐÒI SECRET (audit 23/08/2026): TOFU public = kẻ đầu tiên trên Internet chiếm luôn
+    // pc_token/import/adjust. Nay chỉ máy trạm (có SECRET) đặt/đổi được PC_KEY; luật oldKey bên trong giữ nguyên.
+    if (duLieu && duLieu.action === 'pc_set_key') return keyBodyOK_(duLieu) ? pcJson_(pcSetKey_(duLieu)) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    // setDeviceKey (SECRET): đặt/đổi/tắt KHOÁ THIẾT BỊ. newKey rỗng = TẮT siết (đường lùi khẩn cấp).
+    if (duLieu && duLieu.action === 'setDeviceKey') {
+      if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' });
+      var tbMoi = String(duLieu.newKey || '').trim();
+      if (tbMoi && tbMoi.length < 10) return phanHoiJson({ status: 'error', message: 'newKey phải ≥ 10 ký tự (hoặc rỗng để TẮT siết).' });
+      PropertiesService.getScriptProperties().setProperty('DEVICE_KEY', tbMoi);
+      return phanHoiJson({ status: 'success', dangSiet: !!tbMoi });
+    }
+    // Xin cấp quyền qua bot Telegram (23/08/2026): tb_xin/tb_tra PUBLIC (tự rate-limit bên trong,
+    // không lộ gì ngoài trạng thái chờ/duyệt); tb_duyet/tb_cho là máy-gọi-máy (tin-nhan-bot.mjs) → SECRET.
+    if (duLieu && duLieu.action === 'tb_xin') return apiTbXin_(duLieu);
+    if (duLieu && duLieu.action === 'tb_tra') return apiTbTra_(duLieu);
+    if (duLieu && duLieu.action === 'tb_otp') return apiTbOtp_(duLieu);   // gõ 4 số quản trị nhắn cho → cấp quyền ngay, KHÔNG qua laptop
+    if (duLieu && duLieu.action === 'tb_ip') return apiTbIp_(duLieu);     // máy ĐÃ duyệt báo IP → sổ mẫu mạng công ty tự học
+    if (duLieu && duLieu.action === 'tb_duyet') return keyBodyOK_(duLieu) ? apiTbDuyet_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'tb_cho') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', ds: tbDsDoc_('TB_CHO'), daDuyet: Object.keys(tbDsDoc_('TB_DUYET')).length }) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pc_adjust') return pcJson_(pcKeyOK_(duLieu) ? pcAdjust_(duLieu) : pcKeyErr_());   // 27/07/2026: lưu SL điều chỉnh Physical Count Detail vào tab kiemke-adjust
-    if (duLieu && duLieu.action === 'pc_uidgr_edit') return pcJson_(pcUidgrEdit_(duLieu));   // 27/07/2026: Action trên dòng UID group lệch — KHÔNG PC_KEY, gác bằng email @hasaki.vn (kiểm server-side trong PhysicalCountImport)
-    if (duLieu && duLieu.action === 'sku_vision') return phanHoiJson(skuVision_(duLieu));   // 18/08/2026: tab "Nhận diện SKU" — proxy Vision LLM, gác bằng email @hasaki.vn + hạn mức ngày
-    if (duLieu && duLieu.action === 'sku_ocr') return phanHoiJson(skuOcr_(duLieu));      // 19/08/2026: đọc CHỮ trên tem bằng OCR của Google Drive — miễn phí, không tốn hạn mức AI
+    if (duLieu && duLieu.action === 'pc_uidgr_edit') return tbOK_(duLieu) ? pcJson_(pcUidgrEdit_(duLieu)) : tbTuChoi_();   // khoá thiết bị + email @hasaki.vn (kiểm server-side trong PhysicalCountImport)
+    if (duLieu && duLieu.action === 'sku_vision') return tbOK_(duLieu) ? phanHoiJson(skuVision_(duLieu)) : tbTuChoi_();   // khoá thiết bị + hạn mức ngày (email tự khai chỉ còn là nhãn, hết đường đốt quota ẩn danh)
+    if (duLieu && duLieu.action === 'sku_ocr') return tbOK_(duLieu) ? phanHoiJson(skuOcr_(duLieu)) : tbTuChoi_();      // khoá thiết bị; OCR Drive miễn phí nhưng vẫn không cho người lạ mượn
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -588,6 +850,19 @@ function apiSyncTasks(duLieu) {
   var rows = duLieu.rows || [];
   // CHẶN XOÁ TRẮNG: rows rỗng -> KHÔNG clear+ghi (tránh mất sạch dữ liệu tab khi 1 lượt sync lỗi ra 0 dòng)
   if (!rows.length) return phanHoiJson({ status: 'error', message: 'rows rỗng — bỏ qua, không ghi đè tab.' });
+  /* LockService (audit 23/08/2026): đây là ĐƯỜNG GHI CHÍNH mà 3 nguồn cùng gọi (task 8h40, guard,
+     poller 2') — không khoá thì clearContents của lượt này có thể chen GIỮA clear+setValues của
+     lượt kia ⇒ tab nửa vời. Chờ tối đa 30s; không lấy được khoá thì trả lỗi để client (gasPost có
+     nonce + thử lại) tự gửi lại, còn hơn ghi chồng. */
+  var _lock = LockService.getScriptLock();
+  try {
+    if (!_lock.tryLock(30000)) return phanHoiJson({ status: 'error', message: 'Sheet đang bận (lượt ghi khác đang chạy) — thử lại sau.' });
+    return apiSyncTasksGhi_(duLieu, header, rows);
+  } finally {
+    try { _lock.releaseLock(); } catch (eL) { /* chưa giữ khoá thì thôi */ }
+  }
+}
+function apiSyncTasksGhi_(duLieu, header, rows) {
   var tenTab = duLieu.tab || TEN_SHEET_TASKS;   // tab đích (mặc định 5S-TASKS; vd NHAN-SU)
   var noiTiep = duLieu.append === true;
   var ss;
@@ -714,6 +989,11 @@ function apiReadTab(e) {
   var cb = e.parameter.callback || 'cb';
   var tab = e.parameter.tab || '';
   if (SERVE_PRIVATE_TABS.indexOf(tab) < 0) return phanHoiJsonp(cb, { status: 'error', message: 'Tab không được phục vụ' });
+  /* KHOÁ THIẾT BỊ (audit 23/08/2026): các tab whitelist có tên + email + giờ chấm công NV vệ sinh
+     (VESINH-PHANCONG/LICHSU/CHAMCONG-NGAY…) mà endpoint từng trả cho BẤT KỲ AI — đã test live.
+     Nay đòi `tb` (dashboard tự đính kèm từ localStorage, cấp 1 lần qua link — user không gõ gì).
+     DEVICE_KEY chưa đặt thì vẫn mở như cũ để rollout không làm trắng dashboard. */
+  if (!tbOK_(null, e)) return phanHoiJsonp(cb, { status: 'error', code: 403, canKhoa: 1, message: 'Máy này chưa được cấp quyền đọc dữ liệu vệ sinh — mở link cấp quyền một lần rồi tải lại trang.' });
   var ts = Number(PropertiesService.getScriptProperties().getProperty('LAST_SYNC_' + tab) || 0);
   if (e.parameter.moi !== '1') {   // moi=1: ép bỏ cache, đọc thẳng Sheet (để đối chiếu khi cần)
     var than = rtDocCache_(tab);
@@ -959,7 +1239,13 @@ function keoWmsBo_(token, cfg) {
   var giu = {};
   for (var g = 0; g < cfg.khoGiuLai.length; g++) giu[cfg.khoGiuLai[g].replace(/\s+/g, ' ').trim().toUpperCase()] = 1;
   var rows = [], size = 5000, count = null, daLay = 0;
+  var t0 = new Date().getTime();
   for (var page = 1; page <= 40; page++) {
+    /* NGÂN SÁCH THỜI GIAN (audit 23/08/2026): 40 trang × (fetch + sleep 0,5s) có thể chạm trần 6'
+       của Apps Script → execution bị Google chém ngang, mất trắng lượt VÀ không trả được lỗi nào.
+       Quá 240s thì DỪNG CÓ CHỦ ĐÍCH và trả lỗi — caller sẽ KHÔNG ghi (giữ nguyên tab cũ), tuyệt
+       đối không ghi nửa vời (tab thiếu dòng chính là sự cố "mastige kẹt 87 dòng" phiên bản mới). */
+    if (new Date().getTime() - t0 > 240000) return { code: 504, message: 'Quá ngân sách 240s ở trang ' + page + ' (cty ' + cfg.company + ') — không ghi để giữ dữ liệu cũ; để máy trạm đồng bộ thay.' };
     var url = STOCKLOC_API + '?company_ids=' + cfg.company + '&warehouse_ids=' + encodeURIComponent(cfg.warehouses) +
       '&ignore_zero_total=1&page=' + page + '&size=' + size;
     var resp;

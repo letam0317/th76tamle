@@ -94,9 +94,22 @@ const loadCache = () => { try { return JSON.parse(fs.readFileSync(CACHE_FILE, "u
 // (id nội bộ bảng nhân sự HR, vd 23751 — UI không tra được). Workflow lúc lưu code, lúc lưu
 // staff_id -> cùng người bị tách 2 dòng trên dashboard. maChuan quy hết về CODE.
 async function layDanhBaNV(token) {
+  /* CACHE 12h (audit 23/08/2026): search-for-dropdown kéo 11.446 bản ghi MỖI LƯỢT × ~15 lượt/ngày
+     ~170k bản ghi vô ích — danh bạ chỉ đổi theo ngày. DÙNG CHUNG .cache-danhba.json với
+     sync-vesinh-all.js (cùng endpoint, cùng dạng {at, data}) nên 2 bộ chia nhau 1 lượt tải thật. */
+  const CACHE_DB = path.join(DIR, ".cache-danhba.json");
+  let list = null;
   try {
-    const j = await (await fetchRetry(STAFF_API, { headers: { authorization: token } })).json();
-    const list = j.data || j.rows || [];
+    const c = JSON.parse(fs.readFileSync(CACHE_DB, "utf8"));
+    if (Date.now() - c.at < 12 * 3600 * 1000 && Array.isArray(c.data) && c.data.length) list = c.data;
+  } catch { /* chưa có cache */ }
+  if (list) log("✓ Danh bạ NV: dùng cache <12h (" + list.length + " bản ghi, khỏi gọi wshr).");
+  try {
+    if (!list) {
+      const j = await (await fetchRetry(STAFF_API, { headers: { authorization: token } })).json();
+      list = j.data || j.rows || [];
+      if (list.length) { try { fs.writeFileSync(CACHE_DB, JSON.stringify({ at: Date.now(), data: list })); } catch { /* cache best-effort */ } }
+    }
     const dir = {}, ma = {};
     for (const s of list) {
       const nm = s.staff_name || s.full_name || s.name; if (!nm) continue;
@@ -109,7 +122,25 @@ async function layDanhBaNV(token) {
     }
     log("✓ Danh bạ NV: " + Object.keys(dir).length + " mã.");
     return { dir, ma };
-  } catch (e) { log("  (cảnh báo: không tải được danh bạ NV: " + e.message + ")"); return { dir: {}, ma: {} }; }
+  } catch (e) {
+    // wshr lỗi → dùng cache CŨ (quá 12h vẫn hơn danh bạ rỗng: rỗng là mọi mã NV mất tên trên dashboard)
+    try {
+      const cu = JSON.parse(fs.readFileSync(CACHE_DB, "utf8")).data || [];
+      const dir = {}, ma = {};
+      for (const s of cu) {
+        const nm = s.staff_name || s.full_name || s.name; if (!nm) continue;
+        const code = s.code != null ? String(s.code) : "";
+        if (code) { dir[code] = nm; ma[code] = code; }
+        if (s.staff_id != null) {
+          if (dir[String(s.staff_id)] == null) dir[String(s.staff_id)] = nm;
+          if (code && ma[String(s.staff_id)] == null) ma[String(s.staff_id)] = code;
+        }
+      }
+      log("  ⚠ Danh bạ NV lỗi (" + e.message + ") — dùng cache cũ " + cu.length + " bản ghi.");
+      return { dir, ma };
+    } catch { /* không có cache */ }
+    log("  (cảnh báo: không tải được danh bạ NV: " + e.message + ")"); return { dir: {}, ma: {} };
+  }
 }
 // Đổi chuỗi mã "23751,38125" -> "Phùng Lê Cao Minh, Mai Lê Hoàng Phi" (mã không tra được -> bỏ, KHÔNG ghi số).
 const tenNVvp = (val, dir) => String(val || "").split(",").map(s => s.trim()).filter(Boolean).map(x => dir[x] || "").filter(Boolean).join(", ");
@@ -199,6 +230,7 @@ async function layBinhLuan(token, byCode, header) {
   if (iLink < 0) return {};
   let cache = {}; try { cache = JSON.parse(fs.readFileSync(CMT_CACHE, "utf8")); } catch {}
   const CMT_TTL_MS = 3 * 24 * 3600 * 1000;   // task ĐÓNG: làm mới bình luận tối đa 3 ngày/lần (bắt bình luận muộn)
+  const CMT_TTL_MO_MS = 30 * 60 * 1000;      // task MỞ: 30' (audit 23/08/2026 — "luôn refresh" là ~72 task × 15 lượt/ngày ≈ 1.080 call vô ích; bình luận 5S không cần tươi hơn nhịp cụm)
   const viec = [];
   for (const [code, r] of byCode.entries()) {
     const m = String(r[iLink] || "").match(/task_id=(\d+)/); if (!m) continue;
@@ -206,8 +238,8 @@ async function layBinhLuan(token, byCode, header) {
     const dong = laTerminal(r[iSt]);                    // dùng chuẩn terminal chung (finished/canceled/cancelled/failed)
     const c = cache[id];
     // Task ĐÓNG đã có cache & còn "tươi" (<3 ngày) -> bỏ qua; quá hạn -> refresh 1 lần để bắt bình luận muộn.
-    // Task ĐANG MỞ -> luôn refresh.
-    if (dong && c && c.taiLuc && (Date.now() - c.taiLuc) < CMT_TTL_MS) continue;
+    // Task ĐANG MỞ -> refresh khi cache quá 30' (trước đây refresh MỌI lượt).
+    if (c && c.taiLuc && (Date.now() - c.taiLuc) < (dong ? CMT_TTL_MS : CMT_TTL_MO_MS)) continue;
     viec.push({ code, id });
   }
   let goi = 0;
@@ -319,8 +351,11 @@ async function xuatMotCuaSo(token, from, to) {
   fd.append("param[search_type]", "board"); fd.append("param[wfid]", WORKFLOW_ID); fd.append("type", "6");
   await fetchRetry(API + "/export", { method: "POST", headers: { authorization: token }, body: fd });
   log("  queue " + from + " → " + to + ", chờ xử lý...");
-  for (let i = 0; i < 100; i++) {   // tối đa ~300s (job export WMS có lúc chậm)
-    await new Promise(r => setTimeout(r, 3000));
+  /* Nhịp TĂNG DẦN 2s→10s (audit 23/08/2026): nhịp 3s cố định nghĩa là 1 job chậm = 100 GET lên wshr.
+     Job nhanh vẫn bắt được ở giây 2-4 như cũ; job chậm thì thưa dần, tổng vẫn phủ ~300s. */
+  let cho = 0;
+  for (let nhip = 2000; cho < 300000; nhip = Math.min(nhip + 1000, 10000)) {
+    await new Promise(r => setTimeout(r, nhip)); cho += nhip;
     const job = (await dsExport(token)).find(r => r.param && r.param.from_date === from && r.param.to_date === to && r.type === 6);
     if (job && job.status === 1 && job.file_path) return job.file_path;
     if (job && job.status === 0 && job.log && job.log.message) throw new Error("Job lỗi: " + job.log.message);

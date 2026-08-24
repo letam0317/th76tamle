@@ -55,21 +55,11 @@ const chayGuard = (force = true) => new Promise((res) => { const c = spawn("cmd.
  * trình con khi lượt task kết thúc (đo 17/08: 4 phút Sheet vẫn trắng, không dòng log nào).
  * Bù lại phải TỰ CHẶN GIỜ: cả bước này ≤ 70 giây để lượt canh luôn xong trước nhịp 2 phút kế
  * tiếp (Task Scheduler bỏ lượt mới nếu lượt cũ còn chạy → mất cả nhịp kiểm cờ login/sync). */
-try {
-  const ra = await new Promise((res) => {
-    const c = spawn(process.execPath, [path.join(DIR, "tra-uid-sheet.mjs"), "--dien", "--loop", "0.8"],
-      { cwd: DIR, stdio: ["ignore", "pipe", "pipe"] });
-    let out = "";
-    const het = setTimeout(() => { try { c.kill(); } catch { /* đã thoát */ } }, 70000);
-    c.stdout.on("data", (d) => { out += d; });
-    c.stderr.on("data", (d) => { out += d; });
-    c.on("exit", () => { clearTimeout(het); res(out); });
-    c.on("error", (e) => { clearTimeout(het); res("lỗi chạy tra-uid-sheet: " + e.message); });
-  });
-  const dong = String(ra).split(/\r?\n/).map((d) => d.trim()).filter((d) => d && !/Dùng lại token/.test(d));
-  if (dong.length) { coViec = true; dong.forEach((d) => log("TRA-UID | " + d)); }
-  else imLang.push("tra UID");
-} catch (e) { log("⚠ tra UID lỗi: " + (e && e.message ? e.message : e)); }
+/* ĐÃ GỠ SPAWN TRA UID (audit 23/08/2026): việc canh Sheet TRA UID đã có task riêng
+ * "5S Tra UID" (Task Scheduler, mỗi 1 phút, --loop) đảm nhiệm — spawn thêm một bản
+ * --loop 0.8 mỗi tick 2' ở đây là CHẠY CHỒNG cùng một việc (khoá file của tra-uid-sheet
+ * chặn được đa số lượt, nhưng lượt lọt qua vẫn nhân đôi số lượt hỏi Sheet/WMS vô ích).
+ * Muốn tra tay 1 lượt: node tra-uid-sheet.mjs --dien */
 
 // 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
 const s = await hoi("syncStatus");

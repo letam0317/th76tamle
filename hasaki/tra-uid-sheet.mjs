@@ -5,7 +5,7 @@
  *                                               (--loop N: ở lại canh N phút, nhịp 3 giây)
  *   node tra-uid-sheet.mjs --tao-script <ID>    đẩy sheet-tra-uid.gs lên script gắn liền file
  *   node tra-uid-sheet.mjs --nap <ID> uids.txt  nạp sẵn danh sách UID vào cột B
- *   node tra-uid-sheet.mjs --doi-bo-cuc <ID>    chuyển bảng cũ (UID ở cột A) sang bố cục mới
+ *   node tra-uid-sheet.mjs --doi-bo-cuc <ID>    xếp lại bảng bị lệch cột về bố cục hiện hành
  *
  * VÌ SAO PHẢI CÓ MÁY TRẠM: WMS chặn IP ngoài mạng công ty → Apps Script gọi thẳng WMS trả
  * "Địa chỉ không khả dụng" (đo 17/08/2026). Script trong Sheet chỉ đánh dấu "⏳ đang tra…",
@@ -42,13 +42,30 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const GHI_NHO = path.join(DIR, ".tra-uid-sheet.json");
 const NGUON_GS = path.join(DIR, "sheet-tra-uid.gs");
 const TAB = "TRA-UID";
-/* BỐ CỤC CỘT (chốt 17/08/2026 theo yêu cầu người dùng):
- *   A Warehouse Name (máy điền + ô báo "⏳ đang tra…") · B UID (nhập) · C Location (nhập tay,
- *   máy KHÔNG BAO GIỜ đè) · D SKU · E Product Name · F Trạng thái · G Vị trí (bin). */
-const HEADER = ["Warehouse Name", "UID", "Location", "SKU", "Product Name", "Trạng thái", "Vị trí (bin)"];
-const I_KHO = 0, I_UID = 1, I_LOC = 2;   // chỉ số trong mảng dòng
+/* BỐ CỤC CỘT (chốt 21/08/2026 — người dùng thêm cột ID ở đầu bảng):
+ *   A ID (nhập tay, máy KHÔNG BAO GIỜ đè) · B UID (nhập) · C Location (nhập tay, máy KHÔNG BAO GIỜ
+ *   đè) · D SKU (kết quả đầu tiên, cũng là ô báo "⏳ đang tra…") · E Product Name · F Trạng thái ·
+ *   G Vị trí (bin) · H Warehouse Name.
+ * ⚠ 18/08/2026: có người chèn 1 cột ở đầu bảng mà 2 tệp code vẫn giữ bố cục cũ ⇒ chốt bố cục ở
+ *   dưới chặn cứng và bộ điền ĐỨNG IM 3.699 lượt (≈2,5 ngày) mà không ai hay. Đổi bố cục bảng thì
+ *   phải sửa CẢ tệp này + sheet-tra-uid.gs (rồi --tao-script để đẩy lại), xong soi tra-uid.log. */
+const HEADER = ["ID", "UID", "Location", "SKU", "Product Name", "Trạng thái", "Vị trí (bin)", "Warehouse Name"];
+const I_ID = 0, I_UID = 1, I_LOC = 2, I_MOC = 3;   // chỉ số trong mảng dòng (I_MOC = ô SKU = ô báo "đang tra")
 const CHO = "⏳ đang tra…";
 const KHONG_THAY = "(không thấy)";
+const LA_UID = /^VN\d{6,}$/i;   // mọi UID của WMS đều là "VN" + chuỗi số (đối chứng mau-500-uid.txt: 500/500)
+
+/* ĐỪNG TIN DÒNG TIÊU ĐỀ — bài học 21/08/2026 (đã mất dữ liệu thật):
+ * Người dùng chèn 1 cột vào đầu bảng rồi TỰ GÕ LẠI tiêu đề "ID | UID | Location", còn dữ liệu bên
+ * dưới vẫn lệch phải 1 ô. Chốt bố cục chỉ so tiêu đề nên PASS, lượt điền đọc TÊN KHO ở cột B như
+ * thể là UID, WMS không thấy → ghi "(không thấy)" đè lên 639 dòng SKU/tên/trạng thái/bin.
+ * ⇒ phải soi CHÍNH DỮ LIỆU: mã VN… phải ở cột B (không phải C), tên kho (có " - ") phải ở cột H. */
+function lechCot(dong) {
+  const b = dong.slice(1);
+  const demUid = (i) => b.filter((d) => LA_UID.test(String(d[i] || "").trim())).length;
+  const demKho = (i) => b.filter((d) => String(d[i] || "").includes(" - ")).length;
+  return demUid(I_LOC) > demUid(I_UID) || demKho(I_UID) > demKho(HEADER.length - 1);
+}
 const KEY = process.env.APPSCRIPT_KEY;
 
 const argv = process.argv.slice(2);
@@ -93,7 +110,7 @@ async function tokenWms(epMoi = false) {
  * CẬP NHẬT TRỄ hàng chục giây sau khi ô đổi → vòng canh ngủ tiếp, end-to-end vọt lên 55–62 giây. */
 async function demCho(id) {
   const at = await tokenClasp();
-  const tq = "select count(B) where B is not null and (A is null or A starts with '⏳')";
+  const tq = "select count(B) where B is not null and (D is null or D starts with '⏳')";
   const r = await fetch("https://docs.google.com/spreadsheets/d/" + id +
     "/gviz/tq?tqx=out:json&headers=1&sheet=" + encodeURIComponent(TAB) + "&tq=" + encodeURIComponent(tq),
     { headers: { authorization: "Bearer " + at } });
@@ -161,22 +178,36 @@ async function motLuot() {
   /* Drive export CSV chỉ trả TAB ĐẦU TIÊN. Nếu ai đó kéo tab khác lên đầu thì ta sẽ đọc nhầm bảng
      rồi ghi đè lên tab TRA-UID → dừng ngay, đừng đoán. */
   const th = (dong[0] || []).map((x) => String(x || "").trim());
-  if (th[I_KHO] !== HEADER[I_KHO] || th[I_UID] !== HEADER[I_UID]) {
-    throw new Error("bảng đọc được không đúng bố cục cột (thấy: " + th.slice(0, 3).join(" | ") + ") — cần " + HEADER.slice(0, 3).join(" | ") + ".");
+  /* Ô tiêu đề RỖNG thì ĐỪNG kết luận sai: gviz suy kiểu cột từ dữ liệu, cột toàn số (như SKU) trả
+     ô tiêu đề = "" dù trong Sheet vẫn ghi "SKU" (đo 21/08/2026). Chốt cứng "phải khớp cả 3" từng
+     làm bộ điền đứng im 2,5 ngày, nên nay: chỉ chặn khi có ô tiêu đề ghi KHÁC (dấu hiệu đọc nhầm
+     tab), và phải còn ít nhất 1 ô khớp. Bố cục lệch đã có lechCot() canh bằng chính dữ liệu. */
+  const oSai = [I_ID, I_UID, I_LOC].filter((i) => th[i] && th[i] !== HEADER[i]);
+  const oKhop = [I_ID, I_UID, I_LOC].filter((i) => th[i] === HEADER[i]);
+  if (oSai.length || !oKhop.length) {
+    throw new Error("bảng đọc được không đúng bố cục cột (thấy: " + th.slice(0, 3).join(" | ") + ") — cần " +
+      HEADER.slice(0, 3).join(" | ") + ". Bảng vừa thêm/bớt cột? chạy: node tra-uid-sheet.mjs --doi-bo-cuc <SHEET_ID>");
+  }
+  if (lechCot(dong)) {
+    throw new Error("bảng LỆCH CỘT: mã UID đang ở cột C và/hoặc tên kho ở cột B (tiêu đề đúng nhưng dữ liệu lệch, " +
+      "thường do vừa chèn/xoá cột). KHÔNG ghi gì để không xoá mất dữ liệu; chạy: node tra-uid-sheet.mjs --doi-bo-cuc <SHEET_ID>");
   }
   const than = dong.slice(1).map((d) => {
     const r = [];
     for (let i = 0; i < HEADER.length; i++) r.push(String(d[i] == null ? "" : d[i]).trim());
     return r;
   });
-  // dòng cần tra: có UID (cột B) và cột A còn trống | đang chờ | là câu báo lỗi cũ
+  // dòng cần tra: có UID (cột B) và ô mốc (cột D = SKU) còn trống | đang chờ | là câu báo lỗi cũ
   const canTra = [];
   for (const r of than) {
     const uid = r[I_UID].replace(/\s+/g, "").toUpperCase();
     if (!uid) continue;
-    const kho = r[I_KHO];
-    if (kho === KHONG_THAY) continue;           // đã tra rồi, thật sự không có → đừng hỏi lại mãi
-    if (kho && kho !== CHO && !kho.startsWith("(")) continue;
+    /* Ô UID chứa thứ khác (tên kho, ghi chú, tiêu đề dán lẫn…) → KHÔNG hỏi WMS. Bản cũ hỏi tất, nên
+       một lần lệch cột là 9 lượt gọi WMS vô ích + 639 dòng bị đóng dấu "(không thấy)". */
+    if (!LA_UID.test(uid)) continue;
+    const moc = r[I_MOC];
+    if (moc === KHONG_THAY) continue;           // đã tra rồi, thật sự không có → đừng hỏi lại mãi
+    if (moc && moc !== CHO && !moc.startsWith("(")) continue;
     if (!canTra.includes(uid)) canTra.push(uid);
   }
   if (!canTra.length) return { cho: 0 };
@@ -203,13 +234,20 @@ async function motLuot() {
   const chuaHoiDuoc = new Set(thatBai);   // để nguyên ô, KHÔNG đóng dấu "(không thấy)"
 
   const rows = than.map((r) => {
+    const id = r[I_ID] || "";                   // cột A: nhập tay → luôn giữ
     const loc = r[I_LOC] || "";                 // cột C: nhập tay → luôn giữ
     const uid = r[I_UID].replace(/\s+/g, "").toUpperCase();
-    if (!uid) return ["", "", loc, "", "", "", ""];
+    /* DÒNG KHÔNG CÓ UID → GIỮ NGUYÊN. Bản cũ xoá trắng (chỉ chừa Location) vì bảng ngày ấy chỉ có
+       dòng tra UID; nay bảng còn hàng trăm dòng người dùng DÁN TAY từ báo cáo WMS (có SKU/kho mà
+       không có UID) — xoá trắng là nuốt sạch dữ liệu của họ. */
+    if (!uid || !LA_UID.test(uid)) return r;
     const k = map[uid];
-    if (k) return [k.kho, r[I_UID], loc, k.sku, k.ten, k.tt, k.vt];
-    if (chuaHoiDuoc.has(uid)) return ["", r[I_UID], loc, "", "", "", ""];   // chưa hỏi được → để trống, lượt sau tra lại
-    if (canTra.includes(uid)) return [KHONG_THAY, r[I_UID], loc, "", "", "", ""];
+    if (k) return [id, r[I_UID], loc, k.sku, k.ten, k.tt, k.vt, k.kho];
+    /* CHƯA HỎI ĐƯỢC WMS (401/500) → GIỮ NGUYÊN CẢ DÒNG, đừng xoá. Bản cũ xoá trắng D..H để lượt
+       sau tra lại; với bảng có dữ liệu dán tay thì một cú 500 của WMS là mất dữ liệu thật. Ô mốc
+       vẫn đang là "⏳" (hoặc trống) nên lượt sau tự tra lại. */
+    if (chuaHoiDuoc.has(uid)) return r;
+    if (canTra.includes(uid)) return [id, r[I_UID], loc, KHONG_THAY, "", "", "", ""];
     return r;                                   // dòng đã có kết quả từ trước: giữ nguyên
   });
   const tGhi = Date.now();
@@ -268,25 +306,32 @@ if (argv.includes("--nap")) {
     rows: uids.map((u) => HEADER.map((_, i) => (i === I_UID ? u : ""))) }, () => {}, "nạp UID");
   if (!kq || kq.status !== "success") { console.error("✗ " + JSON.stringify(kq).slice(0, 300)); process.exit(2); }
   nho.sheetId = sheetId; luuNho();
-  console.log("✓ đã nạp " + uids.length + " UID vào cột A.");
+  console.log("✓ đã nạp " + uids.length + " UID vào cột B.");
 }
 
-/* ---------- chuyển bảng CŨ (A=UID, B=SKU, C=Product, D=Warehouse, E=Trạng thái, F=Vị trí,
-   G=Mã thùng) sang bố cục MỚI. Chạy 1 lần khi đổi bố cục, sau đó không cần nữa. ---------- */
+/* ---------- ĐƯA BẢNG BỊ LỆCH CỘT VỀ BỐ CỤC MỚI (chạy 1 lần, 21/08/2026) ----------
+   Bảng đang ở bố cục 17/08 BỊ ĐẨY PHẢI 1 Ô vì có người chèn cột ID vào đầu:
+     A ID(mới) · B Warehouse · C UID · D Location · E SKU · F Product · G Trạng thái · H Vị trí
+   ⇒ xếp lại thành: A ID · B UID · C Location · D SKU · E Product · F Trạng thái · G Vị trí · H Warehouse.
+   Ô "(không thấy)" đang nằm ở cột kho được dời về ô mốc (D) cho đúng nghĩa. ---------- */
 if (argv.includes("--doi-bo-cuc")) {
   if (!sheetId || !KEY) { console.error("Thiếu SHEET_ID hoặc APPSCRIPT_KEY"); process.exit(1); }
   const dong = await docSheet(sheetId);
   const th = (dong[0] || []).map((x) => String(x || "").trim());
-  if (th[0] === HEADER[0]) { console.log("… bảng đã ở bố cục mới, không đổi gì."); }
-  else {
+  if (!lechCot(dong) && th[I_ID] === HEADER[I_ID] && th[I_UID] === HEADER[I_UID] && th[I_LOC] === HEADER[I_LOC]) {
+    console.log("… bảng đã ở bố cục mới, không đổi gì.");
+  } else {
     const rows = dong.slice(1).map((d) => {
       const g = (i) => String(d[i] == null ? "" : d[i]).trim();
-      return [g(3), g(0), g(6), g(1), g(2), g(4), g(5)];   // kho, uid, location(cũ: mã thùng), sku, tên, tt, vị trí
+      const kho = g(1), sku = g(4), khongThay = kho === KHONG_THAY;
+      return [g(0), g(2), g(3), khongThay && !sku ? KHONG_THAY : sku, g(5), g(6), g(7), khongThay ? "" : kho];
     }).filter((r) => r.some((x) => x));
     if (!rows.length) { console.error("✗ bảng cũ không có dòng nào"); process.exit(2); }
+    const coUid = rows.filter((r) => r[I_UID]).length;
+    console.log("… xếp lại " + rows.length + " dòng (" + coUid + " dòng có UID) — mẫu dòng đầu: " + JSON.stringify(rows[0]));
     const kq = await gasPost({ action: "syncTasks", key: KEY, sheetId, tab: TAB, header: HEADER, rows }, () => {}, "đổi bố cục");
     if (!kq || kq.status !== "success") { console.error("✗ " + JSON.stringify(kq).slice(0, 300)); process.exit(2); }
-    console.log("✓ đã chuyển " + rows.length + " dòng sang bố cục mới (Warehouse · UID · Location · SKU · Product · Trạng thái · Vị trí).");
+    console.log("✓ đã chuyển " + rows.length + " dòng sang bố cục mới (" + HEADER.join(" · ") + ").");
   }
 }
 
@@ -314,7 +359,10 @@ if (argv.includes("--dien")) {
        chặn lượt mới. */
   const phut = Number(lay("--loop") || 0);
   const hetLuc = Date.now() + phut * 60000;
-  const NHIP_MS = 3000;
+  /* 10s thay 3s (audit 23/08/2026): nhịp 3s × 51s/lượt × task mỗi phút ≈ 24.000 lượt hỏi/ngày cho
+     một bảng thường TRỐNG. 10s vẫn đủ "gõ UID thấy kết quả trong ~10-15s" — người tra chấp nhận
+     được, còn tải nền giảm 3,3×. */
+  const NHIP_MS = 10000;
   for (;;) {
     let kq = null;
     try { kq = await motLuot(); }

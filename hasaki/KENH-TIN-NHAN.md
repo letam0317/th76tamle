@@ -1,7 +1,9 @@
 # KÊNH RA LỆNH BẰNG TIN NHẮN — 2 dự án, điều khiển từ điện thoại
 
 > Dựng 19/08/2026. Công cụ: `hasaki/tin-nhan-bot.mjs` · lịch `5S Kenh tin nhan` (mỗi 2') ·
-> log `tin-nhan.log`. Trạng thái: **code xong, chạy được, đang chờ token bot** (§2).
+> log `tin-nhan.log`. Trạng thái: **ĐANG CHẠY từ 23/08/2026** — token + `chat_id` nằm trong
+> `.env` (gitignore), ghép nối bằng §2. Kênh này cũng là **đường cảnh báo duy nhất** của
+> `canh-suc-khoe.js` từ khi thư email tắt (`CANH_GUI_THU=0`) — xem §10.
 
 Nhắn cho bot → máy trạm chạy đúng script → nhắn lại kết quả. Phủ cả **dự án 5S**
 (`kiemsoatkho`: task 5S, chấm công, đẩy báo cáo) lẫn **dự án Factory** (`stocklocationfactory`:
@@ -172,3 +174,20 @@ TIN_NHAN_IN_RA=1 node tin-nhan-bot.mjs --cb "nop:k:<nonce>" # thử nhánh bấm
   báo lỗi**. Bot spawn `node` thẳng, tự gom stdout/stderr trong bộ nhớ.
 - **Git Bash nuốt dấu `/`**: gõ `--lenh /giupdo` trong Git Bash bị đổi thành `C:/Program Files/…`.
   Trong Telegram thì không sao; thử trên máy thì gõ `--lenh giupdo` (bot chấp nhận cả hai dạng).
+
+## 10. Chiều ngược lại: bot TỰ BÁO tình hình (không cần hỏi)
+
+Kênh không chỉ để ra lệnh. `canh-suc-khoe.js` (chạy kèm watchdog `sync-guard`, **mỗi giờ 7–18h**)
+gọi `baoTelegram()` ở cuối mỗi lượt soát:
+
+| | |
+|---|---|
+| Hỏng | `⛔ Máy trạm 5S: n hạng mục cần người xử lý` + tóm tắt (bước đứng · cầu dao ngắt · cầu nối chết · dữ liệu trễ trong ngày) |
+| Nhắc lại | tối đa **12h/lần** — hỏng dai không biến chat thành chuông báo thức |
+| Lành | `✅ … bình thường trở lại`, gửi **một lần** rồi thôi |
+| Im lặng | ngoài 7–18h và **Chủ nhật**: dữ liệu cũ lúc đó là cố ý, báo là báo giả (dạy người ta bỏ qua cảnh báo thật) |
+| Chưa có token | bỏ qua êm, không lỗi |
+
+Vì `CANH_GUI_THU=0` (thư email tắt từ 15/08/2026), **đây là đường cảnh báo duy nhất còn sống**:
+tắt token bot = cả hệ mất tai nghe, chỉ còn log nằm im trên đĩa. Muốn xem hiện trạng bất cứ lúc
+nào mà không đợi báo: nhắn `/trangthai`, hoặc trên máy `node canh-suc-khoe.js --xem`.

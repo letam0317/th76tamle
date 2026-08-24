@@ -222,6 +222,21 @@ async function gasGoiText_(url, init, log = () => {}, nhan = "GAS") {
   throw loiCuoi || new Error(nhan + ": không lấy được phản hồi");
 }
 
+/* ĐƯỜNG GHI DỰ PHÒNG (audit 23/08/2026): cả pipeline ghi Sheet dồn vào MỘT deployment /exec —
+ * deployment hỏng (redeploy trượt, Google treo bản đó) là mất hết đường ghi. APPSCRIPT_URL_DUPHONG
+ * (khai trong .env, trỏ một DEPLOYMENT THỨ HAI của CÙNG project GAS) là đường lùi: URL chính hết
+ * mọi vòng thử mới chuyển — cùng project nên Script Properties + nonce-cache dùng chung, thử lại
+ * qua URL phụ không ghi trùng. Chưa khai thì hành vi y như cũ. */
+const APPSCRIPT_URL_DUPHONG = process.env.APPSCRIPT_URL_DUPHONG || "";
+async function gasGoiTextDuPhong_(duongDan, init, log, nhan) {
+  try { return await gasGoiText_(duongDan(APPSCRIPT_URL), init, log, nhan); }
+  catch (e) {
+    if (!APPSCRIPT_URL_DUPHONG) throw e;
+    log("  ⚠ " + nhan + ": URL chính chịu thua (" + (e && e.message || e) + ") — thử URL dự phòng…");
+    return gasGoiText_(duongDan(APPSCRIPT_URL_DUPHONG), init, log, nhan + " (dự phòng)");
+  }
+}
+
 /** POST lên GAS → trả object JSON. body: chuỗi JSON hoặc object. Tự chèn nonce để thử lại an toàn. */
 export async function gasPost(body, log = () => {}, nhan = "GAS POST") {
   let chuoi = typeof body === "string" ? body : JSON.stringify(body);
@@ -229,17 +244,22 @@ export async function gasPost(body, log = () => {}, nhan = "GAS POST") {
     const o = JSON.parse(chuoi);
     if (o && typeof o === "object" && !o.nonce) { o.nonce = crypto.randomUUID(); chuoi = JSON.stringify(o); }
   } catch { /* body không phải JSON → gửi y nguyên, chỉ mất lợi thế nonce */ }
-  const txt = await gasGoiText_(APPSCRIPT_URL, {
+  const txt = await gasGoiTextDuPhong_((url) => url, {
     method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: chuoi,
   }, log, nhan);
   try { return JSON.parse(txt); }
   catch { throw new Error(nhan + ": phản hồi không phải JSON: " + txt.slice(0, 80).replace(/\s+/g, " ")); }
 }
 
-/** GET GAS (action đọc — JSONP hoặc JSON) → trả TEXT. query: "action=readTab&tab=…" */
+/** GET GAS (action đọc — JSONP hoặc JSON) → trả TEXT. query: "action=readTab&tab=…"
+ *  KHOÁ THIẾT BỊ (audit 23/08/2026): khi GAS bật siết readTab, máy trạm cũng phải trình khoá —
+ *  khai `DEVICE_KEY=<khoá>` trong .env (SECRET cố ý KHÔNG đi trong query để khỏi lọt access-log,
+ *  còn khoá thiết bị là bí mật hạng nhẹ, xoay được, chấp nhận nằm query). Chưa khai = như cũ. */
 export async function gasGetText(query, log = () => {}, nhan = "GAS GET") {
-  const url = APPSCRIPT_URL + (query.startsWith("?") ? query : "?" + query);
-  return gasGoiText_(url, { method: "GET" }, log, nhan);
+  let duoi = query.startsWith("?") ? query : "?" + query;
+  const tb = process.env.DEVICE_KEY || "";
+  if (tb && duoi.indexOf("tb=") < 0) duoi += "&tb=" + encodeURIComponent(tb);
+  return gasGoiTextDuPhong_((url) => url + duoi, { method: "GET" }, log, nhan);
 }
 
 /* "5s" thêm 31/07/2026: bộ 5S trước đây đứng NGOÀI cơ chế mốc-bước, nên lượt 8h40 trượt là
@@ -307,9 +327,26 @@ export function trongKhungAnToan(d = new Date()) {
 
 /** Luật 2 gộp override: EP_RELOGIN=1 thì luôn cho phép. */
 export function duocPhepReLogin(d = new Date()) {
+  if (camTuDangNhap()) return false;                                   // chốt cứng thắng cả EP_RELOGIN
   if (String(process.env.EP_RELOGIN || "") === "1") return true;
   return trongKhungAnToan(d);
 }
+
+/* ══════════ CHỐT CỨNG: CẤM MÁY TỰ TẠO PHIÊN (23/08/2026) ══════════
+ * VÌ SAO: tài khoản `tamlc@hasaki.vn` dùng chung, mà WMS chỉ cho 1 phiên/tài khoản ⇒ mỗi lần
+ * MÁY tạo phiên mới là ĐÁ người thật đang làm. Các cửa kiểm cũ đều chặn ở nước SAU:
+ *   • `LOGIN_OTP_TAY=1` chặn ở bước gõ OTP — nhưng cú "bấm SSO" đứng TRƯỚC đó, và nếu cookie IdP
+ *     trong profile bot còn sống thì vòng SSO tự xong, mint phiên mới, không bao giờ chạm tới OTP
+ *     để cửa kia kịp chặn.
+ *   • Luật khung giờ / luật phiên có ngoại lệ (`EP_RELOGIN=1`, "không ai để đá" → cho login).
+ * Chốt này đứng TRƯỚC mọi ngoại lệ: bật `CAM_TU_DANG_NHAP=1` là máy MẤT HẲN khả năng tự tạo
+ * phiên — chỉ còn xài token bridge (phiên trình duyệt của người) hoặc token trong kho; hết cả hai
+ * thì hoãn (exit 75) và báo qua Telegram, chứ không tự đi đăng nhập.
+ * KHÔNG chặn: lượt CÓ NGƯỜI TRONG VÒNG LẶP (người bấm nút trong email, `/dangnhap` qua chat rồi
+ * tự đọc 6 số từ app) — đó là người chủ động chọn đá phiên của chính mình.
+ * Chạy tay một lượt vẫn cần SSO im lặng (vd `pc-whcode-template.mjs`): đặt `CAM_TU_DANG_NHAP=0`
+ * cho ĐÚNG lệnh đó, đừng sửa `.env`. */
+export const camTuDangNhap = () => String(process.env.CAM_TU_DANG_NHAP || "") === "1";
 
 /* Bộ nhớ tạm cho cửa kiểm SYNC: `chanReLoginNgoaiKhung` được gọi ngay trước cú bấm SSO, đôi khi
  * trong vòng lặp puppeteer mỗi vài giây — không thể gọi mạng ở đó. `trangThaiPhien` (chạy trước,
@@ -328,6 +365,12 @@ const VERDICT_HAN_MS = 3 * 60 * 1000;   // kết luận cũ hơn 3' coi như kh�
  *    còn mù cổng work/hr, nới ra là tự mở đường đá phiên.
  */
 export function chanReLoginNgoaiKhung(log = () => {}, DIR = _dirCuoi) {
+  /* Chốt cứng đứng TRƯỚC cả EP_RELOGIN: đây là điểm duy nhất mọi bộ sync đi qua trước khi bấm
+     SSO, nên chặn ở đây là chặn hết đường máy tự mint phiên WMS. */
+  if (camTuDangNhap()) {
+    log("  ⛔ CẤM TỰ ĐĂNG NHẬP (CAM_TU_DANG_NHAP=1) — không bấm SSO, không tạo phiên mới. Chờ token bridge/kho.");
+    throw new DeferError("Cấm tự đăng nhập (CAM_TU_DANG_NHAP=1): chỉ dùng token bridge/kho, không đá phiên ai.");
+  }
   if (String(process.env.EP_RELOGIN || "") === "1") return;
 
   if (DIR && kenhWshrDaChungThuc(DIR)) {

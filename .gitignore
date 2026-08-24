@@ -41,3 +41,34 @@ _backup*/
 
 # Repo Pages doc lap (nested git) — khong theo doi trong repo ngoai
 factory/
+
+# Cau noi WMS da ghim: goi .crx + KHOA RIENG .pem (danh tinh extension) + update.xml — KHONG commit
+factory/wms-bridge-ghim/
+
+# Ket qua tra UID/SKU xuat ra (du lieu ton kho that) — khong commit
+hasaki/ket-qua-*.csv
+hasaki/mau-*-uid.txt
+
+# So cua bo CO CHO may tram (CO-CHO-MAY-TRAM.md) - trang thai rieng cua tung may
+hasaki/.co-cho.json
+hasaki/.co-cho-mayin.txt
+hasaki/.co-cho-mayin-mac.txt
+hasaki/.co-cho-nguon.txt
+hasaki/.co-cho-wol.txt
+hasaki/.co-cho-mcloi.txt
+hasaki/.agent-may-in.txt
+hasaki/_co-cho-may-in.log
+
+# Goi mang sang may in (108 MB, dung lai bang: node hasaki/TAO-GOI-MAY-IN.mjs)
+hasaki/_GOI-MAY-IN/
+
+# Tai lieu audit/rollout chua BI MAT (mat khau, lo hong chi tiet) — repo PUBLIC, KHONG commit
+hasaki/AUDIT-TOAN-DIEN-*.txt
+hasaki/ROLLOUT-AUDIT-*.md
+
+# Bao cao tai upstream (so lieu van hanh noi bo) — repo PUBLIC, KHONG commit
+hasaki/TAI-UPSTREAM-*.md
+
+# File nho trang thai chay (memo endpoint/co trang) — khong phai ma nguon
+hasaki/.tbt-endpoint.json
+hasaki/.sku-master-gviz.json

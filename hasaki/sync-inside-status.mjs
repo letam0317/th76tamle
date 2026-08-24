@@ -7,7 +7,8 @@
  *
  *  ── 2 LỚP AUTH (đo 22/08/2026) ──────────────────────────────────────────────────────────────
  *  ① HTTP DIGEST ngoài: realm "inside.hasaki.vn" — user `inside.hasaki.vn` / pass ở INSIDE_DIGEST_PASS
- *     (mặc định sbd4Jnws7l). page.authenticate lo.
+ *     (BẮT BUỘC khai trong .env — không có mặc định; giá trị cũ đã lộ ra repo public 23/08,
+ *     xem TAI-UPSTREAM/ROLLOUT). page.authenticate lo.
  *  ② Hasaki SSO (OIDC app_code=inside): app Laravel, phiên = cookie laravel_session. MỖI trình duyệt
  *     phải vào /sso/login TRƯỚC (cưỡi phiên IdP trong profile bot) để lập phiên app, rồi mới đọc
  *     /sales/product. Phiên IdP do login-hasaki tạo (1 OTP phủ ~48h) — hết thì chạy lại login-hasaki.
@@ -41,7 +42,10 @@ const SHEET_FACTORY = "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
 const TAB = "INSIDE-STATUS";
 const APPSCRIPT_KEY = process.env.APPSCRIPT_KEY;
 const DIGEST_USER = process.env.INSIDE_DIGEST_USER || "inside.hasaki.vn";
-const DIGEST_PASS = process.env.INSIDE_DIGEST_PASS || "sbd4Jnws7l";
+/* KHÔNG fallback cứng (audit 23/08/2026): mật khẩu Digest phải nằm trong .env (INSIDE_DIGEST_PASS)
+ * — repo này PUBLIC, hardcode ở đây là công bố mật khẩu nội bộ lên Internet. */
+const DIGEST_PASS = process.env.INSIDE_DIGEST_PASS || "";
+if (!DIGEST_PASS) { console.error("✗ Thiếu INSIDE_DIGEST_PASS trong .env (đã gỡ fallback cứng khỏi repo public)."); process.exit(3); }
 const DRY = process.argv.includes("--dry");
 const _iMT = process.argv.indexOf("--max-trang");
 const MAX_TRANG = _iMT >= 0 ? (Number(process.argv[_iMT + 1]) || 80) : 80;
