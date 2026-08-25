@@ -99,16 +99,22 @@ const TRANG = [
          Kết quả dựng bằng dữ liệu GIẢ 4 dòng (có vị trí trùng để ra nút + badge "kiểm cũ", có dòng
          chưa đếm, có tên hàng dài) — không phụ thuộc tab Sheet kiemke-qtycount đã có dữ liệu hay chưa. */
       { ten: "Kiểm kê › tra SL đếm theo SKU",
+        /* cid GIẢ 9999xxxx (không trùng phiếu thật) + tiêm UIDGR.map giả cho 2 dòng lệch — đo được
+           cả dòng phụ "UIDgr … · HT → đếm" (25/08 chiều); dong TRẢ LẠI map cũ để các màn sau dùng data thật. */
         mo: "() => { showTab('kk'); if(typeof qtcVe!=='function') return false; " +
             "document.getElementById('qtcSku').value='422302174'; QTC.sku='422302174'; QTC.taCa=true; " +
+            "window.__qcUgLuu={map:UIDGR.map,err:UIDGR.err}; UIDGR.err=false; UIDGR.map=Object.assign({},UIDGR.map||{}); " +
+            "UIDGR.map['99990001']=[{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000006',gst:'Available',qu:91400,qs:83200},{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000007',gst:'Not found',qu:'',qs:9200}]; " +
+            "UIDGR.map['99990004']=[{cid:'99990004',tid:'2',sku:'422302174',uid:'1028251229000008',gst:'New',qu:700,qs:''}]; " +
             "QTC.kq={err:false,rows:[" +
-            "{cid:'803894',req:'252161',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',cnt:3800,inv:4800,diff:-1000,lst:'Counted',st:'WAITING FOR APPROVE',by:'lyntd@hasaki.vn',cdate:'2026-08-23 10:57:56',upd:'2026-08-23 12:50:51'}," +
-            "{cid:'801111',req:'252000',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-503-03-04-01',sku:'422302174',pn:'',cnt:12500,inv:12500,diff:0,lst:'Counted',st:'APPROVED',by:'yhtn1@hasaki.vn',cdate:'2026-08-19 09:12:00',upd:'2026-08-19 10:00:00'}," +
-            "{cid:'799222',req:'251900',wh:'WH - MATERIAL - GARMENT',loc:'F00-KHO-101-01-01-01',sku:'422302174',pn:'',cnt:null,inv:600,diff:null,lst:'Not counted',st:'PENDING',by:'',cdate:'',upd:'2026-08-12 15:00:00'}," +
-            "{cid:'798000',req:'251800',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'',cnt:3650,inv:3650,diff:0,lst:'Counted',st:'APPROVED',by:'lyntd@hasaki.vn',cdate:'2026-08-10 08:30:00',upd:'2026-08-10 09:00:00'}]}; " +
+            "{cid:'99990001',req:'252161',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',cnt:3800,inv:4800,diff:-1000,lst:'Counted',st:'WAITING FOR APPROVE',by:'lyntd@hasaki.vn',cdate:'2026-08-23 10:57:56',upd:'2026-08-23 12:50:51'}," +
+            "{cid:'99990002',req:'252000',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-503-03-04-01',sku:'422302174',pn:'',cnt:12500,inv:12500,diff:0,lst:'Counted',st:'APPROVED',by:'yhtn1@hasaki.vn',cdate:'2026-08-19 09:12:00',upd:'2026-08-19 10:00:00'}," +
+            "{cid:'99990003',req:'251900',wh:'WH - MATERIAL - GARMENT',loc:'F00-KHO-101-01-01-01',sku:'422302174',pn:'',cnt:null,inv:600,diff:null,lst:'Not counted',st:'PENDING',by:'',cdate:'',upd:'2026-08-12 15:00:00'}," +
+            "{cid:'99990004',req:'251800',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'',cnt:3650,inv:3650,diff:0,lst:'Counted',st:'APPROVED',by:'lyntd@hasaki.vn',cdate:'2026-08-10 08:30:00',upd:'2026-08-10 09:00:00'}]}; " +
             "qtcVe(); return true; }",
-        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtctbl tbody tr').length >= 4 && !!document.querySelector('#qtcKq .qtcsum')",
-        dong: "() => { try{ QTC.kq=null; QTC.taCa=false; document.getElementById('qtcKq').innerHTML=''; document.getElementById('qtcSku').value=''; }catch(e){} }" },
+        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtctbl tbody tr').length >= 5 && !!document.querySelector('#qtcKq .qtcsum') && !!document.querySelector('#qtcKq tr.qtcug')",
+        dong: "() => { try{ QTC.kq=null; QTC.taCa=false; document.getElementById('qtcKq').innerHTML=''; document.getElementById('qtcSku').value=''; " +
+              "if(window.__qcUgLuu){ UIDGR.map=window.__qcUgLuu.map; UIDGR.err=window.__qcUgLuu.err; delete window.__qcUgLuu; } }catch(e){} }" },
       /* Pop-up camera quét mã: headless không có camera thật nên chỉ mở VỎ pop-up (video đen) —
          đủ để đo bố cục khung, nút đóng ≥44px, hint kẹp dòng. */
       { ten: "Kiểm kê › pop-up quét mã SKU", cho: "#qtcqrmodal.show",
