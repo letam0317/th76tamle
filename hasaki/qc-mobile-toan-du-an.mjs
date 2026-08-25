@@ -122,6 +122,12 @@ const TRANG = [
             "plgMoModal('qtcqrmodal'); document.getElementById('qtcQrHint').textContent='Đưa mã vạch / QR vào khung — bắt được là tự điền ô SKU và tra luôn.'; return true; }",
         sanSangMan: "() => !!document.querySelector('#qtcqrmodal.show #qtcVideo')",
         dong: "() => { try{ qtcQuetDong(); }catch(e){} }" },
+      /* Pop-up hiển thị mã QR (SKU/Vị trí/UIDgr) — thêm 25/08/2026 */
+      { ten: "Kiểm kê › pop-up hiển thị mã QR", cho: "#qtcshowqrmodal.show",
+        mo: "() => { showTab('kk'); if(typeof qtcQrPop!=='function'||!document.getElementById('qtcshowqrmodal')) return false; " +
+            "qtcQrPop('422423805','SKU'); return true; }",
+        sanSangMan: "() => !!document.querySelector('#qtcshowqrmodal.show #qtcShowQrSvg svg') && !!document.querySelector('#qtcshowqrmodal.show #qtcShowQrVal')",
+        dong: "() => { try{ qtcQrPopDong(); }catch(e){} }" },
       { ten: "Tồn kho bất thường", mo: "() => { showTab('abn'); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#viewAbn .abntile .k')].some(x => /\\d/.test(x.textContent))" },
       { ten: "Planogram", mo: "() => { showTab('plg'); return true; }",
