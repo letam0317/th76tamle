@@ -52,7 +52,10 @@ const URL_TRANG = LIVE ? "https://letam0317.github.io/stocklocationfactory/"
  *   · nội dung của chính tooltip (.h2tip) — nó vốn là văn, nằm trong attribute lúc ẩn */
 function doVanXuoi() {
   const trong = (el) => el.closest("td,th,tr,.pn,.pn2,.h2tip,select,textarea,label") !== null;
-  const laTrangThai = (t) => /đang tải|đang đồng bộ|chưa có dữ liệu|không có dữ liệu|không tải được|chưa có tab|lỗi|thử lại|hiển thị \d/i.test(t);
+  /* 24/08/2026: thêm "còn thiếu" — dòng #cdState của tab Chuyển đổi cân kể tên ô CHƯA NHẬP, đúng
+     loại thông báo trạng thái mà miễn trừ này nói tới (chỉ hiện khi số liệu chưa đủ). Nó đã báo
+     đỏ từ bản đang phát chứ không phải lỗi mới — mà một ca đỏ vĩnh viễn thì chẳng ai còn đọc. */
+  const laTrangThai = (t) => /đang tải|đang đồng bộ|chưa có dữ liệu|không có dữ liệu|không tải được|chưa có tab|còn thiếu|lỗi|thử lại|hiển thị \d/i.test(t);
   const nhieuSo = (t) => (t.replace(/[^0-9.,%/·\s-]/g, "").length / t.length) > 0.6;
   const hien = (el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0;
   const vung = [...document.querySelectorAll("[id^=view],[id^=pane-]")].filter((x) => hien(x));
@@ -137,7 +140,10 @@ kiem("Header KHÔNG còn nút chú thích (chú thích của số liệu ≠ ch�
 
 const MUC = [
   { tab: "stock", key: "stock", neo: "#viewStock .card .h2tip", ten: 'thẻ "SKU còn cần lên kệ"' },
-  { tab: "kk", key: "kk", neo: "#viewKK h2 .h2tip", ten: 'tiêu đề "Kiểm kê theo SKU"' },
+  /* 25/08/2026: panel "Tra cứu SL đếm theo SKU" đứng ĐẦU viewKK → neo tab kk phải né .qtcpanel
+     (querySelector lấy nút ĐẦU TIÊN trong DOM — không né là so tip qtc với TIP.kk, fail giả). */
+  { tab: "kk", key: "kk", neo: "#viewKK .panel:not(.qtcpanel) h2 .h2tip", ten: 'tiêu đề "Kiểm kê theo SKU"' },
+  { tab: "kk", key: "qtc", neo: "#viewKK .qtcpanel h2 .h2tip", ten: 'tiêu đề "Tra cứu SL đếm theo SKU"' },
   { tab: "abn", key: "abn", neo: "#viewAbn .abntile .h2tip", ten: 'thẻ "SKU bất thường"' },
   { tab: "cd", key: "cd", neo: "#viewCd h2 .h2tip", ten: 'tiêu đề "1 · Số liệu cân"' },
 ];

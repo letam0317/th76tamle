@@ -95,6 +95,27 @@ const TRANG = [
            thanh còn ngắn ⇒ tab báo ĐẠT trong khi cùng thanh đó bị pop-up bắt là 215px/5 hàng. Cùng
            một thanh mà hai kết luận trái nhau thì lỗi ở điều kiện chờ, không ở thanh. */
         sanSangMan: "() => [...document.querySelectorAll('#viewKK .kkstrip .ks .v')].some(x => /\\d/.test(x.textContent)) && document.querySelectorAll('#kkFilters .fld').length > 0 && document.querySelectorAll('#kkWhBar .kktab').length > 0" },
+      /* MỤC "TRA CỨU SL ĐẾM THEO SKU" — thêm 25/08/2026 cùng lúc thêm panel (luật: màn mới = vào bộ đo).
+         Kết quả dựng bằng dữ liệu GIẢ 4 dòng (có vị trí trùng để ra nút + badge "kiểm cũ", có dòng
+         chưa đếm, có tên hàng dài) — không phụ thuộc tab Sheet kiemke-qtycount đã có dữ liệu hay chưa. */
+      { ten: "Kiểm kê › tra SL đếm theo SKU",
+        mo: "() => { showTab('kk'); if(typeof qtcVe!=='function') return false; " +
+            "document.getElementById('qtcSku').value='422302174'; QTC.sku='422302174'; QTC.taCa=true; " +
+            "QTC.kq={err:false,rows:[" +
+            "{cid:'803894',req:'252161',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',cnt:3800,inv:4800,diff:-1000,lst:'Counted',st:'WAITING FOR APPROVE',by:'lyntd@hasaki.vn',cdate:'2026-08-23 10:57:56',upd:'2026-08-23 12:50:51'}," +
+            "{cid:'801111',req:'252000',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-503-03-04-01',sku:'422302174',pn:'',cnt:12500,inv:12500,diff:0,lst:'Counted',st:'APPROVED',by:'yhtn1@hasaki.vn',cdate:'2026-08-19 09:12:00',upd:'2026-08-19 10:00:00'}," +
+            "{cid:'799222',req:'251900',wh:'WH - MATERIAL - GARMENT',loc:'F00-KHO-101-01-01-01',sku:'422302174',pn:'',cnt:null,inv:600,diff:null,lst:'Not counted',st:'PENDING',by:'',cdate:'',upd:'2026-08-12 15:00:00'}," +
+            "{cid:'798000',req:'251800',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'',cnt:3650,inv:3650,diff:0,lst:'Counted',st:'APPROVED',by:'lyntd@hasaki.vn',cdate:'2026-08-10 08:30:00',upd:'2026-08-10 09:00:00'}]}; " +
+            "qtcVe(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtctbl tbody tr').length >= 4 && !!document.querySelector('#qtcKq .qtcsum')",
+        dong: "() => { try{ QTC.kq=null; QTC.taCa=false; document.getElementById('qtcKq').innerHTML=''; document.getElementById('qtcSku').value=''; }catch(e){} }" },
+      /* Pop-up camera quét mã: headless không có camera thật nên chỉ mở VỎ pop-up (video đen) —
+         đủ để đo bố cục khung, nút đóng ≥44px, hint kẹp dòng. */
+      { ten: "Kiểm kê › pop-up quét mã SKU", cho: "#qtcqrmodal.show",
+        mo: "() => { showTab('kk'); if(typeof plgMoModal!=='function'||!document.getElementById('qtcqrmodal')) return false; " +
+            "plgMoModal('qtcqrmodal'); document.getElementById('qtcQrHint').textContent='Đưa mã vạch / QR vào khung — bắt được là tự điền ô SKU và tra luôn.'; return true; }",
+        sanSangMan: "() => !!document.querySelector('#qtcqrmodal.show #qtcVideo')",
+        dong: "() => { try{ qtcQuetDong(); }catch(e){} }" },
       { ten: "Tồn kho bất thường", mo: "() => { showTab('abn'); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#viewAbn .abntile .k')].some(x => /\\d/.test(x.textContent))" },
       { ten: "Planogram", mo: "() => { showTab('plg'); return true; }",
@@ -108,6 +129,14 @@ const TRANG = [
         mo: "() => { showTab('sku'); if(typeof ndsBusy!=='function') return false; ndsBusy(true); return true; }",
         sanSangMan: "() => !!document.getElementById('ndsVongArc')",
         dong: "() => { try{ ndsBusy(false); }catch(e){} }" },
+      /* POP-UP "XIN CẤP QUYỀN" — BỔ SUNG 23/08/2026 cùng lúc thêm luồng xin cấp quyền qua bot
+         Telegram (người lạ bị khoá thiết bị chặn thì tự xin thay vì đi xin link tay). Khai vào
+         danh sách màn NGAY khi sinh ra — phạm vi đo = phạm vi lời hứa. Hành vi gửi/poll đo riêng
+         ở qc-xin-cap-quyen.mjs; ở đây đo BỐ CỤC trên 4 máy. */
+      { ten: "Pop-up Xin cấp quyền", cho: "#tbxinmodal.show",
+        mo: "() => { if(typeof tbMoXinQuyen!=='function') return false; tbMoXinQuyen(); return true; }",
+        sanSangMan: "() => { var m=document.getElementById('tbxinmodal'); return !!m && m.classList.contains('show') && !!m.querySelector('#tbXinTen'); }",
+        dong: "() => { try{ tbDongXinQuyen(); }catch(e){} }" },
       /* TAB "CHUYỂN ĐỔI CÂN" — BỔ SUNG 22/08/2026 cùng lúc thêm thước Tex + chip Tex từ danh mục.
          Lỗ hổng cũ y hệt In tem/Planogram: tab chưa từng nằm trong danh sách màn nên chưa từng được
          đo. Dựng trạng thái ĐẦY nhất tại chỗ: seed cache danh mục để dải chip Tex hiện, điền đủ số
@@ -117,12 +146,12 @@ const TRANG = [
             "try{ localStorage.setItem('nds-master-v1', JSON.stringify({at:Date.now(),rows:[" +
             "{sku:'1',pn:'Chỉ may/COATS Phong Phú/Polyester/None/White/None/Text 27 - Tkt 120/mm',type:'NORMAL',status:'ACTIVE',qty:1}," +
             "{sku:'2',pn:'(Combo) Chỉ FILTEX/F2/Polyester/None/Đỏ/None/Tex 24-100D-2/Cuộn 5000m',type:'COMBO',status:'ACTIVE',qty:1}]})); }catch(e){} " +
-            "showTab('cd'); CD.texNap=false; cdNapTexKho(); " +
+            "try{ if(window.NDS){ NDS.ds=null; NDS.cm=null; } }catch(e){} showTab('cd'); CD.chipNap=false; cdNapChip(); " +
             "[['cdTong','10000'],['cdCuon','10'],['cdLoi','50'],['cdNguyen','120']].forEach(function(c){ document.getElementById(c[0]).value=c[1]; }); " +
-            "var chipTex=[...document.querySelectorAll('#cdTexKhoBar .kktab')].filter(function(b){ return Number(b.getAttribute('data-tex'))>0; })[0]; " +
+            "var chipTex=[...document.querySelectorAll('#cdTexKhoBar .kktab')][0]; " +
             "if(chipTex && !chipTex.classList.contains('active')) chipTex.click(); " +
             "cdTinh(); return true; }",
-        sanSangMan: "() => document.querySelectorAll('#cdTexKhoBar .kktab').length >= 3 && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
+        sanSangMan: "() => document.querySelectorAll('#cdTexKhoBar .kktab').length >= 2 && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
         dong: "() => { try{ cdXoaHet(); }catch(e){} }" },
       /* HAI THƯỚC MỚI của tab Chuyển đổi cân (23/08/2026): Vải (khổ × định lượng) và Thun (g/m).
          Mỗi thước là một MÀN KHÁC — khối nhập khác nhau, dòng ghi chú khác nhau — nên phải đo
@@ -131,7 +160,7 @@ const TRANG = [
         mo: "() => { if(typeof cdChonLoai!=='function') return false; " +
             "try{ localStorage.setItem('nds-master-v1', JSON.stringify({at:Date.now(),rows:[" +
             "{sku:'422273473',pn:'Vải Rib 1x1 USA/TN035_Trang Nhã/93% Cotton 36S, 7% Spandex 30D/220gsm, 180cm/Đen_Black/g',type:'NORMAL',status:'ACTIVE',qty:7814}]})); }catch(e){} " +
-            "showTab('cd'); cdChonLoai('vai'); " +
+            "try{ if(window.NDS){ NDS.ds=null; NDS.cm=null; } }catch(e){} showTab('cd'); cdChonLoai('vai'); " +
             "[['cdSku','422273473'],['cdUid','1028260605000316'],['cdTong','25000'],['cdCuon','1'],['cdLoi','1000'],['cdNguyen','']]" +
             ".forEach(function(c){ var o=document.getElementById(c[0]); o.value=c[1]; o.dispatchEvent(new Event('input',{bubbles:true})); }); " +
             "return true; }",
@@ -140,7 +169,7 @@ const TRANG = [
       { ten: "Chuyển đổi cân › thước Thun",
         mo: "() => { if(typeof cdChonLoai!=='function') return false; " +
             "try{ localStorage.setItem('cd-gm-sotay', JSON.stringify({'422328160':{gm:4.8,at:Date.now()}})); }catch(e){} " +
-            "showTab('cd'); cdChonLoai('thun'); " +
+            "try{ if(window.NDS){ NDS.ds=null; NDS.cm=null; } }catch(e){} showTab('cd'); cdChonLoai('thun'); " +
             "[['cdSku','422328160'],['cdGm','4,8'],['cdTong','1000'],['cdCuon','3'],['cdLoi','40'],['cdNguyen','']]" +
             ".forEach(function(c){ var o=document.getElementById(c[0]); o.value=c[1]; o.dispatchEvent(new Event('input',{bubbles:true})); }); " +
             "return true; }",
@@ -671,7 +700,22 @@ Object.keys(theoMan).forEach((k) => {
   console.log("  ✗ " + k + "  [" + dienRong + "]  " + [...new Set(hong.flatMap((x) => x.xau.map((s) => s.replace(/^\d+ /, ""))))].join(" · "));
 });
 fs.writeFileSync(path.join(OUT, "bao-cao.json"), JSON.stringify(bangKe, null, 1));
+
+/* ═══ MÀN BỊ BỎ QUA CŨNG LÀ TRƯỢT (24/08/2026) ═══
+ * Trước đây tổng kết chỉ đếm màn ĐO ĐƯỢC: màn nào `mo`/`sanSangMan` không đạt thì im lặng bỏ qua,
+ * mà dòng cuối vẫn in "✓ đạt (89 màn × 4 máy)". Sự cố thật: màn "Chuyển đổi cân" chỉ đo được 1/4
+ * máy (3 lượt bị bỏ) vì `NDS.ds` còn giữ danh mục của màn trước ⇒ 0 chip Tex ⇒ gate không đạt.
+ * Con số tổng tụt 93 → 89 là dấu duy nhất, mà không ai canh con số đó.
+ * Nay: màn nào không đo đủ trên CẢ 4 máy thì kể tên và TRƯỢT — đúng luật "○ bỏ qua ≠ đạt". */
+const thieu = Object.keys(theoMan).filter((k) => theoMan[k].length < MAY.length)
+  .map((k) => k + " (" + theoMan[k].length + "/" + MAY.length + " máy)");
+if (thieu.length) {
+  console.log("\n✗ MÀN KHÔNG ĐO ĐỦ 4 MÁY — bị bỏ qua im lặng, KHÔNG được tính là đạt:");
+  thieu.forEach((t) => console.log("   ○ " + t));
+}
 console.log("\nẢnh + bao-cao.json: " + OUT);
-console.log(tongLoi ? "✗ " + tongLoi + " màn/hạng mục có vấn đề (đã đi qua " + tongMan + " màn)"
+const tongTruot = tongLoi + thieu.length;
+console.log(tongTruot ? "✗ " + tongLoi + " màn/hạng mục vỡ bố cục · " + thieu.length +
+    " màn không đo đủ máy (đã đi qua " + tongMan + " màn)"
   : "✓ Bố cục điện thoại toàn dự án: đạt (" + tongMan + " màn × " + MAY.length + " máy)");
-process.exit(tongLoi ? 1 : 0);
+process.exit(tongTruot ? 1 : 0);

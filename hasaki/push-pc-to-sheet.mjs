@@ -19,6 +19,15 @@
  *  API khác; Batch/Roll/Description KHÔNG có trong API (WMS cũng hiện "—") nên không ghi.
  *  Cache theo (checklist_id | updated_at) trong .pc-cache.json: mỗi phiếu chỉ tốn call WMS 1 lần,
  *  lượt sau chỉ kéo phiếu MỚI/ĐỔI. PC_UIDGR_MAX (mặc định 300 phiếu/lượt) chặn lượt đầu quá dài.
+ *
+ *  SL ĐẾM THEO SKU (25/08/2026): CÙNG lượt kéo tracking ở trên, phiếu VỊ TRÍ loại
+ *  FULL_LOCATION_FACTORY ghi thêm TOÀN BỘ dòng (SKU × vị trí × Quantity Count — kể cả dòng khớp)
+ *  vào tab kiemke-qtycount, cho mục "Tra cứu SL đếm theo SKU" ở tab Kiểm kê dashboard (ô gõ SKU
+ *  + quét mã vạch). KHÔNG thêm call WMS ở trạng thái ổn định — chỉ lưu thêm cột từ response sẵn
+ *  có; phiếu đã nằm cache mà THIẾU khối qc thì kéo bù 1 lần (đợt đầu ~880 phiếu, vẫn tôn trọng
+ *  PC_UIDGR_MAX — quá cap thì lượt sau kéo tiếp, tab tự đầy dần).
+ *  ⚠ FE tra bằng gviz `tq=select * where F=<sku>` — cột F của tab này PHẢI là SKU;
+ *    đổi thứ tự cột HEADER_QTC là phải sửa CẢ hàm qtcTq() trong factory/index.html.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -85,6 +94,9 @@ if (!APPSCRIPT_KEY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); pr
 const HEADER_SKU = ["No.", "ID", "Request code", "Source code", "Warehouse", "SKU", "Product Name", "Category", "Type", "Required VAT", "Priority", "Diff By Location", "Diff By Sku", "Inventory", "Quantity Count", "Assign to", "Counted by", "Counted date", "Updated At", "Plan Date", "Status"];
 const HEADER_LOC = ["No.", "ID", "Request code", "Source code", "Warehouse", "Type", "Location", "Priority", "Diff", "Assign to", "Counted by", "Counted date", "Updated At", "Plan Date", "Status"];
 const HEADER_UIDGR = ["No.", "Kind", "Checklist ID", "Tracking ID", "Request code", "Warehouse", "Type", "Location", "SKU", "Product Name", "Line Qty Count", "Line Inventory", "Line Diff", "Line Status", "UID Group", "Group Status", "Qty Count", "Qty System", "Expiration Date", "Counted date", "Updated At"];
+/* Tab kiemke-qtycount — "Tra cứu SL đếm theo SKU": cột F (thứ 6) BẮT BUỘC là SKU (FE tra bằng tq where F). */
+const HEADER_QTC = ["No.", "Checklist ID", "Request code", "Warehouse", "Location", "SKU", "Product Name", "Quantity Count", "Inventory", "Diff", "Line Status", "Checklist Status", "Counted by", "Counted date", "Updated At"];
+const laQtc = (kind, r) => kind === "loc" && String(r.plan_type || "").toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_+|_+$/g, "") === "FULL_LOCATION_FACTORY";
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
 const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 300);   // cap số PHIẾU kéo tracking mỗi lượt (lượt đầu nhiều, sau đó cache gánh)
 const UIDGR_V = 5;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v5: chọn phiếu theo STATUS — API list XOÁ qty_by_user sau khi APPROVED)
@@ -240,12 +252,14 @@ async function buocUidgr(sku, loc, uidgrCu) {
   const want = new Map();   // cid -> meta phiếu (kind + ngữ cảnh header)
   for (const [kind, arr] of [["sku", sku], ["loc", loc]]) for (const r of arr) if (phieuLech(kind, r))
     want.set(String(r.checklist_id), { kind, req: r.plan_id || "", wh: r.warehouse_name || "", type: r.plan_type || "",
-      cdate: r.checklist_at || "", upd: String(r.updated_at || r.checklist_at || "") });
+      cdate: r.checklist_at || "", upd: String(r.updated_at || r.checklist_at || ""),
+      st: r.status_name || "", by: r.checklist_by_name || "", qtc: laQtc(kind, r) });
   const moi = {}; let hit = 0, treo = 0;
   const canKeo = [];
   for (const [cid, meta] of want) {
     const cu = uidgrCu[cid];
-    if (cu && cu.u === meta.upd) { moi[cid] = cu; hit++; continue; }
+    // Phiếu thuộc diện qtycount mà bản cache CHƯA có khối qc (cache đời trước 25/08) → kéo bù 1 lần
+    if (cu && cu.u === meta.upd && (!meta.qtc || cu.qc)) { moi[cid] = cu; hit++; continue; }
     if (canKeo.length >= UIDGR_MAX) { treo++; if (cu) moi[cid] = cu; continue; }   // quá cap: giữ bản cũ (nếu có), lượt sau kéo bù
     canKeo.push([cid, meta]);
   }
@@ -258,10 +272,14 @@ async function buocUidgr(sku, loc, uidgrCu) {
       const [cid, meta] = canKeo[i];
       const recs = await keoTracking(cid);
       const rows = [];
+      const qc = meta.qtc ? [] : undefined;   // FULL_LOCATION_FACTORY: giữ MỌI dòng (kể cả khớp) cho tab kiemke-qtycount
       for (const rec of recs) {
         const cnt = rec.qty_by_user == null ? null : Number(rec.qty_by_user) || 0;
         const inv = rec.qty_by_sys == null ? null : Number(rec.qty_by_sys) || 0;
         const diff = rec.qty_diff != null ? Number(rec.qty_diff) || 0 : (cnt || 0) - (inv || 0);
+        if (qc) qc.push([cid, meta.req, meta.wh, rec.bin_location || "", rec.sku || "", rec.product_name || "",
+          cnt == null ? "" : cnt, inv == null ? "" : inv, (cnt == null && rec.qty_diff == null) ? "" : diff,
+          lineStatus(rec.status_id), meta.st, meta.by, meta.cdate || "", meta.upd]);
         /* CHỈ ghi NHÓM LỆCH (đếm ≠ tồn của chính nhóm) — nhóm khớp bỏ hẳn (chỉ thị 27/07).
            QUÉT CẢ dòng diff=0: bên trong vẫn có thể có nhóm bù trừ (New +x và Not found -x). */
         const groups = uidRowsCuaLine(rec).filter((u) => (Number(u.qtyU) || 0) !== (Number(u.qtyS) || 0));
@@ -276,15 +294,19 @@ async function buocUidgr(sku, loc, uidgrCu) {
             u.uid ? "'" + u.uid : "",   // dấu nháy đầu = ép TEXT trên Sheets — mã UID 16 số không bị đổi thành 1.02826E+15
             u.st, u.qtyU == null ? "" : u.qtyU, u.qtyS == null ? "" : u.qtyS, u.exp, u.dat || meta.cdate || "", meta.upd]);
       }
-      moi[cid] = { u: meta.upd, rows };
+      moi[cid] = { u: meta.upd, rows, qc };
       await nghi(120);
     }
   };
   await Promise.all(Array.from({ length: Math.min(4, canKeo.length) }, worker));
-  const out = [];
-  for (const cid of want.keys()) if (moi[cid]) for (const r of moi[cid].rows) out.push([out.length + 1].concat(r));
+  const out = [], qtc = [];
+  for (const cid of want.keys()) if (moi[cid]) {
+    for (const r of moi[cid].rows) out.push([out.length + 1].concat(r));
+    if (want.get(cid).qtc && moi[cid].qc) for (const r of moi[cid].qc) qtc.push([qtc.length + 1].concat(r));
+  }
   log("  ✓ UID group lệch: " + want.size + " phiếu lệch (cache " + hit + ", kéo mới " + canKeo.length + (treo ? ", quá cap giữ cũ " + treo : "") + ") → " + out.length + " dòng.");
-  return { rows: out, cache: moi };
+  log("  ✓ SL đếm theo SKU (Full location - Factory) → tab kiemke-qtycount: " + qtc.length + " dòng.");
+  return { rows: out, cache: moi, qtc };
 }
 async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   if (!rows.length) { log("  (⚠ " + tab + ": 0 dòng — bỏ qua, giữ data cũ)"); return; }
@@ -341,6 +363,9 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
     uidgrKq = await buocUidgr(sku, loc, uidgrCu);
     if (uidgrKq.rows.length) await ghiTab("kiemke-uidgr", HEADER_UIDGR, uidgrKq.rows, apiAt);
     else log("  (kiemke-uidgr: 0 dòng lệch — bỏ qua ghi, giữ tab cũ)");
+    // SL đếm theo SKU (mục Tra cứu SL đếm của dashboard) — cùng nguồn tracking, chỉ thêm 1 tab ghi
+    if (uidgrKq.qtc.length) await ghiTab("kiemke-qtycount", HEADER_QTC, uidgrKq.qtc, apiAt);
+    else log("  (kiemke-qtycount: 0 dòng — bỏ qua ghi, giữ tab cũ)");
   } catch (e) { log("⚠ UID group lệch lỗi (bỏ qua, giữ tab cũ): " + e.message); }
 
   // HASAKI (2 kho 170 QL1A) -> sheet 5S: lỗi ở đây KHÔNG làm fail lượt factory phía trên
