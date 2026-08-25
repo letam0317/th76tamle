@@ -12,6 +12,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { voiKhoa, luuToken, tokenCon } from "./token-store.js";
+import { chanReLoginNgoaiKhung } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EDGE_PATH = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
@@ -35,6 +36,9 @@ async function getWmsToken() {
     for (let i = 0; i < 90 && !token; i++) {
       const url = page.url();
       if (/wms\.inshasaki\.com\/auth\/login/.test(url) && Date.now() - lanBam > 5000) {
+        /* 23/08/2026: cùng cửa kiểm với 3 bộ sync (trước đây bộ này bấm SSO không ai gác).
+           Chốt cứng CAM_TU_DANG_NHAP chặn ở đây; cố ý chạy tay thì CAM_TU_DANG_NHAP=0 cho lệnh đó. */
+        chanReLoginNgoaiKhung(log, DIR);
         const ok = await page.evaluate(() => { const el = [...document.querySelectorAll("button,[role=button],a")].find((e) => /SSO/i.test(e.innerText || "")); if (el) { el.click(); return true; } return false; }).catch(() => false);
         if (ok) { lanBam = Date.now(); log("  → bấm SSO trên WMS..."); }
       } else if (/wms\.inshasaki\.com\/sso\/callback/.test(url) && Date.now() - lanXN > 5000) {

@@ -45,6 +45,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenSongWms, DeferError, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab, hamCacheTabs, gasPost } from "./session-rules.js";
+import { baoChuaVeSinh } from "./bao-vesinh-telegram.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -543,6 +544,10 @@ async function ghiTab(tab, header, rows){
   const nDiLam = rowsCC.filter(r => r[8] !== "Nghỉ / không chấm công").length;
   const nChua = rowsCC.filter(r => r[8] === "Đi làm - chưa vệ sinh").length;
   log("→ CHAMCONG: đội " + rowsCC.length + " NV — đi làm " + nDiLam + " (đã vs " + (nDiLam - nChua) + ", CHƯA vs " + nChua + "), nghỉ " + (rowsCC.length - nDiLam) + ".");
+  /* Báo Telegram 17h "đi làm mà CHƯA báo cáo vệ sinh" (user chốt 24/08/2026) — module tự gác:
+     chỉ nhắn 1 tin/ngày ở lượt sync đầu tiên từ 17:00, loại người vào ca từ 13:00, gửi lỗi thì
+     lượt 15' sau thử lại. Dùng chính rowsCC vừa tính → không thêm lượt gọi upstream nào. */
+  await baoChuaVeSinh(rowsCC, { log, dry: DRY });
 
   // 4c) Bảng VESINH-YEUCAU — từng yêu cầu (YC_DAYS ngày): trạng thái + executor + phụ trách dự kiến × chấm công
   const ycSap = reqToday.sort((a, b) => String(b.ngay).localeCompare(String(a.ngay)) || String(a.loc).localeCompare(String(b.loc)));

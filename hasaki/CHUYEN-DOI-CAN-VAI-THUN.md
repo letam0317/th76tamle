@@ -376,6 +376,159 @@ dấu ô còn phải nhập · gõ đè thì mất dấu · **phiếu tính ph�
 **Bẫy của bộ đo lần này**: trang in số kiểu en-US (phẩy = hàng nghìn, chấm = thập phân) mà bộ đo bóc
 số lại xoá mọi dấu đứng trước 3 chữ số ⇒ `2.469` thành `2469`, sai 1.000 lần và báo đỏ oan.
 
+## Ẩn khối "Mã SKU · UIDgr code" (23/08 tối, user: "cải tiến ẩn mục này")
+
+Hai ô đó **không bắt buộc**: chúng chỉ tra hộ quy cách/Tex/khổ/định lượng từ danh mục, còn người
+đứng cân tại chỗ phần lớn gõ thẳng số cân. Để mở sẵn thì mắt phải lướt qua **hai ô trống** trước khi
+tới việc chính, mà chúng lại đứng ngay đầu bước 1.
+
+Nay khối gấp lại thành **một dòng `▸ Mã SKU · UIDgr code`** (cao 32px thay vì ~160px), dùng đúng
+khuôn gấp sẵn có `details.nds-more` của dự án chứ không đẻ nút xổ riêng. Bốn luật đi kèm — mỗi luật
+sinh ra từ một cách làm sai đã gặp:
+
+* **Tự bung khi có sẵn mã** (giá trị nhớ lại / vừa tra ra). Gấp mất một ô **đang có dữ liệu** là giấu
+  thông tin — bẫy đã dính ở tab khác.
+* **Gấp mà vẫn thấy mã**: đang gấp thì summary nhắc lại `SKU 422273473 · UIDgr 1028…` bằng chữ màu
+  accent. Gấp rồi giấu luôn cái đã nhập là bắt người mở ra chỉ để nhớ.
+* **Tôn trọng cú gấp tay**: người tự gấp trong lúc đang có mã thì lượt gõ sau không bung lên lại.
+  Chỉ nhớ ý đó khi **có** mã — nếu không, cú gấp tự động lúc "Lô tiếp theo" bị hiểu nhầm là ý người.
+* **Không sập dưới tay**: xoá sạch mã thì gấp về, TRỪ khi con trỏ còn nằm trong khối — xoá hết chữ để
+  gõ lại mà khối tự sập là cướp ô đang gõ (bẫy *"dọn ô trước khi vẽ lại"* ở màn In tem).
+
+**Đo:** `qc-chuyen-doi-can` **74/74** (+4 ca ở mục 12f, đúng bốn luật trên) ·
+`qc-mobile-toan-du-an --file --trang=factory`.
+
+**Bẫy của bộ đo lần này:** `<details>` đóng **vẫn chừa hình chữ nhật** cho ô con (Edge giữ layout,
+chỉ thôi vẽ), nên `getBoundingClientRect()` và `offsetParent` đều nói "có" — ca đo bố cục cặp
+hai-ô-một-hàng vì thế **xanh trên thứ không ai thấy**. Muốn biết mắt có thấy hay không phải hỏi
+`checkVisibility()`; ca đo bố cục nay tự bung khối ra trước khi đo.
+
+## Dọn bước 1 lần hai (24/08, user nêu 6 điểm)
+
+**① Một khuôn cho mọi ô có gợi ý.** Nhãn và ô nhập **ngang hàng**, dải chip xuống dưới mở đầu bằng
+chữ **"Gợi ý:"**. Áp cho cả bốn ô có chip: quy cách · Tex · khổ vải · định lượng.
+
+**④ Hết chip "Khác…".** Chip đó chỉ để mở một ô đang ẩn; nay ô nhập lúc nào cũng ở đó nên nó thành
+chữ không dẫn tới đâu — user nói thẳng: *"buộc nhập vào ô rồi thì thể hiện chữ Khác… ở đó làm gì?"*.
+Không có gợi ý nào (quy cách của **vải**: không SKU nào ghi) thì **ẩn hẳn cả dòng**.
+
+Đổi này dọn luôn ba cờ `tuDo / texTuDo / khoTuDo` trong lõi: trước đây mỗi hàng chip có một ô nhập
+**tàng hình**, đọc code phải hỏi "số đang tính nằm ở chip hay ở ô?", và bẫy thật đã dính một lần —
+hàm tự điền gọi `cdChonKho` (hành vi của ngón tay: bấm lại chip đang sáng = bỏ chọn) làm khổ của SKU
+thứ hai biến mất không một lời nào. Nay **một nguồn số duy nhất là ô nhập**; chip chỉ điền hộ, bấm
+lại chip đang sáng = xoá ô. Số điền sẵn (quy cách hay gặp nhất: chỉ 5.000 m · thun 100 m) mang dấu
+**✓ máy điền** nên nhìn là biết máy đoán, gõ đè được.
+
+**③ Đơn vị vào TRONG ô.** `gr · cuộn · Tex · gsm · g/m` nay nằm sát mép phải **bên trong** ô, số chạy
+trước nó — đọc liền một mạch "9,500 gr". Hai đơn vị **đổi được** (khổ `cm ⇄ inch` · quy cách
+`m ⇄ yard`) cố ý vẫn là **nút cạnh ô**: chúng là vùng chạm thật, nhét vào trong ô thì cao chưa tới
+30px — dưới sàn 40px của luật điện thoại.
+
+**⑤ Khổ + định lượng gợi ý theo TẦN SUẤT thật.** Trước đây khổ chôn cứng `150/152/190` và định lượng
+không có gợi ý nào. Nay cả hai đếm từ chính danh mục vải (972 SKU, đo 24/08):
+
+| | nhiều nhất | rồi | rồi | tổng số giá trị |
+|---|---|---|---|---|
+| khổ (cm) | 150 — 122 SKU | 152 — 96 | 190 — 66 | 53 |
+| định lượng (gsm) | 160 — 57 SKU | 220 — 42 | 170 — 40 | 75 |
+
+Ba chip đầu là chỗ với tay nhanh; phần đuôi tản mát gõ thẳng vào ô. Không có danh mục (offline lượt
+đầu) thì khổ rơi về 3 số quen, định lượng ẩn dòng gợi ý.
+
+**⑥ Ô nào có ở loại nào.** Vải **không** có *"Số cuộn thừa"* lẫn *"Khối lượng 1 lõi"* (vải trả về là
+một tấm, không cuốn lõi); thun **không** có *"Số cuộn thừa"*. Ẩn thì máy tự hiểu — vải/thun tính như
+**1 cuộn**, vải tính **lõi 0 gr** — chứ không bỏ trống phép tính. Kéo theo ba chỗ phải dọn: ô còn lại
+của cặp trải hết bề ngang, nút *"cân cả lõi / riêng hàng"* ẩn cùng lõi, phiếu tính bỏ hai bước trừ
+lõi (in "− 0 gr" rồi "còn lại 25.000 gr" là hai dòng không nói gì). Thẻ **"Trung bình 1 cuộn thừa"**
+cũng bỏ ở vải/thun — với một cuộn nó nói lại đúng con số ở thẻ đầu; chỗ đó thành **Quy ra yard**.
+Và cờ đỏ *"dài hơn cả cuộn nguyên"* hạ thành **dòng nhắc** cho vải/thun: cân nhiều tấm một lượt là
+chuyện thường ngày, báo đỏ ở đó là **báo oan**.
+
+**② Có sổ cân rồi thì đừng hỏi lại.** Chỉ may: gõ SKU → máy tra **sổ cân CAN-LOI-CHI** theo nhãn +
+cỡ + quy cách. Có số thì **ẩn hai ô** *Khối lượng 1 lõi* / *Khối lượng 1 cuộn nguyên*, thay bằng một
+dòng nói rõ nguồn: *"lấy từ sổ cân CAN-LOI-CHI (Irisa · Tex 27 · cuộn 5.000 m): lõi **14 gr** · cuộn
+nguyên **171,5 gr** → mỗi cuộn còn **157,5 gr** chỉ"* kèm nút **"Cân lại cuộn này"** để gõ tay khi
+cần. Chưa có số thì hỏi như cũ. Dùng lại nguyên khối `CL` (`clNap` / `clTim`) mà pop-up *Cân → Số
+lượng* đang dùng — cùng một sổ, cùng một cách khớp nhãn, không đẻ đường đọc thứ hai để rồi hai nơi
+khớp lệch nhau. **Quy cách điền kèm luôn**: cặp (lõi, cuộn nguyên) chỉ có nghĩa với đúng cuộn dài
+`met` mét — điền cân mà để nguyên quy cách của lô trước là ra mật độ sai.
+
+**Đo:** `qc-chuyen-doi-can` **94/94** (+17 ca: khuôn ô ⟷ nhãn ⟷ "Gợi ý:" · điền sẵn quy cách phổ
+biến · chỉ→vải→chỉ phải điền lại · gõ ngoài dải gợi ý · đơn vị trong ô (7 ô) · hai đơn vị đổi được
+vẫn là nút · gợi ý khổ/định lượng theo tần suất + bấm chip điền vào ô · đường lùi offline · ẩn/hiện
+ô theo 3 loại hàng · không báo đỏ oan · sổ cân: ẩn 2 ô + điền đúng quy cách + toán 313.015.873 mm +
+"cân lại"/"dùng lại" + nhãn chưa cân) · `qc-mobile-toan-du-an --file --trang=factory` 93 màn × 4 máy ·
+`qc-in-tem-popup` 46/46 (pop-up Cân → SL vẫn đọc đúng khoá `loi` trong `cd-quycach`) ·
+`qc-chu-thich` 26/26 — trong đó **sửa một ca đỏ vĩnh viễn có từ bản đang phát**: dòng `#cdState`
+*"Còn thiếu: …"* bị bộ dò văn xuôi bắt vì dài 105 ký tự, nhưng nó đúng là **thông báo trạng thái**
+(chỉ hiện khi số liệu chưa đủ) nên đã thêm vào danh sách miễn trừ; đã đối chứng bản HEAD ra **cùng
+một dòng** để chắc chắn không phải lỗi mới.
+
+**Ba bẫy của đợt này**
+
+1. **Bộ đo chớp tắt 1/3 lượt chạy.** Trang có `ndsHamNong()` tự nạp danh mục lúc máy rảnh (chậm
+   nhất 2,5 giây). Mục 12d *reload trước rồi mới seed danh mục*, nên có lượt cú hâm nóng đọc **cache
+   cũ của mục trước** rồi gán vào `NDS.ds` — mà `cdDanhMuc()` ưu tiên `NDS.ds` hơn cache ⇒ gõ SKU vải
+   nhận *"không thấy mã này trong danh mục"*, trượt 11 ca một cách ngẫu nhiên. Chữa: **seed trước,
+   reload sau** (đúng nếp mục 12c) + chốt hạ bỏ `NDS.ds` nếu nó không phải danh mục vừa dựng.
+2. **"Điền một lần cho mỗi loại hàng" là sai.** Bản đầu chống nhồi số bằng cách nhớ đã điền cho loại
+   nào; đi **chỉ → vải → chỉ** thì lượt về để ô trống không một lời nào, kết quả tụt về *"còn thiếu
+   quy cách"* giữa lúc đang cân. Luật đúng: điền ở **mọi lượt đổi loại hàng** khi ô trống, còn lượt
+   *"danh mục vừa về"* thì không điền (người dùng có thể đang gõ dở, nhồi số vào là giật tay họ).
+3. **Ba ca cũ đo trạng thái đã biến mất** (`CD.kho`, `CD.khoTuDo`, chip `data-mm`) nên phải viết lại
+   theo hợp đồng mới; và ca đo bố cục cặp *tổng ⟷ số cuộn* phải **tự đứng về loại chỉ** — từ 24/08
+   vải/thun không còn ô số cuộn, tin trạng thái còn sót của mục trước là đo một cặp chỉ có một ô.
+
+## Đợt 2 cùng ngày (24/08, user soi màn hình lần nữa — 3 điểm)
+
+**① Bỏ dòng "Đọc là 5,000 m = 5,000,000 mm mỗi cuộn nguyên".** Số đang nằm ngay trong ô, còn mm thì
+phiếu tính bên phải đã lần lại từng bước — dòng đó chỉ nhắc lại. Giữ đúng một việc: gõ chữ không ra
+số thì vẫn báo đỏ (`cdSoiLoi`), kỉo máy lặng lẽ tính bằng số cũ.
+
+**② Nhãn "Quy cách cuộn nguyên" / "Định lượng dài" nhạt hơn nhãn khác** — lỗi thật do đợt 1: nhãn dời
+vào `.cd-hd` nên `.cd-f>label` (đậm 700) **không còn khớp**. Nay selector nhận cả hai; bộ đo canh bằng
+`font-weight` thật của cả 7 nhãn, không tin mắt.
+
+**③ Dải gợi ý lên NGANG HÀNG tên mục** (kể cả cụm *"cân cả lõi / riêng hàng"* của ô cuộn nguyên).
+Kéo theo bốn việc:
+* **Lõi + cuộn nguyên thôi đi cặp** — nhét nhãn + cụm nút + ô nhập vào nửa hàng 250px là bóp cả ba.
+* **Cột bước 1 rộng thêm** (`5fr/7fr` → `11fr/13fr`): cột 500px chỉ đủ nhãn + ô nhập, ba số gợi ý bị
+  gom hết vào "Khác…" — tức mất đúng thứ cần thấy. Cột kết quả vẫn xếp 3 thẻ một hàng.
+* **Chip gợi ý gọn lại** (cao 28px, chữ 11,5px) và **gom phần thừa vào chip "Khác…"** đúng như user
+  chốt: `cdVuaMotDong` đo THẬT `scrollWidth > clientWidth` rồi ẩn dần chip cuối; bấm "Khác…" mở nốt.
+  Hết chip mà vẫn tràn thì bỏ luôn chữ "Gợi ý:" — chip bị cắt mất chữ là phạm luật nhãn.
+* **Điện thoại**: gợi ý VẪN ngang hàng tên mục, còn **ô nhập xuống dòng riêng** — nhãn + gợi ý + ô
+  nhập không có cách nào vừa 330px. Ở bề ngang này chip được xuống dòng (không gom vào "Khác…"):
+  thà hai hàng chip còn hơn ăn mất số gợi ý sau một chip.
+
+**Bẫy đắt nhất đợt này:** ô nhập nở **252px** dù CSS ghi `flex:0 0 136px` — `<input>` có bề rộng nội
+tại ~177px (mặc định `size=20` ký tự) nên **min-content của `.cd-in` đẩy flex-basis lên**, ăn hết chỗ
+của dải gợi ý và làm chip bị gom vào "Khác…" oan. Chữa bằng `min-width:0` cho cả `.cd-in` và ô nhập
+bên trong. Nhìn ảnh chụp thì tưởng "chật thật"; phải đo `getComputedStyle` + `getBoundingClientRect`
+mới thấy nguyên nhân — cùng họ với bẫy `1fr` trần đã dính 22/08.
+
+**Đo lại:** `qc-chuyen-doi-can` **100/100** (+6 ca: gợi ý cùng hàng nhãn · đã bỏ dòng "Đọc là" · vẫn
+báo khi gõ chữ · nhãn đậm bằng nhau · gom chip vào "Khác…" · bấm "Khác…" mở nốt) ·
+`qc-mobile-toan-du-an --file --trang=factory`.
+
+## Đợt 3 cùng ngày (24/08, user: "sao trống dữ" · "cần cân đối / chuyên nghiệp")
+
+**Ba nút Chỉ · Vải · Thun** lên ngang hàng nhãn *Loại hàng* — cùng khuôn với dải "Gợi ý:".
+
+**Hết xếp cặp hai-ô-một-hàng ở khối số cân.** Đợt 2 tôi bỏ cặp *lõi ⟷ cuộn nguyên* (vì cụm
+*"cân cả lõi / riêng hàng"* lên hàng tiêu đề) nhưng vẫn giữ cặp *tổng ⟷ số cuộn* — thành ra nửa trên
+là hai ô sát nhau, nửa dưới là hai hàng có một khoảng trống giữa nhãn và ô. Đó chính là chỗ user chỉ
+ra. Nay **mọi ô một hàng, mép phải các ô nhập thẳng một cột**: đọc như một biểu mẫu, không còn ô nào
+lệch. Nhịp dọc thắt lại (`.cd-f` 12→10px, `.cd-doc` 4→3px) cho khỏi loãng vì thêm hàng.
+
+Cách đo "cân đối" bằng SỐ (không bằng mắt): lấy `getBoundingClientRect().right` của mọi
+`.cd-hd>.cd-in:not(.seg)` đang hiện, **lệch > 1px là trượt**. Ca này bắt được ngay chuyện lẫn cặp
+với không-cặp — thứ mà ảnh chụp nhìn qua rất dễ bỏ sót.
+
+**Đo lại:** `qc-chuyen-doi-can` **102/102** (+2 ca: nút Loại hàng ngang hàng nhãn · mọi ô nhập thẳng
+một cột; 2 ca cũ đo cờ `.mot` của lối xếp cặp đã viết lại theo hợp đồng mới) ·
+`qc-mobile-toan-du-an --file --trang=factory`.
+
 ## Còn lại (chưa làm)
 
 * **P3 vá dữ liệu gốc**: 230 SKU vải còn tồn thiếu gsm trong tên + 2 SKU ghi sai `Width 1650cm`.

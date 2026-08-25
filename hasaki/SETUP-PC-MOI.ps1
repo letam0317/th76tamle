@@ -70,6 +70,9 @@ $LAP_MAI = New-TimeSpan -Days 3650
 
 function Dang-Ky($ten, $vbs, $trigger) {
   $action = New-ScheduledTaskAction -Execute $wscript -Argument "`"$DIR\$vbs`""
+  # KHONG -WakeToRun o day (audit 23/08/2026 de xuat nhung DA BAC): WakeToRun la thuoc tinh CA TASK,
+  # gan vao task nhip 2' la may bi dung day 720 lan/ngay. Viec "may ngu thi ai chay task" da co
+  # task rieng "Factory co cho bat may sang" (06:50 hang ngay, WakeToRun=True) lo — xem A2.
   $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries `
               -ExecutionTimeLimit (New-TimeSpan -Hours 2) -MultipleInstances IgnoreNew
   Register-ScheduledTask -TaskName $ten -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
@@ -139,6 +142,13 @@ $sc.Description = 'Bam de bot nop bao cao 9 task hang ngay tren work.hasaki.vn (
 $sc.IconLocation = (Get-Command node).Source + ',0'
 $sc.Save()
 Write-Host "  [OK] Shortcut nut: $lnk"
+
+# BO CO CHO MAY TRAM (21/08/2026) — 2 task rieng + cai dat nguon. Khong nhet vao ham Dang-Ky o tren
+# vi chung can trigger SU KIEN (cam sac / may thuc day) va co WakeToRun — nhung thu New-ScheduledTaskTrigger
+# cua PS 5.1 khong dung duoc. De nguyen mot cho trong CAI-CO-CHO.ps1, tranh hai noi troi khac nhau.
+#   -KhongHoi = chi lam cai dat nguon + 2 task; TU DANG NHAP WINDOWS phai co nguoi tra loi,
+#   bam dup CAI-CO-CHO.bat sau (xem CO-CHO-MAY-IN.md).
+& powershell -NoProfile -ExecutionPolicy Bypass -File "$DIR\CAI-CO-CHO.ps1" -KhongHoi
 
 # ---------- 3. GIAO THUC hasaki5s:// (HKCU, khong can Admin) ----------
 Write-Host "`n== Dang ky giao thuc hasaki5s:// ..." -ForegroundColor Cyan

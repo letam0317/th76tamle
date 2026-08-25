@@ -147,6 +147,38 @@ console.log("── Lọc theo phần tử tên hàng ──");
   }
 }
 {
+  /* GÕ THẲNG SKU NỘI BỘ (22/08/2026 — sự cố 422448952): SKU có thật trong WMS mà máy báo "Không
+     SKU nào trong danh mục chứa…". Hai lỗi cộng lại: locDong chỉ soi TÊN HÀNG (tên không bao giờ
+     chứa số SKU của chính nó) nên bộ lọc rỗng, và `return []` chạy TRƯỚC nhánh khớp-tuyệt-đối
+     thangSku — đáp án đúng bị vứt rồi mới báo "không có". */
+  const rong = E.tuAI({ item_codes: [], specs: [], colors: [], brands: [] });
+  const va = ds.find((r) => r.status === "ACTIVE" && /^\d{9}$/.test(String(r.sku)));
+  const nhanSku = E.tuAI({ item_codes: [String(va.sku)], specs: [], colors: [], brands: [] }, cm);
+  const raSku = E.timTop(nhanSku, cm, { soLuong: 3, chiActive: true, loc: [String(va.sku)] });
+  kiem("Gõ thẳng SKU nội bộ (" + va.sku + ") → đúng dòng đó #1 · 100% · cờ laSku",
+    raSku.length >= 1 && String(raSku[0].sku) === String(va.sku) && raSku[0].pct === 100 && raSku[0].laSku === true,
+    raSku.map((r) => r.sku + "/" + r.pct + "%" + (r.laSku ? "/laSku" : "")).join(" · ") || "(rỗng)");
+  /* SKU gõ sai (không có thật) → RỖNG để lớp trên mời "Ý bạn là…", không âm thầm đoán bừa */
+  let saiSku = null;
+  for (let n2 = 900000001; n2 <= 900000100 && !saiSku; n2++) {
+    const s = String(n2);
+    if (!ds.some((r) => String(r.sku).indexOf(s) === 0 || r.pn.indexOf(s) >= 0)) saiSku = s;
+  }
+  const raSai = E.timTop(rong, cm, { soLuong: 3, chiActive: true, loc: [saiSku] });
+  kiem("SKU không có trong danh mục (" + saiSku + ") → trả RỖNG, không đoán bừa",
+    raSai.length === 0, raSai.map((r) => r.sku).join(",") || "(rỗng)");
+  /* Gõ ĐÍCH DANH SKU của dòng INACTIVE: định danh thắng phạm vi (luật 5b.12) — phải ra dòng đó
+     kèm huy hiệu INACTIVE, không được im lặng vì phạm vi mặc định chỉ ACTIVE. */
+  const vi = ds.find((r) => r.status === "INACTIVE" && /^\d{9}$/.test(String(r.sku)));
+  if (vi) {
+    const nhanI = E.tuAI({ item_codes: [String(vi.sku)], specs: [], colors: [], brands: [] }, cm);
+    const raI = E.timTop(nhanI, cm, { soLuong: 3, chiActive: true, loc: [String(vi.sku)] });
+    kiem("Gõ SKU của dòng INACTIVE (" + vi.sku + ") → vẫn ra đích danh dòng đó",
+      raI.length >= 1 && String(raI[0].sku) === String(vi.sku),
+      raI.map((r) => r.sku + "/" + r.pct + "%").join(" · ") || "(rỗng)");
+  }
+}
+{
   /* GIAI ĐOẠN 1-2 (chuanChuoiTem) — hai bẫy đã cắn NGAY LÚC VIẾT, cắt chữ thì im lặng mà hậu quả rộng:
        ① nhánh bắt "P/O NO" ăn luôn "Po" trong Polyester → "lyester" (mất rổ chất liệu của mọi tem)
        ② "COLOR:" bị cắt nửa thành "OR:"

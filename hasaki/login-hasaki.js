@@ -25,7 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { luuNhieu, EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { trangThaiPhien, DEFER_EXIT } from "./session-rules.js";
+import { trangThaiPhien, DEFER_EXIT, camTuDangNhap } from "./session-rules.js";
 import { hoiOtpQuaChat } from "./hop-thu.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -83,6 +83,17 @@ const DRY_OTP = process.argv.includes("--dry-otp") || process.env.DRY_OTP === "1
 const SHOW = process.argv.includes("--show");   // --show = hiện cửa sổ để gỡ lỗi; mặc định CHẠY NGẦM ngoài màn hình
 // Log theo GIỜ VN THẬT (log cũ dùng toISOString = UTC, lệch 7h — sự cố 27/07/2026 đọc nhầm "01:44" tưởng máy chạy nửa đêm).
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
+
+/* CHỐT CỨNG "cấm máy tự tạo phiên" (23/08/2026) — xem session-rules.js §camTuDangNhap.
+ * Chỉ chặn lượt KHÔNG CÓ NGƯỜI trong vòng lặp: `--auto` mà không đi kèm kênh xin OTP từ người
+ * (`--otp-chat` / LOGIN_OTP_FILE). Lượt người chủ động (nút trong email, `/dangnhap` qua Telegram)
+ * vẫn chạy — người tự quyết định đá phiên của chính mình thì không ai cấm.
+ * Đứng TRƯỚC cầu dao và khoá chạy-chồng để không tốn một giây mở trình duyệt. */
+if (camTuDangNhap() && AUTO && !OTP_CHAT && !OTP_FILE) {
+  log("⛔ CẤM TỰ ĐĂNG NHẬP (CAM_TU_DANG_NHAP=1) — lượt tự động không được tạo phiên mới (tài khoản dùng chung, tạo phiên là đá người đang làm).");
+  log("   Cần vé mới: nhắn /dangnhap cho bot Telegram (bot sẽ xin bạn 6 số), hoặc mở WMS/work một lượt để cầu nối bắt token.");
+  process.exit(DEFER_EXIT);
+}
 
 function genOTP() {
   if (!SECRET) return null;

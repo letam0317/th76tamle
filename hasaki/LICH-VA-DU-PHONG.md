@@ -149,7 +149,7 @@ không ghi mốc, không chiếm lock) — 3 kịch bản đã chạy thật 09:
 
 | Nguồn | Nhịp | Cơ chế tiết kiệm |
 |---|---|---|
-| Vệ sinh (`sync-vesinh-all.js`) | ≥ **15'** | bản thân rẻ (~7 call), 1 lượt quét sinh 4 tab |
+| Vệ sinh (`sync-vesinh-all.js`) | ≥ **15'** | bản thân rẻ (~7 call), 1 lượt quét sinh 4 tab. Từ 24/08/2026 kèm **báo Telegram 17h** "đi làm mà CHƯA báo cáo vệ sinh" (loại người vào ca từ 13:00) — `bao-vesinh-telegram.mjs` tự gác 1 tin/ngày ở lượt sync đầu tiên từ 17:00, dùng chính dữ liệu lượt quét nên **0 lượt gọi thêm** |
 | Bảng phân công (`sync-phancong.mjs`) | đi kèm ngay sau bước vệ sinh | **không gọi WMS** (chỉ đọc g-sheet công khai + `readTab`) → không tốn quota, không đụng luật 1-phiên; hash-skip khi không đổi |
 | AI xét ảnh (`sync-vesinh-ai.mjs`) | ≥ **30'** | thoát ngay nếu không có request "Chờ duyệt" |
 | Kiểm kê (`push-pc-to-sheet.mjs`) | ping ≥ **10'** (khi mốc ≥30') | **ping 4 call size=1** → marker `count@updated_at` đổi mới kéo `PC_DELTA=1` |

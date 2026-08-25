@@ -13,7 +13,7 @@
 | 08:19 | 13343971 | Kiểm kê Location | 1735 "Audit" | 1 | Huỳnh Trần Như Ý | **A** |
 | 08:19 | 13343972 | Kiểm kê SKU | 1735 | 1 | Huỳnh Trần Như Ý | **A** |
 | 08:19 | 13343975 | Kiểm tra 5S kho tổng | 1735 | 1 | Huỳnh Trần Như Ý | **A** |
-| 08:19 | 13343976 | Sắp xếp hàng hóa tại kho tổng | 1735 | 1 | Huỳnh Trần Như Ý | **tự** ⛔ |
+| 08:19 | 13343976 | Sắp xếp hàng hóa tại kho tổng | 1735 | 1 | Huỳnh Trần Như Ý | **B** (câu mặc định riêng + phút theo quỹ, xem §6b) |
 | 08:19 | 13344022 | Dán tem QC Fail và Block UID Group vải không đạt chất lượng | 0 | 1 | Lê Thanh Hiền | **B** |
 
 - 8 link người dùng đưa thiếu **13343976 "Sắp xếp hàng hóa tại kho tổng"** — nó cũng ra hằng ngày.
@@ -92,9 +92,24 @@ Ghi chú tìm đường: **swagger nội bộ mở công khai tại `https://wsh
 
 | Task | Nguồn số liệu | Nội dung báo cáo |
 |---|---|---|
-| Kiểm kê SKU / Location / full location | `.pc-cache.json` (push-pc-to-sheet) | số phiếu trong ngày, đã đếm, phiếu lệch, kho, người kiểm, link WMS |
+| Kiểm kê SKU / Location / full location | `.pc-cache.json` (push-pc-to-sheet) | số phiếu **do chính tamlc đếm/duyệt** trong ngày, đã đếm, phiếu lệch, kho, link WMS |
 | Kiểm tra 5S kho tổng | `.exports/tasks-cache.json` (workflow 591) | số lượt vi phạm ghi nhận trong ngày + link dashboard AUDIT |
 | Các vấn đề bất thường F0-A0 ×2 | 2 lượt/kho: `stock-locations/bins/count/v3` (đếm bin) + `report-inventories` (nguồn từng UID) | số SKU còn treo lúc kiểm tra lại, so với số đầu ngày, **và từng mã đi ra F0-A0 từ đâu** |
+
+### Phạm vi 3 task kiểm kê + chống báo cáo trùng (chốt 25/08/2026)
+
+- **"Kiểm kê SKU"** = phiếu type **SKU + SKU Factory** (cache `hSku` + `fSku`) — nhãn báo cáo ghi
+  rõ `(type SKU · SKU Factory)`.
+- **"Kiểm kê Location"** = phiếu type **Location + Full Location + Full Location Factory** (cache
+  `hLoc` + `fLoc`, mọi `plan_type` chứa LOCATION) — nhãn ghi rõ.
+- **"Kiểm kê theo vị trí type full location" TRÙNG VIỆC với "Kiểm kê Location"** (phiếu
+  full-location là tập con của location). Dữ liệu + PHÚT luôn **ưu tiên tính cho "Kiểm kê
+  Location"**; task full-location vẫn nộp báo cáo chữ như cũ nhưng phút giữ mức tối thiểu
+  (1 khối lượng = 20') — không đếm cùng một phiếu hai lần.
+- **Báo cáo chỉ kể việc CỦA MÌNH** (đảo chốt 24/08 "kể số cả kho"): số phiếu / đã đếm / lệch chỉ
+  đếm phiếu do chính `tamlc@hasaki.vn` đếm hoặc duyệt; **không liệt kê tên người kiểm khác** —
+  "này là báo cáo của tôi". Không có phiếu nào của mình ⇒ báo đúng câu "không có phiếu kiểm kê
+  nào do tamlc@hasaki.vn thao tác trong ngày".
 
 ### Mã đó đi ra F0-A0 từ đâu (chốt 20/08/2026, yêu cầu chủ máy)
 
@@ -135,21 +150,21 @@ node task-hangngay.mjs --thu-f0a0     # chỉ hỏi WMS rồi in 2 báo cáo ra 
 Cả 3 bộ dựng báo cáo đều **từ chối nộp nếu dữ liệu trong máy cũ hơn 6 giờ** — số liệu cũ nộp lên
 còn tệ hơn không nộp.
 
-**NGOÀI PHẠM VI BOT — ĐÚNG MỘT TASK (chốt lại 20/08/2026):** task tên **chính xác**
-`Sắp xếp hàng hóa tại kho tổng` **do Huỳnh Trần Như Ý giao** (`created_by` = 17840). Task này để
-riêng, **chủ máy tự bấm Hoàn thành trên web**. Bot không soạn, không nộp, kể cả khi người bấm nút
-chọn "nộp tất cả" — trong `SO_TAY` nó mang cờ `tuBaoCao: true` + `nguoiGiao` và cửa sổ nút in
-`→ NGOÀI PHẠM VI BOT — bạn tự bấm Hoàn thành trên web.` Cửa duy nhất để ép: gọi đích danh
-`node task-hangngay.mjs --nop --task=<id>` (phải tự gõ đúng id của ngày hôm đó nên không thể lỡ
-tay).
+**"Sắp xếp hàng hóa tại kho tổng" — ĐẢO chốt 25/08/2026** (chốt 19–20/08 cũ để chủ máy tự báo
+cáo, cờ `tuBaoCao`): bot **nộp lại**, kết quả mặc định là câu
+*"Trao đổi công việc kiểm soát kho nhà máy, kho tổng"* (đổi bằng env `TASK_BAOCAO_KHO_TONG`,
+hoặc `.task-baocao-tay.json` ưu tiên hơn) và **phút thực tế = 480' − phút các task khác − 30'**
+(xem §6b). Vẫn khoá bằng tên **chính xác** + người giao **Huỳnh Trần Như Ý** (`created_by` =
+17840) — lệch một trong hai ⇒ rơi vào nhánh "task LẠ", bot kêu to và không nộp hộ task của
+người khác.
 
-**Mọi task còn lại trong sổ tay — kể cả nhóm B — bot đều báo cáo tự động.** Hai task việc tay
+**Mọi task trong sổ tay — kể cả nhóm B — bot đều báo cáo tự động.** Hai task việc tay
 `Sắp xếp hàng hóa trong kho` (prid 8443) và `Dán tem QC Fail và Block UID Group` nộp bằng một câu
 trung tính; muốn ghi nội dung thật thì viết vào `.task-baocao-tay.json` (mục 6).
 
 Khoá bằng **cả tên neo hai đầu (`^…$`) lẫn người giao**: khớp lỏng kiểu `/tại kho tổng/` sẽ ăn lây
-bất kỳ task nào chứa cụm đó (ví dụ "Sắp xếp hàng hóa tại kho tổng ca 2" của người khác) rồi lặng
-lẽ không nộp. Lệch một trong hai điều kiện ⇒ task rơi vào nhánh **"task LẠ"**: bot kêu to
+bất kỳ task nào chứa cụm đó (ví dụ "Sắp xếp hàng hóa tại kho tổng ca 2" của người khác) rồi nộp
+hộ báo cáo mặc định. Lệch một trong hai điều kiện ⇒ task rơi vào nhánh **"task LẠ"**: bot kêu to
 `⚠ N task chưa có trong sổ tay (KHÔNG nộp)` và không nộp — hướng sai an toàn.
 
 **Nhóm B — việc tay ngoài kho:** "Sắp xếp hàng hóa trong kho" và "Dán tem QC Fail và Block UID
@@ -185,8 +200,8 @@ Nút mở một cửa sổ đen, chạy `task-hangngay.mjs --nut` và **hỏi tr
 ➜ Nộp lên work.hasaki.vn?  [Enter] nộp CẢ 8 task · [k] không nộp gì :
 ```
 
-`Sắp xếp hàng hóa tại kho tổng` **không nằm trong lựa chọn nào** — nó ngoài phạm vi bot (mục 4).
-Bấm nút bao nhiêu lần cũng vô hại: task đã nộp tự bỏ qua.
+Bấm nút bao nhiêu lần cũng vô hại: task đã nộp tự bỏ qua. (Từ 25/08/2026
+`Sắp xếp hàng hóa tại kho tổng` nộp cùng mọi task khác — xem mục 4.)
 
 **Đã BỎ nhánh `[a] chỉ nhóm A` (20/08/2026) — nó là cái bẫy đã cắn đúng một ngày sau khi thêm.**
 Chiều 20/08 người bấm nút chọn `[a]`; hai task nhóm B — #13371951 *Sắp xếp hàng hóa trong kho* và
@@ -237,9 +252,37 @@ cho mọi task; nay mỗi task được đo từ **mốc thật của chính s�
 
 | Task | Mốc dùng để đo |
 |---|---|
-| Kiểm kê SKU / Location / full location | `checklist_at` (giờ đếm) + `approved_at` (giờ duyệt) của phiếu **rơi vào hôm nay** — `created_at` KHÔNG dùng vì phiếu có thể tạo từ hôm kia |
-| Kiểm tra 5S kho tổng | giờ ghi nhận từng lượt vi phạm hôm nay (cột 6 của `tasks-cache.json`) |
+| Kiểm kê SKU / Location | `checklist_at` (giờ đếm) + `approved_at` (giờ duyệt) của phiếu **rơi vào hôm nay**, và **chỉ phiếu do mình bấm** (`checklist_by_name` / `approved_by_name` = `tamlc@hasaki.vn`) — `created_at` KHÔNG dùng vì phiếu có thể tạo từ hôm kia |
+| Kiểm kê theo vị trí (full location) | **không nhận mốc** (25/08/2026) — phiếu trùng với "Kiểm kê Location", phút đã tính bên đó; task này giữ tối thiểu 1 khối lượng (20') |
+| Kiểm tra 5S kho tổng | giờ ghi nhận các lượt vi phạm hôm nay **do mình ghi** (cột 5 "Created By" = "Lê Chí Tâm - 233135", cột 6 là giờ) |
+| Sắp xếp hàng hóa tại kho tổng | **công thức quỹ** (25/08/2026): 480' − task khác − 30', xem cuối mục |
 | F0-A0 MTG/GARMENT · việc tay (nhóm B) | **không có mốc nào ⇒ 1 phút** (mặc định `TASK_GIO_THUC_TE`) |
+
+**CHỈ MỐC CỦA MÌNH (sửa chiều 24/08/2026).** Bản sáng lấy mọi mốc trong phiếu hôm nay ⇒ đo giúp cả
+kho: 24/08 có **212 phiếu** full-location của **13 người** (mình 22 phiếu), gộp phiên ra
+`506' · 420 mốc · 08:42→18:08` — vượt cả quỹ 480' nên mọi task bị hạ theo tỉ lệ. Nay mốc chỉ tính
+khi **chính `tamlc@hasaki.vn` thao tác** ⇒ `263' · 44 mốc · 3 phiên · 10:56→18:08 · 22/212 phiếu`.
+Đổi người đo bằng `TASK_TOI_EMAIL` (và `TASK_TOI_MA_NV` cho cột người của 5S). **25/08/2026 đảo
+tiếp: nội dung báo cáo kiểm kê cũng chỉ kể phiếu của mình** (xem mục 4) — cả số liệu lẫn thời
+gian đều là của riêng mình. Riêng phiếu **full-location** phút chỉ tính MỘT lần, ở task
+"Kiểm kê Location" (mục 4 — chống báo cáo trùng); task full-location giữ mức tối thiểu.
+
+**LÀM TRÒN THEO PHÚT DỰ ĐỊNH + KHỐI LƯỢNG (chốt 25/08/2026).** Web hiểu mỗi task là
+*khối lượng × phút dự định*: `planned_hours` là phút cho **1 khối lượng** (Location 120' · SKU
+60' · 5S 30' · full-location 20' · 2 task sắp xếp 60' · F0-A0 và dán tem 0'), field
+`amount_of_work` = "Khối lượng công việc" (tra swagger `/api/doc.json`). Nên:
+
+- Phút bot đo **làm tròn LÊN theo bước** `planned_hours`: đo 263' bước 20' → **280'**.
+- Nộp kèm **khối lượng = phút/bước**: 280/20 = **14** (gửi `field=amount_of_work` trước
+  `reality_hours`; lỗi nhịp này không chặn lượt nộp — web vốn mặc định khối lượng 1).
+- Bước 0 (F0-A0, dán tem) không có khối lượng → giữ nguyên phút, không gửi field.
+- Số **người tự nhập giữ nguyên** không làm tròn (người gõ chịu trách nhiệm con số); khối lượng
+  đi kèm suy ra gần nhất từ số đó.
+
+**"Sắp xếp hàng hóa tại kho tổng" ôm phần quỹ còn lại (chốt 25/08/2026):**
+`phút = 480' − phút các task khác (kể cả đã ghi sẵn) − 30'` (30' để riêng — đổi bằng
+`TASK_PHUT_DANH_RIENG`), làm tròn XUỐNG theo bước 60' để khối lượng nguyên, không dưới
+1 khối lượng. Người tự nhập số cho task này thì công thức nhường chỗ.
 
 **Gộp mốc thành phiên:** hai mốc cách nhau hơn `TASK_KHE_PHIEN` (mặc định **30'**) là hai lần ngồi
 làm khác nhau. Mỗi phiên cộng thêm `TASK_BU_PHIEN` (**5'**) cho phần việc xảy ra *trước* mốc đầu
@@ -257,14 +300,27 @@ tiên (mở phiếu, đi tới vị trí, đếm rồi mới bấm). Sàn 1 phú
 ```
 
 "Đã ghi sẵn" = `reality_hours` của các task hôm nay **của mình** đã nộp trước đó (`sub_type=1` đọc
-dòng riêng của mình trong `staff[]`). Tổng vượt quỹ ⇒ **hạ đều theo tỉ lệ** (mốc của các task chồng
-lên nhau trong cùng một ngày nên cộng thô là đếm trùng), mỗi task vẫn giữ sàn 1'; dòng đó ghi rõ
-`(đo N', hạ theo quỹ)`. Nộp xong dòng tổng kết và `task-hangngay.log` đều mang số phút và phần còn lại.
+dòng riêng của mình trong `staff[]`). Tổng vượt quỹ ⇒ **hạ từng BƯỚC** (đúng `planned_hours`) từ
+task dài nhất — phút luôn là bội số của bước, khối lượng luôn nguyên (25/08/2026, thay cách hạ
+đều theo tỉ lệ cũ); sàn 1 khối lượng (task bước 0 sàn 1'); dòng đó ghi rõ `(bot đo N', hạ theo
+quỹ)`. Sàn cộng lại vẫn vượt (thường do số người tự nhập) thì bảng cảnh báo `⚠ VƯỢT quỹ ngày`.
+Nộp xong dòng tổng kết và `task-hangngay.log` đều mang số phút và phần còn lại.
 
-**Nhập tay ngay ở nút (chốt 24/08/2026):** câu hỏi nộp có thêm phím **[g] sửa giờ trước** — đi
-từng task, đề xuất của bot hiện trong ngoặc `[242']`, **Enter suông = giữ nguyên đề xuất**, gõ số
-= dùng số của mình, `x` = thôi giữ hết phần còn lại. Sửa xong bot in lại bảng quỹ (dòng sửa gắn
-`← BẠN NHẬP (bot đo N')`) rồi hỏi nộp lại — bấm [g] thêm lượt nữa cũng được. **Số người tự nhập
+**Ô NHẬP GIỜ MỞ SẴN (sửa chiều 24/08/2026).** Bản sáng để việc nhập giờ sau phím **[g]** của câu
+hỏi nộp — người bấm nút không thấy nên Enter nộp luôn số bot đo. Nay chế độ nút (`--nut`) in bảng
+quỹ xong là **hỏi thẳng từng task**, rồi mới hỏi nộp:
+
+```
+── Ô NHẬP THỜI GIAN THỰC TẾ (phút) ─────────────────────────────────────────
+   Gõ số phút BẠN muốn rồi Enter · Enter suông = giữ số bot đo · [x] = giữ hết, đi tiếp
+   #13422677 Kiểm kê theo vị trí …  [263'] : 
+```
+
+Đề xuất của bot hiện trong ngoặc `[263']`, **Enter suông = giữ nguyên**, gõ số = dùng số của mình,
+`x` = thôi, giữ hết phần còn lại (gõ chữ không phải số ⇒ báo "không hợp lệ" và giữ nguyên). Xong bot
+in lại bảng quỹ (dòng sửa gắn `← BẠN NHẬP (bot đo N')`) rồi mới hỏi nộp; ở câu hỏi nộp còn phím
+**[g] nhập lại giờ** để làm thêm lượt nữa. Không muốn bị hỏi thì đặt `TASK_HOI_GIO=0` (chỉ còn [g]
+như cũ); chạy nền không có bàn phím thì bước này tự bỏ qua. **Số người tự nhập
 KHÔNG bị hạ theo quỹ** (người gõ chịu trách nhiệm con số đó, bot chỉ co phần nó đo để nhường chỗ),
 và được tự nhớ vào `.task-giothucte.json` — bấm nút lại trong ngày khỏi gõ lại.
 

@@ -95,7 +95,8 @@ Nút desktop (`NUT-NOP-TASK.bat`) chặn bằng **TTY**: không có bàn phím t
 
 Chốt an toàn: `callback_data` mang **nonce dùng MỘT LẦN**, hết hạn **5 phút** (số liệu cũ hơn thì
 bắt gõ lại), và chỉ nhận đúng chat đã gõ `/nop`. Bấm lại nút cũ → *"Nút này không còn hiệu lực"*.
-Task `Sắp xếp hàng hóa tại kho tổng` vẫn ngoài phạm vi bot ở mọi đường (xem `TASK-HANG-NGAY.md` §4).
+Từ 25/08/2026 task `Sắp xếp hàng hóa tại kho tổng` nộp cùng mọi task khác — câu mặc định + phút
+theo quỹ 480' (xem `TASK-HANG-NGAY.md` §4 và §6b).
 
 
 ## 6. `/dangnhap` — bot xin OTP, bạn nhắn 6 số
@@ -187,6 +188,15 @@ gọi `baoTelegram()` ở cuối mỗi lượt soát:
 | Lành | `✅ … bình thường trở lại`, gửi **một lần** rồi thôi |
 | Im lặng | ngoài 7–18h và **Chủ nhật**: dữ liệu cũ lúc đó là cố ý, báo là báo giả (dạy người ta bỏ qua cảnh báo thật) |
 | Chưa có token | bỏ qua êm, không lỗi |
+
+**Báo 17h hằng ngày — "đi làm mà CHƯA báo cáo vệ sinh" (thêm 24/08/2026).** `sync-vesinh-all.js`
+(poller nhịp 15') gọi `bao-vesinh-telegram.mjs` ngay sau khi tính bảng CHAMCONG-VESINH: lượt sync
+ĐẦU TIÊN từ **17:00** nhắn đúng **1 tin/ngày** liệt kê từng người có chấm công hôm nay nhưng chưa
+có báo cáo vệ sinh nào (tên + mã NV + giờ vào), **loại người đi ca trễ** (giờ vào ≥ 13:00 — 17h họ
+chưa xong ca). Không ai chưa báo cáo → tin `✅`; không ai chấm công (ngày nghỉ) → im lặng; gửi lỗi
+→ lượt 15' sau tự thử lại; mốc "hôm nay đã nhắn" ở `.bao-vesinh-17h.json` (gitignore). Chỉnh giờ
+bằng `.env`: `VS_BAO_GIO=17:00`, `VS_BAO_CA_TRE=13:00`. Chạy thử: `node bao-vesinh-telegram.mjs --thu`
+(tin số liệu MẪU, không đụng mốc). **0 lượt gọi upstream thêm** — dữ liệu là của chính lượt quét.
 
 Vì `CANH_GUI_THU=0` (thư email tắt từ 15/08/2026), **đây là đường cảnh báo duy nhất còn sống**:
 tắt token bot = cả hệ mất tai nghe, chỉ còn log nằm im trên đĩa. Muốn xem hiện trạng bất cứ lúc

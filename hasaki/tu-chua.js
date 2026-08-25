@@ -237,6 +237,9 @@ export async function dongSuCo(ma) {
  * GAS canh nhịp này bằng trigger mỗi giờ — im quá 3 tiếng trong giờ làm thì GAS TỰ gửi thư.
  * Đây là đường DUY NHẤT bắt được kịch bản máy trạm tắt, vì lúc đó máy không thể tự tố cáo mình.
  */
-export async function nhipTim(buoc = "") {
-  return guiGas({ action: "heartbeat", buoc });
+export async function nhipTim(buoc = "", them = {}) {
+  /* `them.soBuocHong` (audit 23/08/2026): nhịp tim mà KHÔNG mang sức khoẻ thì cụm hỏng toàn phần
+     vẫn "xanh" — GAS thấy tim đập đều nên tcCanhNhipTim không nổ, thư lại tắt ⇒ mù hoàn toàn.
+     Nay tim đập kèm "n bước đang hỏng" để tầng GAS tự cảnh báo được dù máy trạm không gửi thư. */
+  return guiGas({ action: "heartbeat", buoc, ...them });
 }

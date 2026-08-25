@@ -204,8 +204,17 @@ function tcApiSuCo(duLieu) {
 /** POST { action:'heartbeat', buoc } — máy trạm báo "tôi còn sống". */
 function tcApiNhipTim(duLieu) {
   try {
-    PropertiesService.getScriptProperties().setProperty('TC_HEARTBEAT', String(Date.now()));
+    var props = PropertiesService.getScriptProperties();
+    props.setProperty('TC_HEARTBEAT', String(Date.now()));
     tcDongSuCo_('MAYTRAM');   // máy nói được là máy còn sống → đóng sự cố máy tắt nếu đang mở
+    /* SỨC KHOẺ TRONG NHỊP TIM (audit 23/08/2026): trước đây tim chỉ nói "tôi sống" — cụm 8h40
+       hỏng TOÀN PHẦN mà tim vẫn đập ⇒ tcCanhNhipTim không nổ, không ai biết. Nay máy trạm gửi
+       kèm soBuocHong; GAS lưu lại để trigger giờ (tcCanhNhipTim) tự mở sự cố khi hỏng dai dẳng. */
+    var hong = Number(duLieu && duLieu.soBuocHong);
+    if (!isNaN(hong)) {
+      if (hong > 0) { props.setProperty('TC_HONG', String(hong)); props.setProperty('TC_HONG_AT', String(Date.now())); }
+      else { props.deleteProperty('TC_HONG'); props.deleteProperty('TC_HONG_AT'); tcDongSuCo_('BUOC-HONG'); }
+    }
     return phanHoiJson({ status: 'success' });
   } catch (err) { return phanHoiJson({ status: 'error', message: String(err) }); }
 }
@@ -279,6 +288,22 @@ function tcCanhNhipTim() {
   var h = Number(Utilities.formatDate(new Date(), 'GMT+7', 'H'));
   if (gio > TC_NHIP_IM_GIO && h >= 7 && h < 19) {
     tcMoSuCo_({ ma: 'MAYTRAM', loai: 'MAY_TRAM_IM', nguon: 'Máy trạm', soLieu: { treGio: Math.round(gio) }, chiTiet: '' });
+  }
+  /* TIM ĐẬP NHƯNG NGƯỜI ỐM (audit 23/08/2026): máy trạm sống mà báo "n bước hỏng" liên tục
+     quá 3 giờ trong giờ làm → mở sự cố từ CHÍNH GAS (đường thư này không bị công tắc
+     CANH_GUI_THU của máy trạm chặn — giống hệt đường "máy trạm im" đang chạy). */
+  var hong = Number(props.getProperty('TC_HONG') || 0);
+  var hongAt = Number(props.getProperty('TC_HONG_AT') || 0);
+  if (hong > 0 && hongAt && (Date.now() - hongAt) < 2 * 3600000 && h >= 7 && h < 19) {
+    var moLuc = Number(props.getProperty('TC_HONG_TU') || 0);
+    if (!moLuc) { props.setProperty('TC_HONG_TU', String(Date.now())); }
+    else if (Date.now() - moLuc > 3 * 3600000) {
+      tcMoSuCo_({ ma: 'BUOC-HONG', loai: 'BUOC_DUNG', nguon: 'Cụm đồng bộ máy trạm',
+        soLieu: { treGio: Math.round((Date.now() - moLuc) / 3600000) },
+        chiTiet: 'Máy trạm còn sống (tim đập) nhưng tự khai ' + hong + ' bước đồng bộ đang hỏng liên tục quá 3 giờ — xem sync-guard.log / canh-suc-khoe trên máy trạm.' });
+    }
+  } else if (!hong) {
+    props.deleteProperty('TC_HONG_TU');
   }
 }
 
