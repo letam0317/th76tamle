@@ -99,7 +99,98 @@ const HEADER_QTC = ["No.", "Checklist ID", "Request code", "Warehouse", "Locatio
 const laQtc = (kind, r) => kind === "loc" && String(r.plan_type || "").toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_+|_+$/g, "") === "FULL_LOCATION_FACTORY";
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
 const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 1200);   // cap số PHIẾU kéo tracking mỗi lượt
-const UIDGR_V = 6;   // version định dạng dòng trong cache uidgr — v6: giữ TẤT CẢ UID group tại vị trí (kể cả UID group khớp) cho mục Tra cứu SL đếm theo SKU
+const UIDGR_V = 7;   // version định dạng dòng trong cache uidgr — v6: giữ TẤT CẢ UID group tại vị trí (kể cả khớp); v7 (26/08): Group Status = status_id thật trong exp_by_sys đúng như pop-up Detail WMS, thay mặc định "Available"
+/* Group status của UID group — soi bundle WMS 26/08/2026 (chunk ExpByUserDetailModal): cột "Group status" của
+   pop-up Detail đọc status_id nằm TRONG TỪNG ENTRY exp_by_sys (map code→status_id gom cả phiếu, first-wins);
+   group không có ở phía hệ thống (khai mới lúc đếm) = New. Web chỉ vẽ 1 New · 2 Available · 8 Blocked
+   (mã khác vẽ "—"); ở đây ghi đủ tên enum GroupUIDStatus (objectID 144) để không mất tin. */
+const UIDGR_ST = { 1: "New", 2: "Available", 3: "Editing", 4: "Picklisted", 5: "Processing", 6: "Transferred", 7: "Closed", 8: "Blocked", 9: "Canceled" };
+/* ===== TRẠNG THÁI HIỆN TẠI CỦA GROUP UID (26/08/2026 trưa — user chốt: lấy theo DANH SÁCH Group UID
+   wms.inshasaki.com/inventory/group-uid/list, KHÔNG theo phiếu). Ví dụ 1028260804000359: Physical count
+   detail vẽ "New" (group chỉ có ở phía đếm) nhưng danh sách Group UID là Available → phải là Available.
+   Nguồn: GET /wms/group-uid-infos (header Company-Ids BẮT BUỘC). 2 kho có ~16.100 group nên KHÔNG chụp
+   full mỗi lượt (đo 26/08: from_updated_at bị bỏ qua im lặng, sort_by=updated_at&sort_type=desc thì ăn):
+   · lượt ĐẦU (chưa có .uidgr-status.json): chụp full theo thứ tự mặc định id giảm (khoá duy nhất → phân
+     trang ổn định) ~33 lượt × 500;
+   · lượt SAU: sort_by=updated_at&sort_type=desc, đọc trang tới khi gặp bản ghi cũ hơn mốc đã có (lùi 10'
+     phòng khoá sắp trùng giây xáo trang) → thường 1 lượt;
+   · mã còn thiếu trong ảnh chụp (kho khác / vừa tạo): tra theo lô group_uid_codes 100 mã/lượt (60 mã/URL 1 KB đo OK).
+   Trạng thái ÁP LÚC XUẤT DÒNG (ghi đè cột Group Status) nên phiếu trúng cache vẫn mang trạng thái HIỆN TẠI;
+   status_id trong exp_by_sys chỉ còn là dự phòng khi mã không có trong danh sách. */
+const GST_FILE = path.join(DIR, ".uidgr-status.json");
+const GW_GROUP = "https://wms-gw.inshasaki.com/api/v1/wms/group-uid-infos";
+const GST_CTY = "1002,1005";   // Mastige + Garment — đủ cho kho 1177 + 1339
+let GST = { at: 0, maxUpd: "", map: {} };   // map: code -> [status_id, updated_at]
+async function gstGoi(qs) {
+  const url = GW_GROUP + "?" + qs;
+  let r = await fetchThuLai(url, { headers: { authorization: token, "company-ids": GST_CTY } });
+  if (r.status === 401 || r.status === 403) {
+    if (!(await lamTuoiTokenGiuaChung())) throw new Error("group-uid-infos trả HTTP " + r.status + " — không mượn lại được token sống.");
+    r = await fetchThuLai(url, { headers: { authorization: token, "company-ids": GST_CTY } });
+  }
+  if (r.status !== 200) throw new Error("group-uid-infos trả HTTP " + r.status);
+  const j = await r.json().catch(() => null);
+  return (j && j.records) || [];
+}
+function gstNap(recs) {
+  let n = 0;
+  for (const g of recs) {
+    const c = g && g.group_uid_code != null ? String(g.group_uid_code) : "";
+    if (!c) continue;
+    const u = String(g.updated_at || "");
+    GST.map[c] = [Number(g.status_id) || 0, u];
+    if (u > GST.maxUpd) GST.maxUpd = u;
+    n++;
+  }
+  return n;
+}
+const lui10p = (s) => {   // "YYYY-MM-DD HH:mm:ss" (giờ VN) lùi 10 phút, giữ định dạng để so chuỗi
+  const d = new Date(String(s || "").replace(" ", "T") + "+07:00");
+  if (isNaN(d)) return "";
+  return new Date(d.getTime() - 10 * 60000 + 7 * 3600000).toISOString().slice(0, 19).replace("T", " ");
+};
+async function capNhatTrangThaiGroup(codes) {
+  try { const c = JSON.parse(fs.readFileSync(GST_FILE, "utf8")); if (c && c.map) GST = c; } catch { /* chưa có ảnh chụp */ }
+  const t0 = Date.now(); let goi = 0, moi = 0;
+  const full = !Object.keys(GST.map).length;
+  if (full) {
+    log("  Group UID: chưa có ảnh chụp trạng thái — chụp full 2 kho (" + WH_IDS_FACTORY + ", ~33 lượt × 500)...");
+    for (let page = 1; page <= 60; page++) {
+      const recs = await gstGoi("page=" + page + "&size=500&warehouse_ids=" + WH_IDS_FACTORY); goi++;
+      if (!recs.length) break;
+      moi += gstNap(recs);
+      if (recs.length < 500) break;
+      if (Date.now() - t0 > 240000) { log("  ⚠ Group UID: chụp full quá 4' — dừng ở trang " + page + ", mã thiếu tra theo lô."); break; }
+      await nghi(120);
+    }
+  } else {
+    const moc = lui10p(GST.maxUpd);   // tính TRƯỚC khi nạp trang mới
+    for (let page = 1; page <= 20; page++) {
+      const recs = await gstGoi("page=" + page + "&size=500&warehouse_ids=" + WH_IDS_FACTORY + "&sort_by=updated_at&sort_type=desc"); goi++;
+      if (!recs.length) break;
+      moi += gstNap(recs);
+      const cuoi = String(recs[recs.length - 1].updated_at || "");
+      if (recs.length < 500 || (moc && cuoi < moc)) break;
+      await nghi(120);
+    }
+  }
+  const thieu = [...codes].filter((c) => !GST.map[c]);
+  for (let i = 0; i < thieu.length; i += 100) {
+    moi += gstNap(await gstGoi("page=1&size=100&group_uid_codes=" + thieu.slice(i, i + 100).join(","))); goi++;
+    await nghi(120);
+  }
+  GST.at = Date.now();
+  fs.writeFileSync(GST_FILE, JSON.stringify(GST));
+  log("  ✓ Group UID: ảnh chụp " + Object.keys(GST.map).length + " mã (" + (full ? "FULL" : "delta") + ", " + goi + " lượt gọi, nạp " + moi +
+    (thieu.length ? ", tra thêm " + thieu.length + " mã thiếu" : "") + "), mốc " + GST.maxUpd + ".");
+}
+/* Áp trạng thái hiện tại lên 1 dòng tab kiemke-uidgr (cột 13 = UID Group có dấu nháy đầu, 14 = Group Status) */
+function gstApDong(r) {
+  const c = String(r[13] || "").replace(/^'/, "");
+  const g = c && GST.map[c];
+  if (!g || !UIDGR_ST[g[0]] || r[14] === UIDGR_ST[g[0]]) return r;
+  const r2 = r.slice(); r2[14] = UIDGR_ST[g[0]]; return r2;   // copy: cache giữ trạng thái theo phiếu làm dự phòng
+}
 
 async function getTokenLive() {
   // layTokenSongWms (kho + bridge) đã được thử ở caller — tới đây là đường Edge/SSO thuần.
@@ -221,22 +312,26 @@ async function keoTracking(cid) {
   return all;
 }
 /* 1 dòng tracking (SKU × vị trí) -> các dòng UID group: hợp nhất exp_by_user (đếm) & exp_by_sys
-   (hệ thống). Status suy từ 2 phía: chỉ user = New (thêm khi đếm) · chỉ sys = Not found (hệ thống
-   có mà đếm không thấy) · cả 2 = Matched / Diff qty. Entry KHÔNG có group_uid_code (hàng thường
-   theo HSD) gom vào 1 dòng uid rỗng — FE hiện "—". */
-function uidRowsCuaLine(rec) {
-  const m = new Map();   // uid -> {qtyU, qtyS, exp, dat}
+   (hệ thống). Entry KHÔNG có group_uid_code (hoặc "0" — web WMS cũng coi là không có group; hàng
+   thường theo HSD) gom vào 1 dòng uid rỗng — FE hiện "—".
+   Trạng thái (v7, 26/08/2026) lưu trong cache = như cột "Group status" của pop-up Detail trên WMS: status_id
+   trong entry exp_by_sys (ưu tiên map cả phiếu `stMap`, rồi entry của chính dòng), không có ở phía hệ
+   thống = New. KHÔNG còn mặc định "Available" (bản v6 gắn Available cho mọi group vì entry không có
+   status_name — thật ra WMS để mã số status_id). LÚC XUẤT tab, gstApDong ghi đè bằng trạng thái HIỆN TẠI
+   từ danh sách Group UID (user chốt 26/08 trưa) — giá trị ở đây chỉ là dự phòng khi mã không có trong danh sách. */
+function uidRowsCuaLine(rec, stMap) {
+  const m = new Map();   // uid -> {qtyU, qtyS, exp, dat, sid}
   const gop = (arr, phia) => {
     for (const e of arr) {
       if (!e) continue;
-      const uid = e.group_uid_code != null && e.group_uid_code !== "" ? String(e.group_uid_code) : "";
+      const raw = e.group_uid_code != null ? String(e.group_uid_code) : "";
+      const uid = (raw === "" || raw === "0") ? "" : raw;
       const o = m.get(uid) || {};
       o[phia] = (o[phia] || 0) + (Number(e.qty) || 0);
       if (e.date_added && !o.dat) o.dat = String(e.date_added);
       const exp = e.exp || e.expiration_date || e.expiry_date;
       if (exp && !o.exp) o.exp = String(exp);
-      const st = e.status_name || e.group_status_name || e.group_status || e.status;
-      if (st && !o.gst) o.gst = String(st);
+      if (phia === "qtyS" && o.sid == null && e.status_id != null && e.status_id !== "") o.sid = Number(e.status_id);   // status chỉ tin phía hệ thống (như web)
       m.set(uid, o);
     }
   };
@@ -244,13 +339,28 @@ function uidRowsCuaLine(rec) {
   gop(ujParse(rec.exp_by_sys), "qtyS");
   const out = [];
   for (const [uid, o] of m) {
-    // Trạng thái UIDgr code: lấy theo Group status của UID group (mặc định Available cho các UID group trên WMS)
-    const st = o.gst || (uid ? "Available" : (o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : "Available"));
+    let st = "";
+    if (uid) {
+      const sid = (stMap && stMap.has(uid)) ? stMap.get(uid) : (o.sid != null ? o.sid : 1);
+      st = UIDGR_ST[sid] || ("#" + sid);
+    }
     out.push({ uid, st, qtyU: o.qtyU, qtyS: o.qtyS, exp: o.exp || "", dat: o.dat || "" });
   }
   return out;
 }
-async function buocUidgr(sku, loc, uidgrCu) {
+/* Map code -> status_id của CẢ PHIẾU từ exp_by_sys mọi dòng tracking (web: Bt(records.map(r => r.exp_by_sys)),
+   first-wins) — group đếm ở bin này nhưng hệ thống ghi ở bin khác vẫn lấy đúng trạng thái. */
+function uidgrStMap(recs) {
+  const mp = new Map();
+  for (const rec of recs) for (const e of ujParse(rec.exp_by_sys)) {
+    if (!e) continue;
+    const c = e.group_uid_code != null ? String(e.group_uid_code) : "";
+    if (!c || c === "0" || e.status_id == null || e.status_id === "" || mp.has(c)) continue;
+    mp.set(c, Number(e.status_id));
+  }
+  return mp;
+}
+async function buocUidgr(sku, loc, uidgrCu, cuStale) {
   const want = new Map();   // cid -> meta phiếu (kind + ngữ cảnh header)
   for (const [kind, arr] of [["sku", sku], ["loc", loc]]) for (const r of arr) if (phieuLech(kind, r))
     want.set(String(r.checklist_id), { kind, req: r.plan_id || "", wh: r.warehouse_name || "", type: r.plan_type || "",
@@ -261,7 +371,7 @@ async function buocUidgr(sku, loc, uidgrCu) {
   for (const [cid, meta] of want) {
     const cu = uidgrCu[cid];
     // Phiếu thuộc diện qtycount mà bản cache CHƯA có khối qc (cache đời trước 25/08) → kéo bù 1 lần
-    if (cu && cu.u === meta.upd && (!meta.qtc || cu.qc)) { moi[cid] = cu; hit++; continue; }
+    if (cu && !cuStale && !cu.stale && cu.u === meta.upd && (!meta.qtc || cu.qc)) { moi[cid] = cu; hit++; continue; }   // bản cũ khác định dạng (stale) không được tính là trúng cache
     canKeo.push([cid, meta]);
   }
   // Ưu tiên các phiếu FULL_LOCATION_FACTORY (mục Tra cứu SL đếm theo SKU) lên đầu
@@ -269,16 +379,28 @@ async function buocUidgr(sku, loc, uidgrCu) {
   if (canKeo.length > UIDGR_MAX) {
     treo = canKeo.length - UIDGR_MAX;
     const boQua = canKeo.splice(UIDGR_MAX);
-    for (const [cid] of boQua) if (uidgrCu[cid]) moi[cid] = uidgrCu[cid];
+    for (const [cid] of boQua) if (uidgrCu[cid]) moi[cid] = cuStale ? { ...uidgrCu[cid], stale: 1 } : uidgrCu[cid];   // giữ bản cũ để TAB KHÔNG CO LẠI (sự cố 26/08: bump v6 + cap 300 làm kiemke-uidgr rớt 6951 → 662 dòng); đánh dấu stale để lượt sau kéo lại
   }
   // 4 luồng song song (27/07/2026 — "cần nhanh hơn"): ≤4 request cùng lúc + nghỉ 120ms/phiếu,
   // vẫn hiền với WMS hơn 1 người bấm trang; token bị đá thì worker đầu làm tươi, các worker sau hưởng chung.
-  let idx = 0;
+  /* 1 phiếu lỗi mạng KHÔNG được giết cả bước (đo 26/08/2026 10:10: 1 "fetch failed" sau 4 lần thử làm rớt
+     Promise.all → bỏ cả 1.528 phiếu đã kéo được + không chụp trạng thái Group UID). Lỗi phiếu nào thì giữ bản cũ
+     (nếu có) để lượt sau kéo lại; 10 phiếu lỗi LIÊN TIẾP = mạng/WMS đang hỏng → dừng sớm, giữ phần đã có. */
+  let idx = 0, hong = 0, hongLienTiep = 0;
   const worker = async () => {
     for (;;) {
       const i = idx++; if (i >= canKeo.length) return;
       const [cid, meta] = canKeo[i];
-      const recs = await keoTracking(cid);
+      let recs;
+      try { recs = await keoTracking(cid); hongLienTiep = 0; }
+      catch (e) {
+        hong++; hongLienTiep++;
+        if (uidgrCu[cid]) moi[cid] = cuStale ? { ...uidgrCu[cid], stale: 1 } : uidgrCu[cid];
+        if (hong <= 3) log("  ⚠ tracking phiếu " + cid + " lỗi (" + (e && e.message) + ") — giữ bản cũ nếu có, đi tiếp.");
+        if (hongLienTiep >= 10) { idx = canKeo.length; log("  ⚠ 10 phiếu lỗi liên tiếp — mạng/WMS đang hỏng, dừng kéo sớm (giữ phần đã có)."); }
+        continue;
+      }
+      const stMap = uidgrStMap(recs);   // Group status theo cả phiếu (như groupStatusMap của web)
       const rows = [];
       const qc = meta.qtc ? [] : undefined;   // FULL_LOCATION_FACTORY: giữ MỌI dòng (kể cả khớp) cho tab kiemke-qtycount
       for (const rec of recs) {
@@ -290,7 +412,7 @@ async function buocUidgr(sku, loc, uidgrCu) {
           lineStatus(rec.status_id), meta.st, meta.by, meta.cdate || "", meta.upd]);
         /* GIỮ TẤT CẢ CÁC DÒNG UID GROUP TẠI VỊ TRÍ (yêu cầu user 26/08): để xem trọn bộ UID group của vị trí
            thay vì chỉ hiện nhóm lệch. Dòng diff=0 và nhóm khớp vẫn được đưa vào để hiển thị đầy đủ. */
-        const allGroups = uidRowsCuaLine(rec);
+        const allGroups = uidRowsCuaLine(rec, stMap);
         const groups = allGroups.filter((u) => u.uid !== "");
         if (!groups.length) {
           if (!diff && !allGroups.length) continue;   // dòng khớp hẳn không có UID group -> bỏ
@@ -308,12 +430,17 @@ async function buocUidgr(sku, loc, uidgrCu) {
     }
   };
   await Promise.all(Array.from({ length: Math.min(4, canKeo.length) }, worker));
+  // Trạng thái HIỆN TẠI của Group UID áp lên MỌI dòng (kể cả phiếu trúng cache) — lỗi ở đây không làm hỏng bước
+  const maGroup = new Set();
+  for (const cid of want.keys()) if (moi[cid]) for (const r of moi[cid].rows) { const c = String(r[13] || "").replace(/^'/, ""); if (c) maGroup.add(c); }
+  try { await capNhatTrangThaiGroup(maGroup); }
+  catch (e) { log("  ⚠ Group UID: không cập nhật được trạng thái hiện tại (" + e.message + ") — dùng ảnh chụp cũ / trạng thái theo phiếu."); }
   const out = [], qtc = [];
   for (const cid of want.keys()) if (moi[cid]) {
-    for (const r of moi[cid].rows) out.push([out.length + 1].concat(r));
+    for (const r of moi[cid].rows) out.push([out.length + 1].concat(gstApDong(r)));
     if (want.get(cid).qtc && moi[cid].qc) for (const r of moi[cid].qc) qtc.push([qtc.length + 1].concat(r));
   }
-  log("  ✓ UID group lệch: " + want.size + " phiếu lệch (cache " + hit + ", kéo mới " + canKeo.length + (treo ? ", quá cap giữ cũ " + treo : "") + ") → " + out.length + " dòng.");
+  log("  ✓ UID group lệch: " + want.size + " phiếu lệch (cache " + hit + ", kéo mới " + (canKeo.length - hong) + (hong ? ", LỖI " + hong + " phiếu (giữ cũ, lượt sau kéo lại)" : "") + (treo ? ", quá cap giữ cũ " + treo : "") + ") → " + out.length + " dòng.");
   log("  ✓ SL đếm theo SKU (Full location - Factory) → tab kiemke-qtycount: " + qtc.length + " dòng.");
   return { rows: out, cache: moi, qtc };
 }
@@ -362,14 +489,18 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   log("✓ Factory xong — dashboard Kiểm kê có dữ liệu physical-count THẬT cả 2 kho MTG + GARMENT.");
 
   // UID group lệch (factory): lỗi ở bước này KHÔNG làm fail lượt chính — giữ tab cũ, cache cũ.
-  let uidgrKq = null;
+  let uidgrKq = null, uidgrCuGiu = null, uidgrVGiu = null;   // bản cache cũ đọc từ đĩa — GIỮ khi bước lỗi (FULL run không có `cache`)
   try {
     let uidgrCu = null, uidgrVCu = null;
     if (cache) { uidgrCu = cache.uidgr || null; uidgrVCu = cache.uidgrV; }   // DELTA: cache đã đọc sẵn
     if (!uidgrCu) { try { const cu = JSON.parse(fs.readFileSync(PC_CACHE, "utf8")); uidgrCu = cu.uidgr || {}; uidgrVCu = cu.uidgrV; } catch { uidgrCu = {}; } }   // FULL: tận dụng cache lượt trước
-    if (uidgrVCu !== UIDGR_V) { uidgrCu = {}; }   // đổi định dạng cột -> vứt cache, kéo lại toàn bộ (4 luồng nên chỉ ~1-2 phút)
+    /* Đổi định dạng (UIDGR_V): bản cũ KHÔNG được trúng cache (kéo lại hết) nhưng VẪN giữ làm bản "quá cap giữ cũ"
+       — 26/08/2026 bump v6 + cap 300 đã vứt sạch cache làm tab kiemke-uidgr rớt 6951 → 662 dòng suốt buổi sáng. */
+    uidgrCuGiu = uidgrCu; uidgrVGiu = uidgrVCu;
+    const uidgrCuStale = (uidgrVCu !== UIDGR_V);
+    if (uidgrCuStale) log("  (cache uidgr định dạng v" + uidgrVCu + " ≠ v" + UIDGR_V + " — kéo lại toàn bộ, bản cũ chỉ dùng tạm cho phiếu quá cap)");
     log("Kéo UID group của phiếu lệch (tab kiemke-uidgr)...");
-    uidgrKq = await buocUidgr(sku, loc, uidgrCu);
+    uidgrKq = await buocUidgr(sku, loc, uidgrCu, uidgrCuStale);
     if (uidgrKq.rows.length) await ghiTab("kiemke-uidgr", HEADER_UIDGR, uidgrKq.rows, apiAt);
     else log("  (kiemke-uidgr: 0 dòng lệch — bỏ qua ghi, giữ tab cũ)");
     // SL đếm theo SKU (mục Tra cứu SL đếm của dashboard) — cùng nguồn tracking, chỉ thêm 1 tab ghi
@@ -401,8 +532,10 @@ async function ghiTab(tab, header, rows, apiAt, sheetId = SHEET_ID) {
   // Cache cho lượt DELTA kế tiếp: full → chụp mới toàn bộ; delta → cập nhật bản gộp, GIỮ mốc fullAt
   // (mốc fullAt là đồng hồ nâng-cấp-full 20h — delta không được phép trẻ hoá nó).
   try {
-    let uidgrLuu = uidgrKq ? uidgrKq.cache : ((cache && cache.uidgr) || undefined);   // bước uidgr lỗi -> giữ cache cũ, không mất công kéo lại
-    fs.writeFileSync(PC_CACHE, JSON.stringify({ fullAt: DELTA ? cache.fullAt : apiAt, fSku: sku, fLoc: loc, hSku: skuH, hLoc: locH, uidgr: uidgrLuu, uidgrV: uidgrKq ? UIDGR_V : (cache && cache.uidgrV) }));
+    /* bước uidgr lỗi -> giữ cache cũ, KỂ CẢ FULL run (26/08/2026: lượt hỏng "fetch failed" từng ghi uidgr:undefined
+       vì FULL không có `cache`, xoá sạch 2.728 phiếu đã kéo → lượt sau phải kéo lại từ 0) */
+    let uidgrLuu = uidgrKq ? uidgrKq.cache : ((cache && cache.uidgr) || uidgrCuGiu || undefined);
+    fs.writeFileSync(PC_CACHE, JSON.stringify({ fullAt: DELTA ? cache.fullAt : apiAt, fSku: sku, fLoc: loc, hSku: skuH, hLoc: locH, uidgr: uidgrLuu, uidgrV: uidgrKq ? UIDGR_V : ((cache && cache.uidgrV) || uidgrVGiu) }));
   } catch (e) { log("  ⚠ Không lưu được cache delta: " + e.message); }
 
   ghiMocBuoc(DIR, "kiemke");   // mốc thành công cho sync-guard (phần factory đã ghi xong là đạt)

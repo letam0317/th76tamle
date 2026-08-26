@@ -57,6 +57,24 @@ const MAY = [
   { ten: "Pixel 7 (412×915)", he: "android", w: 412, h: 915, dsf: 2.6, ua: UA_AND, plat: "Linux armv8l" },
 ].filter((m) => !LOC_MAY || m.he === LOC_MAY);
 
+/* Dữ liệu GIẢ cho mục "Tra cứu SL đếm theo SKU" — dùng chung 2 chế độ bộ lọc UIDgr (26/08/2026):
+   cid 9999xxxx không trùng phiếu thật; UIDGR.map tiêm 4 nhóm: 2 lệch + 1 KHỚP (Available 5000=5000, chỉ hiện ở
+   chế độ "Tất cả") ở phiếu 99990001, 1 New ở 99990004; trạng thái đúng bộ tên của pop-up Detail WMS. */
+const QTC_MO_FAKE =
+  "document.getElementById('qtcSku').value='422302174'; QTC.sku='422302174'; QTC.taCa=true; " +
+  "window.__qcUgLuu={map:UIDGR.map,err:UIDGR.err}; UIDGR.err=false; UIDGR.map=Object.assign({},UIDGR.map||{}); " +
+  "if(window.__qcUgMode==null) window.__qcUgMode=QTC.ugMode; " +
+  "UIDGR.map['99990001']=[{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000006',gst:'Available',qu:91400,qs:83200},{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000007',gst:'Blocked',qu:'',qs:9200},{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000009',gst:'Available',qu:5000,qs:5000}]; " +
+  "UIDGR.map['99990004']=[{cid:'99990004',tid:'2',sku:'422302174',uid:'1028251229000008',gst:'New',qu:700,qs:''}]; " +
+  "QTC.kq={err:false,rows:[" +
+  "{cid:'99990001',req:'252161',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',cnt:3800,inv:4800,diff:-1000,lst:'Counted',st:'WAITING FOR APPROVE',by:'lyntd@hasaki.vn',cdate:'2026-08-23 10:57:56',upd:'2026-08-23 12:50:51'}," +
+  "{cid:'99990002',req:'252000',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-503-03-04-01',sku:'422302174',pn:'',cnt:12500,inv:12500,diff:0,lst:'Counted',st:'APPROVED',by:'yhtn1@hasaki.vn',cdate:'2026-08-19 09:12:00',upd:'2026-08-19 10:00:00'}," +
+  "{cid:'99990003',req:'251900',wh:'WH - MATERIAL - GARMENT',loc:'F00-KHO-101-01-01-01',sku:'422302174',pn:'',cnt:null,inv:600,diff:null,lst:'Not counted',st:'PENDING',by:'',cdate:'',upd:'2026-08-12 15:00:00'}," +
+  "{cid:'99990004',req:'251800',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'',cnt:3650,inv:3650,diff:0,lst:'Counted',st:'APPROVED',by:'lyntd@hasaki.vn',cdate:'2026-08-10 08:30:00',upd:'2026-08-10 09:00:00'}]}; ";
+const QTC_DONG = "() => { try{ QTC.kq=null; QTC.taCa=false; document.getElementById('qtcKq').innerHTML=''; document.getElementById('qtcSku').value=''; " +
+  "if(window.__qcUgLuu){ UIDGR.map=window.__qcUgLuu.map; UIDGR.err=window.__qcUgLuu.err; delete window.__qcUgLuu; } " +
+  "if(window.__qcUgMode!=null){ QTC.ugMode=window.__qcUgMode; delete window.__qcUgMode; } }catch(e){} }";
+
 /* ---------- Trang + các màn phải đi qua --------------------------------------------------------
  * `moMan` chạy TRONG trang: trả về true nếu mở được màn đó, false nếu màn không có dữ liệu để mở
  * (vd chưa có UID sai vị trí thì không có pop-up nào) — false thì BỎ QUA, không tính là lỗi.
@@ -99,22 +117,26 @@ const TRANG = [
          Kết quả dựng bằng dữ liệu GIẢ 4 dòng (có vị trí trùng để ra nút + badge "kiểm cũ", có dòng
          chưa đếm, có tên hàng dài) — không phụ thuộc tab Sheet kiemke-qtycount đã có dữ liệu hay chưa. */
       { ten: "Kiểm kê › tra SL đếm theo SKU",
-        /* cid GIẢ 9999xxxx (không trùng phiếu thật) + tiêm UIDGR.map giả cho 2 dòng lệch — đo được
-           cả dòng phụ "UIDgr … · HT → đếm" (25/08 chiều); dong TRẢ LẠI map cũ để các màn sau dùng data thật. */
-        mo: "() => { showTab('kk'); if(typeof qtcVe!=='function') return false; " +
-            "document.getElementById('qtcSku').value='422302174'; QTC.sku='422302174'; QTC.taCa=true; " +
-            "window.__qcUgLuu={map:UIDGR.map,err:UIDGR.err}; UIDGR.err=false; UIDGR.map=Object.assign({},UIDGR.map||{}); " +
-            "UIDGR.map['99990001']=[{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000006',gst:'Available',qu:91400,qs:83200},{cid:'99990001',tid:'1',sku:'422302174',uid:'1028251229000007',gst:'Not found',qu:'',qs:9200}]; " +
-            "UIDGR.map['99990004']=[{cid:'99990004',tid:'2',sku:'422302174',uid:'1028251229000008',gst:'New',qu:700,qs:''}]; " +
-            "QTC.kq={err:false,rows:[" +
-            "{cid:'99990001',req:'252161',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'Vải Single Mesh/S130413 UZM Sheico/Xanh Tro-Dusky Green/mm',cnt:3800,inv:4800,diff:-1000,lst:'Counted',st:'WAITING FOR APPROVE',by:'lyntd@hasaki.vn',cdate:'2026-08-23 10:57:56',upd:'2026-08-23 12:50:51'}," +
-            "{cid:'99990002',req:'252000',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-503-03-04-01',sku:'422302174',pn:'',cnt:12500,inv:12500,diff:0,lst:'Counted',st:'APPROVED',by:'yhtn1@hasaki.vn',cdate:'2026-08-19 09:12:00',upd:'2026-08-19 10:00:00'}," +
-            "{cid:'99990003',req:'251900',wh:'WH - MATERIAL - GARMENT',loc:'F00-KHO-101-01-01-01',sku:'422302174',pn:'',cnt:null,inv:600,diff:null,lst:'Not counted',st:'PENDING',by:'',cdate:'',upd:'2026-08-12 15:00:00'}," +
-            "{cid:'99990004',req:'251800',wh:'WH - MATERIAL - MTG',loc:'F0-KHO-HM-01-04-01',sku:'422302174',pn:'',cnt:3650,inv:3650,diff:0,lst:'Counted',st:'APPROVED',by:'lyntd@hasaki.vn',cdate:'2026-08-10 08:30:00',upd:'2026-08-10 09:00:00'}]}; " +
-            "qtcVe(); return true; }",
-        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtctbl tbody tr').length >= 5 && !!document.querySelector('#qtcKq .qtcsum') && !!document.querySelector('#qtcKq tr.qtcug')",
-        dong: "() => { try{ QTC.kq=null; QTC.taCa=false; document.getElementById('qtcKq').innerHTML=''; document.getElementById('qtcSku').value=''; " +
-              "if(window.__qcUgLuu){ UIDGR.map=window.__qcUgLuu.map; UIDGR.err=window.__qcUgLuu.err; delete window.__qcUgLuu; } }catch(e){} }" },
+        /* cid GIẢ 9999xxxx (không trùng phiếu thật) + tiêm UIDGR.map giả (QTC_MO_FAKE) — đo được cả dòng phụ
+           "UIDgr … · HT → đếm" (25/08 chiều); chế độ "Tất cả UIDgr": đủ 4 dòng UIDgr kể cả nhóm khớp;
+           dong TRẢ LẠI map cũ + ugMode cũ để các màn sau dùng data thật. */
+        mo: "() => { showTab('kk'); if(typeof qtcVe!=='function'||typeof qtcUgComboHtml!=='function') return false; " + QTC_MO_FAKE +
+            "QTC.ugMode='all'; qtcVe(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtctbl tbody tr').length >= 5 && !!document.querySelector('#qtcKq .qtcsum .qtcugcb') && document.querySelectorAll('#qtcKq .qtcug1').length === 4",
+        dong: QTC_DONG },
+      /* Chế độ thứ hai của cùng panel (26/08/2026 — luật: chế độ thứ hai cũng phải vào bộ đo): bộ lọc "Chỉ UIDgr lệch"
+         (nhóm khớp 5000=5000 phải biến mất -> còn 3 dòng UIDgr) + MENU combo đang mở để đo bố cục/vùng chạm mục chọn. */
+      { ten: "Kiểm kê › tra SL đếm theo SKU · chỉ UIDgr lệch + menu lọc mở",
+        mo: "() => { showTab('kk'); if(typeof qtcVe!=='function'||typeof qtcUgMenuToggle!=='function') return false; " + QTC_MO_FAKE +
+            "QTC.ugMode='lech'; qtcVe(); var cb=document.querySelector('#qtcKq .qtcugcb'); if(cb) qtcUgMenuToggle(cb); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtcug1').length === 3 && !!document.querySelector('#qtcKq .qtcugcb .combo-menu.show .combo-item.active')",
+        dong: "() => { try{ if(typeof qtcUgMenuDong==='function') qtcUgMenuDong(); }catch(e){} (" + QTC_DONG + ")(); }" },
+      /* Chế độ thứ ba (26/08 trưa): "Không hiển thị UIDgr" — 0 dòng phụ, pill ghi "UIDgr: ẩn" và mang lớp .on (đang lọc) */
+      { ten: "Kiểm kê › tra SL đếm theo SKU · không hiển thị UIDgr",
+        mo: "() => { showTab('kk'); if(typeof qtcVe!=='function') return false; " + QTC_MO_FAKE +
+            "QTC.ugMode='an'; qtcVe(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#qtcKq .qtctbl tbody tr').length >= 4 && document.querySelectorAll('#qtcKq .qtcug1').length === 0 && /ẩn/.test((document.querySelector('#qtcKq .qtcugcb.on .qtcugbtn .lb')||{}).textContent||'')",
+        dong: QTC_DONG },
       /* Pop-up camera quét mã: headless không có camera thật nên chỉ mở VỎ pop-up (video đen) —
          đủ để đo bố cục khung, nút đóng ≥44px, hint kẹp dòng. */
       { ten: "Kiểm kê › pop-up quét mã SKU", cho: "#qtcqrmodal.show",

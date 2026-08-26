@@ -51,6 +51,7 @@ ui_*.png
 # So dong "Ton tai vi tri" da ghi lan truoc (chan ghi de khi quet thieu) — trang thai theo may
 .tvt-last.json
 .pc-cache.json
+.uidgr-status.json
 .task-baocao-tay.json          # bao cao tay cho nhom B task hang ngay (noi dung cong viec that)
 # Cache danh bạ wshr — CÓ PII, tuyệt đối không commit
 .cache-danhba.json
