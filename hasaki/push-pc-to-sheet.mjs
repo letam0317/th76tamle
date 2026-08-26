@@ -235,6 +235,8 @@ function uidRowsCuaLine(rec) {
       if (e.date_added && !o.dat) o.dat = String(e.date_added);
       const exp = e.exp || e.expiration_date || e.expiry_date;
       if (exp && !o.exp) o.exp = String(exp);
+      const st = e.status_name || e.group_status_name || e.group_status || e.status;
+      if (st && !o.gst) o.gst = String(st);
       m.set(uid, o);
     }
   };
@@ -242,8 +244,8 @@ function uidRowsCuaLine(rec) {
   gop(ujParse(rec.exp_by_sys), "qtyS");
   const out = [];
   for (const [uid, o] of m) {
-    // Từ ngữ khớp WMS Detail UIDgr (chỉ thị 27/07): có mặt cả 2 phía = Available (lệch hay không nhìn cột SL đếm/Tồn HT của nhóm)
-    const st = o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : "Available";
+    // Ưu tiên trạng thái gốc từ WMS Detail UIDgr nếu có, nếu không suy từ 2 phía
+    const st = o.gst || (o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : "Available");
     out.push({ uid, st, qtyU: o.qtyU, qtyS: o.qtyS, exp: o.exp || "", dat: o.dat || "" });
   }
   return out;
