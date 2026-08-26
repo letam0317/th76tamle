@@ -98,7 +98,7 @@ const HEADER_UIDGR = ["No.", "Kind", "Checklist ID", "Tracking ID", "Request cod
 const HEADER_QTC = ["No.", "Checklist ID", "Request code", "Warehouse", "Location", "SKU", "Product Name", "Quantity Count", "Inventory", "Diff", "Line Status", "Checklist Status", "Counted by", "Counted date", "Updated At"];
 const laQtc = (kind, r) => kind === "loc" && String(r.plan_type || "").toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_+|_+$/g, "") === "FULL_LOCATION_FACTORY";
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
-const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 300);   // cap số PHIẾU kéo tracking mỗi lượt (lượt đầu nhiều, sau đó cache gánh)
+const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 1200);   // cap số PHIẾU kéo tracking mỗi lượt
 const UIDGR_V = 6;   // version định dạng dòng trong cache uidgr — v6: giữ TẤT CẢ UID group tại vị trí (kể cả UID group khớp) cho mục Tra cứu SL đếm theo SKU
 
 async function getTokenLive() {
@@ -262,8 +262,14 @@ async function buocUidgr(sku, loc, uidgrCu) {
     const cu = uidgrCu[cid];
     // Phiếu thuộc diện qtycount mà bản cache CHƯA có khối qc (cache đời trước 25/08) → kéo bù 1 lần
     if (cu && cu.u === meta.upd && (!meta.qtc || cu.qc)) { moi[cid] = cu; hit++; continue; }
-    if (canKeo.length >= UIDGR_MAX) { treo++; if (cu) moi[cid] = cu; continue; }   // quá cap: giữ bản cũ (nếu có), lượt sau kéo bù
     canKeo.push([cid, meta]);
+  }
+  // Ưu tiên các phiếu FULL_LOCATION_FACTORY (mục Tra cứu SL đếm theo SKU) lên đầu
+  canKeo.sort((a, b) => (b[1].qtc ? 1 : 0) - (a[1].qtc ? 1 : 0));
+  if (canKeo.length > UIDGR_MAX) {
+    treo = canKeo.length - UIDGR_MAX;
+    const boQua = canKeo.splice(UIDGR_MAX);
+    for (const [cid] of boQua) if (uidgrCu[cid]) moi[cid] = uidgrCu[cid];
   }
   // 4 luồng song song (27/07/2026 — "cần nhanh hơn"): ≤4 request cùng lúc + nghỉ 120ms/phiếu,
   // vẫn hiền với WMS hơn 1 người bấm trang; token bị đá thì worker đầu làm tươi, các worker sau hưởng chung.
