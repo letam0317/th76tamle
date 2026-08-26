@@ -244,8 +244,8 @@ function uidRowsCuaLine(rec) {
   gop(ujParse(rec.exp_by_sys), "qtyS");
   const out = [];
   for (const [uid, o] of m) {
-    // Ưu tiên trạng thái gốc từ WMS Detail UIDgr nếu có, nếu không suy từ 2 phía
-    const st = o.gst || (o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : "Available");
+    // Trạng thái UIDgr code: lấy theo Group status của UID group (mặc định Available cho các UID group trên WMS)
+    const st = o.gst || (uid ? "Available" : (o.qtyU != null && o.qtyS == null ? "New" : o.qtyU == null && o.qtyS != null ? "Not found" : "Available"));
     out.push({ uid, st, qtyU: o.qtyU, qtyS: o.qtyS, exp: o.exp || "", dat: o.dat || "" });
   }
   return out;
