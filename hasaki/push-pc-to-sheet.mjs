@@ -99,7 +99,7 @@ const HEADER_QTC = ["No.", "Checklist ID", "Request code", "Warehouse", "Locatio
 const laQtc = (kind, r) => kind === "loc" && String(r.plan_type || "").toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_+|_+$/g, "") === "FULL_LOCATION_FACTORY";
 const GW_TRACKING = "https://wms-gw.inshasaki.com/api/v1/wms/counting-plan/checklist/tracking";
 const UIDGR_MAX = Number(process.env.PC_UIDGR_MAX || 300);   // cap số PHIẾU kéo tracking mỗi lượt (lượt đầu nhiều, sau đó cache gánh)
-const UIDGR_V = 5;   // version định dạng dòng trong cache uidgr — đổi cấu trúc thì tăng số này để lượt kế kéo lại toàn bộ (v5: chọn phiếu theo STATUS — API list XOÁ qty_by_user sau khi APPROVED)
+const UIDGR_V = 6;   // version định dạng dòng trong cache uidgr — v6: giữ TẤT CẢ UID group tại vị trí (kể cả UID group khớp) cho mục Tra cứu SL đếm theo SKU
 
 async function getTokenLive() {
   // layTokenSongWms (kho + bridge) đã được thử ở caller — tới đây là đường Edge/SSO thuần.
