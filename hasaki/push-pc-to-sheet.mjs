@@ -282,11 +282,12 @@ async function buocUidgr(sku, loc, uidgrCu) {
         if (qc) qc.push([cid, meta.req, meta.wh, rec.bin_location || "", rec.sku || "", rec.product_name || "",
           cnt == null ? "" : cnt, inv == null ? "" : inv, (cnt == null && rec.qty_diff == null) ? "" : diff,
           lineStatus(rec.status_id), meta.st, meta.by, meta.cdate || "", meta.upd]);
-        /* CHỈ ghi NHÓM LỆCH (đếm ≠ tồn của chính nhóm) — nhóm khớp bỏ hẳn (chỉ thị 27/07).
-           QUÉT CẢ dòng diff=0: bên trong vẫn có thể có nhóm bù trừ (New +x và Not found -x). */
-        const groups = uidRowsCuaLine(rec).filter((u) => (Number(u.qtyU) || 0) !== (Number(u.qtyS) || 0));
+        /* GIỮ TẤT CẢ CÁC DÒNG UID GROUP TẠI VỊ TRÍ (yêu cầu user 26/08): để xem trọn bộ UID group của vị trí
+           thay vì chỉ hiện nhóm lệch. Dòng diff=0 và nhóm khớp vẫn được đưa vào để hiển thị đầy đủ. */
+        const allGroups = uidRowsCuaLine(rec);
+        const groups = allGroups.filter((u) => u.uid !== "");
         if (!groups.length) {
-          if (!diff) continue;   // dòng khớp hẳn -> bỏ
+          if (!diff && !allGroups.length) continue;   // dòng khớp hẳn không có UID group -> bỏ
           groups.push({ uid: "", st: "", qtyU: cnt, qtyS: inv, exp: "", dat: "" });   // hàng thường không quản UID group -> 1 dòng đại diện số của dòng
         }
         for (const u of groups)
