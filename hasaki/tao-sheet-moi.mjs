@@ -5,7 +5,8 @@
  *  tài khoản khác tạo sẽ dính "Bạn không có quyền truy cập". Token clasp (~/.clasprc.json)
  *  là chính chủ GAS và có scope drive.file → tạo file ở đây thì GAS ghi được ngay.
  *
- *  Chạy:  node tao-sheet-moi.mjs "Tên file" [email1,email2,...]   (email được cấp quyền SỬA)
+ *  Chạy:  node tao-sheet-moi.mjs "Tên file" [email1,email2,...] [--public]   (email được cấp quyền SỬA;
+ *         --public = "bất kỳ ai có link" chỉ XEM — thêm 28/08/2026, đọc lại permissions để xác nhận)
  *  In ra: SHEET_ID=<id> và URL — dùng id đó làm DS_SHEET cho doi-soat-kiemke.mjs v.v.
  */
 import fs from "node:fs";
@@ -13,7 +14,8 @@ import os from "node:os";
 import path from "node:path";
 
 const ten = process.argv[2];
-const emails = String(process.argv[3] || "").split(",").map((s) => s.trim()).filter(Boolean);
+const PUBLIC = process.argv.includes("--public");
+const emails = String(process.argv.slice(3).find((a) => !a.startsWith("--")) || "").split(",").map((s) => s.trim()).filter(Boolean);
 if (!ten) { console.error("Cách dùng: node tao-sheet-moi.mjs \"Tên file\" [email1,email2]"); process.exit(1); }
 
 const rc = JSON.parse(fs.readFileSync(path.join(os.homedir(), ".clasprc.json"), "utf8"));
@@ -39,5 +41,13 @@ for (const email of emails) {
   console.log(p.id ? "✓ chia sẻ SỬA cho " + email : "⚠ không chia sẻ được cho " + email + ": " + JSON.stringify(p).slice(0, 200));
 }
 
+if (PUBLIC) {   // Drive có bẫy báo thành công giả → đọc lại permissions để xác nhận
+  const p = await (await fetch("https://www.googleapis.com/drive/v3/files/" + f.id + "/permissions", {
+    method: "POST", headers: H, body: JSON.stringify({ type: "anyone", role: "reader" }),
+  })).json();
+  const ktra = await (await fetch("https://www.googleapis.com/drive/v3/files/" + f.id + "/permissions?fields=permissions(type,role)", { headers: H })).json();
+  const ok = (ktra.permissions || []).some((x) => x.type === "anyone" && x.role === "reader");
+  console.log(ok ? "✓ public: bất kỳ ai có link đều XEM được (đã kiểm lại permissions)" : "⚠ chưa public: " + JSON.stringify(p).slice(0, 200));
+}
 console.log("SHEET_ID=" + f.id);
 console.log("URL=https://docs.google.com/spreadsheets/d/" + f.id + "/edit");

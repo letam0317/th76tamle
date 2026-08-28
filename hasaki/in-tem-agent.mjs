@@ -67,7 +67,9 @@ async function anhTem(r, maMau) {
     /* Bẫy y hệt vừa nói, lần thứ hai (23/08/2026): DỰNG LẠI `d` ở đây thì mọi trường MỚI của con
        tem đều rơi mất — thêm `uid` cho lõi mà quên chỗ này thì dòng UIDgr không bao giờ ra giấy,
        trong khi pop-up xem trước lại có. Chuyển NGUYÊN dòng vào `ve()`, chỉ đổi tên `slHang`→`sl`. */
-    : T.mau(maMau).ve({ sku: r.sku, pn: r.pn, sl: r.sl, ngay: r.ngay, uid: r.uid || "" });
+    : T.mau(maMau).ve({ sku: r.sku, pn: r.pn, sl: r.sl, ngay: r.ngay, uid: r.uid || "", loai: r.loai || "" });
+  /* loai (26/08/2026): 'ug' = TEM UIDgr (mã group to + mã vạch group + dòng SKU) từ pop-up "Mã QR · UID
+     group" của dashboard. Lần thứ BA cùng một bẫy — trường mới phải đi qua đúng chỗ này. */
   const raw = await sharp(Buffer.from(svg), { density: 72 * SIEU })
     .resize(W, H, { kernel: "lanczos3", fit: "fill" })
     .greyscale().threshold(170).raw().toBuffer({ resolveWithObject: true });
@@ -413,7 +415,7 @@ async function goiGas(body) {
  *  Đây là thứ duy nhất đọc được bằng mắt để biết việc "nhiều bịch khác số lượng" có đúng hay không —
  *  số lượng nằm trong ảnh bitmap nên soi luồng TSPL không thấy được. */
 function moTaConTem(conTem) {
-  return conTem.map((r, i) => (i + 1) + ") " + (r._dot ? "[tem thông báo đợt]" : r.sku + " · " + (r.sl === "" ? "(không có số lượng)" : r.sl)))
+  return conTem.map((r, i) => (i + 1) + ") " + (r._dot ? "[tem thông báo đợt]" : (r.loai === "ug" ? "[tem UIDgr " + r.uid + "] " : "") + r.sku + " · " + (r.sl === "" ? "(không có số lượng)" : r.sl)))
     .join(" | ");
 }
 
@@ -439,9 +441,11 @@ async function inMotLenh(lenh) {
       slHang: o.slHang || "", sl: o.sl, mau: o.mau,
       /* UIDgr (23/08/2026): mã group của cuộn, dashboard gửi kèm dòng in; lõi tem in nó thành một
          dòng trên con tem. Chuyển tiếp NGUYÊN VĂN, agent không sinh cũng không sửa mã này. */
-      uid: String(o.uid || "").slice(0, 24) };
+      uid: String(o.uid || "").slice(0, 24),
+      /* loai:'ug' (26/08/2026) = TEM UIDgr từ pop-up QR: mã to + mã vạch là mã group, có dòng SKU đậm. */
+      loai: o.loai === "ug" ? "ug" : "" };
   });
-  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay, uid: x.uid || "" }));
+  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay, uid: x.uid || "", loai: x.loai || "" }));
   if (!conTem.length) return { loi: "lệnh rỗng" };
   /* Tem thông báo đợt: chỉ khi hàng đợi đang có nhiều người — in một mình thì không tốn thêm tem. */
   if (lenh.nhieuNguoi) {
@@ -650,6 +654,11 @@ const NGUOI = layCo("--nguoi", "");               // ai gửi đợt in này -> 
    máy in trước khi giao cho thủ kho. Đường thật thì mã đi theo TỪNG DÒNG từ dashboard (mỗi cuộn một
    group), chứ không phải một mã cho cả lệnh. */
 const UIDGR = layCo("--uidgr", "");
+/* --tem-uidgr: lượt chạy tay dựng TEM UIDgr (mã group to + mã vạch group + dòng SKU đậm) thay cho tem
+   SKU — để thử máy in trước khi giao. Đường thật: dashboard gửi loai:'ug' theo từng dòng từ pop-up
+   "Mã QR · UID group". Phải kèm --uidgr <mã>, không thì không có gì để in to. */
+const TEM_UG = argv.includes("--tem-uidgr");
+if (TEM_UG && !UIDGR) { console.error("✗ --tem-uidgr cần kèm --uidgr <mã group>"); process.exit(2); }
 const dsThu = argv.indexOf("--thu") >= 0 ? layCo("--thu", "") : "";
 const dsIn = argv.indexOf("--in") >= 0 ? layCo("--in", "") : "";
 
@@ -737,12 +746,12 @@ async function chay(ds, chiThu) {
     let tt = dm && dm.get(o.sku);
     if (!tt) tt = await traGviz(o.sku);            // chưa có trong file đồng bộ -> tra Sheet một lượt
     dongCoTen.push({ sku: o.sku, pn: tt ? tt.pn : "(không thấy trong danh mục)",
-      slHang: o.sl || "", sl: o.soTem || 1, mau: MAU, uid: o.uid || UIDGR || "" });
+      slHang: o.sl || "", sl: o.soTem || 1, mau: MAU, uid: o.uid || UIDGR || "", loai: TEM_UG ? "ug" : "" });
   }
   /* `uid` phải đi cả đường này: `--thu` tự nhận là "y hệt đường --dich-vu gửi", mà thiếu nó thì bản
      chạy khô in ra tem KHÔNG có dòng UIDgr trong khi bản thật thì có — đúng loại lệch làm người ta
      tin nhầm vào ảnh xem trước. */
-  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay, uid: x.uid || "" }));
+  const conTem = T.moRong(dongCoTen).map((x) => ({ sku: x.sku, pn: x.pn, sl: x.slHang, ngay: nay, uid: x.uid || "", loai: x.loai || "" }));
   if (!conTem.length) { console.error("Không có SKU nào để in."); process.exit(1); }
   /* TEM THÔNG BÁO ĐỢT IN: chỉ chèn khi biết đợt này của AI (--nguoi) — dùng khi máy in là chỗ dùng
      chung và hàng đợi có nhiều người. In một mình thì không tốn thêm tem. */
@@ -784,5 +793,6 @@ else if (argv.includes("--dich-vu")) await chayDichVu(Math.max(0, Number(layCo("
 else {
   console.log('Dùng: node in-tem-agent.mjs --thu "422430797x2" | --in "422430797x2,422322192" | --dich-vu');
   console.log('  --uidgr <mã>  in thêm dòng UIDgr lên mọi tem của lượt chạy tay (chỉ để thử máy in)');
+  console.log('  --tem-uidgr   dựng TEM UIDgr (mã group to + mã vạch group + dòng SKU) — kèm --uidgr <mã>');
   console.log('      tuỳ chọn: --mau t40x60 --may "<tên máy in>" --gap 3 --dam 10 --lech 2');
 }

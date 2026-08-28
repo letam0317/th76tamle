@@ -301,6 +301,42 @@ console.log("\n── 9. Một nguồn dựng tem · chữ tự phủ đầy · 
   kiem("Mã group dài quá khổ tem → CẮT bớt (không tràn ra ngoài mép)",
     chuCuaSvg(svgDai).indexOf("UIDgr " + uidDai) < 0 && /UIDgr 1111/.test(chuCuaSvg(svgDai)),
     (chuCuaSvg(svgDai).match(/UIDgr[^<]{0,44}/) || ["(không thấy)"])[0].trim());
+  /* ═══ TEM UIDgr (26/08/2026, user chốt — in từ pop-up "Mã QR · UID group") ═══
+     Cùng khuôn tem SKU nhưng: mã to + mã vạch = MÃ GROUP, thêm dòng "SKU …" đậm, tên hàng, dòng chân
+     số lượng + ngày in; KHÔNG in lại dòng "UIDgr …" ở chân. Không có cờ loai thì tem như cũ (agent
+     chưa cập nhật gói vẫn in đúng tem SKU + dòng UIDgr thay vì tem rác). */
+  const dUg = { loai: "ug", uid: "1028260605000316", sku: "422304497", pn: "Vải thun cotton 2 chiều khổ 1m8 220gsm đen", sl: "16700", ngay: "26-08-26" };
+  const svgUg = T.MAU.t40x60.ve(dUg);
+  const chuUg = chuCuaSvg(svgUg);
+  kiem("Tem UIDgr: mã group là MÃ TO ở đỉnh tem (text canh giữa, đậm)",
+    svgUg.indexOf('text-anchor="middle" letter-spacing="1">1028260605000316<') >= 0);
+  const coMaUg = Number((svgUg.match(/font-size="(\d+)" font-weight="bold" text-anchor="middle" letter-spacing="1">1028260605000316</) || [])[1]);
+  kiem("Tem UIDgr: mã 16 số được CO cỡ chữ cho vừa bề ngang tem (14..28 dot; mã SKU 9 số vẫn 34)",
+    coMaUg >= 14 && coMaUg <= 28 && /font-size="34" font-weight="bold" text-anchor="middle" letter-spacing="1">422430797</.test(svg),
+    "mã group cỡ " + coMaUg + " dot");
+  const vUg = T.vachRect("1028260605000316", { mm: 0.25, dotMm: 8, cao: 80 });
+  const quietUg = (320 - vUg.rong) / 2 - 16;
+  kiem("Tem UIDgr: mã vạch Code 128 (subset C) của mã group VỪA tem 40mm, quiet zone ≥ 10 module",
+    vUg.rong <= 272 && quietUg >= vUg.modMm * 10, "rộng " + vUg.rong + " dot · quiet " + Math.round(quietUg) + " dot");
+  const xwCua = (s) => (String(s).match(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+"/g) || []).map((m) => m.replace(/ y="[\d.]+"/, "")).join("|");
+  const gUg = (svgUg.match(/<g transform="[^"]+">([\s\S]*?)<\/g>/) || [])[1] || "";
+  kiem("Tem UIDgr: mã vạch trong tem là mã vạch của MÃ GROUP (không phải của SKU)",
+    gUg && xwCua(gUg) === xwCua(vUg.rects) && xwCua(gUg) !== xwCua(T.vachRect("422304497", { mm: 0.25, dotMm: 8, cao: 80 }).rects),
+    (gUg.match(/<rect /g) || []).length + " rect");
+  kiem("Tem UIDgr: giải ngược mã vạch của mã group ra đúng 16 số", giaiMa(T.bit("1028260605000316")) === "1028260605000316");
+  kiem("Tem UIDgr: có dòng \"SKU 422304497\" in ĐẬM dưới mã vạch", /font-weight="bold">SKU 422304497</.test(svgUg));
+  kiem("Tem UIDgr: có tên hàng", /Vải thun/.test(chuUg));
+  kiem("Tem UIDgr: dòng chân có số lượng 16.700 và ngày in", svgUg.indexOf(">16.700<") >= 0 && svgUg.indexOf(">26-08-26<") >= 0);
+  kiem("Tem UIDgr: KHÔNG in lại dòng \"UIDgr …\" ở chân (mã đã ở đỉnh tem)", !/UIDgr 1028/.test(chuUg));
+  kiem("Tem UIDgr: mọi chữ nằm trong khổ tem 320×480 (không tràn)",
+    (svgUg.match(/<text x="(-?[\d.]+)" y="(-?[\d.]+)"/g) || []).every((m) => { const a = m.match(/x="(-?[\d.]+)" y="(-?[\d.]+)"/); return Number(a[1]) >= 0 && Number(a[2]) <= 480; }));
+  kiem("Không có cờ loai → tem SKU giống HỆT bản cũ (agent cũ vẫn in đúng tem SKU + dòng UIDgr)",
+    T.MAU.t40x60.ve({ ...d, uid: "1028260605000316", loai: "" }) === svgUid && T.MAU.t40x60.ve({ ...d, loai: "" }) === T.MAU.t40x60.ve(d));
+  const noUg = T.moRong([{ sku: "422304497", pn: "x", slHang: "16700", sl: 1, mau: "t40x60", uid: "1028260605000316", loai: "ug" }]);
+  kiem("moRong mang cờ loai qua từng con tem (agent nhận đúng loại tem)",
+    noUg.length === 1 && noUg[0].loai === "ug" && noUg[0].uid === "1028260605000316" && noUg[0].slHang === "16700");
+  kiem("moRong không có loai → '' (không phải undefined, để agent so chuỗi)",
+    T.moRong([{ sku: "1", pn: "", slHang: "5", sl: 1, mau: "t40x60" }])[0].loai === "");
   kiem("Mã vạch nằm TRONG svgTem (không nhờ lệnh BARCODE của máy in)",
     (svg.match(/<rect /g) || []).length > 20, (svg.match(/<rect /g) || []).length + " rect");
   /* Cỡ chữ tự co: tên ngắn phải được cỡ LỚN hơn tên dài */
