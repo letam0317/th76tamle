@@ -268,6 +268,18 @@ const TRANG = [
         mo: "() => { showTab('kk'); if(typeof kkOpen!=='function'||typeof KK==='undefined'||!KK.data||!KK.data.loc||!KK.data.loc.length) return false; const dem={}; KK.data.loc.forEach(r=>{ const s=String(r.st||'').trim().toUpperCase(); if(s) dem[s]=(dem[s]||0)+1; }); const s0=dem['WAITING FOR APPROVE']?'WAITING FOR APPROVE':Object.keys(dem).sort((a,b)=>dem[b]-dem[a])[0]; if(!s0) return false; kkOpen('loc','st:'+s0); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#kkmBody tbody td')].some(x => /[0-9]/.test(x.textContent))",
         dong: "() => { try{ closeKkModal(); }catch(e){} }" },
+      /* Pop-up DỰ BÁO HOÀN THÀNH (ô "Dự kiến xong" trên dải KPI) — BỔ SUNG 28/08/2026 khi sửa lỗi pop-up không mở
+         (KK_BENCHMARK_252161 khai `var` lồng trong kkForecastInfo → kkFcSim ném ReferenceError trước khi hiện modal)
+         và chuyển ① sang bộ số CHUẨN KK_CHUAN. Mở bằng API (kkFcOpen) cho cả 2 bảng; sẵn sàng = hero có ngày/✓ và
+         khối mô phỏng ② đã tính ra số (không đếm phần tử skeleton). */
+      { ten: "Pop-up Dự báo hoàn thành (SKU)", cho: "#fcmodal.show",
+        mo: "() => { showTab('kk'); if(typeof kkFcOpen!=='function'||typeof KK==='undefined'||!KK.data||!KK.data.sku||!KK.data.sku.length) return false; kkFcOpen('sku'); return true; }",
+        sanSangMan: "() => { const d=document.querySelector('#fcBody .fchero .d'); const o=document.getElementById('fcSimOut'); return !!d && /[0-9✓]/.test(d.textContent) && (!o || /[0-9]/.test(o.textContent)); }",
+        dong: "() => { try{ closeFcModal(); }catch(e){} }" },
+      { ten: "Pop-up Dự báo hoàn thành (mã vị trí)", cho: "#fcmodal.show",
+        mo: "() => { showTab('kk'); if(typeof kkFcOpen!=='function'||typeof KK==='undefined'||!KK.data||!KK.data.loc||!KK.data.loc.length) return false; kkFcOpen('loc'); return true; }",
+        sanSangMan: "() => { const d=document.querySelector('#fcBody .fchero .d'); const o=document.getElementById('fcSimOut'); return !!d && /[0-9✓]/.test(d.textContent) && (!o || /[0-9]/.test(o.textContent)); }",
+        dong: "() => { try{ closeFcModal(); }catch(e){} }" },
       { ten: "Pop-up Bất thường (tất cả SKU)", cho: "#abnmodal.show",
         mo: "() => { showTab('abn'); if(typeof ABN==='undefined'||!ABN.ok) return false; abnOpenAll(); return true; }",
         dong: "() => { try{ closeAbnModal(); }catch(e){} }" },
