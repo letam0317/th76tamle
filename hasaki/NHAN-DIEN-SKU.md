@@ -3218,3 +3218,61 @@ phải ĐẦY DẦN + không chạm 100% + trên màn không còn con số nào;
 giả cho test) · `qc-mobile-toan-du-an --file --trang=factory` **80 màn × 4 máy**, trong đó **thêm màn
 mới "Nhận diện SKU › vòng chờ đọc tem"** — lớp phủ này trước nay chưa từng nằm trong danh sách màn,
 đúng lỗ hổng đã cắn ở Pop-up In tem hồi 21/08.
+
+## 5b.33 · Hộp "đang đọc tem": ICON BRAINSTORM đi khắp khung — bỏ vòng chạy + câu chữ (28/08/2026)
+
+User đổi tiếp sau §5b.32: *"đổi vòng tròn quay và ghi chú 'Đợi chút nhe cục dzàng' thành icon
+brainstorm và di chuyển khắp màn hình"*. Làm đúng như yêu cầu, ba quyết định kỹ thuật:
+
+* **Icon là NÉT VẼ SVG một màu** (bóng đèn có bộ não bên trong + 5 tia ý tưởng), `stroke=currentColor`
+  — không emoji (luật đồng bộ §6 bộ chuẩn). Bản đầu vẽ nét màu `--accent` 58px: soi ảnh chụp thì
+  **chìm** trên lớp phủ xanh xám của theme và não thành một cục rối → vòng 2: nét **TRẮNG + quầng
+  `drop-shadow` màu accent** (ăn theme qua quầng, không qua nét), icon **80×70px** (điện thoại 64×56),
+  não vẽ thoáng 2 bán cầu + rãnh giữa, tia dài hơn. Mốc **"mạng yếu" 12 giây vẫn giữ**: class `lau`
+  đổi nét + quầng sang `--warn`, không thêm chữ. Tia nhấp nháy so le bằng `animation-delay:var(--d)`
+  khai ngay trên từng tia (không `nth-child`). Bài học: **icon phải soi bằng ảnh chụp thật trên
+  đúng theme**, không tin toạ độ SVG trên giấy.
+* **"Khắp màn hình" = khắp KHUNG ẢNH** (`.nds-busy` là lớp phủ inset:0 của `#ndsStage`), không
+  phải toàn trang, và **trừ dải nút `.nds-tools` ở đáy khung** (Bật camera · Chọn ảnh · xoay): đáy
+  vùng nảy lấy `offsetTop` của dải khi dải đang hiện — icon nảy lên nút là che thao tác, ảnh chụp
+  vòng 1 trên điện thoại đã thấy nó đè lên "Bật camera". Nảy kiểu logo DVD bằng
+  `requestAnimationFrame` theo **thời gian thật** (dt kẹp ≤ 50ms để quay lại tab không "xuyên
+  tường"), biên đọc lại mỗi khung (xoay máy tự co), lề 4px vì icon nghiêng 7° theo hướng đi. Hướng
+  xuất phát 25°–65° để luôn đi chéo. Tốc độ `max(90, min(W,H)·0,45)` px/s ≈ 2,2 giây băng qua khung.
+  `prefers-reduced-motion` → ngồi yên giữa khung (class `tinh`).
+* **Bỏ hẳn chữ + số trên màn** (giữ luật 23/08): hộp mang `role=status aria-label`, `data-giay`
+  vẫn ghi cho bộ đo. Luật "hộp đã có thì không dựng lại" (21/08) giữ nguyên — dựng lại là icon nhảy
+  về giữa, nhìn như máy bắt đầu lại.
+
+**Đo:** `qc-tab-nhan-dien` 2 ca cũ của vòng chạy thay bằng 2 ca mới — icon phải ĐI thật (12 mẫu vị
+trí cách 90ms, ≥8 vị trí khác nhau), **không mẫu nào ra ngoài khung**, không chữ/không số, tắt sạch
+khi xong; và mốc 13 giây (đẩy đồng hồ trang) icon đổi màu. `qc-mobile-toan-du-an --file --trang=factory`
+màn "Nhận diện SKU › vòng chờ đọc tem" đổi điều kiện sẵn sàng sang `#ndsBrain svg path`.
+
+## 5b.34 · Hộp "đang đọc tem": icon đứng giữa + 3 HIỆU ỨNG RÚT NGẪU NHIÊN — user chọn sau demo (28/08/2026 chiều)
+
+Sau bản nảy như logo DVD (§5b.33), user hỏi *"đề xuất các hiệu ứng khác tương tự, đẹp, chuyên nghiệp
+hơn"*. Cách làm đúng ở đây là **cho xem, không tả**: dựng một trang demo chạy live 7 phương án trên khung
+4:3 giả lập đúng lớp phủ (tem trắng loá bên dưới, nút đổi theme Hasaki/Tokyo để soi tương phản) —
+trang demo là file tạm, **đã xoá theo yêu cầu user sau khi chốt** (cần lại thì dựng mới: 7 khung 4:3 + lớp phủ, ~150 dòng). 7 phương án: 0 nảy DVD (hiện tại)
+· A sóng não · B quỹ đạo ý tưởng · C tia quét tem + 4 góc ngắm · D tự vẽ nét · E lang thang Lissajous +
+vệt mờ · F hạt tụ về bóng đèn. Tôi đề xuất C hoặc A; **user chốt "random A, B, D"**.
+
+**Cài đặt:** icon đứng **giữa khung** (`left/top:50%` + margin âm — hết tính biên nảy, hết chuyện đè
+dải nút); mỗi lượt quét `ndsRutHieuUng()` rút một trong `['song','quydao','tuve']`, **không rút trùng
+lượt vừa dùng** (ngẫu nhiên mà 3 lượt giống nhau thì người dùng tưởng không đổi); `ndsDungHieuUng()`
+dựng phần riêng: A = bản sao các nét não (class `syn`, nét đứt màu accent chạy dọc nét trắng bằng
+`stroke-dashoffset`) · B = 3 vòng `.nds-ring` nghiêng 62° chu kỳ 3,4/5,1/7,3s, hạt là `::after`, chèn
+DƯỚI icon · D = khai `pathLength=100` cho mọi path để nét dài nét ngắn cùng về đích, tia vẽ trễ 0,9s.
+Hộp mang `data-hieu-ung` + class `hu-<tên>`; `NDS.epHieuUng` cho bộ đo ép một hiệu ứng. Chuyển động
+thuần CSS — không còn rAF mỗi khung. Mốc 12 giây: class `lau` chuyển lên HỘP để nét, quầng, vệt syn
+và hạt quỹ đạo cùng ngả `--warn`.
+
+**Bẫy đã chặn trước:** rule chung `prefers-reduced-motion → animation-duration:.01ms` với vòng lặp vô
+hạn là nhấp nháy, và với D là **icon TRỐNG** (đứng ở 0% = chưa vẽ nét nào) → khai riêng
+`animation:none` + `stroke-dasharray:none; stroke-dashoffset:0` cho D trong media query đó.
+
+**Đo:** `qc-tab-nhan-dien` ca hộp chờ viết lại — 12 lượt mở liên tiếp phải đủ phần riêng của từng hiệu
+ứng + không lặp kề; ép được cả 3 qua `NDS.epHieuUng`; icon lệch tâm ≤2px; không chữ/không số; 13s đổi
+màu; tắt sạch. `qc-mobile-toan-du-an` màn "vòng chờ đọc tem" tách thành **3 màn** (mỗi hiệu ứng là một
+màn khác — phần tử khác nhau — phạm vi đo = phạm vi lời hứa).

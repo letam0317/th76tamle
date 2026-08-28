@@ -1461,44 +1461,73 @@ kiem("Cả AI lẫn OCR hỏng → nói thẳng một lần + chỉ sang ô gõ 
   soGoiAi === 1 && soGoiOcr === 1 && /gõ mã in trên tem/i.test(baoHong),
   soGoiAi + " AI · " + soGoiOcr + " OCR · toast: " + baoHong.slice(0, 64));
 
-/* Hộp "đang đọc" (đổi 23/08/2026): VÒNG CHẠY kiểu CH Play + đúng một câu, KHÔNG còn số giây.
-   Không rút được 4–8 giây của Google, nhưng phải cho thấy máy đang làm chứ không treo (chính cảm
-   giác treo làm thủ kho báo "quá lâu"). Ba điều phải đúng:
-     · vòng ĐẦY DẦN theo thời gian (dashoffset giảm) và KHÔNG chạm 100% — đứng ở 100% mà màn hình
-       chưa đổi là nói dối;
-     · trên màn hình KHÔNG còn con số giây nào (giây vẫn ghi ở data-giay cho bộ đo);
-     · quá 12 giây thì vòng ngả màu cảnh báo (mốc "mạng yếu" cũ, chỉ đổi cách nói). */
+/* Hộp "đang đọc" (đổi 28/08/2026 chiều — user chọn "random A, B, D" sau demo 7 phương án): ICON
+   BRAINSTORM đứng GIỮA khung + mỗi lượt rút NGẪU NHIÊN một trong 3 hiệu ứng (sóng não · quỹ đạo ý
+   tưởng · tự vẽ nét). Không rút được 4–8 giây của Google, nhưng phải cho thấy máy đang làm chứ không
+   treo. Đo:
+     · 12 lượt mở liên tiếp: mỗi lượt là 1 trong 3 hiệu ứng, có ĐỦ phần riêng của nó (bản sao nếp não
+       .syn / 3 vòng .nds-ring / pathLength=100 trên mọi nét), không lặp lượt kề (ngẫu nhiên mà 3 lượt
+       giống nhau thì người dùng tưởng không đổi);
+     · ép từng hiệu ứng qua NDS.epHieuUng — cả 3 đều dựng được (bộ đo điện thoại dùng đúng đường này);
+     · icon nằm ĐÚNG GIỮA khung (lệch tâm ≤2px), không chữ, không số (giây vẫn ghi ở data-giay);
+     · quá 12 giây thì đổi màu cảnh báo (mốc "mạng yếu" cũ, chỉ đổi cách nói); tắt là sạch. */
 traLoi = AI_OK; traLoiOcr = OCR_OK;
 const vongCho = await page.evaluate(async () => {
   const doc = (id) => document.getElementById(id);
-  ndsBusy(true, "đang thử");
-  await new Promise((r) => setTimeout(r, 300));
-  const arc = doc("ndsVongArc");
-  const d1 = arc ? Number(arc.getAttribute("stroke-dashoffset")) : -1;
-  await new Promise((r) => setTimeout(r, 900));
-  const d2 = arc ? Number(arc.getAttribute("stroke-dashoffset")) : -1;
-  const box = doc("ndsBusyBox");
-  const chu = box ? box.textContent.trim() : "KHÔNG THẤY HỘP";
-  const giay = box ? box.getAttribute("data-giay") : null;
+  const cho = (ms) => new Promise((r) => setTimeout(r, ms));
+  const rieng = (box, ic, h) => h === "song" ? ic.querySelectorAll(".syn").length >= 2
+    : h === "quydao" ? box.querySelectorAll(".nds-ring").length === 3
+    : h === "tuve" ? [...ic.querySelectorAll("path")].every((p) => p.getAttribute("pathLength") === "100") : false;
+  const chuoi = [], loi = [];
+  for (let i = 0; i < 12; i++) {
+    NDS.epHieuUng = null; ndsBusy(true, "đang thử"); await cho(20);
+    const box = doc("ndsBusyBox"), ic = doc("ndsBrain");
+    if (!box || !ic) { loi.push("lượt " + i + ": không có hộp/icon"); ndsBusy(false); continue; }
+    const h = box.getAttribute("data-hieu-ung"); chuoi.push(h);
+    if (!rieng(box, ic, h)) loi.push("lượt " + i + ": " + h + " thiếu phần riêng");
+    if (!box.classList.contains("hu-" + h)) loi.push("lượt " + i + ": thiếu class hu-" + h);
+    ndsBusy(false);
+  }
+  const lapKe = chuoi.some((h, i) => i > 0 && h === chuoi[i - 1]);
+  const ep = {};
+  for (const h of ["song", "quydao", "tuve"]) {
+    NDS.epHieuUng = h; ndsBusy(true); await cho(20);
+    const box = doc("ndsBusyBox"), ic = doc("ndsBrain");
+    ep[h] = !!box && box.getAttribute("data-hieu-ung") === h && rieng(box, ic, h);
+    ndsBusy(false);
+  }
+  NDS.epHieuUng = null;
+  ndsBusy(true, "đang thử"); await cho(300);
+  const box = doc("ndsBusyBox"), ic = doc("ndsBrain");
+  const b = box.getBoundingClientRect(), r = ic.getBoundingClientRect();
+  const lechTam = [Math.round((r.left + r.width / 2) - (b.left + b.width / 2)), Math.round((r.top + r.height / 2) - (b.top + b.height / 2))];
+  await cho(900);
+  const chu = box.textContent.trim(), giay = box.getAttribute("data-giay");
+  const svgOk = ic.querySelectorAll("svg path").length >= 5;
   /* Mốc "mạng yếu": KHÔNG chờ thật 12 giây — đẩy đồng hồ của trang lên 13 giây rồi đợi một nhịp.
      Đây là đo ĐÚNG luật đang chạy (ngưỡng 12 trong `ndsBusy`), không phải cắm cờ giả cho test. */
   const goc = Date.now;
   Date.now = () => goc.call(Date) + 13000;
-  await new Promise((r) => setTimeout(r, 520));   // đủ cho nhịp 100ms + transition màu 350ms
-  const lau = doc("ndsVong").classList.contains("lau");
-  const mauLau = getComputedStyle(doc("ndsVongArc")).stroke;
+  await cho(520);   // đủ cho nhịp 100ms + transition màu 350ms
+  const lau = box.classList.contains("lau");
+  const mauLau = getComputedStyle(ic).color;
   Date.now = goc;
-  await new Promise((r) => setTimeout(r, 520));
-  const mauThuong = getComputedStyle(doc("ndsVongArc")).stroke;
+  await cho(520);
+  const mauThuong = getComputedStyle(ic).color;
   ndsBusy(false);
-  return { d1, d2, chu, giay, lau, mauLau, mauThuong, conSau: !!doc("ndsVong"), conSo: /\d+[,.]\d+\s*s/.test(chu) };
+  return { chuoi, soLoai: new Set(chuoi).size, lapKe, loi, ep, lechTam, chu, giay, svgOk, lau, mauLau, mauThuong,
+    khung: Math.round(b.width) + "×" + Math.round(b.height),
+    conSau: !!doc("ndsBusyBox") || !!doc("ndsBrain"), conVong: !!doc("ndsVong") || !!document.querySelector(".nds-cho") };
 });
-kiem("Hộp \"đang đọc\": vòng chạy ĐẦY DẦN, không chạm 100%, không còn số giây trên màn",
-  vongCho.d2 < vongCho.d1 && vongCho.d2 > 0 && vongCho.chu === "Đợi chút nhe cục dzàng" &&
-  !vongCho.conSo && Number(vongCho.giay) > 1 && !vongCho.conSau,
-  "vòng " + vongCho.d1.toFixed(0) + "→" + vongCho.d2.toFixed(0) + "/125,7 · chữ: \"" + vongCho.chu +
-  "\" · data-giay " + vongCho.giay + " · tắt sạch khi xong: " + !vongCho.conSau);
-kiem("Quá 12 giây → vòng ngả màu cảnh báo (mốc \"mạng yếu\" cũ, nói bằng màu thay vì bằng số)",
+kiem("Hộp \"đang đọc\": icon brainstorm (nét SVG) đứng GIỮA khung, rút NGẪU NHIÊN 1/3 hiệu ứng (sóng não · quỹ đạo · tự vẽ), 12 lượt không lặp kề, ép được cả 3, không chữ, không số",
+  vongCho.svgOk && vongCho.soLoai >= 2 && !vongCho.lapKe && vongCho.loi.length === 0 &&
+  vongCho.ep.song && vongCho.ep.quydao && vongCho.ep.tuve &&
+  Math.abs(vongCho.lechTam[0]) <= 2 && Math.abs(vongCho.lechTam[1]) <= 2 &&
+  vongCho.chu === "" && !vongCho.conVong && Number(vongCho.giay) > 1 && !vongCho.conSau,
+  "12 lượt: " + vongCho.chuoi.join(">") + " · lặp kề: " + vongCho.lapKe + " · ép: " + JSON.stringify(vongCho.ep) +
+  " · lệch tâm " + vongCho.lechTam.join("/") + "px · khung " + vongCho.khung + " · chữ: \"" + vongCho.chu +
+  "\" · data-giay " + vongCho.giay + " · tắt sạch: " + !vongCho.conSau + (vongCho.loi.length ? " · LỖI: " + vongCho.loi.join("; ") : ""));
+kiem("Quá 12 giây → icon ngả màu cảnh báo (mốc \"mạng yếu\" cũ, nói bằng màu thay vì bằng số)",
   vongCho.lau && vongCho.mauLau !== vongCho.mauThuong,
   "13s: " + vongCho.mauLau + " · bình thường: " + vongCho.mauThuong);
 

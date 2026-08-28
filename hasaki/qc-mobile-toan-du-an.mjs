@@ -150,6 +150,15 @@ const TRANG = [
             "qtcQrPop('422423805','SKU'); return true; }",
         sanSangMan: "() => !!document.querySelector('#qtcshowqrmodal.show #qtcShowQrSvg svg') && !!document.querySelector('#qtcshowqrmodal.show #qtcShowQrVal')",
         dong: "() => { try{ qtcQrPopDong(); }catch(e){} }" },
+      /* Pop-up QR mở cho MỘT UID GROUP (26/08/2026): có thêm khối "In tem UIDgr" (ảnh xem trước tem +
+         SKU · số đếm/tồn · tên hàng + hàng [Số lượng][In tem]). Chế độ thứ hai của cùng pop-up nên phải
+         đo riêng (phạm vi đo = phạm vi lời hứa). Sẵn sàng = có SVG tem xem trước và ô số lượng đã điền
+         đúng số đếm — con số thật, không đếm phần tử. */
+      { ten: "Kiểm kê › pop-up mã QR · UID group (In tem UIDgr)", cho: "#qtcshowqrmodal.show",
+        mo: "() => { showTab('kk'); if(typeof qtcQrPop!=='function'||!document.getElementById('qtcQrIn')) return false; " +
+            "qtcQrPop('1028260605000316','UID group',{cid:'0',uid:'1028260605000316',sku:'422423805',pn:'Vải thun cotton 2 chiều khổ 1m8 định lượng 220gsm màu đen',qu:16700,qs:17000,gst:'Available'}); return true; }",
+        sanSangMan: "() => !!document.querySelector('#qtcshowqrmodal.show #qtcQrInPrev svg') && (document.getElementById('qtcQrInSl')||{}).value==='16700' && /422423805/.test((document.getElementById('qtcQrInSub')||{}).textContent||'')",
+        dong: "() => { try{ qtcQrPopDong(); }catch(e){} }" },
       { ten: "Tồn kho bất thường", mo: "() => { showTab('abn'); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#viewAbn .abntile .k')].some(x => /\\d/.test(x.textContent))" },
       { ten: "Planogram", mo: "() => { showTab('plg'); return true; }",
@@ -157,12 +166,23 @@ const TRANG = [
       { ten: "Nhận diện SKU", mo: "() => { showTab('sku'); return true; }",
         sanSangMan: "() => !!document.getElementById('ndsMa')" },
       /* HỘP "ĐANG ĐỌC TEM" — BỔ SUNG 23/08/2026 cùng lúc đổi vòng xoay + đồng hồ giây thành VÒNG
-         CHẠY kiểu CH Play + câu "Đợi chút nhe cục dzàng". Lỗ hổng cũ y như Pop-up In tem: lớp phủ
-         này chưa từng nằm trong danh sách màn, mà nó là thứ thủ kho nhìn 4-8 giây MỖI lượt quét. */
-      { ten: "Nhận diện SKU › vòng chờ đọc tem",
-        mo: "() => { showTab('sku'); if(typeof ndsBusy!=='function') return false; ndsBusy(true); return true; }",
-        sanSangMan: "() => !!document.getElementById('ndsVongArc')",
-        dong: "() => { try{ ndsBusy(false); }catch(e){} }" },
+         CHẠY kiểu CH Play + câu "Đợi chút nhe cục dzàng"; 28/08/2026 đổi thành ICON BRAINSTORM đứng
+         giữa + 3 HIỆU ỨNG rút ngẫu nhiên (sóng não · quỹ đạo · tự vẽ). Mỗi hiệu ứng là một MÀN khác
+         (phần tử khác nhau) nên ép từng cái qua NDS.epHieuUng và đo riêng — phạm vi đo = phạm vi lời
+         hứa. Lỗ hổng cũ y như Pop-up In tem: lớp phủ này chưa từng nằm trong danh sách màn, mà nó là
+         thứ thủ kho nhìn 4-8 giây MỖI lượt quét. */
+      { ten: "Nhận diện SKU › vòng chờ đọc tem · sóng não",
+        mo: "() => { showTab('sku'); if(typeof ndsBusy!=='function') return false; NDS.epHieuUng='song'; ndsBusy(true); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#ndsBusyBox.hu-song #ndsBrain .syn').length >= 2",
+        dong: "() => { try{ NDS.epHieuUng=null; ndsBusy(false); }catch(e){} }" },
+      { ten: "Nhận diện SKU › vòng chờ đọc tem · quỹ đạo ý tưởng",
+        mo: "() => { showTab('sku'); if(typeof ndsBusy!=='function') return false; NDS.epHieuUng='quydao'; ndsBusy(true); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#ndsBusyBox.hu-quydao .nds-ring').length === 3",
+        dong: "() => { try{ NDS.epHieuUng=null; ndsBusy(false); }catch(e){} }" },
+      { ten: "Nhận diện SKU › vòng chờ đọc tem · tự vẽ nét",
+        mo: "() => { showTab('sku'); if(typeof ndsBusy!=='function') return false; NDS.epHieuUng='tuve'; ndsBusy(true); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#ndsBusyBox.hu-tuve #ndsBrain path')].length >= 5 && [...document.querySelectorAll('#ndsBusyBox.hu-tuve #ndsBrain path')].every(p => p.getAttribute('pathLength') === '100')",
+        dong: "() => { try{ NDS.epHieuUng=null; ndsBusy(false); }catch(e){} }" },
       /* POP-UP "XIN CẤP QUYỀN" — BỔ SUNG 23/08/2026 cùng lúc thêm luồng xin cấp quyền qua bot
          Telegram (người lạ bị khoá thiết bị chặn thì tự xin thay vì đi xin link tay). Khai vào
          danh sách màn NGAY khi sinh ra — phạm vi đo = phạm vi lời hứa. Hành vi gửi/poll đo riêng
