@@ -67,7 +67,10 @@ task hôm nay là 20 / 30 / 60 / 120 — đúng bằng số phút web hiện, v�
 việc đã thực hiện trong kết quả công việc, hoặc đính kèm file kết quả!"` khi `virtual_text` quá
 ngắn và không có `virtual_media`. Đo thật: 40 ✗ · 45 ✗ · 50 ✗ · 55 ✓. Chuỗi rỗng, `"."`, `"ok"`,
 kể cả ký tự trắng braille `⠀` (mẹo cả phòng dùng tới 03/08/2026) nay đều bị chặn — từ 04/08 mọi
-lượt nộp của các task này đều kèm ảnh. Bot tự nối thêm dòng mốc thời gian khi báo cáo < 55 ký tự.
+lượt nộp của các task này đều kèm ảnh. Báo cáo < 55 ký tự thì bot **mở đầu bằng tên task + ngày**
+(`<task> ngày dd/mm/yyyy: …` — đúng khuôn báo cáo kiểm kê / 5S, toàn thông tin thật); vẫn ngắn ⇒ KHÔNG
+nộp, viết thêm vào `.task-baocao-tay.json`. **28/08/2026: BỎ HẲN câu đệm "(Nội dung do bộ nộp báo
+cáo tự động ghi lúc …)"** — chủ máy bác, báo cáo là của người (câu kho tổng đúng 50 ký tự từng dính).
 
 Bẫy phụ: task có `action_id = 1` **validate trước khi merge** — gửi `field=status` mà không kèm
 `extra_data.configs` thì báo `"Vui lòng cập nhật dữ liệu cấu hình!"` dù configs đã ghi từ lượt
@@ -105,7 +108,8 @@ Ghi chú tìm đường: **swagger nội bộ mở công khai tại `https://wsh
 - **"Kiểm kê theo vị trí type full location" TRÙNG VIỆC với "Kiểm kê Location"** (phiếu
   full-location là tập con của location). Dữ liệu + PHÚT luôn **ưu tiên tính cho "Kiểm kê
   Location"**; task full-location vẫn nộp báo cáo chữ như cũ nhưng phút giữ mức tối thiểu
-  (1 khối lượng = 20') — không đếm cùng một phiếu hai lần.
+  (1 khối lượng = 20' — **chỉ khi có phiếu của mình**; không có phiếu ⇒ 1' thật, 28/08/2026) —
+  không đếm cùng một phiếu hai lần.
 - **Báo cáo chỉ kể việc CỦA MÌNH** (đảo chốt 24/08 "kể số cả kho"): số phiếu / đã đếm / lệch chỉ
   đếm phiếu do chính `tamlc@hasaki.vn` đếm hoặc duyệt; **không liệt kê tên người kiểm khác** —
   "này là báo cáo của tôi". Không có phiếu nào của mình ⇒ báo đúng câu "không có phiếu kiểm kê
@@ -229,7 +233,17 @@ node task-hangngay.mjs --nut          # NÚT: làm tươi số liệu cũ → in
 node task-hangngay.mjs --nop          # nộp thật, KHÔNG hỏi (chỉ nộp từ 15h trở đi)
 node task-hangngay.mjs --nop --ep     # nộp thật NGAY, bỏ chốt giờ
 node task-hangngay.mjs --nop --task=<id>   # chỉ 1 task
+node task-hangngay.mjs --ngay=2026-08-27   # NỘP BÙ ngày quên bấm nút: xem nháp ngày đó; thêm --nop --ep để nộp
 ```
+
+**`--ngay=YYYY-MM-DD` — nộp bù ngày cũ (thêm 28/08/2026, lần đầu dùng cho 27/08).** Lọc task **GIAO**
+ngày đó (thông báo `object_type=4`, 200 thông báo gần nhất ≈ 2 tuần) + số liệu **CỦA ngày đó** trong kho
+cache (phiếu kiểm kê 90 ngày, 5S 45 ngày, file tự khai `.task-giothucte.json`/`.task-baocao-tay.json`
+đọc theo `ngay` đó). Riêng F0-A0 chỉ tra được tồn **hiện tại** nên báo cáo ghi rõ "kiểm tra lại lúc
+<giờ chạy> ngày <hôm nay>" (cộng "đầu ngày task ghi nhận N SKU" lấy từ note của task cũ). Task quá hạn
+vẫn nhận nộp (`is_lated=1`, dòng mình lên "chờ duyệt"). Lượt `--nop` (không hỏi) nay cũng ghi sổ
+`task-hangngay.log` dạng `[nop …] NỘP BÙ ngày dd/mm/yyyy nộp N`. 27/08/2026: nộp bù 9/9 lúc 15:52 28/08
+(kiểm kê ×3 "không có phiếu" 1' · 5S 1 lượt 14:57 → 30' · kho tổng 360' theo công thức · F0-A0 1').
 
 `--nut` = `--nop --ep --hoi --lamtuoi` (dùng lẻ từng cờ cũng được):
 
@@ -253,10 +267,10 @@ cho mọi task; nay mỗi task được đo từ **mốc thật của chính s�
 | Task | Mốc dùng để đo |
 |---|---|
 | Kiểm kê SKU / Location | `checklist_at` (giờ đếm) + `approved_at` (giờ duyệt) của phiếu **rơi vào hôm nay**, và **chỉ phiếu do mình bấm** (`checklist_by_name` / `approved_by_name` = `tamlc@hasaki.vn`) — `created_at` KHÔNG dùng vì phiếu có thể tạo từ hôm kia |
-| Kiểm kê theo vị trí (full location) | **không nhận mốc** (25/08/2026) — phiếu trùng với "Kiểm kê Location", phút đã tính bên đó; task này giữ tối thiểu 1 khối lượng (20') |
+| Kiểm kê theo vị trí (full location) | **không nhận mốc** (25/08/2026) — phiếu trùng với "Kiểm kê Location", phút đã tính bên đó; CÓ phiếu của mình ⇒ giữ đúng 1 khối lượng (20'), không có phiếu ⇒ 1' thật (28/08/2026) |
 | Kiểm tra 5S kho tổng | giờ ghi nhận các lượt vi phạm hôm nay **do mình ghi** (cột 5 "Created By" = "Lê Chí Tâm - 233135", cột 6 là giờ) |
 | Sắp xếp hàng hóa tại kho tổng | **công thức quỹ** (25/08/2026): 480' − task khác − 30', xem cuối mục |
-| F0-A0 MTG/GARMENT · việc tay (nhóm B) | **không có mốc nào ⇒ 1 phút** (mặc định `TASK_GIO_THUC_TE`) |
+| F0-A0 MTG/GARMENT · việc tay (nhóm B) · **kiểm kê không có phiếu của mình · 5S không lượt nào của mình** | **không có mốc nào ⇒ 1 phút THẬT** (mặc định `TASK_GIO_THUC_TE`) — **không làm tròn lên bước, không khối lượng** (chốt 28/08/2026, xem mục làm tròn) |
 
 **CHỈ MỐC CỦA MÌNH (sửa chiều 24/08/2026).** Bản sáng lấy mọi mốc trong phiếu hôm nay ⇒ đo giúp cả
 kho: 24/08 có **212 phiếu** full-location của **13 người** (mình 22 phiếu), gộp phiên ra
@@ -276,6 +290,12 @@ gian đều là của riêng mình. Riêng phiếu **full-location** phút chỉ
 - Nộp kèm **khối lượng = phút/bước**: 280/20 = **14** (gửi `field=amount_of_work` trước
   `reality_hours`; lỗi nhịp này không chặn lượt nộp — web vốn mặc định khối lượng 1).
 - Bước 0 (F0-A0, dán tem) không có khối lượng → giữ nguyên phút, không gửi field.
+- **KHÔNG CÓ DỮ LIỆU ⇒ 1' THẬT, không làm tròn, không khối lượng (chốt 28/08/2026).** Bản 25/08
+  lấy sàn làm tròn = 1 bước nên 26/08 "Kiểm kê Location: không có phiếu kiểm kê nào do tamlc thao
+  tác" vẫn nộp **120'** (SKU 60', full-location 20', sắp xếp trong kho 60') — sai, chủ máy bác. Nay
+  chỉ làm tròn khi phút có dữ liệu thật đứng sau (cờ `coMoc`: mốc đo · 1 khối lượng full-location
+  có phiếu · số người nhập); phút chưa đủ 1 bước ⇒ khối lượng 0, không gửi field. Hệ quả: task kho
+  tổng (công thức quỹ) ôm phần còn lại lớn hơn — đúng công thức, không phải lỗi.
 - Số **người tự nhập giữ nguyên** không làm tròn (người gõ chịu trách nhiệm con số); khối lượng
   đi kèm suy ra gần nhất từ số đó.
 
@@ -293,7 +313,7 @@ tiên (mở phiếu, đi tới vị trí, đếm rồi mới bấm). Sàn 1 phú
 ```
 ── THỜI GIAN THỰC TẾ (phút · quỹ ngày 480')
     242'  #13422677 Kiểm kê theo vị trí … — 213 mốc · 2 phiên · 08:42→13:44
-      1'  #13424791 Kiểm kê SKU — không có mốc thời gian nào -> mặc định 1 phút
+      1'  #13424791 Kiểm kê SKU — không có dữ liệu/mốc thời gian nào -> 1 phút, không làm tròn theo bước, không khối lượng
       7'  (đã ghi sẵn ở task khác trong ngày)
    ─────
     256' / 480'  →  CÒN LẠI 224 phút
@@ -302,7 +322,7 @@ tiên (mở phiếu, đi tới vị trí, đếm rồi mới bấm). Sàn 1 phú
 "Đã ghi sẵn" = `reality_hours` của các task hôm nay **của mình** đã nộp trước đó (`sub_type=1` đọc
 dòng riêng của mình trong `staff[]`). Tổng vượt quỹ ⇒ **hạ từng BƯỚC** (đúng `planned_hours`) từ
 task dài nhất — phút luôn là bội số của bước, khối lượng luôn nguyên (25/08/2026, thay cách hạ
-đều theo tỉ lệ cũ); sàn 1 khối lượng (task bước 0 sàn 1'); dòng đó ghi rõ `(bot đo N', hạ theo
+đều theo tỉ lệ cũ); sàn 1 khối lượng cho task có dữ liệu (task bước 0 và task 1' không dữ liệu sàn 1'); dòng đó ghi rõ `(bot đo N', hạ theo
 quỹ)`. Sàn cộng lại vẫn vượt (thường do số người tự nhập) thì bảng cảnh báo `⚠ VƯỢT quỹ ngày`.
 Nộp xong dòng tổng kết và `task-hangngay.log` đều mang số phút và phần còn lại.
 

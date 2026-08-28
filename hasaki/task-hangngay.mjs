@@ -61,6 +61,13 @@
  *  bước planned_hours (đo 263' · bước 20' → 280') rồi nộp kèm khối lượng = phút/bước (280/20 = 14).
  *  Task planned_hours = 0 (F0-A0, dán tem) không có bước → giữ nguyên phút, không gửi khối lượng.
  *
+ *  CHỐT 28/08/2026 — KHÔNG CÓ DỮ LIỆU THÌ KHÔNG CÓ KHỐI LƯỢNG. Task không có mốc nào (kiểm kê không
+ *  có phiếu của mình · 5S không lượt nào của mình · việc tay) giữ 1' THẬT, KHÔNG làm tròn lên 1 khối
+ *  lượng: bản 25/08 lấy sàn = bước nên 26/08 "Kiểm kê Location: không có phiếu kiểm kê nào do tamlc
+ *  thao tác" mà vẫn nộp 120' — chủ máy bác. Sàn 1 khối lượng chỉ còn cho task full-location CÓ phiếu
+ *  của mình (phút đã tính bên "Kiểm kê Location"). Cùng ngày: BỎ hẳn câu đệm "(Nội dung do bộ nộp
+ *  báo cáo tự động ghi lúc …)" — báo cáo ngắn mở đầu bằng tên task + ngày, vẫn ngắn thì không nộp.
+ *
  *  KHÔNG BAO GIỜ tự đăng nhập: chỉ chạy khi phiên work của người đang sống
  *  (layTokenSongWork) — đúng ý "sau khi người dùng đăng nhập vào nền tảng work".
  *
@@ -77,6 +84,7 @@
  *    node task-hangngay.mjs --nop           # nộp thật, không hỏi (chỉ nộp từ 15h trở đi)
  *    node task-hangngay.mjs --nop --ep      # nộp thật NGAY, bỏ chốt giờ
  *    node task-hangngay.mjs --nop --task=<id>   # chỉ 1 task (bỏ chốt giờ)
+ *    node task-hangngay.mjs --ngay=2026-08-27   # NỘP BÙ ngày quên bấm nút: xem nháp; thêm --nop --ep để nộp
  *    (--nut = --nop --ep --hoi --lamtuoi; dùng lẻ từng cờ cũng được)
  * ============================================================================
  */
@@ -145,7 +153,7 @@ const TOI_THIEU = 55;
 // chữ nên dùng một câu trung tính, KHÔNG khai là đã làm hay chưa làm.
 const BC_NHOM_B = process.env.TASK_BAOCAO_MACDINH || "Không có nội dung báo cáo bổ sung cho công việc này trong ngày.";
 
-const CO = { nop: false, ep: false, task: 0, hoi: false, lamtuoi: false, nhom: "", thuF0A0: false };
+const CO = { nop: false, ep: false, task: 0, hoi: false, lamtuoi: false, nhom: "", thuF0A0: false, ngay: "" };
 for (const a of process.argv.slice(2)) {
   if (a === "--nop") CO.nop = true;
   else if (a === "--ep") CO.ep = true;
@@ -156,6 +164,10 @@ for (const a of process.argv.slice(2)) {
   // Bot tin nhắn dùng cờ này cho nút "Chỉ nhóm A" trong chat.
   else if (a.startsWith("--nhom=")) CO.nhom = a.slice(7).toUpperCase();
   else if (a.startsWith("--task=")) CO.task = Number(a.slice(7));
+  /* --ngay=YYYY-MM-DD (28/08/2026): NỘP BÙ ngày quên bấm nút — lọc task GIAO ngày đó + số liệu CỦA ngày đó
+     trong kho cache (kiểm kê 90 ngày, 5S 45 ngày). F0-A0 chỉ tra được tồn HIỆN TẠI nên báo cáo ghi rõ
+     giờ kiểm là lúc chạy. Vẫn đi qua đúng luồng nút/nộp như hôm nay. */
+  else if (a.startsWith("--ngay=")) CO.ngay = a.slice(7);
   // Xem trước báo cáo F0-A0 mà không cần task nào còn hạn (mỗi ngày chỉ nộp được 1 lần, nộp rồi là
   // hết cách xem lại bản dựng). Không gọi wshr, không nộp gì — chỉ hỏi WMS rồi in ra.
   else if (a === "--thu-f0a0") CO.thuF0A0 = true;
@@ -184,6 +196,10 @@ process.on("uncaughtException", (e) => {
 });
 const ngayVN = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 const ngayGon = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4);
+/* NGÀY BÁO CÁO: mặc định hôm nay; --ngay=… để nộp bù. Mọi "hôm nay" của số liệu (phiếu, mốc, 5S, file tự
+   khai, danh sách task) đều bám NGAY_BC — chỉ giờ KIỂM tồn F0-A0 là giờ thật lúc chạy. */
+if (CO.ngay && !/^\d{4}-\d{2}-\d{2}$/.test(CO.ngay)) { console.log("✗ --ngay phải là YYYY-MM-DD"); process.exit(1); }
+const NGAY_BC = CO.ngay || ngayVN();
 const gioVN = () => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }).format(new Date()));
 const docJson = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
 const linkTrongNote = (t) => (String(t.note || "").match(/https?:\/\/[^\s)"']+/) || [""])[0];
@@ -217,15 +233,16 @@ function phutTuMoc(mocs) {
  * Số NGƯỜI TỰ NHẬP không bị đụng (người gõ chịu trách nhiệm con số) — chỉ khối lượng đi kèm là
  * được suy ra gần nhất từ số đó. */
 const lamTronBuoc = (phut, buoc) => buoc > 0 ? Math.max(buoc, Math.ceil(phut / buoc) * buoc) : Math.max(1, Math.round(phut));
-/** Khối lượng (amount_of_work) đi kèm số phút. Bước 0 ⇒ 0 = ĐỪNG gửi field này, giữ mặc định 1 của web. */
-const khoiLuongCua = (phut, buoc) => buoc > 0 ? Math.max(1, Math.round(phut / buoc)) : 0;
+/** Khối lượng (amount_of_work) đi kèm số phút. Bước 0 ⇒ 0 = ĐỪNG gửi field này, giữ mặc định 1 của web.
+ *  Phút CHƯA ĐỦ 1 bước (task 1' không có dữ liệu — chốt 28/08/2026) cũng ⇒ 0: không khai khối lượng nào. */
+const khoiLuongCua = (phut, buoc) => buoc > 0 && phut >= buoc ? Math.max(1, Math.round(phut / buoc)) : 0;
 
 /** Số phút người TỰ KHAI trong .task-giothucte.json:
  *    { "ngay": "YYYY-MM-DD", "phut": { "<id task hoặc tên task>": 45 } }
  *  Chỉ ăn khi đúng ngày hôm nay — khai hôm qua không được dùng lại cho hôm nay. */
 function phutTay(id, ten) {
   const j = docJson(FILE_GIO);
-  if (!j || j.ngay !== ngayVN()) return 0;
+  if (!j || j.ngay !== NGAY_BC) return 0;
   const p = j.phut || {};
   const v = Number(p[String(id)] ?? p[ten] ?? 0);
   return v > 0 ? Math.round(v) : 0;
@@ -267,7 +284,7 @@ const TEN_NGUON = { PURCHASE_ORDER: "nhập mua", ADJUSTMENT: "điều chỉnh t
  *  (hSku) lẫn SKU Factory (fSku); "Kiểm kê Location" gồm mọi type location của cả hLoc + fLoc). */
 function phieuKiemKe(khos, loai) {
   const pc = docJson(path.join(DIR, ".pc-cache.json")) || {};
-  const hn = ngayVN();
+  const hn = NGAY_BC;
   const rows = khos.flatMap((k) => pc[k] || []).filter((r) => {
     if (loai && !loai.test(String(r.plan_type || ""))) return false;
     return String(r.checklist_at || "").slice(0, 10) === hn || String(r.plan_date || "").slice(0, 10) === hn;
@@ -282,7 +299,7 @@ function phieuKiemKe(khos, loai) {
 /** Tóm tắt phiếu kiểm kê. `demPhut=false` = KHÔNG nhận phút về task này (chốt 25/08/2026 —
  *  phiếu full-location trùng với "Kiểm kê Location" nên phút chỉ được tính MỘT lần, ở task đó). */
 function tomTatKiemKe(nhan, rows, tuoi, link, demPhut = true) {
-  const hn = ngayGon(ngayVN());
+  const hn = ngayGon(NGAY_BC);
   const gioTuoi = tuoi ? tuoi.toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "?";
   // Kho cache cũ quá thì KHÔNG dám nộp — số liệu cũ nộp lên còn tệ hơn không nộp.
   if (!tuoi || Date.now() - tuoi.getTime() > 6 * 3600 * 1000)
@@ -301,18 +318,20 @@ function tomTatKiemKe(nhan, rows, tuoi, link, demPhut = true) {
      hôm kia nên created_at không phải giờ làm việc của ngày này, cố ý không dùng. Và chỉ mốc do
      CHÍNH TÔI bấm (laToi) — phiếu của những người khác trong ngày không phải giờ làm của mình. */
   const moc = demPhut ? phutTuMoc(cua.flatMap((r) => [
-    laToi(r.checklist_by_name) ? msVN(r.checklist_at, ngayVN()) : 0,
-    laToi(r.approved_by_name) ? msVN(r.approved_at, ngayVN()) : 0,
+    laToi(r.checklist_by_name) ? msVN(r.checklist_at, NGAY_BC) : 0,
+    laToi(r.approved_by_name) ? msVN(r.approved_at, NGAY_BC) : 0,
   ])) : null;
   const dong = [
     `${nhan} ngày ${hn}: ${dem} phiếu (${daDem} đã đếm, ${lech} phiếu lệch) — người kiểm: ${TOI_EMAIL}.`,
     `Kho: ${kho.join(", ") || "-"}.`,
     link ? `Chi tiết: ${link}` : "",
   ].filter(Boolean);
+  /* sanKhoiLuong (chốt 28/08/2026): CÓ phiếu của mình nhưng phút đã tính bên "Kiểm kê Location" ⇒ task
+     này giữ đúng 1 khối lượng (= 1 bước). Không có phiếu nào thì đã trả ở trên, không phút ⇒ 1' thật. */
   return {
-    du: true, text: dong.join("\n"), phut: moc?.phut,
+    du: true, text: dong.join("\n"), phut: moc?.phut, sanKhoiLuong: !demPhut,
     vi: moc ? `${moc.vi} · ${dem} phiếu do ${TOI_EMAIL} thao tác`
-      : demPhut ? "" : "phiếu trùng với Kiểm kê Location — phút đã tính bên đó, đây giữ tối thiểu",
+      : demPhut ? "" : `${dem} phiếu trùng với Kiểm kê Location — phút đã tính bên đó, đây giữ 1 khối lượng`,
   };
 }
 /* Nhãn ghi rõ task gồm những type phiếu nào (yêu cầu 25/08/2026 "cần làm rõ"). */
@@ -324,7 +343,7 @@ const bcFullLoc = async (t) => { const { rows, tuoi } = phieuKiemKe(["fLoc"], /F
 async function bc5S() {
   const tc = docJson(path.join(DIR, ".exports", "tasks-cache.json"));
   if (!tc || !tc.rows) return { du: false, text: "Chưa đọc được kho dữ liệu 5S (.exports/tasks-cache.json)." };
-  const hn = ngayVN();
+  const hn = NGAY_BC;
   const rows = Object.values(tc.rows).filter((r) => String(r[5] || "").slice(0, 10) === hn);
   const theoTT = {};
   for (const r of rows) theoTT[r[3] || "?"] = (theoTT[r[3] || "?"] || 0) + 1;
@@ -498,17 +517,23 @@ if (CO.thuF0A0) {
 const traSoTay = (ten, t) => SO_TAY.find((s) =>
   s.khop.test(ten) && (!s.nguoiGiao || Number(t?.created_by) === s.nguoiGiao)) || null;
 
-/** Nối thêm dòng mốc khi báo cáo ngắn hơn ngưỡng máy chủ — tránh 422 mà không bịa nội dung. */
-function duDaiToiThieu(text) {
+/** Máy chủ chặn báo cáo ≤ 50 ký tự (422). Báo cáo ngắn thì MỞ ĐẦU bằng tên task + ngày — đúng khuôn các
+ *  báo cáo kiểm kê / 5S ("<việc> ngày dd/mm/yyyy: …"), toàn là thông tin thật, không bịa.
+ *  CHỐT 28/08/2026: KHÔNG đệm câu "(Nội dung do bộ nộp báo cáo tự động ghi lúc …)" nữa — chủ máy bác:
+ *  báo cáo là của người, không khai "do bộ tự động ghi". Vẫn ngắn hơn ngưỡng (hoặc rỗng) ⇒ trả null =
+ *  KHÔNG nộp, người viết thêm vào .task-baocao-tay.json. */
+function duDaiToiThieu(text, ten) {
   const s = String(text || "").trim();
+  if (!s) return null;
   if (s.length >= TOI_THIEU) return s;
-  return (s ? s + "\n" : "") + `(Nội dung do bộ nộp báo cáo tự động ghi lúc ${gio()} ngày ${ngayGon(ngayVN())}.)`;
+  const dai = `${String(ten || "").trim()} ngày ${ngayGon(NGAY_BC)}: ${s}`.trim();
+  return dai.length >= TOI_THIEU ? dai : null;
 }
 
 /** Báo cáo người tự viết (ưu tiên hơn bản tự dựng) — chỉ dùng nếu đúng ngày hôm nay. */
 function baoCaoTay(id, ten) {
   const j = docJson(FILE_TAY);
-  if (!j || j.ngay !== ngayVN()) return null;
+  if (!j || j.ngay !== NGAY_BC) return null;
   const b = j.baocao || {};
   return b[String(id)] || b[ten] || null;
 }
@@ -520,7 +545,7 @@ async function dsTaskHomNay(work) {
   catch (e) { log("✗ Không đọc được danh sách task hôm nay: " + moTaLoi(e)); return null; }
   const j = await r.json().catch(() => null);
   const rows = j?.data?.rows || [];
-  const hn = ngayVN();
+  const hn = NGAY_BC;                                       // task GIAO ngày báo cáo (--ngay: ngày cũ)
   const thay = new Map();
   for (const n of rows) {
     if (n.object_type !== 4) continue;                       // 4 = "vừa giao cho bạn 1 công việc"
@@ -728,7 +753,7 @@ if (CO.task) ds = ds.filter((x) => x.id === CO.task);
 if (!ds.length) { log("Hôm nay chưa thấy task nào được giao (hoặc đã lọc hết)."); process.exit(0); }
 
 const conSom = gioVN() < GIO_SOM_NHAT && !CO.ep && !CO.task;
-log(`${ds.length} task hôm nay ${ngayGon(ngayVN())}`
+log(`${ds.length} task ngày ${ngayGon(NGAY_BC)}` + (CO.ngay ? " · NỘP BÙ NGÀY CŨ (--ngay)" : "")
   + (CO.hoi ? " · NÚT BẤM TAY (xem nháp rồi mới hỏi nộp)" : CO.nop ? " · CHẾ ĐỘ NỘP THẬT" : " · chỉ xem (thêm --nop để nộp)")
   + (conSom ? ` · CHƯA TỚI GIỜ BÁO CÁO (${GIO_SOM_NHAT}h) — chỉ xem, thêm --ep để ép nộp` : ""));
 console.log("");
@@ -760,27 +785,36 @@ for (const { id, ten, t, st, sot } of bang) {
   if (st !== 0) { console.log("   → đã nộp/đã xử lý rồi, bỏ qua.\n"); boQua++; continue; }
   if (!sot) { console.log("   → task LẠ (chưa có trong sổ tay) — cần xem tay.\n"); la.push(nhan); boQua++; continue; }
 
-  let text = null, du = false, phut = 0, viPhut = "";
+  /* Bước làm tròn = planned_hours của chính task (120/60/30/20…); 0 = không có bước. */
+  const buoc = Math.max(0, Number(t.planned_hours) || 0);
+  /* coMoc = phút này có DỮ LIỆU THẬT đứng sau (mốc đo / 1 khối lượng full-location / người tự khai) ⇒
+     mới được làm tròn lên theo bước. Không có ⇒ 1' thật, không khối lượng (chốt 28/08/2026). */
+  let text = null, du = false, phut = 0, viPhut = "", coMoc = false;
   if (sot.nhom === "A") {
     const kq = await sot.dung(t);
     text = kq.text; du = kq.du;
-    if (kq.phut) { phut = kq.phut; viPhut = kq.vi || ""; }
-    else if (kq.vi) viPhut = kq.vi;                      // full-location: giải thích vì sao không nhận phút
+    if (kq.phut) { phut = kq.phut; viPhut = kq.vi || ""; coMoc = true; }
+    // full-location CÓ phiếu của mình nhưng phút đã tính bên "Kiểm kê Location" ⇒ giữ đúng 1 khối lượng
+    else if (kq.sanKhoiLuong) { phut = Math.max(1, buoc); viPhut = kq.vi || ""; coMoc = true; }
   } else {
     // Người viết tay thì ưu tiên; kho tổng có câu mặc định riêng (chốt 25/08); còn lại câu trung tính.
     text = baoCaoTay(id, ten) || (sot.khoTong ? BC_KHO_TONG : BC_NHOM_B);
     du = true;
   }
-  if (du) text = duDaiToiThieu(text);
+  if (du) {
+    const dai = duDaiToiThieu(text, ten);
+    if (dai == null) {
+      du = false;
+      text = `Báo cáo quá ngắn (${String(text || "").trim().length} ký tự, máy chủ đòi ≥ ${TOI_THIEU}) — viết nội dung vào .task-baocao-tay.json rồi bấm lại.`;
+    } else text = dai;
+  }
   /* Ưu tiên: người tự khai > mốc thật của số liệu > mặc định 1 phút (task không có mốc nào). */
   const tay = phutTay(id, ten);
-  if (tay) { phut = tay; viPhut = "người tự khai trong .task-giothucte.json"; }
+  if (tay) { phut = tay; viPhut = "người tự khai trong .task-giothucte.json"; coMoc = true; }
   if (!phut) {
-    phut = GIO_THUC_TE;
-    if (!viPhut) viPhut = "không có mốc thời gian nào -> mặc định " + GIO_THUC_TE + " phút";
+    phut = GIO_THUC_TE; coMoc = false;
+    viPhut = "không có dữ liệu/mốc thời gian nào -> " + GIO_THUC_TE + " phút, không làm tròn theo bước, không khối lượng";
   }
-  /* Bước làm tròn = planned_hours của chính task (120/60/30/20…); 0 = không có bước. */
-  const buoc = Math.max(0, Number(t.planned_hours) || 0);
   const khoTong = !!sot.khoTong && !tay;                 // người tự khai thì thôi công thức quỹ
   if (khoTong) viPhut = `= ${PHUT_NGAY}' − phút các task khác − ${DANH_RIENG}'`;
   console.log("   ┌ báo cáo:");
@@ -788,11 +822,11 @@ for (const { id, ten, t, st, sot } of bang) {
   console.log("   └");
   console.log("   thời gian thực tế: " + (khoTong ? "tính theo quỹ, xem bảng bên dưới" : phut + " phút") + (viPhut ? " (" + viPhut + ")" : ""));
 
-  if (!CO.nop) { xemPhut.push({ id, ten, phut, viPhut, buoc, khoTong }); console.log(""); continue; }
+  if (!CO.nop) { xemPhut.push({ id, ten, phut, viPhut, buoc, khoTong, coMoc }); console.log(""); continue; }
   if (!du) { console.log("   → thiếu dữ liệu thật → KHÔNG nộp.\n"); boQua++; continue; }
   if (conSom) { console.log(`   → chưa tới giờ báo cáo (${GIO_SOM_NHAT}h) — để dành.\n`); boQua++; continue; }
   console.log("   → xếp hàng chờ nộp.\n");
-  hangDoi.push({ id, ten, t, text, nhom: sot.nhom, phut, viPhut, buoc, khoTong });
+  hangDoi.push({ id, ten, t, text, nhom: sot.nhom, phut, viPhut, buoc, khoTong, coMoc });
 }
 
 /* ── Nhịp 3b: QUỸ CÔNG 480' — bot ĐỀ XUẤT số phút, người bấm sửa được ──
@@ -817,7 +851,9 @@ function tinhLaiQuy() {
   const tay = dsPhut.filter((x) => x.nguoiSua);
   const kt = dsPhut.find((x) => x.khoTong && !x.nguoiSua) || null;
   const tuDong = dsPhut.filter((x) => !x.nguoiSua && x !== kt);
-  for (const x of tuDong) x.phut = lamTronBuoc(x.phutDo, x.buoc);
+  /* Chỉ làm tròn lên theo bước khi phút CÓ DỮ LIỆU THẬT (coMoc). Task 1' "không có dữ liệu" giữ 1'
+     thật — bản 25/08 làm tròn cả nó nên Kiểm kê Location không phiếu vẫn ra 120' (bác 28/08/2026). */
+  for (const x of tuDong) x.phut = x.coMoc ? lamTronBuoc(x.phutDo, x.buoc) : Math.max(1, Math.round(x.phutDo));
   const quyTuDong = quyConLai - tay.reduce((a, x) => a + x.phut, 0);
   const sanKT = kt ? Math.max(1, kt.buoc || 1) : 0;    // chừa chỗ cho kho tổng ít nhất 1 khối lượng
   const tong = () => tuDong.reduce((a, x) => a + x.phut, 0);
@@ -873,9 +909,9 @@ async function suaGioTay() {
 /** Nhớ số người vừa nhập vào .task-giothucte.json để bấm nút lại trong ngày không phải gõ lại. */
 function ghiGioTay() {
   const cu = docJson(FILE_GIO);
-  const phut = (cu && cu.ngay === ngayVN() && cu.phut) ? { ...cu.phut } : {};
+  const phut = (cu && cu.ngay === NGAY_BC && cu.phut) ? { ...cu.phut } : {};
   for (const x of dsPhut) if (x.nguoiSua) phut[String(x.id)] = x.phut;
-  try { fs.writeFileSync(FILE_GIO, JSON.stringify({ ngay: ngayVN(), phut }, null, 2)); return true; }
+  try { fs.writeFileSync(FILE_GIO, JSON.stringify({ ngay: NGAY_BC, phut }, null, 2)); return true; }
   catch { return false; }
 }
 
@@ -927,10 +963,10 @@ if (CO.nop) log(`Thời gian thực tế đã nộp ${phutDaNop} phút · đã g
   + ` → ${daGhi + phutDaNop}/${PHUT_NGAY} phút · CÒN LẠI ${PHUT_NGAY - daGhi - phutDaNop} phút.`);
 /* Lượt bấm nút in ra màn hình rồi cửa sổ đóng là mất — chốt lại 1 dòng vào sổ để sau này tra
    được "hôm đó ai nộp, nộp mấy cái" mà không phải nhớ. */
-if (CO.hoi) {
+if (CO.hoi || (CO.nop && daNop)) {          // lượt --nop không hỏi (nộp bù --ngay…) cũng phải để dấu vết
   try {
     fs.appendFileSync(path.join(DIR, "task-hangngay.log"),
-      `[nút ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false })}] nộp ${daNop} (${phutDaNop}'/${PHUT_NGAY}', còn ${PHUT_NGAY - daGhi - phutDaNop}') · bỏ qua ${boQua}${hangDoi.length ? "" : " (không có gì chờ nộp)"}\r\n`);
+      `[${CO.hoi ? "nút" : "nop"} ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false })}]${CO.ngay ? " NỘP BÙ ngày " + ngayGon(NGAY_BC) : ""} nộp ${daNop} (${phutDaNop}'/${PHUT_NGAY}', còn ${PHUT_NGAY - daGhi - phutDaNop}') · bỏ qua ${boQua}${hangDoi.length ? "" : " (không có gì chờ nộp)"}\r\n`);
   } catch { /* sổ best-effort */ }
 }
 /* Sổ tay khớp theo TÊN (task_id đổi mỗi ngày). Tên bị đổi/ thêm task mới ⇒ rơi vào đây và KHÔNG
