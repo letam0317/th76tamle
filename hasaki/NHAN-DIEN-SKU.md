@@ -3276,3 +3276,58 @@ hạn là nhấp nháy, và với D là **icon TRỐNG** (đứng ở 0% = chưa
 ứng + không lặp kề; ép được cả 3 qua `NDS.epHieuUng`; icon lệch tâm ≤2px; không chữ/không số; 13s đổi
 màu; tắt sạch. `qc-mobile-toan-du-an` màn "vòng chờ đọc tem" tách thành **3 màn** (mỗi hiệu ứng là một
 màn khác — phần tử khác nhau — phạm vi đo = phạm vi lời hứa).
+## 5b.35 · *"Thời gian load nhận diện quá lâu"* lần ba (29/08/2026) — AI đã CHẾT 5 NGÀY mà không ai thấy
+
+User báo đúng một câu: *"thời gian load nhận diện quá lâu, cần tối ưu hơn nữa nhưng vẫn đảm bảo độ chính
+xác"*. Trước khi tối ưu gì, đo lại cổng production bằng `do-gas-hop.mjs` (scratchpad): **4/4 lượt
+`sku_vision` trả `"Apps Script chưa có khoá AI"`**. Tức từ lượt deploy GAS **24/08 16:15** (tính năng OTP
+Telegram) tới 29/08, **mọi lượt đọc bằng Gemini đều chết ngay ~1,4 s**, tab lặng lẽ rớt xuống OCR của
+Drive (bắn ở giây 2,5, về sau ~7,5 s) ⇒ mỗi tem **~10 s** thay vì ~4,6 s, và kết quả là của người đọc
+KÉM hơn (OCR đọc thẻ viết tay đúng 1/2 — §5b.26). Đó chính là "quá lâu".
+
+**Gốc:** đúng bẫy đã ghi ở §5b.26 — `deploy-gas.mjs` sinh `sa.js` từ nguồn git-safe (`SV_KHOA_CUNG = `),
+còn bước nạp khoá `gas-nap-khoa-gemini.mjs` là **bước TAY** nên lượt deploy 24/08 quên. Script Properties
+cũng không có `GEMINI_API_KEY` (đường "ưu tiên" chưa bao giờ được đặt). Đối chứng: `clasp pull` bản đang
+chạy → `SV_KHOA_CUNG = `, 4/4 file trùng byte với `.clasp-deploy` (không ai sửa tay trong editor).
+
+**Vì sao 5 ngày không ai thấy:** tab **vẫn ra kết quả** (OCR), lỗi AI chỉ nằm trong `NDS.loiAI` để bậc
+cuối "nói cho đủ" khi CẢ HAI hỏng — OCR sống thì không ai nói gì. Không có canary nào cho ca "AI tắt".
+
+**Đã làm (29/08):**
+1. **Hotfix deploy @84** — nạp khoá bằng chính `deploy-gas.mjs` sau khi thêm `["SV_KHOA_CUNG", "GEMINI_API_KEY"]`
+   vào `BIMAT` (thiếu khoá trong .env là DỪNG deploy). Từ nay không còn bước tay nào. Đối chứng sau deploy:
+   thẻ tay-kho trả `raw_text` đủ (`Mã sản phẩm: CWHO0006 · Size: S …`), model `gemini-flash-lite-latest` bậc 1.
+2. **CANARY hai tầng (client + GAS, CHƯA deploy — chờ duyệt):** cổng `chuanDoan` trả thêm `coKhoaAI`; lượt hâm
+   nóng đọc cờ đó, false ⇒ toast *"AI đọc tem không chạy (máy chủ chưa có khoá AI) — tab đang dùng OCR…"* ngay
+   lúc mở tab. Trong lượt đọc thật, AI chết vì lý do máy chủ (`khoá AI · hạn mức · model AI`) cũng báo MỘT lần
+   (`ndsBaoAITat`). Lỗi mạng/abort/JSON lẻ tẻ KHÔNG qua đường này.
+
+**Đo lại từng chặng (29/08, cùng công cụ, cổng thật):**
+
+| Chặng | Số đo | Ghi chú |
+|---|---|---|
+| hop 1: POST `exec` → 302 | **1,0–1,55 s** | gồm khởi động execution + chạy script |
+| hop 2: GET `googleusercontent/echo` | **0,3–0,5 s** | cố định của Google |
+| **phí BÊN TRONG script** (`ms − msModel`) | **430–730 ms** | ~12 RPC Properties/Lock/Cache × 30–60 ms — chưa ai tách trước đây |
+| model (`msModel`) | 1,8 s (lượt ấm) · 7,9 s (lượt đầu sau 5 ngày nguội) | lite, chữ thô |
+| WebP vs JPEG cùng ảnh 1400px (sharp) | **nhẹ hơn 57–62 %** trên 4 ảnh mẫu | ảnh mô phỏng nền phẳng; ảnh chụp thật ước 25–40 % |
+| Gemini đọc WebP | `raw_text` **y hệt** JPEG (thẻ tay-kho 34 KB vs 70 KB) | GAS đã nhận `image/webp` từ đầu |
+
+**Ba tối ưu đã cài (CHƯA push/deploy — đang ở bản nội bộ):**
+1. **WebP cho ảnh gửi AI** (`ndsWebpOk` kiểm tiền tố `data:image/webp` — Safari lén trả PNG; `ndsNenSan(canh, mime)`
+   kho nhiều ngăn; OCR vẫn JPEG vì chưa đo WebP trên Drive OCR). Cắt byte = cắt giây trên 4G (ước −0,5…−1 s).
+2. **Gộp RPC trong GAS**: `propsMemo_()` đọc `getProperties()` MỘT lượt dùng chung cho `tbOK_` + `skuVision_`
+   (khoá · hạn mức · model chết), ghi MỘT lượt `setProperties` (đếm + mở cờ bằng ``); cờ "đang đọc" vẫn đọc
+   tươi trong lock. Ước −0,3 s/lượt. KHÔNG dùng memo cho luồng OTP (ghi rồi đọc lại trong cùng execution).
+3. **Hâm nóng khi bật camera / bấm Chọn ảnh** (`ndsHamNongGas`, giãn cách 75 s, miễn phí): pha A đo instance
+   nóng 1,6 s vs nguội 1,9–2,0 s; mở tab hâm một lần rồi canh tem 1–2 phút là nguội lại.
+
+Ước sau khi deploy đủ: 4G yếu p50 **4,6 → ~3,3–3,6 s**, wifi **~4,2 → ~3,3 s**; đuôi vẫn do đua + mốc 17 s giữ.
+**Đường cắt lớn còn lại DUY NHẤT** là bỏ 2 chặng Apps Script (≈1,5 s) bằng proxy riêng (Cloudflare Worker,
+có streaming) — §5b.5b đã liệt kê, là quyết định hạ tầng của user, không phải kỹ thuật.
+
+**Đo:** `qc-tab-nhan-dien` thêm 5 ca (mỗi định dạng nén 1 lần · AI WebP/OCR JPEG · WebP nhẹ hơn · bật camera
+hâm nóng 1 lượt + giãn cách · canary "AI đọc tem không chạy" đúng 1 lần) — baseline 161/161 trước khi sửa.
+Lõi 110/110 (không đụng). GAS `node --check` OK. Khoá Gemini: **đừng bao giờ** có thêm bước tay nào sau
+`deploy-gas.mjs` — bẫy này cắn hai lần trong 8 ngày.
+

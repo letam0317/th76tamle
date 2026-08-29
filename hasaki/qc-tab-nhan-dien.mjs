@@ -65,7 +65,7 @@ const AI_KHONG_MA = {
 };
 let traLoiOcr = OCR_OK, soGoiOcr = 0, soGoiAi = 0;
 /* treGas = số ms giữ phản hồi lại, để mô phỏng mạng chậm (ca "phản hồi của ảnh cũ về muộn") */
-let treGas = 0, soGoiHam = 0;
+let treGas = 0, soGoiHam = 0, mimeAI = "", mimeOCR = "";
 /* Trang HTML mà chặng 2 của Apps Script (script.googleusercontent.com/…/echo) thỉnh thoảng trả về
    thay cho JSON — chính là lỗi thật 19/08/2026 ("Unexpected token '<', \"<!DOCTYPE \"…"). */
 const GAS_HTML = "<!DOCTYPE html><html><head><title>Error</title></head><body>Sorry, unable to open the file.</body></html>";
@@ -105,8 +105,8 @@ page.on("request", (req) => {
        không thì mọi ca "0 lượt OCR" đỏ oan. */
     const laHam = !!than0.chuanDoan && !than0.anh;
     if (laHam) soGoiHam++;
-    else if (act === "sku_ocr") soGoiOcr++;
-    else if (act === "sku_vision") soGoiAi++;
+    else if (act === "sku_ocr") { soGoiOcr++; mimeOCR = String(than0.mime || ""); }
+    else if (act === "sku_vision") { soGoiAi++; mimeAI = String(than0.mime || ""); }
     const than = act === "sku_ocr" ? traLoiOcr : traLoi;
     const traVe = () => req.respond({ status: 200, contentType: "application/json",
       headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(than) }).catch(() => { /* lượt bị abort */ });
@@ -380,12 +380,10 @@ if (LUU_ANH) {
   await page.evaluate(() => document.getElementById("viewNds").scrollIntoView({ block: "end" }));
   await page.screenshot({ path: path.join(OUT, "nds-desktop-ketqua.png") });
 }
-/* THẺ GỌN (19/08/2026): chỉ hiện cái BẤT THƯỜNG. Phạm vi mặc định đã lọc ACTIVE nên badge
-   "ACTIVE" trên mọi thẻ là nhiễu; "NORMAL" cũng vậy vì nó là mặc định. Tồn đã kèm đơn vị nên
-   không cần thêm chip ĐVT. Chip từ khoá khớp nhốt trong <details> "Vì sao khớp". */
-kiem("Thẻ GỌN: phạm vi ACTIVE thì không bày badge NORMAL/ACTIVE thừa",
-  the.length > 0 && the.every((t) => t.badges.every((b) => !/^(NORMAL|ACTIVE)$/.test(b))),
-  the.map((t) => "[" + t.badges.join("+") + "]").join(" · ") || "không badge nào — đúng");
+/* Trạng thái SKU (ACTIVE/INACTIVE): hiển thị rõ ràng bên cạnh Type (Normal/Combo). */
+kiem("Thẻ hiển thị rõ trạng thái ACTIVE/INACTIVE",
+  the.length > 0 && the.every((t) => t.badges.some((b) => /^(ACTIVE|INACTIVE)$/.test(b))),
+  the.map((t) => "[" + t.badges.join("+") + "]").join(" · "));
 /* 19/08/2026: TỒN lên NGAY CẠNH SKU (cùng hàng đầu), và dòng phụ CHỈ còn khi có điều đáng nói
    (từ sổ tay · tem in đúng mã · lệch thông số) ⇒ thẻ thường bớt một dòng. */
 const tonCanhSku = await page.$$eval("#ndsCards .nds-card .nds-chead", (a) => a.map((h) => ({
@@ -1442,8 +1440,17 @@ kiem("AI không lập được mã → TỰ tụt xuống OCR (miễn phí) và 
 /* ĐÚNG CA THỦ KHO BÁO 19/08/2026: "không có kết quả nào" = AI hết hạn mức / trả JSON sai khuôn.
    Đây là lý do giữ OCR trong bậc thang dù nó chậm hơn: nó không dùng hạn mức nào. */
 traLoi = AI_LOI; traLoiOcr = OCR_OK; soGoiOcr = 0; soGoiAi = 0;
-await page.evaluate(() => { const t = document.getElementById("toast"); t.textContent = ""; t.classList.remove("show"); });
+await page.evaluate(() => {
+  const t = document.getElementById("toast"); t.textContent = ""; t.classList.remove("show");
+  /* 29/08/2026 — CANARY: ghi lại MỌI toast của lượt này để kiểm câu "AI đọc tem không chạy" (toast sau
+     đè toast trước nên chỉ đọc textContent cuối cùng là không thấy). */
+  window.__toasts = []; NDS.aiTat = "";
+  if (!window.__toastGoc) { window.__toastGoc = window.toast; window.toast = function (m, t) { (window.__toasts || []).push(String(m)); return window.__toastGoc.apply(this, arguments); }; }
+});
 await datAnhMoi();
+const canary = await page.evaluate(() => (window.__toasts || []).filter((m) => /AI đọc tem không chạy/.test(m)).length);
+kiem("AI chết vì lý do máy chủ (hết hạn mức) → báo MỘT lần \"AI đọc tem không chạy\" (canary), không im lặng",
+  canary === 1, canary + " lần báo · toasts: " + (await page.evaluate(() => (window.__toasts || []).map((m) => m.slice(0, 40)).join(" | "))));
 const sauCuu = await page.evaluate(() => ({
   the: document.querySelectorAll("#ndsCards .nds-card").length,
   nguon: (window.NDS.tokens || []).map((t) => t.nguon).filter((v, i, a) => a.indexOf(v) === i).join(","),
@@ -1544,10 +1551,32 @@ await page.evaluate(() => {
 });
 soGoiAi = 0; soGoiOcr = 0;
 await datAnhMoi();
-const nenSo = await page.evaluate(() => ({ so: window.__soNen, tran: window.NDS_TRAN_B64 }));
-kiem("Một tấm ảnh chỉ nén MỘT lần dù bậc thang gọi cả AI lẫn OCR",
-  soGoiAi === 1 && soGoiOcr === 1 && nenSo.so === 1,
-  soGoiAi + " AI · " + soGoiOcr + " OCR · " + nenSo.so + " lần nén");
+const nenSo = await page.evaluate(() => ({ so: window.__soNen, tran: window.NDS_TRAN_B64, webp: ndsWebpOk() }));
+/* 29/08/2026: AI xin WebP, OCR xin JPEG cho cùng tấm ⇒ máy mã hoá được WebP thì nén ĐÚNG 2 lần (mỗi
+   định dạng một lần), không thì 1; lượt đua/thử lại KHÔNG được nén lại. */
+kiem("Mỗi định dạng chỉ nén MỘT lần (AI WebP + OCR JPEG), lượt đua không nén lại",
+  soGoiAi === 1 && soGoiOcr === 1 && nenSo.so === (nenSo.webp ? 2 : 1),
+  soGoiAi + " AI · " + soGoiOcr + " OCR · " + nenSo.so + " lần nén · máy mã hoá WebP: " + nenSo.webp);
+kiem("Ảnh gửi AI là WebP khi máy mã hoá được (không thì JPEG); ảnh gửi OCR luôn JPEG",
+  mimeAI === (nenSo.webp ? "image/webp" : "image/jpeg") && mimeOCR === "image/jpeg",
+  "AI " + mimeAI + " · OCR " + mimeOCR);
+const coWebp = await page.evaluate(async () => {
+  const w = await ndsNenSan(NDS_MAX_CANH, "image/webp"), j = await ndsNenSan(NDS_MAX_CANH, "image/jpeg");
+  return { w: w.b64.length, j: j.b64.length, mw: w.mime, mj: j.mime, webp: ndsWebpOk() };
+});
+kiem("WebP nhẹ hơn JPEG trên cùng tấm ảnh (máy không mã hoá được thì trả JPEG đúng nhãn)",
+  coWebp.webp ? (coWebp.mw === "image/webp" && coWebp.w < coWebp.j) : (coWebp.mw === "image/jpeg"),
+  "WebP " + Math.round(coWebp.w * 0.75 / 1024) + "KB · JPEG " + Math.round(coWebp.j * 0.75 / 1024) + "KB");
+/* 29/08/2026: bật camera = sắp gửi ảnh thật → hâm nóng Apps Script (miễn phí), giãn cách 75s. Headless
+   không có camera nên getUserMedia sẽ hỏng — hâm nóng phải bắn TRƯỚC khi xin quyền mới đúng ý. */
+const hamTruoc = soGoiHam;
+await page.evaluate(() => { NDS.hamLuc = 0; });
+await bam("#ndsBtnCam");
+await new Promise((r) => setTimeout(r, 500));
+await bam("#ndsBtnCam");                       // bấm lại ngay: nằm trong giãn cách → KHÔNG bắn thêm
+await new Promise((r) => setTimeout(r, 300));
+kiem("Bật camera là hâm nóng Apps Script MỘT lượt; bấm lại trong 75s không bắn thêm",
+  soGoiHam === hamTruoc + 1, (soGoiHam - hamTruoc) + " lượt hâm nóng khi bật camera");
 const kbGui = await page.evaluate(async () => {
   const a = await ndsNenSan(NDS_MAX_CANH);
   return { b64: a.b64.length, kb: Math.round(a.b64.length * 0.75 / 1024), tran: NDS_TRAN_B64 };

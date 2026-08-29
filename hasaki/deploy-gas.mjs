@@ -24,7 +24,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const NGUON = path.join(DIR, "google-script.gs");
 const DICH = path.join(DIR, ".clasp-deploy", "sa.js");
 
-/* Ba hằng bí mật: tên hằng trong .gs → biến trong .env. Thiếu bất kỳ cái nào là DỪNG, không đẩy bản
+/* Các hằng bí mật: tên hằng trong .gs → biến trong .env. Thiếu bất kỳ cái nào là DỪNG, không đẩy bản
    nửa vời lên — đúng chỗ đã cắn hôm nay. */
 const BIMAT = [
   ["SECRET", "APPSCRIPT_KEY"],
@@ -34,6 +34,12 @@ const BIMAT = [
      — không phải đặt tay Script Properties nữa. Properties vẫn THẮNG nếu đã đặt (xem tbBaoTele_). */
   ["TELE_TOKEN", "TELEGRAM_BOT_TOKEN"],
   ["TELE_CHAT", "TELEGRAM_CHAT_ID"],
+  /* 29/08/2026: KHOÁ GEMINI đi theo deploy luôn. Bẫy đã cắn HAI lần (21/08 ghi nhận, 24/08 tái phát
+     và không ai thấy tới 29/08): deploy-gas sinh lại sa.js từ nguồn git-safe (SV_KHOA_CUNG = '') nên
+     mỗi lượt deploy là cổng sku_vision trả "chưa có khoá AI" → tab Nhận diện SKU rớt xuống OCR
+     (chậm ~2×, kém chính xác hơn) mà không báo lỗi gì ra mặt người dùng. gas-nap-khoa-gemini.mjs
+     là bước tay nên bị quên; nay chèn thẳng ở đây, thiếu GEMINI_API_KEY trong .env là DỪNG deploy. */
+  ["SV_KHOA_CUNG", "GEMINI_API_KEY"],
 ];
 
 let src = fs.readFileSync(NGUON, "utf8");

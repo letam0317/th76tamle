@@ -70,11 +70,25 @@ function keyBodyOK_(duLieu) { return layKeyBody_(duLieu) === SECRET; }
  *     — thứ tự rollout an toàn, không làm trắng màn máy đang mở).
  *   · SECRET (máy trạm) luôn qua. */
 function tbKhoaCauHinh_() { return PropertiesService.getScriptProperties().getProperty('DEVICE_KEY') || ''; }
+/* ẢNH CHỤP Script Properties MỘT LẦN cho cả execution (29/08/2026). Đo thật cổng sku_vision: phí bên
+   trong script 430–730 ms trong khi model chỉ 1,2–1,8 s — vì hơn 10 lượt RPC getProperty/setProperty/
+   Lock/Cache, mỗi lượt 30–60 ms. Đường ĐỌC NHIỀU KHOÁ RỒI GHI MỘT LẦN (tbOK_ → skuVision_) nay đọc
+   getProperties() đúng một lượt rồi dùng chung. KHÔNG dùng cho các luồng ghi-rồi-đọc-lại trong cùng
+   execution (tb_otp/tb_xin… vẫn gọi tbKhoaCauHinh_/tbDsDoc_ trực tiếp) — ảnh chụp cũ sẽ nói dối.
+   Mỗi execution của Apps Script là một VM mới nên biến toàn cục này không sống sang lượt gọi khác.
+   Cố ý KHÔNG try/catch: RPC hỏng thì ném lỗi như trước, không được "fail-open" thành DEVICE_KEY rỗng. */
+var _PROPS_MEMO = null;
+function propsMemo_() {
+  if (!_PROPS_MEMO) _PROPS_MEMO = PropertiesService.getScriptProperties().getProperties() || {};
+  return _PROPS_MEMO;
+}
 function tbOK_(duLieu, e) {
-  var k = tbKhoaCauHinh_();
+  var all = propsMemo_();
+  var k = String(all.DEVICE_KEY || '');
   if (!k) return true;   // chưa cấu hình → chưa siết
   var tb = String((duLieu && duLieu.tb) || (e && e.parameter && e.parameter.tb) || '');
-  if (tb && (tb === k || tbDuyetCo_(tb))) return true;   // khoá chung HOẶC máy đã duyệt qua bot (tb_xin/tb_duyet)
+  var duyet = {}; try { duyet = JSON.parse(all.TB_DUYET || '{}') || {}; } catch (eD) { duyet = {}; }
+  if (tb && (tb === k || !!duyet[tb])) return true;   // khoá chung HOẶC máy đã duyệt qua bot (tb_xin/tb_duyet)
   return keyBodyOK_(duLieu || {});
 }
 function tbTuChoi_() {
@@ -2214,7 +2228,11 @@ function skuVision_(d) {
   if (!/^image\/(jpeg|png|webp)$/.test(mime)) mime = 'image/jpeg';
 
   var p = PropertiesService.getScriptProperties();
-  var khoa = p.getProperty('GEMINI_API_KEY') || SV_KHOA_CUNG;
+  /* Đọc MỘT lượt getProperties() (ảnh chụp dùng chung với tbOK_ vừa chạy ở doPost) thay 5 lượt
+     getProperty rời — xem propsMemo_. Cờ "đang đọc" vẫn đọc TƯƠI bên trong lock ở dưới (đó là chốt
+     chống bấm chồng, phải đọc ngay trước khi ghi). */
+  var all = propsMemo_();
+  var khoa = all.GEMINI_API_KEY || SV_KHOA_CUNG;
   if (!khoa) return { status: 'error', message: 'Apps Script chưa có khoá AI — chạy hàm datKhoaGemini() một lần (xem NHAN-DIEN-SKU.md).' };
 
   /* Cờ "ĐANG ĐỌC" theo email — chặn 2 lượt gửi CHỒNG NHAU (bấm 2 lần vì tưởng máy treo).
@@ -2225,7 +2243,7 @@ function skuVision_(d) {
      · Trần 60 giây để tự mở lại nếu lượt trước chết giữa đường; xong là xoá cờ nên quét liên tục
        nhiều cuộn KHÔNG phải chờ.
      Từ đây trở xuống, MỌI đường thoát đều phải gọi svMoCo_ — bỏ quên là khoá email đó 60 giây. */
-  var kDang = 'sv_dang_' + mail, bayGio = new Date().getTime(), duocDi = true;
+  var kDang = 'sv_dang_' + mail, bayGio = new Date().getTime(), duocDi = true, daMoCo = false;
   var nonce = String((d && d.nonce) || '').slice(0, 80);
   var lock = LockService.getScriptLock(), coLock = false;
   try {
@@ -2248,22 +2266,29 @@ function skuVision_(d) {
   if (!duocDi) return { status: 'error', message: 'Đang đọc ảnh trước — chờ xong rồi bấm tiếp.' };
 
   try {
-    /* Hạn mức ngày (tổng + theo người) */
-    var ngay = svNgay_(), kAll = 'sv_n_' + ngay, kMe = 'sv_n_' + ngay + '_' + mail;
-    var nAll = Number(p.getProperty(kAll) || 0), nMe = Number(p.getProperty(kMe) || 0);
+    /* Hạn mức ngày (tổng + theo người) — đọc từ ảnh chụp, không thêm RPC */
+    var ngay = svNgay_(), kAll = 'sv_n_' + ngay, kMe = 'sv_n_' + ngay + '_' + mail, kChet = 'sv_chet_' + ngay;
+    var nAll = Number(all[kAll] || 0), nMe = Number(all[kMe] || 0);
     if (nAll >= SV_TRAN_NGAY) return { status: 'error', message: 'Hết hạn mức đọc tem hôm nay (' + SV_TRAN_NGAY + ' ảnh) — gõ từ khoá tay giúp, mai lại đọc được.' };
     if (nMe >= SV_TRAN_NGUOI) return { status: 'error', message: 'Email này đã dùng ' + nMe + ' lượt đọc tem hôm nay (trần ' + SV_TRAN_NGUOI + ').' };
 
-    var kq = svGoiGemini_(b64, mime, khoa);
+    var chet = {}; try { chet = JSON.parse(all[kChet] || '{}') || {}; } catch (eC0) { chet = {}; }
+    var kq = svGoiGemini_(b64, mime, khoa, chet);
     if (kq.status !== 'success') return kq;
 
     if (nAll === 0) svDonCu_(p);
-    p.setProperty(kAll, String(nAll + 1));
-    p.setProperty(kMe, String(nMe + 1));
+    /* MỘT lượt setProperties thay cho 3–4 lượt rời (đếm tổng · đếm người · model chết · mở cờ): cờ
+       "đang đọc" mở bằng cách ghi '' — bên đọc coi '' là không có cờ — khỏi tốn thêm deleteProperty.
+       Đo 29/08/2026: mỗi RPC Properties 30–60 ms, cả gói này bớt ~6–7 RPC ≈ 0,3 s cho mỗi lượt đọc tem. */
+    var ghi = {}; ghi[kAll] = String(nAll + 1); ghi[kMe] = String(nMe + 1); ghi[kDang] = '';
+    if (kq.chetDoi) ghi[kChet] = JSON.stringify(kq.chet || chet);
+    delete kq.chet; delete kq.chetDoi;
+    p.setProperties(ghi);
+    daMoCo = true;
     kq.ms = new Date().getTime() - t0;
     kq.conLai = SV_TRAN_NGAY - (nAll + 1);
     return kq;
-  } finally { svMoCo_(p, kDang); }
+  } finally { if (!daMoCo) svMoCo_(p, kDang); }
 }
 
 /** Mở cờ "đang đọc" (gọi ở finally của mọi đường ra). Hỏng ở đây thì cờ tự hết sau 60 giây. */
@@ -2311,7 +2336,10 @@ function skuOcr_(d) {
   /* CỬA CHẨN ĐOÁN: gọi không kèm ảnh + chuanDoan=1 thì trả về chặng/thời gian của lượt OCR gần
      nhất. Cần vì khi execution lâu, Apps Script trả trang HTML ở chặng 2 và client không nhận
      được con số nào để biết chậm ở đâu. */
-  if (!b64 && d && d.chuanDoan) return { status: 'success', chanCuoi: String(PropertiesService.getScriptProperties().getProperty('so_chan_cuoi') || 'chưa có lượt nào'), tranNgay: SO_TRAN_NGAY };
+  /* 29/08/2026: đọc từ ảnh chụp Properties (tbOK_ vừa nạp → 0 RPC thêm) + trả `coKhoaAI` để tab cảnh báo
+     ngay lúc hâm nóng khi máy chủ KHÔNG có khoá Gemini (ca 24→29/08: deploy làm rơi khoá, 5 ngày không ai thấy
+     vì tab vẫn "ra kết quả" bằng OCR). */
+  if (!b64 && d && d.chuanDoan) { var pm = propsMemo_(); return { status: 'success', chanCuoi: String(pm.so_chan_cuoi || 'chưa có lượt nào'), tranNgay: SO_TRAN_NGAY, coKhoaAI: !!(pm.GEMINI_API_KEY || SV_KHOA_CUNG) }; }
   if (!b64) return { status: 'error', message: 'Thiếu ảnh tem.' };
   if (b64.length > SO_TRAN_ANH_B64) return { status: 'error', message: 'Ảnh quá lớn — để dashboard thu nhỏ trước khi gửi.' };
   var mime = String((d && d.mime) || 'image/jpeg');
@@ -2446,15 +2474,18 @@ function testSkuOcr() {
 }
 
 /** Gọi Gemini theo chuỗi model dự phòng; 429/503 = hết quota/quá tải → tụt model sau. */
-function svGoiGemini_(b64, mime, khoa) {
+function svGoiGemini_(b64, mime, khoa, chetCoSan) {
   var loiCuoi = '';
   /* NHỚ MODEL ĐÃ CHẾT TRONG NGÀY — model hết quota (429) hoặc chết tên (404) thì bỏ qua luôn đến
      hết ngày, khỏi tốn round-trip cho mọi lượt đọc tem sau đó (đo 19/08: model đầu danh sách 429 làm
      mỗi lượt đọc tem tốn thêm ~1 giây vô ích). Khoá theo NGÀY nên hôm sau quota mới lại được thử. */
   var pp = PropertiesService.getScriptProperties();
   var kChet = 'sv_chet_' + svNgay_();
-  var chet = {};
-  try { chet = JSON.parse(pp.getProperty(kChet) || '{}') || {}; } catch (eC) { chet = {}; }
+  /* `chetCoSan` (29/08/2026): skuVision_ đã đọc bảng model chết trong ảnh chụp Properties → đưa vào
+     đây để khỏi tốn thêm 1 RPC; lượt THÀNH CÔNG khi đó không tự ghi kChet mà trả `chet`/`chetDoi` cho
+     skuVision_ gộp vào một lượt setProperties. Gọi không có tham số thứ 4 vẫn chạy y như cũ. */
+  var chet = chetCoSan || {};
+  if (!chetCoSan) { try { chet = JSON.parse(pp.getProperty(kChet) || '{}') || {}; } catch (eC) { chet = {}; } }
   var doiChet = false;
   for (var i = 0; i < SV_MODELS.length; i++) {
     if (chet[SV_MODELS[i]]) continue;
@@ -2489,9 +2520,9 @@ function svGoiGemini_(b64, mime, khoa) {
     ((cand.content && cand.content.parts) || []).forEach(function (x) { chu += (x.text || ''); });
     var o; try { o = JSON.parse(chu); } catch (e3) { return { status: 'error', message: 'AI trả JSON sai khuôn.' }; }
     var lay = function (k) { return (o[k] || []).map(function (x) { return String(x).slice(0, 60); }).slice(0, 40); };
-    if (doiChet) { try { pp.setProperty(kChet, JSON.stringify(chet)); } catch (eS) { /* nhớ được thì tốt, không thì thôi */ } }
+    if (doiChet && !chetCoSan) { try { pp.setProperty(kChet, JSON.stringify(chet)); } catch (eS) { /* nhớ được thì tốt, không thì thôi */ } }
     return {
-      status: 'success', model: SV_MODELS[i], msModel: new Date().getTime() - tModel, bacModel: i + 1,
+      status: 'success', model: SV_MODELS[i], msModel: new Date().getTime() - tModel, bacModel: i + 1, chet: chet, chetDoi: doiChet,
       quality: String(o.quality || ''),
       text: String(o.raw_text || '').slice(0, 4000),
       /* Ở chế độ CHỈ CHỮ THÔ thì 5 mảng này rỗng — dashboard vẫn chạy đúng vì `ndsNhanKetQua` luôn
