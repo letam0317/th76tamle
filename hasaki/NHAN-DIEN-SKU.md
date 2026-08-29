@@ -3330,4 +3330,42 @@ có streaming) — §5b.5b đã liệt kê, là quyết định hạ tầng củ
 hâm nóng 1 lượt + giãn cách · canary "AI đọc tem không chạy" đúng 1 lần) — baseline 161/161 trước khi sửa.
 Lõi 110/110 (không đụng). GAS `node --check` OK. Khoá Gemini: **đừng bao giờ** có thêm bước tay nào sau
 `deploy-gas.mjs` — bẫy này cắn hai lần trong 8 ngày.
+## 5b.36 · ĐO TRƯỚC/SAU 29/08/2026 — và thủ phạm thứ hai: MODEL TREO + CỜ "ĐANG ĐỌC" CHẶN DÂY CHUYỀN
+
+**Cách đo:** A/B thật, không chạy chồng (bài học: 2 bộ đo cùng bắn một khoá miễn phí ⇒ 503 hàng loạt, số đo vô nghĩa).
+Ba lớp tách riêng: cổng GAS (`do-ab-gas.mjs`, prod @84 vs deployment THỬ @85–87 cùng script — production không đổi);
+model (`do-toc-do-tem --model`, biến thể `webp`/`webp-nho` mới); trang thật (`soi-trang-ai.mjs`: Edge headless, 6 tem
+liên tiếp cách 3 s như thủ kho quét, bắt từng phản hồi JSON của GAS; `--trang` 4G bóp).
+
+| Lớp | TRƯỚC | SAU | Ghi chú |
+|---|---|---|---|
+| Khoá Gemini (24→29/08) | AI chết 100 % lượt → OCR ~10 s/tem | hotfix @84: AI sống | §5b.35 |
+| Phí trong script (`ms − msModel`, lượt lành) | 404–730 ms (prod) | **257–346 ms** (thử) | gộp RPC Properties, −0,15…−0,4 s |
+| Ảnh gửi AI (b64 tb 4 ảnh) | JPEG 61 KB → 0,66 s đẩy/4G yếu | **WebP 29 KB → 0,32 s** | model 2,0 s ≈ 2,0 s; Top-1 thẻ mẫu 6/6 cả hai |
+| WebP 1000 px (chưa bật) | — | 20 KB · model **1,7 s** · Top-1 6/6 · chữ 92 % | bớt nửa token ảnh; cần đo trên tem THẬT chữ nhỏ trước khi hạ |
+| 6 tem liên tiếp, GAS **prod @84** | **1/6 tem qua AI** · p50 **11,2 s** · 2 tem SAI SKU (thẻ mẫu → cuộn vải) | | cờ "đang đọc" 60 s + đua cùng model |
+| 6 tem liên tiếp, GAS thử @86 (đua model khác · TTL 8 s) | | 3/6 qua AI · 2,8 · 3,1 · 8,8 s | đua vẫn làm tươi cờ → chặn oan 1 tem |
+| 6 tem liên tiếp, client mới × GAS thử **@87** | | **5/6 qua AI · p50 3,3 s** (3,1 · 2,7 · 3,3 · 3,3 · 5,6 · 11,2) · **0 tem sai** | thời tiết xấu → đua 0,4 s |
+
+**Thủ phạm thứ hai (soi được nhờ bắt JSON từng request):** có buổi `gemini-flash-lite-latest` (bậc miễn phí) TREO 9–30 s
+(A/B GAS thấy tới 38–107 s: 503 trả rất muộn, `UrlFetchApp` không đặt được timeout) ở ~1/3 lượt. Trên prod một lượt treo
+kéo theo: ① lượt đua cùng nonce xếp hàng SAU cùng model đó (vô ích); ② cờ `sv_dang_<email>` (TTL 60 s) giữ nguyên ⇒ tem
+KẾ TIẾP (nonce khác) nhận *"Đang đọc ảnh trước"* ⇒ rớt OCR ~10–12 s ⇒ thẻ mẫu ra **sai SKU 422423807** — đúng lời báo
+"chậm" và cả "sai". 4 bản vá (chờ duyệt cùng gói): (a) GAS: lượt `dua:1` xoay bậc, xuất phát từ model KHÁC
+(`svGoiGemini_(…, batDauTu)`); (b) GAS: `SV_DANG_TTL` 60 s → **8 s** (lượt lành ≤6 s; quá 8 s = lượt trước đã treo, không lấy
+nó chặn tem sau), OCR 15 s; (c) GAS: lượt đua/thử lại **không làm tươi mốc cờ**; (d) client "THỜI TIẾT XẤU": lượt trước phải
+đua hoặc AI về sau 8 s ⇒ lượt sau bắn đua ngay **0,4 s** (`NDS_T_DUA_XAU`), một lượt lành ≤6 s không cần đua thì tắt — tốn
+thêm hạn mức chỉ trong quãng nghẽn.
+
+**Độ chính xác (câu hỏi ≥90 %):** trên bộ 4 ảnh mẫu × 3 lượt, AI (mọi định dạng) Top-1 thẻ mẫu **6/6**, tem in đọc đúng
+mã **100 %**; 30 tem OCR mô phỏng (§5b.21) Top-1 87 %. Điểm tụt duy nhất quan sát được là khi lượt AI KHÔNG đến tay (treo
+/ bị cờ chặn) và OCR thay: thẻ mẫu sai **2/2**. ⇒ giữ ≥90 % = giữ cho AI ĐẾN được, không phải đổi model/prompt.
+
+**Còn ép được nữa không (giữ ≥90 %):** sàn hiện tại với Apps Script = hop1 ~1,0–1,5 s + hop2 0,3–0,5 s + model 1,0–1,8 s +
+đẩy ảnh 0,2–0,3 s + script 0,3 s ≈ **2,8–3,7 s** — bản @87 đã chạm sàn (2,7–3,3 s lượt lành). Ba đường còn lại, xếp theo
+lợi ÷ rủi ro: ① **khoá Gemini trả phí** (flash-lite ~0,07 ¢/lượt, ~1 USD/tháng cho 400 lượt/ngày): hết 503/429 của bậc miễn
+phí → hết treo → đuôi biến mất, độ chính xác giữ AI 100 % lượt — quyết định của chủ khoá, không dính IT; ② **proxy riêng**
+(Cloudflare Worker, miễn phí): bỏ 2 chặng Apps Script ≈ −1,3…−1,7 s, có streaming → sàn ~1,5–2 s; ③ **WebP 1000 px**
+−0,1 s đẩy −0,3 s model, chỉ bật sau khi đo ≥30 tem THẬT chữ nhỏ (ảnh mẫu là ảnh vẽ nét). Đã bác: gọi Gemini thẳng từ
+trang (lộ khoá), Tesseract (chậm hơn, kém hơn), hạ mốc nhường OCR 11 → 9 s (OCR sai thẻ mẫu).
 

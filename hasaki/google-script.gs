@@ -2103,6 +2103,13 @@ var SV_KHOA_CUNG = '';
 var SV_TRAN_NGAY = 400;        // tổng lượt đọc tem/ngày (bậc miễn phí Gemini ~ dư sức cho kho)
 var SV_TRAN_NGUOI = 120;       // lượt/ngày cho mỗi email
 var SV_TRAN_ANH_B64 = 2600000; // ~1,9 MB base64 (client đã thu nhỏ còn ~200-400 KB)
+/* TTL cờ "đang đọc" theo email: 60 s → 8 s (29/08/2026). Soi trang thật 3 tem liên tiếp: tem 2 gặp lượt AI
+   TREO phía Google (model lite miễn phí quá tải trả 503 sau 25–100 s, UrlFetchApp không đặt được timeout) ⇒
+   cờ giữ nguyên ⇒ tem 3 (nonce khác) bị "Đang đọc ảnh trước" ⇒ rớt xuống OCR ~10 s và ra SAI SKU (thẻ mẫu
+   → cuộn vải 422423807). Một lượt AI lành về trong ≤6 s, lượt đua cùng nonce vẫn được cho đi, nên cờ chỉ
+   cần sống 8 s để chặn "bấm 2 lần vì tưởng treo"; quá 8 s mà chưa xong = lượt trước đã treo, KHÔNG được lấy
+   nó làm lý do chặn tem kế tiếp. */
+var SV_DANG_TTL = 8000;
 /* Mỗi model có quota miễn phí RIÊNG theo ngày → hết model trước thì tự tụt model sau.
    THỨ TỰ ĐỔI 19/08/2026 (chiều) — trước đó là "chuẩn trước, nhẹ sau", ĐO THẬT thì sai cả hai mặt:
      · `gemini-3.5-flash` (đứng đầu danh sách cũ) đang trả **429** ⇒ MỌI lượt đọc tem đều tốn một
@@ -2259,8 +2266,10 @@ function skuVision_(d) {
     var cu = String(p.getProperty(kDang) || ''), cat = cu.indexOf('|');
     var moc = Number(cat < 0 ? cu : cu.slice(0, cat)) || 0, nonceCu = cat < 0 ? '' : cu.slice(cat + 1);
     var cungTem = !!(nonce && nonce === nonceCu);
-    if (moc && (bayGio - moc) < 60000 && !cungTem) duocDi = false;
-    else p.setProperty(kDang, String(bayGio) + '|' + nonce);
+    if (moc && (bayGio - moc) < SV_DANG_TTL && !cungTem) duocDi = false;
+    /* Lượt ĐUA / thử lại (cùng tem) KHÔNG làm tươi mốc cờ (29/08/2026): đo 6 tem liên tiếp, đua ở giây 6 làm
+       tươi mốc ⇒ cờ sống thêm 6 s ⇒ tem kế tiếp vẫn bị "Đang đọc ảnh trước" dù TTL đã hạ còn 8 s. */
+    else if (!cungTem) p.setProperty(kDang, String(bayGio) + '|' + nonce);
   } catch (eL) { duocDi = true; }   // chốt hỏng thì cho đi: thà tốn 1 lượt hơn chặn oan người đang làm
   finally { if (coLock) { try { lock.releaseLock(); } catch (eR) { /* đã thả */ } } }
   if (!duocDi) return { status: 'error', message: 'Đang đọc ảnh trước — chờ xong rồi bấm tiếp.' };
@@ -2273,7 +2282,12 @@ function skuVision_(d) {
     if (nMe >= SV_TRAN_NGUOI) return { status: 'error', message: 'Email này đã dùng ' + nMe + ' lượt đọc tem hôm nay (trần ' + SV_TRAN_NGUOI + ').' };
 
     var chet = {}; try { chet = JSON.parse(all[kChet] || '{}') || {}; } catch (eC0) { chet = {}; }
-    var kq = svGoiGemini_(b64, mime, khoa, chet);
+    /* LƯỢT ĐUA (dashboard bắn ở giây 6, `dua:1`) ĐI MODEL KHÁC (29/08/2026). Đo A/B 12 lượt sáng 29/08: model
+       lite bậc 1 khi quá tải trả 503 SAU 25–70 GIÂY (UrlFetchApp không đặt được timeout) rồi mới tụt bậc —
+       lượt đua cùng nonce đi y đường đó thì chỉ là xếp hàng sau cùng một model đang nghẽn. Nay lượt đua bắt
+       đầu từ bậc 2: hai lượt song song hỏi HAI model khác nhau, client lấy lượt về trước. Không tốn thêm
+       lượt nào so với trước (đua vốn đã bắn). */
+    var kq = svGoiGemini_(b64, mime, khoa, chet, d && d.dua ? 1 : 0);
     if (kq.status !== 'success') return kq;
 
     if (nAll === 0) svDonCu_(p);
@@ -2323,6 +2337,7 @@ function svMoCo_(p, kDang) {
 var SO_TRAN_NGAY = 2000;        // OCR không tốn hạn mức AI; trần chỉ để một máy hỏng không quét vô hạn
 var SO_TRAN_NGUOI = 400;
 var SO_TRAN_ANH_B64 = 2600000;  // ~1,9 MB base64 (client đã thu nhỏ còn ~200-500 KB)
+var SO_DANG_TTL = 15000;        // cờ "đang đọc" OCR: một lượt OCR lành ~7,5 s (xem SV_DANG_TTL — 60 s cũ chặn oan tem kế tiếp)
 
 /**
  * action = sku_ocr — body: { email, mime, anh(base64 KHÔNG có tiền tố data:), lang, nonce }
@@ -2357,7 +2372,7 @@ function skuOcr_(d) {
     /* Cùng nonce = cùng tấm tem (lượt thử lại / lượt đua) thì CHO ĐI — xem ghi chú dài ở sku_vision. */
     var cuO = String(p.getProperty(kDang) || ''), catO = cuO.indexOf('|');
     var mocO = Number(catO < 0 ? cuO : cuO.slice(0, catO)) || 0, nonceCuO = catO < 0 ? '' : cuO.slice(catO + 1);
-    if (mocO && (bayGio - mocO) < 60000 && !(nonceO && nonceO === nonceCuO)) duocDi = false;
+    if (mocO && (bayGio - mocO) < SO_DANG_TTL && !(nonceO && nonceO === nonceCuO)) duocDi = false;
     else p.setProperty(kDang, String(bayGio) + '|' + nonceO);
   } catch (eL) { duocDi = true; }
   finally { if (coLock) { try { lock.releaseLock(); } catch (eR) { /* đã thả */ } } }
@@ -2474,7 +2489,7 @@ function testSkuOcr() {
 }
 
 /** Gọi Gemini theo chuỗi model dự phòng; 429/503 = hết quota/quá tải → tụt model sau. */
-function svGoiGemini_(b64, mime, khoa, chetCoSan) {
+function svGoiGemini_(b64, mime, khoa, chetCoSan, batDauTu) {
   var loiCuoi = '';
   /* NHỚ MODEL ĐÃ CHẾT TRONG NGÀY — model hết quota (429) hoặc chết tên (404) thì bỏ qua luôn đến
      hết ngày, khỏi tốn round-trip cho mọi lượt đọc tem sau đó (đo 19/08: model đầu danh sách 429 làm
@@ -2487,7 +2502,12 @@ function svGoiGemini_(b64, mime, khoa, chetCoSan) {
   var chet = chetCoSan || {};
   if (!chetCoSan) { try { chet = JSON.parse(pp.getProperty(kChet) || '{}') || {}; } catch (eC) { chet = {}; } }
   var doiChet = false;
-  for (var i = 0; i < SV_MODELS.length; i++) {
+  /* `batDauTu` = bậc xuất phát (lượt đua = 1). Xoay vòng: hết chuỗi thì quay lại các bậc đã bỏ qua ở đầu,
+     nên lượt đua vẫn có đủ mọi model dự phòng, chỉ khác THỨ TỰ. */
+  var thuTu = [];
+  for (var t0i = 0; t0i < SV_MODELS.length; t0i++) thuTu.push((t0i + (Number(batDauTu) || 0)) % SV_MODELS.length);
+  for (var ti = 0; ti < thuTu.length; ti++) {
+    var i = thuTu[ti];
     if (chet[SV_MODELS[i]]) continue;
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + SV_MODELS[i] + ':generateContent?key=' + encodeURIComponent(khoa);
     var payload = {

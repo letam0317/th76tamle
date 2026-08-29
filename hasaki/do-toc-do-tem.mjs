@@ -46,6 +46,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import sharp from "sharp";   // 29/08/2026: biến thể WebP (chuyển từ ảnh JPEG mẫu, q80 — đúng mức dashboard dùng)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const F_HTML = path.join(DIR, "..", "factory", "index.html");
@@ -282,7 +283,7 @@ function nhanTho(E, chu, cm) {
 async function goiGemini(model, key, b64, bien, SV) {
   const day = bien.schema === "day";
   const payload = {
-    contents: [{ role: "user", parts: [{ text: day ? SV.SV_PROMPT : PROMPT_THO }, { inline_data: { mime_type: "image/jpeg", data: b64 } }] }],
+    contents: [{ role: "user", parts: [{ text: day ? SV.SV_PROMPT : PROMPT_THO }, { inline_data: { mime_type: bien.mime || "image/jpeg", data: b64 } }] }],
     generationConfig: { responseMimeType: "application/json", responseSchema: day ? SV.SV_SCHEMA : SCHEMA_THO, maxOutputTokens: 2048, temperature: 0 },
   };
   if (bien.nghiThap) payload.generationConfig.thinkingConfig = { thinkingLevel: "low" };
@@ -315,6 +316,11 @@ async function phaModel() {
     { ma: "tho", ten: "chỉ raw_text", schema: "tho", canh: 1400 },
     { ma: "tho-nho", ten: "chỉ raw_text + ảnh 1000px", schema: "tho", canh: 1000 },
     { ma: "nghi-thap", ten: "chỉ raw_text + thinkingLevel=low", schema: "tho", nghiThap: true, canh: 1400 },
+    /* 29/08/2026 — WebP: dashboard nay gửi AI bằng WebP q0,8 (OCR vẫn JPEG). Hai câu phải trả lời bằng số:
+       WebP 1400px có đọc kém JPEG không, và hạ tiếp xuống 1000px WebP (bớt ~nửa byte nữa) thì còn giữ
+       được chữ/Top-1 không. */
+    { ma: "webp", ten: "chỉ raw_text + WebP q80 1400px", schema: "tho", canh: 1400, webp: true, mime: "image/webp" },
+    { ma: "webp-nho", ten: "chỉ raw_text + WebP q80 1000px", schema: "tho", canh: 1000, webp: true, mime: "image/webp" },
   ].filter((b) => !co("--chi") || A[A.indexOf("--chi") + 1].split(",").includes(b.ma));
   const canhCan = [...new Set(BIEN.map((b) => b.canh))];
   await dungAnh(canhCan);
@@ -324,7 +330,9 @@ async function phaModel() {
   const kq = fs.existsSync(F_MODEL) ? JSON.parse(fs.readFileSync(F_MODEL, "utf8")) : { at: "", mau: [] };
   for (const b of BIEN) {
     for (const d of DE) {
-      const b64 = fs.readFileSync(path.join(DIR_ANH, `${d.ma}-${b.canh}.jpg`)).toString("base64");
+      let buf = fs.readFileSync(path.join(DIR_ANH, `${d.ma}-${b.canh}.jpg`));
+      if (b.webp) buf = await sharp(buf).webp({ quality: 80 }).toBuffer();
+      const b64 = buf.toString("base64");
       for (let i = 0; i < LAN; i++) {
         let r = await goiGemini(model, key, b64, b, SV);
         /* 429 ở ĐÂY là trần PHÚT của bộ đo (bắn liên tục), không phải chuyện của production —
