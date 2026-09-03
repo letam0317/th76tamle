@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { gasPost } from "./session-rules.js";
+import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -96,8 +97,24 @@ function matchType00(hangMuc, options) {
 const apiPost = (act, extra) => gasPost({ action: act, key: APPSCRIPT_KEY, ...(extra || {}) }, log, act);
 async function getPending() {
   const j = await apiPost("pending");
-  if (j.status !== "success") throw new Error("Apps Script pending lỗi: " + JSON.stringify(j));
-  return j.rows || [];
+  // 03/09/2026: "rows thiếu hẳn" ≠ "rỗng" — hôm nay chặng 2 Google rơi về trang doGet mặc định
+  // ({status:'success', message:'Web App đang hoạt động…'}) và bộ đẩy tưởng "0 báo cáo" suốt buổi.
+  if (j.status !== "success" || !Array.isArray(j.rows)) throw new Error("Apps Script pending lỗi/dị dạng: " + JSON.stringify(j).slice(0, 150));
+  return j.rows;
+}
+/** Lấy ảnh/video của MỘT dòng theo anhIds — mỗi call GAS 1 file (vá nghẽn 03/09: pending hết cõng base64).
+ *  File lỗi/quá nặng chỉ mất file đó, dòng khác không bị vạ lây. */
+async function layAnhTheoDong(row) {
+  const out = [];
+  for (const id of (row.anhIds || []).slice(0, 8)) {
+    try {
+      const j = await apiPost("anh", { ids: [id] });
+      const f = j && Array.isArray(j.files) ? j.files[0] : null;
+      if (f && f.base64) out.push({ filename: f.filename, mime: f.mime, base64: f.base64 });
+      else log("    ⚠ Hàng " + row.row + ": file " + id.slice(0, 12) + "… không lấy được" + (f && f.loi ? " (" + String(f.loi).slice(0, 60) + ")" : ""));
+    } catch (e) { log("    ⚠ Hàng " + row.row + ": lỗi lấy file " + id.slice(0, 12) + "…: " + e.message); }
+  }
+  return out;
 }
 async function markDone(row, code) {
   await apiPost("mark", { row, code }).catch(() => {});
@@ -136,7 +153,15 @@ async function createTask(token, row, type00) {
   fd.set("data[configs][DATE00]", ngayViPham);
   fd.set("data[configs][TYPE00]", type00);
   fd.set("data[configs][BIN00]", row.viTri || "");           // Vị trí ghi nhận (giữ nguyên)
-  fd.set("note", row.hienTrang || "");                        // Hiện trạng (ghi chú) -> Mô tả task
+  // 03/09/2026: WF 591 không có ô cấu hình riêng cho SKU → ghép mã SP (nếu form có quét) vào Mô tả.
+  // Tra hasaki.vn ra SKU + tên + ảnh; tra trượt/lỗi mạng vẫn ghi mã thô — không chặn việc tạo task.
+  let note = row.hienTrang || "";
+  const maSP = String(row.maSanPham || "").trim();
+  if (maSP) {
+    let sp = null; try { sp = await traCuuSanPham(maSP); } catch { /* best-effort */ }
+    note = (note ? note + "\n" : "") + dongMoTaSP(maSP, sp);
+  }
+  fd.set("note", note);                                       // Hiện trạng (+ mã SP) -> Mô tả task
   let soAnh = 0, soVideo = 0;
   for (const m of (row.images || [])) {
     const mime = m.mime || "image/jpeg";
@@ -187,6 +212,8 @@ async function createTask(token, row, type00) {
   for (const row of rows) {
     const type00 = matchType00(row.hangMuc, options);
     if (!type00) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": không khớp hạng mục «" + row.hangMuc.slice(0, 40) + "...»"); continue; }
+    // GAS mới trả anhIds (metadata nhẹ) → tải ảnh từng file tại đây; GAS cũ trả sẵn images thì dùng luôn.
+    if (!Array.isArray(row.images)) row.images = await layAnhTheoDong(row);
     const coAnh = (row.images || []).some((m) => !/^video\//i.test(m.mime || "image/jpeg"));
     if (!coAnh) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": thiếu ẢNH (IMA00 bắt buộc; chỉ có video không tạo được task)."); continue; }
     // THROTTLE: giãn 300ms giữa các lần createTask để không dội POST create-task khi tồn đọng lớn

@@ -23,7 +23,8 @@ var SYNC_PIN_DATA = 'DAT_PIN_TAI_DU_LIEU';  // PIN RIÊNG cho "Cập nhật ngay
 var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
 var COL_MA_TASK = 6;
 var COL_TG_VI_PHAM = 7;
-var SO_COT = 7;
+var COL_MA_SP = 8;      // 03/09/2026: Mã sản phẩm (barcode/SKU quét ở form — không bắt buộc)
+var SO_COT = 8;
 var MAX_PENDING = 25;
 var ALERT_EMAIL = 'th76tamle02@gmail.com';
 var ALERT_THROTTLE_GIO = 12;
@@ -378,6 +379,7 @@ function doPostGoc_(e) {
        execution dài chính là thứ làm Google trả 404 ở khâu lấy nội dung. */
     if (duLieu && duLieu.action === 'caps') return keyBodyOK_(duLieu) ? phanHoiJson({ status: 'success', timesheet: true, tabWrite: true, checkPin: true, extSheet: true, stockSync: true, kiemke: true, stockFlag: true, bridgeToken: true, touchTabs: true, tuChua: true, deviceKey: true, dangSietTb: !!tbKhoaCauHinh_(), servedTabs: SERVE_PRIVATE_TABS }) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pending') return keyBodyOK_(duLieu) ? apiPendingData_() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'anh') return keyBodyOK_(duLieu) ? apiAnhData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'mark') return keyBodyOK_(duLieu) ? apiMarkData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'alert') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); apiAlert({ parameter: { key: SECRET, msg: String(duLieu.msg || '') } }); return phanHoiJson({ status: 'success' }); }
     // 12/08/2026 — tầng tự chữa lành (google-script-TuChua.gs): sổ sự cố + thư cảnh báo + nhịp tim.
@@ -479,7 +481,9 @@ function doPostGoc_(e) {
       chuoiHinhAnh,
       '',                          // 6 Mã task
       duLieu.thoiGianViPham || '', // 7 Thời gian vi phạm
-      duLieu.maSanPham || ''       // 8 Mã sản phẩm (không bắt buộc)
+      // 8 Mã sản phẩm (không bắt buộc) — dấu nháy đơn ép Sheets giữ TEXT: barcode bắt đầu bằng 0
+      // (EAN Bắc Mỹ) mà để Sheets tự hiểu là SỐ thì rụng số 0 đầu, tra hasaki.vn sẽ trượt.
+      duLieu.maSanPham ? ("'" + String(duLieu.maSanPham).trim()) : ''
     ]);
     return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
   } catch (err) {
@@ -568,9 +572,29 @@ function apiPendingData_() {
     if (maTask) continue;
     if (!hangMuc) continue;
     if (hangMuc.indexOf(KHONG_VI_PHAM_PREFIX) === 0) { sheet.getRange(rowIndex, COL_MA_TASK).setValue('(không vi phạm - bỏ qua)'); continue; }
-    rows.push({ row: rowIndex, ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), images: layAnhBase64(String(r[4] || '')) });
+    /* 03/09/2026 — VÁ NGHẼN: bản cũ nhét base64 TOÀN BỘ ảnh/video của MỌI dòng tồn vào 1 phản hồi.
+       9 dòng tồn (7 dòng 03/09 + 2 dòng 13/08) → phản hồi quá nặng → chặng 2 googleusercontent 404
+       rồi rơi về trang doGet mặc định → bộ đẩy tưởng "0 báo cáo" → tồn càng dày càng chết hẳn.
+       Nay pending chỉ trả METADATA + anhIds; bộ đẩy lấy ảnh TỪNG FILE qua action 'anh' bên dưới. */
+    rows.push({ row: rowIndex, ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), maSanPham: String(r[COL_MA_SP - 1] || '').trim(), anhIds: layIdAnh_(String(r[4] || '')) });
   }
   return phanHoiJson({ status: 'success', rows: rows });
+}
+/** Lấy base64 theo DANH SÁCH id file Drive (bộ đẩy gọi từng file — mỗi call 1 ảnh, không gánh cả lô). */
+function apiAnhData_(duLieu) {
+  var ids = duLieu.ids || [];
+  if (typeof ids === 'string') ids = [ids];
+  var out = [];
+  for (var i = 0; i < ids.length && i < 8; i++) {              // trần 8 file/call — đủ cho 1 dòng báo cáo
+    var id = String(ids[i] || '').trim();
+    if (!/^[-\w]{25,}$/.test(id)) continue;
+    try {
+      var f = DriveApp.getFileById(id);
+      var b = f.getBlob();
+      out.push({ id: id, filename: f.getName(), mime: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) });
+    } catch (err) { out.push({ id: id, loi: String(err) }); }  // file hỏng: báo đích danh, không giết cả call
+  }
+  return phanHoiJson({ status: 'success', files: out });
 }
 function apiMarkData_(duLieu) {
   var row = parseInt(duLieu.row, 10), code = duLieu.code || '';
@@ -787,6 +811,7 @@ function apiPending(e) {
       viTri: String(r[2] || ''),
       hangMuc: hangMuc,
       thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]),
+      maSanPham: String(r[COL_MA_SP - 1] || '').trim(),
       images: layAnhBase64(String(r[4] || ''))
     });
   }
@@ -1608,6 +1633,18 @@ function formatNgay(v) {
   return String(v || '');
 }
 
+/** Bóc DANH SÁCH id file Drive từ chuỗi cột "Chuỗi hình ảnh" (mỗi dòng 1 URL/id). */
+function layIdAnh_(chuoi) {
+  var out = [];
+  if (!chuoi) return out;
+  var lines = chuoi.split(/\s*\n\s*/);
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(/[-\w]{25,}/);
+    if (m) out.push(m[0]);
+  }
+  return out;
+}
+
 function layAnhBase64(chuoi) {
   var out = [];
   if (!chuoi) return out;
@@ -1652,7 +1689,7 @@ function layHoacTaoSheet() {
   var sheet = ss.getSheetByName(TEN_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(TEN_SHEET);
-    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow', 'Thời gian vi phạm']);
+    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow', 'Thời gian vi phạm', 'Mã sản phẩm']);
     sheet.getRange(1, 1, 1, SO_COT).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
     sheet.setFrozenRows(1);
     sheet.setColumnWidth(2, 280); sheet.setColumnWidth(4, 320); sheet.setColumnWidth(5, 320); sheet.setColumnWidth(6, 160); sheet.setColumnWidth(7, 170);
@@ -1664,6 +1701,10 @@ function layHoacTaoSheet() {
     if (!sheet.getRange(1, COL_TG_VI_PHAM).getValue()) {
       sheet.getRange(1, COL_TG_VI_PHAM).setValue('Thời gian vi phạm').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
       sheet.setColumnWidth(7, 170);
+    }
+    if (!sheet.getRange(1, COL_MA_SP).getValue()) {
+      sheet.getRange(1, COL_MA_SP).setValue('Mã sản phẩm').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+      sheet.setColumnWidth(8, 150);
     }
   }
   return sheet;
