@@ -580,16 +580,20 @@ function apiPendingData_() {
   }
   return phanHoiJson({ status: 'success', rows: rows });
 }
-/** Lấy base64 theo DANH SÁCH id file Drive (bộ đẩy gọi từng file — mỗi call 1 ảnh, không gánh cả lô). */
+/** Lấy base64 theo DANH SÁCH id file Drive (bộ đẩy gọi từng file — mỗi call 1 ảnh, không gánh cả lô).
+ *  duLieu.chiMeta=1: chỉ trả tên/mime/kích thước (chẩn đoán file quá nặng — video lớn base64 không
+ *  bao giờ chui lọt chặng 2 googleusercontent, xem sự cố 03/09). */
 function apiAnhData_(duLieu) {
   var ids = duLieu.ids || [];
   if (typeof ids === 'string') ids = [ids];
+  var chiMeta = !!duLieu.chiMeta;
   var out = [];
   for (var i = 0; i < ids.length && i < 8; i++) {              // trần 8 file/call — đủ cho 1 dòng báo cáo
     var id = String(ids[i] || '').trim();
     if (!/^[-\w]{25,}$/.test(id)) continue;
     try {
       var f = DriveApp.getFileById(id);
+      if (chiMeta) { out.push({ id: id, filename: f.getName(), mime: f.getMimeType(), bytes: f.getSize() }); continue; }
       var b = f.getBlob();
       out.push({ id: id, filename: f.getName(), mime: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) });
     } catch (err) { out.push({ id: id, loi: String(err) }); }  // file hỏng: báo đích danh, không giết cả call

@@ -103,10 +103,34 @@ async function getPending() {
   return j.rows;
 }
 /** Lấy ảnh/video của MỘT dòng theo anhIds — mỗi call GAS 1 file (vá nghẽn 03/09: pending hết cõng base64).
- *  File lỗi/quá nặng chỉ mất file đó, dòng khác không bị vạ lây. */
+ *  File lỗi/quá nặng chỉ mất file đó, dòng khác không bị vạ lây.
+ *  SOI METADATA TRƯỚC (1 call nhẹ, chiMeta=1) vì 2 lẽ đo được 03/09:
+ *   · dòng CHỈ CÓ VIDEO (6 dòng tồn thật) sẽ bị bỏ ở bước IMA00 — tải video mỗi tick 15' là công cốc;
+ *   · file >12MB (video mp4 19,6MB hàng 114) base64 KHÔNG BAO GIỜ chui lọt chặng 2 googleusercontent
+ *     — gọi chỉ để nhận trang mặc định, bỏ đích danh từ metadata rẻ hơn nhiều. */
+const TRAN_FILE_MB = 12;
 async function layAnhTheoDong(row) {
+  const ids = (row.anhIds || []).slice(0, 8);
+  if (!ids.length) return [];
+  let taiIds = ids;
+  try {
+    const j = await apiPost("anh", { ids, chiMeta: 1 });
+    if (j && Array.isArray(j.files)) {
+      const meta = j.files;
+      if (!meta.some((f) => /^image\//i.test(f.mime || ""))) {
+        log("    ⚠ Hàng " + row.row + ": không có ẢNH nào (" + meta.map((f) => f.loi ? "file lỗi" : (f.mime + " " + ((f.bytes || 0) / 1048576).toFixed(1) + "MB")).join(", ") + ") — không tải gì.");
+        return [];
+      }
+      taiIds = [];
+      for (const f of meta) {
+        if (f.loi) { log("    ⚠ Hàng " + row.row + ": file " + String(f.id).slice(0, 12) + "… lỗi Drive (" + String(f.loi).slice(0, 60) + ")"); continue; }
+        if ((f.bytes || 0) > TRAN_FILE_MB * 1048576) { log("    ⚠ Hàng " + row.row + ": bỏ file quá nặng " + f.filename + " (" + ((f.bytes || 0) / 1048576).toFixed(1) + "MB > " + TRAN_FILE_MB + "MB)"); continue; }
+        taiIds.push(f.id);
+      }
+    }
+  } catch { /* metadata trượt (mạng/chặng 2) → cứ tải như thường, đường cũ vẫn chạy */ }
   const out = [];
-  for (const id of (row.anhIds || []).slice(0, 8)) {
+  for (const id of taiIds) {
     try {
       const j = await apiPost("anh", { ids: [id] });
       const f = j && Array.isArray(j.files) ? j.files[0] : null;
