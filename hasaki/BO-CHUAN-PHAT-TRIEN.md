@@ -172,6 +172,9 @@ Nguyên tắc:
   `"("+fn+")()"`; điều kiện "đã tải" bám con số thật; đo đúng thứ đang dùng để ẩn.
 - QC mới phải bắt được ít nhất 1 lỗi thật đã biết trước khi tin nó (bộ đo báo xanh trên màn
   skeleton là tai nạn đã xảy ra).
+- **Bộ đo không được treo câm (07/09/2026):** mọi `page.evaluate`/chụp ảnh trong vòng đo phải có TRẦN thời gian
+  (`coTran` 60s trong qc-mobile) và in rõ bước treo; trang đo phải có handler `dialog` (alert/confirm/prompt
+  làm evaluate chờ vô hạn, CPU 0 — không phải vòng lặp). Bộ đo "đứng im 15 phút" ≠ đang đo.
 
 ---
 
@@ -198,6 +201,9 @@ Nguyên tắc:
   BẰNG CHỨNG và bẫy.
 
 ## NHẬT KÝ RULE
+
+- **07/09/2026** — Mục 7: bộ đo không được treo câm — trần 60s cho từng bước evaluate/chụp ảnh + handler dialog
+  (rút từ lần qc-mobile đứng 15 phút sau màn "Kế hoạch chờ push" khi đo 2 màn mới của thẻ "Xác nhận lỗi còn treo").
 
 - **23/08/2026** — Khởi tạo: tổng hợp từ Audit toàn diện 23/08 (5 mảng), rollout, bộ qc-*.mjs
   và các ràng buộc đã chốt (quy trình QC + bản nội bộ, không PIN, nhẹ tải upstream, không xin IT,

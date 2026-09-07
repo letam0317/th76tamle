@@ -677,6 +677,10 @@ for (const may of MAY) {
     const conLoi = [];
     p.on("console", (m) => { if (m.type() === "error") conLoi.push(m.text().slice(0, 120)); });
     p.on("pageerror", (e) => conLoi.push("pageerror: " + e.message.slice(0, 120)));
+    /* DIALOG (alert/confirm/prompt) — vá 07/09/2026: một hộp thoại trình duyệt nở ra là mọi page.evaluate sau đó
+       treo vô hạn (không CPU, không timeout) — lần đo 07/09 máy 1 đứng 15 phút sau màn "Kế hoạch chờ push".
+       Đóng ngay và ghi vào console đỏ để không bị bỏ qua âm thầm (hasaki-pc.js còn prompt() xin PC_KEY). */
+    p.on("dialog", (d) => { conLoi.push("dialog " + d.type() + ": " + d.message().slice(0, 80)); d.dismiss().catch(() => {}); });
 
     console.log("  ── " + trang.ten + "  (" + (DUNG_FILE ? "file" : "live") + ")");
     try {
@@ -707,9 +711,13 @@ for (const may of MAY) {
          mới mở pop-up (pop-up nào không mở được thì bước `mo` trả false và bị bỏ qua, không tính lỗi). */
       dsMan = dsMan.concat(trang.man || []);
     }
+    /* TRẦN 60s cho mọi bước chờ trang (vá 07/09/2026): page.evaluate KHÔNG có timeout — trang bị chặn (dialog, tab
+       treo) là bộ đo đứng im vô hạn mà không in gì. Quá trần thì báo rõ BƯỚC NÀO treo rồi đi tiếp màn sau. */
+    const coTran = (pr, buoc) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error("treo >60s ở bước " + buoc)), 60000))]);
     for (const man of dsMan) {
       let mo = false;
-      try { mo = await p.evaluate("(" + man.mo + ")()"); } catch (e) { mo = false; }
+      try { mo = await coTran(p.evaluate("(" + man.mo + ")()"), "mo"); }
+      catch (e) { if (/treo >60s/.test(e.message)) { tongLoi++; console.log("     ✗ " + man.ten + " — " + e.message); continue; } mo = false; }
       if (!mo) { console.log("     ○ " + man.ten + " — bỏ qua (không mở được / chưa có dữ liệu)"); continue; }
       if (man.cho) {
         try { await p.waitForSelector(man.cho, { timeout: 15000 }); } catch (e) {
@@ -722,7 +730,9 @@ for (const may of MAY) {
         catch (e) { console.log("     ○ " + man.ten + " — BỎ QUA: tab chưa vẽ xong dữ liệu (còn skeleton)"); continue; }
       }
       await nghi(900);
-      const r = await p.evaluate(raSoat);
+      let r;
+      try { r = await coTran(p.evaluate(raSoat), "raSoat"); }
+      catch (e) { tongLoi++; console.log("     ✗ " + man.ten + " — " + e.message.split("\n")[0]); continue; }
       tongMan++;
       const xau = [];
       if (r.keoTrang > 1) xau.push("TRANG KÉO NGANG " + r.keoTrang + "px");
@@ -756,8 +766,8 @@ for (const may of MAY) {
       }
       bangKe.push({ may: may.ten, he: may.he, trang: trang.ten, man: man.ten, ...r, xau });
       const anh = (may.he + "-" + may.w + "-" + trang.ma + "-" + man.ten).replace(/[^\w-]+/g, "_") + ".png";
-      await p.screenshot({ path: path.join(OUT, anh) }).catch(() => {});
-      if (man.dong) await p.evaluate("(" + man.dong + ")()").catch(() => {});
+      await coTran(p.screenshot({ path: path.join(OUT, anh) }), "screenshot").catch((e) => console.log("        (không chụp được ảnh: " + e.message.split("\n")[0] + ")"));
+      if (man.dong) await coTran(p.evaluate("(" + man.dong + ")()"), "dong").catch(() => {});
       await nghi(300);
     }
     if (conLoi.length) { tongLoi++; console.log("     ✗ console đỏ: " + [...new Set(conLoi)].slice(0, 3).join(" | ")); }
