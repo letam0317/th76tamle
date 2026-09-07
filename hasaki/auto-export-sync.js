@@ -4,10 +4,10 @@
  * ============================================================================
  *  KHÔNG cần bấm nút, KHÔNG cần file trong Downloads. Quy trình:
  *    1) Lấy token từ phiên Edge đã đăng nhập
- *    2) POST /api/hr/excel-io/export  (queue job xuất Excel, tối đa 3 THÁNG/lần)
- *    3) Poll GET /api/hr/excel-io tới khi status=1 & có file_path (hoặc báo lỗi)
- *    4) TẢI file công khai từ  wshr.hasaki.vn/production/hr/<file_path>
- *    5) Đọc như sync-board, gộp các cửa sổ, POST syncTasks → tab 5S-TASKS
+ *    2) TỪ 05/09/2026: GET /api/hr/workflows/detail-workflow-task/591?from_date&to_date&search_type=board
+ *       (JSON board, 1 GET/cửa sổ ≤60 ngày) → board-json.mjs dựng lại đúng 87 cột của bảng export cũ.
+ *       Đường cũ POST excel-io/export → poll → tải .xlsx bị tường lửa chặn 403 từ 04/09 (giữ code, CACH_LAY_5S=xlsx).
+ *    5) Gộp các cửa sổ với kho đóng băng, POST syncTasks → tab 5S-TASKS
  *
  *  Chạy:  node auto-export-sync.js   (hoặc để Task Scheduler gọi ẩn theo lịch)
  * ============================================================================
@@ -22,6 +22,7 @@ import "dotenv/config";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { layTokenSongWork, ghiMocBuoc, boQuaNeuDaTuoi, DEFER_EXIT, gasPost } from "./session-rules.js";
+import { docCuaSoJSON } from "./board-json.mjs";   // 05/09/2026: đường dữ liệu JSON thay export xlsx (WAF chặn tải file)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXPORT_DIR = path.join(DIR, ".exports");
@@ -93,6 +94,22 @@ const loadCache = () => { try { return JSON.parse(fs.readFileSync(CACHE_FILE, "u
 // WMS có 2 loại số cho 1 người: code (mã NV, vd 242485 — tra được trên UI) và staff_id
 // (id nội bộ bảng nhân sự HR, vd 23751 — UI không tra được). Workflow lúc lưu code, lúc lưu
 // staff_id -> cùng người bị tách 2 dòng trên dashboard. maChuan quy hết về CODE.
+/* Dựng 3 bảng tra từ danh bạ: dir (code & staff_id → tên) · ma (staff_id → code) · uid (user_id → "tên - mã").
+   uid dùng cho cột "Created By": API JSON board chỉ trả created_by = user_id (không phải staff_id). */
+function dungBangTraNV(list) {
+  const dir = {}, ma = {}, uid = {};
+  for (const s of list) {
+    const nm = s.staff_name || s.full_name || s.name; if (!nm) continue;
+    const code = s.code != null ? String(s.code) : "";
+    if (code) { dir[code] = nm; ma[code] = code; }
+    if (s.staff_id != null) {
+      if (dir[String(s.staff_id)] == null) dir[String(s.staff_id)] = nm;
+      if (code && ma[String(s.staff_id)] == null) ma[String(s.staff_id)] = code;   // staff_id -> code
+    }
+    if (s.user_id != null) uid[String(s.user_id)] = nm + (code ? " - " + code : "");
+  }
+  return { dir, ma, uid };
+}
 async function layDanhBaNV(token) {
   /* CACHE 12h (audit 23/08/2026): search-for-dropdown kéo 11.446 bản ghi MỖI LƯỢT × ~15 lượt/ngày
      ~170k bản ghi vô ích — danh bạ chỉ đổi theo ngày. DÙNG CHUNG .cache-danhba.json với
@@ -110,36 +127,17 @@ async function layDanhBaNV(token) {
       list = j.data || j.rows || [];
       if (list.length) { try { fs.writeFileSync(CACHE_DB, JSON.stringify({ at: Date.now(), data: list })); } catch { /* cache best-effort */ } }
     }
-    const dir = {}, ma = {};
-    for (const s of list) {
-      const nm = s.staff_name || s.full_name || s.name; if (!nm) continue;
-      const code = s.code != null ? String(s.code) : "";
-      if (code) { dir[code] = nm; ma[code] = code; }
-      if (s.staff_id != null) {
-        if (dir[String(s.staff_id)] == null) dir[String(s.staff_id)] = nm;
-        if (code && ma[String(s.staff_id)] == null) ma[String(s.staff_id)] = code;   // staff_id -> code
-      }
-    }
-    log("✓ Danh bạ NV: " + Object.keys(dir).length + " mã.");
-    return { dir, ma };
+    const bang = dungBangTraNV(list);
+    log("✓ Danh bạ NV: " + Object.keys(bang.dir).length + " mã.");
+    return bang;
   } catch (e) {
     // wshr lỗi → dùng cache CŨ (quá 12h vẫn hơn danh bạ rỗng: rỗng là mọi mã NV mất tên trên dashboard)
     try {
       const cu = JSON.parse(fs.readFileSync(CACHE_DB, "utf8")).data || [];
-      const dir = {}, ma = {};
-      for (const s of cu) {
-        const nm = s.staff_name || s.full_name || s.name; if (!nm) continue;
-        const code = s.code != null ? String(s.code) : "";
-        if (code) { dir[code] = nm; ma[code] = code; }
-        if (s.staff_id != null) {
-          if (dir[String(s.staff_id)] == null) dir[String(s.staff_id)] = nm;
-          if (code && ma[String(s.staff_id)] == null) ma[String(s.staff_id)] = code;
-        }
-      }
       log("  ⚠ Danh bạ NV lỗi (" + e.message + ") — dùng cache cũ " + cu.length + " bản ghi.");
-      return { dir, ma };
+      return dungBangTraNV(cu);
     } catch { /* không có cache */ }
-    log("  (cảnh báo: không tải được danh bạ NV: " + e.message + ")"); return { dir: {}, ma: {} };
+    log("  (cảnh báo: không tải được danh bạ NV: " + e.message + ")"); return { dir: {}, ma: {}, uid: {} };
   }
 }
 // Đổi chuỗi mã "23751,38125" -> "Phùng Lê Cao Minh, Mai Lê Hoàng Phi" (mã không tra được -> bỏ, KHÔNG ghi số).
@@ -342,6 +340,12 @@ async function getToken() {
   } finally { await browser.close().catch(() => {}); }
 }
 
+/* ---------- ĐƯỜNG CŨ: export xlsx qua excel-io — KHÔNG DÙNG từ 05/09/2026 ----------
+ * 04/09/2026 tường lửa Cloudflare của Hasaki chặn 403 mọi file dưới production/hr/excel_io/ (wshr lẫn hr-media,
+ * kể cả trình duyệt thật) trong khi job export vẫn báo thành công → 2 lượt/ngày tốn 4 job export + tải file vô ích,
+ * kho đứng ở 29/08. Thay bằng docCuaSoJSON (board-json.mjs): 1 GET JSON/cửa sổ, dựng lại đúng 87 cột.
+ * Giữ 3 hàm dưới để bật lại nhanh nếu IT mở tường lửa; đổi CACH_LAY = "xlsx" là quay về. */
+const CACH_LAY = process.env.CACH_LAY_5S || "json";
 const dsExport = async (token) => ((await (await fetchRetry(API, { headers: { authorization: token } })).json()).data?.rows || []);
 
 // Queue 1 cửa sổ + chờ tới khi job (khớp from/to) có file_path
@@ -405,7 +409,7 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
     token = await layTokenTuPhucHoi(getToken, DIR, log, "work").catch(e => { log("✗ " + e.message); process.exit(2); });
   }
   log("✓ Đã lấy token.");
-  const { dir: nvDir, ma: nvMa } = await layDanhBaNV(token);   // danh bạ NV: mã → tên, và staff_id → mã chuẩn
+  const { dir: nvDir, ma: nvMa, uid: nvUid } = await layDanhBaNV(token);   // danh bạ NV: mã → tên, staff_id → mã chuẩn, user_id → "tên - mã"
 
   // Nạp KHO BỀN VỮNG (cache): task terminal cũ giữ nguyên, không export lại.
   // LUÔN seed từ cache (kể cả FULL) → cửa sổ nào export lỗi vẫn giữ dữ liệu cũ, KHÔNG mất task.
@@ -428,12 +432,31 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
   }
 
   let moi = 0, loi = 0;
+  const nvBang = { dir: nvDir, ma: nvMa, uid: nvUid };
+  // 1 cửa sổ = 1 GET JSON (đường "json") — đường "xlsx" cũ chỉ khi ép CACH_LAY_5S=xlsx
+  /* Đường xlsx: queue job export MỘT lần; tải file hỏng thì tải lại CÙNG file_path, KHÔNG queue job mới.
+     Bẫy 04–05/09/2026 (soi hr.hasaki.vn/excel-io-logs): WAF chặn file → "không phải xlsx" → nhánh thử lại
+     bên dưới gọi lại layCuaSo = re-queue ⇒ 4 job export/lượt (2 cửa sổ × 2), toàn "Export thành công"
+     mà không lấy được gì. Lỗi tải mang cờ khongQueueLai để vòng ngoài không thử lại lần nữa. */
+  const layXlsx = async (from, to) => {
+    const fp = await xuatMotCuaSo(token, from, to);
+    try { return await taiVaDoc(fp); }
+    catch (e) {
+      log("  ⚠ " + e.message + " — tải lại cùng file (không queue job mới)...");
+      try { return await taiVaDoc(fp); }
+      catch (e2) { throw Object.assign(new Error(e2.message), { khongQueueLai: true }); }
+    }
+  };
+  const layCuaSo = async (from, to) => CACH_LAY === "xlsx"
+    ? layXlsx(from, to)
+    : (await docCuaSoJSON(token, WORKFLOW_ID, from, to, header, nvBang, fetchRetry)).aoa;
   for (const [from, to] of windows) {
     let aoa;
-    try { aoa = await taiVaDoc(await xuatMotCuaSo(token, from, to)); }
+    try { aoa = await layCuaSo(from, to); }
     catch (e) {
+      if (e.khongQueueLai) { loi++; log("  ✗ " + e.message + " (giữ dữ liệu cũ của cửa sổ này)"); continue; }
       log("  ⚠ " + e.message + " — thử lại 1 lần...");
-      try { aoa = await taiVaDoc(await xuatMotCuaSo(token, from, to)); }
+      try { aoa = await layCuaSo(from, to); }
       catch (e2) { loi++; log("  ✗ " + e2.message + " (giữ dữ liệu cũ của cửa sổ này)"); continue; }
     }
     if (!aoa || aoa.length < 2) { log("  (cửa sổ rỗng)"); continue; }

@@ -1,5 +1,12 @@
 # 🔄 LUỒNG DỮ LIỆU CHI TIẾT — Diagram & Timeline
 
+> **ĐỔI NGUỒN 05/09/2026 — bước "xuất Excel" của `auto-export-sync.js` bên dưới là sơ đồ CŨ.** Từ 04/09 tường lửa
+> Cloudflare chặn 403 mọi file `production/hr/excel_io/*.xlsx` (job export vẫn báo thành công). Nay mỗi cửa sổ ngày =
+> **1 GET** `/api/hr/workflows/detail-workflow-task/591?from_date&to_date&search_type=board` (JSON board) →
+> `board-json.mjs` dựng lại đúng 87 cột của bảng export cũ; các bước sau (kho đóng băng, 5S-TASKS, chunk Pages) giữ nguyên.
+> Đối chứng: `qc-board-json.mjs`. Quay về đường xlsx: `CACH_LAY_5S=xlsx`. Chi tiết: đầu file `board-json.mjs`.
+
+
 ---
 
 ## 📊 Diagram Kiến Trúc Toàn Hệ Thống
