@@ -12,8 +12,31 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,3 39.8,23.9 62,24.5 44.3,38.3 50.6,60 32,47.2 13.4,60 19.7,38.3 2,24.5 24.2,23.9' fill='%23d81e05'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<!-- TĂNG TỐC 05/09/2026: font Inter KHÔNG chặn vẽ trang (media=print → all khi tải xong; chữ hệ thống hiện trước, swap sau).
+     Đo live 05/09: stylesheet này chắn first-paint + DOMContentLoaded ~1,1–1,4s trên mạng công ty. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" /></noscript>
 <title>AUDIT</title>
+<script>
+/* TĂNG TỐC 05/09/2026: bắt đầu tải summary/index.json + 2 chunk tháng NGAY khi trình duyệt vừa đọc tới <head>,
+   song song với việc tải/parse phần còn lại của trang (~250KB). taiTuTinh()/taiChunk() bên dưới DÙNG LẠI các
+   promise này (1 lần); làm mới nền / đổi tháng vẫn fetch tươi như cũ. Hệ chỉ còn 1 công ty HASAKI (docCtyBanDau
+   khoá cứng) nên thư mục = "summary" — khớp CTY.hasaki.summary. Lỗi ở đây chỉ làm mất tăng tốc, không mất dữ liệu. */
+(function(){
+  try{
+    var dir='summary';
+    var an=function(r){ return r && r.ok ? r.json() : null; }, im=function(){ return null; };
+    var idx=fetch(dir+'/index.json?v='+Date.now()).then(an).catch(im);
+    var chunks=idx.then(function(j){
+      var out={}; if(!j||!Array.isArray(j.thang)||!j.thang.length) return out;
+      var bust=j.apiAt||Date.now();
+      j.thang.slice(0,2).forEach(function(th){ out[th]=fetch(dir+'/'+th+'.json?v='+bust).then(an).catch(im); });
+      return out;
+    }).catch(function(){ return {}; });
+    window.__TAI_TRUOC={ dir:dir, index:idx, chunks:chunks };
+  }catch(e){}
+})();
+</script>
 <style>
 /* ===== CHỈ THỊ 1: DESIGN TOKENS DÙNG CHUNG (cả Hasaki lẫn Factory tham chiếu 1 nguồn) ===== */
 :root{
@@ -1942,11 +1965,17 @@ const CHUNK = new Map();                  // "YYYY-MM" -> {rows, anhKhong, binhL
 async function taiChunk(th){
   if(CHUNK.has(th)) return true;
   try{
-    // buster theo apiAt: URL đổi khi có sync mới -> luôn tươi; giữa 2 sync -> URL giống nhau -> CDN vẫn cache
-    const bust = (SUMMARY_INDEX && SUMMARY_INDEX.apiAt) ? SUMMARY_INDEX.apiAt : Date.now();
-    const r = await fetch(thuMucSummary()+'/'+th+'.json?v='+bust);
-    if(!r.ok) return false;
-    const j = await r.json();
+    let j = null;
+    // Dùng chunk đã tải trước từ <head> (window.__TAI_TRUOC) — chỉ 1 lần; các lượt sau fetch tươi như cũ
+    const pre = window.__TAI_TRUOC;
+    if(pre && pre.dir===thuMucSummary() && pre.chunks){ const m = await pre.chunks; if(m && m[th]){ j = await m[th]; delete m[th]; } }
+    if(!j){
+      // buster theo apiAt: URL đổi khi có sync mới -> luôn tươi; giữa 2 sync -> URL giống nhau -> CDN vẫn cache
+      const bust = (SUMMARY_INDEX && SUMMARY_INDEX.apiAt) ? SUMMARY_INDEX.apiAt : Date.now();
+      const r = await fetch(thuMucSummary()+'/'+th+'.json?v='+bust);
+      if(!r.ok) return false;
+      j = await r.json();
+    }
     CHUNK.set(th, { rows:j.rows||[], anhKhong:j.anhKhong||[], binhLuan:j.binhLuan||{} });
     return true;
   }catch(e){ return false; }
@@ -1962,16 +1991,21 @@ function gopChunkVaNap(){
 }
 async function taiTuTinh(){
   try{
-    const r = await fetch(thuMucSummary()+'/index.json?v='+Date.now());   // index nhẹ (~5KB) -> luôn tươi ngay lần load đầu
-    if(!r.ok) return false;
-    const j = await r.json();
+    let j = null;
+    const pre = window.__TAI_TRUOC;
+    if(pre && pre.dir===thuMucSummary() && pre.index){ j = await pre.index; pre.index = null; }   // index đã tải trước từ <head> (dùng 1 lần)
+    if(!j){
+      const r = await fetch(thuMucSummary()+'/index.json?v='+Date.now());   // index nhẹ (~5KB) -> luôn tươi ngay lần load đầu
+      if(!r.ok) return false;
+      j = await r.json();
+    }
     if(!j || !j.header || !Array.isArray(j.thang) || !j.thang.length) return false;
     SUMMARY_INDEX = j;
     napChonThang(j.thang);                                 // đổ dropdown tháng từ index
     const thangHienTai = j.thang[0];                       // index đã sắp mới nhất trước
     const iPrev = j.thang.indexOf(thangHienTai)+1;
-    await taiChunk(thangHienTai);
-    if(j.thang[iPrev]) await taiChunk(j.thang[iPrev]);     // tháng trước -> để cột "so với tháng trước"
+    // 2 tháng tải SONG SONG (trước 05/09/2026: nối tiếp -> tốn thêm 1 vòng mạng); tháng trước -> cột "so với tháng trước"
+    await Promise.all([ taiChunk(thangHienTai), j.thang[iPrev] ? taiChunk(j.thang[iPrev]) : Promise.resolve(true) ]);
     $('kpiThang').value = thangHienTai; csDongBo('kpiThang');
     gopChunkVaNap();
     if(j.apiAt) hienGioDuLieu(Number(j.apiAt), true);
@@ -3488,11 +3522,14 @@ document.addEventListener('click', ()=>csDongHet(null));
   // LAZY THEO CÔNG TY: chỉ công ty có tab 5S mới kéo dữ liệu 5S; Factory để module fstock tự lo
   if(co5S()){
     // TĂNG TỐC: hiện trang NGAY từ file tĩnh CDN; lỗi -> gviz; chưa có nguồn -> trống
-    taiTuTinh().then(ok=>{ if(ok) return; if(SHEET_ID) taiDuLieu(); else hienCtyTrong(); });
-    taiQuyDinh();  // nạp QUY-DINH ngay từ đầu -> cột "Tần suất vi phạm" tra được %KPI theo hạng mục
-    // NẠP TRƯỚC form Ghi nhận 5S lúc rảnh — nhưng BỎ QUA trên mạng chậm/tiết kiệm dữ liệu
+    // NẠP TRƯỚC form Ghi nhận 5S lúc rảnh — nhưng BỎ QUA trên mạng chậm/tiết kiệm dữ liệu.
+    // 05/09/2026: hẹn SAU khi dữ liệu 5S đã về — trước đây nạp cùng lúc, form kéo alpine+tailwind+qrcode (~260KB)
+    // tranh băng thông với chính chunk dữ liệu trên mạng chậm (đo 3G: bảng chậm thêm ~2s).
     const mangCham = navigator.connection && (navigator.connection.saveData || /(^|-)2g|3g/.test(navigator.connection.effectiveType||''));
-    if(!mangCham) (('requestIdleCallback' in window) ? requestIdleCallback(napFormTruoc,{timeout:8000}) : setTimeout(napFormTruoc,5000));
+    const henNapForm = ()=>{ if(mangCham) return; (('requestIdleCallback' in window) ? requestIdleCallback(napFormTruoc,{timeout:8000}) : setTimeout(napFormTruoc,5000)); };
+    taiTuTinh().then(ok=>{ if(!ok){ if(SHEET_ID) taiDuLieu(); else hienCtyTrong(); } henNapForm(); })
+               .catch(()=>{ if(SHEET_ID) taiDuLieu(); else hienCtyTrong(); henNapForm(); });
+    taiQuyDinh();  // nạp QUY-DINH ngay từ đầu -> cột "Tần suất vi phạm" tra được %KPI theo hạng mục
   }
   // Tự làm mới ONLINE mỗi 5 phút + khi quay lại tab (chỉ luồng 5S; module fstock tự làm mới khi mở lại)
   setInterval(()=>{ if(!dangCho && co5S()) lamMoiNen(); }, 5*60*1000);

@@ -152,6 +152,9 @@ const TOI_THIEU = 55;
 // Nhóm B (việc tay) — chủ máy chốt 18/08/2026: KHÔNG ghi nội dung gì. Nhưng web bắt buộc phải có
 // chữ nên dùng một câu trung tính, KHÔNG khai là đã làm hay chưa làm.
 const BC_NHOM_B = process.env.TASK_BAOCAO_MACDINH || "Không có nội dung báo cáo bổ sung cho công việc này trong ngày.";
+// Task kiểm kê không có phiếu nào của mình trong ngày (chốt chủ máy 04/09/2026): báo đúng một câu
+// "Không thực hiện..." — thay câu cũ "không có phiếu kiểm kê nào do ... thao tác (đối chiếu lúc ...)".
+const BC_KIEMKE_KHONG_LAM = process.env.TASK_BAOCAO_KIEMKE || "Không thực hiện công việc này trong ngày.";
 
 const CO = { nop: false, ep: false, task: 0, hoi: false, lamtuoi: false, nhom: "", thuF0A0: false, ngay: "" };
 for (const a of process.argv.slice(2)) {
@@ -301,15 +304,18 @@ function phieuKiemKe(khos, loai) {
 function tomTatKiemKe(nhan, rows, tuoi, link, demPhut = true) {
   const hn = ngayGon(NGAY_BC);
   const gioTuoi = tuoi ? tuoi.toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "?";
-  // Kho cache cũ quá thì KHÔNG dám nộp — số liệu cũ nộp lên còn tệ hơn không nộp.
-  if (!tuoi || Date.now() - tuoi.getTime() > 6 * 3600 * 1000)
-    return { du: false, text: `${nhan}: dữ liệu WMS trong máy đã cũ (${gioTuoi}) — chạy push-pc-to-sheet trước khi nộp.` };
   /* BÁO CÁO CHỈ KỂ VIỆC CỦA MÌNH (chốt 25/08/2026 — "này là báo cáo của tôi"): số phiếu / đã
      đếm / lệch chỉ đếm phiếu do chính tamlc đếm hoặc duyệt; KHÔNG liệt kê tên người kiểm khác.
      Trước đó báo cáo kể cả kho ("212 phiếu … 13 người kiểm") — đã bị chủ máy bác 25/08. */
   const cua = rows.filter((r) => laToi(r.checklist_by_name) || laToi(r.approved_by_name));
+  /* Không có phiếu nào của mình trong ngày ⇒ câu mặc định "Không thực hiện..." (chốt chủ máy
+     04/09/2026) — nộp được KỂ CẢ khi mốc làm tươi đã cũ, không bắt chạy push-pc-to-sheet chỉ để
+     xác nhận "không làm". Cửa từ chối vì dữ liệu cũ chỉ còn áp cho báo cáo CÓ SỐ LIỆU. */
   if (!cua.length)
-    return { du: true, text: `${nhan} ngày ${hn}: không có phiếu kiểm kê nào do ${TOI_EMAIL} thao tác trong ngày (đối chiếu lúc ${gioTuoi}).${link ? "\nChi tiết: " + link : ""}` };
+    return { du: true, text: `${nhan} ngày ${hn}: ${BC_KIEMKE_KHONG_LAM}` };
+  // Kho cache cũ quá thì KHÔNG dám nộp số liệu — số liệu cũ nộp lên còn tệ hơn không nộp.
+  if (!tuoi || Date.now() - tuoi.getTime() > 6 * 3600 * 1000)
+    return { du: false, text: `${nhan}: dữ liệu WMS trong máy đã cũ (${gioTuoi}) — chạy push-pc-to-sheet trước khi nộp.` };
   const dem = cua.length;
   const daDem = cua.filter((r) => /COUNTED|APPROVED|WAITING/i.test(String(r.status_name || ""))).length;
   const lech = cua.filter((r) => String(r.is_diff || "").toUpperCase() === "YES").length;
@@ -483,14 +489,17 @@ async function bcF0A0(t, cfg) {
 /* ═════════════════ 2) SỔ TAY 9 TASK HẰNG NGÀY ═════════════════ */
 /* nop: "sang"  = nội dung đã xác định ngay buổi sáng (trạng thái tồn F0-A0)
         "chieu" = phải chờ hết ca mới có số liệu (kiểm kê, 5S) → nộp cuối ngày */
+/* `doiTuong` = ô "Object value / Giá trị đối tượng" — wshr thêm chốt chặn (thấy từ 31/08/2026):
+   vài mẫu task 422 "Vui lòng nhập Task/SKU cụ thể vào ô [Object value]" khi đổi status mà ô này
+   rỗng. Chữ TỰ DO (đồng nghiệp điền "1" / "Sku" / "vải NG") — bot điền tên đối tượng cho tử tế. */
 const SO_TAY = [
-  { khop: /^Kiểm kê SKU/i, nhom: "A", dung: bcKiemKeSku },
-  { khop: /^Kiểm kê Location/i, nhom: "A", dung: bcKiemKeLoc },
-  { khop: /Kiểm kê theo vị trí.*full location/i, nhom: "A", dung: bcFullLoc },
-  { khop: /Kiểm tra 5S kho tổng/i, nhom: "A", dung: bc5S },
-  { khop: /bất thường.*MATERIAL - MTG/i, nhom: "A", dung: (t) => bcF0A0(t, { company: "1002", warehouse: "1177", ten: "MTG" }) },
-  { khop: /bất thường.*MATERIAL - GARMENT/i, nhom: "A", dung: (t) => bcF0A0(t, { company: "1005", warehouse: "1339", ten: "GARMENT" }) },
-  { khop: /Sắp xếp hàng hóa trong kho/i, nhom: "B" },
+  { khop: /^Kiểm kê SKU/i, nhom: "A", dung: bcKiemKeSku, doiTuong: "SKU" },
+  { khop: /^Kiểm kê Location/i, nhom: "A", dung: bcKiemKeLoc, doiTuong: "Location" },
+  { khop: /Kiểm kê theo vị trí.*full location/i, nhom: "A", dung: bcFullLoc, doiTuong: "Full location" },
+  { khop: /Kiểm tra 5S kho tổng/i, nhom: "A", dung: bc5S, doiTuong: "5S kho tổng" },
+  { khop: /bất thường.*MATERIAL - MTG/i, nhom: "A", dung: (t) => bcF0A0(t, { company: "1002", warehouse: "1177", ten: "MTG" }), doiTuong: "Bin F0-A0 MTG" },
+  { khop: /bất thường.*MATERIAL - GARMENT/i, nhom: "A", dung: (t) => bcF0A0(t, { company: "1005", warehouse: "1339", ten: "GARMENT" }), doiTuong: "Bin F0-A0 GARMENT" },
+  { khop: /Sắp xếp hàng hóa trong kho/i, nhom: "B", doiTuong: "Sắp xếp hàng hóa trong kho" },
   /* "Sắp xếp hàng hóa tại kho tổng" — ĐẢO chốt 19-20/08 (bản đó để chủ máy tự báo cáo, cờ
      tuBaoCao). Chủ máy chốt lại 25/08/2026: bot nộp lại với kết quả mặc định BC_KHO_TONG và phút
      thực tế = quỹ 480' − phút các task khác − DANH_RIENG (tính ở tinhLaiQuy, cờ khoTong).
@@ -498,8 +507,8 @@ const SO_TAY = [
      lây bất kỳ task nào chứa cụm đó (ví dụ "Sắp xếp hàng hóa tại kho tổng ca 2" của người khác).
      Lệch một trong hai điều kiện ⇒ rơi vào nhánh "task LẠ": bot KÊU TO và không nộp — hướng sai
      an toàn, không bao giờ nộp hộ task của người ta. */
-  { khop: /^\s*Sắp xếp hàng hóa tại kho tổng\s*$/i, nhom: "B", khoTong: true, nguoiGiao: NGUOI_GIAO_KHO_TONG },
-  { khop: /Dán tem QC Fail/i, nhom: "B" },
+  { khop: /^\s*Sắp xếp hàng hóa tại kho tổng\s*$/i, nhom: "B", khoTong: true, nguoiGiao: NGUOI_GIAO_KHO_TONG, doiTuong: "Sắp xếp hàng hóa tại kho tổng" },
+  { khop: /Dán tem QC Fail/i, nhom: "B", doiTuong: "Vải NG" },
 ];
 /* Khớp theo TÊN, và với mục nào khai `nguoiGiao` thì phải đúng luôn người tạo task (`created_by`).
    Truyền `t` là tuỳ chọn — thiếu `t` thì mục có `nguoiGiao` không khớp, tức là ngả về an toàn. */
@@ -590,7 +599,7 @@ async function datField(work, body) {
 
 /* Web BẮT phải có "giờ thực tế" trước khi đổi trạng thái (nếu thiếu: 422 "Vui lòng cập nhật giờ
    thực tế!"). Nên nộp theo nhịp: khối lượng → reality_hours → status — đúng thứ tự người bấm trên web. */
-async function nopBaoCao(work, t, text, phut, buoc) {
+async function nopBaoCao(work, t, text, phut, buoc, doiTuong) {
   const id = t.id;
   const phutNop = Math.max(1, Math.round(Number(phut) || GIO_THUC_TE));   // web không nhận 0
   /* Khối lượng (field `amount_of_work` — "Khối lượng công việc", tra swagger /api/doc.json
@@ -600,6 +609,14 @@ async function nopBaoCao(work, t, text, phut, buoc) {
   if (kl > 1) {
     const kq = await datField(work, { id, field: "amount_of_work", value: kl });
     if (!kq.ok) console.log(`   ⚠ đặt khối lượng ${kl} lỗi (vẫn nộp tiếp) · ` + kq.moTa);
+  }
+  /* "Giá trị đối tượng" (field `unit_value` — ô "Object value"): vài mẫu task 422 khi đổi status
+     mà ô này rỗng (chốt chặn mới của wshr, thấy từ 31/08/2026 — chính nó làm nút 31/08 chỉ nộp
+     được 1/23). Gửi cho MỌI task trong sổ tay: mẫu không đòi thì cột unit_value được ghi thêm,
+     vô hại; lỗi nhịp này KHÔNG chặn lượt nộp — mẫu có đòi thì nhịp status phía sau tự 422. */
+  if (doiTuong) {
+    const kq = await datField(work, { id, field: "unit_value", value: doiTuong });
+    if (!kq.ok) console.log(`   ⚠ đặt giá trị đối tượng "${doiTuong}" lỗi (vẫn nộp tiếp) · ` + kq.moTa);
   }
   // LUÔN đặt lại giờ thực tế: với sub_type=1 nó tính theo TỪNG NGƯỜI — task cha đã có giờ (do
   // đồng nghiệp nộp trước) mà dòng của mình chưa, vẫn dính 422 "Vui lòng cập nhật giờ thực tế!".
@@ -826,7 +843,7 @@ for (const { id, ten, t, st, sot } of bang) {
   if (!du) { console.log("   → thiếu dữ liệu thật → KHÔNG nộp.\n"); boQua++; continue; }
   if (conSom) { console.log(`   → chưa tới giờ báo cáo (${GIO_SOM_NHAT}h) — để dành.\n`); boQua++; continue; }
   console.log("   → xếp hàng chờ nộp.\n");
-  hangDoi.push({ id, ten, t, text, nhom: sot.nhom, phut, viPhut, buoc, khoTong, coMoc });
+  hangDoi.push({ id, ten, t, text, nhom: sot.nhom, phut, viPhut, buoc, khoTong, coMoc, doiTuong: sot.doiTuong });
 }
 
 /* ── Nhịp 3b: QUỸ CÔNG 480' — bot ĐỀ XUẤT số phút, người bấm sửa được ──
@@ -950,7 +967,7 @@ if (CO.nop && hangDoi.length) {
   else if (chon === "a") log(`→ Chỉ nộp ${canNop.length} task nhóm A; ${hangDoi.length - canNop.length} task việc tay để người tự báo cáo.`);
   console.log("");
   for (const x of canNop) {
-    const kq = await nopBaoCao(work, x.t, x.text, x.phut, x.buoc);
+    const kq = await nopBaoCao(work, x.t, x.text, x.phut, x.buoc, x.doiTuong);
     const kl = khoiLuongCua(x.phut, x.buoc);
     console.log(kq.ok ? `   ✓ ĐÃ NỘP #${x.id} · ${x.ten} (chờ duyệt · thời gian thực tế ${x.phut} phút${kl ? ` · khối lượng ${kl}` : ""}).` : `   ✗ nộp lỗi #${x.id} · ${x.ten}: ${kq.moTa}`);
     if (kq.ok) { daNop++; phutDaNop += x.phut; } else boQua++;
