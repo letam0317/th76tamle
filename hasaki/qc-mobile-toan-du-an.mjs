@@ -393,6 +393,19 @@ const TRANG = [
         mo: "() => { setTab('tong'); const r=document.querySelector('#kpiPanel tbody tr[data-kpi]'); if(!r) return false; r.click(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#stBody tr,#stBody .stat-empty').length > 0",
         dong: "() => { try { dongThongKe(); } catch(e) {} }" },
+      /* PANEL "Tổng kết nhanh" của tab Tổng quan là <details> mặc định ĐÓNG — đo tab 'tong' thường không
+         thấy lưới 9 thẻ này (07/09/2026 thêm thẻ "Xác nhận lỗi còn treo"). Mở ra rồi đo, đo xong đóng lại. */
+      { ten: "Tổng quan › Tổng kết nhanh (mở rộng)",
+        mo: "() => { setTab('tong'); const d=document.getElementById('tk7Panel'); if(!d) return false; d.open=true; d.scrollIntoView({block:'start'}); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#tkqGrid .tkq-card[data-tkq]').length >= 9",
+        dong: "() => { const d=document.getElementById('tk7Panel'); if(d) d.open=false; }" },
+      /* Pop-up của thẻ "Xác nhận lỗi còn treo": bảng rowsTableHTML (khuôn mbcard) + cột phụ "Treo · giao lúc".
+         Nhóm theo người được giao B1.1. Dữ liệu thật hiện có 15 task treo — sanSangMan bám dòng có data-i
+         (hoặc ô rỗng .stat-empty nếu ngày nào hết task treo). */
+      { ten: "Pop-up Tổng kết nhanh › Xác nhận lỗi còn treo (Tổng quan)", cho: "#statModal.show",
+        mo: "() => { setTab('tong'); const d=document.getElementById('tk7Panel'); if(d) d.open=true; const b=document.querySelector('#tkqGrid [data-tkq=treo]'); if(!b) return false; b.click(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#stBody tbody tr[data-i]').length > 0 || !!document.querySelector('#stBody .stat-empty')",
+        dong: "() => { try { dongThongKe(); } catch(e) {} }" },
     ],
   },
 ].filter((t) => !LOC_TRANG || t.ma === LOC_TRANG);

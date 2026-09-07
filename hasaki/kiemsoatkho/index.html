@@ -1228,6 +1228,10 @@ body.side-anim{overflow-x:clip;}
   table.mbcard tr:has(td[colspan]){padding:16px 12px; background:0; border:0;}
   /* Ô TICK giỏ tạo lệnh: neo góc trái thẻ, vùng chạm 40px THẬT (hộp kiểm gốc chỉ 22px và CSS không
      nới được — xem luật ⑤ trong memory quy-chuan-hien-thi-dien-thoai). */
+  /* Thẻ pop-up thống kê (#statModal): câu lỗi vi phạm ~230 ký tự kẹp 3 dòng (luật ⑨/⑪) — bấm thẻ là mở
+     chi tiết task đọc đủ, nên không cần nút trải riêng (tap trải sẽ đụng tap mở chi tiết của cả dòng). */
+  #statModal table.mbcard td.c-loi{display:-webkit-box !important; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+    overflow:hidden; color:var(--text); font-weight:600;}
   table.mbcard tr:has(td.hpc-cc){padding-left:50px;}
   table.mbcard td.hpc-cc{position:absolute; left:4px; top:8px; width:40px; height:40px;
     display:flex !important; align-items:center; justify-content:center;}
@@ -1586,6 +1590,7 @@ const APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1v
 let H = [], ROWS = [];
 let iCode, iLink, iName, iStatus, iCreatedAt, iAnh, iNgayVP, iLoi, iViTri, iNVVP, iQLTT, iVideo, iNVName, iBienBan, iNVChuan=-1;
 let iB2loi, iKP, iB11ND, iDieuHuong=-1, STATUS_COLS = [], B3_COLS = [];
+let iB11St=-1, iB11DL=-1, iB11Giao=-1;   // bước B1.1: Status / Deadline / Ngày giao (thẻ "Xác nhận lỗi còn treo", 07/09/2026)
 let firstLoad = true, dangCho = false, galleries = {}, rowGal = {};
 let ANH_KHONG = null;   // danh sách 'Đạt khống' do pipeline quét ảnh cấp qua data-summary.json
 let BINH_LUAN = null;   // bình luận task (API /api/v2/task/comment) do pipeline cấp qua data-summary.json
@@ -1813,7 +1818,7 @@ const nhanCuoi = h => (h||"").split("▸").pop().trim();
 
 const DICH = {"task code":"Mã công việc","link task":"Liên kết công việc","task name":"Tên công việc",
   "status":"Trạng thái","created by":"Người tạo","created at":"Thời gian tạo","deadline":"Hạn chót",
-  "kết quả công việc":"Kết quả công việc","người thực hiện":"Người thực hiện",
+  "kết quả công việc":"Kết quả công việc","người thực hiện":"Người thực hiện","ngày giao":"Giao việc lúc",
   "link planogram (nếu có)":"Liên kết sơ đồ trưng bày (nếu có)"};
 const dichNhan = s => DICH[String(s).trim().toLowerCase()] || s;
 const STT = {"none":"Chưa xử lý","new":"Mới","processing":"Đang xử lý","in progress":"Đang xử lý",
@@ -1889,6 +1894,29 @@ const daHuy = r => /cancel/i.test(String(r[iStatus]||"")) || (iDieuHuong>=0 && /
 // Bước "B3.x Ghi nhận vi phạm" của task ĐÃ HOÀN THÀNH? (điều kiện để tính KPI trừ).
 // Dữ liệu cũ không có cột B3 -> coi như đạt để không mất số liệu.
 const b3Xong = r => !B3_COLS.length || B3_COLS.some(i => /finished/i.test(String(r[i]||"")));
+/* ===== B1.1 "XÁC NHẬN LỖI CÒN TREO" (07/09/2026) =====
+   Task đã bắn cho NV (bước B1.1 có Người thực hiện) mà quá 48h kể từ lúc GIAO vẫn chưa xong
+   (vd task 12946984: giao 17/08 08:39, tới 07/09 vẫn None). Mốc giao = cột "B1.1 ▸ Ngày giao"
+   (created_at của task con — board-json.mjs thêm 07/09). Dòng cũ chưa có cột (kho đóng băng, đường
+   xlsx) → ƯỚC LƯỢNG = Deadline − 48h và gắn cờ uocLuong (hiện dấu ~). Không dùng thẳng Deadline vì
+   SLA của B1.1 không cố định: đo 45 ngày thấy 24 task 48h, 9 task 60h, vài task bị sửa tay tới 500h. */
+const TREO_B11_MS = 48*3600*1000;
+function giaoB11(r){
+  const t = iB11Giao>=0 ? ngayMs(r[iB11Giao]) : null;
+  if(t!=null) return {t, uocLuong:false};
+  const dl = iB11DL>=0 ? ngayMs(r[iB11DL]) : null;
+  return dl!=null ? {t: dl-TREO_B11_MS, uocLuong:true} : null;
+}
+// {t, uocLuong, ms} nếu task đang treo ở B1.1 quá 48h; null nếu không (đã huỷ / WF đã đóng / chưa giao / B1.1 đã xong).
+function treoB11(r, now){
+  if(iB11St<0 || daHuy(r) || /finished|failed/i.test(String(r[iStatus]||""))) return null;
+  const st = String(r[iB11St]||"").trim();
+  if(!(st==="" || /^none$|processing|in progress/i.test(st))) return null;   // Finished / Failed / Canceled = không treo
+  if(!(iB11ND>=0 && String(r[iB11ND]||"").trim())) return null;              // chưa giao cho ai
+  const g = giaoB11(r); if(!g) return null;
+  const ms = (now||Date.now()) - g.t;
+  return ms > TREO_B11_MS ? {t:g.t, uocLuong:g.uocLuong, ms} : null;
+}
 // Khoá thời gian để sắp xếp (mới nhất → cũ nhất)
 /* TỐC ĐỘ: tsOf được MEMOIZE — sort chạy O(n·log n) phép so sánh, mỗi phép cũ tốn 2 lần
    regex + new Date; giờ mỗi giá trị ngày chỉ parse đúng 1 lần rồi tra Map */
@@ -1940,6 +1968,9 @@ function napDuLieu(Hn, Rn){
       iB2loi=idxOf("B2. QLTT xác nhận và giải trình ▸ Xác nhận lỗi");
       iKP=idxOf("B4.1 Audit kiểm tra khắc phục ▸ Xác nhận khắc phục");
       iB11ND=idxOf("B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Người thực hiện");
+      iB11St=idxOf("B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Status");
+      iB11DL=idxOf("B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Deadline");
+      iB11Giao=idxOf("B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Ngày giao");   // cột mới 07/09/2026 (board-json: created_at task con) — dữ liệu cũ chưa có -> -1
       STATUS_COLS=H.map((h,i)=>i).filter(i=>H[i]==="Status"||nhanCuoi(H[i]).toLowerCase()==="status");
       iDieuHuong=idxOf("Điều hướng ▸ Status");   // cờ nhận biết task bị HUỶ (flow vô hiệu)
       // Các cột Status của bước "B3.x Ghi nhận vi phạm ..." (B3.1 vệ sinh / B3.2 quy định / B3.3 đóng gói
@@ -1980,12 +2011,35 @@ async function taiChunk(th){
     return true;
   }catch(e){ return false; }
 }
-// Gộp các tháng ĐÃ TẢI thành ROWS + ANH_KHONG + BINH_LUAN rồi nạp vào state
+/* TASK SỐNG CŨ (07/09/2026): summary/song-cu.json = task CHƯA ĐÓNG nằm ngoài 2 tháng nạp mặc định (pipeline
+   auto-export-sync ghi, cùng khuôn chunk). Không có nó, thẻ "Xác nhận lỗi còn treo" / "Điểm nghẽn" / "Chưa xác
+   minh" mù với task treo lâu (vd HSK-77U9R144 tạo 21/07, giao B1.1 17/08 mà tới tháng 9 vẫn None). Vài dòng
+   thôi, tải SAU lần vẽ đầu để không chậm màn đầu; index.songCu===0 thì khỏi tải. */
+let SONG_CU = null;                       // {rows, anhKhong, binhLuan} | null = chưa có/không tải được
+async function taiSongCu(){
+  try{
+    if(!SUMMARY_INDEX) return false;
+    if(SUMMARY_INDEX.songCu===0){ SONG_CU={rows:[],anhKhong:[],binhLuan:{}}; return true; }
+    const r = await fetch(thuMucSummary()+'/song-cu.json?v='+(SUMMARY_INDEX.apiAt||Date.now()), {signal:AbortSignal.timeout(20000)});
+    if(!r.ok) return false;
+    const j = await r.json();
+    SONG_CU = { rows:j.rows||[], anhKhong:j.anhKhong||[], binhLuan:j.binhLuan||{} };
+    return true;
+  }catch(e){ return false; }
+}
+// Gộp các tháng ĐÃ TẢI (+ task sống cũ chưa có trong tháng nào đã tải) thành ROWS + ANH_KHONG + BINH_LUAN rồi nạp vào state
 function gopChunkVaNap(){
   const H0 = SUMMARY_INDEX.header;
   const rows=[], ak=[], bl={};
   [...CHUNK.keys()].sort().forEach(th=>{ const c=CHUNK.get(th);
     rows.push(...c.rows); ak.push(...c.anhKhong); Object.assign(bl, c.binhLuan); });
+  if(SONG_CU && SONG_CU.rows.length){
+    const iC0 = H0.findIndex(h=>h==="Task Code");
+    const daCo = new Set(rows.map(r=>String(r[iC0]||'')));           // chunk tháng đã nạp thắng — không nhân đôi dòng
+    SONG_CU.rows.forEach(r=>{ if(!daCo.has(String(r[iC0]||''))) rows.push(r); });
+    SONG_CU.anhKhong.forEach(x=>{ if(!daCo.has(String(x.code))) ak.push(x); });
+    Object.keys(SONG_CU.binhLuan).forEach(c=>{ if(!(c in bl)) bl[c]=SONG_CU.binhLuan[c]; });
+  }
   ANH_KHONG = ak; BINH_LUAN = bl;
   napDuLieu(H0, rows);
 }
@@ -2009,6 +2063,8 @@ async function taiTuTinh(){
     $('kpiThang').value = thangHienTai; csDongBo('kpiThang');
     gopChunkVaNap();
     if(j.apiAt) hienGioDuLieu(Number(j.apiAt), true);
+    // Task sống cũ: tải SAU lần vẽ đầu (không chen vào đường tới màn đầu), có dòng mới thì gộp + vẽ lại 1 lần
+    taiSongCu().then(ok=>{ if(ok && SONG_CU && SONG_CU.rows.length) gopChunkVaNap(); }).catch(()=>{});
     return true;
   }catch(e){ return false; }
 }
@@ -2037,6 +2093,7 @@ async function lamMoiNen(){
     const canTai=loaded.length?loaded:[j.thang[0]];
     for(const th of canTai){ const rr=await fetch(thuMucSummary()+'/'+th+'.json?v='+(j.apiAt||Date.now()));
       if(rr.ok){ const c=await rr.json(); CHUNK.set(th,{rows:c.rows||[],anhKhong:c.anhKhong||[],binhLuan:c.binhLuan||{}}); } }
+    await taiSongCu();                                       // task sống cũ cũng làm mới theo (lỗi thì giữ bản đã có)
     if(!$('kpiThang').value && j.thang[0]) $('kpiThang').value=j.thang[0];
     gopChunkVaNap();
     if(j.apiAt) hienGioDuLieu(Number(j.apiAt), true);
@@ -2406,7 +2463,12 @@ function renderTk7(rows){
   const kpDatL=rows.filter(r=>kpVP(r)==='Đạt'), kpChuaL=rows.filter(r=>kpVP(r)==='Không đạt');
   const pctHuy=rows.length?Math.round(huyL.length/rows.length*1000)/10:0;
   const f1=n=>String(Math.round(n*10)/10).replace('.',',');
-  TKQ={quaHanL,huyL,hoanThanhL,chuaXML,ngam7L,loiCNL,koCNL,kpDatL,kpChuaL,ngamMap,nghen};
+  // Xác nhận lỗi còn treo: B1.1 đã giao cho NV quá 48h chưa xong — xếp treo lâu nhất trước
+  const treoL=[], treoInfo=new Map();
+  rows.forEach(r=>{ const x=treoB11(r,now); if(x){ treoL.push(r); treoInfo.set(r,x); } });
+  treoL.sort((a,b)=>treoInfo.get(b).ms-treoInfo.get(a).ms);
+  const treoNV=new Set(treoL.map(r=>String(r[iB11ND]||'').trim())), treoMax=treoL.length?treoInfo.get(treoL[0]):null;
+  TKQ={quaHanL,huyL,hoanThanhL,chuaXML,ngam7L,loiCNL,koCNL,kpDatL,kpChuaL,ngamMap,nghen,treoL,treoInfo};
   const the2=(key,num,cap,sub,mau)=>`<button type="button" class="tkq-card" data-tkq="${key}" title="Bấm xem danh sách task chi tiết">
     <span class="tkq-num" style="color:${mau||'var(--text)'}">${num}</span>
     <span class="tkq-cap">${cap}</span>${sub?`<span class="tkq-sub">${sub}</span>`:''}</button>`;
@@ -2418,6 +2480,9 @@ function renderTk7(rows){
     the2('kq', hoanThanhL.length, 'Kết quả Workflow — hoàn thành', 'Huỷ '+huyL.length+' task')+
     // Hàng 2
     the2('chuaxm', chuaXML.length, 'Chưa xác minh NV (B1)', ngam7L.length+' task ngâm quá 7 ngày', ngam7L.length?'var(--warn)':'var(--good)')+
+    the2('treo', treoL.length, 'Xác nhận lỗi còn treo (B1.1 quá 48h)',
+         treoL.length?(treoNV.size+' nhân viên · lâu nhất '+f1(treoMax.ms/NGAY)+' ngày'+(treoMax.uocLuong?' (ước lượng)':'')):'Không có task giao quá 48h chưa xác nhận',
+         treoL.length?'var(--bad)':'var(--good)')+
     the2('phanloai', loiCNL.length+' / '+koCNL.length, 'Phân loại lỗi (cá nhân / không)', (loiCNL.length+koCNL.length)+' task QLTT đã giải trình')+
     the2('kp', kpDatL.length+' / '+kpChuaL.length, 'Kiểm tra khắc phục (Đạt / chưa)', '')+
     // Hàng 3
@@ -2437,6 +2502,19 @@ function moTKQ(key){
   else if(key==='huy'){ tit='Danh sách task bị huỷ'; body=nhom([{ten:'Đã huỷ',rows:TKQ.huyL}]); }
   else if(key==='kq'){ tit='Kết quả Workflow'; body=nhom([{ten:'Hoàn thành',rows:TKQ.hoanThanhL},{ten:'Đã huỷ',rows:TKQ.huyL}]); }
   else if(key==='chuaxm'){ tit='Chưa xác minh NV vi phạm'; body=nhom([{ten:'Ngâm quá 7 ngày',rows:TKQ.ngam7L},{ten:'Trong hạn (dưới 7 ngày)',rows:TKQ.chuaXML.filter(r=>TKQ.ngam7L.indexOf(r)<0)}]); }
+  else if(key==='treo'){ tit='Xác nhận lỗi còn treo — NV được giao B1.1 quá 48h chưa xác nhận';
+    if(!TKQ.treoL.length) body='<div class="stat-empty">Không có task nào giao quá 48h mà chưa xác nhận.</div>';
+    else {
+      // Gộp theo NGƯỜI ĐƯỢC GIAO ở B1.1 (người phải xác nhận); nhóm treo lâu nhất xếp trước; cột cuối = số ngày treo + mốc giao
+      const NGAY=86400000, f1=n=>String(Math.round(n*10)/10).replace('.',','), p2=n=>String(n).padStart(2,'0');
+      const fmtMs=ms=>{ const d=new Date(ms); return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes()); };
+      const map=new Map();
+      TKQ.treoL.forEach(r=>{ const k=String(r[iB11ND]||'').trim()||'Chưa rõ người nhận'; if(!map.has(k)) map.set(k,[]); map.get(k).push(r); });
+      const gs=[...map.entries()].sort((a,b)=>TKQ.treoInfo.get(b[1][0]).ms-TKQ.treoInfo.get(a[1][0]).ms);
+      const giaoOf=r=>{ const x=TKQ.treoInfo.get(r); if(!x) return '';
+        return '<span class="kpi-neg">'+(x.uocLuong?'~':'')+f1(x.ms/NGAY)+' ngày</span> <span class="muted" style="font-size:11.5px"'+(x.uocLuong?' title="Ước lượng = hạn chót − 48h (dòng chưa có mốc giao, chờ đồng bộ kế tiếp)"':'')+'>giao '+fmtMs(x.t)+'</span>'; };
+      body='<div class="stat-table-wrap">'+gs.map(([ten2,rs])=>'<div class="stat-group-h">'+esc(ten2)+'<span class="cnt">· '+rs.length+' task</span></div>'+rowsTableHTML(rs,giaoOf,'Treo · giao lúc')).join('')+'</div>';
+      tit+='<span class="stat-sub">'+TKQ.treoL.length+' task · '+gs.length+' nhân viên</span>'; } }
   else if(key==='phanloai'){ tit='Phân loại lỗi — QLTT giải trình'; body=nhom([{ten:'Lỗi cá nhân',rows:TKQ.loiCNL},{ten:'Không phải lỗi cá nhân',rows:TKQ.koCNL}]); }
   else if(key==='kp'){ tit='Kiểm tra khắc phục'; body=nhom([{ten:'Đạt',rows:TKQ.kpDatL},{ten:'Không đạt',rows:TKQ.kpChuaL}]); }
   else if(key==='nghen'){ tit='Điểm nghẽn — task đang chờ theo từng bước';
@@ -2447,7 +2525,7 @@ function moTKQ(key){
     else { const rows2=ANH_KHONG.map(x=>ROWS.find(r=>String(r[iCode])===String(x.code))).filter(Boolean);
       body=rows2.length?nhom([{ten:'Nghi báo cáo khống',rows:rows2}]):'<div class="stat-empty">Không phát hiện task nào.</div>'; } }
   else return;
-  $('stTitle').innerHTML=esc(tit);
+  $('stTitle').innerHTML=key==='treo'?tit:esc(tit);   // nhánh treo tự dựng tiêu đề (đã esc từng phần) kèm stat-sub
   $('stBody').innerHTML=body;
   hienModal('statModal');
 }
@@ -2499,20 +2577,30 @@ function _render(){
 
 /* ===== POP-UP CHI TIẾT THỐNG KÊ ===== */
 // kpiOf (tuỳ chọn): hàm r -> HTML ô "KPI trừ" — có truyền thì thêm cột KPI trừ cạnh Trạng thái.
-function rowsTableHTML(rows, kpiOf){
+/* Bảng pop-up thống kê = khuôn thẻ dùng chung `table.mbcard` (07/09/2026, 6 bước ở memory qc-bo-cuc-dien-thoai):
+   máy tính vẫn là bảng; điện thoại mỗi dòng thành THẺ — tiêu đề = mã vị trí (mb-hd), nhãn trạng thái ghim phải
+   (mb-tag), câu lỗi vi phạm trọn hàng (mb-full, kẹp 3 dòng — bấm thẻ mở chi tiết đọc đủ), ô rỗng/"—" ẩn (mb-0).
+   Trước đây 6 cột `min-width:max-content` trú trong khung cuộn ngang của #stBody — đúng lỗ hổng luật ⑧.
+   nhanCot: tên cột phụ khi truyền kpiOf (mặc định "KPI trừ" cho pop-up luỹ kế). */
+function rowsTableHTML(rows, kpiOf, nhanCot){
+  const rong=v=>{ const t=String(v==null?'':v).replace(/<[^>]*>/g,'').trim(); return t===''||t==='—'; };
+  const cls=v=>rong(v)?' class="mb-0"':'';
+  const nhan=esc(nhanCot||'KPI trừ');
   const tr = rows.map(r=>{
     const gi=ROWS.indexOf(r);
+    const nv=nameVP(r), ql=iQLTT>=0?String(r[iQLTT]||''):'', extra=kpiOf?kpiOf(r):'';
+    const coTao=iCreatedAt>=0&&r[iCreatedAt]!=null&&r[iCreatedAt]!=='';   // thiếu ngày tạo -> ô chỉ còn 1 ngày trần, gắn nhãn kẻo số mồ côi
     return `<tr data-i="${gi}">
-      <td class="c-ngay">${thoiGianCell(r)}</td>
-      <td>${esc(r[iViTri]||'—')}</td>
-      <td class="c-loi" title="${esc(r[iLoi])}">${esc(r[iLoi]||'—')}</td>
-      <td>${lines(nameVP(r))}</td>
-      <td>${iQLTT>=0?lines(r[iQLTT]):'—'}</td>
-      <td>${statusCell(r)}</td>${kpiOf?`<td>${kpiOf(r)}</td>`:''}</tr>`;
+      <td class="c-ngay"${coTao?'':' data-lb="Ghi nhận"'}>${thoiGianCell(r)}</td>
+      <td class="mb-hd">${esc(r[iViTri]||'—')}</td>
+      <td class="c-loi mb-full" title="${esc(r[iLoi])}">${esc(r[iLoi]||'—')}</td>
+      <td data-lb="NV vi phạm"${cls(nv)}>${lines(nv)}</td>
+      <td data-lb="QL trực tiếp"${cls(ql)}>${lines(ql)}</td>
+      <td class="mb-tag">${statusCell(r)}</td>${kpiOf?`<td data-lb="${nhan}"${cls(extra)}>${extra}</td>`:''}</tr>`;
   }).join('');
-  return `<table><thead><tr>
+  return `<table class="mbcard"><thead><tr>
     <th>Thời gian</th><th>Vị trí</th><th>Lỗi vi phạm</th><th>NV vi phạm</th>
-    <th>QL trực tiếp</th><th>Trạng thái</th>${kpiOf?'<th>KPI trừ</th>':''}</tr></thead><tbody>${tr}</tbody></table>`;
+    <th>QL trực tiếp</th><th>Trạng thái</th>${kpiOf?'<th>'+nhan+'</th>':''}</tr></thead><tbody>${tr}</tbody></table>`;
 }
 /* Bảng DỌC cho pop-up luỹ kế: cột 1 = TÊN TRƯỜNG (đóng băng khi cuộn ngang), mỗi cột sau = 1 LẦN vi phạm.
    Số "Lần n" đánh theo thời gian (Lần 1 sớm nhất) nhưng HIỂN THỊ lần MỚI NHẤT sát cột thông tin.

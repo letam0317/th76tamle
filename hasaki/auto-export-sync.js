@@ -584,11 +584,31 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
       fs.writeFileSync(fLocal, noiDung);
       if (boApiAt(cu) !== boApiAt(noiDung)) { await dayLenPages(SUMMARY_DIR + "/" + th + ".json", noiDung); dayLen++; }
     }
+    // ==== TASK SỐNG CŨ (07/09/2026) -> summary/song-cu.json ====
+    //      Dashboard lúc mở chỉ nạp 2 tháng mới nhất (thang[0], thang[1]) nên thẻ "Xác nhận lỗi còn treo" / "Điểm nghẽn"
+    //      mù với task treo lâu (vd HSK-77U9R144 tạo 21/07, giao B1.1 17/08 mà tới 09 vẫn None). File này gom các task
+    //      CHƯA ĐÓNG (không terminal) nằm NGOÀI 2 tháng đó — vài dòng, dashboard gộp theo Task Code (chunk tháng nạp
+    //      sau vẫn thắng). Cùng khuôn chunk: {apiAt, header, rows, anhKhong, binhLuan}. Chỉ đẩy khi đổi.
+    const iStC = outHeader.findIndex(h => h === "Status");
+    const thangMacDinh = new Set(thangSap.slice(-2));       // đúng 2 tháng dashboard tự nạp
+    const songCu = sRows.filter(r => !laTerminal(r[iStC]) && !thangMacDinh.has(thangCua(r)));
+    const codeSC = new Set(songCu.map(r => String(r[iCodeC] || "")));
+    const scNoiDung = JSON.stringify({ apiAt: apiAtMs, header: outHeader, rows: songCu,
+      anhKhong: anhKhong.filter(x => codeSC.has(String(x.code))),
+      binhLuan: Object.fromEntries(Object.entries(binhLuan).filter(([c]) => codeSC.has(String(c)))) });
+    const fSC = path.join(LOCAL_DIR, "song-cu.json");
+    let scCu = ""; try { scCu = fs.readFileSync(fSC, "utf8"); } catch {}
+    fs.writeFileSync(fSC, scNoiDung);
+    const boApiAtSC = (s) => s.replace(/"apiAt":\d+,/, "");
+    if (boApiAtSC(scCu) !== boApiAtSC(scNoiDung)) { await dayLenPages(SUMMARY_DIR + "/song-cu.json", scNoiDung); dayLen++; }
+    log("  · Task sống cũ (ngoài " + [...thangMacDinh].join(", ") + "): " + songCu.length + " task -> song-cu.json");
+
     // index.json: danh sách tháng + tổng số + apiAt (luôn đẩy, rất nhẹ)
     const index = JSON.stringify({
       apiAt: apiAtMs, taiLuc: new Date().toISOString(), header: outHeader,
       thang: thangSap.slice().reverse(),                    // mới nhất trước
       soTask: Object.fromEntries(thangSap.map(t => [t, nhomThang[t].length])),
+      songCu: songCu.length,                                // 0 -> dashboard khỏi tải song-cu.json
     });
     fs.writeFileSync(path.join(LOCAL_DIR, "index.json"), index);
     await dayLenPages(SUMMARY_DIR + "/index.json", index);

@@ -10,6 +10,10 @@
  *
  *  Module này DỰNG LẠI đúng bố cục bảng export cũ (87 cột "Bước ▸ Trường", 2 dòng tiêu đề) để phần
  *  còn lại của auto-export-sync.js (kho đóng băng, convMedia, tên NV, chunk tháng, dashboard) giữ nguyên.
+ *  07/09/2026: nối thêm 11 cột "<Bước> ▸ Ngày giao" (= created_at của task con) ở CUỐI — export xlsx cũ
+ *  không có mốc giao việc từng bước, mà dashboard cần nó cho thẻ "Xác nhận lỗi còn treo" (B1.1 quá 48h
+ *  kể từ lúc giao). Deadline không thay được: SLA B1.1 lúc 48h lúc 60h, có khi bị sửa tay tới 500h.
+ *  Nối CUỐI để kho đóng băng (header 87 cột) chỉ dài thêm, không đổi vị trí cột cũ.
  *  Ánh xạ khoá → nhãn cột được đối chứng bằng qc-board-json.mjs trên các task chung với file export 31/08.
  *
  *  Tải upstream: 1 GET/cửa sổ (đường cũ: POST export + ~5–100 GET poll + 1 GET tải file).
@@ -103,7 +107,19 @@ export const HEADER_CHUAN = [
   "Điều hướng ▸ Deadline",
   "Điều hướng ▸ Status",
   "Điều hướng ▸ Kết quả công việc",
-  "Điều hướng ▸ Người thực hiện"
+  "Điều hướng ▸ Người thực hiện",
+  // 07/09/2026 — mốc GIAO VIỆC từng bước (created_at task con), export cũ không có; luôn ở cuối
+  "B1. Xác minh lỗi vi phạm ▸ Ngày giao",
+  "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Ngày giao",
+  "B2. QLTT xác nhận và giải trình ▸ Ngày giao",
+  "B2.1 Hình ảnh khắc phục vi phạm ▸ Ngày giao",
+  "B3.1 Ghi nhận vi phạm vệ sinh kho tổng ▸ Ngày giao",
+  "B3.2 Ghi nhận vi phạm quy định kho tổng ▸ Ngày giao",
+  "B3.3 Ghi nhận vi phạm lỗi đóng gói ▸ Ngày giao",
+  "B4. Audit kiểm tra và xác nhận ▸ Ngày giao",
+  "B4.1 Audit kiểm tra khắc phục ▸ Ngày giao",
+  "B5.Vận hành xem xét và xác nhận ▸ Ngày giao",
+  "Điều hướng ▸ Ngày giao"
 ];
 
 /* Mã trạng thái của task/bước trong JSON → chữ như export cũ (đối chứng 132 task: 0→None, 2→Finished,
@@ -166,6 +182,7 @@ export function aoaTuRows(rows, headerHienCo, nv = {}) {
     for (const s of subs) {
       const buoc = String(s.name || (s.workflow_step && s.workflow_step.name) || "").trim(); if (!buoc) continue;
       set(buoc + " ▸ Deadline", s.date_end); set(buoc + " ▸ Status", nhanTrangThai(s.status)); set(buoc + " ▸ Kết quả công việc", LINK(s.id));
+      set(buoc + " ▸ Ngày giao", s.created_at);   // lúc task con được tạo = lúc giao việc cho người của bước
       set(buoc + " ▸ Người thực hiện", (s.staff || []).map((x) => (x.info && x.info.staff_name) || dir[String(x.staff_id)] || "").filter(Boolean).join(", "));
       const map = KEY_BUOC[buoc] || {}; const sc = (s.data && s.data.configs) || {};
       for (const nhan in map) {

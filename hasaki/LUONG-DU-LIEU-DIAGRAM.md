@@ -5,6 +5,12 @@
 > **1 GET** `/api/hr/workflows/detail-workflow-task/591?from_date&to_date&search_type=board` (JSON board) →
 > `board-json.mjs` dựng lại đúng 87 cột của bảng export cũ; các bước sau (kho đóng băng, 5S-TASKS, chunk Pages) giữ nguyên.
 > Đối chứng: `qc-board-json.mjs`. Quay về đường xlsx: `CACH_LAY_5S=xlsx`. Chi tiết: đầu file `board-json.mjs`.
+>
+> **07/09/2026 — thêm mốc giao việc + task sống cũ.** `board-json.mjs` nối CUỐI 11 cột `<Bước> ▸ Ngày giao`
+> (= `created_at` của task con — export xlsx cũ không có; 87 → 98 cột, kho đóng băng chỉ dài thêm). `auto-export-sync.js`
+> ghi thêm `summary/song-cu.json` = task CHƯA ĐÓNG nằm ngoài 2 tháng dashboard tự nạp (+ `index.json.songCu`).
+> Dùng cho thẻ **"Xác nhận lỗi còn treo"** (B1.1 giao quá 48h chưa xong) ở Tổng kết nhanh — dashboard gộp song-cu theo
+> Task Code sau lần vẽ đầu. Không thêm lượt gọi upstream nào (cùng 1 GET board; song-cu là file tĩnh trên Pages).
 
 
 ---
