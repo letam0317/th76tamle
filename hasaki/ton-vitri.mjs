@@ -59,9 +59,11 @@ export const SIZE = 1000;                          // trần server (2000 → 40
 export const MAX_TRANG = 60;                       // chốt chặn: 60 × 1000 = 60k dòng/kho là quá thừa
 export const MAX_HOI_VT = 40;                      // trần số vị trí đem đi đối chiếu mỗi vòng vá (chặn kho có hàng trăm vị trí lẻ)
 
-/* Danh mục "nguyên liệu vải" — category_id 463 = "Thời Trang (NVL)" (tra master-data/common/categories).
+/* Danh mục "nguyên liệu vải":
+   - category_id 463 = "Thời Trang (NVL)" (kho Mastige, Company 1002)
+   - category_id 468 = "Nguyên liệu nhận Gia công" (kho Garment, Company 1005)
    Để ở một chỗ, đổi bằng biến môi trường TVT_CATEGORY_IDS nếu WMS thêm danh mục NVL mới. */
-export const CATEGORY_IDS = process.env.TVT_CATEGORY_IDS || "463";
+export const CATEGORY_IDS = process.env.TVT_CATEGORY_IDS || "463,468";
 
 /* PHẠM VI (người dùng chốt 19/08/2026): CHỈ 2 kho nguyên liệu — nơi vải cây nằm chờ khai báo.
  * Các kho khác (bán thành phẩm, sample, NG, office…) không xét: hàng ở đó đã qua cắt/phối nên

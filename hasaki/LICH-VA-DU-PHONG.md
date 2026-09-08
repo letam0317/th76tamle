@@ -165,7 +165,7 @@ Ngoài khung: lượt 8:40 lo buổi sáng, watchdog 18:05 là lượt vét cu�
 | WMS tồn vị trí | `report-management/stock-locations/bins/count/v3` | `sync-stocklocation.js` | `mastige`, `garment` |
 | WMS kiểm kê | `counting-plan/checklists/type-sku\|type-location` + `checklist/tracking` | `push-pc-to-sheet.mjs` | `kiemke-*`, `kiemke-uidgr` |
 | WMS tồn bất thường | `report-management/stock-inventories` | `sync-tonbatthuong.js` | `stock-inventory-beta\|-hasaki` |
-| WMS **tồn tại vị trí** (UID **vải** chưa khai báo UID group mà đã rời bãi chờ `F0-A0-00-00-00-00`; chỉ 2 kho `WH - MATERIAL - MTG` + `WH - MATERIAL - GARMENT`, trừ vị trí tiền tố `F0-KHO-HM`) | `report-management/report-inventories` (mức UID, `category_ids=463`, header `Company-Ids`) | `ton-vitri.mjs` — chạy **ké bước cuối** của `sync-tonbatthuong.js`, không có lịch riêng · ~66 lượt gọi/lần | `ton-vitri` |
+| WMS **tồn tại vị trí** (UID **vải** chưa khai báo UID group mà đã rời bãi chờ `F0-A0-00-00-00-00`; chỉ 2 kho `WH - MATERIAL - MTG` + `WH - MATERIAL - GARMENT`, trừ vị trí tiền tố `F0-KHO-HM`) | `report-management/report-inventories` (mức UID, `category_ids=463,468`, header `Company-Ids`) | `ton-vitri.mjs` — chạy **ké bước cuối** của `sync-tonbatthuong.js`, không có lịch riêng · ~66 lượt gọi/lần | `ton-vitri` |
 | Planogram vệ sinh | `wms-gw-external` request-of-declaration | `sync-vesinh-all.js` | 4 tab `VESINH-*`, `PHU-TRACH-*` |
 | Phân công phụ trách | g-sheet gốc của bộ phận (gid `341809457` + `584257479`) + bù từ `PHU-TRACH-QUAY-KE` | `sync-phancong.mjs` | `VESINH-PHANCONG` |
 | work 5S | `api/hr/excel-io` (queue → poll → tải file) | `auto-export-sync.js` | `5S-TASKS` |
