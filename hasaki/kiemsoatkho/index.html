@@ -530,7 +530,7 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 /* mượt khi mở/chuyển báo cáo */
 .steps-track{animation:fadeUp .28s ease both;}
 
-/* ===== DATE FILTER (gộp 1 ô "Ngày", chọn đơn hoặc khoảng bằng kéo) ===== */
+/* ===== DATE FILTER — KHUÔN DÙNG CHUNG taoBoLocNgay (Task vi phạm "Ngày ghi nhận" + Planogram "Ngày"): 1 ô, chọn đơn hoặc khoảng ===== */
 .date-filter{display:flex; flex-direction:column; gap:4px; min-width:0; position:relative;}
 .date-btn{width:100%; text-align:left; cursor:pointer;}   /* font/viền/focus-ring dùng chuẩn chung ở khối .date-btn,.cs-trigger,.filters input */
 .date-pop{position:absolute; top:calc(100% + 6px); left:0; z-index:45; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:12px; width:max-content; max-width:94vw;
@@ -551,8 +551,13 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 .dp-day.in-range{background:color-mix(in srgb, var(--accent) 14%, transparent);}
 .dp-day.edge{background:var(--accent); color:var(--accent-text); font-weight:700;}
 .dp-day.today{box-shadow:inset 0 0 0 1px var(--accent);}
+/* CHẤM "có dữ liệu" dưới số ngày (08/09/2026) — chỉ vẽ khi tab khai o.coDuLieu (Planogram: cửa sổ 7 ngày; không
+   chấm thì người dùng chọn một ngày trắng rồi tưởng mất dữ liệu). Ngày đầu/cuối dải đổi màu chấm cho nổi trên nền accent. */
+.dp-day{position:relative;}
+.dp-day.has::after{content:""; position:absolute; left:50%; bottom:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--accent);}
+.dp-day.edge.has::after{background:var(--accent-text);}
 .dp-foot{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;}
-.dp-foot #dpSel{font-size:12px; color:var(--muted);}
+.dp-foot .dp-sel{font-size:12px; color:var(--muted);}
 .dp-foot button{margin-left:6px;}
 
 /* ===== POP-UP THỐNG KÊ (danh sách task theo loại) ===== */
@@ -1378,22 +1383,14 @@ body.side-anim{overflow-x:clip;}
   <!-- ===== TAB TASK VI PHẠM (bộ lọc + bảng) ===== -->
   <section id="pane-task" class="pane">
     <button class="btn-filter" id="btnFilter">Bộ lọc — chạm để mở</button>
-    <div class="filters collapsed" id="filterGrid">
+    <!-- `data-mb-rangcua`: MIỄN TRỪ TỰ KHAI khỏi luật ⑨ (cụm control răng cưa) của qc-mobile, cùng khuôn `data-mb-cuon`.
+         Trên ≤560px lưới này là 1 CỘT 4 ô (≈270px) — nhưng mặc định GẤP sau nút "Bộ lọc — chạm để mở", chỉ hiện khi
+         người dùng chủ động mở, nên không phải thanh ăn phần đầu màn. Bộ đo mở nó để đo pop-up lịch bên trong (08/09/2026). -->
+    <div class="filters collapsed" id="filterGrid" data-mb-rangcua="luoi-1-cot-gap-mac-dinh">
+      <!-- Nút #btnDate + pop-up lịch #datePop do KHUÔN DÙNG CHUNG taoBoLocNgay dựng (khối DATE PICKER cuối file) —
+           tab Planogram (hasaki-planogram.js) dùng đúng khuôn này cho ô "Ngày" (08/09/2026). -->
       <div class="date-filter" id="dateFilter">
         <span class="lbl">Ngày ghi nhận</span>
-        <button type="button" class="date-btn" id="btnDate">Tất cả</button>
-        <div class="date-pop hidden" id="datePop">
-          <div class="dp-presets">
-            <button type="button" data-preset="today">Hôm nay</button>
-            <button type="button" data-preset="7">7 ngày</button>
-            <button type="button" data-preset="30">30 ngày</button>
-            <button type="button" data-preset="month">Tháng này</button>
-            <button type="button" data-preset="all">Tất cả</button>
-          </div>
-          <div class="dp-nav"><button type="button" id="dpPrev">‹ Trước</button><span></span><button type="button" id="dpNext">Sau ›</button></div>
-          <div class="dp-months" id="dpMonths"></div>
-          <div class="dp-foot"><span id="dpSel">Chưa chọn</span><div><button type="button" id="dpClear">Xoá</button><button type="button" class="primary" id="dpApply">Áp dụng</button></div></div>
-        </div>
       </div>
       <label><span class="lbl">Trạng thái</span><select id="fStatus"><option value="">Tất cả</option></select></label>
       <label><span class="lbl">Lỗi vi phạm</span><select id="fLoi"><option value="">Tất cả</option></select></label>
@@ -1803,8 +1800,7 @@ const NV_MAP = {
 /* Bảng tra Mã NV → Họ tên TỰ SUY RA từ dữ liệu (tên người tự xác nhận ở B1.1),
    dựng lại mỗi lần tải để mọi task cùng 1 mã đều hiện cùng 1 tên. */
 let NAME_BY_CODE = {};
-let gFrom = '', gTo = '';                  // khoảng ngày lọc (ISO yyyy-mm-dd), rỗng = tất cả
-let dpView = {y:0,m:0}, selStart='', selEnd='', dpDragging=false;
+let gFrom = '', gTo = '';                  // khoảng ngày lọc (ISO yyyy-mm-dd), rỗng = tất cả — LOC_NGAY (taoBoLocNgay) chốt
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -2812,58 +2808,116 @@ function renderLB(){
 function lbMove(step){ if(lbList.length<2) return; lbIdx=(lbIdx+step+lbList.length)%lbList.length; renderLB(); }
 function dongLB(){ $('lightbox').classList.remove('show'); $('lbContent').innerHTML=''; }
 
-/* ===== DATE PICKER (gộp 1 ô "Ngày" — chọn đơn hoặc khoảng bằng kéo/click) ===== */
-const isoOf=(y,m,d)=>y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-const parseISO=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
-const fmtVN=iso=>{const[y,m,d]=iso.split('-');return d+'/'+m+'/'+y;};
-const _t=new Date(); const TODAY=isoOf(_t.getFullYear(),_t.getMonth(),_t.getDate());
-function curRange(){ let a=selStart||gFrom, b=selEnd||gTo||a; if(a&&b&&a>b){const t=a;a=b;b=t;} return [a,b]; }
-function monthHTML(y,m){
-  const first=new Date(y,m,1), startDow=(first.getDay()+6)%7, start=new Date(y,m,1-startDow);
-  let g='';
-  for(let i=0;i<42;i++){ const dt=new Date(start); dt.setDate(start.getDate()+i);
-    const iso=isoOf(dt.getFullYear(),dt.getMonth(),dt.getDate());
-    g+=`<div class="dp-day${dt.getMonth()!==m?' out':''}" data-iso="${iso}">${dt.getDate()}</div>`; }
-  const T=['Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12'];
-  const dow=['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="dp-dow">${x}</div>`).join('');
-  return `<div class="dp-month"><div class="dp-mtitle">${T[m]} ${y}</div><div class="dp-grid">${dow}${g}</div></div>`;
-}
-function renderCal(){
-  const y=dpView.y,m=dpView.m, y2=m===11?y+1:y, m2=(m+1)%12;
-  $('dpMonths').innerHTML=monthHTML(y,m)+monthHTML(y2,m2);
-  paintSel();
-}
-function paintSel(){
-  const [a,b]=curRange();
-  $('dpMonths').querySelectorAll('.dp-day').forEach(el=>{
-    const iso=el.dataset.iso; el.classList.remove('in-range','edge');
-    el.classList.toggle('today', iso===TODAY);
-    if(a&&b){ if(iso===a||iso===b) el.classList.add('edge'); else if(iso>a&&iso<b) el.classList.add('in-range'); }
-    else if(a&&iso===a) el.classList.add('edge');
+/* ===== DATE PICKER — KHUÔN DÙNG CHUNG taoBoLocNgay (08/09/2026) =====
+ * MỘT khuôn cho mọi chỗ cần lọc theo ngày: Task vi phạm ("Ngày ghi nhận") và Planogram ("Ngày" — module lazy
+ * hasaki-planogram.js gọi qua window.taoBoLocNgay). Trước đây Planogram tự dựng menu xổ riêng (Hôm nay / Hôm qua /
+ * 3 ngày / 7 ngày lẻ): hai tab cùng một việc mà hai bộ mặt. Người dùng yêu cầu 08/09/2026 đưa về đúng khuôn của Task
+ * vi phạm: nút hiện khoảng đang lọc + pop-up lịch 2 tháng, nút nhanh, chạm 1 = ngày bắt đầu, chạm 2 = ngày kết thúc,
+ * Xoá / Áp dụng. Mọi phần tử bám CLASS (.dp-prev/.dp-months/.dp-sel…) để nhiều bản cùng sống trên một trang.
+ *   o.root        phần tử .date-filter (có thể đã chứa nhãn .lbl) — nút .date-btn + pop-up .date-pop dựng vào đây
+ *   o.onApply     function(tu, den) ISO yyyy-mm-dd — gọi khi Áp dụng / Xoá / nút nhanh "Tất cả" (rỗng = không lọc)
+ *   o.presets     [{k, lb}] nút nhanh — k chuẩn: today · yesterday · 3 · 7 · 30 · month · all (số = N ngày gần nhất)
+ *   o.tinhPreset  function(k) -> [tu, den] | null — tab tự định nghĩa 1 nút nhanh (Planogram: "all" = trọn cửa sổ 7 ngày)
+ *   o.coDuLieu    function(iso) -> bool — vẽ CHẤM dưới ngày có dữ liệu (tab cửa sổ ngắn: nhìn là biết ngày nào trắng)
+ *   o.khongRong   true → không có trạng thái "không lọc": Xoá = về o.macDinh() (Planogram luôn cần 1 khoảng để vẽ sơ đồ)
+ *   o.nhan        function(tu, den) -> chữ trên nút (mặc định dd/mm/yyyy → dd/mm/yyyy · "Tất cả")
+ *   o.idNut/idPop id gán cho nút / pop-up (Task vi phạm giữ #btnDate / #datePop cho bộ đo qc-mobile)
+ * Trả về { el, dat(tu, den), lay(), mo(), dong(), veNhan() } — dat() chỉ đổi nhãn, KHÔNG gọi onApply (dùng khi trạng
+ * thái đổi từ ngoài: Planogram nạp xong tự về ngày mới nhất, script gọi HPLANOGRAM.setNgay). */
+function taoBoLocNgay(o){
+  const isoOf=(y,m,d)=>y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  const parseISO=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+  const fmtVN=iso=>{const[y,m,d]=iso.split('-');return d+'/'+m+'/'+y;};
+  const isoD=d=>isoOf(d.getFullYear(),d.getMonth(),d.getDate());
+  const homNay=()=>isoD(new Date());
+  const PRESETS = o.presets || [{k:'today',lb:'Hôm nay'},{k:'7',lb:'7 ngày'},{k:'30',lb:'30 ngày'},{k:'month',lb:'Tháng này'},{k:'all',lb:'Tất cả'}];
+  let tu='', den='', selA='', selB='', view={y:0,m:0};
+  const root=o.root; root.classList.add('date-filter');
+  const nut=document.createElement('button'); nut.type='button'; nut.className='date-btn'; if(o.idNut) nut.id=o.idNut;
+  const pop=document.createElement('div'); pop.className='date-pop hidden'; if(o.idPop) pop.id=o.idPop;
+  pop.innerHTML =
+    '<div class="dp-presets">'+PRESETS.map(p=>'<button type="button" data-preset="'+esc(p.k)+'">'+esc(p.lb)+'</button>').join('')+'</div>'+
+    '<div class="dp-nav"><button type="button" class="dp-prev">‹ Trước</button><span></span><button type="button" class="dp-next">Sau ›</button></div>'+
+    '<div class="dp-months"></div>'+
+    '<div class="dp-foot"><span class="dp-sel">Chưa chọn</span><div><button type="button" class="dp-clear">Xoá</button><button type="button" class="primary dp-apply">Áp dụng</button></div></div>';
+  root.appendChild(nut); root.appendChild(pop);
+  const q=s=>pop.querySelector(s);
+  const khoang=()=>{ let a=selA||tu, b=selB||den||a; if(a&&b&&a>b){const t=a;a=b;b=t;} return [a,b]; };
+  const nhan=(a,b)=> o.nhan ? o.nhan(a,b) : (a ? (b&&b!==a ? fmtVN(a)+' → '+fmtVN(b) : fmtVN(a)) : 'Tất cả');
+  function monthHTML(y,m){
+    const first=new Date(y,m,1), startDow=(first.getDay()+6)%7, start=new Date(y,m,1-startDow);
+    let g='';
+    for(let i=0;i<42;i++){ const dt=new Date(start); dt.setDate(start.getDate()+i);
+      const iso=isoD(dt), has=o.coDuLieu && o.coDuLieu(iso);
+      g+='<div class="dp-day'+(dt.getMonth()!==m?' out':'')+(has?' has':'')+'" data-iso="'+iso+'"'+(has?' title="Có dữ liệu"':'')+'>'+dt.getDate()+'</div>'; }
+    const T=['Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12'];
+    const dow=['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<div class="dp-dow">'+x+'</div>').join('');
+    return '<div class="dp-month"><div class="dp-mtitle">'+T[m]+' '+y+'</div><div class="dp-grid">'+dow+g+'</div></div>';
+  }
+  function veLich(){ const y=view.y,m=view.m, y2=m===11?y+1:y, m2=(m+1)%12; q('.dp-months').innerHTML=monthHTML(y,m)+monthHTML(y2,m2); toSel(); }
+  function toSel(){
+    const [a,b]=khoang(), T=homNay();
+    q('.dp-months').querySelectorAll('.dp-day').forEach(el=>{
+      const iso=el.dataset.iso; el.classList.remove('in-range','edge');
+      el.classList.toggle('today', iso===T);
+      if(a&&b){ if(iso===a||iso===b) el.classList.add('edge'); else if(iso>a&&iso<b) el.classList.add('in-range'); }
+      else if(a&&iso===a) el.classList.add('edge');
+    });
+    q('.dp-sel').textContent = a ? (b&&b!==a ? fmtVN(a)+' → '+fmtVN(b) : fmtVN(a)) : 'Chưa chọn';
+  }
+  function veNhan(){ nut.textContent = nhan(tu,den); }
+  /* GHIM POP-UP TRONG MÀN: pop neo left:0 theo ô lọc, mà ô lọc nằm sâu trong lề (wrap 12 + filters 12) nên trên 375px
+     lịch rộng 94vw vẫn lòi 2-3px mép phải → trang kéo ngang (bộ đo bắt 08/09/2026). Đo thật rồi dịch trái vừa đủ.
+     Dùng offsetWidth + left của root (không dùng rect của pop: popIn đang scale(.98) lúc này, đo sẽ hụt ~7px). */
+  function canhPop(){
+    pop.style.left='0px';
+    const W=document.documentElement.clientWidth, le=8, l0=root.getBoundingClientRect().left, r0=l0+pop.offsetWidth;
+    let dx=0; if(r0>W-le) dx=W-le-r0; if(l0+dx<le) dx=le-l0;
+    if(dx) pop.style.left=dx+'px';
+  }
+  function mo(){ const base=tu?parseISO(tu):new Date(); view={y:base.getFullYear(), m:base.getMonth()}; selA=tu; selB=den; veLich(); pop.classList.remove('hidden'); canhPop(); }
+  function dong(){ pop.classList.add('hidden'); pop.style.left=''; }
+  function chot(a,b){ tu=a||''; den=b||''; veNhan(); dong(); o.onApply(tu,den); }
+  function xoa(){ selA=selB=''; if(o.khongRong){ const d=(o.macDinh&&o.macDinh())||[homNay(),homNay()]; chot(d[0],d[1]); } else chot('',''); }
+  function tinhPreset(k){
+    const r = o.tinhPreset && o.tinhPreset(k); if(r) return r;
+    const t=new Date(), lui=n=>{const s=new Date(t); s.setDate(t.getDate()-n); return isoD(s);};
+    if(k==='today') return [isoD(t), isoD(t)];
+    if(k==='yesterday') return [lui(1), lui(1)];
+    if(k==='month') return [isoOf(t.getFullYear(),t.getMonth(),1), isoD(t)];
+    if(/^\d+$/.test(k)) return [lui(Number(k)-1), isoD(t)];
+    return null;   // 'all' không tự định nghĩa = bỏ lọc
+  }
+  function nutNhanh(k){
+    const r=tinhPreset(k);
+    if(!r){ xoa(); return; }
+    // Nút nhanh: tự tính [bắt đầu, kết thúc] -> NHẢY lịch tới tháng bắt đầu + TÔ dải; KHÔNG đóng để người dùng thấy trước khi Áp dụng
+    selA=r[0]; selB=r[1];
+    const base=parseISO(selA); view={y:base.getFullYear(), m:base.getMonth()}; veLich();
+  }
+  function shift(n){ let m=view.m+n, y=view.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} view={y,m}; veLich(); }
+  nut.addEventListener('click', e=>{ e.stopPropagation(); pop.classList.contains('hidden')?mo():dong(); });
+  pop.addEventListener('click', e=>e.stopPropagation());
+  q('.dp-prev').addEventListener('click', ()=>shift(-1));
+  q('.dp-next').addEventListener('click', ()=>shift(1));
+  q('.dp-apply').addEventListener('click', ()=>{ const[a,b]=khoang(); if(o.khongRong && !a){ dong(); return; } chot(a,b); });
+  q('.dp-clear').addEventListener('click', xoa);
+  q('.dp-presets').addEventListener('click', e=>{ const b=e.target.closest('button[data-preset]'); if(b) nutNhanh(b.dataset.preset); });
+  // CHỌN KHOẢNG bằng CHẠM/CLICK (chạy đều Web + Mobile): chạm 1 = ngày bắt đầu, chạm 2 = ngày kết thúc.
+  q('.dp-months').addEventListener('click', e=>{
+    const c=e.target.closest('.dp-day'); if(!c) return;
+    const iso=c.dataset.iso;
+    if(!selA || (selA && selB)){ selA=iso; selB=''; }        // chưa có / đã đủ cặp -> bắt đầu dải MỚI
+    else if(iso < selA){ selB=selA; selA=iso; }              // chốt 2 trước ngày 1 -> hoán đổi
+    else { selB=iso; }                                       // chốt ngày kết thúc
+    toSel();
   });
-  $('dpSel').textContent = a ? (b&&b!==a ? fmtVN(a)+' → '+fmtVN(b) : fmtVN(a)) : 'Chưa chọn';
+  // đóng pop-up khi bấm ra ngoài — bám chính root nên nhiều bản trên 1 trang không đóng nhầm nhau
+  document.addEventListener('click', e=>{ if(!pop.classList.contains('hidden') && !root.contains(e.target)) dong(); });
+  veNhan();
+  return { el: root, dat(a,b){ tu=a||''; den=b||''; veNhan(); }, lay:()=>[tu,den], mo, dong, veNhan };
 }
-function updateDateBtn(){ $('btnDate').textContent = gFrom ? (gTo&&gTo!==gFrom ? fmtVN(gFrom)+' → '+fmtVN(gTo) : fmtVN(gFrom)) : 'Tất cả'; }
-function openDatePop(){
-  const base=gFrom?parseISO(gFrom):new Date();
-  dpView={y:base.getFullYear(), m:base.getMonth()};
-  selStart=gFrom; selEnd=gTo; renderCal();
-  $('datePop').classList.remove('hidden');
-}
-function closeDatePop(){ $('datePop').classList.add('hidden'); }
-function commitDate(){ const[a,b]=curRange(); gFrom=a||''; gTo=b||''; updateDateBtn(); render(); closeDatePop(); }
-function clearDate(){ selStart=selEnd=''; gFrom=gTo=''; updateDateBtn(); render(); closeDatePop(); }
-function preset(p){
-  const t=new Date(), iso=d=>isoOf(d.getFullYear(),d.getMonth(),d.getDate());
-  if(p==='all'){ clearDate(); return; }
-  if(p==='today'){ selStart=selEnd=iso(t); }
-  else if(p==='7'){ const s=new Date(t); s.setDate(t.getDate()-6); selStart=iso(s); selEnd=iso(t); }
-  else if(p==='30'){ const s=new Date(t); s.setDate(t.getDate()-29); selStart=iso(s); selEnd=iso(t); }
-  else if(p==='month'){ selStart=isoOf(t.getFullYear(),t.getMonth(),1); selEnd=iso(t); }
-  // Nút nhanh: tự tính [bắt đầu, kết thúc] -> NHẢY lịch tới tháng bắt đầu + TÔ dải; KHÔNG đóng để user thấy trước khi Áp dụng
-  const base=parseISO(selStart||iso(t)); dpView={y:base.getFullYear(), m:base.getMonth()}; renderCal();
-}
-function dpShift(n){ let m=dpView.m+n, y=dpView.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} dpView={y,m}; renderCal(); }
+window.taoBoLocNgay = taoBoLocNgay;   // module lazy (hasaki-planogram.js) dùng chung khuôn
 
 /* ===== THEME ===== */
 function setTheme(t){
@@ -3037,7 +3091,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260818d';
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260908a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -3535,26 +3589,9 @@ $('kpiThang').addEventListener('change',function(){ SUMMARY_INDEX ? chonThang(th
 
 $('bbFile').addEventListener('change',e=>{ taiBienBanLen(e.target.files); });
 
-// ---- Date picker wiring ----
-$('btnDate').addEventListener('click', e=>{ e.stopPropagation(); $('datePop').classList.contains('hidden')?openDatePop():closeDatePop(); });
-$('datePop').addEventListener('click', e=>e.stopPropagation());
-$('dpPrev').addEventListener('click', ()=>dpShift(-1));
-$('dpNext').addEventListener('click', ()=>dpShift(1));
-$('dpApply').addEventListener('click', commitDate);
-$('dpClear').addEventListener('click', clearDate);
-$('datePop').querySelectorAll('.dp-presets button').forEach(b=>b.addEventListener('click',()=>preset(b.dataset.preset)));
-// kéo chọn khoảng ngày (pointer)
-// CHỌN KHOẢNG bằng CHẠM/CLICK (chạy đều Web + Mobile): chạm 1 = ngày bắt đầu, chạm 2 = ngày kết thúc.
-$('dpMonths').addEventListener('click', e=>{
-  const c=e.target.closest('.dp-day'); if(!c) return;
-  const iso=c.dataset.iso;
-  if(!selStart || (selStart && selEnd)){ selStart=iso; selEnd=''; }        // chưa có / đã đủ cặp -> bắt đầu dải MỚI
-  else if(iso < selStart){ selEnd=selStart; selStart=iso; }                // chốt 2 trước ngày 1 -> hoán đổi
-  else { selEnd=iso; }                                                     // chốt ngày kết thúc
-  paintSel();
-});
-// đóng popover khi click ra ngoài
-document.addEventListener('click', e=>{ if(!$('datePop').classList.contains('hidden') && !e.target.closest('#dateFilter')) closeDatePop(); });
+// ---- Bộ lọc "Ngày ghi nhận" = 1 bản của khuôn dùng chung taoBoLocNgay (Planogram dùng cùng khuôn) ----
+const LOC_NGAY = taoBoLocNgay({ root: $('dateFilter'), idNut: 'btnDate', idPop: 'datePop',
+  onApply: (a, b) => { gFrom = a; gTo = b; render(); } });
 $('btnReload').addEventListener('click',()=>{ if(!dangCho) lamMoiNen(); });
 $('ctySwitch').addEventListener('click', e=>{
   const b=e.target.closest('.cty-opt'); if(b && !dangCho) switchCompany(b.dataset.cty);

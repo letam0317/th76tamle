@@ -156,7 +156,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 
 | Bộ đo | Khi nào chạy |
 |---|---|
-| `qc-mobile-toan-du-an.mjs` (12 luật / 34 màn × 4 máy; `--file` `--may` `--trang`) | MỌI lần sửa hiển thị của 2 dashboard — baseline trước, `--file` sau khi sửa, live sau khi kiểm dấu vết deploy |
+| `qc-mobile-toan-du-an.mjs` (12 luật / 34 màn × 4 máy; `--file` `--may` `--trang` `--man=<regex tên màn>`) | MỌI lần sửa hiển thị của 2 dashboard — baseline trước, `--file` sau khi sửa, live sau khi kiểm dấu vết deploy |
 | `qc-chu-thich.mjs` (26 ca, `--live`) | Sửa tooltip/chú thích, và làm ca CHẶN HỒI QUY (đoạn văn đầu màn + nhãn chỉ dẫn trong ngoặc) |
 | `qc-nhan-dien-sku.mjs` | Đụng lõi tab Nhận diện SKU |
 | `qc-moc-lo-trinh.mjs` | So trước/sau lộ trình NDS (KHÔNG dùng `qc-loi-cu-moi` cho việc này) |

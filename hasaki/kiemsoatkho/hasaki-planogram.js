@@ -398,7 +398,10 @@ function bkNgay(r){
   if (dl === false) return "khong";
   return laHomNay() ? r.bk : "chua";       // chưa đủ dữ liệu chấm công của ngày cũ
 }
-function ycDates(){ var s = {}; S.yc.rows.forEach(function(r){ if (r.ngay) s[r.ngay] = 1; }); return Object.keys(s).sort().reverse(); }
+/* Tập NGÀY có yêu cầu (cửa sổ VESINH-YEUCAU 7 ngày). Cache theo mảng rows: lịch của bộ lọc hỏi 84 ô mỗi lần vẽ. */
+var _ycSet = null, _ycSetRows = null;
+function ycSet(){ if (!_ycSet || _ycSetRows !== S.yc.rows){ _ycSet = {}; S.yc.rows.forEach(function(r){ if (r.ngay) _ycSet[r.ngay] = 1; }); _ycSetRows = S.yc.rows; } return _ycSet; }
+function ycDates(){ return Object.keys(ycSet()).sort().reverse(); }
 function nhanKhoang(){
   var k = khoang();
   if (k[0] === k[1]) return (k[0] === isoToday() ? "Hôm nay · " : "") + thuVN(k[0]) + " " + ngayVN(k[0]);
@@ -428,10 +431,27 @@ function chonNgay(v){
   else if (v === "7n") setKhoang(ds[ds.length - 1], ds[0]);
   else setKhoang(v, v);
 }
-function moNgayMenu(){
-  var m = $id("hpNgayMenu"); if (!m) return;
-  m.classList.toggle("show");
+/* BỘ LỌC NGÀY (08/09/2026): dùng KHUÔN CHUNG taoBoLocNgay của index.html — đúng bộ lọc "Ngày ghi nhận" ở tab Task
+ * vi phạm — thay menu xổ riêng Hôm nay/Hôm qua/3 ngày/7 ngày lẻ (hai tab cùng việc lọc ngày phải cùng một mặt).
+ * Dựng MỘT lần, giữ ở S.locNgay; renderWhBar vẽ lại innerHTML thì cắm lại đúng phần tử đó (giữ pop-up đang mở).
+ * Nút nhanh theo LỊCH THẬT (Hôm nay = hôm nay, không phải "ngày mới nhất có dữ liệu" như menu cũ) + CHẤM dưới ngày có
+ * yêu cầu để thấy rõ cửa sổ 7 ngày; "Tất cả" = trọn cửa sổ đó; Xoá = về ngày mới nhất (sơ đồ luôn cần 1 khoảng).
+ * chonNgay(hnay/hqua/3n/7n/iso) GIỮ cho script ngoài (capture-planogram-tab, qc-live-planogram, qc-anh-7ngay). */
+function taoLocNgay(){
+  if (typeof window.taoBoLocNgay !== "function") return null;
+  var root = document.createElement("div"); root.className = "date-filter hp-ngayloc";
+  return window.taoBoLocNgay({
+    root: root,
+    presets: [{ k: "today", lb: "Hôm nay" }, { k: "yesterday", lb: "Hôm qua" }, { k: "3", lb: "3 ngày" }, { k: "7", lb: "7 ngày" }, { k: "all", lb: "Tất cả" }],
+    tinhPreset: function(k){ if (k !== "all") return null; var ds = ycDates(); return ds.length ? [ds[ds.length - 1], ds[0]] : null; },
+    coDuLieu: function(iso){ return !!ycSet()[iso]; },
+    khongRong: true,
+    macDinh: function(){ var d = S.yc.ngay || isoToday(); return [d, d]; },
+    onApply: function(tu, den){ setKhoang(tu, den); }
+  });
 }
+function moLocNgay(){ if (!S.locNgay || !S.locNgay.el.isConnected) return false; S.locNgay.mo(); return true; }
+function dongLocNgay(){ if (S.locNgay) S.locNgay.dong(); }
 /* Badge trạng thái HỆ THỐNG planogram của 1 yêu cầu */
 function stBadge(r){
   var lb = r.st || "—", c = "#6b7280";
@@ -617,7 +637,8 @@ var S = { ok: false, dangPT: false, all: [], area: "", lastAt: 0, tsData: 0,
   anhcu: { ok: false, dang: false, ts: 0 },   // ảnh ngày 4→7 (tab VESINH-ANH-CU) — nạp thêm khi soi ngày cũ, gộp thẳng vào anh.by
   ai: { ok: false, dang: false, by: {}, rows: [], ts: 0 }, aiKl: "", aiQ: "",
   pc: { ok: false, dang: false, by: {}, ts: 0 },   // by[khoá ô] = { em, code, ten, nguon, bc, gc }
-  dTu: "", dDen: "", listMode: "ai", ptHi: "", ptOpen: false };   // dTu→dDen = KHOẢNG NGÀY đang xem; listMode = panel danh sách (ai | nv); ptHi = email NV đang SOI; ptOpen = panel cần-nhắc đang xổ
+  dTu: "", dDen: "", listMode: "ai", ptHi: "", ptOpen: false,   // dTu→dDen = KHOẢNG NGÀY đang xem; listMode = panel danh sách (ai | nv); ptHi = email NV đang SOI; ptOpen = panel cần-nhắc đang xổ
+  locNgay: null };   // bản bộ lọc ngày dùng chung (taoBoLocNgay của index.html) — dựng 1 lần, cắm lại mỗi lần renderWhBar
 var MODAL = { base: [], preset: null, mode: "loc" };
 var NK = { email: "", q: "" };
 var PANE = null, _nmColor = {}, _nmCi = 0, _deb = null, _debT = null, _ccDeb = null, _nkDeb = null, _fitT = null, _animT = null, _fitW = 0, _fitZ = 0;   // _fitW/_fitZ: bề rộng + hệ số zoom lượt fit trước (chống rung)
@@ -990,7 +1011,7 @@ var CSS = [
 "#pane-planogram .hp-ccwrap:has(table.mbcard){overflow:visible;max-height:none !important;border:0;border-radius:0;}",
 /* THANH ĐIỀU KHIỂN ĐẦU TAB (#hpWhBar) — 8 món/5 hàng/144px. Xếp thành 3 hàng ngay ngắn:
    ① chip Khu vực cuộn ngang · ② ô chọn Ngày full · ③ 2 nút hành động chia đôi.
-   KHÔNG cho cả thanh thành khung cuộn ngang: menu ngày (.hp-combo-menu) neo absolute bên trong,
+   KHÔNG cho cả thanh thành khung cuộn ngang: pop-up lịch (.date-pop của bộ lọc ngày) neo absolute bên trong,
    khung cuộn sẽ CẮT MẤT menu — đúng loại lỗi chỉ thấy khi soi ảnh. */
 /* iPhone SE (375×667) là màn NGẮN: 3 hàng × 49px = 171px = 26% màn hình, vượt ngưỡng "thanh điều
    khiển không được ăn quá 1/4 màn trước khi thấy số liệu". Nén bằng cách hạ mỗi hàng về đúng
@@ -1002,8 +1023,8 @@ var CSS = [
 "#pane-planogram #hpWhBar .hp-wb1{display:flex;gap:6px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;}",
 "#pane-planogram #hpWhBar .hp-wb1>*{flex:0 0 auto;}",
 "#pane-planogram #hpWhBar .hp-wb2{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0;}",
-"#pane-planogram #hpWhBar .hp-wb2 .hp-combo{flex:1 1 100%;}",
-"#pane-planogram #hpWhBar .hp-wb2 .hp-combo>.hp-whtab{width:100%;justify-content:center;}",
+"#pane-planogram #hpWhBar .hp-wb2 .hp-ngayloc{flex:1 1 100%;}",
+"#pane-planogram #hpWhBar .hp-ngayloc .date-btn{min-height:40px;}",
 "#pane-planogram #hpWhBar .hp-wb2>.hp-whtab{flex:1 1 calc(50% - 3px);justify-content:center;}",
 "#pane-planogram #hpWhBar .hp-wbsp{display:none;}",
 /* CHIP LỌC trong panel danh sách (Kết luận / Trạng thái): 1 HÀNG CUỘN NGANG — khuôn .toptabs của
@@ -1895,27 +1916,9 @@ function renderWhBar(){
   }
   var dates = ycDates();
   if (dates.length){
-    var k = khoang();
-    var mucNgay = function(v, lb, sub){
-      var on = false;
-      if (v === "hnay") on = k[0] === dates[0] && k[1] === dates[0];
-      else if (v === "hqua") on = dates[1] && k[0] === dates[1] && k[1] === dates[1];
-      else if (v === "3n") on = k[0] === dates[Math.min(2, dates.length - 1)] && k[1] === dates[0];
-      else if (v === "7n") on = k[0] === dates[dates.length - 1] && k[1] === dates[0];
-      else on = k[0] === v && k[1] === v;
-      return '<div class="hp-combo-item' + (on ? " on" : "") + '" data-v="' + v + '" onclick="HPLANOGRAM.chonNgay(this.getAttribute(\'data-v\'))"><span class="nm">' + esc(lb) + '</span>' + (sub ? '<span class="c">' + esc(sub) + '</span>' : "") + '</div>';
-    };
+    /* Ô giữ chỗ — sau innerHTML thay bằng CHÍNH phần tử bộ lọc dùng chung (xem taoLocNgay) */
     h2 += '<span class="hp-wbsp" style="width:8px"></span><span class="hp-hint" style="font-weight:650">Ngày:</span>' +
-      '<div class="hp-combo" style="display:inline-block">' +
-      '<button class="hp-whtab active" onclick="HPLANOGRAM.moNgayMenu();event.stopPropagation();">' + esc(nhanKhoang()) + ' <span style="font-size:9px;opacity:.75">▼</span></button>' +
-      '<div class="hp-combo-menu" id="hpNgayMenu" style="min-width:230px;right:auto;">' +
-        mucNgay("hnay", "Hôm nay", ngayVN(dates[0])) +
-        (dates[1] ? mucNgay("hqua", "Hôm qua", ngayVN(dates[1])) : "") +
-        (dates.length > 2 ? mucNgay("3n", "3 ngày gần nhất", ngayVN(dates[Math.min(2, dates.length - 1)]) + " – " + ngayVN(dates[0])) : "") +
-        (dates.length > 3 ? mucNgay("7n", dates.length + " ngày gần nhất", ngayVN(dates[dates.length - 1]) + " – " + ngayVN(dates[0])) : "") +
-        '<div class="hp-combo-item all" style="pointer-events:none"><span class="nm hp-hint">Hoặc chọn 1 ngày</span></div>' +
-        dates.slice(0, 7).map(function(d){ return mucNgay(d, thuVN(d) + " " + ngayVN(d), d === isoToday() ? "hôm nay" : ""); }).join("") +
-      '</div></div>';
+      '<div class="date-filter hp-ngayloc" id="hpNgayLoc"></div>';
   }
   var nNk = 0; if (S.ls.ok){ var em = {}; nkRows().forEach(function(r){ em[r.email.toLowerCase()] = 1; }); nNk = Object.keys(em).length; }
   /* Nút LUÔN hiện: nguồn nhật ký nạp bậc 3 (nạp trước sau 4s) nên không chờ dữ liệu mới cho bấm */
@@ -1923,6 +1926,11 @@ function renderWhBar(){
     '<button class="hp-whtab" onclick="HPLANOGRAM.openNk()" title="Xem 1 nhân viên làm việc ở đâu theo từng ngày (' + LS_NGAY + ' ngày)">Tra cứu nhân viên' + (nNk ? ' · ' + nf(nNk) : '') + '</button>' +
     (S.all.length ? '<button class="hp-whtab" onclick="HPLANOGRAM.openAll()" title="Danh sách toàn bộ vị trí + người phụ trách gần nhất (45 ngày)">Toàn bộ vị trí · ' + nf(rowsInScope().length) + '</button>' : "");
   el.innerHTML = '<div class="hp-wb1">' + html + '</div><div class="hp-wb2">' + h2 + '</div>';
+  var ph = $id("hpNgayLoc");
+  if (ph){
+    if (!S.locNgay) S.locNgay = taoLocNgay();
+    if (S.locNgay){ ph.replaceWith(S.locNgay.el); var kn = khoang(); S.locNgay.dat(kn[0], kn[1]); }
+  }
 }
 /* --- KHỐI 1: VỆ SINH HÔM NAY (tab VESINH-YEUCAU) — 4 thẻ hành động + thanh tiến độ --- */
 /* Khối "Đủ yêu cầu vệ sinh chưa?" trong panel Vệ sinh: mỗi khu vực 1 thanh độ phủ
@@ -3141,7 +3149,6 @@ function init(pane){
     });
     document.addEventListener("click", function(e){
       if (!e.target.closest("#hpMFilters .hp-combo")) closeCombos();
-      if (!e.target.closest("#hpWhBar .hp-combo")){ var nm = $id("hpNgayMenu"); if (nm) nm.classList.remove("show"); }
     });
     /* sơ đồ phóng theo bề rộng cột trái — tính lại hệ số khi đổi cỡ cửa sổ */
     window.addEventListener("resize", function(){ clearTimeout(_fitT); _fitT = setTimeout(fitMaps, 120); });
@@ -3159,7 +3166,7 @@ function init(pane){
 }
 
 window.HPLANOGRAM = {
-  init: init, reload: loadData, setArea: setArea, setNgay: setNgay, chonNgay: chonNgay, moNgayMenu: moNgayMenu, setListMode: setListMode,
+  init: init, reload: loadData, setArea: setArea, setNgay: setNgay, setKhoang: setKhoang, chonNgay: chonNgay, moLocNgay: moLocNgay, dongLocNgay: dongLocNgay, setListMode: setListMode,
   openAll: openAll, openArea: openArea, openStatus: openStatus, openName: openName, openYc: openYc, openYcAi: openYcAi, closeModal: closeModal,
   comboInput: comboInput, comboMenu: comboMenu, quick: quick, openAnh: openAnh,
   openNk: openNk, closeNk: closeNk, nkPick: nkPick, nkSearch: nkSearch,

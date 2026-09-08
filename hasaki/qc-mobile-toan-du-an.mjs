@@ -28,6 +28,8 @@
  *  node qc-mobile-toan-du-an.mjs --may=ios       (chỉ iOS · hoặc --may=android)
  *  node qc-mobile-toan-du-an.mjs --trang=factory (chỉ 1 dashboard · hoặc --trang=5s)
  *  node qc-mobile-toan-du-an.mjs --file          (đọc file trên đĩa thay vì link live — soi bản chưa đẩy)
+ *  node qc-mobile-toan-du-an.mjs --man=lịch      (chỉ đo màn có tên khớp regex, không phân biệt hoa/thường — đo nhanh
+ *                                                 đúng chỗ vừa sửa; tab động vẫn được lọc theo tên "Tab …")
  */
 import path from "node:path"; import fs from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -41,6 +43,7 @@ const ARG = process.argv.slice(2).join(" ");
 const cd = (k) => (ARG.match(new RegExp("--" + k + "=([\\w-]+)")) || [])[1] || "";
 const DUNG_FILE = /--file/.test(ARG);
 const LOC_MAY = cd("may").toLowerCase(), LOC_TRANG = cd("trang").toLowerCase();
+const LOC_MAN = (ARG.match(/--man=(\S+)/) || [])[1] || "";   // regex tên màn (08/09/2026) — rỗng = đo hết
 
 /* ---------- Máy mô phỏng ------------------------------------------------------------------------
  * UA thật quan trọng, không chỉ bề rộng: trang có nhánh rẽ theo `matchMedia`, và Safari iOS xử lý
@@ -375,6 +378,18 @@ const TRANG = [
       { ten: "Pop-up Chi tiết 1 vị trí (planogram Hasaki)", cho: "#hpVtModal.show",
         mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; const a=document.querySelector('#hpMap .hp-mapcell[data-l],#hpMap [data-l]'); if(!a) return false; HPLANOGRAM.openViTri(a.getAttribute('data-l')); return true; }",
         dong: "() => { try { HPLANOGRAM.closeVt(); } catch(e) {} }" },
+      /* POP-UP LỊCH của bộ lọc ngày DÙNG CHUNG taoBoLocNgay (08/09/2026) — 2 chỗ dùng: Task vi phạm ("Ngày ghi nhận",
+         có từ đầu nhưng CHƯA TỪNG được đo) và Planogram ("Ngày", vừa đổi từ menu xổ riêng sang khuôn này). Đổi khuôn +
+         thêm chỗ dùng ⇒ đo cả hai (phạm vi đo = phạm vi lời hứa). Sẵn sàng bám CON SỐ THẬT: 84 ô ngày của 2 tháng;
+         Planogram thêm điều kiện có ô .has (ngày có yêu cầu) — tức dữ liệu VESINH-YEUCAU đã về, không đo trên lịch trắng. */
+      { ten: "Task vi phạm › pop-up lịch Ngày ghi nhận", cho: "#datePop:not(.hidden)",
+        mo: "() => { setTab('task'); const g=document.getElementById('filterGrid'); if(g) g.classList.remove('collapsed'); const b=document.getElementById('btnDate'); if(!b) return false; b.click(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#datePop:not(.hidden) .dp-day').length >= 84",
+        dong: "() => { const p=document.getElementById('datePop'); if(p) p.classList.add('hidden'); const g=document.getElementById('filterGrid'); if(g) g.classList.add('collapsed'); }" },
+      { ten: "Planogram › pop-up lịch Ngày", cho: "#hpWhBar .date-pop:not(.hidden)",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM || typeof HPLANOGRAM.moLocNgay!=='function') return false; return HPLANOGRAM.moLocNgay(); }",
+        sanSangMan: "() => document.querySelectorAll('#hpWhBar .date-pop:not(.hidden) .dp-day').length >= 84 && document.querySelectorAll('#hpWhBar .date-pop:not(.hidden) .dp-day.has').length > 0",
+        dong: "() => { try { HPLANOGRAM.dongLocNgay(); } catch(e) {} }" },
       /* Pop-up CHI TIẾT TASK (stepper) của tab Task vi phạm — người dùng chỉ thẳng vào khối
          "Thông tin chung" của nó. Chưa từng được đo vì bộ đo chỉ bấm qua các tab. */
       { ten: "Pop-up Chi tiết task 5S (stepper)", cho: "#modal.show",
@@ -563,12 +578,20 @@ function raSoat() {
     const ngang = /flex/.test(cs0.display) && cs0.flexWrap === 'wrap' && !/column/.test(cs0.flexDirection);
     if (ngang) thanhCtl.add(el);
   }
+  /* POP-OVER nổi (lịch .date-pop, menu .combo-menu/.hp-combo-menu/.cs-list) neo absolute BÊN TRONG thanh nhưng không
+     phải hàng của thanh — nó đè lên nội dung bên dưới. Đếm nút trong đó là đếm 15 món / 7 hàng cho #hpWhBar khi lịch
+     đang mở (08/09/2026), trong khi thanh thật chỉ có 3 hàng. Loại ra trước khi đếm. */
+  const trongPop = (x) => !!x.closest('.date-pop,.combo-menu,.hp-combo-menu,.cs-list');
   for (const bar of thanhCtl) {
     if (!thay(bar)) continue;
+    /* MIỄN TRỪ TỰ KHAI `data-mb-rangcua="<lý do>"` (cùng khuôn với `data-mb-cuon`): #filterGrid của Task vi phạm trên
+       ≤560px là LƯỚI 1 CỘT 4 ô, mặc định GẤP sau nút "Bộ lọc — chạm để mở" — chỉ hiện khi người dùng chủ động mở, nên
+       không phải "thanh ăn phần đầu màn". Bộ đo mở nó ra để đo pop-up lịch bên trong, đừng báo oan cái lưới. */
+    if (bar.hasAttribute('data-mb-rangcua')) continue;
     const con = [...bar.querySelectorAll(':scope > *')].filter((x) => thay(x) &&
-      getComputedStyle(x).display !== 'contents');
+      getComputedStyle(x).display !== 'contents' && !trongPop(x));
     /* `display:contents` không có hộp riêng ⇒ phải lấy CHÁU làm món thật, không thì đếm ra 1 con. */
-    const mon = con.length >= 4 ? con : [...bar.querySelectorAll('.kktab,.fld,.mfbtn,button')].filter(thay);
+    const mon = con.length >= 4 ? con : [...bar.querySelectorAll('.kktab,.fld,.mfbtn,button')].filter((x) => thay(x) && !trongPop(x));
     if (mon.length < 4) continue;
     const tops = [...new Set(mon.map((x) => Math.round(x.getBoundingClientRect().top / 6)))];
     const cao = Math.round(bar.getBoundingClientRect().height);
@@ -724,6 +747,8 @@ for (const may of MAY) {
          mới mở pop-up (pop-up nào không mở được thì bước `mo` trả false và bị bỏ qua, không tính lỗi). */
       dsMan = dsMan.concat(trang.man || []);
     }
+    if (LOC_MAN) { const re = new RegExp(LOC_MAN, "i"); dsMan = dsMan.filter((m) => re.test(m.ten));
+      console.log("     · --man=" + LOC_MAN + " → " + dsMan.length + " màn"); }
     /* TRẦN 60s cho mọi bước chờ trang (vá 07/09/2026): page.evaluate KHÔNG có timeout — trang bị chặn (dialog, tab
        treo) là bộ đo đứng im vô hạn mà không in gì. Quá trần thì báo rõ BƯỚC NÀO treo rồi đi tiếp màn sau. */
     const coTran = (pr, buoc) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error("treo >60s ở bước " + buoc)), 60000))]);
