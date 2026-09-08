@@ -337,6 +337,46 @@ console.log("\n── 9. Một nguồn dựng tem · chữ tự phủ đầy · 
     noUg.length === 1 && noUg[0].loai === "ug" && noUg[0].uid === "1028260605000316" && noUg[0].slHang === "16700");
   kiem("moRong không có loai → '' (không phải undefined, để agent so chuỗi)",
     T.moRong([{ sku: "1", pn: "", slHang: "5", sl: 1, mau: "t40x60" }])[0].loai === "");
+  /* ═══ TEM VỊ TRÍ (07/09/2026, user chốt từ ảnh mẫu) ═══
+     Khuôn UIDgr + mã vị trí rút gọn ở dòng SKU ("501-05-02 | 422292826") + số yard làm tròn sau số mm
+     ("54.840 (60yd)"). Không có vitri/dv → tem UIDgr y như 26/08. */
+  kiem("viTriNgan: F0-KHO-501-05-02-01 → 501-05-02 (bỏ tiền tố kho + bin)", T.viTriNgan("F0-KHO-501-05-02-01") === "501-05-02");
+  kiem("viTriNgan: mã 3 nhóm F0-KHO-501-05-02 → giữ 501-05-02", T.viTriNgan("F0-KHO-501-05-02") === "501-05-02");
+  kiem("viTriNgan: mã không theo khuôn (F0-A0) giữ nguyên; rỗng → rỗng", T.viTriNgan("F0-A0") === "F0-A0" && T.viTriNgan("") === "" && T.viTriNgan(null) === "");
+  kiem("soYd: 54840 mm → 60 yd (54840 ÷ 914,4 = 59,97 → làm tròn 60)", T.soYd("54840") === 60 && T.soYd(54840) === 60);
+  kiem("soYd: nhận cả \"54.840\" (chấm hàng nghìn) → 60", T.soYd("54.840") === 60);
+  kiem("soYd: 914 → 1 · 457 → 0 · 1371,6 → 2 (nửa yard làm tròn lên) · rác → 0",
+    T.soYd("914") === 1 && T.soYd("457") === 0 && T.soYd("1371,6") === 2 && T.soYd("abc") === 0 && T.soYd("") === 0);
+  const dVt = { loai: "ug", uid: "1028260824000087", sku: "422292826", pn: "Vải Chính/Sunset/100% Cotton/W115cm/Blue/mm", sl: "54840", ngay: "07-09-26", vitri: "F0-KHO-501-05-02-01", dv: "mm" };
+  const svgVt = T.MAU.t40x60.ve(dVt);
+  const chuVt = chuCuaSvg(svgVt);
+  kiem("Tem vị trí: dòng dưới mã vạch là \"501-05-02 | 422292826\" in đậm (thay cho \"SKU …\")",
+    /font-weight="bold">501-05-02 \| 422292826</.test(svgVt) && !/SKU 422292826/.test(chuVt));
+  kiem("Tem vị trí: mã to + mã vạch vẫn là MÃ GROUP", svgVt.indexOf('text-anchor="middle" letter-spacing="1">1028260824000087<') >= 0 && giaiMa(T.bit("1028260824000087")) === "1028260824000087");
+  kiem("Tem vị trí: dòng chân \"54.840\" + \"(60yd)\" + ngày in", svgVt.indexOf(">54.840<") >= 0 && svgVt.indexOf(">(60yd)<") >= 0 && svgVt.indexOf(">07-09-26<") >= 0);
+  const coSlVt = Number((svgVt.match(/font-size="(\d+)" font-weight="bold">54\.840</) || [])[1]);
+  const coYdVt = Number((svgVt.match(/font-size="(\d+)" font-weight="bold">\(60yd\)</) || [])[1]);
+  kiem("Tem vị trí: số mm là chữ lớn nhất dòng chân, yard nhỏ hơn (≈0,72) và cả hai ≥ 16 dot (đọc được)",
+    coSlVt >= 16 && coYdVt >= 16 && coYdVt < coSlVt && Math.abs(coYdVt - coSlVt * 0.72) <= 1, "mm " + coSlVt + " dot · yd " + coYdVt + " dot");
+  const xYd = Number((svgVt.match(/<text x="(-?[\d.]+)" y="[\d.]+" font-size="\d+" font-weight="bold">\(60yd\)</) || [])[1]);
+  const xNgayVt = Number((svgVt.match(/<text x="(-?[\d.]+)" y="[\d.]+" font-size="\d+" text-anchor="end">07-09-26</) || [])[1]);
+  kiem("Tem vị trí: \"(60yd)\" đứng SAU số mm và KHÔNG đè lên ngày in",
+    xYd > 8 + 6 * coSlVt * 0.5 && xYd + 6 * coYdVt * 0.62 <= xNgayVt - 8 * Math.round(16 * 1.05) * 0.56, "x yd " + xYd + " · mép trái ngày ≈ " + Math.round(xNgayVt - 8 * Math.round(16 * 1.05) * 0.56));
+  kiem("Tem vị trí: mọi chữ nằm trong khổ tem 320×480",
+    (svgVt.match(/<text x="(-?[\d.]+)" y="(-?[\d.]+)"/g) || []).every((m) => { const a = m.match(/x="(-?[\d.]+)" y="(-?[\d.]+)"/); return Number(a[1]) >= 0 && Number(a[2]) <= 480; }));
+  kiem("Đơn vị KHÁC mm (pcs) → KHÔNG in yard", T.MAU.t40x60.ve({ ...dVt, dv: "pcs" }).indexOf("yd)") < 0);
+  kiem("Số quá nhỏ (457 mm → 0 yd) → KHÔNG in \"(0yd)\"", T.MAU.t40x60.ve({ ...dVt, sl: "457" }).indexOf("yd)") < 0);
+  kiem("Không có vitri/dv → tem UIDgr GIỐNG HỆT bản 26/08 (agent cũ, pop-up QR cũ không đổi)",
+    T.MAU.t40x60.ve({ ...dUg, vitri: "", dv: "" }) === svgUg && T.MAU.t40x60.ve(dUg) === svgUg);
+  kiem("Tem SKU thường (không loai) có dv:'mm' → vẫn in yard ở dòng chân, dòng UIDgr không đổi",
+    T.MAU.t40x60.ve({ ...d, sl: "54840", dv: "mm" }).indexOf(">(60yd)<") >= 0);
+  const vtDai = T.MAU.t40x60.ve({ ...dVt, vitri: "KHO-XA-" + "9".repeat(40) });
+  const coDongDai = Number((vtDai.match(/font-size="(\d+)" font-weight="bold">KHO-XA-9/) || [])[1]);
+  kiem("Vị trí lạ, dài → dòng vị trí CO chữ (sàn 14 dot) thay vì tràn khỏi mép", coDongDai >= 14 && coDongDai < 21, "cỡ " + coDongDai + " dot");
+  const noVt = T.moRong([{ sku: "422292826", pn: "x", slHang: "54840", sl: 2, mau: "t40x60", uid: "1028260824000087", loai: "ug", vitri: "F0-KHO-501-05-02-01", dv: "mm" }]);
+  kiem("moRong mang vitri + dv qua từng con tem (2 bản → 2 tem, cả hai đủ trường)",
+    noVt.length === 2 && noVt.every((x) => x.vitri === "F0-KHO-501-05-02-01" && x.dv === "mm" && x.loai === "ug"));
+  kiem("moRong không có vitri/dv → '' (không phải undefined)", T.moRong([{ sku: "1", pn: "", slHang: "5", sl: 1, mau: "t40x60" }])[0].vitri === "" && T.moRong([{ sku: "1", pn: "", slHang: "5", sl: 1, mau: "t40x60" }])[0].dv === "");
   kiem("Mã vạch nằm TRONG svgTem (không nhờ lệnh BARCODE của máy in)",
     (svg.match(/<rect /g) || []).length > 20, (svg.match(/<rect /g) || []).length + " rect");
   /* Cỡ chữ tự co: tên ngắn phải được cỡ LỚN hơn tên dài */

@@ -2505,16 +2505,16 @@ function moTKQ(key){
   else if(key==='treo'){ tit='Xác nhận lỗi còn treo — NV được giao B1.1 quá 48h chưa xác nhận';
     if(!TKQ.treoL.length) body='<div class="stat-empty">Không có task nào giao quá 48h mà chưa xác nhận.</div>';
     else {
-      // Gộp theo NGƯỜI ĐƯỢC GIAO ở B1.1 (người phải xác nhận); nhóm treo lâu nhất xếp trước; cột cuối = số ngày treo + mốc giao
+      // 08/09/2026 (user): KHÔNG gộp theo người nữa — 1 bảng phẳng, treo lâu nhất xếp trước (treoL đã sort);
+      // cột "Vị trí" bỏ hẳn; cột "NV vi phạm" thay bằng "NV được giao" (B1.1 Người thực hiện) — trên điện thoại là tiêu đề thẻ; cột cuối = số ngày treo + mốc giao
       const NGAY=86400000, f1=n=>String(Math.round(n*10)/10).replace('.',','), p2=n=>String(n).padStart(2,'0');
       const fmtMs=ms=>{ const d=new Date(ms); return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes()); };
-      const map=new Map();
-      TKQ.treoL.forEach(r=>{ const k=String(r[iB11ND]||'').trim()||'Chưa rõ người nhận'; if(!map.has(k)) map.set(k,[]); map.get(k).push(r); });
-      const gs=[...map.entries()].sort((a,b)=>TKQ.treoInfo.get(b[1][0]).ms-TKQ.treoInfo.get(a[1][0]).ms);
+      const nvGiao=r=>String(r[iB11ND]||'').trim()||'Chưa rõ người nhận';
+      const soNV=new Set(TKQ.treoL.map(nvGiao)).size;
       const giaoOf=r=>{ const x=TKQ.treoInfo.get(r); if(!x) return '';
         return '<span class="kpi-neg">'+(x.uocLuong?'~':'')+f1(x.ms/NGAY)+' ngày</span> <span class="muted" style="font-size:11.5px"'+(x.uocLuong?' title="Ước lượng = hạn chót − 48h (dòng chưa có mốc giao, chờ đồng bộ kế tiếp)"':'')+'>giao '+fmtMs(x.t)+'</span>'; };
-      body='<div class="stat-table-wrap">'+gs.map(([ten2,rs])=>'<div class="stat-group-h">'+esc(ten2)+'<span class="cnt">· '+rs.length+' task</span></div>'+rowsTableHTML(rs,giaoOf,'Treo · giao lúc')).join('')+'</div>';
-      tit+='<span class="stat-sub">'+TKQ.treoL.length+' task · '+gs.length+' nhân viên</span>'; } }
+      body='<div class="stat-table-wrap">'+rowsTableHTML(TKQ.treoL,giaoOf,'Treo · giao lúc',{boViTri:true,nhanNV:'NV được giao',fnNV:nvGiao})+'</div>';
+      tit=esc(tit)+'<span class="stat-sub">'+TKQ.treoL.length+' task · '+soNV+' nhân viên</span>'; } }
   else if(key==='phanloai'){ tit='Phân loại lỗi — QLTT giải trình'; body=nhom([{ten:'Lỗi cá nhân',rows:TKQ.loiCNL},{ten:'Không phải lỗi cá nhân',rows:TKQ.koCNL}]); }
   else if(key==='kp'){ tit='Kiểm tra khắc phục'; body=nhom([{ten:'Đạt',rows:TKQ.kpDatL},{ten:'Không đạt',rows:TKQ.kpChuaL}]); }
   else if(key==='nghen'){ tit='Điểm nghẽn — task đang chờ theo từng bước';
@@ -2578,29 +2578,50 @@ function _render(){
 /* ===== POP-UP CHI TIẾT THỐNG KÊ ===== */
 // kpiOf (tuỳ chọn): hàm r -> HTML ô "KPI trừ" — có truyền thì thêm cột KPI trừ cạnh Trạng thái.
 /* Bảng pop-up thống kê = khuôn thẻ dùng chung `table.mbcard` (07/09/2026, 6 bước ở memory qc-bo-cuc-dien-thoai):
-   máy tính vẫn là bảng; điện thoại mỗi dòng thành THẺ — tiêu đề = mã vị trí (mb-hd), nhãn trạng thái ghim phải
+   máy tính vẫn là bảng; điện thoại mỗi dòng thành THẺ — tiêu đề = mã vị trí (mb-hd; hoặc tên NV khi boViTri), nhãn trạng thái ghim phải
    (mb-tag), câu lỗi vi phạm trọn hàng (mb-full, kẹp 3 dòng — bấm thẻ mở chi tiết đọc đủ), ô rỗng/"—" ẩn (mb-0).
    Trước đây 6 cột `min-width:max-content` trú trong khung cuộn ngang của #stBody — đúng lỗ hổng luật ⑧.
    nhanCot: tên cột phụ khi truyền kpiOf (mặc định "KPI trừ" cho pop-up luỹ kế). */
-function rowsTableHTML(rows, kpiOf, nhanCot){
+function rowsTableHTML(rows, kpiOf, nhanCot, opt){
   const rong=v=>{ const t=String(v==null?'':v).replace(/<[^>]*>/g,'').trim(); return t===''||t==='—'; };
   const cls=v=>rong(v)?' class="mb-0"':'';
   const nhan=esc(nhanCot||'KPI trừ');
+  const boViTri=!!(opt&&opt.boViTri);
+  const nhanNV=esc((opt&&opt.nhanNV)||'NV vi phạm');
+  const fnNV=(opt&&opt.fnNV)||nameVP;
+
   const tr = rows.map(r=>{
     const gi=ROWS.indexOf(r);
-    const nv=nameVP(r), ql=iQLTT>=0?String(r[iQLTT]||''):'', extra=kpiOf?kpiOf(r):'';
+    const nv=fnNV(r), ql=iQLTT>=0?String(r[iQLTT]||''):'', extra=kpiOf?kpiOf(r):'';
     const coTao=iCreatedAt>=0&&r[iCreatedAt]!=null&&r[iCreatedAt]!=='';   // thiếu ngày tạo -> ô chỉ còn 1 ngày trần, gắn nhãn kẻo số mồ côi
+
+    if(boViTri){
+      return `<tr data-i="${gi}">
+        <td class="c-ngay"${coTao?'':' data-lb="Ghi nhận"'}>${thoiGianCell(r)}</td>
+        <td class="c-loi mb-full" title="${esc(r[iLoi])}">${esc(r[iLoi]||'—')}</td>
+        <td class="c-nv mb-hd"${cls(nv)}>${lines(nv)}</td>
+        <td class="c-ql" data-lb="QL trực tiếp"${cls(ql)}>${lines(ql)}</td>
+        <td class="c-status mb-tag">${statusCell(r)}</td>${kpiOf?`<td class="c-extra" data-lb="${nhan}"${cls(extra)}>${extra}</td>`:''}</tr>`;
+    }
+
     return `<tr data-i="${gi}">
       <td class="c-ngay"${coTao?'':' data-lb="Ghi nhận"'}>${thoiGianCell(r)}</td>
-      <td class="mb-hd">${esc(r[iViTri]||'—')}</td>
+      <td class="c-vitri mb-hd">${esc(r[iViTri]||'—')}</td>
       <td class="c-loi mb-full" title="${esc(r[iLoi])}">${esc(r[iLoi]||'—')}</td>
-      <td data-lb="NV vi phạm"${cls(nv)}>${lines(nv)}</td>
-      <td data-lb="QL trực tiếp"${cls(ql)}>${lines(ql)}</td>
-      <td class="mb-tag">${statusCell(r)}</td>${kpiOf?`<td data-lb="${nhan}"${cls(extra)}>${extra}</td>`:''}</tr>`;
+      <td class="c-nv" data-lb="${nhanNV}"${cls(nv)}>${lines(nv)}</td>
+      <td class="c-ql" data-lb="QL trực tiếp"${cls(ql)}>${lines(ql)}</td>
+      <td class="c-status mb-tag">${statusCell(r)}</td>${kpiOf?`<td class="c-extra" data-lb="${nhan}"${cls(extra)}>${extra}</td>`:''}</tr>`;
   }).join('');
+
+  if(boViTri){
+    return `<table class="mbcard"><thead><tr>
+      <th class="c-ngay">Thời gian</th><th class="c-loi">Lỗi vi phạm</th><th class="c-nv">${nhanNV}</th>
+      <th class="c-ql">QL trực tiếp</th><th class="c-status">Trạng thái</th>${kpiOf?'<th class="c-extra">'+nhan+'</th>':''}</tr></thead><tbody>${tr}</tbody></table>`;
+  }
+
   return `<table class="mbcard"><thead><tr>
-    <th>Thời gian</th><th>Vị trí</th><th>Lỗi vi phạm</th><th>NV vi phạm</th>
-    <th>QL trực tiếp</th><th>Trạng thái</th>${kpiOf?'<th>'+nhan+'</th>':''}</tr></thead><tbody>${tr}</tbody></table>`;
+    <th class="c-ngay">Thời gian</th><th class="c-vitri">Vị trí</th><th class="c-loi">Lỗi vi phạm</th><th class="c-nv">${nhanNV}</th>
+    <th class="c-ql">QL trực tiếp</th><th class="c-status">Trạng thái</th>${kpiOf?'<th class="c-extra">'+nhan+'</th>':''}</tr></thead><tbody>${tr}</tbody></table>`;
 }
 /* Bảng DỌC cho pop-up luỹ kế: cột 1 = TÊN TRƯỜNG (đóng băng khi cuộn ngang), mỗi cột sau = 1 LẦN vi phạm.
    Số "Lần n" đánh theo thời gian (Lần 1 sớm nhất) nhưng HIỂN THỊ lần MỚI NHẤT sát cột thông tin.

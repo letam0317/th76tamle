@@ -229,6 +229,18 @@ const TRANG = [
             "return true; }",
         sanSangMan: "() => !document.getElementById('cdThunF').hidden && [...document.querySelectorAll('#cdTiles .abntile .k')].some(x => /\\d/.test(x.textContent))",
         dong: "() => { try{ cdXoaHet(); localStorage.removeItem('cd-gm-sotay'); }catch(e){} }" },
+      /* TAB "TEM VỊ TRÍ" — BỔ SUNG 07/09/2026 cùng lúc sinh tab (phạm vi đo = phạm vi lời hứa). Nạp KHÔ
+         qua tmvNapThu (không gọi Sheet thật), tick 1 dòng + bấm 1 dòng để cả bảng thẻ, 4 thẻ KPI, ảnh tem
+         xem trước, nút "In 2 tem" cùng vẽ — đo lúc màn đông nhất. Sẵn sàng bám CON SỐ THẬT: SVG tem có
+         dòng "501-05-02 | 422292826" và thẻ "tem sẽ in" = 2. */
+      { ten: "Tem vị trí",
+        mo: "() => { if(typeof tmvNapThu!=='function') return false; showTab('tem'); " +
+            "tmvNapThu([{uid:'1028260824000087',vitri:'F0-KHO-501-05-02-01',sku:'422292826',pn:'Vải Chính/Sunset/100% Cotton/W115cm/Blue/mm',sl:'54840'}," +
+            "{uid:'1028260824000088',vitri:'F0-KHO-501-05-03-01',sku:'422292826',pn:'Vải Chính/Sunset/100% Cotton/W115cm/Blue/mm',sl:'31200'}," +
+            "{uid:'1028260605000316',vitri:'F0-A0',sku:'422423805',pn:'Vải thun cotton 2 chiều khổ 1m8 định lượng 220gsm màu đen/mm',sl:'16700'}]); " +
+            "document.getElementById('tmvBan').value='2'; tmvToggle('1028260824000087',false); tmvToggle('1028260824000087',true); return true; }",
+        sanSangMan: "() => { var s=document.querySelector('#tmvPrev svg'); return !!s && /501-05-02 \\| 422292826/.test(s.textContent) && [...document.querySelectorAll('#tmvTiles .abntile .k')].some(x => x.textContent.trim()==='2') && document.querySelectorAll('#tmvBody tr[data-uid]').length===3; }",
+        dong: "() => { try{ TMV.rows=[]; TMV.sel={}; TMV.xem=null; tmvVe(); }catch(e){} }" },
       /* POP-UP "IN TEM SKU" — BỔ SUNG 21/08/2026. Lỗ hổng gốc y như panel Planogram: pop-up này chưa
          từng nằm trong danh sách màn, nên mọi lời hứa "đã đo điện thoại" đều không phủ nó — user phải
          tự mở máy rồi báo về ("chỗ hiển thị số lượng chưa thân thiện"). BẢN 23/08/2026: chip số lượng
@@ -400,8 +412,8 @@ const TRANG = [
         sanSangMan: "() => document.querySelectorAll('#tkqGrid .tkq-card[data-tkq]').length >= 9",
         dong: "() => { const d=document.getElementById('tk7Panel'); if(d) d.open=false; }" },
       /* Pop-up của thẻ "Xác nhận lỗi còn treo": bảng rowsTableHTML (khuôn mbcard) + cột phụ "Treo · giao lúc".
-         Nhóm theo người được giao B1.1. Dữ liệu thật hiện có 15 task treo — sanSangMan bám dòng có data-i
-         (hoặc ô rỗng .stat-empty nếu ngày nào hết task treo). */
+         08/09/2026: KHÔNG gộp theo người nữa (user bỏ hàng tiêu đề "Tên · n task"); cột Vị trí thay bằng "NV được giao"
+         (= tiêu đề thẻ mb-hd trên điện thoại). sanSangMan bám dòng có data-i (hoặc ô rỗng .stat-empty nếu hết task treo). */
       { ten: "Pop-up Tổng kết nhanh › Xác nhận lỗi còn treo (Tổng quan)", cho: "#statModal.show",
         mo: "() => { setTab('tong'); const d=document.getElementById('tk7Panel'); if(d) d.open=true; const b=document.querySelector('#tkqGrid [data-tkq=treo]'); if(!b) return false; b.click(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#stBody tbody tr[data-i]').length > 0 || !!document.querySelector('#stBody .stat-empty')",
@@ -673,6 +685,7 @@ for (const may of MAY) {
     await p.setViewport({ width: may.w, height: may.h, deviceScaleFactor: may.dsf, isMobile: true, hasTouch: true });
     await p.evaluateOnNewDocument((plat) => {
       try { Object.defineProperty(navigator, "platform", { get: () => plat }); } catch (e) { /* bỏ qua */ }
+      try { localStorage.setItem("pc-key", "qc-test-key"); } catch (e) {}
     }, may.plat);
     const conLoi = [];
     p.on("console", (m) => { if (m.type() === "error") conLoi.push(m.text().slice(0, 120)); });

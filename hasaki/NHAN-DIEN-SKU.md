@@ -3369,3 +3369,36 @@ phí → hết treo → đuôi biến mất, độ chính xác giữ AI 100 % l�
 −0,1 s đẩy −0,3 s model, chỉ bật sau khi đo ≥30 tem THẬT chữ nhỏ (ảnh mẫu là ảnh vẽ nét). Đã bác: gọi Gemini thẳng từ
 trang (lộ khoá), Tesseract (chậm hơn, kém hơn), hạ mốc nhường OCR 11 → 9 s (OCR sai thẻ mẫu).
 
+
+## 5b.37 · Tab "Tem vị trí": tem UIDgr có mã vị trí + số yard, dữ liệu từ Google Sheet của người dùng (07/09/2026)
+
+**Yêu cầu (ảnh mẫu user tự vẽ thêm chữ lên tem UIDgr):** dòng dưới mã vạch là `501-05-02 | 422292826`
+(mã vị trí rút từ `F0-KHO-501-05-02-01`), dòng chân `54.840 (60yd)` với yard = mm ÷ 914,4 làm tròn; danh
+sách cuộn nạp từ **g-sheet của người dùng**, không phải sheet dự án.
+
+**Lõi tem (`PR_TEM`, khối PR-TEM):** hai trường mới trên mỗi con tem — `vitri` (mã đầy đủ) và `dv` (đơn vị).
+- `viTriNgan()`: bỏ tiền tố `F0-KHO-` và nhóm cuối (bin); mã không theo khuôn (F0-A0…) giữ nguyên.
+- `soYd()`: `Math.round(mm / 914.4)`, hiểu cả "54.840" (chấm nghìn) lẫn "54840"; chỉ in khi `dv === 'mm'` và ≥ 1 yd.
+  Yard in cỡ **0,72 số mm** (tem 40×60: mm 28 dot · yd 20 dot) — số mm là con số chính khớp WMS, yard là số suy ra.
+- Dòng SKU của tem UIDgr thành `vị trí | SKU` khi có `vitri`; dài quá bề ngang thì co chữ (sàn 14 dot).
+- **Không có `vitri`/`dv` → tem UIDgr giống HỆT bản 26/08** (qc-in-tem so chuỗi SVG) — pop-up QR và agent cũ không đổi.
+- `moRong` mang `vitri`/`dv` qua từng con tem; agent nhận ở đủ 4 chỗ (`ve` · `dongCoTen` · `conTem` · `--thu`), lần thứ TƯ cùng bẫy.
+
+**Tab `tem` (`viewTem` · `ttTem` · HOME_MUC nhóm Công cụ kho · `TAB_TIP.tem`):** dán link/ID Sheet (+`#gid=`) → gviz JSONP
+`headers=1` (Sheet phải mở "ai có link") → **dò cột theo tiêu đề** `TMV_COT` (UID group · Vị trí · SKU · Tên hàng · Số lượng ·
+Đơn vị; đơn vị thiếu thì lấy chữ sau `/` cuối tên hàng). Ô mã kiểu số lấy `v` chứ không lấy `f` (gviz chèn dấu nghìn theo
+locale: "1.028.260…"). Bảng `mtbl mbcard tmv-tbl` CAP 200 + Xem thêm; bấm dòng = xem trước (chính SVG máy in), tick = chọn;
+"Số bản mỗi tem" 1–20; link nhớ ở `localStorage tmv-nguon-v1`; nạp khô cho bộ đo: `tmvNapThu(rows)`.
+
+**Gửi in — trần một lệnh GAS `PR_TRAN_KY_TU = 8.500` ký tự JSON (~30 cuộn):** `tmvIn` chia lệnh ≤ 8.000 ký tự và ≤ 200 dòng, gửi
+lần lượt qua `prGuiDong(dong, tong, tBam, ttId, imLang)`. Tham số mới `imLang` = vào hàng đợi là xong, KHÔNG mở vòng theo dõi
+(mỗi vòng hỏi GAS 2 phút) — chỉ lệnh cuối theo dõi; hỏng giữa chừng báo "đã gửi k/n lệnh" để không bấm lại in đôi.
+GAS **không cần deploy** (`apiPrThem` chuyển tiếp `dong` nguyên vẹn).
+
+**Thử agent không tốn tem:** `node in-tem-agent.mjs --thu "422292826@54840" --uidgr 1028260824000087 --tem-uidgr --vitri F0-KHO-501-05-02-01 --dv mm`.
+Sau khi push: `TAO-GOI-MAY-IN.mjs` + chép tay gói sang Desktop-JE75K38 — không chép thì máy in ra tem UIDgr cũ (có SKU, không vị trí/yard).
+
+**Ba bẫy khi vá:** `factory/index.html` là CRLF (mốc chuỗi nhiều dòng viết LF khớp 0 lần, `cat -A` không hiện `^M`);
+`.class{display:block}` đè thuộc tính `hidden` (trang không có `[hidden]{display:none!important}`) → dùng `:not([hidden])`;
+`.mtbl .pn{min-width:320px}` làm cột cuối rơi khỏi panel hẹp — bảng mới phải khai lại min-width.
+Đo: qc-in-tem 174/174 (+19) · Edge headless 1366/390 không lỗi JS, không kéo ngang · màn mới đã vào qc-mobile-toan-du-an.
