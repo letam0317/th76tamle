@@ -386,9 +386,14 @@ const TRANG = [
         mo: "() => { setTab('task'); const g=document.getElementById('filterGrid'); if(g) g.classList.remove('collapsed'); const b=document.getElementById('btnDate'); if(!b) return false; b.click(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#datePop:not(.hidden) .dp-day').length >= 84",
         dong: "() => { const p=document.getElementById('datePop'); if(p) p.classList.add('hidden'); const g=document.getElementById('filterGrid'); if(g) g.classList.add('collapsed'); }" },
-      { ten: "Planogram › pop-up lịch Ngày", cho: "#hpWhBar .date-pop:not(.hidden)",
-        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM || typeof HPLANOGRAM.moLocNgay!=='function') return false; return HPLANOGRAM.moLocNgay(); }",
-        sanSangMan: "() => document.querySelectorAll('#hpWhBar .date-pop:not(.hidden) .dp-day').length >= 84 && document.querySelectorAll('#hpWhBar .date-pop:not(.hidden) .dp-day.has').length > 0",
+      /* Ô Ngày chỉ được dựng khi VESINH-YEUCAU về (bậc 1, live có lúc >5s) — bước `mo` gọi mở NGAY thì trả false và màn bị
+         bỏ qua im lặng (iPhone SE live 08/09). Nên `mo` chỉ bấm tab; việc MỞ pop-up dồn vào `sanSangMan` (thử lại mỗi
+         nhịp trong 40s cho tới khi ô Ngày có mặt), không dùng `cho` (waitForSelector chạy TRƯỚC sanSangMan nên không kịp mở). */
+      { ten: "Planogram › pop-up lịch Ngày",
+        mo: "() => { setTab('planogram'); return true; }",
+        sanSangMan: "() => { if(!window.HPLANOGRAM || typeof HPLANOGRAM.moLocNgay!=='function') return false; const p=document.querySelector('#hpWhBar .date-pop'); " +
+          "if(!p || p.classList.contains('hidden')){ try { HPLANOGRAM.moLocNgay(); } catch(e) {} return false; } " +
+          "return p.querySelectorAll('.dp-day').length >= 84 && p.querySelectorAll('.dp-day.has').length > 0; }",
         dong: "() => { try { HPLANOGRAM.dongLocNgay(); } catch(e) {} }" },
       /* Pop-up CHI TIẾT TASK (stepper) của tab Task vi phạm — người dùng chỉ thẳng vào khối
          "Thông tin chung" của nó. Chưa từng được đo vì bộ đo chỉ bấm qua các tab. */
