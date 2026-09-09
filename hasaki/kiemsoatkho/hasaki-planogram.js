@@ -2640,9 +2640,7 @@ function renderVt(){
   var byNgay = {}; S.yc.rows.forEach(function(r){ if (khoaO(r.loc) !== kO) return;
     var cur = byNgay[r.ngay]; if (!cur || (cur.bk !== "da" && r.bk === "da")) byNgay[r.ngay] = r; });
   var r = byNgay[d] || null;
-  var laBang = /-01-01-0[1-4]$/.test(loc) && MAP_A8.some(function(c){ return c.bc === loc; });
-  var mA1 = loc.match(/^F0-A1-(\d{3})-(\d{2})-/);
-  $id("hpVtTitle").textContent = (laBang ? "Băng chuyền · " : (mA1 ? "Kệ " + mA1[2] + " · dãy " + mA1[1] + " · " : "")) + loc;
+  $id("hpVtTitle").textContent = locTitle(loc);
   $id("hpVtSub").textContent = "Chi tiết báo cáo vệ sinh — bấm ô ngày bên dưới để xem ngày khác";
   /* Hyperlink DUY NHẤT của pop-up: "Yêu cầu #… ↗" ở góc phải trên (không còn nút Mở planogram riêng) */
   var pg = $id("hpVtPg");
@@ -2685,7 +2683,8 @@ function renderVt(){
     var moHet = !!VT.moAnh[String(r.id)], soBay = moHet ? r.anh.length : Math.min(ANH_XEM_TRUOC, r.anh.length);
     var thumbs = r.anh.length
       ? '<div class="hp-vtthumbs">' + r.anh.slice(0, soBay).map(function(u, i){
-          return imgAnh(u, ' data-rid="' + esc(r.id) + '" data-idx="' + i + '" onclick="event.stopPropagation();HPLANOGRAM.openAnh(this.getAttribute(\'data-rid\'),+this.getAttribute(\'data-idx\'))"', i < ANH_TAI_NGAY);
+          var vtCon = viTriCon(r.loc, i, r.anh.length);
+          return imgAnh(u, ' data-rid="' + esc(r.id) + '" data-idx="' + i + '" onclick="event.stopPropagation();HPLANOGRAM.openAnh(this.getAttribute(\'data-rid\'),+this.getAttribute(\'data-idx\'))" title="' + esc(vtCon) + '"', i < ANH_TAI_NGAY);
         }).join("") +
         (soBay < r.anh.length
           ? '<button class="hp-vtmore" data-rid="' + esc(r.id) + '" onclick="event.stopPropagation();HPLANOGRAM.moAnhHet(this.getAttribute(\'data-rid\'))" title="Trải hết lưới ảnh (mỗi ảnh ~0,5MB)">+' + (r.anh.length - soBay) + '</button>'
@@ -3009,11 +3008,83 @@ function mRender(){
 /* Ảnh báo cáo → LIGHTBOX CAROUSEL của host (openLB) */
 function moAnhHet(id){ VT.moAnh[String(id)] = 1; renderVt(); }
 
+function locTitle(loc){
+  if (!loc) return "";
+  var laBang = /-01-01-0[1-4]$/.test(loc) && MAP_A8.some(function(c){ return c.bc === loc; });
+  var mA1 = loc.match(/^F0-A1-(\d{3})-(\d{2})-/);
+  return (laBang ? "Băng chuyền · " : (mA1 ? "Kệ " + mA1[2] + " · dãy " + mA1[1] + " · " : "")) + loc;
+}
+
+/* Ánh xạ vị trí con cụ thể theo từng ảnh báo cáo của yêu cầu vệ sinh */
+function viTriCon(loc, idx, tongSo){
+  var mA1 = String(loc || "").match(/^F0-A1-(\d{3})-(\d{2})/);
+  if (mA1){
+    var prefix = "F0-A1-" + mA1[1] + "-" + mA1[2];
+    /* 16 vị trí con chuẩn của 1 quầy kệ A1: Tầng 4 (6 ô) -> Tầng 3 (2 ô) -> Tầng 2 (2 ô) -> Tầng 1 (6 ô) */
+    var subA1 = [
+      "-04-01", "-04-02", "-04-03", "-04-04", "-04-05", "-04-06",
+      "-03-01", "-03-02",
+      "-02-01", "-02-02",
+      "-01-01", "-01-02", "-01-03", "-01-04", "-01-05", "-01-06"
+    ];
+    if (idx >= 0 && idx < subA1.length) return prefix + subA1[idx];
+  }
+  var laBang = /-01-01-0[1-4]$/.test(loc || "");
+  if (laBang){
+    var subBC = [
+      "Tổng quan băng chuyền",
+      "Khung gầm - Đầu băng chuyền",
+      "Băng chuyền - Dàn con lăn",
+      "Băng chuyền - Tủ điện",
+      "Khung gầm - Cuối băng chuyền"
+    ];
+    if (idx >= 0 && idx < subBC.length) return subBC[idx];
+  }
+  var laBanA8 = /^F0-A8-/.test(loc || "");
+  if (laBanA8){
+    var subBan = [
+      "Tổng quan trạm đóng gói",
+      "Bàn làm việc - Mặt trước máy tính",
+      "Bàn làm việc - Mặt sau máy tính",
+      "Bàn làm việc - Bàn phím",
+      "Bàn làm việc - Máy quét mã vạch",
+      "Bàn làm việc - Máy in tem XPRINTER",
+      "Gầm bàn làm việc",
+      "Mâm trữ CPU"
+    ];
+    if (idx >= 0 && idx < subBan.length) return subBan[idx];
+  }
+  return loc ? (loc + (tongSo > 1 ? (" (Ảnh " + (idx + 1) + "/" + tongSo + ")") : "")) : "";
+}
+
 function openAnh(id, i){
   var r = null;
   for (var j = 0; j < S.yc.rows.length; j++) if (String(S.yc.rows[j].id) === String(id)){ r = S.yc.rows[j]; break; }
   if (!r || !r.anh.length) return;
-  var list = r.anh.map(function(u){ return { type: "img", url: u }; });
+  var baseLoc = r.loc || VT.loc;
+  var nguoiBC = r.email ? (tenNm(r.email) || r.email) : "";
+  var gio = r.at ? String(r.at).slice(11, 16) : "";
+  var mNgay = String(r.ngay || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  var ngayBC = mNgay ? (mNgay[3] + "/" + mNgay[2] + "/" + mNgay[1]) : (r.ngay || "");
+  var metaArr = [];
+  if (nguoiBC) metaArr.push("Người báo cáo: " + nguoiBC);
+  if (ngayBC) metaArr.push("Ngày báo cáo: " + ngayBC + (gio ? " lúc " + gio : ""));
+  var metaText = metaArr.join(" · ");
+
+  var list = r.anh.map(function(u, idx){
+    var childLoc = viTriCon(baseLoc, idx, r.anh.length);
+    var mA1Sub = childLoc.match(/^F0-A1-(\d{3})-(\d{2})-(\d{2})-(\d{2})/);
+    var subDesc = mA1Sub
+      ? ("Kệ " + mA1Sub[2] + " · dãy " + mA1Sub[1] + " · Tầng " + mA1Sub[3] + " · Mâm " + mA1Sub[4])
+      : locTitle(baseLoc);
+    return {
+      type: "img",
+      url: u,
+      title: childLoc,
+      sub: subDesc,
+      meta: metaText
+    };
+  });
   if (typeof window.openLB === "function") window.openLB(list, i || 0);
   else window.open(r.anh[i || 0], "_blank", "noopener");
 }
@@ -3171,6 +3242,6 @@ window.HPLANOGRAM = {
   comboInput: comboInput, comboMenu: comboMenu, quick: quick, openAnh: openAnh,
   openNk: openNk, closeNk: closeNk, nkPick: nkPick, nkSearch: nkSearch,
   openViTri: openViTri, moAnhHet: moAnhHet, closeVt: closeVt, vtNgay: vtNgay, openCanhBao: openCanhBao, openThieu: openThieu, setPtHi: setPtHi, togglePtNhac: togglePtNhac,
-  ccSetStatus: ccSetStatus, ccSearch: ccSearch, aiSetKl: aiSetKl, aiSearch: aiSearch, moMap: moMap
+  ccSetStatus: ccSetStatus, ccSearch: ccSearch, aiSetKl: aiSetKl, aiSearch: aiSearch, moMap: moMap, _S: S
 };
 })();
