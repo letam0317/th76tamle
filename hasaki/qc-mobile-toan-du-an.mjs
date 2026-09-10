@@ -351,19 +351,23 @@ const TRANG = [
         mo: "() => { setTab('htonbat'); if (!window.HTONBAT || typeof HTONBAT.openType !== 'function') return false; HTONBAT.openType('uid_temp'); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#htMBody td')].some(x => /\\d/.test(x.textContent))",
         dong: "() => { try { HTONBAT.closeModal(); } catch(e) { const m=document.getElementById('htModal'); if(m) m.classList.remove('show'); } }" },
-      /* PANEL "Danh sách theo dõi" của tab Planogram Hasaki — BỔ SUNG 21/08/2026, cùng lỗ hổng với
-         bên factory: `manDong` chỉ bấm sang tab rồi đo NGAY, mà panel này nằm cuối tab và render
-         theo chế độ (ai/nv). Chế độ 'ai' là bảng 8 cột `min-width:980px` trong đó có cột lý do AI
-         dài cả đoạn văn — chính chỗ người dùng chụp ảnh gửi về.
-         `[0-9]` thay cho ký hiệu chữ-số có gạch chéo: chuỗi nguồn qua nhiều tầng thoát dấu rất dễ
-         rụng gạch chéo (bẫy số 1 trong memory), lớp ký tự thì không bao giờ rụng. */
-      { ten: "Planogram › Danh sách theo dõi (AI xét duyệt ảnh)",
-        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.setListMode('ai'); const b=document.getElementById('hpAI'); if(b) b.scrollIntoView({block:'start'}); return true; }",
+      /* POP-UP "Kết quả AI xét duyệt ảnh" (10/09/2026: danh sách AI chuyển từ panel đáy trang sang pop-up) —
+         chờ DỮ LIỆU THẬT: openAiList() mở pop-up với spinner, renderAI() vẽ lại khi tab VESINH-AI về, nên
+         sanSangMan chỉ cần thấy ô có số. KHÔNG nhét dữ liệu giả vào HPLANOGRAM._S (bản nháp trước làm vậy):
+         bộ đo báo xanh trên dữ liệu tự bịa là đo cái không ai dùng — nguyên tắc mục 7 BO-CHUAN. */
+      { ten: "Pop-up AI xét duyệt ảnh (planogram Hasaki)", cho: "#hpAiModal.show",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openAiList(); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hpAiBody tbody tr td')].some(x => /[0-9]/.test(x.textContent))",
+        dong: "() => { try { HPLANOGRAM.closeAiModal(); } catch(e) {} }" },
+      /* PANEL đáy trang nay chỉ còn "Nhân viên hôm nay" (chấm công nạp khi panel xuất hiện) — vẫn phải đo:
+         panel-trong-tab nằm cuối trang, bộ đo mở tab rồi đo ngay thì không thấy nó (lỗ hổng 21/08). */
+      { ten: "Planogram › Nhân viên hôm nay (panel đáy trang)",
+        mo: "() => { setTab('planogram'); const b=document.getElementById('hpAI'); if(!b) return false; b.scrollIntoView({block:'start'}); return true; }",
         sanSangMan: "() => [...document.querySelectorAll('#hpAI tbody tr td')].some(x => /[0-9]/.test(x.textContent))" },
-      { ten: "Planogram › Danh sách theo dõi (Nhân viên hôm nay)",
-        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.setListMode('nv'); const b=document.getElementById('hpAI'); if(b) b.scrollIntoView({block:'start'}); return true; }",
-        sanSangMan: "() => [...document.querySelectorAll('#hpAI tbody tr td')].some(x => /[0-9]/.test(x.textContent))",
-        dong: "() => { try { HPLANOGRAM.setListMode('ai'); } catch(e) {} }" },
+      { ten: "Pop-up Vị trí quá hạn chưa vệ sinh (planogram Hasaki)", cho: "#hpModal.show",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openCanhBao(); return true; }",
+        sanSangMan: "() => document.querySelectorAll('#hpMBody tr').length > 0",
+        dong: "() => { try { HPLANOGRAM.closeModal(); } catch(e) {} }" },
       { ten: "Pop-up Tất cả vị trí (planogram Hasaki)", cho: "#hpModal.show",
         mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openAll(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#hpMBody tr').length > 0",

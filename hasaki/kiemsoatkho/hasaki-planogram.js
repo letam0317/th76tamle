@@ -809,11 +809,14 @@ var CSS = [
 "#pane-planogram .hp-alertbar.ok b{color:#059669;}",
 "#pane-planogram .hp-alertbar.ok .ic{color:#059669;animation:none;}",
 /* Chú giải dạng popover con nhộng gọn nhẹ (10/09/2026): giải phóng tiêu đề sơ đồ không bị 8 chip nhồi bung 3-4 hàng */
-"#pane-planogram .hp-legwrap{position:relative;display:inline-flex;align-items:center;margin-left:auto;}",
-"#pane-planogram .hp-legbtn{border:1px solid var(--border,#d5dbe4);background:var(--surface,#fff);color:var(--text,#374151);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;gap:5px;min-height:26px;transition:background .16s ease,border-color .16s ease;}",
-"#pane-planogram .hp-legbtn:hover{background:color-mix(in srgb,var(--accent,#326e51) 8%,transparent);border-color:var(--accent,#326e51);}",
+"#pane-planogram .hp-legwrap{position:relative;display:inline-flex;align-items:center;gap:6px;margin-left:auto;}",
+/* `.hp-h2btn` = cùng viên với nút Chú giải, dùng cho NÚT HÀNH ĐỘNG đặt trong tiêu đề panel (10/09/2026:
+   "Toàn bộ vị trí" ở h2 Sơ đồ, "Tra cứu nhân viên" ở h2 Danh sách theo dõi). Tách khỏi `.hp-whtab` để
+   mắt phân biệt được: viên trong THANH LỌC = lọc, viên trong TIÊU ĐỀ = mở bảng/pop-up. */
+"#pane-planogram .hp-legbtn,#pane-planogram .hp-h2btn{border:1px solid var(--border,#d5dbe4);background:var(--surface,#fff);color:var(--text,#374151);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;gap:5px;min-height:26px;transition:background .16s ease,border-color .16s ease;}",
+"#pane-planogram .hp-legbtn:hover,#pane-planogram .hp-h2btn:hover{background:color-mix(in srgb,var(--accent,#326e51) 8%,transparent);border-color:var(--accent,#326e51);}",
 "#pane-planogram .hp-legbtn .hp-legdot{width:7px;height:7px;border-radius:50%;background:var(--accent,#326e51);display:inline-block;}",
-"#pane-planogram .hp-legbtn .hp-legcnt{background:color-mix(in srgb,var(--accent,#326e51) 12%,transparent);color:var(--accent,#326e51);border-radius:999px;padding:0 5px;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;}",
+"#pane-planogram .hp-legbtn .hp-legcnt,#pane-planogram .hp-h2btn .hp-legcnt{background:color-mix(in srgb,var(--accent,#326e51) 12%,transparent);color:var(--accent,#326e51);border-radius:999px;padding:0 5px;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;}",
 "#pane-planogram .hp-legpop{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:90;width:max-content;min-width:270px;max-width:92vw;background:var(--surface,#fff);border:1px solid var(--border,#d5dbe4);border-radius:12px;box-shadow:0 12px 36px rgba(16,24,40,.2);padding:10px 12px;animation:hp-in .2s cubic-bezier(.16,1,.3,1);}",
 "#pane-planogram .hp-legpop.open{display:block;}",
 "#pane-planogram .hp-legpop-hd{display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid var(--border,#e8ecf1);font-size:11.5px;font-weight:700;color:var(--text,#1f2937);}",
@@ -925,6 +928,12 @@ var CSS = [
 ".hp-thumbs img{width:34px;height:34px;object-fit:cover;border-radius:7px;border:1px solid var(--border,#e8ecf1);cursor:zoom-in;display:block;transition:transform .16s cubic-bezier(.32,.72,0,1);background:color-mix(in srgb, var(--muted,#9ca3af) 14%, transparent);}",
 ".hp-thumbs img:hover{transform:scale(1.12);}",
 ".hp-thumbs .more{border:1px solid var(--border,#e8ecf1);background:var(--surface,#fff);color:var(--accent,#326e51);border-radius:7px;min-width:34px;height:34px;font-size:11px;font-weight:650;cursor:pointer;}",
+".hp-ai-toolbar{display:flex;align-items:center;gap:8px;padding:10px 20px 8px;border-bottom:1px solid var(--border,#e8ecf1);}",
+"#hpAiChips{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;scrollbar-width:none;flex-wrap:nowrap !important;}",
+"#hpAiChips::-webkit-scrollbar{display:none;}",
+"#hpAiChips>*{flex:0 0 auto !important;white-space:nowrap;}",
+"#hpAiChips .hp-whtab{min-height:36px;padding:4px 11px;font-size:12px;}",
+"#hpAiModal #hpAiSearch{max-width:280px;min-height:36px;margin:0;}",
 ".hp-thumbs .more:hover{background:color-mix(in srgb, var(--accent,#326e51) 10%, transparent);}",
 /* pop-up CHI TIẾT VỊ TRÍ (bấm ô sơ đồ) — dải lịch sử 7 ngày + hàng nhãn/giá trị */
 ".hp-vthistrow{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 14px;}",
@@ -998,7 +1007,8 @@ var CSS = [
 ".hp-nk-loc:hover{background:color-mix(in srgb, var(--accent,#326e51) 14%, transparent);color:var(--accent,#326e51);}",
 ".hp-nk-empty{color:var(--muted,#9ca3af);font-size:12.5px;padding:40px 16px;text-align:center;}",
 "@media(max-width:768px){.hp-modal{padding:0;align-items:stretch;justify-content:stretch;}.hp-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hp-mclose{font-size:30px;min-width:48px;min-height:48px;}.hp-mfilters input{min-height:44px;}#pane-planogram .hp-whtab{min-height:44px;}#hpReload,#pane-planogram .hp-btn{min-height:44px;width:100%;}",
-".hp-nk-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;}.hp-nk-left{border-right:0;border-bottom:1px solid var(--border,#e8ecf1);}.hp-nk-list{max-height:200px;}}",
+".hp-nk-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;}.hp-nk-left{border-right:0;border-bottom:1px solid var(--border,#e8ecf1);}.hp-nk-list{max-height:200px;}",
+".hp-ai-toolbar{flex-direction:column;align-items:stretch;padding:8px 12px;gap:8px;}#hpAiModal #hpAiSearch{max-width:none;width:100%;min-height:40px;margin:0;}#hpAiChips{width:100%;}#hpAiChips .hp-whtab{min-height:40px !important;padding:4px 12px;font-size:12px;}}",
 /* lightbox host phải nổi TRÊN pop-up module (host để z-index 60, pop-up 1200) */
 "#lightbox{z-index:1400;}",
 
@@ -1021,6 +1031,11 @@ var CSS = [
  * specificity cấp ID (`#pane-planogram .hp-cctbl td`, `.hp-cctbl td.wrap`), nên rule thẻ viết bằng
  * `table.mbcard td` luôn thua dù đứng sau. Chỉ đánh `!important` vào ĐÚNG mấy thuộc tính tranh nhau
  * (white-space / min-width / max-width / padding / border / text-align), không quét cả khối. */
+/* Nhãn dài/ngắn cho nút trong tiêu đề panel: bản MÁY TÍNH khai TRƯỚC khối @media để bản điện thoại
+   (cùng specificity, đứng sau) thắng. BẪY ĐÃ DÍNH trên bản live 10/09/2026: rule máy tính đứng SAU
+   khối @media nên trên điện thoại cả tx-full lẫn tx-short đều ẩn → nút "Tra cứu NV" thành viên trống
+   "[ ]" và "Toàn bộ vị trí" chỉ còn "[· 231]" — chính hai "nút lạ" người dùng hỏi. */
+"#pane-planogram .tx-short{display:none;}",
 "@media(max-width:768px){",
 /* Cột Model là thông tin KỸ THUẬT (gemini-3.5-flash-lite) — dòng tổng kết dưới bảng đã liệt kê đủ
    các model đã dùng, nên trong thẻ nó chỉ là chữ lạ chiếm chỗ. Ẩn trên điện thoại, giữ ở máy tính. */
@@ -1029,22 +1044,21 @@ var CSS = [
    thẻ chảy theo trang, số dòng đã bị chặn bằng CAP nên không có danh sách dài vô hạn. */
 "#pane-planogram .hp-ccwrap:has(table.mbcard){overflow:visible;max-height:none !important;border:0;border-radius:0;}",
 /* THANH ĐIỀU KHIỂN ĐẦU TAB (#hpWhBar) (10/09/2026 nén Cumulative Header Clutter):
-   ① Hàng 1 (Khu vực): 1 dải chip cuộn ngang mượt mà, dẹt 32px.
-   ② Hàng 2 (Ngày + 2 nút tra cứu): 1 hàng cuộn ngang mượt mà, dẹt 32px.
+   10/09 chiều — gom về ĐÚNG MỘT HÀNG bộ lọc: ô Ngày đứng cố định bên trái (ngoài dải cuộn, vì pop-up
+   lịch position:absolute sẽ bị khung overflow-x cắt), dải chip Khu vực cuộn ngang bên phải. Hai nút
+   tra cứu đã về tiêu đề panel chủ đề (Sơ đồ khu vực / Danh sách theo dõi) nên không còn hàng 2.
    Bỏ nhãn \"Khu vực:\" & \"Ngày:\" rác dòng; rút gọn nhãn nút trên mobile để lọt vừa khung nhìn. */
-"#pane-planogram #hpWhBar{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:5px;margin:0 0 6px;}",
+"#pane-planogram #hpWhBar{flex-wrap:nowrap;align-items:center;gap:6px;margin:0 0 6px;}",
 "#pane-planogram #hpWhBar .hp-whtab,#pane-planogram #hpWhBar .hp-datesel{min-height:32px;padding:4px 10px;font-size:11.5px;}",
-"#pane-planogram #hpWhBar .hp-wb1{display:flex;gap:5px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;scrollbar-width:none;padding-bottom:1px;}",
+"#pane-planogram #hpWhBar .hp-ngayloc{flex:0 0 auto;min-width:115px;}",
+"#pane-planogram #hpWhBar .hp-ngayloc .date-btn{min-height:32px;padding:4px 9px;font-size:11.5px;}",
+"#pane-planogram #hpWhBar .hp-wb1{display:flex;flex:1 1 auto;gap:5px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;scrollbar-width:none;padding-bottom:1px;}",
 "#pane-planogram #hpWhBar .hp-wb1::-webkit-scrollbar{display:none;}",
 "#pane-planogram #hpWhBar .hp-wb1>*{flex:0 0 auto;white-space:nowrap;}",
-"#pane-planogram #hpWhBar .hp-wb2{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;scrollbar-width:none;padding-bottom:1px;}",
-"#pane-planogram #hpWhBar .hp-wb2::-webkit-scrollbar{display:none;}",
-"#pane-planogram #hpWhBar .hp-wb2>*{flex:0 0 auto;white-space:nowrap;}",
-"#pane-planogram #hpWhBar .hp-wb2 .hp-ngayloc{flex:0 0 auto;min-width:115px;}",
-"#pane-planogram #hpWhBar .hp-wb2 .hp-ngayloc .date-btn{min-height:32px;padding:4px 9px;font-size:11.5px;}",
-"#pane-planogram #hpWhBar .hp-wbsp{display:none;}",
-"#pane-planogram #hpWhBar .tx-full{display:none;}",
-"#pane-planogram #hpWhBar .tx-short{display:inline;}",
+"#pane-planogram .tx-full{display:none;}",
+"#pane-planogram .tx-short{display:inline;}",
+/* Nút hành động trong tiêu đề panel (Toàn bộ vị trí · Chú giải · Tra cứu nhân viên): vùng chạm 32px. */
+"#pane-planogram .hp-legbtn,#pane-planogram .hp-h2btn{min-height:32px;padding:4px 10px;}",
 /* CHIP LỌC trong panel danh sách (Kết luận / Trạng thái): 1 HÀNG CUỘN NGANG — khuôn .toptabs của
    dự án. Không đi đường xếp dọc như #hpWhBar: ở đây mỗi chip là một GIÁ TRỊ cùng loại, xếp dọc
    thành 5 hàng thì mất luôn nghĩa "một dải để so sánh". */
@@ -1063,12 +1077,11 @@ var CSS = [
    Vẫn bấm được: lọc ra 0 dòng là một câu trả lời hợp lệ. */
 "#pane-planogram .hp-whtab.hp-z0{opacity:.45;}",
 "#pane-planogram .hp-whtab.hp-z0:hover{opacity:.8;}",
-/* Hai khung `.hp-wb1/.hp-wb2` chỉ để ĐIỆN THOẠI có chỗ ngắt hàng. Ở máy tính `display:contents`
-   làm chúng tan biến, các món vẫn là con TRỰC TIẾP của `.hp-whbar` ⇒ thanh giữ nguyên một hàng
-   như trước, không đổi một pixel. (Bẫy đã biết: `display:contents` phải TẮT ở điện thoại, không
-   thì rule xếp hàng không bao giờ ăn — đúng thủ phạm của thanh lọc tab Kiểm kê 6 hàng.) */
-"#pane-planogram .hp-wb1,#pane-planogram .hp-wb2{display:contents;}",
-"#pane-planogram #hpWhBar .tx-short{display:none;}",
+/* Khung `.hp-wb1` (dải chip Khu vực) chỉ để ĐIỆN THOẠI có chỗ cuộn ngang. Ở máy tính `display:contents`
+   làm nó tan biến, các chip vẫn là con TRỰC TIẾP của `.hp-whbar` ⇒ thanh là một hàng phẳng
+   [Ngày][Tất cả][A1][A8]. (Bẫy đã biết: `display:contents` phải TẮT ở điện thoại, không thì rule
+   xếp hàng không bao giờ ăn — đúng thủ phạm của thanh lọc tab Kiểm kê 6 hàng.) */
+"#pane-planogram .hp-wb1{display:contents;}",
 /* LÝ DO AI — tách 2 phần: câu kết luận + danh sách "ô nào lỗi gì". Trước đây nhồi cả hai vào một
    đoạn văn (phần chi tiết nằm trong ngoặc, ngăn bằng dấu |) nên máy tính đọc cũng mệt, điện thoại
    thì thành khối chữ đặc 11 dòng. Danh sách chi tiết THU sẵn, bấm ô mới trải ra. */
@@ -1099,6 +1112,7 @@ var KHUNG =
 '  <div id="hpMap"></div>' +
 '  <div id="hpToday"></div>' +
 '</div>' +
+/* Panel đáy trang "Nhân viên hôm nay" (danh sách AI đã thành pop-up hpAiModal — xem renderList) */
 '<div id="hpAI"></div>' +
 '<div id="hpState" class="hp-state"><div class="hp-spin"></div>Đang tải dữ liệu vệ sinh…</div>' +
 '<div class="hp-srcfoot">' +
@@ -1177,6 +1191,18 @@ var MODAL_HTML =
 '      <div class="hp-nk-left"><input id="hpNkQ" autocomplete="off" placeholder="Tìm tên / mã nhân viên…" oninput="HPLANOGRAM.nkSearch(this.value)"><div class="hp-nk-list" id="hpNkList"></div></div>' +
 '      <div class="hp-nk-right" id="hpNkRight"></div>' +
 '    </div>' +
+'  </div>' +
+'</div>' +
+'<div id="hpAiModal" class="hp-modal">' +
+'  <div class="hp-modalbox" style="width:min(1100px,96vw);height:min(760px,92vh);">' +
+'    <div class="hp-modalhd"><div><div class="mt">Kết quả AI xét duyệt ảnh</div>' +
+'      <div class="mtsub" id="hpAiSub">Toàn bộ ảnh chụp vệ sinh được Gemini AI phân tích chất lượng</div></div>' +
+'      <button class="hp-mclose" onclick="HPLANOGRAM.closeAiModal()">&times;</button></div>' +
+'    <div class="hp-ai-toolbar">' +
+'      <div id="hpAiChips" class="hp-whbar hp-chipbar" style="margin:0;flex:1;min-width:0;"></div>' +
+'      <input id="hpAiSearch" class="hp-ccsearch" placeholder="Tìm vị trí / nhân viên / lý do…" oninput="HPLANOGRAM.aiSearch(this.value)">' +
+'    </div>' +
+'    <div class="hp-modalbody" id="hpAiBody" style="padding:12px 20px 20px;"></div>' +
 '  </div>' +
 '</div>';
 
@@ -1748,7 +1774,8 @@ function buildAI(H, rows2d){
   arr.sort(function(a, b){ return String(b.ngay).localeCompare(String(a.ngay)) || String(b.at).localeCompare(String(a.at)); });
   S.ai.ok = true; S.ai.by = by; S.ai.rows = arr;
   renderToday();   // vẽ lại chip AI ở hero
-  renderAI();      // khối "AI xét duyệt ảnh"
+  renderWhBar();   // cập nhật số lượng AI xét duyệt trên thanh điều khiển
+  renderAI();
 }
 function aiOf(r){ return S.ai.ok ? (S.ai.by[String(r.id)] || null) : null; }
 function buildPC(H, rows2d){
@@ -1816,10 +1843,8 @@ function chuDau(s){
   if (w.length === 1) return w[0].slice(0, 2).toUpperCase();
   return (w[w.length - 2].charAt(0) + w[w.length - 1].charAt(0)).toUpperCase();
 }
-/* --- KHỐI 1b: PANEL DANH SÁCH — 1 panel duy nhất, 2 chế độ: AI XÉT DUYỆT · NHÂN VIÊN --- */
-function aiSetKl(k){ if (S.aiKl === k) k = ""; S.aiKl = k; renderList(); }
-var _aiDeb = null;
-function aiSearch(v){ S.aiQ = String(v || "").trim().toLowerCase(); clearTimeout(_aiDeb); _aiDeb = setTimeout(renderList, 130); }
+/* --- KHỐI 1b: DANH SÁCH — panel đáy trang "Nhân viên hôm nay" (renderList) + pop-up "Kết quả AI xét
+   duyệt ảnh" (openAiList / renderAiModal, 10/09/2026). aiSetKl/aiSearch của pop-up khai ở khối pop-up. --- */
 /* LÝ DO AI → 2 phần. `lydo` là câu kết luận; `anhloi` là chi tiết từng ô, do bộ sync-vesinh-ai
  * ghi dạng "F0-A1-…: lý do | F0-A1-…: lý do". Trước đây dán cả cụm vào trong ngoặc ngay sau câu kết
  * luận ⇒ một ô 438 ký tự vỡ 11 dòng trên điện thoại (bộ đo bắt được 108 ô như vậy). Nay: câu kết
@@ -1850,33 +1875,69 @@ function aiLyDoKhoi(lydo, anhloi){
   return '<div class="ailydo" style="margin-top:5px;line-height:1.55"' + (o.n ? ' data-n="' + o.n + '"' : "") +
     ' title="' + o.tip + '"' + AI_LYDO_TAP + '>' + o.html + '</div>';
 }
+/* PANEL ĐÁY TRANG = chỉ còn "Nhân viên hôm nay" (10/09/2026). Danh sách AI xét duyệt ảnh đã thành
+   POP-UP (openAiList): 300 thẻ AI nằm thẳng trên trang làm trang điện thoại dài ~57.000px, còn bộ
+   chuyển 2 chế độ + chip + ô tìm + dòng tổng kết xếp chồng là chính cụm "tùm lum" người dùng chỉ.
+   Tiêu đề panel lấy luôn tên danh sách; nút "Tra cứu nhân viên" về đây từ thanh điều khiển đầu tab
+   (cùng chủ đề nhân viên) — không kèm số vì "66 người / 60 ngày" đứng cạnh "62 người hôm nay" đọc như
+   mâu thuẫn. Chấm công (bậc 3) nạp khi panel xuất hiện thay vì khi bấm chế độ như trước. */
 function renderList(){
   var box = $id("hpAI"); if (!box) return;
-  if (!S.ai.ok && !S.cc.ok && !S.ai.dang && !S.cc.dang){ box.innerHTML = ""; return; }
-  /* Số trên nút: chỉ hiện khi nguồn đã về — nguồn bậc 2/3 chưa tải thì để "…" cho khỏi
-     hiểu nhầm là "có 0 kết quả". */
-  var nAi = S.ai.ok ? '<b>' + nf(S.ai.rows.filter(function(r){ return !S.area || r.area === S.area; }).length) + '</b>' : (S.ai.dang ? '<b class="hp-hint">…</b>' : '');
-  var nCc = S.cc.ok ? '<b>' + nf(S.cc.rows.length) + '</b>' : (S.cc.dang ? '<b class="hp-hint">…</b>' : '');
-  var modes =
-    '<span class="hp-seg">' +
-    '<button class="' + (S.listMode === "ai" ? "on" : "") + '" onclick="HPLANOGRAM.setListMode(\'ai\')">AI xét duyệt ảnh ' + nAi + '</button>' +
-    '<button class="' + (S.listMode === "nv" ? "on" : "") + '" onclick="HPLANOGRAM.setListMode(\'nv\')">Nhân viên hôm nay ' + nCc + '</button>' +
-    '</span>';
+  if (!S.cc.ok && !S.cc.dang) canCC();
+  var tra = '<button type="button" class="hp-h2btn" onclick="HPLANOGRAM.openNk()" title="Xem 1 nhân viên làm việc ở đâu theo từng ngày (' + LS_NGAY + ' ngày)">Tra cứu nhân viên</button>';
   box.innerHTML =
     '<section class="hp-panel hp-fade" style="margin-top:10px">' +
-    '<h2>Danh sách theo dõi<span style="flex:1"></span>' + modes + '</h2>' +
-    (S.listMode === "nv" ? htmlNhanVien() : htmlAiXetDuyet()) +
+    '<h2>Nhân viên hôm nay<span style="flex:1"></span>' + tra + '</h2>' +
+    htmlNhanVien() +
     '</section>';
   lazyQuet();
 }
-function renderAI(){ renderList(); }
-function htmlAiXetDuyet(){
-  if (!S.ai.ok && S.ai.dang) return '<div class="hp-empty"><div class="hp-spin" style="width:22px;height:22px;border-width:2px;margin-bottom:10px"></div>Đang tải kết quả AI xét duyệt ảnh…</div>';
-  if (!S.ai.ok || !S.ai.rows.length) return '<div class="hp-empty">Chưa có kết quả AI (tab <code>VESINH-AI</code>) — bộ <code>sync-vesinh-ai.mjs</code> chạy cùng cụm 8h40 / nút Cập nhật ngay.</div>';
+/* Kết quả AI về (buildAI) → làm tươi pop-up nếu đang mở; nút mở pop-up nằm ở tiêu đề panel Vệ sinh
+   (renderToday vẽ lại ngay trước đó nên số trên nút đã đúng). */
+function renderAI(){
+  var m = $id("hpAiModal");
+  if (m && m.classList.contains("show")) renderAiModal();
+}
+var _aiDeb = null;
+function aiSearch(v){
+  S.aiQ = String(v || "").trim().toLowerCase();
+  clearTimeout(_aiDeb);
+  _aiDeb = setTimeout(renderAiModal, 130);
+}
+function aiSetKl(k){
+  if (S.aiKl === k) k = "";
+  S.aiKl = k;
+  renderAiModal();
+}
+function openAiList(kl){
+  if (kl != null) S.aiKl = kl;
+  var inp = $id("hpAiSearch"); if (inp) inp.value = S.aiQ || "";
+  renderAiModal();
+  var m = $id("hpAiModal"); if (!m) return;
+  m.style.display = "flex";
+  requestAnimationFrame(function(){ m.classList.add("show"); });
+}
+function closeAiModal(){
+  var m = $id("hpAiModal"); if (!m) return;
+  m.classList.remove("show");
+  setTimeout(function(){ m.style.display = "none"; }, 240);
+}
+function renderAiModal(){
+  var cBox = $id("hpAiChips"), bBox = $id("hpAiBody"), sBox = $id("hpAiSub");
+  if (!bBox) return;
+  if (!S.ai.ok && S.ai.dang){
+    if (cBox) cBox.innerHTML = "";
+    bBox.innerHTML = '<div class="hp-empty"><div class="hp-spin" style="width:22px;height:22px;border-width:2px;margin-bottom:10px"></div>Đang tải kết quả AI xét duyệt ảnh…</div>';
+    return;
+  }
+  if (!S.ai.ok || !S.ai.rows.length){
+    if (cBox) cBox.innerHTML = "";
+    bBox.innerHTML = '<div class="hp-empty">Chưa có kết quả AI (tab <code>' + esc(TAB_AI) + '</code>) — bộ <code>sync-vesinh-ai.mjs</code> chạy cùng cụm 8h40 / nút Cập nhật ngay.</div>';
+    return;
+  }
   var all = S.ai.rows.filter(function(r){ return !S.area || r.area === S.area; });
   var cnt = { DAT: 0, KHONG_DAT: 0, CAN_XEM: 0 };
   all.forEach(function(r){ if (cnt[r.kl] != null) cnt[r.kl]++; });
-  /* Chưa chấm = yêu cầu "Chờ duyệt" của ngày đang xem chưa có kết quả AI */
   var nCho = 0;
   if (S.yc.ok) ycInScope().forEach(function(r){ if (r.stId === 3 && !S.ai.by[String(r.id)]) nCho++; });
   var models = {}; all.forEach(function(r){ if (r.model) models[r.model] = 1; });
@@ -1888,13 +1949,17 @@ function htmlAiXetDuyet(){
     return true;
   });
 
-  var chips = '<button class="hp-whtab' + (S.aiKl ? "" : " active") + '" onclick="HPLANOGRAM.aiSetKl(\'\')">Tất cả · ' + nf(all.length) + '</button>' +
-    AIST.map(function(m){
-      /* `hp-z0` = chip đếm 0: làm mờ để mắt bắt ngay chỗ CÓ SỐ. Vẫn bấm được (lọc ra 0 dòng là một
-         câu trả lời hợp lệ) — chỉ bỏ cái vẻ "mọi viên đều quan trọng như nhau". */
-      return '<button class="hp-whtab' + (S.aiKl === m.k ? " active" : (cnt[m.k] ? "" : " hp-z0")) + '" data-k="' + m.k + '" onclick="HPLANOGRAM.aiSetKl(this.getAttribute(\'data-k\'))"><span class="hp-dot" style="background:' + m.c + '"></span>' + esc(m.lb.replace("AI: ", "")) + ' <b>' + nf(cnt[m.k]) + '</b></button>';
-    }).join("") +
-    (nCho ? '<span class="hp-hint" title="Yêu cầu Chờ duyệt của ngày đang xem chưa được AI chấm — tự chấm ở lượt kế tiếp">· còn ' + nf(nCho) + ' chờ AI chấm</span>' : "");
+  if (cBox){
+    cBox.innerHTML = '<button class="hp-whtab' + (S.aiKl ? "" : " active") + '" onclick="HPLANOGRAM.aiSetKl(\'\')">Tất cả · ' + nf(all.length) + '</button>' +
+      AIST.map(function(m){
+        return '<button class="hp-whtab' + (S.aiKl === m.k ? " active" : (cnt[m.k] ? "" : " hp-z0")) + '" data-k="' + m.k + '" onclick="HPLANOGRAM.aiSetKl(this.getAttribute(\'data-k\'))"><span class="hp-dot" style="background:' + m.c + '"></span>' + esc(m.lb.replace("AI: ", "")) + ' <b>' + nf(cnt[m.k] || 0) + '</b></button>';
+      }).join("") +
+      (nCho ? '<span class="hp-hint" title="Yêu cầu Chờ duyệt của ngày đang xem chưa được AI chấm — tự chấm ở lượt kế tiếp">· còn ' + nf(nCho) + ' chờ AI chấm</span>' : "");
+  }
+
+  if (sBox){
+    sBox.textContent = 'Toàn bộ ảnh chụp vệ sinh được Gemini AI phân tích chất lượng · ' + nf(rows.length) + ' / ' + nf(all.length) + ' kết quả' + (S.area ? (' (' + areaMeta(S.area).short + ')') : '');
+  }
 
   var CAPAI = 300;
   var body = rows.length ? rows.slice(0, CAPAI).map(function(r){
@@ -1905,8 +1970,6 @@ function htmlAiXetDuyet(){
     var anh = (yc && yc.anh.length)
       ? '<span class="hp-thumbs">' + imgAnh(yc.anh[0], ' data-rid="' + esc(r.id) + '" onclick="event.stopPropagation();HPLANOGRAM.openAnh(this.getAttribute(\'data-rid\'),0)" title="Xem ' + yc.anh.length + ' ảnh báo cáo"', false) + (yc.anh.length > 1 ? '<button class="more" data-rid="' + esc(r.id) + '" onclick="event.stopPropagation();HPLANOGRAM.openAnh(this.getAttribute(\'data-rid\'),0)">+' + (yc.anh.length - 1) + '</button>' : '') + '</span>'
       : '<span class="mut">—</span>';
-    /* Thứ tự <td> PHẢI khớp <thead> (bản máy tính vẫn là bảng); thứ tự đọc trên THẺ do CSS `order`
-       quyết định — xem khối `table.mbcard` ở đầu tệp. */
     var coAnh = !!(yc && yc.anh.length);
     return '<tr>' +
       '<td class="ai-ngay" data-lb="Ngày">' + ngayVN(r.ngay) + '</td>' +
@@ -1918,14 +1981,16 @@ function htmlAiXetDuyet(){
       '<td class="mut ai-model" style="font-size:10.5px">' + esc((r.model || "").replace(/^gemini-|^claude-/, "")) + '</td>' +
       '<td class="mb-act"><a class="hp-ext" target="_blank" rel="noopener" href="' + esc(pgDetailUrl(r.id)) + '">Mở ↗</a></td></tr>';
   }).join("") : '<tr><td colspan="8" class="empty">Không có kết quả phù hợp bộ lọc.</td></tr>';
+
   var capNote = rows.length > CAPAI ? '<tr><td colspan="8" class="empty">Hiển thị ' + nf(CAPAI) + ' / ' + nf(rows.length) + ' dòng — dùng bộ lọc để thu hẹp.</td></tr>' : "";
 
-  return '<div class="hp-whbar hp-chipbar">' + chips + '</div>' +
-    '<input class="hp-ccsearch" placeholder="Tìm vị trí / nhân viên / lý do…" value="' + esc(S.aiQ || "") + '" oninput="HPLANOGRAM.aiSearch(this.value)">' +
-    '<div class="hp-ccwrap" style="max-height:440px"><table class="hp-cctbl mbcard" style="min-width:980px"><thead><tr>' +
+  bBox.innerHTML =
+    '<div class="hp-ccwrap" style="max-height:calc(92vh - 200px)"><table class="hp-cctbl mbcard" style="min-width:980px"><thead><tr>' +
     '<th>Ngày</th><th>Vị trí</th><th>Kết luận</th><th>Lý do AI đưa ra</th><th>Người thực hiện</th><th>Ảnh</th><th>Model</th><th>Planogram</th>' +
     '</tr></thead><tbody>' + body + capNote + '</tbody></table></div>' +
-    '<p class="hp-hint" style="margin:10px 0 0" title="Ảnh trùng/thiếu được chốt cứng tại máy (đúng 100%); kết luận mơ hồ AI tự xếp “Cần xem” để người duyệt quyết.">Đang hiển thị ' + nf(Math.min(rows.length, CAPAI)) + ' / ' + nf(all.length) + ' kết quả' + (S.ai.ts ? ' · AI chấm lúc ' + fmtTime(S.ai.ts) : '') + (Object.keys(models).length ? ' · ' + esc(Object.keys(models).join(", ")) : '') + '.</p>';
+    '<p class="hp-hint" style="margin:10px 0 0" title="Ảnh trùng/thiếu được chốt cứng tại máy (đúng 100%); kết luận mơ hồ AI tự xếp “Cần xem” để người duyệt quyết.">' + [S.ai.ts ? 'AI chấm lúc ' + fmtTime(S.ai.ts) : '', Object.keys(models).length ? esc(Object.keys(models).join(", ")) : ''].filter(Boolean).join(' · ') + '</p>';   /* "x / N kết quả" đã có ở dòng phụ đề pop-up (hpAiSub) — không in lần 2 */
+
+  lazyQuet();
 }
 function capNhatInfo(){
   var el = $id("hpLoadinfo"); if (!el) return;
@@ -1937,14 +2002,19 @@ function capNhatInfo(){
 function rowsInScope(){ return S.all.filter(function(r){ return !S.area || r.area === S.area; }); }
 function ycInScope(){ var k = khoang(); return S.yc.rows.filter(function(r){ return r.ngay >= k[0] && r.ngay <= k[1] && (!S.area || r.area === S.area); }); }
 function setArea(a){ if (S.area === a) a = ""; S.area = a; S.ptHi = ""; renderWhBar(); renderToday(); renderList(); }
-/* THANH ĐIỀU KHIỂN duy nhất: Ngày · Khu vực · Tra cứu NV · Toàn bộ vị trí (45n) */
+/* THANH ĐIỀU KHIỂN đầu tab = CHỈ BỘ LỌC: Ngày · Khu vực (10/09/2026). Ba nút mở bảng/pop-up đã về tiêu
+   đề panel chủ đề của chúng — "Toàn bộ vị trí" ở Sơ đồ khu vực, "AI xét duyệt ảnh" ở Vệ sinh, "Tra cứu
+   nhân viên" ở Nhân viên hôm nay. Lý do: đứng chung hàng, cùng kiểu viên với chip lọc nên người dùng không
+   phân biệt đâu là LỌC đâu là MỞ BẢNG ("còn các nút này là gì?"); con số trên nút (66 NV · 231 vị trí ·
+   971 AI) lặp/mâu thuẫn với số ở panel dưới; và trên điện thoại nhãn nút bị CSS ẩn cả hai bản (tx-full
+   lẫn tx-short) nên hiện thành viên trống "[ ]" và "[· 231]" — đúng ảnh người dùng gửi. */
 function renderWhBar(){
   var el = $id("hpWhBar"); if (!el) return;
-  /* `html` = hàng 1 (khu vực) · `h2` = hàng 2 (ngày + 2 nút hành động). Máy tính: hai khung
-     `display:contents` nên thanh vẫn đúng MỘT hàng như cũ. Điện thoại: khung 1 thành dải chip cuộn
-     ngang, khung 2 xuống dòng — trước đây cả 8 món tự thương lượng và ra 5 hàng / 144px. */
-  var html = "", h2 = "";
-  /* KHU VỰC trước — NGÀY sau (ô chọn gọn, không xổ 7 chips) */
+  /* NGÀY đứng trước và NGOÀI dải cuộn (pop-up lịch position:absolute sẽ bị khung overflow-x cắt);
+     KHU VỰC là dải chip trong `.hp-wb1` — điện thoại cuộn ngang, máy tính `display:contents` nên vẫn
+     là một hàng phẳng [Ngày][Tất cả][A1][A8]. */
+  var ngay = ycDates().length ? '<div class="date-filter hp-ngayloc" id="hpNgayLoc"></div>' : "";
+  var html = "";
   /* Đếm theo CẢ 2 nguồn: bậc 1 (VESINH-YEUCAU) về trước PHU-TRACH — chỉ dựa vào S.all thì
      thanh lọc Khu vực trống trong giây đầu rồi mới bật ra (nhìn như giật). */
   var cnt = {};
@@ -1958,22 +2028,23 @@ function renderWhBar(){
           'onclick="HPLANOGRAM.setArea(this.getAttribute(\'data-a\'))"><span class="hp-dot" style="background:' + a.c + '"></span>' + esc(a.short) + '</button>';
       }).join("");
   }
-  var dates = ycDates();
-  if (dates.length){
-    /* Ô giữ chỗ — sau innerHTML thay bằng CHÍNH phần tử bộ lọc dùng chung (xem taoLocNgay) */
-    h2 += '<div class="date-filter hp-ngayloc" id="hpNgayLoc"></div>';
-  }
-  var nNk = 0; if (S.ls.ok){ var em = {}; nkRows().forEach(function(r){ em[r.email.toLowerCase()] = 1; }); nNk = Object.keys(em).length; }
-  /* Nút LUÔN hiện: nguồn nhật ký nạp bậc 3 (nạp trước sau 4s) nên không chờ dữ liệu mới cho bấm */
-  h2 += '<span class="hp-wbsp" style="flex:1"></span>' +
-    '<button class="hp-whtab" onclick="HPLANOGRAM.openNk()" title="Xem 1 nhân viên làm việc ở đâu theo từng ngày (' + LS_NGAY + ' ngày)"><span class="tx-full">Tra cứu nhân viên</span><span class="tx-short">Tra cứu NV</span>' + (nNk ? ' · ' + nf(nNk) : '') + '</button>' +
-    (S.all.length ? '<button class="hp-whtab" onclick="HPLANOGRAM.openAll()" title="Danh sách toàn bộ vị trí + người phụ trách gần nhất (45 ngày)"><span class="tx-full">Toàn bộ vị trí</span><span class="tx-short">Vị trí</span> · ' + nf(rowsInScope().length) + '</button>' : "");
-  el.innerHTML = '<div class="hp-wb1">' + html + '</div><div class="hp-wb2">' + h2 + '</div>';
+  /* Ô giữ chỗ Ngày — sau innerHTML thay bằng CHÍNH phần tử bộ lọc dùng chung (xem taoLocNgay) */
+  el.innerHTML = ngay + '<div class="hp-wb1">' + html + '</div>';
   var ph = $id("hpNgayLoc");
   if (ph){
     if (!S.locNgay) S.locNgay = taoLocNgay();
     if (S.locNgay){ ph.replaceWith(S.locNgay.el); var kn = khoang(); S.locNgay.dat(kn[0], kn[1]); }
   }
+}
+/* Nút mở pop-up "Kết quả AI xét duyệt ảnh" đặt ở tiêu đề panel Vệ sinh (10/09/2026): kết quả AI là
+   lời chấm cho chính các báo cáo vệ sinh nên ở cùng panel; số trên nút = mọi kết quả đã chấm trong
+   khu vực đang lọc (KHÔNG theo khoảng ngày — "Cần xem" là việc còn tồn, phải thấy dù đang soi ngày nào).
+   Chưa có dữ liệu → nút "…" mờ để không nhảy bố cục khi dữ liệu về. */
+function btnAi(){
+  if (!S.ai.ok && !S.ai.dang) return "";
+  var n = S.ai.ok ? S.ai.rows.filter(function(r){ return !S.area || r.area === S.area; }).length : 0;
+  if (S.ai.ok && !n) return "";
+  return '<button type="button" class="hp-h2btn' + (S.ai.ok ? "" : " hp-hint") + '" onclick="HPLANOGRAM.openAiList()" title="Xem danh sách kết quả AI xét duyệt ảnh — mọi ngày đã chấm' + (S.area ? ', ' + esc(areaMeta(S.area).short) : '') + '"><span class="tx-full">AI xét duyệt ảnh</span><span class="tx-short">AI duyệt ảnh</span> <span class="hp-legcnt">' + (S.ai.ok ? nf(n) : "…") + '</span></button>';
 }
 /* --- KHỐI 1: VỆ SINH HÔM NAY (tab VESINH-YEUCAU) — 4 thẻ hành động + thanh tiến độ --- */
 /* Khối "Đủ yêu cầu vệ sinh chưa?" trong panel Vệ sinh: mỗi khu vực 1 thanh độ phủ
@@ -2024,12 +2095,13 @@ function renderToday(){
   var cnt = { da: 0, nhac: 0, khong: 0, chua: 0 }, nvDa = {};
   rows.forEach(function(r){ cnt[bkNgay(r)]++; if (r.bk === "da" && r.email) nvDa[r.email.toLowerCase()] = 1; });
   var nNvDa = Object.keys(nvDa).length;
-  var chipNgay = '<span class="hp-chip" title="Khoảng ngày đang xem — đổi ở ô Ngày phía trên">' + esc(nhanKhoang()) + '</span>';
+  /* Khoảng ngày KHÔNG in lại ở tiêu đề (10/09/2026): ô Ngày trên thanh điều khiển là nơi duy nhất.
+     Trước đây cùng một ngày in 3 lần trong một màn (thanh lọc · h2 Sơ đồ khu vực · h2 Vệ sinh). */
 
   /* Không có yêu cầu trong khoảng → empty-state gọn thay vì 4 thẻ số 0 */
   if (!nTot){
-    box.innerHTML = '<section class="hp-panel hp-fade hp-hero"><h2>Vệ sinh ' + chipNgay +
-      (S.area ? ' <span class="hp-hint">' + esc(areaMeta(S.area).short) + '</span>' : '') + '</h2>' +
+    box.innerHTML = '<section class="hp-panel hp-fade hp-hero"><h2>Vệ sinh' +
+      (S.area ? ' <span class="hp-hint">' + esc(areaMeta(S.area).short) + '</span>' : '') + '<span style="flex:1"></span>' + btnAi() + '</h2>' +
       '<div class="hp-empty">Không có yêu cầu vệ sinh trong khoảng này' + (S.area ? ' ở ' + esc(areaMeta(S.area).short) : '') + '. Chọn khoảng ngày khác ở ô Ngày phía trên.</div></section>';
     renderMap(); return;
   }
@@ -2061,8 +2133,9 @@ function renderToday(){
      dời khỏi cột sơ đồ để 2 cột cân cao và sơ đồ không bị đẩy tràn khung nhìn */
   box.innerHTML =
     '<section class="hp-panel hp-fade hp-hero">' +
-    '<h2>Vệ sinh ' + chipNgay + '<span style="flex:1"></span><a class="hp-ext" style="font-size:12px" target="_blank" rel="noopener" href="' + esc(pgListUrl(k[0], S.area, "", k[1])) + '">Mở planogram ↗</a></h2>' +
-    '<div class="hp-tiles">' + tiles + '</div>' + bar + htmlDoPhu() +
+    '<h2>Vệ sinh<span style="flex:1"></span>' + btnAi() + '<a class="hp-ext" style="font-size:12px" target="_blank" rel="noopener" href="' + esc(pgListUrl(k[0], S.area, "", k[1])) + '">Mở planogram ↗</a></h2>' +
+    '<div class="hp-tiles">' + tiles + '</div>' + bar +
+    '<div id="hpAlertSlot"></div>' + htmlDoPhu() +
     '<div id="hpNhacSlot"></div>' +
     '</section>';
   renderMap();   // sơ đồ mặt bằng đi theo khoảng ngày đang xem
@@ -2209,7 +2282,8 @@ function render(){
 function ccSetStatus(k){ if (S.ccStatus === k) k = ""; S.ccStatus = k; renderList(); }
 function ccSearch(v){ S.ccQ = v; clearTimeout(_ccDeb); _ccDeb = setTimeout(renderList, 130); }
 /* Đổi chế độ danh sách: "nv" mới cần tab CHAMCONG → nạp lúc này (bậc 3) thay vì tải sẵn */
-function setListMode(m){ if (S.listMode === m) return; S.listMode = m; if (m === "nv") canCC(); renderList(); }
+/* Giữ tên API cũ cho tương thích (bộ đo/thanh bên từng gọi): 'ai' nay = mở pop-up, còn lại = vẽ lại panel NV */
+function setListMode(m){ if (m === "ai"){ openAiList(); return; } S.listMode = "nv"; renderList(); }
 function renderCC(){ renderList(); }
 function htmlNhanVien(){
   if (!S.cc.ok && S.cc.dang) return '<div class="hp-empty"><div class="hp-spin" style="width:22px;height:22px;border-width:2px;margin-bottom:10px"></div>Đang tải chấm công hôm nay…</div>';
@@ -2224,8 +2298,9 @@ function htmlNhanVien(){
     if (q && ((r.name + " " + r.code + " " + r.email + " " + r.major + " " + r.loc).toLowerCase().indexOf(q) < 0)) return false;
     return true;
   });
-  var chips = '<span class="hp-hint" style="font-weight:650">Trạng thái:</span>' +
-    '<button class="hp-whtab' + (S.ccStatus ? "" : " active") + '" onclick="HPLANOGRAM.ccSetStatus(\'\')">Tất cả · ' + nf(nTot) + '</button>' +
+  /* Không nhãn "Trạng thái:" — cùng luật với chip Kết luận của danh sách AI (luật ⑬: chip màu đã tự
+     minh định ngữ cảnh, nhãn chỉ tốn chỗ trên dải cuộn ngang). */
+  var chips = '<button class="hp-whtab' + (S.ccStatus ? "" : " active") + '" onclick="HPLANOGRAM.ccSetStatus(\'\')">Tất cả · ' + nf(nTot) + '</button>' +
     CCST.map(function(s){
       return '<button class="hp-whtab' + (S.ccStatus === s.k ? " active" : (cnt[s.k] ? "" : " hp-z0")) + '" onclick="HPLANOGRAM.ccSetStatus(\'' + s.k + '\')"><span class="hp-dot" style="background:' + s.c + '"></span>' + esc(s.short) + ' <b>' + nf(cnt[s.k] || 0) + '</b></button>';
     }).join("");
@@ -2246,7 +2321,7 @@ function htmlNhanVien(){
     '<div class="hp-ccwrap"><table class="hp-cctbl mbcard"><thead><tr>' +
     '<th>Nhân viên</th><th>Code</th><th>Giờ vào</th><th>Giờ ra</th><th class="num">Đã vệ sinh</th><th>Vị trí gần nhất</th><th>Trạng thái</th>' +
     '</tr></thead><tbody>' + body + '</tbody></table></div>' +
-    '<p class="hp-hint" style="margin:10px 0 0">' + nf(rows.length) + ' / ' + nf(nTot) + ' nhân viên · đi làm hôm nay ' + nf(nDiLam) + (S.cc.ts ? ' · cập nhật ' + fmtTime(S.cc.ts) : '') + '.</p>';
+    '<p class="hp-hint" style="margin:10px 0 0">' + (rows.length < nTot ? 'Đang hiển thị ' + nf(rows.length) + ' / ' + nf(nTot) + ' nhân viên · ' : '') + 'đi làm hôm nay ' + nf(nDiLam) + (S.cc.ts ? ' · cập nhật ' + fmtTime(S.cc.ts) : '') + '.</p>';
 }
 
 /* ===== SƠ ĐỒ MẶT BẰNG KHU ĐÓNG GÓI F0-A8 (theo bản vẽ BDG 25/07/2026) =====
@@ -2550,7 +2625,12 @@ function renderMap(){
   '<div class="hp-legpop-it"><span class="hp-legpop-sw" style="background:#fee2e2;color:#dc2626;font-size:11px;display:flex;align-items:center;justify-content:center">⚠</span><div class="tx"><b>Quá ' + NGUONG_CANHBAO + ' ngày</b><small>Liên tiếp không có ai báo cáo vệ sinh</small></div></div>';
 
   var totalLeg = legKeys.length + 1 + (soiPT ? 1 : 0) + 1;
-  var legend = '<div class="hp-legwrap" id="hpLegWrap">' +
+  /* "Toàn bộ vị trí" về tiêu đề Sơ đồ (10/09/2026) — nó là bảng của chính các ô trên sơ đồ này. Trước
+     nằm ở thanh điều khiển đầu tab, chung hàng và cùng kiểu viên với chip lọc nên trông như một bộ lọc. */
+  var btnAll = S.all.length
+    ? '<button type="button" class="hp-h2btn" onclick="HPLANOGRAM.openAll()" title="Danh sách toàn bộ vị trí + người phụ trách gần nhất (45 ngày)"><span class="tx-full">Toàn bộ vị trí</span><span class="tx-short">Vị trí</span> <span class="hp-legcnt">' + nf(rowsInScope().length) + '</span></button>'
+    : "";
+  var legend = '<div class="hp-legwrap" id="hpLegWrap">' + btnAll +
     '<button type="button" class="hp-legbtn" onclick="HPLANOGRAM.toggleLegend(event)" title="Xem chú thích màu và ký hiệu trên sơ đồ"><span class="hp-legdot"></span>Chú giải <span class="hp-legcnt">' + totalLeg + '</span> ▾</button>' +
     '<div class="hp-legpop" id="hpLegPop">' +
       '<div class="hp-legpop-hd"><span>Chú giải ký hiệu (' + totalLeg + ')</span><button type="button" class="hp-legpop-close" onclick="HPLANOGRAM.closeLegend()">&times;</button></div>' +
@@ -2562,6 +2642,9 @@ function renderMap(){
   var bannerAlert = nAlert
     ? '<div class="hp-alertbar" onclick="HPLANOGRAM.openCanhBao()" title="Bấm xem danh sách vị trí quá hạn"><span class="ic">⚠</span><b>' + nf(nAlert) + '</b> vị trí quá ' + NGUONG_CANHBAO + ' ngày chưa VS — bấm xử lý <span class="hp-alert-arr">›</span></div>'
     : "";
+
+  var alertSlot = $id("hpAlertSlot");
+  if (alertSlot) alertSlot.innerHTML = bannerAlert;
 
   /* Panel "ĐI LÀM MÀ KHÔNG BÁO CÁO" (tên cũ: Cần nhắc theo nhân viên): gom các ô Chưa VS mà phụ
      trách CÓ chấm công hôm đó, nhóm theo NV — bấm chip tô nổi đúng các ô của NV đó trên sơ đồ.
@@ -2601,9 +2684,10 @@ function renderMap(){
   if (slot) slot.innerHTML = htmlNhac;
   box.innerHTML =
     '<section class="hp-panel hp-fade">' +
-    '<h2>Sơ đồ khu vực <span class="hp-chip">' + esc(nhanKhoang()) + '</span> ' + legend + '</h2>' +
-    bannerAlert + (slot ? "" : htmlNhac) + htmlA1 + htmlA8 +
-    /* Khối 'Bấm một ô để xem chi tiết…' ĐÃ BỎ (21/08/2026): chỉ dẫn thao tác. */ '' +
+    /* Không in lại khoảng ngày ở đây (10/09/2026): ô Ngày trên thanh điều khiển là nơi duy nhất — trước
+       cùng một ngày in 3 lần trong một màn (thanh lọc · h2 Sơ đồ · h2 Vệ sinh). */
+    '<h2>Sơ đồ khu vực ' + legend + '</h2>' +
+    (slot ? "" : (bannerAlert + htmlNhac)) + htmlA1 + htmlA8 +
     '</section>';
   fitMaps();
 }
@@ -2877,8 +2961,7 @@ function openYc(bk){
     m ? { k: "bk", raw: m.lb } : null, "req");
 }
 function openYcAi(k){
-  var m = aiMeta(k); if (!m) return;
-  showModal(ycInScope(), m.lb + " · " + thuVN(ngayXem()) + " " + ngayVN(ngayXem()) + (S.area ? (" · " + areaMeta(S.area).short) : ""), { k: "ai", raw: m.lb }, "req");
+  openAiList(k);
 }
 /* Pop-up "vị trí KHÔNG có yêu cầu báo cáo vệ sinh" (bấm dải cảnh báo ở panel Vệ sinh) */
 function openThieu(){
@@ -3258,12 +3341,14 @@ function init(pane){
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
     $id("hpModal").addEventListener("click", function(e){ if (e.target === this) closeModal(); });
     $id("hpNkModal").addEventListener("click", function(e){ if (e.target === this) closeNk(); });
+    if ($id("hpAiModal")) $id("hpAiModal").addEventListener("click", function(e){ if (e.target === this) closeAiModal(); });
     /* ESC đóng pop-up (đồng bộ hành vi với modal native của host); nhường lightbox host xử lý trước */
     document.addEventListener("keydown", function(e){
       if (e.key !== "Escape") return;
       var lb = $id("lightbox"); if (lb && lb.classList.contains("show")) return;
       var legPop = $id("hpLegPop"); if (legPop && legPop.classList.contains("open")){ closeLegend(); return; }
-      if ($id("hpVtModal") && $id("hpVtModal").classList.contains("show")) closeVt();
+      if ($id("hpAiModal") && $id("hpAiModal").classList.contains("show")) closeAiModal();
+      else if ($id("hpVtModal") && $id("hpVtModal").classList.contains("show")) closeVt();
       else if ($id("hpNkModal") && $id("hpNkModal").classList.contains("show")) closeNk();
       else if ($id("hpModal") && $id("hpModal").classList.contains("show")) closeModal();
     });
@@ -3297,6 +3382,7 @@ function init(pane){
 window.HPLANOGRAM = {
   init: init, reload: loadData, setArea: setArea, setNgay: setNgay, setKhoang: setKhoang, chonNgay: chonNgay, moLocNgay: moLocNgay, dongLocNgay: dongLocNgay, setListMode: setListMode,
   openAll: openAll, openArea: openArea, openStatus: openStatus, openName: openName, openYc: openYc, openYcAi: openYcAi, closeModal: closeModal,
+  openAiList: openAiList, closeAiModal: closeAiModal, renderAiModal: renderAiModal,
   comboInput: comboInput, comboMenu: comboMenu, quick: quick, openAnh: openAnh,
   openNk: openNk, closeNk: closeNk, nkPick: nkPick, nkSearch: nkSearch,
   openViTri: openViTri, moAnhHet: moAnhHet, closeVt: closeVt, vtNgay: vtNgay, openCanhBao: openCanhBao, openThieu: openThieu, setPtHi: setPtHi, togglePtNhac: togglePtNhac,
