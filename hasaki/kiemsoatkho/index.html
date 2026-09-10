@@ -524,15 +524,27 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 .lb-btn:hover{background:var(--accent); color:var(--accent-text); border-color:var(--accent); opacity:1;}
 #lbPrev{left:18px;} #lbNext{right:18px;}
 #lbClose{position:absolute; top:16px; right:18px; background:var(--surface); color:var(--text); border:1px solid var(--border); padding:8px 14px; border-radius:10px; font-weight:600; cursor:pointer;}
-#lbClose:hover{background:var(--accent); color:var(--accent-text);}
-#lbCount{position:absolute; top:20px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); color:var(--text); padding:5px 12px; border-radius:20px; font-size:12px; font-weight:600;}
-#lbCaption{position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,.88); backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.16); color:#fff; padding:7px 18px; border-radius:20px; font-size:13px; text-align:center;
-  max-width:90vw; box-shadow:0 6px 24px rgba(0,0,0,.5); pointer-events:none; z-index:65; animation:lbIn .25s ease;}
+@keyframes lbCapIn{from{opacity:0; transform:translate3d(-50%, 4px, 0) scale(.98);} to{opacity:1; transform:translate3d(-50%, 0, 0) scale(1);}}
+#lbCount{position:absolute; top:18px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); color:var(--text); padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600;}
+#lbCaption{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,.88); backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.16); color:#fff; padding:4px 14px; border-radius:12px; font-size:12px; text-align:center;
+  max-width:92vw; box-shadow:0 6px 24px rgba(0,0,0,.5); pointer-events:none; z-index:65; animation:lbCapIn .2s ease both; will-change:opacity,transform;}
 #lbCaption:empty{display:none;}
-#lbCaption .lb-title{font-weight:700; color:#f8fafc; font-size:13.5px; letter-spacing:.2px;}
-#lbCaption .lb-sub{font-size:11.5px; color:#cbd5e1; margin-top:2px;}
-#lbCaption .lb-meta{font-size:11px; color:#94a3b8; margin-top:2px;}
+#lbCaption .lb-title{font-weight:700; color:#f8fafc; font-size:12.5px; letter-spacing:.2px; line-height:1.25;}
+#lbCaption .lb-sub{font-size:11px; color:#cbd5e1; margin-top:1px; line-height:1.25;}
+#lbCaption .lb-meta{font-size:10px; color:#94a3b8; margin-top:1px; line-height:1.25;}
+@media (max-width: 600px){
+  #lbClose{top:10px; right:12px; padding:6px 10px; font-size:12px;}
+  #lbCount{top:10px; padding:3px 8px; font-size:10.5px;}
+  #lbPrev{left:6px;} #lbNext{right:6px;}
+  .lb-btn{padding:8px 10px; font-size:12px;}
+  #lbCaption{bottom:8px; padding:3px 12px; border-radius:999px; max-width:96vw; backdrop-filter:blur(6px); line-height:1.2;}
+  #lbCaption .lb-title,#lbCaption .lb-sub{display:inline;}
+  #lbCaption .lb-sub::before{content:" · "; opacity:.7;}
+  #lbCaption .lb-title{font-size:11px;}
+  #lbCaption .lb-sub{font-size:10.5px;}
+  #lbCaption .lb-meta{font-size:9.5px; margin-top:1px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+}
 
 /* mượt khi mở/chuyển báo cáo */
 .steps-track{animation:fadeUp .28s ease both;}
@@ -3115,7 +3127,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260910a';
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260910b';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
