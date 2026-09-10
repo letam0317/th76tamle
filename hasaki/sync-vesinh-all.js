@@ -665,7 +665,7 @@ async function ghiTab(tab, header, rows){
   /* 6) HÂM CACHE readTab cho các tab dựng màn hình đầu — chỉ những tab THẬT SỰ vừa ghi (ghi mới
         xoá cache; tab hash-skip vẫn còn cache nóng, hâm lại chỉ tốn công). Xem hamCacheTabs. */
   if (!DRY){
-    const canHam = [TAB_YC, TAB_PT].filter((t) => daGhi.has(t));
+    const canHam = [TAB_YC, TAB_PT, TAB_ANH].filter((t) => daGhi.has(t));
     if (canHam.length) await hamCacheTabs(canHam, log);
   }
   if (!DRY) ghiMocBuoc(DIR, "vesinh");   // mốc thành công cho sync-guard

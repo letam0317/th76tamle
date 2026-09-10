@@ -1242,12 +1242,28 @@ function loadTab(tab, cbName, cbBuild, onFail, lan){
 /* hpc2 (12/08/2026): đổi tiền tố để BỎ HẲN cache của bản cũ — máy nào đã kịp cache "tab đầu tiên
    của file" do fallback gviz đầu độc thì F5 vẫn hỏng suốt 30' nếu còn đọc lại khoá hpc1. */
 var CACHE_V = "hpc2:", CACHE_TTL = 30 * 60 * 1000;
+/* Tab ảnh báo cáo (VESINH-ANH & VESINH-ANH-CU) chỉ gồm id/ngày/link CDN ảnh — KHÔNG có PII (không tên/email).
+   Cho phép lưu localStorage với TTL 2 giờ để khi người dùng mở pop-up (kể cả tab mới F5) thì ảnh vẽ ngay trong 0s. */
+var CACHE_LOCAL_TABS = [TAB_ANH, TAB_ANH_CU];
+var CACHE_ANH_TTL = 2 * 60 * 60 * 1000;   // 2 giờ cho cache ảnh
+function laTabLocal(tab){ return CACHE_LOCAL_TABS.indexOf(tab) >= 0; }
 function cacheGet(tab){
-  try{ var o = JSON.parse(sessionStorage.getItem(CACHE_V + tab) || "null");
-    return (o && o.H && Date.now() - o.at < CACHE_TTL) ? o : null; }catch(e){ return null; }
+  try{
+    var raw = sessionStorage.getItem(CACHE_V + tab);
+    var ttl = laTabLocal(tab) ? CACHE_ANH_TTL : CACHE_TTL;
+    if (!raw && laTabLocal(tab)) raw = localStorage.getItem(CACHE_V + tab);
+    var o = JSON.parse(raw || "null");
+    return (o && o.H && Date.now() - o.at < ttl) ? o : null;
+  }catch(e){ return null; }
 }
 function cacheSet(tab, H, rows, ts){
-  try{ sessionStorage.setItem(CACHE_V + tab, JSON.stringify({ at: Date.now(), H: H, rows: rows, ts: ts })); }
+  try{
+    var payload = JSON.stringify({ at: Date.now(), H: H, rows: rows, ts: ts });
+    sessionStorage.setItem(CACHE_V + tab, payload);
+    if (laTabLocal(tab)){
+      try{ localStorage.setItem(CACHE_V + tab, payload); }catch(_){}
+    }
+  }
   catch(e){ /* hết quota / chế độ riêng tư — bỏ cache, luồng chính không đổi */ }
 }
 
@@ -1285,10 +1301,10 @@ var NGUON = [
     fail: function(){ S.ccn.ok = false; S.ccn.dang = false; veLaiVt(); } },
   { tab: TAB_ANH, cb: "hpgv_anh",
     build: function(H, rows, ts){ if (ts > 0) S.anh.ts = ts; S.anh.dang = false; buildANH(H, rows); },
-    fail: function(){ S.anh.ok = false; S.anh.dang = false; } },
+    fail: function(){ S.anh.ok = false; S.anh.dang = false; veLaiVt(); } },
   { tab: TAB_ANH_CU, cb: "hpgv_anhcu",
     build: function(H, rows, ts){ if (ts > 0) S.anhcu.ts = ts; S.anhcu.dang = false; buildANHCU(H, rows); },
-    fail: function(){ S.anhcu.ok = false; S.anhcu.dang = false; } }
+    fail: function(){ S.anhcu.ok = false; S.anhcu.dang = false; veLaiVt(); } }
 ];
 var _daGoi = {}, _ycTO = null, _preTO = null;   // _daGoi: tab -> đã bắn request lượt này · _ycTO: watchdog VESINH-YEUCAU
 function nguonOf(tab){ for (var i = 0; i < NGUON.length; i++) if (NGUON[i].tab === tab) return NGUON[i]; return null; }
@@ -1336,18 +1352,26 @@ function canANH(){ if (!(S.anh.ok || S.anh.dang)){ S.anh.dang = true; tuCache(TA
  * trong chính pop-up). Bản đầu chỉ xét khoang() nên bấm ô ngày 14/8 trong pop-up thì tầng ảnh cũ
  * KHÔNG BAO GIỜ được gọi — pop-up báo "Ảnh báo cáo (0)" trong khi Sheet có đủ 16 ảnh. */
 function canAnhNgay(){
-  if (!S.anh.ok || S.anhcu.ok || S.anhcu.dang) return;
+  if (S.anhcu.ok || S.anhcu.dang) return;
   var k = khoang(), tu = k[0], den = k[1];
   /* Ngày riêng của pop-up ô đang mở (nếu có) — xét trước vì đó là thứ người dùng đang nhìn. */
   var mv = $id("hpVtModal"), dVt = (mv && mv.classList.contains("show") && VT.ngay) ? VT.ngay : "";
-  var thieu = !!(dVt && !S.anh.ngay[dVt]);
-  /* Rồi tới khoảng ngày của màn hình: duyệt NGÀY CÓ THẬT trong dữ liệu yêu cầu (không cộng chuỗi
-     ngày) — khoảng đang xem mà không có yêu cầu nào thì cũng chẳng có ảnh nào để đi tìm. */
+  var thieu = false, hn = isoToday();
+  function laNgayCu(d){
+    if (!d) return false;
+    try{ return (new Date(hn + "T00:00:00") - new Date(d + "T00:00:00")) / 86400000 >= 3; }catch(e){ return false; }
+  }
+  if (dVt){
+    thieu = S.anh.ok ? !S.anh.ngay[dVt] : laNgayCu(dVt);
+  }
+  /* Rồi tới khoảng ngày của màn hình: duyệt NGÀY CÓ THẬT trong dữ liệu yêu cầu */
   if (!thieu && tu && den){
     var rs = S.yc.rows || [];
     for (var i = 0; i < rs.length; i++){
       var d = rs[i].ngay;
-      if (d >= tu && d <= den && !S.anh.ngay[d]){ thieu = true; break; }
+      if (d >= tu && d <= den){
+        if (S.anh.ok ? !S.anh.ngay[d] : laNgayCu(d)){ thieu = true; break; }
+      }
     }
   }
   if (!thieu) return;
@@ -1399,7 +1423,7 @@ function loadData(){
   clearTimeout(_preTO);
   var thu0 = Date.now();
   _preTO = setTimeout(function choNapTruoc(){
-    if (S.yc.ok){ canLS(); canCCN(); return; }
+    if (S.yc.ok){ canANH(); canLS(); canCCN(); return; }
     if (Date.now() - thu0 > 60000) return;   // bậc 1 hỏng hẳn thì thôi, đừng nạp trước làm gì
     _preTO = setTimeout(choNapTruoc, 3000);
   }, 4000);
@@ -1512,6 +1536,9 @@ function buildYC(H, rows2d){
      (khối danh sách tự hiện trạng thái "đang tải" cho nguồn bậc 2/3 chưa về). */
   xongTai();
   renderWhBar(); renderToday(); renderList(); capNhatInfo();
+  /* NẠP TRƯỚC ẢNH BÁO CÁO (TAB_ANH): nạp ngay trong nền sau khi Bậc 1 xong (trễ nhẹ 200ms nhường UI),
+     để khi người dùng mở bất kỳ ô nào thì ảnh đã sẵn sàng (< 0.1s), không phải chờ "đang tải ảnh báo cáo…". */
+  setTimeout(function(){ canANH(); }, 200);
 }
 /* ===== HOÃN TẢI ẢNH (18/08/2026) — ĐO THẬT TRƯỚC KHI LÀM, ĐỪNG TỐI ƯU LẠI THEO CẢM TÍNH =====
  * Ảnh báo cáo là FILE GỐC chụp bằng điện thoại: đo 8 ảnh mẫu = 451–769 KB (trung bình ~520 KB).
@@ -1574,9 +1601,9 @@ function docANH(H, rows2d, by, ngay){
 }
 /* Vẽ lại 4 chỗ có ảnh sau khi một tab ảnh về (dùng chung cho tab nhanh lẫn tab ngày cũ). */
 function veLaiAnh(){
-  if (!ganAnh(S.yc.rows)) return;   // chưa có dòng nào nhận ảnh → khỏi vẽ lại
+  ganAnh(S.yc.rows);
   renderList();                     // cột thumbnail của danh sách nhân viên/AI
-  veLaiVt();                        // pop-up ô đang mở
+  veLaiVt();                        // pop-up ô đang mở (cập nhật ngay trạng thái tải xong)
   var m = $id("hpModal");           // modal danh sách yêu cầu đang mở
   if (m && m.classList.contains("show")) mRender();
 }
@@ -2584,10 +2611,10 @@ function bkCua(r, dd){ return r.bk === "da" ? "da" : (dd === isoToday() ? r.bk :
 function openViTri(loc){
   if (!loc) return;
   VT.loc = loc; VT.ngay = ngayXem();
+  canANH();  // ƯU TIÊN ẢNH LÊN ĐẦU: chiếm kết nối trước để ảnh về ngay, không bị nghẽn sau các tab lịch sử
   canCC();   // pop-up cần chấm công hôm nay của phụ trách — nguồn bậc 3, nạp lúc mở (buildCC vẽ lại)
   canLS();   // + lịch sử báo cáo 60 ngày của ô (bậc 3 — chỉ pop-up này dùng, buildLS vẽ lại)
   canCCN();  // + chấm công THEO NGÀY 60 ngày (thẻ Phụ trách cần giờ vào/ra của đúng ngày đang chọn)
-  canANH();  // + ảnh báo cáo (tab riêng từ 03/08 — buildANH tự vẽ lại pop-up khi về)
   renderVt();
   var m = $id("hpVtModal"); m.style.display = "flex";
   requestAnimationFrame(function(){ m.classList.add("show"); });
@@ -2681,6 +2708,7 @@ function renderVt(){
        cả 24 ô là 18,6MB/lượt mở. Muốn xem cả bộ thì bấm "+N": lúc đó mới trải hết lưới và ảnh vẫn
        vào theo tầm nhìn. Người chỉ liếc qua không phải trả tiền băng thông cho 20 ảnh không xem. */
     var moHet = !!VT.moAnh[String(r.id)], soBay = moHet ? r.anh.length : Math.min(ANH_XEM_TRUOC, r.anh.length);
+    var dangTaiAnh = (S.anh.dang || S.anhcu.dang);
     var thumbs = r.anh.length
       ? '<div class="hp-vtthumbs">' + r.anh.slice(0, soBay).map(function(u, i){
           var vtCon = viTriCon(r.loc, i, r.anh.length);
@@ -2692,10 +2720,15 @@ function renderVt(){
       : '<span class="hp-hint">' + (!r.email ? "chưa có ảnh (chưa báo cáo)"
           /* Ba tình huống KHÁC HẲN nhau, trước đây gộp làm một câu "chỉ lưu 7 ngày" nên báo sai
              cho cả ngày nằm TRONG cửa sổ (user bắt được 14/8 khi hôm nay 18/8): */
-          : (S.anh.dang || S.anhcu.dang) ? "đang tải ảnh báo cáo…"
+          : dangTaiAnh ? '<span class="hp-spin" style="display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px;border-width:2px;"></span>đang tải ảnh báo cáo…'
           : (S.anh.ngay[d] || S.anhcu.ok) ? "yêu cầu này không kèm ảnh báo cáo"
           : "ảnh chỉ lưu trên dashboard 7 ngày gần nhất — bấm ↗ xem trên planogram") + '</span>';
-    rows.push(["Ảnh báo cáo (" + r.anh.length + ")", thumbs]);
+    var nhanAnh = r.anh.length
+      ? ("Ảnh báo cáo (" + r.anh.length + ")")
+      : dangTaiAnh
+        ? 'Ảnh báo cáo <span class="hp-spin" style="display:inline-block;width:11px;height:11px;margin-left:3px;vertical-align:-1px;border-width:2px;"></span>'
+        : "Ảnh báo cáo (0)";
+    rows.push([nhanAnh, thumbs]);
   } else {
     rows.push(["Trạng thái", '<span class="hp-hint">Ngày ' + ngayVN(d) + ' vị trí này KHÔNG có yêu cầu vệ sinh trên planogram.</span>']);
   }
