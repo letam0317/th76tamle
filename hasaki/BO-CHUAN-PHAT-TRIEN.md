@@ -131,6 +131,15 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
 - Trước khi thêm UI mới: grep tìm pattern tương đương đã có, tái dùng class — không viết bản sao.
 - Cùng 1 chức năng ở nhiều tab → cùng nhãn + cùng tooltip. Luật chỉ thi hành ở 1 dashboard thì
   dashboard kia lặng lẽ tái phát — áp CẢ HAI.
+- **Chống giật animation cho phần tử căn giữa `translateX(-50%)` (10/09/2026):**
+  Phần tử dùng `left: 50%; transform: translateX(-50%);` (như `#lbCaption`, `#lbCount`, tooltip, toast nổi)
+  tuyệt đối không dùng keyframe animation ghi đè `transform` đơn lẻ (`scale(...)`, `translateY(...)`) vì sẽ
+  làm mất `-50%` trục X trong lúc animation chạy, khiến phần tử dạt sang phải rồi giật ngược sang trái
+  khi animation kết thúc. Bắt buộc dùng keyframe riêng mang đầy đủ `translate3d(-50%, ...)` ở mọi mốc 0% → 100%.
+- **Chuẩn chip chú thích Lightbox trên điện thoại (10/09/2026):**
+  Phải hạ chiều cao ($\le 40\text{px}$), padding dẹt ($\le 3\text{px}$ dọc), dán sát đáy ($\le 10\text{px}$),
+  bo tròn dạng pill (`border-radius: 999px`), gộp mã vị trí và mô tả kệ lên dòng 1 dạng inline và người
+  báo cáo ở dòng 2 để chip cực kỳ dẹt, không che khuất chi tiết chân ảnh.
 
 **9 luật hiển thị điện thoại (chi tiết + 17 bẫy: memory `quy-chuan-hien-thi-dien-thoai`):**
 1. Trang không kéo ngang; cuộn ngang chỉ trong khung tự khai `overflow-x:auto`.
@@ -158,6 +167,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 |---|---|
 | `qc-mobile-toan-du-an.mjs` (12 luật / 34 màn × 4 máy; `--file` `--may` `--trang` `--man=<regex tên màn>`) | MỌI lần sửa hiển thị của 2 dashboard — baseline trước, `--file` sau khi sửa, live sau khi kiểm dấu vết deploy |
 | `qc-chu-thich.mjs` (26 ca, `--live`) | Sửa tooltip/chú thích, và làm ca CHẶN HỒI QUY (đoạn văn đầu màn + nhãn chỉ dẫn trong ngoặc) |
+| `qc-lightbox-caption.mjs` (4 ca) | Sửa lightbox/ảnh báo cáo (kiểm tra đủ thông tin mã vị trí con + kệ + người báo cáo; chống giật animation tâm X cố định; chip di động dẹt ≤ 40px) |
 | `qc-nhan-dien-sku.mjs` | Đụng lõi tab Nhận diện SKU |
 | `qc-moc-lo-trinh.mjs` | So trước/sau lộ trình NDS (KHÔNG dùng `qc-loi-cu-moi` cho việc này) |
 | `do-toc-do-tem.mjs` | Đụng tốc độ AI đọc tem |
@@ -201,6 +211,8 @@ Nguyên tắc:
   BẰNG CHỨNG và bẫy.
 
 ## NHẬT KÝ RULE
+
+- **10/09/2026** — Mục 6 & 7: chống giật animation cho phần tử căn giữa `translateX(-50%)` (triệt tiêu lỗi nhảy từ phải sang trái của chip chú thích ảnh) + chuẩn chip Lightbox dẹt $\le 40\text{px}$ trên điện thoại.
 
 - **07/09/2026** — Mục 7: bộ đo không được treo câm — trần 60s cho từng bước evaluate/chụp ảnh + handler dialog
   (rút từ lần qc-mobile đứng 15 phút sau màn "Kế hoạch chờ push" khi đo 2 màn mới của thẻ "Xác nhận lỗi còn treo").

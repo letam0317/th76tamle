@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import puppeteer from "puppeteer";
@@ -94,5 +94,74 @@ const capInfo2 = await p.evaluate(() => {
 console.log("Kết quả Ca 2:", JSON.stringify(capInfo2, null, 2));
 await p.screenshot({ path: path.join(OUT, "qc-subloc-514-08-04-02.png") });
 
-if (loi.length) console.log("Lỗi console:", loi);
+// Ca 3: Kiểm tra chống giật animation (Tâm X của chip phải cố định giữa màn hình ở mọi khung hình)
+console.log("\n=== KIỂM THỬ CA 3: CHỐNG GIẬT ANIMATION (Tâm X cố định, không nhảy từ phải sang trái) ===");
+await p.evaluate(() => {
+  if (typeof window.dongLB === "function") window.dongLB();
+});
+await new Promise((r) => setTimeout(r, 200));
+
+await p.evaluate(() => {
+  window.HPLANOGRAM.openAnh("27769302", 1);
+});
+
+const framesX = [];
+const winWidth = await p.evaluate(() => window.innerWidth);
+const midX = Math.round(winWidth / 2);
+
+for (let t = 0; t <= 250; t += 50) {
+  await new Promise((r) => setTimeout(r, 50));
+  const cx = await p.evaluate(() => {
+    const el = document.getElementById("lbCaption");
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return Math.round(r.left + r.width / 2);
+  });
+  framesX.push({ t, cx, lech: Math.abs(cx - midX) });
+}
+console.log("Đo tâm X của chip trong 250ms animation (tâm chuẩn " + midX + "px):", framesX);
+const giatAnimation = framesX.some((f) => f.lech > 1);
+if (giatAnimation) {
+  loi.push("LỖI GIẬT ANIMATION: Tâm chip bị lệch khỏi tâm màn hình > 1px trong lúc mở pop-up.");
+  console.error("✗ Ca 3 THẤT BẠI: Tâm chip bị lệch trục trong animation.");
+} else {
+  console.log("✓ Ca 3 ĐẠT: Tâm chip cố định tuyệt đối ở " + midX + "px xuyên suốt animation (chống giật 100%).");
+}
+
+// Ca 4: Chuẩn hiển thị di động (Viewport 390x844 - iPhone): chip dẹt <= 40px, bottom <= 10px
+console.log("\n=== KIỂM THỬ CA 4: CHUẨN CHIP DẸT DI ĐỘNG (Viewport 390px, height <= 40px, bottom <= 10px) ===");
+await p.setViewport({ width: 390, height: 844 });
+await new Promise((r) => setTimeout(r, 400));
+
+const mobChip = await p.evaluate(() => {
+  const el = document.getElementById("lbCaption");
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return {
+    width: Math.round(r.width),
+    height: Math.round(r.height),
+    bottom: Math.round(window.innerHeight - r.bottom),
+    center: Math.round(r.left + r.width / 2),
+    winWidth: window.innerWidth
+  };
+});
+console.log("Đo kích thước chip trên mobile 390px:", mobChip);
+await p.screenshot({ path: path.join(OUT, "qc-mobile-lightbox-caption.png") });
+
+if (mobChip.height > 40) {
+  loi.push("LỖI CHIỀU CAO: Chip chú thích trên di động cao " + mobChip.height + "px (> tiêu chuẩn 40px).");
+  console.error("✗ Ca 4 THẤT BẠI: Chip chưa đủ độ dẹt.");
+} else if (mobChip.bottom > 10) {
+  loi.push("LỖI KHOẢNG CÁCH ĐÁY: Chip cách đáy " + mobChip.bottom + "px (> tiêu chuẩn 10px).");
+  console.error("✗ Ca 4 THẤT BẠI: Chip chưa hạ sát đáy.");
+} else {
+  console.log("✓ Ca 4 ĐẠT: Chip dẹt " + mobChip.height + "px (<= 40px), cách đáy " + mobChip.bottom + "px (<= 10px), căn giữa " + mobChip.center + "px/390px.");
+}
+
+if (loi.length) {
+  console.error("\n❌ TỔNG KẾT: Có lỗi trong quá trình QC:", loi);
+  process.exit(1);
+} else {
+  console.log("\n✅ TỔNG KẾT: Toàn bộ 4/4 ca kiểm thử QC Lightbox Caption ĐẠT HOÀN HẢO.");
+}
 await b.close();

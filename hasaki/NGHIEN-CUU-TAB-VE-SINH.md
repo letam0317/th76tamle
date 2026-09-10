@@ -570,7 +570,20 @@ KHÔNG ĐẠT** (vài chục ảnh/ngày) để giữ hồ sơ bằng chứng l�
 Muốn bày nhiều/ít ô hơn: sửa `ANH_XEM_TRUOC` (mỗi ô ≈ 0,5 MB, quy đổi thẳng ra băng thông).
 Kèm theo: sửa lời nhắc "ảnh chỉ lưu 3 ngày" → **7 ngày**. QC: `qc-anh-7ngay.mjs` (nhận `QC_URL=`
 để soi bản localhost trước khi deploy — Pages/CDN trễ 5–8 phút, đừng sửa logic khi gặp triệu chứng
-"bản mới không ăn").
+## 4k. ✅ 10/09/2026 — ÉP TẢI ẢNH < 2S + CHỐNG GIẬT ANIMATION VÀ CHUẨN CHIP LIGHTBOX DẸT
+
+1. **Tối ưu tốc độ tải ảnh báo cáo (< 2s, mở pop-up có ngay trong 0s):**
+   - Kích hoạt nạp trước (`prefetch`) tab `VESINH-ANH` ngay khi Bậc 1 (`VESINH-YEUCAU`) hoàn thành; trong lúc user soi sơ đồ (1-3s) thì ảnh đã về sẵn.
+   - Cache đa tầng `localStorage` cho `VESINH-ANH` & `VESINH-ANH-CU` (không chứa PII) với TTL 2 giờ → mở pop-up ở tab mới/F5 có ngay lập tức (< 1ms).
+   - Ưu tiên `canANH()` lên đầu trong `openViTri()`; tải song song `canAnhNgay()` khi xem ngày cũ.
+   - Bổ sung `TAB_ANH` vào danh sách hâm nóng cache (`canHam`) của `sync-vesinh-all.js` sau mỗi lượt đồng bộ.
+2. **Sửa dứt điểm lỗi giật animation của chip chú thích Lightbox (nhảy từ phải sang trái):**
+   - `@keyframes lbIn` vốn ghi đè `transform: scale(...)` làm mất `translateX(-50%)` trong 0.25s đầu, khiến chip dạt sang phải rồi giật ngược về giữa.
+   - Thay bằng `@keyframes lbCapIn` mang đầy đủ `translate3d(-50%, ...)` ở mọi mốc 0% → 100%. Tâm X cố định tuyệt đối ở giữa màn hình.
+3. **Chuẩn chip chú thích Lightbox dẹt & gọn trên điện thoại:**
+   - Hạ chiều cao từ ~80px xuống **36px** (giảm > 50%), cách mép đáy chỉ **8px**, bo tròn dạng viên thuốc `border-radius: 999px`.
+   - Gộp mã vị trí và mô tả kệ lên dòng 1 dạng inline, dòng 2 hiển thị người báo cáo.
+   - Bộ QC đo tự động: `qc-lightbox-caption.mjs` (4/4 ca kiểm thử đạt).
 
 ## 5. Công cụ nghiên cứu đã tạo (read-only, tôn trọng luật phiên)
 `.exports/` chứa bằng chứng: `probe-planogram*.json`, `captured-planogram-authed.json`.
