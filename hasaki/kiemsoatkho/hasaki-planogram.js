@@ -756,7 +756,7 @@ var CSS = [
 "#pane-planogram .hp-seg button b{font-variant-numeric:tabular-nums;font-weight:700;}",
 "#pane-planogram .hp-seg button:hover{background:color-mix(in srgb, var(--accent,#326e51) 7%, transparent);}",
 "#pane-planogram .hp-seg button.on{background:var(--accent,#326e51);color:var(--accent-text,#fff);}",
-"@media(max-width:768px){#pane-planogram .hp-seg button{min-height:42px;}}",
+"@media(max-width:768px){#pane-planogram .hp-seg button{min-height:40px;padding:7px 12px;font-size:12px;}}",
 /* sơ đồ mặt bằng — A1 (16 dãy kệ) + A8 (4 cụm bàn + băng chuyền) */
 "#pane-planogram .hp-maphdr{font-size:12px;font-weight:700;color:var(--muted,#64748b);text-transform:uppercase;letter-spacing:.05em;margin:12px 2px 6px;}",
 /* tỷ lệ thực địa ~10px/m: cặp dãy A1 lưng giáp lưng (3px), lối đi xen kẽ 1,5m=15px / 3m=30px; cụm A8 cách đều 2m=20px */
@@ -1048,9 +1048,9 @@ var CSS = [
 /* CHIP LỌC trong panel danh sách (Kết luận / Trạng thái): 1 HÀNG CUỘN NGANG — khuôn .toptabs của
    dự án. Không đi đường xếp dọc như #hpWhBar: ở đây mỗi chip là một GIÁ TRỊ cùng loại, xếp dọc
    thành 5 hàng thì mất luôn nghĩa "một dải để so sánh". */
-"#pane-planogram .hp-whbar.hp-chipbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;padding-bottom:3px;}",
+"#pane-planogram .hp-whbar.hp-chipbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;padding-bottom:3px;gap:5px;margin:0 0 6px;}",
 "#pane-planogram .hp-whbar.hp-chipbar>*{flex:0 0 auto;}",
-"#pane-planogram .hp-ccsearch{max-width:none;min-height:44px;}",
+"#pane-planogram .hp-ccsearch{max-width:none;min-height:36px;padding:6px 10px;font-size:12px;margin:2px 0 8px;}",
 /* Nhãn dọc trong băng chuyền: 9px là dưới sàn đọc được (luật ⑥). Băng rộng 30px, chữ viết dọc nên
    nới cỡ không làm băng phình ngang. */
 "#pane-planogram .hp-mapbelt span{font-size:10.5px;}",
@@ -1888,8 +1888,7 @@ function htmlAiXetDuyet(){
     return true;
   });
 
-  var chips = '<span class="hp-hint" style="font-weight:650">Kết luận:</span>' +
-    '<button class="hp-whtab' + (S.aiKl ? "" : " active") + '" onclick="HPLANOGRAM.aiSetKl(\'\')">Tất cả · ' + nf(all.length) + '</button>' +
+  var chips = '<button class="hp-whtab' + (S.aiKl ? "" : " active") + '" onclick="HPLANOGRAM.aiSetKl(\'\')">Tất cả · ' + nf(all.length) + '</button>' +
     AIST.map(function(m){
       /* `hp-z0` = chip đếm 0: làm mờ để mắt bắt ngay chỗ CÓ SỐ. Vẫn bấm được (lọc ra 0 dòng là một
          câu trả lời hợp lệ) — chỉ bỏ cái vẻ "mọi viên đều quan trọng như nhau". */
@@ -2058,27 +2057,13 @@ function renderToday(){
        thẻ ngay bên trên — chú giải lặp lại y nguyên 3 dòng đó, chỉ làm rối. Từng khúc của
        thanh vẫn có tooltip nhãn + số khi rê chuột. */
 
-  /* Chip AI xét duyệt (nếu bộ sync-vesinh-ai.mjs đã chạy) — bấm chip mở pop-up lọc sẵn */
-  var aiLine = "";
-  if (S.ai.ok){
-    var ac = { DAT: 0, KHONG_DAT: 0, CAN_XEM: 0 }, nAi = 0;
-    rows.forEach(function(r){ var a2 = aiOf(r); if (a2 && ac[a2.kl] != null){ ac[a2.kl]++; nAi++; } });
-    if (nAi){
-      aiLine = '<div class="hp-whbar hp-aimini">' +
-        '<span class="hp-hint" style="font-weight:650">AI xét duyệt ảnh:</span>' +
-        AIST.map(function(m){
-          return '<button class="hp-whtab" data-k="' + m.k + '" title="' + esc(m.lb) + ' — bấm xem danh sách" onclick="HPLANOGRAM.openYcAi(this.getAttribute(\'data-k\'))"><span class="hp-dot" style="background:' + m.c + '"></span>' + esc(m.lb.replace("AI: ", "")) + ' <b>' + nf(ac[m.k]) + '</b></button>';
-        }).join("") +
-        '<span class="hp-hint">' + nf(nAi) + '/' + nf(nTot) + ' yêu cầu đã được AI chấm ảnh' + (S.ai.ts ? ' · ' + fmtTime(S.ai.ts) : '') + '</span></div>';
-    }
-  }
   /* hpNhacSlot: renderMap đổ panel "Cần nhắc theo nhân viên" vào đây (cột phải) —
      dời khỏi cột sơ đồ để 2 cột cân cao và sơ đồ không bị đẩy tràn khung nhìn */
   box.innerHTML =
     '<section class="hp-panel hp-fade hp-hero">' +
     '<h2>Vệ sinh ' + chipNgay + '<span style="flex:1"></span><a class="hp-ext" style="font-size:12px" target="_blank" rel="noopener" href="' + esc(pgListUrl(k[0], S.area, "", k[1])) + '">Mở planogram ↗</a></h2>' +
     '<div class="hp-tiles">' + tiles + '</div>' + bar + htmlDoPhu() +
-    '<div id="hpNhacSlot"></div>' + aiLine +
+    '<div id="hpNhacSlot"></div>' +
     '</section>';
   renderMap();   // sơ đồ mặt bằng đi theo khoảng ngày đang xem
 }
