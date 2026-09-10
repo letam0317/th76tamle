@@ -141,7 +141,7 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
   bo tròn dạng pill (`border-radius: 999px`), gộp mã vị trí và mô tả kệ lên dòng 1 dạng inline và người
   báo cáo ở dòng 2 để chip cực kỳ dẹt, không che khuất chi tiết chân ảnh.
 
-**9 luật hiển thị điện thoại (chi tiết + 17 bẫy: memory `quy-chuan-hien-thi-dien-thoai`):**
+**13 luật hiển thị điện thoại (chi tiết + 17 bẫy: memory `quy-chuan-hien-thi-dien-thoai`):**
 1. Trang không kéo ngang; cuộn ngang chỉ trong khung tự khai `overflow-x:auto`.
 2. Bảng nhiều cột → **`table.mbcard`** dùng chung (6 bước áp ở memory `qc-bo-cuc-dien-thoai`),
    không bóp cột, không tự chép bộ rule riêng.
@@ -154,6 +154,15 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
    văn bản thuần, gắn sát chính thứ nó nói tới; thao tác/link ở lại trên màn.
 8. Bảng ≥5 cột không được trú trong khung cuộn ngang — miễn trừ phải TỰ KHAI `data-mb-cuon="<lý do>"`.
 9. Đoạn văn dài kẹp dòng (`-webkit-line-clamp` + bấm trải); chỉ trường >160 ký tự mới thành ô bấm.
+10. Cụm control răng cưa — thanh điều khiển không được tự ngắt thành ≥4 hàng lộn xộn hoặc cao >25% màn hình.
+11. Tường chữ trong một ô — đoạn văn AI dài ≥180 ký tự phải kẹp dòng (`-webkit-line-clamp`) + nút mở rộng.
+12. Ô chỉ có dấu gạch trong chế độ thẻ — ô chỉ chứa "—" phải ẩn hẳn để không sinh dòng rỗng.
+13. **Chống rác tích lũy đầu màn hình (Cumulative Header Clutter - 10/09/2026):**
+    - Không để nhiều tầng điều khiển, bộ lọc, chú giải thường trực và dải cảnh báo xếp chồng đẩy nội dung chính (sơ đồ/bảng) rơi khỏi màn hình đầu tiên.
+    - Trần chiều cao tích lũy từ đỉnh tab tới nội dung chính trên điện thoại (≤430px) **không được vượt quá 130px** (hoặc >22% viewport).
+    - Dải chú giải ≥4 mục **tuyệt đối không bung hàng tĩnh** trong tiêu đề; phải thu gọn vào nút popover con nhộng `Chú giải (N) ▾` hoặc thanh 1 hàng cuộn ngang.
+    - Loại bỏ triệt để các nhãn rác ("Khu vực:", "Ngày:") làm tốn diện tích khi chip/lịch đã tự minh định ngữ cảnh.
+    - Dải cảnh báo (Alert bar) phải nén dẹt siêu mỏng (≤26px, 1 hàng duy nhất).
 
 **Màn mới = phải vào bộ đo:** mọi tab/pop-up/panel-trong-tab/chế-độ-thứ-hai mới → thêm vào `man[]`
 của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleton dùng chính class thật —
@@ -165,7 +174,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 
 | Bộ đo | Khi nào chạy |
 |---|---|
-| `qc-mobile-toan-du-an.mjs` (12 luật / 34 màn × 4 máy; `--file` `--may` `--trang` `--man=<regex tên màn>`) | MỌI lần sửa hiển thị của 2 dashboard — baseline trước, `--file` sau khi sửa, live sau khi kiểm dấu vết deploy |
+| `qc-mobile-toan-du-an.mjs` (13 luật / 34 màn × 4 máy; `--file` `--may` `--trang` `--man=<regex tên màn>`) | MỌI lần sửa hiển thị của 2 dashboard — baseline trước, `--file` sau khi sửa, live sau khi kiểm dấu vết deploy |
 | `qc-chu-thich.mjs` (26 ca, `--live`) | Sửa tooltip/chú thích, và làm ca CHẶN HỒI QUY (đoạn văn đầu màn + nhãn chỉ dẫn trong ngoặc) |
 | `qc-lightbox-caption.mjs` (4 ca) | Sửa lightbox/ảnh báo cáo (kiểm tra đủ thông tin mã vị trí con + kệ + người báo cáo; chống giật animation tâm X cố định; chip di động dẹt ≤ 40px) |
 | `qc-nhan-dien-sku.mjs` | Đụng lõi tab Nhận diện SKU |

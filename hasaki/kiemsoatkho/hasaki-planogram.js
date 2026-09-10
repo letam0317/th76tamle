@@ -795,11 +795,12 @@ var CSS = [
 "#pane-planogram .hp-mapcell .hp-cwarn,#pane-planogram .hp-mapbelt .hp-cwarn{transform:scale(.7);transform-origin:bottom left;bottom:-3px;left:-3px;}",
 "#pane-planogram .hp-mapcell.canhbao,#pane-planogram .hp-mapbelt.canhbao{box-shadow:0 0 0 2px #dc2626;}",
 "@keyframes hp-blink{0%,100%{opacity:1}50%{opacity:.4}}",
-/* Compact Alert Strip — dải cảnh báo mỏng, không chiếm chiều cao sơ đồ */
-"#pane-planogram .hp-alertbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:4px 12px;border-radius:6px;background:color-mix(in srgb,#dc2626 9%,var(--surface,#fff));border:1px solid color-mix(in srgb,#dc2626 35%,transparent);color:var(--text,#7f1d1d);font-size:12px;font-weight:600;cursor:pointer;transition:background .16s ease;}",
+/* Compact Alert Strip (10/09/2026 nén dẹt <= 26px) — dải cảnh báo siêu mỏng 1 hàng, không đẩy sơ đồ */
+"#pane-planogram .hp-alertbar{display:flex;align-items:center;gap:6px;margin:0 0 8px;padding:3px 10px;border-radius:6px;background:color-mix(in srgb,#dc2626 9%,var(--surface,#fff));border:1px solid color-mix(in srgb,#dc2626 35%,transparent);color:var(--text,#7f1d1d);font-size:11.5px;font-weight:600;min-height:26px;cursor:pointer;transition:background .16s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
 "#pane-planogram .hp-alertbar:hover{background:color-mix(in srgb,#dc2626 15%,var(--surface,#fff));}",
-"#pane-planogram .hp-alertbar .ic{font-size:13px;animation:hp-blink 1.5s ease-in-out infinite;}",
-"#pane-planogram .hp-alertbar b{color:#dc2626;font-size:12.5px;font-variant-numeric:tabular-nums;}",
+"#pane-planogram .hp-alertbar .ic{font-size:12px;animation:hp-blink 1.5s ease-in-out infinite;flex:none;}",
+"#pane-planogram .hp-alertbar b{color:#dc2626;font-size:12px;font-variant-numeric:tabular-nums;}",
+"#pane-planogram .hp-alertbar .hp-alert-arr{margin-left:auto;font-size:12px;opacity:.7;flex:none;}",
 /* Biến thể dải cảnh báo: warn = THIẾU yêu cầu (cam, bấm xem) · ok = đủ (xanh, không nhấp nháy) */
 "#pane-planogram .hp-alertbar.warn{background:color-mix(in srgb,#d97706 9%,var(--surface,#fff));border-color:color-mix(in srgb,#d97706 35%,transparent);}",
 "#pane-planogram .hp-alertbar.warn:hover{background:color-mix(in srgb,#d97706 16%,var(--surface,#fff));}",
@@ -807,6 +808,24 @@ var CSS = [
 "#pane-planogram .hp-alertbar.ok{background:color-mix(in srgb,#059669 8%,var(--surface,#fff));border-color:color-mix(in srgb,#059669 30%,transparent);cursor:default;}",
 "#pane-planogram .hp-alertbar.ok b{color:#059669;}",
 "#pane-planogram .hp-alertbar.ok .ic{color:#059669;animation:none;}",
+/* Chú giải dạng popover con nhộng gọn nhẹ (10/09/2026): giải phóng tiêu đề sơ đồ không bị 8 chip nhồi bung 3-4 hàng */
+"#pane-planogram .hp-legwrap{position:relative;display:inline-flex;align-items:center;margin-left:auto;}",
+"#pane-planogram .hp-legbtn{border:1px solid var(--border,#d5dbe4);background:var(--surface,#fff);color:var(--text,#374151);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;gap:5px;min-height:26px;transition:background .16s ease,border-color .16s ease;}",
+"#pane-planogram .hp-legbtn:hover{background:color-mix(in srgb,var(--accent,#326e51) 8%,transparent);border-color:var(--accent,#326e51);}",
+"#pane-planogram .hp-legbtn .hp-legdot{width:7px;height:7px;border-radius:50%;background:var(--accent,#326e51);display:inline-block;}",
+"#pane-planogram .hp-legbtn .hp-legcnt{background:color-mix(in srgb,var(--accent,#326e51) 12%,transparent);color:var(--accent,#326e51);border-radius:999px;padding:0 5px;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;}",
+"#pane-planogram .hp-legpop{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:90;width:max-content;min-width:270px;max-width:92vw;background:var(--surface,#fff);border:1px solid var(--border,#d5dbe4);border-radius:12px;box-shadow:0 12px 36px rgba(16,24,40,.2);padding:10px 12px;animation:hp-in .2s cubic-bezier(.16,1,.3,1);}",
+"#pane-planogram .hp-legpop.open{display:block;}",
+"#pane-planogram .hp-legpop-hd{display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid var(--border,#e8ecf1);font-size:11.5px;font-weight:700;color:var(--text,#1f2937);}",
+"#pane-planogram .hp-legpop-close{border:0;background:0;cursor:pointer;font-size:17px;line-height:1;color:var(--muted,#9ca3af);padding:2px 5px;border-radius:6px;}",
+"#pane-planogram .hp-legpop-close:hover{color:#ef4444;background:color-mix(in srgb,#ef4444 12%,transparent);}",
+"#pane-planogram .hp-legpop-list{display:flex;flex-direction:column;gap:5px;}",
+"#pane-planogram .hp-legpop-it{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text,#374151);padding:3px 4px;border-radius:6px;}",
+"#pane-planogram .hp-legpop-it:hover{background:color-mix(in srgb,var(--accent,#326e51) 6%,transparent);}",
+"#pane-planogram .hp-legpop-sw{width:14px;height:14px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;position:relative;flex:none;}",
+"#pane-planogram .hp-legpop-it .tx{flex:1;min-width:0;line-height:1.3;}",
+"#pane-planogram .hp-legpop-it .tx b{color:var(--text,#1f2937);font-weight:650;}",
+"#pane-planogram .hp-legpop-it .tx small{display:block;color:var(--muted,#6b7280);font-size:10px;}",
 /* ĐỘ PHỦ YÊU CẦU (panel Vệ sinh): mỗi khu vực 1 dòng — tên · thanh 6px · x/y, nén cho cột 380px */
 "#pane-planogram .hp-cov{margin:10px 0 0;}",
 "#pane-planogram .hp-cov .hp-alertbar{margin:8px 0 0;align-items:flex-start;line-height:1.4;}",
@@ -1009,24 +1028,23 @@ var CSS = [
 /* Khung bảng: bỏ cuộn-trong-cuộn. Ngón tay kéo trang mà trúng khung con là bẫy chạm kinh điển;
    thẻ chảy theo trang, số dòng đã bị chặn bằng CAP nên không có danh sách dài vô hạn. */
 "#pane-planogram .hp-ccwrap:has(table.mbcard){overflow:visible;max-height:none !important;border:0;border-radius:0;}",
-/* THANH ĐIỀU KHIỂN ĐẦU TAB (#hpWhBar) — 8 món/5 hàng/144px. Xếp thành 3 hàng ngay ngắn:
-   ① chip Khu vực cuộn ngang · ② ô chọn Ngày full · ③ 2 nút hành động chia đôi.
-   KHÔNG cho cả thanh thành khung cuộn ngang: pop-up lịch (.date-pop của bộ lọc ngày) neo absolute bên trong,
-   khung cuộn sẽ CẮT MẤT menu — đúng loại lỗi chỉ thấy khi soi ảnh. */
-/* iPhone SE (375×667) là màn NGẮN: 3 hàng × 49px = 171px = 26% màn hình, vượt ngưỡng "thanh điều
-   khiển không được ăn quá 1/4 màn trước khi thấy số liệu". Nén bằng cách hạ mỗi hàng về đúng
-   ngưỡng chạm 40px + thu khe hở, KHÔNG bỏ nhãn "Khu vực:"/"Ngày:" (nhãn là thứ cho biết dải chip
-   bên cạnh nói về cái gì) và cũng KHÔNG hạ xuống dưới 40px (thà 3 hàng đọc được còn hơn 2 hàng
-   bấm trượt). Còn ~147px = 22%. */
-"#pane-planogram #hpWhBar{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:6px;}",
-"#pane-planogram #hpWhBar .hp-whtab,#pane-planogram #hpWhBar .hp-datesel{min-height:40px;}",
-"#pane-planogram #hpWhBar .hp-wb1{display:flex;gap:6px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;}",
-"#pane-planogram #hpWhBar .hp-wb1>*{flex:0 0 auto;}",
-"#pane-planogram #hpWhBar .hp-wb2{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0;}",
-"#pane-planogram #hpWhBar .hp-wb2 .hp-ngayloc{flex:1 1 100%;}",
-"#pane-planogram #hpWhBar .hp-ngayloc .date-btn{min-height:40px;}",
-"#pane-planogram #hpWhBar .hp-wb2>.hp-whtab{flex:1 1 calc(50% - 3px);justify-content:center;}",
+/* THANH ĐIỀU KHIỂN ĐẦU TAB (#hpWhBar) (10/09/2026 nén Cumulative Header Clutter):
+   ① Hàng 1 (Khu vực): 1 dải chip cuộn ngang mượt mà, dẹt 32px.
+   ② Hàng 2 (Ngày + 2 nút tra cứu): 1 hàng cuộn ngang mượt mà, dẹt 32px.
+   Bỏ nhãn \"Khu vực:\" & \"Ngày:\" rác dòng; rút gọn nhãn nút trên mobile để lọt vừa khung nhìn. */
+"#pane-planogram #hpWhBar{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:5px;margin:0 0 6px;}",
+"#pane-planogram #hpWhBar .hp-whtab,#pane-planogram #hpWhBar .hp-datesel{min-height:32px;padding:4px 10px;font-size:11.5px;}",
+"#pane-planogram #hpWhBar .hp-wb1{display:flex;gap:5px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;scrollbar-width:none;padding-bottom:1px;}",
+"#pane-planogram #hpWhBar .hp-wb1::-webkit-scrollbar{display:none;}",
+"#pane-planogram #hpWhBar .hp-wb1>*{flex:0 0 auto;white-space:nowrap;}",
+"#pane-planogram #hpWhBar .hp-wb2{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;scrollbar-width:none;padding-bottom:1px;}",
+"#pane-planogram #hpWhBar .hp-wb2::-webkit-scrollbar{display:none;}",
+"#pane-planogram #hpWhBar .hp-wb2>*{flex:0 0 auto;white-space:nowrap;}",
+"#pane-planogram #hpWhBar .hp-wb2 .hp-ngayloc{flex:0 0 auto;min-width:115px;}",
+"#pane-planogram #hpWhBar .hp-wb2 .hp-ngayloc .date-btn{min-height:32px;padding:4px 9px;font-size:11.5px;}",
 "#pane-planogram #hpWhBar .hp-wbsp{display:none;}",
+"#pane-planogram #hpWhBar .tx-full{display:none;}",
+"#pane-planogram #hpWhBar .tx-short{display:inline;}",
 /* CHIP LỌC trong panel danh sách (Kết luận / Trạng thái): 1 HÀNG CUỘN NGANG — khuôn .toptabs của
    dự án. Không đi đường xếp dọc như #hpWhBar: ở đây mỗi chip là một GIÁ TRỊ cùng loại, xếp dọc
    thành 5 hàng thì mất luôn nghĩa "một dải để so sánh". */
@@ -1050,6 +1068,7 @@ var CSS = [
    như trước, không đổi một pixel. (Bẫy đã biết: `display:contents` phải TẮT ở điện thoại, không
    thì rule xếp hàng không bao giờ ăn — đúng thủ phạm của thanh lọc tab Kiểm kê 6 hàng.) */
 "#pane-planogram .hp-wb1,#pane-planogram .hp-wb2{display:contents;}",
+"#pane-planogram #hpWhBar .tx-short{display:none;}",
 /* LÝ DO AI — tách 2 phần: câu kết luận + danh sách "ô nào lỗi gì". Trước đây nhồi cả hai vào một
    đoạn văn (phần chi tiết nằm trong ngoặc, ngăn bằng dấu |) nên máy tính đọc cũng mệt, điện thoại
    thì thành khối chữ đặc 11 dòng. Danh sách chi tiết THU sẵn, bấm ô mới trải ra. */
@@ -1934,8 +1953,7 @@ function renderWhBar(){
   S.yc.rows.forEach(function(r){ cnt[r.area] = (cnt[r.area] || 0) + 1; });
   var keys = AREAS.filter(function(a){ return cnt[a.k]; });
   if (keys.length){
-    html += '<span class="hp-hint" style="font-weight:650">Khu vực:</span>' +
-      '<button class="hp-whtab' + (S.area ? "" : " active") + '" onclick="HPLANOGRAM.setArea(\'\')">Tất cả</button>' +
+    html += '<button class="hp-whtab' + (S.area ? "" : " active") + '" onclick="HPLANOGRAM.setArea(\'\')">Tất cả</button>' +
       keys.map(function(a){
         return '<button class="hp-whtab' + (S.area === a.k ? " active" : "") + '" data-a="' + a.k + '" title="' + esc(a.lb) + '" ' +
           'onclick="HPLANOGRAM.setArea(this.getAttribute(\'data-a\'))"><span class="hp-dot" style="background:' + a.c + '"></span>' + esc(a.short) + '</button>';
@@ -1944,14 +1962,13 @@ function renderWhBar(){
   var dates = ycDates();
   if (dates.length){
     /* Ô giữ chỗ — sau innerHTML thay bằng CHÍNH phần tử bộ lọc dùng chung (xem taoLocNgay) */
-    h2 += '<span class="hp-wbsp" style="width:8px"></span><span class="hp-hint" style="font-weight:650">Ngày:</span>' +
-      '<div class="date-filter hp-ngayloc" id="hpNgayLoc"></div>';
+    h2 += '<div class="date-filter hp-ngayloc" id="hpNgayLoc"></div>';
   }
   var nNk = 0; if (S.ls.ok){ var em = {}; nkRows().forEach(function(r){ em[r.email.toLowerCase()] = 1; }); nNk = Object.keys(em).length; }
   /* Nút LUÔN hiện: nguồn nhật ký nạp bậc 3 (nạp trước sau 4s) nên không chờ dữ liệu mới cho bấm */
   h2 += '<span class="hp-wbsp" style="flex:1"></span>' +
-    '<button class="hp-whtab" onclick="HPLANOGRAM.openNk()" title="Xem 1 nhân viên làm việc ở đâu theo từng ngày (' + LS_NGAY + ' ngày)">Tra cứu nhân viên' + (nNk ? ' · ' + nf(nNk) : '') + '</button>' +
-    (S.all.length ? '<button class="hp-whtab" onclick="HPLANOGRAM.openAll()" title="Danh sách toàn bộ vị trí + người phụ trách gần nhất (45 ngày)">Toàn bộ vị trí · ' + nf(rowsInScope().length) + '</button>' : "");
+    '<button class="hp-whtab" onclick="HPLANOGRAM.openNk()" title="Xem 1 nhân viên làm việc ở đâu theo từng ngày (' + LS_NGAY + ' ngày)"><span class="tx-full">Tra cứu nhân viên</span><span class="tx-short">Tra cứu NV</span>' + (nNk ? ' · ' + nf(nNk) : '') + '</button>' +
+    (S.all.length ? '<button class="hp-whtab" onclick="HPLANOGRAM.openAll()" title="Danh sách toàn bộ vị trí + người phụ trách gần nhất (45 ngày)"><span class="tx-full">Toàn bộ vị trí</span><span class="tx-short">Vị trí</span> · ' + nf(rowsInScope().length) + '</button>' : "");
   el.innerHTML = '<div class="hp-wb1">' + html + '</div><div class="hp-wb2">' + h2 + '</div>';
   var ph = $id("hpNgayLoc");
   if (ph){
@@ -2528,24 +2545,37 @@ function renderMap(){
   var slot = $id("hpNhacSlot");
   if (!htmlA1 && !htmlA8){ box.innerHTML = ""; if (slot) slot.innerHTML = ""; return; }
 
-  /* Chú giải: liệt kê đủ trạng thái (mỗi màu 1 nghĩa), hình dạng badge, + cảnh báo.
-     Ô thuộc hệ "đã báo cáo" (m.da) mang thêm vạch xanh mép trái — swatch chú giải vẽ y hệt
-     bằng box-shadow inset để người đọc khớp được vạch trên sơ đồ với nghĩa của nó. */
+  /* Chú giải dạng popover con nhộng gọn nhẹ (10/09/2026): giải phóng tiêu đề sơ đồ không bị 8 chip nhồi bung 3-4 hàng */
   var legKeys = mot ? ["done", "review", "rework", "remind", "noshift"] : ["done", "rework", "chua"];
-  var legend = '<span class="hp-legend">' +
-    legKeys.map(function(kk){ var m = cellMeta(kk);
-      var vach = m.da && kk !== "done" ? ";box-shadow:inset 3px 0 0 #059669" : "";
-      var mk = '<i style="background:' + m.c + vach + '"></i>' +
-        (m.dot ? '<i class="hp-cdot" style="position:static;background:' + m.dot + ';margin-left:-5px"></i>' : "");
-      return '<span title="' + esc(m.lb) + '">' + mk + esc(m.sh || m.lb) + '</span>';
-    }).join("") +
-    '<span><i style="background:transparent;border:1px dashed var(--muted,#9ca3af)"></i>Không có yêu cầu</span>' +
-    (soiPT ? '<span title="Phụ trách suy từ báo cáo cũ hơn ' + NGUONG_PT_CU + ' ngày — chưa chắc còn phụ trách"><i class="hp-cq" style="position:static;box-shadow:none">?</i>chưa chắc</span>' : '') +
-    '<span title="Quá ' + NGUONG_CANHBAO + ' ngày yêu cầu liên tiếp không có ai báo cáo"><i class="hp-cwarn" style="position:static;color:#dc2626">⚠</i>quá ' + NGUONG_CANHBAO + ' ngày</span></span>';
+  var itemsHtml = legKeys.map(function(kk){
+    var m = cellMeta(kk);
+    var vach = m.da && kk !== "done" ? ";box-shadow:inset 3px 0 0 #059669" : "";
+    var dot = m.dot ? '<i class="hp-cdot" style="position:absolute;top:1px;right:1px;width:5px;height:5px;background:' + m.dot + '"></i>' : '';
+    var tri = kk === "rework" ? '<i class="hp-ctri" style="position:absolute;top:0;right:0;width:0;height:0;border-top:6px solid rgba(255,255,255,.92);border-left:6px solid transparent"></i>' : '';
+    return '<div class="hp-legpop-it">' +
+      '<span class="hp-legpop-sw" style="background:' + m.c + vach + '">' + dot + tri + '</span>' +
+      '<div class="tx"><b>' + esc(m.lb) + '</b>' + (m.sh ? '<small>' + esc(m.sh) + '</small>' : '') + '</div>' +
+      '</div>';
+  }).join("") +
+  '<div class="hp-legpop-it">' +
+    '<span class="hp-legpop-sw" style="background:transparent;border:1px dashed var(--muted,#9ca3af)"></span>' +
+    '<div class="tx"><b>Không có yêu cầu</b><small>Vị trí không phát sinh việc</small></div>' +
+  '</div>' +
+  (soiPT ? '<div class="hp-legpop-it"><span class="hp-legpop-sw" style="background:#d97706;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">?</span><div class="tx"><b>Chưa chắc phụ trách</b><small>Suy từ báo cáo cũ >' + NGUONG_PT_CU + ' ngày</small></div></div>' : '') +
+  '<div class="hp-legpop-it"><span class="hp-legpop-sw" style="background:#fee2e2;color:#dc2626;font-size:11px;display:flex;align-items:center;justify-content:center">⚠</span><div class="tx"><b>Quá ' + NGUONG_CANHBAO + ' ngày</b><small>Liên tiếp không có ai báo cáo vệ sinh</small></div></div>';
+
+  var totalLeg = legKeys.length + 1 + (soiPT ? 1 : 0) + 1;
+  var legend = '<div class="hp-legwrap" id="hpLegWrap">' +
+    '<button type="button" class="hp-legbtn" onclick="HPLANOGRAM.toggleLegend(event)" title="Xem chú thích màu và ký hiệu trên sơ đồ"><span class="hp-legdot"></span>Chú giải <span class="hp-legcnt">' + totalLeg + '</span> ▾</button>' +
+    '<div class="hp-legpop" id="hpLegPop">' +
+      '<div class="hp-legpop-hd"><span>Chú giải ký hiệu (' + totalLeg + ')</span><button type="button" class="hp-legpop-close" onclick="HPLANOGRAM.closeLegend()">&times;</button></div>' +
+      '<div class="hp-legpop-list">' + itemsHtml + '</div>' +
+    '</div>' +
+  '</div>';
 
   var nAlert = Object.keys(alert).length;
   var bannerAlert = nAlert
-    ? '<div class="hp-alertbar" onclick="HPLANOGRAM.openCanhBao()" title="Bấm xem danh sách vị trí quá hạn"><span class="ic">⚠</span><b>' + nf(nAlert) + '</b> vị trí quá ' + NGUONG_CANHBAO + ' ngày chưa có ai báo cáo vệ sinh — bấm để xử lý</div>'
+    ? '<div class="hp-alertbar" onclick="HPLANOGRAM.openCanhBao()" title="Bấm xem danh sách vị trí quá hạn"><span class="ic">⚠</span><b>' + nf(nAlert) + '</b> vị trí quá ' + NGUONG_CANHBAO + ' ngày chưa VS — bấm xử lý <span class="hp-alert-arr">›</span></div>'
     : "";
 
   /* Panel "ĐI LÀM MÀ KHÔNG BÁO CÁO" (tên cũ: Cần nhắc theo nhân viên): gom các ô Chưa VS mà phụ
@@ -2591,6 +2621,14 @@ function renderMap(){
     /* Khối 'Bấm một ô để xem chi tiết…' ĐÃ BỎ (21/08/2026): chỉ dẫn thao tác. */ '' +
     '</section>';
   fitMaps();
+}
+function toggleLegend(e){
+  if (e){ if (e.stopPropagation) e.stopPropagation(); if (e.preventDefault) e.preventDefault(); }
+  var pop = $id("hpLegPop"); if (!pop) return;
+  pop.classList.toggle("open");
+}
+function closeLegend(){
+  var pop = $id("hpLegPop"); if (pop) pop.classList.remove("open");
 }
 /* Pop-up danh sách vị trí quá hạn (bấm banner cảnh báo) */
 function openCanhBao(){
@@ -3239,6 +3277,7 @@ function init(pane){
     document.addEventListener("keydown", function(e){
       if (e.key !== "Escape") return;
       var lb = $id("lightbox"); if (lb && lb.classList.contains("show")) return;
+      var legPop = $id("hpLegPop"); if (legPop && legPop.classList.contains("open")){ closeLegend(); return; }
       if ($id("hpVtModal") && $id("hpVtModal").classList.contains("show")) closeVt();
       else if ($id("hpNkModal") && $id("hpNkModal").classList.contains("show")) closeNk();
       else if ($id("hpModal") && $id("hpModal").classList.contains("show")) closeModal();
@@ -3253,6 +3292,7 @@ function init(pane){
     });
     document.addEventListener("click", function(e){
       if (!e.target.closest("#hpMFilters .hp-combo")) closeCombos();
+      if (!e.target.closest("#hpLegWrap")) closeLegend();
     });
     /* sơ đồ phóng theo bề rộng cột trái — tính lại hệ số khi đổi cỡ cửa sổ */
     window.addEventListener("resize", function(){ clearTimeout(_fitT); _fitT = setTimeout(fitMaps, 120); });
@@ -3275,6 +3315,7 @@ window.HPLANOGRAM = {
   comboInput: comboInput, comboMenu: comboMenu, quick: quick, openAnh: openAnh,
   openNk: openNk, closeNk: closeNk, nkPick: nkPick, nkSearch: nkSearch,
   openViTri: openViTri, moAnhHet: moAnhHet, closeVt: closeVt, vtNgay: vtNgay, openCanhBao: openCanhBao, openThieu: openThieu, setPtHi: setPtHi, togglePtNhac: togglePtNhac,
+  toggleLegend: toggleLegend, closeLegend: closeLegend,
   ccSetStatus: ccSetStatus, ccSearch: ccSearch, aiSetKl: aiSetKl, aiSearch: aiSearch, moMap: moMap, _S: S
 };
 })();

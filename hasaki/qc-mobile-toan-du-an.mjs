@@ -679,11 +679,48 @@ function raSoat() {
     dem[k] = (dem[k] || 0) + 1;
   }
   Object.keys(dem).sort((a, b) => dem[b] - dem[a]).forEach((k) => chuNho.push({ el: k, n: dem[k] }));
+  /* ⑬ RÁC TÍCH LŨY ĐẦU MÀN HÌNH (CUMULATIVE HEADER CLUTTER — 10/09/2026):
+     Nhiều tầng điều khiển, chip bộ lọc, dải cảnh báo, chú giải xếp chồng lên nhau ở đầu tab
+     làm đẩy nội dung chính (sơ đồ / bảng) tuột xuống quá sâu (người dùng phản ánh ở tab Planogram
+     với 23 mẩu thông tin rải rác chiếm ~280px).
+     Chuẩn: trên màn hình điện thoại (<=430px), khoảng cách từ đỉnh pane tab tới nội dung chính
+     (sơ đồ/bảng) không được vượt quá 130px (hoặc >22% viewport); dải chú giải >=4 mục không được
+     bung thành >=2 hàng tĩnh mà phải thu gọn vào popover/toggle con nhộng. */
+  const headerClutter = [];
+  if (W <= 430) {
+    const panes = [...document.querySelectorAll('#pane-planogram, #tabPlanogram, .tab-pane, #viewPlg, #viewKK, #viewAbn')].filter(thay);
+    for (const pane of panes) {
+      const topPane = pane.getBoundingClientRect().top;
+      const core = pane.querySelector('#hpMap, #plgMap, .pg-main, table, .cards, .hp-chart, .hp-cctbl, .tbl-wrap');
+      if (core && thay(core)) {
+        const topCore = core.getBoundingClientRect().top;
+        const khoangCach = Math.round(topCore - topPane);
+        if (khoangCach > 130) {
+          headerClutter.push({ el: ten(pane), khoangCach, core: ten(core),
+            phanTramMan: Math.round(khoangCach / de.clientHeight * 100) });
+        }
+      }
+      /* Kiểm tra dải chú giải thường trực bung hàng tĩnh */
+      for (const leg of pane.querySelectorAll('.hp-legend, .pg-legend, .abnlegend')) {
+        if (!thay(leg)) continue;
+        if (leg.closest('.hp-legpop, .popover, .dropdown, [hidden]')) continue;
+        const items = [...leg.querySelectorAll(':scope > *, :scope > span')].filter(thay);
+        if (items.length >= 4) {
+          const tops = [...new Set(items.map((x) => Math.round(x.getBoundingClientRect().top / 6)))];
+          if (tops.length >= 2) {
+            headerClutter.push({ el: ten(leg), items: items.length, hang: tops.length,
+              chu: 'Chú giải thường trực bung ' + tops.length + ' hàng' });
+          }
+        }
+      }
+    }
+  }
   const gon = (a, n) => a.slice(0, n);
   const mcU = [...new Map(moCoi.map((x) => [x.el, x])).values()];
   const catU = [...new Map(cat.map((x) => [x.el, x])).values()];
   const gachU = [...new Map(gach.map((x) => [x.el, x])).values()];
   return { keoTrang: de.scrollWidth - W, W,
+    headerClutter: headerClutter.slice(0, 4), nHeaderClutter: headerClutter.length,
     cuonNgang: cuonNgang.slice(0, 5), nCuonNgang: cuonNgang.length,
     tuong: tuong.slice(0, 5), nTuong: tuong.length,
     gach: gachU.slice(0, 5), nGach: gachU.length,
@@ -788,6 +825,7 @@ for (const may of MAY) {
       if (r.nMoCoi) xau.push(r.nMoCoi + " ô số MỒ CÔI (không nhãn)");
       if (r.nCat) xau.push(r.nCat + " nhãn BỊ CẮT chữ");
       if (r.nRangCua) xau.push(r.nRangCua + " cụm control RĂNG CƯA");
+      if (r.nHeaderClutter) xau.push(r.nHeaderClutter + " rác tích lũy ĐẦU MÀN (Header Clutter)");
       if (r.nChuNho) xau.push(r.nChuNho + " kiểu chữ <10px");
       if (!xau.length) console.log("     ✓ " + man.ten);
       else {
@@ -805,6 +843,10 @@ for (const may of MAY) {
         r.cat.forEach((x) => console.log("        cắt   " + x.el + "  thiếu " + x.thieu + "px  \"" + x.chu + "\""));
         r.rangCua.forEach((x) => console.log("        răng cưa " + x.el + "  " + x.mon + " món / " + x.hang +
           " hàng · cao " + x.cao + "px (" + x.phanTramMan + "% màn)"));
+        r.headerClutter.forEach((x) => {
+          if (x.khoangCach) console.log("        header clutter " + x.el + "  cách nội dung " + x.core + " " + x.khoangCach + "px (" + x.phanTramMan + "% màn)");
+          else console.log("        chú giải bung  " + x.el + "  " + x.items + " mục / " + x.hang + " hàng — " + x.chu);
+        });
         r.chuNho.forEach((x) => console.log("        chữ   " + x.el + "   ×" + x.n));
       }
       bangKe.push({ may: may.ten, he: may.he, trang: trang.ten, man: man.ten, ...r, xau });

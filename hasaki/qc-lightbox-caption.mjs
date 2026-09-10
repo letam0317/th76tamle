@@ -101,9 +101,25 @@ await p.evaluate(() => {
 });
 await new Promise((r) => setTimeout(r, 200));
 
-await p.evaluate(() => {
+const ret = await p.evaluate((imgData) => {
+  const S = window.HPLANOGRAM._S;
+  const dummy = imgData || "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  let found = S.yc.rows.find(x => String(x.id) === "27769302");
+  if (!found) {
+    found = {
+      id: "27769302",
+      loc: "F0-A1-514-08-04-01",
+      ngay: "2026-09-09",
+      email: "lechitam@hasaki.vn",
+      at: "2026-09-09 10:20:00",
+      anh: Array(16).fill(dummy)
+    };
+    S.yc.rows.push(found);
+  } else {
+    found.anh = Array(16).fill(dummy);
+  }
   window.HPLANOGRAM.openAnh("27769302", 1);
-});
+}, b64Img);
 
 const framesX = [];
 const winWidth = await p.evaluate(() => window.innerWidth);
