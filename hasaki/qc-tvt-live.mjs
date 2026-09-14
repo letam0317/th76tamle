@@ -66,6 +66,42 @@ const gio = await p.evaluate(() => {
 });
 console.log("  tick:", gio);
 
+/* ---- nhom "Nghi ton ao" + GOP COT DON TRI (14/09/2026, sua theo phan hoi nguoi dung) ----
+   (1) Con so nam o THE trong dai .abntiles, KHONG con thanh chip loc rieng o dau muc.
+   (2) Cot nao moi dong cung mot gia tri (vi du Kho khi ca 8 dong deu MTG) phai AN va gia tri do
+       chuyen len phu de — nguoi dung bac ban lap ten kho 8 lan. */
+await p.evaluate(() => closeTvtModal());
+await new Promise((r) => setTimeout(r, 350));
+const theDo = await p.evaluate((NHAN) => {
+  const aoThat = TVT.rows.filter((r) => (r.loai || "") === NHAN).length;
+  const tiles = [...document.querySelectorAll("#tvtWrap .abntile")].map((t) => t.innerText.replace(/\s+/g, " ").trim());
+  const theAo = tiles.find((t) => t.indexOf(NHAN) >= 0) || "";
+  const coChip = [...document.querySelectorAll("#tvtWrap .kkbar")].some((b) => b.innerText.indexOf(NHAN) >= 0);
+  return { aoThat, nThe: tiles.length, theAo, coChip };
+}, "Nghi tồn ảo");
+console.log("\nthẻ số:", theDo.nThe + " thẻ · thẻ nghi tồn ảo: " + (theDo.theAo || "(không có)"));
+if (theDo.coChip) loi.push("van con thanh chip Loai o dau muc - nguoi dung da bac");
+if (theDo.aoThat > 0 && !theDo.theAo) loi.push("co " + theDo.aoThat + " dong nghi ton ao ma khong co the so nao");
+if (theDo.aoThat > 0 && theDo.theAo && theDo.theAo.indexOf(String(theDo.aoThat)) !== 0)
+  loi.push("the nghi ton ao dem sai (mong " + theDo.aoThat + "): " + theDo.theAo);
+
+const gop = await p.evaluate(() => {
+  tvtOpenAll();
+  return new Promise((res) => setTimeout(() => {
+    const tr = document.querySelector("#tvtmBody tr");
+    const nKho = new Set([...document.querySelectorAll("#tvtmBody tr")].map((x) => (x.querySelector(".tvwh") || {}).textContent || "")).size;
+    const o = tr ? tr.querySelector(".tvwh") : null;
+    res({ dong: document.querySelectorAll("#tvtmBody tr").length, nKho,
+      hienKho: !!(o && o.offsetParent !== null),
+      sub: (document.getElementById("tvtmSub") || {}).textContent || "" });
+  }, 600));
+});
+console.log("  pop-up:", gop.dong + " dong | so kho khac nhau=" + gop.nKho + " | cot Kho " + (gop.hienKho ? "HIEN" : "da an"));
+console.log("  phu de:", gop.sub);
+if (gop.nKho === 1 && gop.hienKho) loi.push("moi dong cung 1 kho ma cot Kho van lap tung dong (phai an + dua len phu de)");
+if (gop.nKho === 1 && gop.sub.indexOf("Kho ") < 0) loi.push("an cot Kho nhung phu de khong noi kho nao - gia tri bien mat im lang");
+await p.screenshot({ path: path.join(OUT, "qc-tvt-the-ao.png"), fullPage: false });
+
 console.log(loi.length ? "\n✗ LỖI:\n  " + loi.join("\n  ") : "\n✓ không có lỗi console");
 await b.close();
 process.exit(loi.length ? 1 : 0);

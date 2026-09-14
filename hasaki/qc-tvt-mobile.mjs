@@ -126,6 +126,8 @@ const pop = await p.evaluate(() => {
   const hien = (el) => !!el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
   const nhan = (el) => (el ? String(getComputedStyle(el, "::before").content || "").replace(/^"|"$/g, "") : "");
   const rw = (el) => (el ? Math.round(el.getBoundingClientRect().width) : -1);
+  const tieuDe = (document.getElementById("tvtmTitle") || {}).textContent || "";
+  const phuDe = (document.getElementById("tvtmSub") || {}).textContent || "";
   const pn = o("tvpn"), loc = o("tvloc"), wh = o("tvwh"), uid = o("tvuid"), sl = o("tvsl");
   const st = o("tvst"), sku = o("tvsku"), upd = o("tvupd"), grp = o("tvgrp"), pcc = tr && tr.querySelector(".pcc");
   const dg = document.querySelector("#tvtmodal .modalhd .mclose");
@@ -157,7 +159,7 @@ const pop = await p.evaluate(() => {
     fltThu: flt.classList.contains("mf-thu"),
     fltNut: (() => { const n = document.getElementById("tvtmFltN"); if (!n) return -1;
       return Math.round(n.closest(".mfbtn").getBoundingClientRect().height); })(),
-    tieuDe: document.getElementById("tvtmTitle").textContent,
+    tieuDe, phuDe,
     tong: document.getElementById("tvtmSum").textContent,
   };
 });
@@ -179,14 +181,21 @@ kiem("Thẻ gọn: cao ≤150px (bản bảng bóp là 195px toàn khoảng tr�
 kiem("Tên sản phẩm đủ rộng (≥200px) và kẹp đúng 2 dòng (không băm vụn 10 dòng)",
   pop.pnRong >= 200 && pop.pnDong >= 1 && pop.pnDong <= 2,
   "rộng " + pop.pnRong + "px · " + pop.pnDong + " dòng · \"" + pop.pnChu + "…\"");
-kiem("Mã vị trí 1 dòng (không bẻ theo dấu \"-\")", pop.locDong === 1, pop.locDong + " dòng · " + pop.locChu);
-kiem("Tên kho 1 dòng (không vỡ \"WH - MATERIAL - GARMENT\" thành 3 dòng)",
-  pop.whDong === 1, pop.whDong + " dòng · " + pop.whChu);
-/* Thẻ phải mang ĐỦ thông tin đi kho, trừ Group UID (cả danh sách định nghĩa là group = 0). */
-kiem("Thẻ hiện đủ 8 trường cần dùng, ẩn đúng Group UID (luôn = 0 nên vô nghĩa)",
-  pop.hienUid && pop.hienLoc && pop.hienPn && pop.hienSku && pop.hienSl && pop.hienSt &&
-  pop.hienUpd && pop.hienWh && !pop.hienGrp,
-  "UID/vị trí/tên/SKU/SL/trạng thái/cập nhật/kho hiện · Group UID ẩn=" + !pop.hienGrp);
+/* 14/09/2026 — luật GỘP CỘT ĐƠN TRỊ: cột nào mọi dòng cùng một giá trị thì ẩn khỏi thẻ và đưa lên
+   phụ đề pop-up (người dùng bác bản lặp "WH - MATERIAL - MTG" ở cả 8 dòng). Nên 3 ca dưới đây chỉ
+   soi ô KHI NÓ CÒN HIỆN; ô bị gộp thì đòi hỏi chuyển sang "giá trị phải có ở tiêu đề/phụ đề". */
+kiem("Mã vị trí: 1 dòng nếu còn hiện, hoặc đã gộp lên tiêu đề/phụ đề",
+  pop.hienLoc ? pop.locDong === 1 : /F0-/.test(pop.tieuDe + pop.phuDe),
+  pop.hienLoc ? (pop.locDong + " dòng · " + pop.locChu) : "đã gộp — tiêu đề/phụ đề mang mã vị trí");
+kiem("Tên kho: 1 dòng nếu còn hiện, hoặc đã gộp lên phụ đề",
+  pop.hienWh ? pop.whDong === 1 : /Kho /.test(pop.phuDe),
+  pop.hienWh ? (pop.whDong + " dòng · " + pop.whChu) : "đã gộp — phụ đề mang tên kho");
+/* Thẻ phải mang ĐỦ thông tin đi kho, trừ Group UID (cả danh sách định nghĩa là group = 0) và trừ
+   những cột đã gộp vì đơn trị. */
+kiem("Thẻ hiện đủ trường cần dùng (UID/tên/SKU/SL/cập nhật), ẩn đúng Group UID",
+  pop.hienUid && pop.hienPn && pop.hienSku && pop.hienSl && pop.hienUpd && !pop.hienGrp,
+  "UID/tên/SKU/SL/cập nhật hiện · Group UID ẩn=" + !pop.hienGrp +
+  " · đã gộp: " + [!pop.hienWh ? "kho" : "", !pop.hienLoc ? "vị trí" : "", !pop.hienSt ? "trạng thái" : ""].filter(Boolean).join("+") );
 kiem("UID là chữ lớn nhất trên thẻ (≥15px) — thứ người đi kho dò mắt tìm",
   pop.uidCo >= 15, pop.uidCo + "px");
 kiem("Nhãn ::before dán ĐÚNG ô (SL trên ô số lượng, SKU trên ô SKU)",
@@ -217,8 +226,59 @@ kiem("Tick 1 dòng → giỏ nhận đúng 1 mục, thanh giỏ không tràn nga
   "giỏ " + gio.n + " mục · cao " + gio.cao + "px · cách đáy " + gio.duoi + "px");
 await p.screenshot({ path: path.join(OUT, "04-gio.png") });
 
-/* ---------- ④ Console sạch ---------------------------------------------------------------------- */
-console.log("④ Console");
+/* ---------- ④ Chip "Loại bất thường" + badge trên màn 390px (14/09/2026) ------------------------
+   Tab Sheet chỉ có cột "Loại bất thường" SAU lượt sync kế ⇒ tiêm 1 dòng để đo bố cục điện thoại
+   của thanh chip và của badge trong thẻ — hai thứ vừa thêm, không đo là hứa suông. */
+console.log("④ Thẻ Nghi tồn ảo + dấu cảnh báo (màn 390px)");
+await p.evaluate(() => closeTvtModal());
+await new Promise((r) => setTimeout(r, 350));
+const theMb = await p.evaluate(async () => {
+  const r0 = TVT.rows[0];
+  TVT.rows = TVT.rows.concat([{ ...r0, uid: "VN-QC-AO", qty: 33400, loai: "Nghi tồn ảo", qtyTem: 33400 }]);
+  tvtRender();
+  await new Promise((r) => setTimeout(r, 200));
+  const de = document.documentElement;
+  const the = [...document.querySelectorAll("#tvtWrap .abntile")].find((t) => t.innerText.includes("Nghi tồn ảo"));
+  if (!the) return { co: false };
+  const rb = the.getBoundingClientRect();
+  return { co: true, keoTrang: de.scrollWidth - de.clientWidth, tran: rb.right > de.clientWidth + 1,
+    cao: Math.round(rb.height), cham: Math.round(Math.min(rb.width, rb.height)),
+    text: the.innerText.replace(/\s+/g, " ").trim(),
+    nBar: document.querySelectorAll("#tvtWrap .kkbar").length };
+});
+kiem("Thẻ “Nghi tồn ảo” nằm trong dải thẻ (không thêm thanh điều khiển), không tràn ngang, bấm được ≥40px",
+  theMb.co && !theMb.tran && theMb.keoTrang <= 1 && theMb.cham >= 40 && theMb.nBar === 0,
+  theMb.co ? ("cao " + theMb.cao + "px · " + theMb.nBar + " thanh chip · “" + theMb.text + "”") : "KHÔNG thấy thẻ");
+const badgeMb = await p.evaluate(async () => {
+  tvtOpenAo();
+  await new Promise((r) => setTimeout(r, 600));
+  const de = document.documentElement;
+  const tr = document.querySelector("#tvtmBody tr");
+  const bd = document.querySelector("#tvtmBody .tvao");
+  return { dong: document.querySelectorAll("#tvtmBody tr").length, coBadge: !!bd,
+    nhan: bd ? bd.textContent.trim() : "", cao: tr ? Math.round(tr.getBoundingClientRect().height) : -1,
+    keoTrang: de.scrollWidth - de.clientWidth,
+    tranBadge: bd ? (bd.getBoundingClientRect().right > de.clientWidth + 1) : false };
+});
+/* Luật 13 (rác tích lũy đầu màn): thêm thanh chip thứ hai KHÔNG được đẩy số liệu rơi khỏi màn.
+   Trần của bộ đo toàn dự án là 130px tính từ đỉnh khối tới nội dung chính (ở đây là dải thẻ số). */
+const dauMan = await p.evaluate(() => {
+  const sec = document.querySelector("#tvtWrap .panel"); const tiles = document.querySelector("#tvtWrap .abntiles");
+  if (!sec || !tiles) return { co: false };
+  const rs = sec.getBoundingClientRect(), rt = tiles.getBoundingClientRect();
+  return { co: true, cao: Math.round(rt.top - rs.top),
+    bars: document.querySelectorAll("#tvtWrap .kkbar").length };
+});
+kiem("Đầu mục ≤130px tới dải thẻ số (luật 13 — chip thứ hai không đẩy nội dung khỏi màn)",
+  dauMan.co && dauMan.cao <= 130, dauMan.co ? (dauMan.cao + "px · " + dauMan.bars + " thanh chip") : "không thấy khối");
+
+kiem("Dấu cảnh báo hiện trong thẻ, thẻ không phình quá 170px và không kéo ngang",
+  badgeMb.coBadge && badgeMb.cao > 0 && badgeMb.cao <= 170 && !badgeMb.tranBadge && badgeMb.keoTrang <= 1,
+  (badgeMb.coBadge ? "“" + badgeMb.nhan + "”" : "KHÔNG có badge") + " · thẻ cao " + badgeMb.cao + "px · " + badgeMb.dong + " dòng");
+await p.screenshot({ path: path.join(OUT, "05-chip-loai.png") });
+
+/* ---------- ⑤ Console sạch ---------------------------------------------------------------------- */
+console.log("⑤ Console");
 kiem("Không có lỗi console/pageerror suốt lượt đo", conLoi.length === 0, conLoi.join(" | ") || "sạch");
 
 await b.close();

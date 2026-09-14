@@ -65,6 +65,11 @@ else {
   else new vm.Script(html.slice(moD, hetD) + html.slice(moF, hetF), { filename: "kk-date.js" }).runInContext(ctx);
   try {
     new vm.Script(nguon, { filename: "tvt-core.js" }).runInContext(ctx);
+    /* tvtReason/tvtNhan nằm SAU mốc cắt (khối pop-up) nhưng không đụng DOM — nạp thêm đúng 2 hàm này
+       để kiểm được lý do đi kèm mỗi dòng (14/09/2026: 2 loại việc phải ra 2 câu khác nhau). */
+    const moR = html.indexOf("function tvtReason("), hetR = html.indexOf("function tvtOpenAll(");
+    if (moR < 0 || hetR < 0 || hetR < moR) xau("không cắt được tvtReason/tvtNhan");
+    else new vm.Script(html.slice(moR, hetR), { filename: "tvt-reason.js" }).runInContext(ctx);
     ctx.TVT.ok = true;
     ctx.TVT.rows = [
       { wh: "WH - MATERIAL - MTG", loc: "F0-KHO-501-01-01-01", uid: "U1", sku: "S1", qty: 10, cat: "", brand: "", pn: "", nhom: "Vải", grp: "0", st: "", upd: "" },
@@ -98,16 +103,37 @@ else {
     const bar = ctx.tvtNhomBar();
     if (!/Vải/.test(bar) || !/NVL khác/.test(bar)) xau("tvtNhomBar thiếu chip"); else ok("tvtNhomBar dựng đủ 2 chip + Tất cả");
     ctx.TVT.nhom = "";
+
+    /* ---- nhóm "Nghi tồn ảo" (14/09/2026) ----
+       Người dùng BÁC bản chip lọc riêng: một con số thì đặt vào DẢI THẺ SỐ sẵn có, đừng dựng thêm
+       tầng control ở đầu mục. Nay chỉ còn hàm đếm + thẻ, nên QC canh đúng 3 thứ:
+       ① đếm đúng · ② KHÔNG còn thanh chip Loại nào trong mã · ③ lý do dòng vẫn phân biệt 2 loại. */
+    ctx.TVT.rows[0].loai = ctx.TVT_BT_AO; ctx.TVT.rows[0].qtyTem = 33400;
+    ctx.TVT.rows[1].loai = ctx.TVT_BT_CHUA; ctx.TVT.rows[2].loai = ctx.TVT_BT_CHUA;
+    const dem = ctx.tvtDemAo();
+    if (dem.n !== 1 || dem.sl !== 10) xau("tvtDemAo sai: " + JSON.stringify(dem));
+    else ok("tvtDemAo đếm đúng 1 dòng / 10 SL");
+    if (/function\s+tvtLoaiBar\s*\(|function\s+tvtChipBar\s*\(|tvtSetLoai/.test(html))
+      xau("còn sót thanh chip Loại (tvtLoaiBar/tvtChipBar/tvtSetLoai) — người dùng đã bác bản này");
+    else ok("không còn thanh chip Loại nào trong mã");
+    const lyDo = ctx.tvtReason(ctx.TVT.rows[0]);
+    if (!/điều chỉnh giảm/.test(lyDo)) xau("tvtReason dòng nghi tồn ảo phải nói 'đếm lại rồi điều chỉnh giảm': " + lyDo);
+    else ok("tvtReason phân biệt đúng 2 loại việc");
     /* Khu + trạng thái MIỄN TRỪ: chốt phòng hờ phía dashboard (bộ sync đã cắt từ đầu). Hai danh sách
        này phải TRÙNG với VT_BO_QUA/ST_BO_QUA bên ton-vitri.mjs — qc-tvt-quet canh phía sync. */
     const bq = [["F0-KHO-HM-01-04-01", true], ["F0-KHO-HM", true], ["F0-AJ-00-00-00-00", true], ["F0-AJ", true],
       ["F0-KHO-503-09-04-01", false], ["F0-KHO-507-01-03-01", false], ["F0-A0-00-00-00-00", false]];
     bq.forEach(([v, mong]) => { if (ctx.tvtBoQua(v) !== mong) xau("tvtBoQua('" + v + "') = " + ctx.tvtBoQua(v) + ", mong " + mong); });
     ok("tvtBoQua: F0-KHO-HM* + F0-AJ* bị loại, F0-KHO khác giữ nguyên");
+    /* 14/09/2026: ẩn cả nhóm trạng thái KẾT THÚC (chứng từ đã duyệt, tồn theo vị trí = 0).
+       Not found phải Ở LẠI — ca 40.700 mm F0-KHO-504-08-01-01 là hàng còn trên kệ. */
     const bqs = [["Adjustment - shipped", true], ["Adjustment - Shipped", true], ["ADJUSTMENT-SHIPPED", true],
-      ["In-BIN", false], ["Returned supplier", false], ["Removed", false], ["Not found", false], ["", false]];
+      ["Removed", true], ["REMOVED", true], ["Returned supplier", true], ["returned  supplier", true],
+      ["Delivered", true], ["Transfer - shipped", true], ["Transfer-Shipped", true],
+      ["In-BIN", false], ["Not found", false], ["Picklisted", false], ["Picking", false],
+      ["Packed", false], ["", false]];
     bqs.forEach(([v, mong]) => { if (ctx.tvtBoQuaSt(v) !== mong) xau("tvtBoQuaSt('" + v + "') = " + ctx.tvtBoQuaSt(v) + ", mong " + mong); });
-    ok("tvtBoQuaSt: Adjustment - shipped bị loại (mọi biến thể), trạng thái khác giữ nguyên");
+    ok("tvtBoQuaSt: nhóm trạng thái kết thúc bị loại (mọi biến thể), trạng thái còn giữ hàng ở lại");
   } catch (e) { xau("chạy lõi lỗi: " + e.message); }
 }
 

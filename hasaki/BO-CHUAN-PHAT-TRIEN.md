@@ -141,7 +141,7 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
   bo tròn dạng pill (`border-radius: 999px`), gộp mã vị trí và mô tả kệ lên dòng 1 dạng inline và người
   báo cáo ở dòng 2 để chip cực kỳ dẹt, không che khuất chi tiết chân ảnh.
 
-**13 luật hiển thị điện thoại (chi tiết + 17 bẫy: memory `quy-chuan-hien-thi-dien-thoai`):**
+**15 luật hiển thị điện thoại (chi tiết + 17 bẫy: memory `quy-chuan-hien-thi-dien-thoai`):**
 1. Trang không kéo ngang; cuộn ngang chỉ trong khung tự khai `overflow-x:auto`.
 2. Bảng nhiều cột → **`table.mbcard`** dùng chung (6 bước áp ở memory `qc-bo-cuc-dien-thoai`),
    không bóp cột, không tự chép bộ rule riêng.
@@ -163,6 +163,18 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
     - Dải chú giải ≥4 mục **tuyệt đối không bung hàng tĩnh** trong tiêu đề; phải thu gọn vào nút popover con nhộng `Chú giải (N) ▾` hoặc thanh 1 hàng cuộn ngang.
     - Loại bỏ triệt để các nhãn rác ("Khu vực:", "Ngày:") làm tốn diện tích khi chip/lịch đã tự minh định ngữ cảnh.
     - Dải cảnh báo (Alert bar) phải nén dẹt siêu mỏng (≤26px, 1 hàng duy nhất).
+14. **Gộp cột/trường ĐƠN TRỊ (14/09/2026 — người dùng bác bản lặp tên kho 8 lần):**
+    - Cột nào mà MỌI dòng đang hiển thị đều cùng một giá trị thì nó không phân biệt được dòng nào với
+      dòng nào ⇒ **ẩn cột, đưa giá trị lên tiêu đề/phụ đề** (áp cho CẢ bảng máy tính, không riêng thẻ).
+    - Giá trị vừa ẩn **phải hiện lại ở một chỗ** — biến mất im lặng là mất dữ liệu.
+    - Chỉ gộp cột LẶP ĐƯỢC (kho, vị trí, trạng thái, nhóm…). KHÔNG gộp UID/SKU/số lượng — đó là thứ
+      người đọc dò từng dòng, trùng nhau chỉ là tình cờ.
+    - Mẫu cài đặt: `tvtmDonTri()` + `tvtmAnCot()` trong mục Tồn tại vị trí (factory/index.html).
+15. **Một con số mới thì vào DẢI THẺ SỐ, đừng dựng thêm thanh điều khiển (14/09/2026):**
+    - Cần theo dõi thêm một nhóm/chỉ số → thêm THẺ trong `.abntiles` (bấm thẻ = mở danh sách đã lọc).
+    - CẤM thêm một thanh chip/bộ lọc mới ở đầu mục chỉ để hiện con số đó: nó ăn 32-72px đầu màn,
+      đụng ngay luật 13, và người dùng đã bác đúng bản làm như vậy ("chip tào lao").
+    - Nhãn phụ trong dòng: dùng MỘT ký hiệu (`⚠`) + tooltip, không dán nhãn chữ dài vào ô.
 
 **Màn mới = phải vào bộ đo:** mọi tab/pop-up/panel-trong-tab/chế-độ-thứ-hai mới → thêm vào `man[]`
 của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleton dùng chính class thật —
@@ -222,6 +234,12 @@ Nguyên tắc:
 ## NHẬT KÝ RULE
 
 - **10/09/2026** — Mục 6 & 7: chống giật animation cho phần tử căn giữa `translateX(-50%)` (triệt tiêu lỗi nhảy từ phải sang trái của chip chú thích ảnh) + chuẩn chip Lightbox dẹt $\le 40\text{px}$ trên điện thoại.
+
+- **14/09/2026** — Mục 6: thêm **luật 14 (gộp cột đơn trị)** và **luật 15 (con số mới vào dải thẻ số,
+  cấm dựng thêm thanh điều khiển)** — rút từ lượt làm mục "Nghi tồn ảo": bản đầu dựng một thanh chip lọc
+  riêng (người dùng bác: "chip tào lao") và để cột Kho lặp y hệt ở cả 8 dòng. QC tương ứng đã thêm:
+  `qc-tvt.mjs` (cấm tvtLoaiBar/tvtChipBar/tvtSetLoai tái xuất hiện), `qc-tvt-live.mjs` (thẻ đếm đúng +
+  cột đơn trị phải ẩn và giá trị phải nằm ở phụ đề), `qc-tvt-mobile.mjs` (ô bị gộp thì đòi tiêu đề/phụ đề).
 
 - **07/09/2026** — Mục 7: bộ đo không được treo câm — trần 60s cho từng bước evaluate/chụp ảnh + handler dialog
   (rút từ lần qc-mobile đứng 15 phút sau màn "Kế hoạch chờ push" khi đo 2 màn mới của thẻ "Xác nhận lỗi còn treo").

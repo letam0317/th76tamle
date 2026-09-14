@@ -243,11 +243,22 @@ async function ghiTonViTri(token, apiAt) {
 
 (async () => {
   // Lượt guard chạy VÁ bước khác mà tonbatthuong hôm nay đã xong → thoát sớm (mốc .sync-ok-tonbatthuong).
-  if (boQuaNeuDaTuoi(DIR, "tonbatthuong", log)) process.exit(0);
+  /* `--chi-tvt` (14/09/2026): chạy RIÊNG bước "Tồn tại vị trí", bỏ qua phần quét tồn bất thường.
+     Bước nặng kia ngốn ~13 phút và 182k dòng upstream; khi chỉ cần dựng lại tab `ton-vitri`
+     (đổi luật lọc, thêm cột, hoặc lượt trước bị đứt giữa chừng) thì quét lại nó là phí tải WMS
+     — đúng ràng buộc §2 bộ chuẩn. Không đụng luồng cụm: cụm vẫn gọi không tham số như cũ. */
+  const CHI_TVT = process.argv.includes("--chi-tvt") || process.env.TVT_ONLY === "1";
+  if (!CHI_TVT && boQuaNeuDaTuoi(DIR, "tonbatthuong", log)) process.exit(0);
   let token = await layTokenTuPhucHoi(getWmsToken, DIR, log, "wms").catch((e) => { thoatTheoLoi(e, log, 2); });
   const me = await fetch(GET_ME, { headers: { authorization: token } });
   if (me.status === 401 || me.status === 403) { token = await voiKhoa(DIR, getWmsToken, { log }); luuToken(DIR, "wms", token, "bot"); }
   log("✓ Token WMS sẵn sàng.");
+  if (CHI_TVT) {
+    log("— CHỈ chạy bước Tồn tại vị trí (--chi-tvt): bỏ qua quét tồn bất thường.");
+    await ghiTonViTri(token, Date.now());
+    log("✓ XONG bước Tồn tại vị trí.");
+    process.exit(0);
+  }
 
   /* NHỚ ENDPOINT + SIZE (audit 23/08/2026): mỗi lượt dò lại endpoint (2 call) + dò size (1 call
      kéo THẬT 2000 dòng) × 3 lượt/ngày là tải vô ích — endpoint WMS đổi theo THÁNG chứ không theo
