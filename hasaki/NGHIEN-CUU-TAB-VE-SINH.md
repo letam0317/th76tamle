@@ -585,7 +585,7 @@ Kèm theo: sửa lời nhắc "ảnh chỉ lưu 3 ngày" → **7 ngày**. QC: `q
    - Gộp mã vị trí và mô tả kệ lên dòng 1 dạng inline, dòng 2 hiển thị người báo cáo.
    - Bộ QC đo tự động: `qc-lightbox-caption.mjs` (4/4 ca kiểm thử đạt).
 
-## 4l. 🟡 16/09/2026 — "LOAD LÂU · BỂ THUMBNAIL · XEM ẢNH RẤT LÂU": ẢNH THẲNG CDN + ẢNH NHỎ TỰ THU + NẠP TRƯỚC TỪ `<head>` (chờ user duyệt bản nội bộ)
+## 4l. ✅ 16/09/2026 — "LOAD LÂU · BỂ THUMBNAIL · XEM ẢNH RẤT LÂU": ẢNH THẲNG CDN + ẢNH NHỎ TỰ THU + NẠP TRƯỚC TỪ `<head>` (LIVE 16/09 ~14:00, commit 04e4c17, module `?v=20260916a`)
 
 **Đo trước khi sửa (live, Edge headless, cache lạnh, mạng công ty — `qc-toc-do-planogram.mjs` / `qc-toc-do-anh-planogram.mjs`):**
 - Mở trang: HTML 1,0 s → module 0,9 s → **GAS chỉ bắt đầu ở +1,9 s**; 4 tab bậc 1 bắn cùng lúc (YEUCAU 168 KB · PT 20 KB ·
@@ -620,6 +620,8 @@ Kèm theo: sửa lời nhắc "ảnh chỉ lưu 3 ngày" → **7 ngày**. QC: `q
 24 ảnh xong **3,6 s**, 0 ảnh vỡ; pop-up AI cuộn vài màn 31 ảnh 0 vỡ, p50 0,44 s/ảnh; lightbox mở **0,21 s / 0 KB**; F5 mở lại
 ô: **0,14 s / 0 request**. `qc-mobile-toan-du-an --file --man=planogram --may=android` 14/14 màn = baseline; 0 lỗi JS.
 Lưu ý: số "trước" đo trên Pages (TTFB 1 s), số "sau" trên localhost — phần HTML ~1 s không so được; phần GAS + ảnh so được.
+
+**Đo LIVE sau deploy (Pages, cache lạnh, cùng mạng — `qc-toc-do-planogram.mjs` / `qc-toc-do-anh-planogram.mjs`):** GAS bắt đầu ở **+0,54 s** (ngay sau HTML, thay +1,9 s); thẻ KPI **2,55 s** máy tính / **4,26 s** Pixel 5 (trước 6,3 s). Pop-up ô: ảnh đầu **0,64–1,04 s**, 4 ảnh **1,05–1,45 s** (trước 5,3 s / 10,5 s); `+N` 24 ảnh 6,2 s, **0 ảnh vỡ**; pop-up AI cuộn vài màn 30 ảnh 0 vỡ, p50 0,56 s/ảnh; lightbox **0,22 s / 0 KB** (blob trong RAM); F5 mở lại ô **0,14 s / 0 request** (IndexedDB). 0 lỗi JS. Ghi chú deploy: `deploy-kiemsoatkho.mjs` PUT cả 8 file dù nội dung không đổi (chỉ lấy sha để PUT, KHÔNG so sánh như chú thích đầu file) → 8 commit trên repo Pages, 6 commit kia không đổi nội dung.
 
 **Bẫy khi đo:** (1) thumbnail nay là data-URL nên bộ đo phải phân biệt `data:image/gif` (ô giữ chỗ 1 px) với
 `data:image/jpeg` (ảnh nhỏ đã về) — bản đầu của bộ đo đếm "xong = 0" oan; (2) chờ `HPLANOGRAM._S.anh.ok === true` rồi
