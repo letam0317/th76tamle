@@ -585,6 +585,48 @@ Kèm theo: sửa lời nhắc "ảnh chỉ lưu 3 ngày" → **7 ngày**. QC: `q
    - Gộp mã vị trí và mô tả kệ lên dòng 1 dạng inline, dòng 2 hiển thị người báo cáo.
    - Bộ QC đo tự động: `qc-lightbox-caption.mjs` (4/4 ca kiểm thử đạt).
 
+## 4l. 🟡 16/09/2026 — "LOAD LÂU · BỂ THUMBNAIL · XEM ẢNH RẤT LÂU": ẢNH THẲNG CDN + ẢNH NHỎ TỰ THU + NẠP TRƯỚC TỪ `<head>` (chờ user duyệt bản nội bộ)
+
+**Đo trước khi sửa (live, Edge headless, cache lạnh, mạng công ty — `qc-toc-do-planogram.mjs` / `qc-toc-do-anh-planogram.mjs`):**
+- Mở trang: HTML 1,0 s → module 0,9 s → **GAS chỉ bắt đầu ở +1,9 s**; 4 tab bậc 1 bắn cùng lúc (YEUCAU 168 KB · PT 20 KB ·
+  PC 28 KB · **AI 664 KB**) về ở **+6,1 s** → thẻ KPI hiện **6,3 s**. curl kiểm chứng: 4 tab song song → YEUCAU 3,2 s;
+  bỏ AI ra còn **1,9 s** (Apps Script chỉ cho ~3 request chạy song song, tab thứ 4 đẩy tất cả xếp hàng).
+- Ảnh: mỗi ảnh gốc 450–620 KB đi **2 hop** — gateway `wms-gw-external` (302, 0,25–1,5 s) → CDN. Pop-up ô: ảnh đầu **5,3 s**,
+  4 ảnh bày sẵn **10,5 s**. Pop-up AI cuộn vài màn (Pixel 5): **33 ảnh gốc = 16,4 MB**, p50 1,7 s/ảnh, max 5,8 s vì 6 ảnh
+  0,5 MB tranh một đường mạng; mỗi ảnh giải mã ~11 MB RAM → điện thoại giữ vài chục ảnh là Chrome bỏ ảnh ⇒ **ô vỡ**.
+- Gateway trả 302 sang `cdn-media-wms.inshasaki.com/<CÙNG TÊN FILE>` ở **12/12 ảnh hôm nay + 25/25 ảnh ngày 4→7**; CDN mở
+  CORS `*` (kèm `Vary: Origin`), `max-age` 7 ngày; không có bản thu nhỏ (đã đo 18/08). Không có service worker nào chen vào.
+
+**Sửa (không thêm lượt gọi upstream nào — ngược lại bớt 1 lượt WMS cho MỖI ảnh):**
+1. `urlAnh()` ghép thẳng CDN, `urlAnhGw()` là đường lùi; mọi `<img>` ảnh có `onerror="HPLANOGRAM.anhLui(this)"` đổi về
+   gateway đúng 1 lần nếu CDN hỏng (WMS đổi CDN cũng không mất ảnh).
+2. **Ảnh nhỏ tự thu + hàng đợi** (`imgAnh/lazyQuet/anhXep/anhChay/anhNho/anhThu`): tối đa `ANH_SONG_SONG`=3 ảnh bay cùng
+   lúc, ảnh bày sẵn trong pop-up (`data-uutien`) chen đầu, còn lại theo tầm nhìn (IntersectionObserver đệm 240 px);
+   `fetch` CORS → `createImageBitmap(resizeWidth 176)` → JPEG data-URL ~8 KB gắn vào ô; ảnh gốc thả cho GC, chỉ giữ 8 ảnh
+   gần nhất (object URL, ~4 MB) để lightbox mở tức thì; **IndexedDB `hp-anh/thumb`** (không PII) TTL 9 ngày → F5 / tab mới
+   → ảnh hiện 0,14 s, **0 lượt mạng**. Luôn VẼ THU NHỎ theo `ANH_NHO_W` kể cả khi trình duyệt bỏ qua `resizeWidth`; Safari
+   cũ không có `createImageBitmap` → giải mã qua `<img>`; mọi lỗi → rớt về `<img src=ảnh gốc>` như trước.
+3. `bac1()` bỏ VESINH-AI khỏi lượt bắn đầu → `bac2()` gọi ngay khi YEUCAU về (hoặc hỏng / hết watchdog) — chip AI và số
+   trên nút "AI xét duyệt ảnh" tự vẽ lại khi về (đã vậy từ trước vì các tab về không theo thứ tự).
+4. `index.html <head>`: khi trang SẼ mở Planogram (`?tab=planogram` hoặc tab nhớ lần trước, bỏ qua khi có `#khoa=`) thì
+   bắn readTab 3 tab bậc 1 + `<link rel=preload>` module ngay lúc đọc `<head>`; module nhận qua `window.__HPT` đúng 1 lần
+   trong `loadTab()` (null = lỗi → cùng handler → `thuLai()` như cũ). Không thêm lượt GAS (module không gọi lại tab đã có).
+5. Lightbox (`renderLB`, index.html): ảnh nhỏ mờ giữ chỗ + vòng chờ tới khi ảnh gốc về; lỗi → `m.urlLui` 1 lần; **nạp trước
+   ĐÚNG 1 ảnh kế** (`lbNapTruoc`); `safeUrl` nhận thêm `blob:` (ảnh gốc giữ trong RAM). Chip caption không đổi
+   (`qc-lightbox-caption.mjs` 4/4).
+
+**Đo sau khi sửa (bản nội bộ localhost:8123, cùng mạng, cache lạnh):** GAS bắt đầu ở **+23 ms** (thay +1,9 s); 3 tab về
+~2,3 s → KPI **2,5 s** (máy tính) / **2,3 s** (Pixel 5). Pop-up ô: ảnh đầu **0,67–0,84 s**, 4 ảnh **1,05–1,08 s**; bấm `+N`
+24 ảnh xong **3,6 s**, 0 ảnh vỡ; pop-up AI cuộn vài màn 31 ảnh 0 vỡ, p50 0,44 s/ảnh; lightbox mở **0,21 s / 0 KB**; F5 mở lại
+ô: **0,14 s / 0 request**. `qc-mobile-toan-du-an --file --man=planogram --may=android` 14/14 màn = baseline; 0 lỗi JS.
+Lưu ý: số "trước" đo trên Pages (TTFB 1 s), số "sau" trên localhost — phần HTML ~1 s không so được; phần GAS + ảnh so được.
+
+**Bẫy khi đo:** (1) thumbnail nay là data-URL nên bộ đo phải phân biệt `data:image/gif` (ô giữ chỗ 1 px) với
+`data:image/jpeg` (ảnh nhỏ đã về) — bản đầu của bộ đo đếm "xong = 0" oan; (2) chờ `HPLANOGRAM._S.anh.ok === true` rồi
+mới chọn ô có ảnh, đừng chờ điều kiện "không còn đang tải" (nó đúng cả lúc chưa gọi); (3) HEAD tới gateway trả 404 dù
+GET trả 302 — đừng dùng `curl -I` để kết luận ảnh mất; (4) `Vary: Origin` của CDN: `fetch` CORS và `<img>` no-cors
+KHÔNG dùng chung cache HTTP → lightbox lấy ảnh gốc từ blob đã giữ, không trông vào cache.
+
 ## 5. Công cụ nghiên cứu đã tạo (read-only, tôn trọng luật phiên)
 `.exports/` chứa bằng chứng: `probe-planogram*.json`, `captured-planogram-authed.json`.
 Script: `capture-planogram.mjs`, `capture-planogram-authed.mjs` (nạp token bridge vào

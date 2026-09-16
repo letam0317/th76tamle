@@ -37,6 +37,33 @@
   }catch(e){}
 })();
 </script>
+<script>
+/* TĂNG TỐC 16/09/2026 (tab Planogram — user báo "load lâu"): khi trang SẼ mở tab Planogram (?tab=planogram, hoặc tab
+   nhớ lần trước), bắn ngay readTab cho 3 tab bậc 1 + preload module hasaki-planogram.js từ <head> — đo live 16/09:
+   HTML 1,0 s → module 0,9 s → GAS mới bắt đầu ở 1,9 s; nay GAS bắt đầu ở ~0,9 s. Module (loadTab) nhận kết quả qua
+   window.__HPT đúng 1 lần; lỗi ở đây chỉ mất tăng tốc, module tự gọi lại như cũ. Bỏ qua khi link có #khoa= (máy mới
+   chưa lưu khoá thiết bị — để module xử lý khoá trước). Danh sách tab + URL GAS PHẢI khớp hasaki-planogram.js. */
+(function(){
+  try{
+    var tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
+    if(!tb){ try{ tb=localStorage.getItem('currentTab:hasaki'); }catch(e){} }
+    if(tb!=='planogram' || /khoa=/.test(location.hash||'')) return;
+    var V='20260916a';   // PHẢI khớp s.src trong moHasakiPlanogram()
+    var l=document.createElement('link'); l.rel='preload'; l.as='script'; l.href='hasaki-planogram.js?v='+V; document.head.appendChild(l);
+    var GAS='https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
+    var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||''; }catch(e){}
+    var T=window.__HPT={ kq:{}, dang:{}, cho:{}, dung:{} };
+    ['VESINH-YEUCAU','PHU-TRACH-QUAY-KE','VESINH-PHANCONG'].forEach(function(t,i){
+      var cb='__hpt_cb'+i; T.dang[t]=1;
+      window[cb]=function(j){ T.kq[t]=j; T.dang[t]=0; if(T.cho[t]) T.cho[t](j); };
+      var s=document.createElement('script');
+      s.src=GAS+'?action=readTab&tab='+encodeURIComponent(t)+'&callback='+cb+'&tb='+encodeURIComponent(khoa)+'&_='+Date.now();
+      s.onerror=function(){ T.kq[t]=null; T.dang[t]=0; if(T.cho[t]) T.cho[t](null); };
+      document.head.appendChild(s);
+    });
+  }catch(e){}
+})();
+</script>
 <style>
 /* ===== CHỈ THỊ 1: DESIGN TOKENS DÙNG CHUNG (cả Hasaki lẫn Factory tham chiếu 1 nguồn) ===== */
 :root{
@@ -519,6 +546,13 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 #lbContent img,#lbContent video{max-width:92vw; max-height:84vh; object-fit:contain; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,.6);
   animation:lbIn .25s ease; will-change:opacity, transform;}
 @keyframes lbIn{from{opacity:0; transform:scale(.97);} to{opacity:1; transform:scale(1);}}
+/* 16/09/2026: ảnh nhỏ mờ giữ chỗ + vòng chờ trong lúc ảnh gốc về (xem renderLB). Vòng chờ căn giữa bằng margin,
+   KHÔNG dùng translate (luật chống giật animation phần tử căn giữa, BO-CHUAN mục 6). */
+#lbContent{position:relative;}
+#lbContent .lb-th{height:min(84vh,640px); width:auto; max-width:92vw; object-fit:contain; filter:blur(8px) brightness(.85); animation:none;}
+#lbContent .lb-main.lb-an{position:absolute; inset:0; margin:auto; opacity:0; animation:none;}
+#lbContent .lb-spin{position:absolute; left:50%; top:50%; width:34px; height:34px; margin:-17px 0 0 -17px; border:3px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:lbSpin .8s linear infinite;}
+@keyframes lbSpin{to{transform:rotate(360deg);}}
 .lb-btn{position:absolute; top:50%; transform:translateY(-50%); background:var(--surface); color:var(--text); border:1px solid var(--border);
   padding:12px 16px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; opacity:.92;}
 .lb-btn:hover{background:var(--accent); color:var(--accent-text); border-color:var(--accent); opacity:1;}
@@ -1826,7 +1860,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // BẢO MẬT: chỉ cho phép URL http/https vào href/src (chặn javascript:, data:, ... từ dữ liệu Sheet).
 // Trả '' nếu không hợp lệ -> link/ảnh trỏ rỗng thay vì chạy mã. Luôn bọc trong esc() khi nhúng.
-const safeUrl = u => { const s=String(u==null?"":u).trim(); return /^https?:\/\/|^data:image\//i.test(s) ? s : ""; };
+const safeUrl = u => { const s=String(u==null?"":u).trim(); return /^https?:\/\/|^data:image\/|^blob:/i.test(s) ? s : ""; };
 const isMedia = v => typeof v==="string" && v.indexOf("https://hr-media")===0;
 const isVideo = u => /\.(mp4|webm|mov|m4v|3gp)(\?|$)/i.test(u);
 const idxOf = kw => H.findIndex(h => (h||"").toLowerCase().includes(kw.toLowerCase()));
@@ -2820,9 +2854,19 @@ function openLB(list, idx){
 }
 function renderLB(){
   const m=lbList[lbIdx]; if(!m) return;
-  $('lbContent').innerHTML = m.type==='vid'
-    ? `<video src="${esc(safeUrl(m.url))}" controls autoplay></video>`
-    : `<img src="${esc(safeUrl(m.url))}" alt="">`;
+  const c=$('lbContent'); c.classList.remove('lb-ok');
+  if(m.type==='vid'){ c.innerHTML=`<video src="${esc(safeUrl(m.url))}" controls autoplay></video>`; }
+  else{
+    /* 16/09/2026 (user: "bấm xem ảnh load rất lâu"): ảnh gốc 0,5 MB về 1,7–10 s trên mạng kho → hiện NGAY ảnh nhỏ đã có
+       (m.thumb, mờ) + vòng chờ; ảnh gốc về thì thay. Lỗi nguồn → thử m.urlLui đúng 1 lần. Nạp trước ảnh KẾ TIẾP để bấm
+       "Sau" là có ngay (1 ảnh, không kéo cả bộ). Module Planogram truyền thumb/urlLui; tab 5S không có thì chỉ có vòng chờ. */
+    c.innerHTML = (m.thumb ? `<img class="lb-th" src="${esc(safeUrl(m.thumb))}" alt="">` : '') +
+      `<img class="lb-main${m.thumb?' lb-an':''}" src="${esc(safeUrl(m.url))}" alt=""><div class="lb-spin"></div>`;
+    const im=c.querySelector('.lb-main');
+    const xong=()=>{ c.classList.add('lb-ok'); im.classList.remove('lb-an'); c.querySelectorAll('.lb-th,.lb-spin').forEach(x=>x.remove()); lbNapTruoc(); };
+    if(im.complete && im.naturalWidth>0) xong(); else im.onload=xong;
+    im.onerror=()=>{ if(m.urlLui && !im.__lui){ im.__lui=1; im.src=safeUrl(m.urlLui); return; } c.querySelectorAll('.lb-spin').forEach(x=>x.remove()); };
+  }
   $('lbCount').textContent = lbList.length>1 ? (lbIdx+1)+" / "+lbList.length : "";
   const cap = $('lbCaption');
   if(cap){
@@ -2838,6 +2882,11 @@ function renderLB(){
   }
 }
 function lbMove(step){ if(lbList.length<2) return; lbIdx=(lbIdx+step+lbList.length)%lbList.length; renderLB(); }
+function lbNapTruoc(){   // nạp trước ĐÚNG 1 ảnh kế tiếp (đường <img> no-cors → trùng cache với lúc vẽ thật)
+  if(lbList.length<2) return; const n=lbList[(lbIdx+1)%lbList.length];
+  if(!n || n.type==='vid' || n.__pre) return; n.__pre=1;
+  const p=new Image(); p.src=safeUrl(n.url);
+}
 function dongLB(){
   $('lightbox').classList.remove('show');
   $('lbContent').innerHTML='';
@@ -3127,7 +3176,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260910f';
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260916a';   // khớp V ở <head>
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
