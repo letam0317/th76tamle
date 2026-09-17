@@ -109,6 +109,12 @@ const SYSTEM = [
   "Trả về đúng JSON theo schema, ly_do bằng tiếng Việt, ngắn gọn, nêu tên ô lỗi."
 ].join("\n");
 
+/* ⏸ CẦU DAO PLANOGRAM (17/09/2026): API planogram bị chặn sau khi bộ phận dev phát hiện bộ cào tự động — có file
+   .TAT-PLANOGRAM trong hasaki/ thì KHÔNG gọi WMS nữa (0 request), thoát ngay. Xoá file để chạy lại. LICH-VA-DU-PHONG.md §B5. */
+if (fs.existsSync(path.join(DIR, ".TAT-PLANOGRAM"))){
+  log("⏸ PLANOGRAM TẠM DỪNG (.TAT-PLANOGRAM) — không quét yêu cầu, không gọi AI; xoá file để chạy lại.");
+  process.exit(0);
+}
 /* ===== 2. QUÉT PLANOGRAM — các yêu cầu CHỜ DUYỆT (status 3) trong cửa sổ --days ===== */
 const token = await layTokenSongWms(DIR, log);
 if (!token) { log("⚠ Không có token phiên sống — bỏ qua lượt này (chạy lại sau khi operator online)."); process.exit(0); }

@@ -567,7 +567,10 @@ var COLS_CCN = {
   code:  ["code", "mã nv", "ma nv"],
   name:  ["name", "tên", "ten"],
   email: ["email", "mail"],
-  ds:    ["chấm công theo ngày (ngày vào-ra)", "chấm công theo ngày", "chấm công", "cham cong"]
+  ds:    ["chấm công theo ngày (ngày vào-ra)", "chấm công theo ngày", "chấm công", "cham cong"],
+  /* 17/09/2026 — 2 cột SỔ VI PHẠM LUỸ TIẾN do sync-vesinh-all.js (vipham-vesinh.mjs) ghi thêm; tab cũ chưa có → luỹ tiến "chưa đếm được" */
+  vp:    ["vi phạm (ngày:số ô:ô)", "vi phạm"],
+  ghi:   ["đã ghi nhận kpi (ngày)", "đã ghi nhận kpi", "đã ghi nhận"]
 };
 /* Nhóm trạng thái chấm công (màu + nhãn) */
 var CCST = [
@@ -654,6 +657,7 @@ var S = { ok: false, dangPT: false, all: [], area: "", lastAt: 0, tsData: 0,
   ai: { ok: false, dang: false, by: {}, rows: [], ts: 0 }, aiKl: "", aiQ: "",
   pc: { ok: false, dang: false, by: {}, ts: 0 },   // by[khoá ô] = { em, code, ten, nguon, bc, gc }
   dTu: "", dDen: "", listMode: "ai", ptHi: "", ptOpen: false,   // dTu→dDen = KHOẢNG NGÀY đang xem; listMode = panel danh sách (ai | nv); ptHi = email NV đang SOI; ptOpen = panel cần-nhắc đang xổ
+  mb: false, mbDang: false,   // mb = đang xem SƠ ĐỒ MẶT BẰNG (bê từ bản vẽ CAD) thay cho sơ đồ lưới; mbDang = đang nạp file dữ liệu
   locNgay: null };   // bản bộ lọc ngày dùng chung (taoBoLocNgay của index.html) — dựng 1 lần, cắm lại mỗi lần renderWhBar
 var MODAL = { base: [], preset: null, mode: "loc" };
 var NK = { email: "", q: "" };
@@ -775,6 +779,31 @@ var CSS = [
 "@media(max-width:768px){#pane-planogram .hp-seg button{min-height:40px;padding:7px 12px;font-size:12px;}}",
 /* sơ đồ mặt bằng — A1 (16 dãy kệ) + A8 (4 cụm bàn + băng chuyền) */
 "#pane-planogram .hp-maphdr{font-size:12px;font-weight:700;color:var(--muted,#64748b);text-transform:uppercase;letter-spacing:.05em;margin:12px 2px 6px;}",
+/* --- MẶT BẰNG THẬT (SVG bê từ bản vẽ CAD) -------------------------------------------------
+   SVG tự co theo viewBox nên KHÔNG dùng hệ số phóng của fitMaps; chiều cao chặn theo chiều cao
+   khung nhìn để mặt bằng nằm trọn 1 màn đúng như mục tiêu nén dọc 30/07 của sơ đồ lưới.
+   Nét vẽ dùng vector-effect để luôn mảnh 1px dù SVG co giãn bao nhiêu. */
+"#pane-planogram .hp-mbwrap{margin:6px 0 2px;border-radius:10px;overflow:hidden;background:color-mix(in srgb, var(--panel,#fff) 92%, var(--text,#0f172a) 8%);}",
+"#pane-planogram .hp-mbsvg{display:block;width:100%;height:auto;max-height:min(62vh,560px);}",
+"#pane-planogram .hp-mbnet{fill:none;stroke:color-mix(in srgb, var(--muted,#94a3b8) 55%, transparent);stroke-width:1;vector-effect:non-scaling-stroke;}",
+"#pane-planogram .hp-mbo{stroke:color-mix(in srgb, var(--line,#cbd5e1) 80%, transparent);stroke-width:.5;vector-effect:non-scaling-stroke;}",
+"#pane-planogram .hp-mbo.o-ke{cursor:pointer;}",
+"#pane-planogram .hp-mbo.o-ke:hover{stroke:var(--text,#0f172a);stroke-width:1.5;}",
+"#pane-planogram .hp-mbo.o-ke.trong{fill:transparent;stroke-dasharray:2 2;}",
+/* khối A2 + khu công năng: nền nhạt, KHÔNG bấm được — chúng không nằm trong planogram vệ sinh */
+"#pane-planogram .hp-mbo.o-ke2{fill:color-mix(in srgb, var(--muted,#94a3b8) 20%, transparent);}",
+"#pane-planogram .hp-mbo.o-pallet{fill:color-mix(in srgb, #60a5fa 22%, transparent);}",
+"#pane-planogram .hp-mbo.o-pick{fill:color-mix(in srgb, #34d399 26%, transparent);}",
+"#pane-planogram .hp-mbo.o-pack{fill:color-mix(in srgb, #fbbf24 30%, transparent);}",
+"#pane-planogram .hp-mbkhu{font-size:1.1px;fill:var(--muted,#64748b);pointer-events:none;}",
+"#pane-planogram .hp-mbload{padding:22px 10px;text-align:center;color:var(--muted,#6b7280);font-size:13px;}",
+"#pane-planogram .hp-h2btn.on{background:var(--accent,#2f7a55);color:#fff;border-color:transparent;}",
+/* Điện thoại: thêm nút thứ 3 vào tiêu đề Sơ đồ là hàng hết chỗ (393px), chữ trong NÚT bị bẻ đôi
+   ("Vị / trí"). Cho hàng tiêu đề xuống dòng và khoá chữ trong nút lại — thà 2 hàng gọn còn hơn
+   3 nút gãy chữ; mở lại flex-wrap ở đây vì luật nowrap phía trên đặt cho lúc chỉ có 2 nút. */
+"@media(max-width:768px){#pane-planogram .hp-mbsvg{max-height:52vh;} #pane-planogram .hp-mbkhu{display:none;}}",
+"@media(max-width:768px){#pane-planogram #hpMap .hp-panel h2{flex-wrap:wrap;row-gap:6px;}}",
+"@media(max-width:768px){#pane-planogram #hpMap .hp-panel h2 .hp-h2btn,#pane-planogram #hpMap .hp-panel h2 .hp-legbtn{white-space:nowrap;}}",
 /* tỷ lệ thực địa ~10px/m: cặp dãy A1 lưng giáp lưng (3px), lối đi xen kẽ 1,5m=15px / 3m=30px; cụm A8 cách đều 2m=20px */
 "#pane-planogram .hp-mapscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;}",
 "#pane-planogram .hp-mapscroll > .hp-map{width:max-content;margin:0 auto;}",
@@ -1027,6 +1056,21 @@ var CSS = [
 ".hp-ai-toolbar{flex-direction:column;align-items:stretch;padding:8px 12px;gap:8px;}#hpAiModal #hpAiSearch{max-width:none;width:100%;min-height:40px;margin:0;}#hpAiChips{width:100%;}#hpAiChips .hp-whtab{min-height:40px !important;padding:4px 12px;font-size:12px;}}",
 /* lightbox host phải nổi TRÊN pop-up module (host để z-index 60, pop-up 1200) */
 "#lightbox{z-index:1400;}",
+/* Pop-up PIN + modal form Ghi nhận 5S của host (z 80 / 70) cũng phải nổi TRÊN pop-up ô (1200): nút
+   "Ghi nhận 5S" trong pop-up ô mở thẳng form — mở mà chìm dưới pop-up là bấm không thấy gì (17/09/2026). */
+"#ghiModal{z-index:1250;} #pinModal{z-index:1260;}",
+/* Cụm hành động góc phải trên pop-up ô: link "Yêu cầu #… ↗" và ngay DƯỚI nó là nút "Ghi nhận 5S" — đỏ,
+   đậm (đỏ trong tab này = việc phải xử lý; nút này chính là bước xử lý). Nút CHỮ, không viền, cùng cỡ link;
+   focus ring theo khuôn chung (--accent + box-shadow 3px). Điện thoại: vùng chạm ≥40px (luật ④ bộ đo). */
+".hp-vtacts{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}",
+".hp-vtghi{background:0;border:0;padding:2px 0;margin:0;font:inherit;font-size:12px;font-weight:800;color:#dc2626;cursor:pointer;white-space:nowrap;line-height:1.3;border-radius:6px;min-height:26px;}",
+".hp-vtghi:hover{text-decoration:underline;}",
+".hp-vtghi:disabled{opacity:.55;cursor:progress;text-decoration:none;}",
+".hp-vtghi:focus-visible{outline:0;box-shadow:0 0 0 3px color-mix(in srgb, var(--accent,#326e51) 28%, transparent);}",
+/* Dòng đếm luỹ tiến thay chỗ nút khi CHƯA đủ 3 lần ("Đi làm không báo cáo · lần 2/3") — cùng màu đỏ, nhỏ hơn, không bấm được */
+".hp-vtlt{font-size:11px;font-weight:700;color:#dc2626;white-space:nowrap;line-height:1.3;padding:2px 0;cursor:help;}",
+".hp-vtlt:empty{display:none;}",
+"@media(max-width:768px){.hp-vtghi{min-height:40px;padding:6px 0;}}",
 
 /* ===== KHUÔN THẺ DI ĐỘNG `table.mbcard` + dọn thanh điều khiển (21/08/2026) =====================
  * NGÒI NỔ: người dùng gửi lại chính màn này từ điện thoại — "Danh sách theo dõi › AI xét duyệt ảnh"
@@ -1193,7 +1237,9 @@ var MODAL_HTML =
 '<div id="hpVtModal" class="hp-modal">' +
 '  <div class="hp-modalbox" style="width:min(680px,96vw);">' +
 '    <div class="hp-modalhd"><div><div class="mt" id="hpVtTitle"></div><div class="mtsub" id="hpVtSub"></div></div>' +
-'      <div style="display:flex;align-items:center;gap:8px;"><a id="hpVtPg" class="hp-ext" target="_blank" rel="noopener" style="font-size:12px;white-space:nowrap;"></a>' +
+'      <div style="display:flex;align-items:flex-start;gap:8px;"><div class="hp-vtacts"><a id="hpVtPg" class="hp-ext" target="_blank" rel="noopener" style="font-size:12px;white-space:nowrap;"></a>' +
+'      <button type="button" id="hpVtGhi" class="hp-vtghi" onclick="HPLANOGRAM.ghiNhan5S()" title="Mở form Ghi nhận 5S (cần PIN) — vị trí và hiện trạng đã điền sẵn từ dữ liệu của ô này">Ghi nhận 5S</button>' +
+'      <span id="hpVtLt" class="hp-vtlt"></span></div>' +
 '      <button class="hp-mclose" onclick="HPLANOGRAM.closeVt()">&times;</button></div></div>' +
 '    <div class="hp-modalbody" id="hpVtBody" style="padding:14px 20px 20px;"></div>' +
 '  </div>' +
@@ -1877,11 +1923,11 @@ function buildCCN(H, rows2d){
     while ((m = re.exec(txt)) !== null){ d[m[1]] = { vao: m[2], ra: m[3] }; ngay[m[1]] = 1; n++; }
     if (!n) return;
     ghiNhoNm(em, code, ten);
-    var o = { code: code, em: em, ten: ten, d: d, n: n };
+    var o = { code: code, em: em, ten: ten, d: d, n: n, vp: docCotVp(gv(idx.vp)), ghi: docCotGhi(gv(idx.ghi)) };
     if (em) byEm[em] = o;
     if (code) byCode[code] = o;
   });
-  S.ccn.ok = true; S.ccn.em = byEm; S.ccn.code = byCode; S.ccn.ngay = ngay;
+  S.ccn.ok = true; S.ccn.em = byEm; S.ccn.code = byCode; S.ccn.ngay = ngay; S.ccn.coVp = idx.vp >= 0;
   veLaiVt();
   /* 03/08/2026: tab này nay còn quyết định MÀU Ô + 3 thẻ KPI + panel "cần nhắc" khi soi NGÀY CŨ
      (trước chỉ pop-up dùng nó) → về tới là phải vẽ lại cả màn hình, không chỉ pop-up. */
@@ -2605,6 +2651,53 @@ function fitMaps(){
   _fitW = w; _fitZ = z;
   for (i = 0; i < scs.length; i++){ mp = scs[i].firstElementChild; if (mp) mp.style.zoom = z; }
 }
+/* ===== SƠ ĐỒ MẶT BẰNG THẬT (bê từ bản vẽ AutoCAD) ==========================================
+ * Sơ đồ lưới ở trên vẽ kệ thành hàng/cột đều nhau — đủ để soi trạng thái, nhưng KHÔNG phải hình
+ * kho thật: người đứng trong kho không đối chiếu được "ô này là chỗ nào". Chế độ MẶT BẰNG bê
+ * nguyên hình học bản vẽ DCMTG1.dwg (25/08/2026): tường, khung kệ, lối đi, khu chức năng đúng
+ * tỉ lệ mét — xem hasaki/kho170-sodo-build.mjs.
+ *
+ * Bản vẽ XÁC NHẬN ĐỘC LẬP hai con số danh mục mà tab này vốn chỉ giả định:
+ *   · A1 = 16 dãy (501-516) × 10 tủ = 160 ô  → khớp A1_DAY_TU/A1_DAY_DEN/A1_SO_KE
+ *   · khu đóng gói có ĐÚNG 64 ô bàn        → khớp MAP_A8 (4 cụm × 2 dãy × 8 ô)
+ *
+ * KHÔNG tô trạng thái cho ô ngoài A1: khối A2 là kho pallet (không thuộc planogram vệ sinh), còn
+ * ô PACK/PICK tuy đếm đúng 64 nhưng bản vẽ KHÔNG ghi dãy nào là 501 hay 503 — gán mã lúc này là
+ * đoán, sai một cái là đổ oan cho người phụ trách. Để nguyên dạng nền, ghi rõ trong tooltip.
+ *
+ * Dữ liệu nạp LAZY (kho170-sodo.js ~66KB) — chỉ tải khi người dùng bật, không đụng lượt tải mặc định.
+ * ========================================================================================== */
+var MB_SRC = "kho170-sodo.js?v=20260916a";
+function napMatBang(xong){
+  if (window.KHO170_SODO) return xong(true);
+  if (S.mbDang) return;
+  S.mbDang = true;
+  var s = document.createElement("script");
+  s.src = MB_SRC;
+  s.onload = function(){ S.mbDang = false; xong(!!window.KHO170_SODO); };
+  s.onerror = function(){ S.mbDang = false; xong(false); };
+  document.head.appendChild(s);
+}
+function toggleMatBang(){
+  if (S.mb){ S.mb = false; renderMap(); return; }
+  if (window.KHO170_SODO){ S.mb = true; renderMap(); return; }
+  S.mb = true; renderMap();                     // vẽ khung "đang tải" ngay, không để người dùng bấm vào khoảng lặng
+  napMatBang(function(ok){ if (!ok) S.mb = false; renderMap(); });
+}
+/* veO(ô) do renderMap truyền vào — nó giữ trạng thái/màu/tooltip nên mặt bằng và lưới luôn cùng
+   một sự thật, không có đường nào tự chế màu riêng. */
+function svgMatBang(veO){
+  var D = window.KHO170_SODO;
+  if (!D) return '<div class="hp-mbload">' + (S.mbDang ? "Đang tải sơ đồ mặt bằng…" : "Không tải được sơ đồ mặt bằng.") + '</div>';
+  var net = "";
+  for (var i = 0; i < D.nen.length; i++){ var s = D.nen[i]; net += "M" + s[0] + " " + s[1] + "L" + s[2] + " " + s[3]; }
+  return '<div class="hp-mbwrap"><svg class="hp-mbsvg" viewBox="0 0 ' + D.W + ' ' + D.H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sơ đồ mặt bằng kho 170">' +
+    '<path class="hp-mbnet" d="' + net + '"/>' +
+    D.o.map(veO).join("") +
+    D.khu.map(function(t){ return '<text class="hp-mbkhu" x="' + t.x + '" y="' + t.y + '">' + esc(t.s) + '</text>'; }).join("") +
+    '</svg></div>';
+}
+
 function renderMap(){
   var box = $id("hpMap"); if (!box) return;
   if (!S.yc.ok || !S.yc.rows.length){ box.innerHTML = S.yc.dang ? SK_MAP : ""; return; }
@@ -2699,7 +2792,7 @@ function renderMap(){
      TỶ LỆ THỰC TẾ (đo 26/07, ~10px/m — chỉ để canh khoảng cách, KHÔNG hiển thị số mét):
      cụm cách cụm 2m đều nhau (503↔504, 506↔507, …) → column-gap cố định 20px, không giãn đều nữa. --- */
   var htmlA8 = "";
-  if (S.area !== "A1"){
+  if (!S.mb && S.area !== "A1"){
     htmlA8 = '<div class="hp-maphdr">Bàn đóng gói &amp; băng chuyền (F0-A8)</div><div class="hp-mapscroll"><div class="hp-map hp-mapa8">' +
       MAP_A8.map(function(c){
         var list = byL[c.bc], st = stateCua(list), m = cellMeta(st);
@@ -2716,7 +2809,7 @@ function renderMap(){
 
   /* --- Khối A1: 16 dãy kệ (501-516) gộp 4 cụm, mỗi ô = 1 KỆ (kệ có 4 mâm × 6 bin) --- */
   var htmlA1 = "";
-  if (S.area !== "A8"){
+  if (!S.mb && S.area !== "A8"){
     var ke = keA1();
     var theoDay = {};   // '501' -> [{k:'01', loc}, ...]
     Object.keys(ke).forEach(function(key){
@@ -2749,8 +2842,44 @@ function renderMap(){
         }).join("") + '</div></div>';
     }
   }
+  /* --- Chế độ MẶT BẰNG THẬT: vẽ lại chính các ô trên, nhưng đặt đúng chỗ theo bản vẽ CAD.
+     Ô khu A1 dùng lại y nguyên stateCua/cellMeta/tinhTT của sơ đồ lưới nên hai chế độ không bao
+     giờ nói hai điều khác nhau về cùng một kệ. --- */
+  var htmlMB = "";
+  if (S.mb){
+    var keMB = keA1();
+    htmlMB = svgMatBang(function(v){
+      var r = 'x="' + v.x + '" y="' + v.y + '" width="' + v.w + '" height="' + v.h + '"';
+      if (v.loc && v.loc.indexOf("F0-A1-") === 0){
+        var p = v.loc.split("-");                                   // F0-A1-<dãy>-<tủ>
+        var locThat = keMB[p[2] + "|" + p[3]] || (v.loc + "-01-01");  // mã thật (có alias) để tra đúng dữ liệu
+        var kk = khoaO(locThat), list = byL[kk], st = stateCua(list), m = cellMeta(st);
+        var cls = "hp-mbo o-ke" + cellCls(m) + (m.dashed ? " trong" : "") + (alert[kk] ? " canhbao" : "");
+        return '<rect class="' + cls + '" ' + r + (m.dashed ? "" : ' fill="' + m.c + '"') +
+          ' data-l="' + esc(locThat) + '" onclick="HPLANOGRAM.openViTri(this.getAttribute(\'data-l\'))">' +
+          '<title>' + esc(tinhTT(locThat, list)) + '</title></rect>';
+      }
+      var GHI = {
+        ke: "Khối kệ pallet A2 — kho lưu trữ, không nằm trong planogram vệ sinh",
+        pallet: "Chỗ đặt pallet cạnh băng chuyền phân loại",
+        pick: "Chỗ đỗ xe soạn hàng (PICK trên bản vẽ)",
+        pack: "Bàn đóng gói (PACK trên bản vẽ) — thuộc khu F0-A8"
+      };
+      var t = (v.loc ? v.loc + " — " : "") + (GHI[v.k] || "");
+      if (v.k === "pack" || v.k === "pick") t += "\nBản vẽ không ghi dãy nào là 501/503… nên chưa gán mã vị trí";
+      /* ô kệ A2 dùng lớp riêng o-ke2: cùng là "kệ" nhưng KHÔNG bấm được, không được có con trỏ tay */
+      return '<rect class="hp-mbo o-' + (v.k === "ke" ? "ke2" : v.k) + '" ' + r + '><title>' + esc(t) + '</title></rect>';
+    });
+  }
+  /* Nút chuyển lưới ↔ mặt bằng: đặt cạnh "Toàn bộ vị trí" trong tiêu đề Sơ đồ, cùng kiểu nút
+     nên không sinh thêm một loại điều khiển mới trên màn. */
+  var btnMB = '<button type="button" class="hp-h2btn' + (S.mb ? " on" : "") + '" onclick="HPLANOGRAM.toggleMatBang()" title="' +
+    (S.mb ? "Về sơ đồ lưới (ô đều nhau, gọn màn hình)" : "Xem mặt bằng thật theo bản vẽ kho — đúng tỉ lệ, đúng lối đi") + '">' +
+    '<span class="tx-full">' + (S.mb ? "Sơ đồ lưới" : "Mặt bằng thật") + '</span>' +
+    '<span class="tx-short">' + (S.mb ? "Lưới" : "Mặt bằng") + '</span></button>';
+
   var slot = $id("hpNhacSlot");
-  if (!htmlA1 && !htmlA8){ box.innerHTML = ""; if (slot) slot.innerHTML = ""; return; }
+  if (!S.mb && !htmlA1 && !htmlA8){ box.innerHTML = ""; if (slot) slot.innerHTML = ""; return; }
 
   /* Chú giải dạng popover con nhộng gọn nhẹ (10/09/2026): giải phóng tiêu đề sơ đồ không bị 8 chip nhồi bung 3-4 hàng */
   var legKeys = mot ? ["done", "review", "rework", "remind", "noshift"] : ["done", "rework", "chua"];
@@ -2833,10 +2962,10 @@ function renderMap(){
     '<section class="hp-panel hp-fade">' +
     /* Không in lại khoảng ngày ở đây (10/09/2026): ô Ngày trên thanh điều khiển là nơi duy nhất — trước
        cùng một ngày in 3 lần trong một màn (thanh lọc · h2 Sơ đồ · h2 Vệ sinh). */
-    '<h2>Sơ đồ khu vực ' + legend + '</h2>' +
-    (slot ? "" : (bannerAlert + htmlNhac)) + htmlA1 + htmlA8 +
+    '<h2>Sơ đồ khu vực ' + btnMB + legend + '</h2>' +
+    (slot ? "" : (bannerAlert + htmlNhac)) + (S.mb ? htmlMB : (htmlA1 + htmlA8)) +
     '</section>';
-  fitMaps();
+  if (!S.mb) fitMaps();   // mặt bằng là SVG tự co theo viewBox, không cần (và không được) phóng bằng hệ số như lưới
 }
 function toggleLegend(e){
   if (e){ if (e.stopPropagation) e.stopPropagation(); if (e.preventDefault) e.preventDefault(); }
@@ -2870,10 +2999,17 @@ function openViTri(loc){
   canLS();   // + lịch sử báo cáo 60 ngày của ô (bậc 3 — chỉ pop-up này dùng, buildLS vẽ lại)
   canCCN();  // + chấm công THEO NGÀY 60 ngày (thẻ Phụ trách cần giờ vào/ra của đúng ngày đang chọn)
   renderVt();
+  /* HUỶ hẹn-đóng còn treo (17/09/2026 — bắt được khi đo tốc độ): closeVt hẹn 240 ms mới ẩn hẳn cho kịp
+     animation; đóng rồi bấm ô khác NGAY trong 0,24 s thì cái hẹn cũ bắn sau, ẩn luôn pop-up vừa mở —
+     người dùng thấy "bấm ô mà không ra gì", còn ảnh chụp bằng chứng thì ra canvas rỗng. */
+  if (_vtDong){ clearTimeout(_vtDong); _vtDong = 0; }
   var m = $id("hpVtModal"); m.style.display = "flex";
   requestAnimationFrame(function(){ m.classList.add("show"); });
 }
-function closeVt(){ var m = $id("hpVtModal"); m.classList.remove("show"); setTimeout(function(){ m.style.display = "none"; $id("hpVtBody").innerHTML = ""; }, 240); }
+var _vtDong = 0;
+function closeVt(){ var m = $id("hpVtModal"); m.classList.remove("show");
+  if (_vtDong) clearTimeout(_vtDong);
+  _vtDong = setTimeout(function(){ _vtDong = 0; m.style.display = "none"; $id("hpVtBody").innerHTML = ""; }, 240); }
 function vtNgay(d){ VT.ngay = d; canAnhNgay(); renderVt(); }   // đổi ngày NGAY TRONG pop-up cũng phải kéo tầng ảnh ngày cũ
 /* ===== CHẤM CÔNG THEO ĐÚNG NGÀY ĐANG CHỌN — cho thẻ "Phụ trách" (01/08/2026) ==================
  * Trả về cùng khuôn { c, lb, sub, subC } của ccTrangThai (+ sub2) để dùng lại y nguyên phần vẽ.
@@ -3077,7 +3213,343 @@ function renderVt(){
     '<div class="hp-vthistrow">' + hist + '</div>' +
     rows.map(function(x){ return '<div class="hp-vtrow"><label>' + x[0] + '</label><div>' + x[1] + '</div></div>'; }).join("") +
     '<div class="hp-vtduo">' + cardPt + cardBc + '</div>';
+  capNhatNutGhi(loc, d, r, pc, lsAll);   // nút / dòng đếm luỹ tiến ở góc phải trên — cần pc + chấm công nên đặt cuối
   lazyQuet();
+}
+
+/* ===== GHI NHẬN 5S TỪ POP-UP Ô (17/09/2026 — user yêu cầu) ======================================
+ * Trước đây thấy ô đỏ "chưa vệ sinh" thì phải bấm "+ Ghi nhận 5S" ở đầu trang rồi GÕ LẠI mã vị trí,
+ * tìm hạng mục, tự soạn hiện trạng — trong khi mọi dữ kiện đã nằm sẵn trong pop-up này. Nay nút
+ * "Ghi nhận 5S" ngay dưới link "Yêu cầu #…" soạn sẵn cả 3 ô của form từ đúng dữ liệu đang hiển thị:
+ *   · Vị trí    = mã ô đang xem (mã thật, có alias — thành BIN00 của task WF 591)
+ *   · Hạng mục  = luật vệ sinh hằng ngày (form tự khớp với danh sách QUY-DINH mới nhất)
+ *   · Hiện trạng = yêu cầu planogram + phụ trách + chấm công ngày đó + ai đã/không báo cáo +
+ *                  báo cáo gần nhất + cảnh báo quá hạn + AI + người ghi nhận (tài khoản đang đăng nhập)
+ * Form vẫn đòi PIN (ngoại lệ duy nhất được phép bắt PIN) và vẫn đòi ẢNH — không có đường gửi mù.
+ * KHÔNG thêm lượt gọi upstream nào: mọi dữ kiện lấy từ S.* đã nạp cho chính pop-up này.
+ * Đường đi: module → host index.html `moGhiNhanNapSan(du)` (hỏi PIN, mở modal) → iframe form.html
+ * (postMessage `ghi5s-nap-san`). Host cũ chưa có hàm đó thì rớt về mở form trống như trước.
+ * ============================================================================================ */
+/* Nguyên văn theo tab QUY-DINH (đọc 17/09/2026 — bản dự phòng cũ trong form thiếu "và báo cáo"); form vẫn tự khớp
+   lại theo danh sách mới nhất nên câu chữ trên sheet có đổi dấu/khoảng trắng cũng không rơi mục. */
+var HM_VESINH = "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca.";
+var MOI_LAN = 3;   // luỹ tiến: đủ 3 lần "có chấm công mà không báo cáo" mới hiện nút ghi nhận (KPI −2%) — user chốt 17/09/2026
+/* ---- Đọc 2 cột sổ vi phạm của VESINH-CHAMCONG-NGAY + phép tính chu kỳ — CHÉP NGUYÊN từ hasaki/vipham-vesinh.mjs
+   (docCotVp / docCotGhi / chuKy). Sửa một bên phải sửa bên kia; qc-vipham-luytien.mjs kiểm bản gốc. ---- */
+function docCotVp(s){
+  var d = {};
+  String(s || "").split("|").forEach(function(ph){
+    var m = ph.trim().match(/^(\d{4}-\d{2}-\d{2}):(\d+)(?::(.*))?$/); if (!m) return;
+    d[m[1]] = { so: +m[2], o: m[3] ? m[3].split(",").filter(Boolean) : [] };
+  });
+  return d;
+}
+function docCotGhi(s){ return String(s || "").split("|").map(function(x){ return x.trim(); }).filter(function(x){ return /^\d{4}-\d{2}-\d{2}$/.test(x); }).sort().reverse(); }
+function chuKy(vpD, ghiDates, den){
+  var moc = (ghiDates || []).filter(function(g){ return g <= den; }).sort().pop() || "";
+  var ngay = Object.keys(vpD || {}).filter(function(d){ return d > moc && d <= den; }).sort();
+  var n = ngay.length, soPhieu = Math.floor(n / MOI_LAN);
+  return { n: n, ngay: ngay, moc: moc, soPhieu: soPhieu, keNay: soPhieu ? ngay.slice(0, MOI_LAN) : [], duLai: n - soPhieu * MOI_LAN, du: soPhieu >= 1 };
+}
+/* Tài khoản đang đăng nhập trên dashboard — HỢP ĐỒNG với chức năng "đăng nhập tài khoản" (đang làm ở
+   phiên khác): host đặt `window.HSK_NGUOI_DUNG = {ten, code, email}` hoặc lưu JSON cùng khuôn ở
+   localStorage / sessionStorage khoá "hsk-nguoi-dung". Chưa có thì trả null — biên bản KHÔNG in dòng
+   người ghi nhận (không bịa tên). */
+function nguoiDangNhap(){
+  var u = null;
+  try{
+    u = window.HSK_NGUOI_DUNG || null;
+    if (!u){
+      var s = "";
+      try{ s = localStorage.getItem("hsk-nguoi-dung") || ""; }catch(e){}
+      if (!s){ try{ s = sessionStorage.getItem("hsk-nguoi-dung") || ""; }catch(e){} }
+      if (s) u = JSON.parse(s);
+    }
+  }catch(e){ u = null; }
+  if (!u || typeof u !== "object") return null;
+  var o = { ten: String(u.ten || u.name || u.staff_name || "").trim(),
+            code: String(u.code || u.ma || "").trim(),
+            em: String(u.email || u.em || "").trim() };
+  return (o.ten || o.code || o.em) ? o : null;
+}
+function ngayDuVN(iso){ var m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + "/" + m[2] + "/" + m[1] : String(iso || ""); }
+/* ---- TÌNH TRẠNG người phụ trách với ô `loc` trong ngày d — cùng nguồn với thẻ "Phụ trách" của pop-up:
+   diLam: true/false/null (chấm công theo ngày, hôm nay rớt về tab chấm công hôm nay) · lam: ai đã báo cáo ô này
+   trong ngày (yêu cầu của ngày → lịch sử 60 ngày) · caseA = "CÓ đi làm mà KHÔNG ai báo cáo ô này" = đúng lỗi của
+   hạng mục "Bàn làm việc và khu vực phụ trách…" — chỉ ca này mới đếm luỹ tiến, tự chọn hạng mục và tự chụp pop-up.
+   Ô do người khác làm thay thì ô sạch → không phải caseA (khớp luật màu đỏ của sơ đồ). ---- */
+function tinhTrangPT(pc, d, r, lsAll){
+  var lam = null;
+  if (r && r.email) lam = { em: r.email, gio: String(r.at || "").slice(11, 16), ten: tenNm(r.email) || r.email };
+  else (lsAll || []).forEach(function(v){ if (!lam && v.ngay === d && v.email) lam = { em: v.email, gio: v.gio, ten: v.name || tenNm(v.email) || v.email }; });
+  var laMinh = !!(lam && String(lam.em).toLowerCase() === String(pc.em).toLowerCase());
+  var diLam = null, cn = ccNgayCua(pc.em, pc.code, d);
+  if (cn && !cn.ngoaiTam) diLam = !!cn.co;
+  else if (d === isoToday() && S.cc.ok){ var x = ccCua(pc.em, pc.code); if (x) diLam = x.bk !== "nghi"; }
+  return { diLam: diLam, cn: cn, lam: lam, laMinh: laMinh, caseA: !!(r && r.bk !== "da" && !lam && diLam === true) };
+}
+/* Chu kỳ luỹ tiến của người phụ trách tính tới ngày d. `co` = sổ đã có (tab chấm công theo ngày mang cột Vi phạm);
+   caseA hôm nay chưa nằm trong sổ (sổ chỉ ghi ngày đã khép) → cộng trực tiếp; soi ngày cũ mà sổ chưa kịp có ngày
+   đó (sync chưa chạy) cũng cộng, vì chính pop-up đang cho thấy hôm đó có đi làm mà không báo cáo. */
+/* HÔM NAY KHÔNG TÍNH (user chốt 17/09/2026): ca chưa khép thì người ta còn cả buổi để làm — pop-up vẫn
+   báo đỏ, nhưng sổ chỉ đếm ngày ĐÃ KHÉP. Ngày cũ đang soi mà sổ chưa kịp có (bộ đồng bộ chưa chạy) thì
+   cộng tạm vào bản sao trong RAM để người dùng không phải chờ tới lượt sync mới thấy đúng số. */
+function luyTien(pc, d, caseA){
+  var o = (S.ccn.ok && (S.ccn.em[String(pc.em || "").toLowerCase()] || S.ccn.code[String(pc.code || "").trim()])) || null;
+  var vp = (o && o.vp) || {};
+  if (caseA && d < isoToday() && !vp[d]){ vp = Object.assign({}, vp); vp[d] = { so: 1, o: [] }; }
+  var k = chuKy(vp, (o && o.ghi) || [], d);
+  k.co = !!(S.ccn.ok && S.ccn.coVp);
+  k.homNay = d === isoToday();
+  return k;
+}
+/* Nút / dòng đếm ở góc phải trên pop-up — gọi cuối renderVt (khi đã biết phụ trách + chấm công).
+   Luật user 17/09/2026: mỗi 3 lần = MỘT phiếu (−2%); lần lẻ chưa đủ 3 vẫn nằm trong sổ chờ cộng tiếp.
+     caseA + ≥1 phiếu nợ → nút đỏ "Ghi nhận 5S · lần 3/3" (1 phiếu) hoặc "· còn N phiếu" (nhiều phiếu)
+     caseA + chưa đủ 3   → KHÔNG nút, dòng chữ đỏ "Đi làm không báo cáo · lần n/3" (tooltip kê ngày)
+     caseA + sổ chưa có  → dòng "chưa đếm được luỹ tiến" (đợi bộ đồng bộ), không nút
+     caseA + đang là HÔM NAY → dòng "hôm nay chưa tính (chờ hết ca)" — ngày chưa khép thì không đếm
+     mọi ca khác         → nút "Ghi nhận 5S" như thường (hạng mục + ảnh người dùng tự chọn) */
+function capNhatNutGhi(loc, d, r, pc, lsAll){
+  var b = $id("hpVtGhi"), tx = $id("hpVtLt"); if (!b || !tx) return;
+  var tt = (pc && pc.em) ? tinhTrangPT(pc, d, r, lsAll) : null;
+  var A = !!(tt && tt.caseA);
+  tx.textContent = ""; tx.title = "";
+  if (!A){
+    b.style.display = ""; b.textContent = "Ghi nhận 5S";
+    b.title = "Mở form Ghi nhận 5S (cần PIN) — vị trí và hiện trạng đã điền sẵn; hạng mục và ảnh (từ ảnh báo cáo ngày này) tự chọn";
+    return;
+  }
+  /* Ô nhóm này là nhóm DUY NHẤT sẽ cần chụp pop-up → nạp trước thư viện chụp ngay khi pop-up mở, kể cả khi
+     chưa đủ phiếu (hôm nay chưa đủ thì mai đủ). Đo 17/09: tải thư viện ~5 s, nếu để tới lúc bấm mới tải thì
+     người dùng phải chờ đúng 5 s đó; nạp trước trong lúc họ đang đọc pop-up thì coi như không mất gì. */
+  napH2C()["catch"](function(){ /* im lặng — lúc bấm sẽ thử lại và báo lỗi tử tế ở form */ });
+  var k = luyTien(pc, d, true), ds = k.ngay.map(ngayVN).join(" · ");
+  var nenNgay = k.moc ? " (chu kỳ tính từ sau lần ghi nhận " + ngayVN(k.moc) + ")" : "";
+  if (!k.co){
+    b.style.display = "none";
+    tx.textContent = "Đi làm không báo cáo · chưa đếm được luỹ tiến";
+    tx.title = "Tab chấm công theo ngày chưa có cột Vi phạm — đợi bộ đồng bộ lượt kế (15'); đủ " + MOI_LAN + " lần mới hiện nút ghi nhận KPI −2%";
+  } else if (k.du){
+    b.style.display = "";
+    b.textContent = k.soPhieu > 1 ? ("Ghi nhận 5S · còn " + k.soPhieu + " phiếu") : ("Ghi nhận 5S · lần " + MOI_LAN + "/" + MOI_LAN);
+    b.title = k.n + " lần có chấm công nhưng không báo cáo vệ sinh" + nenNgay + " ⇒ " + k.soPhieu + " phiếu × −2% KPI. " +
+      "Phiếu này kê " + MOI_LAN + " ngày cũ nhất (" + k.keNay.map(ngayVN).join(" · ") + ")" +
+      (k.soPhieu > 1 ? "; lập xong nút vẫn hiện cho phiếu kế tiếp" : "") +
+      (k.duLai ? "; " + k.duLai + " lần lẻ giữ lại cho chu kỳ sau" : "") + ". Pop-up này sẽ được chụp làm ảnh bằng chứng.";
+  } else if (k.homNay && k.n === 0){
+    /* Hôm nay ô đang đỏ nhưng ngày chưa khép ⇒ sổ chưa đếm. Nói thẳng để người dùng không tưởng hệ thống sót. */
+    b.style.display = "none";
+    tx.textContent = "Đi làm không báo cáo · hôm nay chưa tính";
+    tx.title = "Ngày chưa khép nên chưa cộng vào sổ (người phụ trách còn cả ca để làm). Hết ngày, bộ đồng bộ sẽ cộng 1 lần" + nenNgay + "; đủ " + MOI_LAN + " lần mới hiện nút ghi nhận KPI −2%.";
+  } else {
+    b.style.display = "none";
+    tx.textContent = "Đi làm không báo cáo · lần " + k.n + "/" + MOI_LAN;
+    tx.title = "Các lần đã cộng: " + ds + nenNgay + (k.homNay ? " (hôm nay chưa tính — chờ hết ca)" : "") +
+      " — đủ " + MOI_LAN + " lần mới hiện nút ghi nhận KPI −2%.";
+  }
+}
+/* ---- SOẠN biên bản cho ô `loc` ngày `d` — hàm THUẦN (không đụng DOM) để bộ đo gọi thẳng. Mẫu user chốt 17/09/2026:
+     Yêu cầu planogram #28608340: Chưa vệ sinh
+     Link: https://planogram.hasaki.vn/…/details/28608340
+     Phụ trách: Nguyễn Thị Kim Ngân (221986) -Có đi làm nhưng KHÔNG báo cáo vệ sinh ô này
+   + (caseA) Vi phạm luỹ tiến: lần 3 (10/09/2026 · 12/09/2026 · 17/09/2026) → KPI -2%   ← bằng chứng cho luật 3 lần
+   + (có đăng nhập) Người ghi nhận: …
+   Hạng mục chỉ điền sẵn ở caseA; ảnh báo cáo của ngày (ô này + ảnh khác cùng ngày của người báo cáo) đưa sang form
+   làm "thư viện" để tick chọn ở các ca còn lại. ---- */
+function soanGhiNhan5S(loc, d){
+  var kO = khoaO(loc);
+  var byNgay = {}; S.yc.rows.forEach(function(r){ if (khoaO(r.loc) !== kO) return;
+    var cur = byNgay[r.ngay]; if (!cur || (cur.bk !== "da" && r.bk === "da")) byNgay[r.ngay] = r; });
+  var r = byNgay[d] || null;
+  var pc = pcCua(loc), lsAll = lsCua(loc);
+  var tt = (pc && pc.em) ? tinhTrangPT(pc, d, r, lsAll) : null;
+  var A = !!(tt && tt.caseA);
+  var L = [];
+  if (r){
+    L.push("Yêu cầu planogram #" + r.id + ": " + cellMeta(cellStateDay(r, d)).lb);
+    L.push("Link: " + pgDetailUrl(r.id));
+  } else {
+    L.push("Ngày " + ngayDuVN(d) + " vị trí " + loc + " không có yêu cầu vệ sinh trên planogram");
+    L.push("Link: " + pgListUrlLoc(d, loc));
+  }
+  if (pc && pc.em){
+    var tenMa = (pc.ten || pc.em) + (pc.code ? " (" + pc.code + ")" : "");
+    var tinh = A ? "Có đi làm nhưng KHÔNG báo cáo vệ sinh ô này"
+      : tt.lam ? (tt.laMinh ? "Có đi làm, đã báo cáo vệ sinh ô này" + (tt.lam.gio ? " lúc " + tt.lam.gio : "")
+                            : "Ô này do " + tt.lam.ten + " báo cáo" + (tt.lam.gio ? " lúc " + tt.lam.gio : ""))
+      : tt.diLam === false ? "KHÔNG chấm công ngày này (nghỉ / không vào ca)"
+      : tt.diLam === true ? "Có đi làm" + (r ? "" : " — ngày này ô không có yêu cầu vệ sinh")
+      : "Chưa có dữ liệu chấm công ngày này";
+    L.push("Phụ trách: " + tenMa + " -" + tinh);
+  } else L.push("Phụ trách: chưa có trong bảng phân công");
+  /* Dòng luỹ tiến của BIÊN BẢN: kê ĐÚNG 3 ngày của phiếu này (không kê cả chu kỳ) — nhờ vậy mốc ghi nhận
+     rơi vào ngày thứ 3 và các lần sau còn nguyên cho phiếu kế tiếp. Nêu rõ phần còn nợ + phần lẻ để người
+     duyệt thấy ngay đây là phiếu thứ mấy, còn mấy phiếu nữa. */
+  var lt = null;
+  if (A){
+    lt = luyTien(pc, d, true);
+    if (lt.du){
+      L.push("Vi phạm luỹ tiến: đủ " + MOI_LAN + " lần (" + lt.keNay.map(ngayDuVN).join(" · ") + ") → KPI -2%");
+      if (lt.soPhieu > 1 || lt.duLai)
+        L.push("Tồn đọng: " + lt.n + " lần chưa ghi nhận" + (lt.moc ? " kể từ sau lần ghi nhận " + ngayDuVN(lt.moc) : "") +
+          " ⇒ còn " + (lt.soPhieu - 1) + " phiếu -2% nữa" + (lt.duLai ? " và " + lt.duLai + " lần lẻ chờ đủ " + MOI_LAN : ""));
+    } else {
+      L.push("Vi phạm luỹ tiến: lần " + lt.n + "/" + MOI_LAN + (lt.n ? " (" + lt.ngay.map(ngayDuVN).join(" · ") + ")" : "") + " — chưa đủ để trừ KPI");
+    }
+  }
+  var nd = nguoiDangNhap();
+  if (nd) L.push("Người ghi nhận: " + (nd.ten || nd.em || nd.code) + ((nd.code && nd.ten) ? " (" + nd.code + ")" : ""));
+  /* Thư viện ảnh báo cáo của NGÀY cho form (ca không phải A): ảnh của ô này + ảnh khác cùng ngày của cùng người báo cáo.
+     Kèm ảnh nhỏ đã có trong RAM để bộ chọn hiện ngay; ảnh gốc chỉ tải khi người dùng tick. */
+  var anhBC = [];
+  function them(rr, nhom){ (rr.anh || []).forEach(function(u, i){
+    anhBC.push({ url: u, urlLui: urlAnhGw(u), thumb: _anhSan[u] || "", ten: anhKhoa(u), vt: viTriCon(rr.loc, i, rr.anh.length), loc: rr.loc, nhom: nhom }); }); }
+  if (!A && r){
+    them(r, "o");
+    if (r.email) S.yc.rows.forEach(function(x){
+      if (x.ngay === d && String(x.id) !== String(r.id) && x.anh && x.anh.length && String(x.email || "").toLowerCase() === String(r.email).toLowerCase()) them(x, "khac"); });
+  }
+  return { viTri: loc, hangMuc: A ? HM_VESINH : "", maSanPham: "", hienTrang: L.join("\n"),
+           nguon: "planogram", yc: r ? String(r.id) : "", ngay: d, caseA: A, luyTien: lt,
+           anhBaoCao: anhBC, nguoiBC: (r && r.email) ? (tenNm(r.email) || r.email) : "", anhDangTai: !!(S.anh.dang || S.anhcu.dang) };
+}
+/* ---- CHỤP POP-UP làm ảnh bằng chứng (caseA) — html2canvas nạp LƯỚI khi cần (198 KB, chỉ lượt đầu, chỉ ca này).
+   Tên file theo kiểu Edge: Screenshot_17-9-2026_103244_<host>.jpg. Bản sao DOM được nới hết chiều cao để ảnh có trọn
+   pop-up (không chỉ phần đang lộ trong khung cuộn); ẩn chính nút đang bấm. Lỗi → form báo, người dùng tự chụp màn hình. ---- */
+var H2C_SRC = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+var _h2c = null;
+function napH2C(){
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (_h2c) return _h2c;
+  _h2c = new Promise(function(res, rej){
+    var s = document.createElement("script"); s.src = H2C_SRC; s.async = true;
+    var t = setTimeout(function(){ rej(new Error("tải html2canvas quá 20 s")); }, 20000);
+    s.onload = function(){ clearTimeout(t); window.html2canvas ? res(window.html2canvas) : rej(new Error("html2canvas không sẵn")); };
+    s.onerror = function(){ clearTimeout(t); rej(new Error("không tải được html2canvas (mạng?)")); };
+    document.head.appendChild(s);
+  });
+  _h2c["catch"](function(){ _h2c = null; });
+  return _h2c;
+}
+function tenScreenshot(){ var n = new Date();
+  return "Screenshot_" + n.getDate() + "-" + (n.getMonth() + 1) + "-" + n.getFullYear() + "_" + p2(n.getHours()) + p2(n.getMinutes()) + p2(n.getSeconds()) + "_" + (location.hostname || "dashboard") + ".jpg"; }
+/* html2canvas 1.4.1 không hiểu màu dạng `color(srgb r g b / a)` — chính là giá trị TÍNH TOÁN mà Chrome trả cho mọi
+   `color-mix()` của tab này (badge, thẻ, nền) → ném "unsupported color function" và hỏng cả ảnh (bắt được ở bộ đo run 5).
+   Chữa: duyệt song song cây gốc ↔ bản sao, chỗ nào màu tính toán bắt đầu bằng "color(" thì ghi đè inline bằng rgba() tương
+   đương. Chỉ đụng bản sao trong iframe của html2canvas, pop-up thật không đổi. */
+function mauRgbTuColor(v){
+  var m = String(v || "").match(/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/);
+  if (!m) return "";
+  var c = function(x){ return Math.max(0, Math.min(255, Math.round(parseFloat(x) * 255))); };
+  var a = m[4] == null ? 1 : (/%$/.test(m[4]) ? parseFloat(m[4]) / 100 : parseFloat(m[4]));
+  return "rgba(" + c(m[1]) + ", " + c(m[2]) + ", " + c(m[3]) + ", " + (isNaN(a) ? 1 : a) + ")";
+}
+/* Ghép gốc ↔ bản sao bằng thuộc tính đánh số (data-h2c) gắn TRƯỚC khi html2canvas nhân bản — không dựa vào thứ tự
+   querySelectorAll vì bản sao có thể lệch nút (html2canvas bỏ/thêm phần tử). Quét MỌI thuộc tính tính toán của gốc,
+   giá trị nào chứa "color(" (kể cả trong shorthand/bóng) thì thay từng đoạn bằng rgba() rồi ghi inline lên bản sao. */
+function danhSoH2C(goc){
+  var A = [goc].concat(Array.prototype.slice.call(goc.querySelectorAll("*")));
+  for (var i = 0; i < A.length; i++) A[i].setAttribute("data-h2c", String(i));
+  return A;
+}
+function goSoH2C(A){ for (var i = 0; i < A.length; i++) A[i].removeAttribute("data-h2c"); }
+/* CHỈ quét đúng những thuộc tính CÓ THỂ mang màu (17/09/2026 — đo được: bản đầu duyệt HẾT ~340 thuộc tính tính toán
+   của mỗi phần tử, tức ~25.000 lượt đọc cho một pop-up, là phần lớn 16,7 s người dùng phải chờ sau cú bấm). */
+var H2C_MAU = ["color", "background-color", "border-top-color", "border-right-color", "border-bottom-color",
+  "border-left-color", "outline-color", "text-decoration-color", "column-rule-color", "caret-color",
+  "box-shadow", "background-image", "border-image-source", "fill", "stroke"];
+function suaMauH2C(A, ban){
+  var re = /color\(srgb[^)]*\)/g;
+  var B = ban.querySelectorAll("[data-h2c]");
+  for (var k = 0; k < B.length; k++){
+    var i = +B[k].getAttribute("data-h2c"), goc = A[i]; if (!goc) continue;
+    var cs; try{ cs = getComputedStyle(goc); }catch(e){ continue; }
+    for (var j = 0; j < H2C_MAU.length; j++){
+      var n = H2C_MAU[j], v = cs.getPropertyValue(n);
+      if (!v || v.indexOf("color(") < 0) continue;
+      var moi = v.replace(re, function(m){ return mauRgbTuColor(m) || "transparent"; });
+      try{ B[k].style.setProperty(n, moi); }catch(e){ /* thuộc tính chỉ đọc → bỏ */ }
+    }
+    B[k].removeAttribute("data-h2c");
+  }
+}
+/* Chụp có THỬ LẠI (17/09/2026): pop-up tự vẽ lại khi nguồn bậc 3 về (chấm công theo ngày, lịch sử 60 ngày).
+   Chụp trúng đúng nhịp đó thì html2canvas trả canvas RỖNG. Người dùng thật ít gặp (họ đọc xong mới bấm),
+   nhưng bộ đo bấm ngay sau khi mở là dính 100% — nên thử lại một nhịp thay vì báo hỏng. */
+function chupPopup(){
+  return chupPopup_()["catch"](function(e){
+    if (!/rỗng/.test(String(e && e.message))) throw e;
+    return new Promise(function(res){ setTimeout(res, 450); }).then(chupPopup_);
+  });
+}
+function chupPopup_(){
+  var box = document.querySelector("#hpVtModal .hp-modalbox"); if (!box) return Promise.resolve(null);
+  var A = null;   // danh sách phần tử gốc đã đánh số — gỡ số sau khi chụp (kể cả khi lỗi)
+  return napH2C().then(function(h2c){
+    var w = box.scrollWidth || box.offsetWidth || 680, scale = Math.min(2, Math.max(1, 1400 / Math.max(1, w)));
+    var nen = getComputedStyle(box).backgroundColor;
+    if (nen && nen.indexOf("color(") === 0) nen = mauRgbTuColor(nen) || "#ffffff";
+    if (!nen || nen === "rgba(0, 0, 0, 0)") nen = "#ffffff";
+    A = danhSoH2C(box);
+    /* imageTimeout 8s → 2s: pop-up ca A vốn KHÔNG có ảnh báo cáo (chưa ai báo cáo), chỉ có avatar chữ;
+       chờ 8 s cho một tấm ảnh không tồn tại là đứng hình vô ích. */
+    return h2c(box, { backgroundColor: nen, scale: scale, useCORS: true, logging: false, imageTimeout: 2000,
+      onclone: function(doc){
+        var bx = doc.querySelector("#hpVtModal .hp-modalbox"), bd = doc.querySelector("#hpVtModal .hp-modalbody");
+        if (bx){ suaMauH2C(A, bx); bx.style.maxHeight = "none"; bx.style.height = "auto"; }
+        if (bd){ bd.style.overflow = "visible"; bd.style.maxHeight = "none"; bd.style.height = "auto"; }
+        var nb = doc.getElementById("hpVtGhi"); if (nb) nb.style.visibility = "hidden";
+      } });
+  }).then(function(cv){
+    goSoH2C(A);
+    var dat = cv.toDataURL("image/jpeg", 0.85);
+    if (!dat || dat.length < 1000) throw new Error("ảnh chụp rỗng (canvas " + cv.width + "×" + cv.height + ", khung " + Math.round(box.getBoundingClientRect().width) + "×" + Math.round(box.getBoundingClientRect().height) + ")");
+    return { ten: tenScreenshot(), mime: "image/jpeg", base64: dat, tg: Date.now(), w: cv.width, h: cv.height };
+  }, function(e){ if (A) goSoH2C(A); throw e; });
+}
+/* ===== BẤM LÀ MỞ NGAY (17/09/2026 — user: "ép xuống tức thì") ==================================
+ * Đo bản đầu: cú bấm mất **16,7 s** mới hiện ô nhập PIN, vì nó CHỤP XONG rồi mới hỏi PIN. Người dùng
+ * ngồi nhìn nút "Đang chụp pop-up…" trong khi chưa làm được gì.
+ * Nay đảo thứ tự và chạy song song:
+ *   1. hỏi PIN NGAY (0 giây) — người dùng gõ PIN là việc của họ, máy không được chiếm thời gian đó;
+ *   2. CÙNG LÚC chụp pop-up ở nền — người ta gõ 6 số thì ảnh cũng vừa xong;
+ *   3. ảnh xong sau khi form đã mở thì bơm tiếp vào form qua `guiAnhGhiNhan` (postMessage
+ *      `ghi5s-them-anh`), form hiện "đang chụp ảnh bằng chứng…" cho tới lúc đó.
+ * Thư viện chụp được nạp trước ngay lúc pop-up ô mở (xem capNhatNutGhi) nên bước 2 không phải chờ tải.
+ * ============================================================================================ */
+function ghiNhan5S(){
+  if (!VT.loc) return;
+  var d = VT.ngay || ngayXem();
+  var du = soanGhiNhan5S(VT.loc, d);
+  var b = $id("hpVtGhi"), nhan = b ? b.textContent : "";
+  if (b) b.disabled = true;
+  var xong = function(){ if (b){ b.disabled = false; b.textContent = nhan; } };   // hỏi PIN có thể bị huỷ/treo — nút không được khoá vĩnh viễn
+  /* Ca A: bắt đầu chụp NGAY, không chờ ai — nhưng KHÔNG chặn việc mở form. */
+  var pAnh = null;
+  if (du.caseA){
+    du.dangChup = true;
+    pAnh = chupPopup().then(function(a){
+      if (!a) throw new Error("ảnh rỗng");
+      return a;
+    });
+    pAnh["catch"](function(){ /* nhánh lỗi xử lý ở dưới — ở đây chỉ chặn unhandled rejection */ });
+  }
+  try{
+    if (typeof window.moGhiNhanNapSan === "function"){
+      var p = window.moGhiNhanNapSan(du);
+      if (p && typeof p.then === "function"){
+        p.then(function(daMo){
+          xong();
+          if (!pAnh) return;
+          /* Ảnh về sau khi form đã mở → bơm vào; người dùng huỷ PIN thì thôi, không gửi đi đâu. */
+          pAnh.then(function(a){ if (daMo && typeof window.guiAnhGhiNhan === "function") window.guiAnhGhiNhan(a); },
+            function(e){ if (daMo && typeof window.guiAnhGhiNhan === "function") window.guiAnhGhiNhan(null, "Không tự chụp được ảnh pop-up (" + ((e && e.message) || e) + ") — hãy chụp màn hình rồi Chọn từ thư viện."); });
+        }, xong);
+      } else xong();
+    } else if (typeof window.moGhiNhan === "function"){ window.moGhiNhan(); xong(); }   // host cũ: mở form trống như trước
+    else xong();
+  }catch(e){ xong(); }
 }
 
 /* ===== MODAL DRILL-DOWN — combo chain-filter (2 chế độ: loc = vị trí phụ trách · req = yêu cầu hôm nay) ===== */
@@ -3537,6 +4009,9 @@ window.HPLANOGRAM = {
   openNk: openNk, closeNk: closeNk, nkPick: nkPick, nkSearch: nkSearch,
   openViTri: openViTri, moAnhHet: moAnhHet, closeVt: closeVt, vtNgay: vtNgay, openCanhBao: openCanhBao, openThieu: openThieu, setPtHi: setPtHi, togglePtNhac: togglePtNhac,
   toggleLegend: toggleLegend, closeLegend: closeLegend,
-  ccSetStatus: ccSetStatus, ccSearch: ccSearch, aiSetKl: aiSetKl, aiSearch: aiSearch, moMap: moMap, _S: S
+  ccSetStatus: ccSetStatus, ccSearch: ccSearch, aiSetKl: aiSetKl, aiSearch: aiSearch, moMap: moMap,
+  toggleMatBang: toggleMatBang,
+  ghiNhan5S: ghiNhan5S, _soan5S: soanGhiNhan5S, _luyTien: luyTien, _tinhTrangPT: tinhTrangPT, _chuKy: chuKy, _chup: chupPopup,   // _…: cho bộ đo qc-ghi-nhan-5s-planogram.mjs
+  _S: S
 };
 })();

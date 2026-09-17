@@ -81,3 +81,26 @@ hasaki/.clasp-abn/
 # So phut "Thoi gian thuc te" + bao cao tay cua task hang ngay - state cuc bo tung ngay, khong commit
 hasaki/.task-giothucte.json
 hasaki/.task-baocao-tay.json
+
+# Rà soát bán phế liệu (giấy/bọc) — dữ liệu cá nhân + số tài khoản, repo này là PUBLIC
+ra-soat-ban-giay/
+Bang_Ke_Khai_Chuan*.csv
+sheet.csv
+sheet1.csv
+sheet2.csv
+sheet2_with_names.csv
+data_analysis.txt
+unit_prices.txt
+image1.jpg
+image_weighing.jpg
+
+# Mốc ép tươi theo sự kiện đăng nhập (trạng thái cục bộ, không chia sẻ)
+hasaki/.ep-tuoi-moc.json
+hasaki/.ep-jti.json
+
+# --- Bộ cào việc làm ca đêm (14/09/2026) ---
+# KHOÁ RIÊNG của service account Google — không bao giờ commit
+service_account.json
+# clasp gắn với script id của bảng tính cá nhân
+viec-lam-ca-dem/.clasp.json
+Viec_lam_ca_dem.csv

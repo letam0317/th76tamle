@@ -52,7 +52,7 @@
         </label>
         <textarea
           x-model="form.hienTrang"
-          rows="3"
+          :rows="hangDong"
           placeholder="Mô tả nhanh hiện trạng ghi nhận (không bắt buộc)..."
           class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
         ></textarea>
@@ -189,15 +189,17 @@
             @dragover.prevent="keoVao = true"
             @dragleave.prevent="keoVao = false"
             @drop.prevent="keoVao = false; xuLyFile($event.dataTransfer.files)"
+            @click="if (thuVienBC.length) { $event.preventDefault(); moBC = true; }"
             :class="keoVao ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-slate-50'"
             class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 py-6 cursor-pointer hover:bg-slate-100 transition text-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5"/>
             </svg>
-            <span class="text-sm text-slate-600 font-medium">Chọn từ thư viện</span>
-            <span class="text-xs text-slate-400 mt-0.5">hoặc kéo thả</span>
+            <span class="text-sm text-slate-600 font-medium" x-text="thuVienBC.length ? 'Chọn từ ảnh báo cáo' : 'Chọn từ thư viện'"></span>
+            <span class="text-xs text-slate-400 mt-0.5" x-text="thuVienBC.length ? (thuVienBC.length + ' ảnh ngày ' + ngayBCVN() + ' · tick chọn') : 'hoặc kéo thả'"></span>
             <input
+              x-ref="fileInput"
               type="file"
               accept="image/*,video/*"
               multiple
@@ -205,6 +207,12 @@
               @change="xuLyFile($event.target.files)"
             />
           </label>
+        </div>
+
+        <!-- Ảnh bằng chứng đang được chụp ở dashboard (form mở trước cho nhanh, ảnh về sau vài giây) -->
+        <div x-show="dangChupBC" x-cloak class="mt-3 flex items-center gap-2 rounded-2xl bg-blue-50 border border-blue-200 px-4 py-2.5">
+          <span class="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>
+          <span class="text-sm text-blue-700">Đang chụp ảnh pop-up làm bằng chứng…</span>
         </div>
 
         <!-- Đã đính kèm: đếm + xem lại (chạm để phóng to / phát clip) -->
@@ -236,6 +244,50 @@
                 >✕</button>
               </div>
             </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Bộ chọn ẢNH BÁO CÁO của ngày (nạp từ pop-up Planogram, 17/09/2026) — tick 1 hoặc nhiều ảnh vi phạm ===== -->
+      <div x-show="moBC" x-cloak class="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-2" @click.self="moBC = false">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-xl flex flex-col max-h-[92vh]">
+          <div class="px-5 pt-4 pb-2 border-b border-slate-100">
+            <p class="text-sm font-semibold text-slate-800">Ảnh báo cáo ngày <span x-text="ngayBCVN()"></span><template x-if="nguoiBC"><span> — <span x-text="nguoiBC"></span></span></template></p>
+            <p class="text-xs text-slate-500 mt-0.5">Chạm để tick ảnh có vi phạm (chọn được nhiều). Ảnh gốc chỉ tải khi bấm Thêm.</p>
+          </div>
+          <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            <template x-if="!thuVienBC.length"><p class="text-sm text-slate-500 text-center py-6">Ngày này không có ảnh báo cáo nào.</p></template>
+            <template x-for="nhom in ['o','khac']" :key="nhom">
+              <div x-show="nhomBC(nhom).length">
+                <p class="text-xs font-semibold text-slate-600 mb-1.5" x-text="nhom === 'o' ? ('Ảnh của ô này (' + nhomBC('o').length + ')') : ('Ảnh khác cùng ngày của người báo cáo (' + nhomBC('khac').length + ')')"></p>
+                <div class="grid grid-cols-3 gap-2">
+                  <template x-for="x in nhomBC(nhom)" :key="x.i">
+                    <!-- 17/09/2026 — KHÔNG dùng :disabled ở đây: trình duyệt CHẶN mọi sự kiện click trên <button disabled>,
+                         mà thuộc tính này từng bị set ngay lúc mở (người dùng bắt được: "k tick chọn ảnh ở đây được").
+                         Ảnh đã thêm được chặn bằng chính tickBC() + làm mờ bằng class — chạm vẫn tới nơi, không câm. -->
+                    <button type="button" @click="tickBC(x.i)" :aria-pressed="chonBC[x.i] ? 'true' : 'false'"
+                      :class="(chonBC[x.i] ? 'ring-2 ring-blue-500' : 'ring-1 ring-slate-200') + (daThemBC[x.i] ? ' opacity-50 cursor-default' : '')"
+                      class="relative rounded-xl overflow-hidden bg-slate-100 h-24 text-left">
+                      <img :src="x.a.thumb || x.a.url" loading="lazy" decoding="async" class="w-full h-full object-cover" alt="">
+                      <span class="absolute bottom-0 inset-x-0 text-[10.5px] leading-tight text-white bg-black/55 px-1.5 py-0.5 truncate" x-text="x.a.vt || x.a.loc"></span>
+                      <span class="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                        :class="daThemBC[x.i] ? 'bg-green-600 text-white' : chonBC[x.i] ? 'bg-blue-600 text-white' : 'bg-white/90 text-slate-400 border border-slate-300'"
+                        x-text="(daThemBC[x.i] || chonBC[x.i]) ? '✓' : ''"></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-2 items-center">
+            <!-- BẮT BUỘC ÉP BOOLEAN (17/09/2026): Alpine chỉ GỠ thuộc tính boolean khi giá trị là null/undefined/false.
+                 `dangTaiBC` là CHUỖI, nên khi rảnh nó = '' → biểu thức trả '' → Alpine set disabled="disabled" và nút chết cứng.
+                 Đây chính là lỗi người dùng gặp ở lưới ảnh. Mọi :disabled trong file này phải bọc !!() -->
+            <button type="button" @click="themAnhBC()" :disabled="!soChonBC() || !!dangTaiBC"
+              class="flex-1 min-w-[140px] rounded-2xl bg-blue-600 text-white text-sm font-semibold py-2.5 disabled:opacity-40"
+              x-text="dangTaiBC || ('Thêm ' + soChonBC() + ' ảnh đã chọn')"></button>
+            <button type="button" @click="moBC = false; $refs.fileInput.click()" class="rounded-2xl border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2.5">Chọn từ máy…</button>
+            <button type="button" @click="moBC = false" class="rounded-2xl text-slate-500 text-sm font-medium px-4 py-2.5">Đóng</button>
           </div>
         </div>
       </div>
@@ -324,7 +376,7 @@
       <!-- ===== Nút gửi báo cáo ===== -->
       <button
         type="submit"
-        :disabled="dangGui || dangNen"
+        :disabled="!!(dangGui || dangNen)"
         class="w-full rounded-2xl bg-blue-600 text-white font-semibold py-3.5 text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <span x-show="!dangGui && !dangNen">GỬI BÁO CÁO</span>
@@ -336,7 +388,7 @@
       <div
         x-show="thongBao.noiDung"
         x-cloak
-        :class="thongBao.loai === 'ok' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'"
+        :class="thongBao.loai === 'ok' ? 'bg-green-50 text-green-700 border-green-200' : thongBao.loai === 'info' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'"
         class="rounded-2xl border px-4 py-3 text-sm text-center"
         x-text="thongBao.noiDung"
       ></div>
@@ -366,7 +418,7 @@
       "Khi trưng bày hàng hóa tuyệt đối không đè lên hoặc che khuất sản phẩm khác.",
       "Hàng hóa số lượng nhiều dạng thùng khi trưng bày ở khu vực soạn hàng phải được rọc băng keo tất cả các thùng nhưng không được cắt nắp",
       "Khi trưng bày hàng hóa trong kho, tất cả hàng hoá phải được để trên kệ hoặc pallet, không được để dưới nền kho hoặc để trực tiếp lên mặt kệ sắt sẽ ảnh hưởng đến ngoại quan sản phẩm. Phải có thùng hoặc khay chứa sản phẩm để hạn chế bụi bẩn sản phẩm",
-      "Bàn làm việc và khu vực phụ trách: phải được vệ sinh hằng ngày vào cuối mỗi ca.",
+      "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca.",
       "CCDC, VPP (pallet, xe soạn hàng, các loại rổ, thùng đóng đơn, thùng giấy tái chế, thùng rác, rác phải phân loại...), vật dụng cá nhân (chai/ly nước uống, balo, túi,...) đặt đúng vị trí lưu trữ, trả về đúng nơi quy định sau khi sử dụng. Vệ sinh và dọn rác sạch sẽ sau khi sử dụng.",
       "Trên sàn kho/hàng hóa: không được để rác (chai/ly nước, hộp cơm, giấy vụn, giấy chèn, lõi băng keo, lõi giấy in, bịch nilon...). Nếu có rác ở sàn kho, trên hàng hóa hoặc CCDC nhân viên phải nhặt đem đến thùng rác gần nhất để bỏ",
       "Tất cả hàng hoá nhập vào kho đóng đơn đều phải được dán mã SKU nếu không có barcode trên sản phẩm.",
@@ -397,6 +449,12 @@
       return {
         // ---- Trạng thái dữ liệu ----
         form: { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' },
+        hangDong: 3,        // số dòng ô Hiện trạng — nạp sẵn nhiều dòng thì nới ra để người dùng đọc hết trước khi gửi
+        thuVienBC: [],      // ảnh báo cáo planogram của NGÀY (từ pop-up ô) — bộ chọn tick nhiều ảnh, thay cho chọn file máy
+        nguoiBC: '', ngayBC: '',
+        moBC: false, chonBC: {}, daThemBC: {}, dangTaiBC: '',
+        dangChupBC: false,  // ảnh chụp pop-up đang về (form mở trước, chụp chạy nền ở dashboard)
+        _napSanFiles: [],   // file do nạp sẵn thêm vào (ảnh chụp pop-up) — mở tay mà chưa sửa gì thì gỡ theo
         dsHangMuc: DANH_SACH_5S.slice(),  // hạng mục hiển thị (reactive) — tải từ QUY-DINH lúc mở form
         files: [],          // danh sách file ảnh/video kèm preview
         xemMedia: null,     // ảnh/clip đang xem phóng to (Mục 4)
@@ -417,10 +475,10 @@
         dangNen: false, tienTrinhNen: '',   // trạng thái nén video tải lên (50-100MB -> 720p)
         MAX_VIDEO_MB: 100,  // > 100MB: chặn; 50-100MB: tự hạ 720p; <=50MB: giữ nguyên
         NGUONG_NEN_MB: 50,
-        MAX_ANH_PX: 2560,   // cạnh dài tối đa của ảnh (~2K) để gửi nhanh, nhẹ Drive
+        MAX_ANH_PX: 1800,   // 17/09/2026: 2560 → 1800 + nén 0,78 (mỗi ảnh ~500 KB xuống ~160 KB) để GỬI nhanh — chữ trên tem/nhãn vẫn đọc rõ
 
         // ---- Alpine tự gọi khi khởi tạo: tải hạng mục mới nhất từ QUY-DINH ----
-        init() { this.taiHangMuc(); },
+        init() { this.taiHangMuc(); this.ngheNapSan(); },
         // Đọc tab QUY-DINH (gviz JSONP) -> lấy cột "QUY ĐỊNH CHI TIẾT" (index 1) các dòng có STT là số.
         // Thành công (>=5 mục) thì thay danh sách; lỗi/thiếu thì GIỮ danh sách dự phòng.
         taiHangMuc() {
@@ -430,7 +488,7 @@
               const rows = ((resp.table && resp.table.rows) || []).map(r => (r.c || []).map(c => c ? (c.v == null ? '' : c.v) : ''));
               const mucs = rows.filter(r => /^\d+$/.test(String(r[0]).trim()))
                                .map(r => String(r[1] || '').trim()).filter(Boolean);
-              if (mucs.length >= 5) this.dsHangMuc = ['Không phát sinh vi phạm hạng mục', ...mucs];
+              if (mucs.length >= 5) { this.dsHangMuc = ['Không phát sinh vi phạm hạng mục', ...mucs]; this.khopLaiHangMucSauTai(); }
             } catch (e) { /* giữ danh sách dự phòng */ }
             delete window[cb];
           };
@@ -440,6 +498,135 @@
           s.onerror = () => { delete window[cb]; };
           document.body.appendChild(s);
           setTimeout(() => s.remove(), 30000);
+        },
+
+        // ---- NẠP SẴN từ dashboard (17/09/2026): pop-up ô ở tab Planogram soạn Vị trí + Hiện trạng; khi "có đi làm mà
+        // KHÔNG báo cáo" thì kèm luôn Hạng mục vệ sinh + ảnh CHỤP POP-UP; các ca còn lại kèm THƯ VIỆN ảnh báo cáo của ngày
+        // để người dùng tick 1 hay nhiều ảnh vi phạm (hạng mục tự chọn). ----
+        // Bắt tay: form bắn 'ghi5s-san-sang' lên parent lúc khởi tạo; parent gửi 'ghi5s-nap-san' {du}
+        // (hoặc 'ghi5s-xoa-nap-san' khi người dùng mở form TAY — trả form về trắng nếu họ chưa sửa gì).
+        // Chỉ nhận tin từ đúng cửa sổ cha (e.source === window.parent) — không nhận từ frame/tab khác.
+        _napSan: null,        // bản vừa nạp {viTri, hienTrang, hangMuc} để biết người dùng đã sửa hay chưa
+        _napSanHM: '',        // hạng mục xin nạp mà chưa khớp được — khớp lại khi QUY-DINH về muộn hơn tin nạp
+        ngheNapSan() {
+          if (window.parent === window) return;   // mở thẳng form.html: không có ai để bắt tay
+          window.addEventListener('message', (e) => {
+            if (e.source !== window.parent) return;
+            const d = e.data || {};
+            if (d.type === 'ghi5s-nap-san') this.napSan(d.du || {});
+            else if (d.type === 'ghi5s-them-anh') this.themAnhChup(d.anh, d.loi);
+            else if (d.type === 'ghi5s-xoa-nap-san') this.xoaNapSan();
+          });
+          try { window.parent.postMessage({ type: 'ghi5s-san-sang' }, '*'); } catch (e) { /* tín hiệu sẵn sàng, không mang dữ liệu */ }
+        },
+        // Khớp hạng mục xin nạp với danh sách đang có, 4 bậc lỏng dần: (1) đúng nguyên văn; (2) cùng phần đầu
+        // câu (trước dấu ":" — vế sau hay được sửa chữ, ví dụ QUY-DINH đã thêm "và báo cáo" so với bản dự
+        // phòng); (3) cùng nói về "vệ sinh … hằng ngày"; (4) không có → trả '' để người dùng tự chọn.
+        // So sánh sau khi bỏ dấu + gộp khoảng trắng để dấu gõ khác (hằng/hàng, NFC/NFD) không làm rơi mục.
+        // KHÔNG gán chữ tự do: bộ đẩy khớp TYPE00 theo đúng tên mục trong workflow.
+        khopHangMuc(txt) {
+          const chuan = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                                .toLowerCase().replace(/\s+/g, ' ').trim();
+          const t = chuan(txt); if (!t) return '';
+          const ds = this.dsHangMuc || [];
+          let hit = ds.find(m => chuan(m) === t);
+          if (!hit) { const dau = t.split(':')[0]; if (dau && dau.length >= 12) hit = ds.find(m => chuan(m).split(':')[0] === dau); }
+          if (!hit && /ve sinh/.test(t)) hit = ds.find(m => /ve sinh.*hang ngay/.test(chuan(m)));
+          return hit || '';
+        },
+        napSan(du) {
+          const hm = du.hangMuc ? this.khopHangMuc(du.hangMuc) : '';   // không có hạng mục xin nạp → để trống cho người chọn
+          this._napSanHM = (du.hangMuc && !hm) ? String(du.hangMuc) : '';
+          this.form = {
+            hienTrang: String(du.hienTrang || ''),
+            viTri: String(du.viTri || ''),
+            maSanPham: String(du.maSanPham || ''),
+            hangMuc: hm
+          };
+          this.tuKhoa = ''; this.moDropdown = false;
+          this.hangDong = Math.min(10, Math.max(3, this.form.hienTrang.split('\n').length + 1));
+          // Ảnh nạp sẵn (ảnh CHỤP POP-UP làm bằng chứng): gỡ bản nạp cũ rồi thêm bản mới; KHÔNG gắn nhãn giờ (không phải ảnh hiện trường)
+          this._goFileNapSan();
+          for (const a of (du.anh || [])) {
+            if (!a || !a.base64) continue;
+            const f = { ten: a.ten || 'Screenshot.jpg', loai: 'image', mime: a.mime || 'image/jpeg', preview: a.base64, base64: a.base64, tg: a.tg || Date.now(), napSan: true };
+            this.files.push(f); this._napSanFiles.push(f);
+          }
+          // Thư viện ảnh báo cáo của ngày (ca không tự chụp) — bộ chọn tick nhiều ở Mục 5
+          this.thuVienBC = Array.isArray(du.anhBaoCao) ? du.anhBaoCao.filter(x => x && x.url) : [];
+          this.nguoiBC = String(du.nguoiBC || ''); this.ngayBC = String(du.ngay || '');
+          this.chonBC = {}; this.daThemBC = {}; this.moBC = false; this.dangTaiBC = '';
+          // Ảnh chụp pop-up có thể về SAU (form mở trước cho nhanh) — đánh dấu để Mục 5 hiện "đang chụp…" và khoá nút Gửi
+          this.dangChupBC = !!du.dangChup && !(du.anh && du.anh.length);
+          this._napSan = { viTri: this.form.viTri, hienTrang: this.form.hienTrang, hangMuc: hm };
+          this.thongBao = du.anhLoi ? { loai: 'err', noiDung: String(du.anhLoi) }
+            : (du.hangMuc && !hm) ? { loai: 'err', noiDung: 'Chưa khớp được hạng mục vệ sinh với danh sách QUY-DINH — hãy chọn ở Mục 4.' }
+            : { loai: '', noiDung: '' };
+        },
+        // QUY-DINH về sau tin nạp (hoặc câu chữ trên sheet khác bản dự phòng) → khớp lại hạng mục đã nạp
+        khopLaiHangMucSauTai() {
+          if (!this._napSan) return;
+          const muon = this._napSanHM || (this.form.hangMuc && !this.dsHangMuc.includes(this.form.hangMuc) ? this.form.hangMuc : '');
+          if (!muon) return;
+          const hm = this.khopHangMuc(muon);
+          if (!hm) return;
+          this.form.hangMuc = hm; this._napSan.hangMuc = hm; this._napSanHM = '';
+          if (/Chưa khớp được hạng mục/.test(this.thongBao.noiDung)) this.thongBao = { loai: '', noiDung: '' };
+        },
+        // Ảnh chụp pop-up về sau khi form đã mở (17/09/2026 — mở form tức thì, chụp chạy nền)
+        themAnhChup(a, loi) {
+          this.dangChupBC = false;
+          if (!a || !a.base64) {
+            this.thongBao = { loai: 'err', noiDung: String(loi || 'Không tự chụp được ảnh pop-up — hãy chụp màn hình rồi Chọn từ thư viện.') };
+            return;
+          }
+          this._goFileNapSan();
+          const f = { ten: a.ten || 'Screenshot.jpg', loai: 'image', mime: a.mime || 'image/jpeg', preview: a.base64, base64: a.base64, tg: a.tg || Date.now(), napSan: true };
+          this.files.push(f); this._napSanFiles.push(f);
+          if (this.thongBao.loai === 'err' && /chụp/.test(this.thongBao.noiDung)) this.thongBao = { loai: '', noiDung: '' };
+        },
+        _goFileNapSan() {
+          if (!this._napSanFiles.length) return;
+          const bo = this._napSanFiles; this._napSanFiles = [];
+          this.files = this.files.filter(f => !bo.includes(f));
+        },
+        xoaNapSan() {
+          const n = this._napSan; if (!n) return;
+          // chỉ trả về trắng khi người dùng CHƯA sửa gì (đúng y bản đã nạp) — có sửa là của họ, không xoá
+          if (this.form.viTri === n.viTri && this.form.hienTrang === n.hienTrang && this.form.hangMuc === n.hangMuc) {
+            this.form = { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' };
+            this.tuKhoa = ''; this.hangDong = 3;
+            this._goFileNapSan();
+            this.thuVienBC = []; this.chonBC = {}; this.daThemBC = {}; this.moBC = false;
+            this.thongBao = { loai: '', noiDung: '' };
+          }
+          this._napSan = null; this._napSanHM = '';
+        },
+        // ---- Bộ chọn ẢNH BÁO CÁO của ngày (Mục 5, khi có thư viện nạp sẵn) ----
+        soChonBC() { return Object.keys(this.chonBC).filter(k => this.chonBC[k]).length; },
+        tickBC(i) { if (this.daThemBC[i]) return; this.chonBC = Object.assign({}, this.chonBC, { [i]: !this.chonBC[i] }); },
+        nhomBC(nhom) { return this.thuVienBC.map((a, i) => ({ a, i })).filter(x => (x.a.nhom || 'o') === nhom); },
+        ngayBCVN() { const m = String(this.ngayBC).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] : this.ngayBC; },
+        async themAnhBC() {
+          const idx = Object.keys(this.chonBC).filter(k => this.chonBC[k] && !this.daThemBC[k]).map(Number);
+          if (!idx.length || this.dangTaiBC) return;
+          let loi = 0, xong = 0;
+          for (const i of idx) {
+            const a = this.thuVienBC[i]; if (!a) continue;
+            this.dangTaiBC = 'Đang tải ảnh ' + (xong + 1) + '/' + idx.length + '…';
+            let blob = null;
+            for (const u of [a.url, a.urlLui].filter(Boolean)) {   // CDN trước, cổng WMS dự phòng (cùng cách lùi của dashboard)
+              try { const r = await fetch(u, { mode: 'cors', signal: AbortSignal.timeout(25000) }); if (r.ok) { blob = await r.blob(); break; } }
+              catch (e) { /* thử url dự phòng */ }
+            }
+            if (!blob || !blob.size) { loi++; continue; }
+            const ten = String(a.ten || 'anh-bao-cao').replace(/\.[^.]+$/, '') + '.jpg';
+            const file = new File([blob], ten, { type: blob.type || 'image/jpeg', lastModified: Date.now() });
+            await this._themAnh(file);   // đi đúng đường ảnh thư viện: thu nhỏ ≤2K + nhãn giờ EXIF gốc của ảnh báo cáo
+            this.daThemBC = Object.assign({}, this.daThemBC, { [i]: true }); xong++;
+          }
+          this.dangTaiBC = ''; this.chonBC = {}; this.moBC = false;
+          if (loi) this.thongBao = { loai: 'err', noiDung: 'Không tải được ' + loi + ' ảnh báo cáo — thử lại hoặc chọn từ máy.' };
         },
 
         // ---- Mục 3: Lọc danh sách theo từ khoá ----
@@ -777,7 +964,7 @@
               const c = document.createElement('canvas'); c.width = w; c.height = h;
               c.getContext('2d').drawImage(img, 0, 0, w, h);
               this._veNhanThoiGian(c, tg);   // ảnh tải lên: dùng thời gian gốc của ảnh
-              const dataUrl = c.toDataURL('image/jpeg', 0.85);
+              const dataUrl = c.toDataURL('image/jpeg', 0.78);
               this.files.push({ ten: (file.name || 'anh').replace(/\.[^.]+$/, '') + '.jpg', loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl, tg });
             };
             img.src = e.target.result;
@@ -855,6 +1042,15 @@
             this.thongBao = { loai: 'err', noiDung: 'Vui lòng chọn Hạng mục 5S (Mục 4).' };
             return;
           }
+          // Ảnh chụp pop-up đang về (dashboard chụp nền) → ĐỪNG bắt người dùng bấm lại: chờ hộ tối đa 25 s rồi gửi luôn.
+          if (this.dangChupBC && !this.files.length) {
+            this.dangGui = true;
+            this.thongBao = { loai: 'info', noiDung: 'Đang chờ ảnh pop-up chụp xong rồi gửi ngay…' };
+            const t0 = Date.now();
+            while (this.dangChupBC && !this.files.length && Date.now() - t0 < 25000) await new Promise(r => setTimeout(r, 120));
+            this.dangGui = false;
+            if (this.thongBao.loai === 'info') this.thongBao = { loai: '', noiDung: '' };
+          }
           if (this.files.length === 0) {
             this.thongBao = { loai: 'err', noiDung: 'Vui lòng đính kèm ít nhất 1 hình ảnh / clip (Mục 5).' };
             return;
@@ -892,24 +1088,36 @@
 
           try {
             // Dùng Content-Type text/plain để tránh lỗi CORS preflight với Apps Script
-            const res = await fetch(WEBHOOK_URL, {
+            const goi = fetch(WEBHOOK_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-              body: JSON.stringify(duLieu)
+              body: JSON.stringify(duLieu),
+              signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(90000) : undefined
             });
+            /* GỬI "TỨC THÌ" (17/09/2026 — user: "ép xuống tức thì"): Apps Script trả lời sau 7-40 giây, nhưng dữ liệu
+               đã rời máy ngay khi request phát đi. Không bắt thủ kho đứng nhìn màn hình chờ: báo NGAY là đã gửi,
+               vẫn theo tới cùng ở nền và cập nhật lại khi máy chủ xác nhận (hoặc báo đỏ + giữ nguyên nội dung để
+               gửi lại nếu hỏng). Chờ 250 ms trước khi báo để lỗi mạng tức thời (mất sóng) vẫn hiện ra là LỖI. */
+            const som = await Promise.race([goi.then(() => 'xong', () => 'loi'), new Promise(r => setTimeout(() => r('cho'), 250))]);
+            if (som === 'cho') {
+              this.thongBao = { loai: 'info', noiDung: '✓ Đã gửi báo cáo — đang lưu lên hệ thống. Bạn đóng form được rồi.' };
+              this.dangGui = false;
+            }
+            const res = await goi;
             const ketQua = await res.json();
 
             if (ketQua.status === 'success') {
               this.thongBao = { loai: 'ok', noiDung: '✓ Gửi báo cáo thành công! Dữ liệu đã được lưu.' };
               // Reset form sau khi gửi
               this.form = { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' };
-              this.tuKhoa = '';
-              this.files = [];
+              this.tuKhoa = ''; this.hangDong = 3; this._napSan = null; this._napSanHM = '';
+              this.files = []; this._napSanFiles = []; this.thuVienBC = []; this.chonBC = {}; this.daThemBC = {};
             } else {
               throw new Error(ketQua.message || 'Lỗi không xác định từ máy chủ.');
             }
           } catch (err) {
-            this.thongBao = { loai: 'err', noiDung: '✗ Gửi thất bại: ' + err.message + '. Kiểm tra lại WEBHOOK_URL.' };
+            /* Báo "đã gửi" rồi mà hỏng thì PHẢI nói rõ là chưa lưu được — nội dung vẫn còn nguyên để bấm gửi lại. */
+            this.thongBao = { loai: 'err', noiDung: '✗ CHƯA lưu được: ' + err.message + ' — nội dung vẫn còn, bấm GỬI BÁO CÁO để thử lại.' };
           } finally {
             this.dangGui = false;
           }

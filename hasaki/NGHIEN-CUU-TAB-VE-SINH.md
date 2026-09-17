@@ -629,6 +629,188 @@ mới chọn ô có ảnh, đừng chờ điều kiện "không còn đang tải
 GET trả 302 — đừng dùng `curl -I` để kết luận ảnh mất; (4) `Vary: Origin` của CDN: `fetch` CORS và `<img>` no-cors
 KHÔNG dùng chung cache HTTP → lightbox lấy ảnh gốc từ blob đã giữ, không trông vào cache.
 
+## 4m. 🟡 17/09/2026 — NÚT "GHI NHẬN 5S" TRONG POP-UP Ô: điền sẵn biên bản từ dữ liệu đang hiển thị (BẢN NỘI BỘ — chờ user duyệt rồi mới deploy)
+
+> ⏸ **13:15 cùng ngày: user báo API planogram bị chặn** — **đo 13:51 thì cổng planogram vẫn 200 OK (count=228), chưa có chặn kỹ thuật**; cầu dao `.TAT-PLANOGRAM` vẫn bật CHỦ ĐỘNG nên mục này đang chạy trên dữ liệu tới 13:09 (LICH-VA-DU-PHONG.md §B5). Bản 2 của nút (làm lại theo user: 3 dòng hiện trạng · chụp pop-up · chọn ảnh báo cáo · luỹ tiến 3 lần) — xem thêm cuối mục.
+
+**Yêu cầu user (nguyên văn):** "dựa vào các dữ liệu đã có (Tgian chấm công, nhân sự phụ trách, nhân sự đăng nhập
+tài khoản — đang làm ở phiên khác) để điền vào mẫu ghi nhận 5S, bổ sung nút Ghi nhận 5S trực tiếp tại ô pop-up chi
+tiết của tab Planogram, vị trí: ngay dưới mục Yêu cầu, tô đỏ, đậm".
+
+**Vì sao đáng làm:** thấy ô đỏ "chưa vệ sinh" xong phải bấm "+ Ghi nhận 5S" đầu trang rồi GÕ LẠI mã vị trí, lục
+hạng mục, tự soạn hiện trạng — trong khi pop-up đang bày đủ: yêu cầu planogram, ai phụ trách, hôm đó có đi làm
+không, ai đã/không báo cáo. Nút mới bê nguyên các dữ kiện đó vào 3 ô của form; người dùng chỉ còn kiểm lại + chụp ảnh.
+
+### Làm gì (3 file, 0 lượt upstream tăng, không đổi GAS / bộ đẩy / Sheet)
+- **`kiemsoatkho/hasaki-planogram.js`** (module `?v=20260917a`, `index.html` đã bump 2 chỗ): góc phải trên pop-up ô
+  thành cụm dọc `.hp-vtacts` = link "Yêu cầu #… ↗" + nút chữ `#hpVtGhi.hp-vtghi` (đỏ `#dc2626`, weight 800, 12px,
+  không viền, không icon; điện thoại vùng chạm 40px). `soanGhiNhan5S(loc, ngày)` — hàm THUẦN (xuất `_soan5S` cho bộ
+  đo) soạn: **Vị trí** = mã ô đang xem (mã thật có alias → BIN00 task) · **Hạng mục** = "Bàn làm việc và khu vực phụ
+  trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca." (nguyên văn QUY-DINH) · **Hiện trạng** 5–8 dòng:
+  tiêu đề ô + ngày → yêu cầu planogram #id + trạng thái + link → phụ trách (tên · mã · email · "theo bảng phân công"
+  hay "suy từ báo cáo gần nhất, chưa chắc") → **chấm công đúng ngày đang xem** (đúng câu chữ của thẻ Phụ trách:
+  đi làm/không, giờ vào–ra, có báo cáo ô này không) → báo cáo gần nhất (ai, lúc nào, cách mấy ngày) → cảnh báo quá
+  hạn → AI xét duyệt → **Người ghi nhận** + giờ + "từ tab Planogram". Cùng nguồn sự thật với `renderVt` (byNgay theo
+  khoá ô, `pcCua`, `ccNgayVeThe`, `lsCua`, `tinhCanhBao`, `aiOf`) — pop-up nói gì biên bản nói đúng thế.
+  `ghiNhan5S()` khoá nút → `window.moGhiNhanNapSan(du)` → mở khoá khi PIN xong/huỷ; host cũ thiếu hàm thì rớt về
+  `moGhiNhan()` (form trống). CSS nâng `#ghiModal` 1250 / `#pinModal` 1260 để nổi trên pop-up ô (1200) — cùng khuôn
+  `#lightbox{z-index:1400}` đã có.
+- **`kiemsoatkho/index.html`**: `moGhiNhanNapSan(du)` — vẫn hỏi PIN như nút "+ Ghi nhận 5S" (ngoại lệ PIN duy nhất
+  được phép), lời PIN nói rõ "đã điền sẵn từ Planogram" → mở modal → `postMessage {type:'ghi5s-nap-san', du}` vào
+  iframe. Bắt tay: form bắn `ghi5s-san-sang` lúc khởi tạo → host gửi lại bản nạp sẵn (form nạp trước lúc rảnh hay
+  nạp lúc bấm đều trúng). Mở TAY (`moGhiNhan`) gửi `ghi5s-xoa-nap-san`. Đích `postMessage` = `location.origin`
+  (file:// mới dùng `'*'`); host chỉ nhận tin từ đúng `gmFrame.contentWindow`. Đóng modal xoá `_gmNapSan`.
+- **`kiemsoatkho/form.html`**: `ngheNapSan / napSan / khopHangMuc / khopLaiHangMucSauTai / xoaNapSan`; thông báo kiểu
+  `info` (xanh dương) "Đã điền sẵn từ Planogram… kiểm lại rồi chụp ảnh"; ô Hiện trạng nới `rows` theo số dòng (3→≤10).
+  **Khớp hạng mục 4 bậc** (nguyên văn → cùng vế trước dấu ":" → cùng nói "vệ sinh … hằng ngày" → để trống cho người
+  chọn), so sau khi bỏ dấu/gộp khoảng trắng — vì đo thật phát hiện **QUY-DINH đã sửa câu thành "…vệ sinh VÀ BÁO CÁO
+  hằng ngày…"**, khác bản dự phòng trong form (đã cập nhật bản dự phòng). KHÔNG gán chữ tự do: bộ đẩy khớp TYPE00
+  theo tên mục. `xoaNapSan` chỉ trả form về trắng khi người dùng CHƯA sửa gì (so y bản đã nạp).
+- **Người ghi nhận — hợp đồng với chức năng đăng nhập (phiên khác):** `window.HSK_NGUOI_DUNG = {ten, code, email}`
+  hoặc localStorage/sessionStorage `hsk-nguoi-dung` (JSON cùng khuôn; nhận cả `name/ma/em/staff_name`). Chưa có →
+  "chưa đăng nhập tài khoản trên dashboard" (không bịa tên). Memory `dang-nhap-tai-khoan-hop-dong`.
+
+### QC (mục 0 bộ chuẩn)
+- Baseline live `qc-mobile-toan-du-an.mjs --trang=5s --man=Chi.ti.t.1`: **3/4 máy đạt, 0 vỡ**; iPhone SE bị bỏ qua
+  vì bước `mo` chạy khi dữ liệu live chưa về (bẫy sẵn có, không liên quan). Sau sửa `--file`: **y hệt** (0 vỡ, 3/4).
+- Bộ đo SÂU mới `qc-ghi-nhan-5s-planogram.mjs` (`--live` / `--url=`; mặc định localhost:8123) — **40/40 ca** trên
+  bản nội bộ: nút có mặt / đúng chữ / đỏ / đậm / nằm dưới link + căn phải / không đè × · z-index PIN & form trên pop-up
+  · 12 ca nội dung soạn (vị trí, hạng mục, từng dòng, không undefined) · 3 ca hợp đồng người đăng nhập · cửa PIN
+  (bấm → hỏi PIN, nút khoá, Huỷ → mở lại, form không mở) · iframe nhận 3 ô + info · xoá nạp sẵn khi mở tay có/không
+  sửa · điện thoại (chạm 40px, không kéo ngang, đầu pop-up không cao thêm, chữ ≥10,5px).
+- `.hp-vtghi` đã vào danh sách control chính (luật ④) của qc-mobile. `qc-chu-thich.mjs` chạy sau khi thêm tooltip nút.
+- **Bẫy đo mới:** Proxy phản ứng của Alpine trả qua CDP `returnByValue` hoá thành `{}` — phải chép từng trường
+  nguyên thuỷ (`{loai: dt.thongBao.loai, …}`), đọc `dt.thongBao` trần là "xanh giả/đỏ giả". Đầu pop-up trên điện
+  thoại vốn đã 130px trên live (tiêu đề + phụ đề gãy 95px); cụm link+nút 59px không quyết định chiều cao — ca đo so
+  cụm với khối tiêu đề thay vì đặt trần tuyệt đối.
+
+### Còn lại
+User duyệt bản nội bộ (`XEM-BAN-NOI-BO.bat` → http://localhost:8123/kiemsoatkho/?tab=planogram → bấm 1 ô → nút đỏ
+"Ghi nhận 5S" → PIN → form đã điền) → `deploy-kiemsoatkho.mjs` → kiểm dấu vết (`?v=20260917a`, grep `hpVtGhi`) →
+`qc-ghi-nhan-5s-planogram.mjs --live` + `qc-mobile … --man=Chi.ti.t.1`. Phiên đăng nhập tài khoản: đặt đúng khoá
+`HSK_NGUOI_DUNG`/`hsk-nguoi-dung` là dòng "Người ghi nhận" tự có tên. Chưa commit (nhánh còn diff mặt bằng thật của
+phiên trước — commit chung sau khi user duyệt).
+
+### 4m-2. Bản 2 theo lượt "làm lại" của user (17/09 trưa) — 3 dòng hiện trạng · chụp pop-up · chọn ảnh báo cáo · luỹ tiến 3 lần
+
+**Yêu cầu (nguyên văn rút gọn):** Hiện trạng = `Yêu cầu planogram #…: <trạng thái>` · `Link: …` · `Phụ trách: Tên (mã) -Có đi làm
+nhưng KHÔNG báo cáo vệ sinh ô này`. Hạng mục: có chấm công mà không làm → tự chọn luật vệ sinh, còn lại tuỳ chọn. Ảnh: ca "có
+chấm công không làm" → tự thêm ảnh TOÀN BỘ pop-up (kiểu `Screenshot_17-9-2026_103244_localhost`); ca khác → "Chọn từ thư viện"
+hiện tất cả ảnh báo cáo của ngày với ô tick chọn 1 hay nhiều. Bỏ thông báo "Đã điền sẵn…". Cơ chế luỹ tiến: cứ mỗi 3 lần
+có chấm công nhưng không báo cáo thì mới hiện nút ghi nhận (KPI −2%).
+
+**Ca A ("đi làm mà không báo cáo") = `tinhTrangPT().caseA`:** yêu cầu của ngày chưa Approved/Waiting, KHÔNG AI báo cáo ô (yêu
+cầu của ngày → lịch sử 60 ngày), phụ trách có chấm công ngày đó (`VESINH-CHAMCONG-NGAY`; hôm nay rớt về `CHAMCONG-VESINH`).
+Người khác làm thay ⇒ ô sạch ⇒ không phải ca A (khớp luật màu đỏ sơ đồ).
+
+**LUẬT LUỸ TIẾN CHỐT LẠI (user 17/09 chiều — "mỗi 3 lần thì bắn task ghi nhận, còn lẻ thì vẫn ở bộ tính"):**
+
+| n lần chưa ghi nhận | phiếu nợ | tổng trừ | nút hiện | lẻ giữ lại |
+|---|---|---|---|---|
+| 0 | 0 | 0% | (nút thường) | 0 |
+| 1–2 | 0 | 0% | chữ "lần n/3" | n |
+| 3 | 1 | −2% | "Ghi nhận 5S · lần 3/3" | 0 |
+| 4–5 | 1 | −2% | "Ghi nhận 5S · lần 3/3" | 1–2 |
+| 6 | 2 | −4% | "Ghi nhận 5S · còn 2 phiếu" | 0 |
+| 9 | 3 | −6% | "Ghi nhận 5S · còn 3 phiếu" | 0 |
+| 12 / 15 | 4 / 5 | −8% / −10% | "còn N phiếu" | 0 |
+
+- **Mỗi phiếu kê ĐÚNG 3 ngày cũ nhất** (`keNay`) ⇒ mốc ghi nhận rơi vào ngày thứ 3, các lần sau còn nguyên nên
+  lập xong phiếu này nút vẫn hiện cho phiếu kế. Biên bản ghi `Vi phạm luỹ tiến: đủ 3 lần (…) → KPI -2%`, và khi
+  còn nợ thì thêm dòng `Tồn đọng: n lần chưa ghi nhận ⇒ còn N phiếu -2% nữa` (+ lần lẻ nếu có).
+- **LỖ HỔNG BẢN ĐẦU (chính câu hỏi "6 lần thì sao" của user làm lộ):** phiếu kê CẢ chu kỳ nên mốc nhảy tới ngày
+  cuối, nuốt luôn phần dư — 6 lần chỉ bị trừ 2% thay vì 4%, 9 lần chỉ 2% thay vì 6%. Đã đo bằng ma trận trước khi sửa.
+- **HÔM NAY KHÔNG TÍNH** (user chốt): ngày chưa khép thì người phụ trách còn cả ca để làm. Pop-up vẫn đỏ, nhưng
+  dòng đếm ghi "hôm nay chưa tính" và sổ chỉ cộng ngày đã khép. `chuKy()` không tự thêm ngày nào.
+- QC: `qc-vipham-luytien.mjs` **51/51** (ma trận 0…15 lần + lập phiếu liên tiếp + mốc + chuỗi cột);
+  `qc-ghi-nhan-5s-planogram.mjs` **79/79** (tiêm 3/6/9 lần trên giao diện thật, kiểm nhãn nút + dòng biên bản +
+  chuỗi lập 3 phiếu liên tiếp 9→3, 6→2, 3→1, 0→dừng).
+
+**Sổ vi phạm luỹ tiến — máy trạm đếm, không phải trình duyệt** (`hasaki/vipham-vesinh.mjs`, gọi từ `sync-vesinh-all.js` bước 4f-bis):
+- 1 lần = 1 NGÀY đã khép (< hôm nay) mà P có chấm công và ≥1 ô phụ trách (VESINH-PHANCONG) có yêu cầu không ai báo cáo. Ngày
+  trong cửa sổ lấy lại chấm công (7 ngày) tính lại mỗi lượt; ngày cũ đã có thì GIỮ (không viết lại quá khứ); >60 ngày xoá.
+- "Đã ghi nhận KPI": đọc `WMS-5S-AUDIT` (gviz công khai, 0 lượt GAS/WMS) → dòng hạng mục vệ sinh → mã NV từ Hiện trạng
+  `Phụ trách: … (mã)` (không có thì suy từ chủ vị trí của ô) → mốc = ngày CUỐI trong `Vi phạm luỹ tiến: (dd/mm/yyyy · …)`, không
+  có thì ngày lập. Chu kỳ mới = các lần SAU mốc.
+- Ghi thành **2 cột thêm vào chính tab `VESINH-CHAMCONG-NGAY`** (`Vi phạm (ngày:số ô:ô)` = `2026-09-16:2:F0-A1-501-01,…`,
+  `Đã ghi nhận KPI (ngày)`) — không tab mới ⇒ không deploy GAS; cache `.vipham-vesinh.json` (gitignore). Đo thật lượt 11:02:
+  57 NV · 204 lần trong 6 ngày · 21 NV có mốc KPI (từ 43 biên bản vệ sinh cũ trong 147 dòng audit).
+- Dashboard: `docCotVp/docCotGhi/chuKy` CHÉP NGUYÊN từ module (sửa một bên phải sửa bên kia); `luyTien(pc, d, caseA)` cộng
+  thêm ngày đang xem nếu là ca A mà sổ chưa có (hôm nay / sync chưa chạy). `qc-vipham-luytien.mjs` 23/23 ca trên dữ liệu giả.
+
+**Pop-up:** `capNhatNutGhi()` cuối `renderVt`: ca A + đủ 3 → nút "Ghi nhận 5S · lần n/3" (tooltip kê ngày, KPI 2%, sẽ chụp
+pop-up); ca A chưa đủ → KHÔNG nút, dòng chữ đỏ `#hpVtLt` "Đi làm không báo cáo · lần n/3"; ca A mà sổ chưa có cột → "chưa đếm
+được luỹ tiến"; ca khác → nút "Ghi nhận 5S" thường. `soanGhiNhan5S` trả `hangMuc` chỉ ở ca A, `anh` (screenshot) ở ca A,
+`anhBaoCao` (ảnh ô này + ảnh khác cùng ngày của người báo cáo, kèm thumb RAM) ở ca khác; thêm dòng `Vi phạm luỹ tiến: lần n
+(dd/mm/yyyy · …) → KPI -2%` (ca A) và `Người ghi nhận` chỉ khi có tài khoản đăng nhập.
+
+**Chụp pop-up:** `html2canvas` 1.4.1 nạp LƯỚI từ cdnjs (198 KB, chỉ lượt đầu, chỉ ca A), chụp `.hp-modalbox` bản sao nới hết
+chiều cao, ẩn nút; tên `Screenshot_D-M-YYYY_HHMMSS_<host>.jpg`, JPEG 0.85, scale ≤2 (đo: 1360×982, 120 KB). **Bẫy thật:**
+Chrome trả giá trị tính toán của mọi `color-mix()` là `color(srgb …)` mà html2canvas không hiểu → "unsupported color
+function", hỏng cả ảnh (run 5–6). Chữa `danhSoH2C/suaMauH2C`: đánh số phần tử gốc (`data-h2c`), trong `onclone` quét MỌI
+thuộc tính tính toán chứa `color(` và ghi rgba() inline lên bản sao. Lỗi chụp → form báo đỏ "hãy chụp màn hình rồi Chọn từ
+thư viện", không chặn.
+
+**Form (`form.html`):** `napSan` không còn thông báo info; nhận `du.anh` → files (đánh dấu `napSan`, gỡ khi mở tay chưa sửa),
+`du.anhBaoCao` → `thuVienBC`; Mục 5 "Chọn từ thư viện" đổi thành "Chọn từ ảnh báo cáo · N ảnh ngày dd/mm · tick chọn" và mở
+bộ chọn (lưới 3 cột, 2 nhóm "ảnh của ô này" / "ảnh khác cùng ngày", tick nhiều, "Thêm N ảnh" tải ảnh gốc CDN → cổng WMS dự
+phòng → `_themAnh` như ảnh thư viện: ≤2K + nhãn giờ EXIF; "Chọn từ máy…" vẫn có). `xoaNapSan` gỡ cả ảnh nạp + thư viện.
+
+**QC (chốt 17/09 chiều — 60/60 + bố cục 4 màn × 4 máy):** `qc-ghi-nhan-5s-planogram.mjs` bản 2 tự tìm ô ca A / ca khác có ảnh, tiêm số lần còn thiếu để ép đủ 3, chụp thật,
+nạp form, tick ảnh báo cáo → **52/52** (run 8, localhost). Ảnh: `.exports/qc-ghi-nhan-5s/caseA-chup-popup.jpg`, `caseA-form.png`,
+`caseB-form.png`. Bẫy bộ đo: người thật có thể đã ≥3 lần (5–7) — đáp án phải hỏi lại `_luyTien` sau tiêm, không hard-code 3.
+
+**3 việc QC làm thêm sau đó:**
+- **Màn mới vào bộ đo (mục 6 bộ chuẩn):** bộ chọn ảnh báo cáo nằm TRONG iframe nên `qc-mobile-toan-du-an.mjs` (đo page chính)
+  không với tới → thêm hẳn ca `doMobileForm` vào bộ đo riêng: lưới ảnh, vùng chạm ô 96px, nút Thêm 40px, không kéo ngang,
+  hộp không cao quá màn, sàn chữ 10,5px.
+- **Bắt được 1 lỗi thật:** nhãn vị trí con dưới mỗi ảnh để `text-[10px]` — dưới sàn 10,5px của luật ⑥ → đã nâng lên `text-[10.5px]`.
+- **Hết "○ bỏ qua im lặng":** màn "Pop-up Chi tiết 1 vị trí" của `qc-mobile` xưa nay luôn rớt iPhone SE vì bước `mo` chạy
+  khi sơ đồ chưa có ô. Chuyển việc mở pop-up vào `sanSangMan` (bám con số thật: ≥7 ô ngày + có `.hp-vtacts`) → nay **4/4 máy đạt**,
+  tổng `qc-mobile --file --trang=5s`: **4 màn × 4 máy, 0 vỡ**.
+
+**LỖI NGƯỜI DÙNG BẮT NGAY SAU ĐÓ — "k tick chọn ảnh ở đây được" (17/09 chiều, ô 16+16 ảnh):**
+- **Gốc:** Alpine chỉ GỠ thuộc tính boolean khi giá trị là `null/undefined/false`. `:disabled="!soChonBC() || dangTaiBC"`
+  trả về **chuỗi rỗng** khi rảnh (`dangTaiBC` là chuỗi trạng thái) ⇒ Alpine set `disabled="disabled"` ⇒ **trình duyệt
+  nuốt luôn mọi cú click**. Ô ảnh cũng dính vì `:disabled="daThemBC[x.i]"`.
+- **Chữa:** ô ảnh BỎ HẲN `:disabled` (chặn bằng chính `tickBC()` + làm mờ bằng class, để cú chạm luôn tới nơi);
+  nút "Thêm N ảnh" và nút Gửi ép `!!(…)`. Đo lại: chạm ô → tick 1 + hiện ✓, nút Thêm bật, tải ảnh gốc vào files.
+- **Vì sao bộ đo 60/60 vẫn báo xanh:** ca cũ gọi thẳng `dt.tickBC(0)` chứ không CLICK. Đã sửa bộ đo sang bấm thật
+  (nhãn Mục 5 → ô ảnh → nút Thêm) + thêm ca "ô ảnh BẤM ĐƯỢC THẬT" và ca chạm thật trên điện thoại ⇒ **65/65**.
+  Hai luật mới vào BO-CHUAN-PHAT-TRIEN.md mục 6 (ép boolean) và mục 7 (bộ đo phải bấm thật).
+
+**ÉP TỐC ĐỘ XUỐNG "TỨC THÌ" (user yêu cầu 17/09 chiều — đo bằng `qc-toc-do-ghi-nhan-5s.mjs`):**
+
+| Chặng | Trước | Sau |
+|---|---|---|
+| Bấm nút → ô nhập PIN hiện | **16,72 s** | **0,0–0,8 s** |
+| Gõ PIN → form hiện | 0,17 s | 0,10–0,19 s |
+| Ảnh chụp pop-up vào form (chạy NỀN, không chặn) | — (chặn ở bước 1) | 4,5–5,4 s |
+| Tick 2 ảnh báo cáo → nén xong | — | 1,2–1,5 s |
+| Bấm GỬI → payload rời máy | — | 0,02–0,05 s (160–521 KB) |
+| Bấm GỬI → người dùng thấy kết quả | chờ Apps Script 7–40 s | **0,17–0,20 s** |
+
+- **Đảo thứ tự:** hỏi PIN NGAY, chụp pop-up chạy song song; ảnh về sau thì bơm vào form qua `guiAnhGhiNhan`
+  → `postMessage ghi5s-them-anh`; Mục 5 hiện "Đang chụp ảnh pop-up làm bằng chứng…"; bấm GỬI sớm thì form
+  CHỜ HỘ tối đa 25 s rồi gửi luôn (không bắt bấm lại).
+- **Nạp trước `html2canvas`** ngay khi pop-up ô nhóm A mở (nhóm duy nhất cần chụp) — tải ~5 s nhưng rơi vào
+  lúc người dùng đang đọc, không phải lúc họ chờ.
+- **`suaMauH2C` chỉ quét 15 thuộc tính màu** thay vì cả ~340 thuộc tính tính toán (~25.000 lượt đọc/pop-up):
+  chụp từ 5,4 s xuống **1,2 s**. `imageTimeout` 8 s → 2 s (pop-up ca A vốn không có ảnh).
+- **Gửi "tức thì":** dữ liệu rời máy ngay khi request phát đi, nên sau 250 ms là báo "✓ Đã gửi — đang lưu,
+  đóng form được rồi"; vẫn theo tới cùng ở nền, máy chủ xác nhận thì đổi sang thành công, hỏng thì báo đỏ
+  "CHƯA lưu được… bấm GỬI để thử lại" và GIỮ NGUYÊN nội dung. Ảnh gửi hạ 2560→1800 px, nén 0,85→0,78.
+- **2 lỗi thật bắt được khi đo:** (1) `closeVt` hẹn 240 ms mới ẩn pop-up, đóng rồi mở ô khác trong 0,24 s thì
+  cái hẹn cũ ẩn luôn pop-up vừa mở (người dùng thấy "bấm ô không ra gì", ảnh chụp ra canvas rỗng) → nay
+  `openViTri` huỷ hẹn cũ; (2) chụp trúng nhịp pop-up tự vẽ lại thì canvas rỗng → `chupPopup` thử lại 1 nhịp.
+- **2 lỗi của chính bộ đo:** chặn mạng suốt buổi làm ảnh CDN chậm giả; bấm 2 ô ảnh liên tiếp không nhường
+  nhịp nên cú thứ hai rơi vào node đã bị Alpine tháo ⇒ treo 60 s. Cả hai đã sửa trong bộ đo.
+
+**Lưu ý nghiệp vụ còn mở:** (1) hôm nay được tính là 1 lần NGAY khi ô đang đỏ dù ca chưa kết thúc (người vào 11:52 chưa
+chấm ra) — nếu muốn chỉ tính hôm nay sau giờ chốt (vd 17:00) thì thêm điều kiện giờ; (2) sổ áp bảng phân công HIỆN TẠI cho
+ngày cũ lần đầu tính (phân công đổi thì lần cũ không viết lại); (3) mọi thứ trên phụ thuộc nguồn planogram — **đã bị chặn
+13:15 cùng ngày (LICH-VA-DU-PHONG.md §B5)**.
+
 ## 5. Công cụ nghiên cứu đã tạo (read-only, tôn trọng luật phiên)
 `.exports/` chứa bằng chứng: `probe-planogram*.json`, `captured-planogram-authed.json`.
 Script: `capture-planogram.mjs`, `capture-planogram-authed.mjs` (nạp token bridge vào

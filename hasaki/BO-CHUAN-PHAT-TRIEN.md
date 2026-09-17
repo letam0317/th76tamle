@@ -1,4 +1,6 @@
-# BỘ CHUẨN PHÁT TRIỂN — áp cho MỌI chức năng/tool mới và mọi đợt cải tiến
+# BỘ CHUẨN PHÁT
+- **17/09/2026** — Mục 7: bộ đo đọc dữ liệu Alpine/iframe phải chép trường nguyên thuỷ (Proxy qua CDP hoá thành `{}`) — rút từ lần đo nút Ghi nhận 5S trong pop-up Planogram báo hỏng oan ca thông báo nạp sẵn.
+ TRIỂN — áp cho MỌI chức năng/tool mới và mọi đợt cải tiến
 
 > Nguồn: tổng hợp từ Audit toàn diện 23/08/2026 + toàn bộ bộ QC (qc-*.mjs) + các ràng buộc
 > user đã chốt qua các đợt. **Đây là nguồn duy nhất của bộ chuẩn** — khi user yêu cầu
@@ -123,6 +125,10 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
 ## 6. UI/UX — TÍNH ĐỒNG BỘ + HIỂN THỊ ĐIỆN THOẠI
 
 **Đồng bộ (cấm control trần):**
+- **`:disabled` của Alpine phải ÉP BOOLEAN `!!(…)` (17/09/2026):** Alpine chỉ GỠ thuộc tính boolean khi giá trị là
+  `null/undefined/false`; giá trị là CHUỖI RỖNG `` (rất hay gặp vì cờ trạng thái hay là chuỗi, ví dụ `dangTaiBC`)
+  thì nó set `disabled="disabled"` và nút CHẾT CỨNG, chạm không có phản hồi. Nút "đã xong/đã thêm" thì đừng dùng
+  `disabled` — làm mờ bằng class và chặn trong chính hàm xử lý, để cú chạm vẫn tới nơi.
 - Dropdown/bộ lọc → khuôn `.combo`+`.combo-menu` (popIn); animation chỉ dùng bộ sẵn có
   (`fadeUp/paneIn/popIn/sheetIn/menuIn`, easing `--ez-apple`/`--ez-spring`); modal `sheetIn`+blur;
   focus ring `--accent` + box-shadow 3px color-mix.
@@ -201,6 +207,12 @@ Nguyên tắc:
   panel đã đo chưa? Dòng "○ bỏ qua" ≠ đạt — truy tận gốc.
 - Bộ đo truyền **HÀM THẬT** cho `page.evaluate` (chuỗi ăn mất `\`); `waitForFunction` bọc
   `"("+fn+")()"`; điều kiện "đã tải" bám con số thật; đo đúng thứ đang dùng để ẩn.
+- **Đọc dữ liệu trong iframe Alpine/khung phản ứng (17/09/2026):** `page.evaluate` trả **Proxy phản ứng** (Alpine `$data`, Vue reactive) qua CDP
+  thành `{}` — bộ đo phải CHÉP từng trường nguyên thuỷ ra object thường rồi mới trả về; trả proxy trần là "đỏ giả/xanh giả".
+- **Bộ đo phải BẤM THẬT, không gọi hàm (17/09/2026):** ca đo tương tác chỉ được đi qua `.click()` của chính phần tử
+  người dùng chạm. Gọi thẳng `dt.tickBC(0)` cho XANH GIẢ trong khi người dùng chạm mãi không được — nút mang
+  `disabled` nên trình duyệt nuốt luôn sự kiện. Mỗi nút/ô bấm được phải có 1 ca "bấm được thật" (không `disabled`,
+  `pointer-events` khác `none`, và trạng thái ĐỔI sau cú bấm).
 - QC mới phải bắt được ít nhất 1 lỗi thật đã biết trước khi tin nó (bộ đo báo xanh trên màn
   skeleton là tai nạn đã xảy ra).
 - **Bộ đo không được treo câm (07/09/2026):** mọi `page.evaluate`/chụp ảnh trong vòng đo phải có TRẦN thời gian
@@ -232,6 +244,8 @@ Nguyên tắc:
   BẰNG CHỨNG và bẫy.
 
 ## NHẬT KÝ RULE
+
+- **17/09/2026** — Mục 6 + 7: `:disabled` Alpine phải ép boolean (chuỗi rỗng = nút chết) và bộ đo phải BẤM THẬT thay vì gọi hàm — rút từ lỗi người dùng bắt ở bộ chọn ảnh báo cáo ("k tick chọn ảnh ở đây được") mà bộ đo 60/60 vẫn báo xanh.
 
 - **10/09/2026** — Mục 6 & 7: chống giật animation cho phần tử căn giữa `translateX(-50%)` (triệt tiêu lỗi nhảy từ phải sang trái của chip chú thích ảnh) + chuẩn chip Lightbox dẹt $\le 40\text{px}$ trên điện thoại.
 

@@ -47,6 +47,13 @@ const BO = [
 
 if (!APPSCRIPT_KEY && !DRY) { console.error("✗ Thiếu APPSCRIPT_KEY trong .env."); process.exit(3); }
 
+/* ⏸ CẦU DAO PLANOGRAM (17/09/2026): API planogram bị chặn sau khi bộ phận dev phát hiện bộ cào tự động — có file
+   .TAT-PLANOGRAM trong hasaki/ thì KHÔNG gọi WMS nữa (0 request), thoát ngay. Xoá file để chạy lại. LICH-VA-DU-PHONG.md §B5. */
+if (fs.existsSync(path.join(DIR, ".TAT-PLANOGRAM"))){
+  log("⏸ PLANOGRAM TẠM DỪNG (.TAT-PLANOGRAM) — không gọi WMS, không ghi Sheet; xoá file để chạy lại.");
+  if (!DRY) ghiMocBuoc(DIR, "vesinh-kho");
+  process.exit(0);
+}
 const token = await layTokenSongWms(DIR, log);
 if (!token) { log("✗ Không có token phiên sống — chạy lại khi operator online."); process.exit(2); }
 

@@ -46,6 +46,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenSongWms, DeferError, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab, hamCacheTabs, gasPost } from "./session-rules.js";
 import { baoChuaVeSinh } from "./bao-vesinh-telegram.mjs";
+import { tinhSoViPham, gopGhiNhanKpi, docAuditGviz, chuoiCot, COT_VP, COT_GHI } from "./vipham-vesinh.mjs";   // sổ vi phạm luỹ tiến (17/09/2026)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -145,7 +146,10 @@ const HEADER_LS = ["Ngày", "Giờ", "Location", "Executed By", "Code", "Name", 
  * readTab) chỉ để pop-up dùng đúng 1 ngày — gói lại còn ~90 dòng (~90KB) mà vẫn đọc được bằng mắt
  * trên Sheet. Ô "Chấm công": "2026-08-01 05:54-17:32 | 2026-07-31 05:47-16:58 | …" (mới → cũ,
  * thiếu giờ thì ??:??). */
-const HEADER_CCN = ["Code", "Name", "Email", "Số ngày", "Chấm công theo ngày (ngày vào-ra)"];
+/* 17/09/2026: +2 cột SỔ VI PHẠM LUỸ TIẾN (vipham-vesinh.mjs) — "2026-09-16:2:F0-A1-501-01,F0-A1-501-02 | …" và mốc
+ * KPI đã ghi nhận "2026-09-12 | …". Thêm cột vào tab sẵn có nên KHÔNG cần deploy GAS; dashboard đọc theo tên cột. */
+const HEADER_CCN = ["Code", "Name", "Email", "Số ngày", "Chấm công theo ngày (ngày vào-ra)", COT_VP, COT_GHI];
+const FILE_VP = path.join(DIR, ".vipham-vesinh.json");      // sổ vi phạm luỹ tiến (CÓ PII) — đã gitignore
 
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -319,6 +323,15 @@ async function ghiTab(tab, header, rows){
 }
 
 (async () => {
+  /* ⏸ CẦU DAO PLANOGRAM (17/09/2026): API planogram bị chặn sau khi bộ phận dev phát hiện bộ cào tự động — có file
+     .TAT-PLANOGRAM trong hasaki/ thì KHÔNG gọi WMS nữa (0 request), thoát ngay. Xoá file để chạy lại. LICH-VA-DU-PHONG.md §B5. */
+  const TAT_PLG = path.join(DIR, ".TAT-PLANOGRAM");
+  if (fs.existsSync(TAT_PLG)){
+    let lyDo = ""; try { lyDo = fs.readFileSync(TAT_PLG, "utf8").trim().split(/\r?\n/)[0]; } catch { /* không đọc được thì vẫn dừng */ }
+    log("⏸ PLANOGRAM TẠM DỪNG — " + (lyDo || ".TAT-PLANOGRAM") + " · 0 lượt gọi WMS, không ghi Sheet; xoá file .TAT-PLANOGRAM để chạy lại.");
+    if (!DRY) ghiMocBuoc(DIR, "vesinh");   // để guard/poller không coi là dữ liệu trễ (tạm dừng chủ động)
+    process.exit(0);
+  }
   // Lượt guard chạy VÁ bước khác mà vesinh hôm nay đã xong → thoát sớm (mốc .sync-ok-vesinh).
   if (!DRY && boQuaNeuDaTuoi(DIR, "vesinh", log)) process.exit(0);
   const token = await layTokenSongWms(DIR, log);
@@ -361,6 +374,7 @@ async function ghiTab(tab, header, rows){
   const team = {};   // emailLower -> { email, lastAt, todayCount, todayLoc }   (CHAMCONG)
   const reqToday = [];  // yêu cầu cửa sổ YC_DAYS ngày           (VESINH-YEUCAU)
   const evLS = [];      // từng lượt báo cáo (vị trí + GIỜ)     (VESINH-LICHSU — cộng dồn 60 ngày)
+  const reqNgay = [];   // MỌI yêu cầu trong cửa sổ quét {n, l, e, st} — sổ vi phạm luỹ tiến (vipham-vesinh.mjs), ~180 dòng/ngày, chỉ nằm trong RAM
   const khuOf = (L) => /^F0-A8/i.test(L) ? "Không gian làm việc (F0-A8)" : "Quầy kệ (F0-A1)";
   let scanned = 0, total = null, pages = 0;
   for (let page = 1; page <= MAX_PAGE; page++) {
@@ -374,6 +388,7 @@ async function ghiTab(tab, header, rows){
       const L = String(it.location_description || ""); if (!AREA_RE.test(L)) continue;
       const email = String(it.executed_by_name || "").trim();
       const at = it.executed_at || "";
+      reqNgay.push({ n: String(it.request_time || "").slice(0, 10), l: L, e: email.toLowerCase(), st: Number(it.status_id) || 0 });
       // (a) phụ trách theo vị trí: giữ MỌI vị trí; gắn executor gần nhất
       const cl = loc[L] || (loc[L] = { at: "", email: "" });
       if (email && at > cl.at) { cl.at = at; cl.email = email; }
@@ -615,16 +630,33 @@ async function ghiTab(tab, header, rows){
   for (const k in team) themCode((byEmail[k] || {}).code);
   for (const idk in byCode) themCode(byCode[idk].code);
   const cc = await gopChamCong(attNgay, nvTS, byCodeDir, mocGiuCC, mocLay, codeVS);
+  /* 4f-bis) SỔ VI PHẠM LUỸ TIẾN "đi làm mà không báo cáo" (17/09/2026 — xem vipham-vesinh.mjs): một lần = một
+     NGÀY đã khép mà người phụ trách có chấm công nhưng ≥1 ô của mình có yêu cầu không ai báo cáo. Đi kèm mốc
+     "đã ghi nhận KPI" đọc từ WMS-5S-AUDIT (gviz công khai, 0 lượt GAS/WMS) để dashboard đếm chu kỳ 3 lần.
+     Ghi thành 2 cột của CHÍNH tab này — không tab mới, không đụng whitelist GAS. Lỗi đọc audit → giữ mốc lượt trước. */
+  let vpCu = null; try { vpCu = JSON.parse(fs.readFileSync(FILE_VP, "utf8")); } catch { vpCu = null; }
+  const vp = tinhSoViPham({ reqNgay, pcBy, ccNv: cc.nv, byEmail, today, mocLay, vpCu, giuNgay: CC_NGAY });
+  let ghiKpi = (vpCu && vpCu.ghi) || {}, nguonGhi = "sổ lượt trước";
+  try {
+    const audit = await docAuditGviz(SHEET_HASAKI, "WMS-5S-AUDIT");
+    ghiKpi = gopGhiNhanKpi(audit, pcBy, byEmail); nguonGhi = audit.length + " dòng WMS-5S-AUDIT";
+  } catch (e) { log("  ⚠ Không đọc được WMS-5S-AUDIT (" + e.message + ") — giữ mốc ghi nhận KPI của lượt trước."); }
   const rowsCCN = Object.keys(cc.nv)
     .sort((a, b) => String(cc.nv[a].ten || "").localeCompare(String(cc.nv[b].ten || ""), "vi") || a.localeCompare(b))
     .map(code => {
       const o = cc.nv[code], ds = Object.keys(o.d).sort().reverse();
-      return [code, o.ten || "", o.em || "", ds.length, ds.map(d => d + " " + o.d[d]).join(" | ")];
+      const cot = chuoiCot(vp.nv[code], ghiKpi[code]);
+      return [code, o.ten || "", o.em || "", ds.length, ds.map(d => d + " " + o.d[d]).join(" | "), cot.vp, cot.ghi];
     });
   if (!DRY){
     try { fs.writeFileSync(FILE_CCN, JSON.stringify({ at: Date.now(), moc: mocGiuCC, ngay: CC_NGAY, nv: cc.nv })); }
     catch (e) { log("  ⚠ Không lưu được " + path.basename(FILE_CCN) + " (" + e.message + ") — lượt sau dựng lại từ tab."); }
+    try { fs.writeFileSync(FILE_VP, JSON.stringify({ at: Date.now(), today, nv: vp.nv, ghi: ghiKpi })); }
+    catch (e) { log("  ⚠ Không lưu được " + path.basename(FILE_VP) + " (" + e.message + ") — lượt sau tính lại từ lượt quét."); }
   }
+  log("→ VI PHẠM LUỸ TIẾN: " + vp.thongKe.nguoi + " NV · " + vp.thongKe.lan + " lần (ngày) · tính lại " + vp.thongKe.ngayTinhLai +
+    " ngày, giữ " + vp.thongKe.ngayGiu + " ngày đã chốt, -" + vp.thongKe.xoaQuaHan + " quá hạn · mốc KPI đã ghi nhận: " +
+    Object.keys(ghiKpi).length + " NV (" + nguonGhi + ").");
   const ngayCC = [...new Set(rowsCCN.flatMap(r => [...String(r[4]).matchAll(/(\d{4}-\d{2}-\d{2})/g)].map(m => m[1])))].sort();
   log("→ CHAMCONG-NGAY: " + rowsCCN.length + " NV · giữ từ " + mocGiuCC + " (" + CC_NGAY + " ngày) · lấy lại " +
     mocLay + "→" + today + " (" + cc.nMoi + " ô ngày, thay " + cc.nXoaNgay + " ô cũ), -" + cc.nQuaHan + " ô quá hạn · phủ " +

@@ -379,8 +379,14 @@ const TRANG = [
       { ten: "Pop-up Tra cứu nhân viên", cho: "#hpNkModal.show",
         mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openNk(); return true; }",
         dong: "() => { try { HPLANOGRAM.closeNk(); } catch(e) {} }" },
-      { ten: "Pop-up Chi tiết 1 vị trí (planogram Hasaki)", cho: "#hpVtModal.show",
-        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; const a=document.querySelector('#hpMap .hp-mapcell[data-l],#hpMap [data-l]'); if(!a) return false; HPLANOGRAM.openViTri(a.getAttribute('data-l')); return true; }",
+      /* 17/09/2026: bước `mo` cũ trả false khi sơ đồ chưa có ô (dữ liệu bậc 1 về sau vài giây) ⇒ iPhone SE bị "○ bỏ qua
+         im lặng" ở MỌI lượt đo — đúng cái bẫy mục 7 bộ chuẩn cấm. Nay `mo` chỉ bấm tab, việc MỞ pop-up dồn vào
+         `sanSangMan` (thử lại mỗi nhịp tới 40s) và bám CON SỐ THẬT: pop-up đã vẽ xong dải ngày + có cụm nút góc phải. */
+      { ten: "Pop-up Chi tiết 1 vị trí (planogram Hasaki)",
+        mo: "() => { setTab('planogram'); return true; }",
+        sanSangMan: "() => { if(!window.HPLANOGRAM) return false; const m=document.querySelector('#hpVtModal.show'); " +
+          "if(!m){ const a=document.querySelector('#hpMap .hp-mapcell[data-l],#hpMap [data-l]'); if(!a) return false; try { HPLANOGRAM.openViTri(a.getAttribute('data-l')); } catch(e) {} return false; } " +
+          "return m.querySelectorAll('.hp-vthist').length >= 7 && !!document.querySelector('#hpVtModal .hp-vtacts'); }",
         dong: "() => { try { HPLANOGRAM.closeVt(); } catch(e) {} }" },
       /* POP-UP LỊCH của bộ lọc ngày DÙNG CHUNG taoBoLocNgay (08/09/2026) — 2 chỗ dùng: Task vi phạm ("Ngày ghi nhận",
          có từ đầu nhưng CHƯA TỪNG được đo) và Planogram ("Ngày", vừa đổi từ menu xổ riêng sang khuôn này). Đổi khuôn +
@@ -512,7 +518,7 @@ function raSoat() {
      nhóm "bắt buộc bấm được", khác chip lọc dày-thông-tin (chip nhỏ là cố ý, xem memory). Đo thật
      21/08/2026: `.pg-seg.sm button` chỉ 27px. */
   const CT = '.modalhd .mclose, #mClose, .hp-mclose, #lbClose, .lb-btn, .mfbtn, .mfok, ' +
-    '.prfoot button, .pcall, td .pcr, .pin-acts button, .pg-seg button, .hp-seg button';
+    '.prfoot button, .pcall, td .pcr, .pin-acts button, .pg-seg button, .hp-seg button, .hp-vtghi';
   for (const el of document.querySelectorAll(CT)) {
     if (!thay(el)) continue;
     const dich = (el.matches('.pcr,.pcall') && oBamDuoc(el)) || el;

@@ -54,6 +54,16 @@
 
 Báo cáo **"Không phát sinh vi phạm"** vẫn được lưu nhưng KHÔNG tạo task.
 
+**Nạp sẵn từ dashboard (17/09/2026 — bản `kiemsoatkho/form.html` chạy trong iframe):** tab khác có thể soạn
+sẵn 3 ô rồi mở form qua `moGhiNhanNapSan(du)` của `index.html` (vẫn hỏi PIN như nút "+ Ghi nhận 5S"). Bắt tay
+`postMessage`: form bắn `{type:'ghi5s-san-sang'}` khi khởi tạo → host gửi `{type:'ghi5s-nap-san', du:{viTri,
+hangMuc, hienTrang, maSanPham}}`; mở TAY thì host gửi `ghi5s-xoa-nap-san` (form về trắng nếu người dùng chưa
+sửa). Hạng mục được KHỚP vào danh sách QUY-DINH đang có (4 bậc: nguyên văn → cùng vế trước dấu ":" → cùng nói
+"vệ sinh … hằng ngày" → để trống), không gán chữ tự do vì bộ đẩy khớp TYPE00 theo tên mục. Người gọi đầu
+tiên: nút **Ghi nhận 5S** trong pop-up ô của tab Planogram (`HPLANOGRAM.ghiNhan5S`) — chi tiết
+`NGHIEN-CUU-TAB-VE-SINH.md` mục 4m. Dòng "Người ghi nhận" đọc tài khoản đang đăng nhập theo hợp đồng
+`window.HSK_NGUOI_DUNG` / `hsk-nguoi-dung` (memory `dang-nhap-tai-khoan-hop-dong`).
+
 ---
 
 ## MODULE B — Lưu trữ & Backend (Apps Script + Google Sheet)

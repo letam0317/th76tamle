@@ -48,7 +48,7 @@
     var tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
     if(!tb){ try{ tb=localStorage.getItem('currentTab:hasaki'); }catch(e){} }
     if(tb!=='planogram' || /khoa=/.test(location.hash||'')) return;
-    var V='20260916a';   // PHẢI khớp s.src trong moHasakiPlanogram()
+    var V='20260917a';   // PHẢI khớp s.src trong moHasakiPlanogram()
     var l=document.createElement('link'); l.rel='preload'; l.as='script'; l.href='hasaki-planogram.js?v='+V; document.head.appendChild(l);
     var GAS='https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
     var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||''; }catch(e){}
@@ -3176,7 +3176,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260916a';   // khớp V ở <head>
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260917a';   // khớp V ở <head>
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -3494,9 +3494,49 @@ function moGhiNhan(){
   hoiPin('Ghi nhận vi phạm 5S','Nhập PIN để mở form ghi nhận', xacThucPinGhiNhan).then(pin=>{
     if(pin===null) return;   // huỷ
     napFormTruoc(); hienModal('ghiModal');
+    _gmGuiForm({type:'ghi5s-xoa-nap-san'});   // mở TAY = form trắng: gỡ bản nạp sẵn còn sót (nếu người dùng chưa sửa gì)
   });
 }
-function dongGhiNhan(){ $('ghiModal').classList.remove('show'); }
+function dongGhiNhan(){ $('ghiModal').classList.remove('show'); _gmNapSan=null; }
+
+/* ===== GHI NHẬN 5S NẠP SẴN (17/09/2026) — tab khác soạn sẵn nội dung rồi mở form qua đây ==========
+   Người gọi đầu tiên: pop-up ô ở tab Planogram (HPLANOGRAM.ghiNhan5S → soạn vị trí + hạng mục + hiện
+   trạng từ dữ liệu đang hiển thị). Vẫn hỏi PIN y như nút "+ Ghi nhận 5S" (ngoại lệ PIN duy nhất được
+   phép), vẫn phải chụp ảnh mới gửi được — chỉ bớt phần GÕ LẠI.
+   Bắt tay với iframe: form.html khi khởi tạo bắn 'ghi5s-san-sang' lên parent; host gửi bản nạp sẵn ngay
+   lúc mở VÀ gửi lại khi nhận tín hiệu sẵn sàng (form nạp trước lúc rảnh hay nạp lúc bấm đều trúng).
+   postMessage đích danh origin của chính trang (file:// không có origin thì mới dùng '*'). */
+let _gmNapSan=null;
+const _gmOrigin=()=>(location.origin && location.origin!=='null') ? location.origin : '*';
+function _gmGuiForm(msg){
+  const f=$('gmFrame'); const w=f && f.contentWindow; if(!w) return false;
+  try{ w.postMessage(msg, _gmOrigin()); return true; }catch(e){ return false; }
+}
+function _gmGuiNapSan(){ if(_gmNapSan) _gmGuiForm({type:'ghi5s-nap-san', du:_gmNapSan}); }
+window.addEventListener('message', e=>{
+  const d=e.data||{}; if(d.type!=='ghi5s-san-sang') return;
+  const f=$('gmFrame'); if(!f || e.source!==f.contentWindow) return;   // chỉ nhận từ chính iframe form
+  _gmGuiNapSan();
+});
+// Trả Promise<boolean>: true = đã mở form (đúng PIN) · false = huỷ. Người gọi dùng để mở khoá nút của mình.
+function moGhiNhanNapSan(du){
+  return hoiPin('Ghi nhận vi phạm 5S','Nhập PIN để mở form — nội dung đã điền sẵn từ Planogram', xacThucPinGhiNhan).then(pin=>{
+    if(pin===null) return false;
+    _gmNapSan=(du && typeof du==='object') ? du : null;
+    napFormTruoc(); hienModal('ghiModal');
+    _gmGuiNapSan();
+    return true;
+  });
+}
+window.moGhiNhanNapSan=moGhiNhanNapSan;   // module hasaki-planogram.js gọi qua window (tự rớt về moGhiNhan nếu thiếu)
+
+/* Ảnh chụp pop-up về SAU khi form đã mở (17/09/2026 — để cú bấm mở form tức thì, không chờ chụp).
+   Gửi vào iframe; nhớ lại trong _gmNapSan để nếu iframe nạp chậm, lượt bắt tay 'ghi5s-san-sang' sau vẫn có ảnh. */
+function guiAnhGhiNhan(anh, loi){
+  if(_gmNapSan){ if(anh) _gmNapSan.anh=[anh]; _gmNapSan.dangChup=false; if(loi) _gmNapSan.anhLoi=loi; }
+  _gmGuiForm({type:'ghi5s-them-anh', anh:anh||null, loi:loi||''});
+}
+window.guiAnhGhiNhan=guiAnhGhiNhan;
 
 /* ===== BIÊN BẢN (cột trong 5S-TASKS, sau cùng): tải ảnh -> Apps Script ghi thẳng vào 5S-TASKS ===== */
 let bbLocal={}, bbCode='';   // bbLocal: overlay hiện ngay sau khi tải (sheet cập nhật sau đồng bộ)

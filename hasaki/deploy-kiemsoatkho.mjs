@@ -35,6 +35,7 @@ const FILES = [
   ["kiemsoatkho/hasaki-planogram.js", "hasaki-planogram.js"], // module tab Planogram HASAKI (lazy-load, đọc tab PHU-TRACH-QUAY-KE)
   ["kiemsoatkho/hasaki-kiemke.js", "hasaki-kiemke.js"],     // module tab Kiểm kê HASAKI (lazy-load, nhân bản từ Audit Factory)
   ["kiemsoatkho/hasaki-pc.js", "hasaki-pc.js"],             // module DÙNG CHUNG: giỏ chọn SKU -> tạo lệnh kiểm kê .xlsx + Kế hoạch chờ push (lazy-load)
+  ["kiemsoatkho/kho170-sodo.js", "kho170-sodo.js"],         // dữ liệu SƠ ĐỒ MẶT BẰNG kho 170 (bê từ bản vẽ CAD) — hasaki-planogram.js nạp lười khi bấm "Mặt bằng thật"
 ];
 
 if (!TOKEN) {

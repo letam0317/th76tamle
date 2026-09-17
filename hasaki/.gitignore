@@ -85,3 +85,12 @@ google-script-DEPLOY.gs
 
 # du lieu summary tai ve de xem ban noi bo (nguon that o Pages)
 kiemsoatkho/summary/
+
+# sổ vi phạm luỹ tiến vệ sinh (CÓ PII: email/tên NV) — 17/09/2026
+.vipham-vesinh.json
+
+# cầu dao tạm dừng API planogram (file trạng thái máy trạm) — 17/09/2026
+.TAT-PLANOGRAM
+
+# Pilot theo doi dang nhap PC (pc-login-agent) - CO PII (tai khoan/may), khong commit
+.pc-login-agent-last.json

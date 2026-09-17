@@ -5,6 +5,11 @@
 > là **lịch cũ giữ lại để đối chiếu**. Khi khác nhau, tin file này.
 >
 > **Thiết kế "dữ liệu luôn tươi" đang chốt: đọc PHẦN F.** Phần E là bản nháp 1 đã bị thay thế.
+>
+> ⏸ **17/09/2026 13:19 — CẦU DAO PLANOGRAM ĐANG BẬT** (`hasaki/.TAT-PLANOGRAM`): dừng chủ động sau tin "dev biết bộ
+> cào" → `sync-vesinh-all.js` · `sync-vesinh-ai.mjs` · `sync-vesinh-factory.mjs` thoát ngay, **0 request**.
+> **Đo 13:51: cổng planogram vẫn 200 OK (count=228) — CHƯA có chặn kỹ thuật**; cầu dao là quyết định vận hành, không phải sự cố.
+> Lịch bên dưới vẫn đúng về mặt "task nào gọi script nào", nhưng 3 bước này đang là bước rỗng. Chi tiết + đường đi: **§B5**.
 
 ---
 
@@ -31,8 +36,9 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 | **Factory agent in tem** | mỗi **5'** (bổ sung vào bảng 23/08/2026 — task đã chạy từ trước mà A2 thiếu; agent CHÍNH nay ở `Desktop-JE75K38`, task này là lớp phụ trên laptop) | `_AGENT-IN-TEM-AN.vbs` → `in-tem-agent.mjs --dich-vu` | `in-tem-agent.log` |
 | **5S Kenh tin nhan** | mỗi **2'** (mỗi lượt long-poll ~100s) | `tin-nhan-bot.mjs` — nghe lệnh Telegram cho cả 2 dự án (`KENH-TIN-NHAN.md`); chưa có token thì thoát êm | `tin-nhan.log` |
 | **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ — từ 31/07 gọi `AUTO-EXPORT.bat` nên vá được cả bước 5S) | `sync-guard.log` |
-| **Factory co cho may tram** | logon · **cắm/rút sạc** (Kernel-Power 105) · **máy thức dậy** (Power-Troubleshooter 1) · mỗi **2'** | `co-cho-hidden.vbs` → `CO-CHO-MAY-TRAM.ps1` — dựng lại agent in tem khi nó chết/treo, gỡ Offline·Pause·job mắc của máy in, áp lại cài đặt nguồn 1 lần/ngày (`CO-CHO-MAY-IN.md`) | `.co-cho.log` + `.co-cho.json` |
+| **Factory co cho may tram** | logon · **cắm/rút sạc** (Kernel-Power 105) · **máy thức dậy** (Power-Troubleshooter 1) · mỗi **2'** | `co-cho-hidden.vbs` → `CO-CHO-MAY-TRAM.ps1` — dựng lại agent in tem khi nó chết/treo, **dựng lại cò đăng nhập `co-dang-nhap.mjs` khi nó chết (mục 5b, thêm 14/09/2026)**, gỡ Offline·Pause·job mắc của máy in, áp lại cài đặt nguồn 1 lần/ngày (`CO-CHO-MAY-IN.md`) | `.co-cho.log` + `.co-cho.json` |
 | **Factory co cho bat may sang** | **06:50**/ngày, **được đánh thức máy** | cùng script — task RIÊNG vì `WakeToRun` là thuộc tính của cả task, gắn chung vào nhịp 2' thì máy bị dựng dậy 720 lần/ngày | như trên |
+| **Cò đăng nhập** (thường trú, KHÔNG phải task riêng) | chạy liên tục · được `Factory co cho may tram` dựng lại trong ≤2' nếu chết | `co-dang-nhap-hidden.vbs` → `co-dang-nhap.mjs` — nghe cổng `127.0.0.1:8790`, extension `wms-bridge` v1.5.0 báo "vừa có người đăng nhập" thì ép `sync-poller EP_TUOI=1` chạy ngay | `co-dang-nhap.log` |
 | ~~**5S Task hang ngay**~~ | **ĐÃ TẮT 19/08/2026** (Disabled) | Thay bằng **NÚT BẤM TAY** `NUT-NOP-TASK.bat` → `task-hangngay.mjs --nut` (làm tươi số liệu nếu mốc cũ → in nháp → HỎI rồi mới nộp). Không bấm = người tự bấm Hoàn thành trên work.hasaki.vn | `task-hangngay.log` |
 
 Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và đụng
@@ -155,6 +161,7 @@ không ghi mốc, không chiếm lock) — 3 kịch bản đã chạy thật 09:
 | Kiểm kê (`push-pc-to-sheet.mjs`) | ping ≥ **10'** (khi mốc ≥30') | **ping 4 call size=1** → marker `count@updated_at` đổi mới kéo `PC_DELTA=1` |
 | Tồn mã vị trí + tồn bất thường | slot **12:15 / 17:00** (cửa 90') | cộng lượt 8:40 = **3 lần/ngày** |
 | **5S (`auto-export-sync.js`)** | ≥ **45'** (thêm 31/07) | đi cổng **wshr**, chạy cả khi không có token WMS; `KHONG_LOGIN=1` → hết phiên thì exit 75, thử lại sau 10' |
+| **ÉP TƯƠI theo sự kiện đăng nhập** (14/09/2026 — `ep-tuoi.mjs`) | **không có nhịp** — nổ khi có phiên MỚI | Đây là **KÉO SỚM lượt sắp tới, không phải thêm lượt**: bước nào còn tươi <**5'** thì không ép, mỗi khe token chỉ ép 1 lần/**10'**, ép xong mốc bước nhích lên nên lượt đồng hồ kế tiếp tự lùi ra. Hai đường vào: cò `co-dang-nhap.mjs` (~3-5 giây, cần extension v1.5.0) và `watch-login-request.js` bám **jti đổi** (≤2 phút, không cần extension). Lượt ép bỏ cửa giờ + cửa Chủ nhật, bỏ jitter, chạy **5S trước** (đo 14/09: 5S lên Sheet ~17-28 giây, vệ sinh quét planogram 2-3 phút) |
 
 Ngoài khung: lượt 8:40 lo buổi sáng, watchdog 18:05 là lượt vét cuối ngày.
 
@@ -307,6 +314,48 @@ tem. Mất tính "một nguồn sự thật" (số của mình ≠ số WMS) nh�
 | 3 rate limit / WAF | ✅ **chính** | ✅ | ⚠️ | ✅ | – |
 | 4 đổi/bỏ endpoint | ✅ | ✅ **chính** | ⚠️ | ✅ | – |
 | 5 chính sách cấm | ❌ | ❌ | ❌ | ✅ **duy nhất** | ✅ |
+
+### B5. ⏸ 17/09/2026 — API PLANOGRAM BỊ CHẶN (kiểu 5) · cầu dao `.TAT-PLANOGRAM`
+
+**Sự kiện:** user báo 13:15 "api planogram đã bị chặn, do lộ thông tin claude cào được api — dev biết". Lượt sync
+cuối còn chạy: 13:08–13:10 (poller, quét 8 ngày, 1.596 dòng).
+
+**ĐO KIỂM CHỨNG 13:51 (user cho phép đúng 1 lượt, `.exports/_do-chan-planogram.mjs`):**
+
+| Cổng | Dùng cho | Kết quả 13:51 |
+|---|---|---|
+| `wms-gw-external.hasaki.vn` | planogram vệ sinh · AI ảnh · vệ sinh kho | **200 OK · count=228 · JSON** |
+| `wms-gw.inshasaki.com` / `wms.inshasaki.com` | kiểm kê · tồn kho · tồn bất thường | vẫn chạy thật lúc 13:37 (kiểm kê delta xong) |
+
+⇒ **Chưa có chặn kỹ thuật.** Log không có 403 nào; 401 lúc 13:20 là token hết hạn (13:36 người thật đăng nhập lại →
+cổng nội bộ chạy tiếp). "Bị chặn" hiện là thông tin từ dev. **Hai cổng tách biệt** — "kiểm kê vẫn chạy" không chứng
+minh planogram sống và ngược lại. **Extension bridge không phải đường vượt chặn**: nó chỉ nghe token, không gọi hộ,
+cùng token + cùng endpoint thì chặn theo tài khoản/endpoint vẫn 403. **Máy không tự đăng nhập** từ 23/08
+(`CAM_TU_DANG_NHAP=1`, `duocPhepReLogin()=false`) — phiên mới đều do người thật.
+
+**Cầu dao (đã bật 13:19):** file `hasaki/.TAT-PLANOGRAM` (gitignore, dòng 1 = lý do). Có file → 3 script thoát ngay
+ở đầu, **0 request WMS**, không ghi Sheet:
+- `sync-vesinh-all.js` — chạm mốc `.sync-ok-vesinh` rồi thoát (guard/poller không réo "dữ liệu trễ": tạm dừng là
+  quyết định, không phải sự cố; báo Telegram 17h "đi làm chưa báo cáo" cũng ngừng theo).
+- `sync-vesinh-ai.mjs` — thoát, không quét, không tốn khoá Gemini.
+- `sync-vesinh-factory.mjs` — chạm mốc `.sync-ok-vesinh-kho` rồi thoát.
+- KHÔNG sửa `sync-poller.js` / `SYNC-STOCK.bat` / Task Scheduler: chúng vẫn gọi script như cũ, script tự rỗng.
+  `sync-phancong.mjs` vẫn chạy (chỉ g-sheet + readTab, không WMS). **Bật lại: xoá file `.TAT-PLANOGRAM`.**
+
+**Hệ quả hiển thị:** tab Planogram (kiemsoatkho) và tab Planogram Audit Factory đứng ở dữ liệu 13:09 17/09; nút
+Ghi nhận 5S + sổ vi phạm luỹ tiến (NGHIEN-CUU-TAB-VE-SINH.md §4m) chạy trên dữ liệu đã có, không có ngày mới.
+Ảnh CDN `cdn-media-wms` chưa rõ có bị chặn theo. Các bộ khác (stock-location, kiểm kê, tồn bất thường, 5S/wshr,
+HR) tới 13:06 vẫn chạy — theo dõi, có thể bị siết tiếp.
+
+**Đường đi (theo B4, kiểu 5): CẤM lách chặn** (đổi UA/IP/tài khoản, đọc DOM ngầm bằng phiên người khác…).
+1. **P3 — kênh được cấp phép** (đích thật): đề nghị bên planogram/dev cấp *file export định kỳ* (CSV/Excel hằng ngày
+   lên Drive/email nội bộ — dễ duyệt nhất, không mở API) hoặc *service account read-only scope hẹp*. Adapter đọc
+   file → ghi đúng header các tab `VESINH-*` để dashboard không phải sửa.
+2. **P4 — tự thu**: form "Báo cáo vệ sinh" riêng (ảnh + vị trí + người báo, cùng khuôn form 5S) → GAS → Sheet;
+   dashboard đọc thay `VESINH-YEUCAU`/`VESINH-LICHSU`. Mất "một nguồn sự thật" với WMS nhưng vận hành không đứng.
+3. **P1 chính chủ** chỉ khi bên planogram xác nhận nút Export trên UI là đường được phép dùng — chưa xác minh thì
+   không coi là có.
+Rule cũ "không xin IT" đã đụng trần ở kiểu chặn này — chọn 1/2/3 là quyết định của user.
 
 ### B5. Theo từng nguồn — cái nào đau, cái nào dễ
 
