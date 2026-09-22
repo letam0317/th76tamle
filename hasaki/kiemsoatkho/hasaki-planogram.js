@@ -3410,7 +3410,12 @@ function soanGhiNhan5S(loc, d){
     if (r.email) S.yc.rows.forEach(function(x){
       if (x.ngay === d && String(x.id) !== String(r.id) && x.anh && x.anh.length && String(x.email || "").toLowerCase() === String(r.email).toLowerCase()) them(x, "khac"); });
   }
-  return { viTri: loc, hangMuc: A ? HM_VESINH : "", maSanPham: "", hienTrang: L.join("\n"),
+  /* 22/09/2026 — ĐIỀN SẴN "Nhân viên vi phạm" (mục 1 của form). CHỈ ca A (có đi làm mà KHÔNG báo
+     cáo ô này) mới có người chịu lỗi rõ ràng; các ca khác (nghỉ, người khác đã báo cáo, ô không có yêu
+     cầu) để TRỐNG cho người xác minh tự quyết. Nhờ ô này bộ đẩy tự đóng được B1 → B1.1, không phải dò
+     chữ trong Hiện trạng như bản trước. */
+  var nvVP = (A && pc && pc.em) ? [{ name: pc.ten || pc.em, email: pc.em, code: pc.code || "", dept: "" }] : [];
+  return { viTri: loc, hangMuc: A ? HM_VESINH : "", maSanPham: "", nvViPham: nvVP, hienTrang: L.join("\n"),
            nguon: "planogram", yc: r ? String(r.id) : "", ngay: d, caseA: A, luyTien: lt,
            anhBaoCao: anhBC, nguoiBC: (r && r.email) ? (tenNm(r.email) || r.email) : "", anhDangTai: !!(S.anh.dang || S.anhcu.dang) };
 }

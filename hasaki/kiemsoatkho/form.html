@@ -45,18 +45,70 @@
       class="bg-white rounded-3xl shadow-lg shadow-slate-200 p-6 sm:p-8 space-y-6"
     >
 
-      <!-- ===== MỤC 1: Hiện trạng (Ghi chú, không bắt buộc) ===== -->
-      <div>
-        <label class="block text-sm font-semibold text-slate-700 mb-2">
-          1. Hiện trạng (ghi chú)
-        </label>
-        <textarea
-          x-model="form.hienTrang"
-          :rows="hangDong"
-          placeholder="Mô tả nhanh hiện trạng ghi nhận (không bắt buộc)..."
-          class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
-        ></textarea>
+      <!-- ===== MỤC 1: Nhân viên vi phạm (Searchable Multi-select Dropdown 4 Cột Khoá Cứng) ===== -->
+      <div @click.outside="moDropdownNV = false">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">1. Nhân viên vi phạm</label>
+
+        <div class="relative">
+          <input
+            type="text"
+            x-model="tuKhoaNV"
+            @focus="moDropdownNV = true"
+            @input="moDropdownNV = true"
+            placeholder="Gõ tên, ID, email hoặc nghiệp vụ để tìm (vd: tamlc, 233135, Đóng gói)..."
+            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+          />
+
+          <!-- Dropdown gợi ý 4 CỘT vừa vặn khung form (Zero Overflow) -->
+          <div
+            x-show="moDropdownNV && tuKhoaNV.trim().length > 0"
+            x-cloak
+            class="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto dropdown-scroll rounded-2xl border border-slate-200 bg-white shadow-xl left-0"
+          >
+            <!-- Header 4 Cột Canh Thẳng Hàng gọn gàng -->
+            <div x-show="danhSachLocNV().length > 0" class="sticky top-0 bg-slate-100 border-b border-slate-200 px-3 py-2 flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-wider z-10">
+              <div class="flex-1 min-w-0 text-slate-800">Họ và tên</div>
+              <div class="w-14 shrink-0 font-mono text-center">ID</div>
+              <div class="w-32 shrink-0">Mail Hasaki</div>
+              <div class="w-24 shrink-0 text-right">Nghiệp vụ</div>
+            </div>
+
+            <template x-for="(nv, idx) in danhSachLocNV()" :key="idx">
+              <div
+                @click="chonNV(nv)"
+                class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 flex items-center gap-2 text-xs transition"
+              >
+                <!-- Cột 1: HỌ VÀ TÊN (Chiếm phần lớn không gian, không bị trống thừa) -->
+                <div class="flex-1 min-w-0 font-semibold text-slate-900 truncate" x-text="nv.name"></div>
+                <!-- Cột 2: ID (Mã NV 6 số gọn gàng) -->
+                <div class="w-14 shrink-0 font-mono text-slate-600 text-[11px] text-center" x-text="nv.code"></div>
+                <!-- Cột 3: MAIL HASAKI (Gọn gàng) -->
+                <div class="w-32 shrink-0 text-slate-500 font-mono text-[11px] truncate" x-text="nv.email"></div>
+                <!-- Cột 4: NGHIỆP VỤ (Canh phải đẹp mắt) -->
+                <div class="w-24 shrink-0 text-slate-600 text-[11px] truncate font-medium text-right bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200" x-text="nv.dept"></div>
+              </div>
+            </template>
+
+            <div x-show="danhSachLocNV().length === 0" class="px-4 py-3 text-sm text-slate-400 text-center">
+              Không tìm thấy nhân viên phù hợp
+            </div>
+          </div>
+        </div>
+
+        <!-- Danh sách NV vi phạm đã chọn (nằm dưới ô nhập, màu sắc xanh lá giống Mục 3) -->
+        <div x-show="form.nhanVienViPhamList && form.nhanVienViPhamList.length > 0" x-cloak class="mt-2.5 flex flex-wrap gap-1.5">
+          <template x-for="(nv, idx) in form.nhanVienViPhamList" :key="idx">
+            <div class="inline-flex items-center gap-1.5 rounded-xl bg-green-50 border border-green-200 px-3 py-1.5 text-xs text-green-700 shadow-sm">
+              <span class="font-semibold text-green-700">✓ Đã chọn:</span>
+              <span class="font-bold text-slate-900" x-text="nv.name"></span>
+              <span class="text-slate-500 font-mono text-[11px]" x-text="'(' + nv.code + ' / ' + nv.email + (nv.dept ? ' / ' + nv.dept : '') + ')'"></span>
+              <button type="button" @click="xoaNV(idx)" class="hover:bg-red-100 hover:text-red-600 text-slate-400 rounded-full w-4 h-4 inline-flex items-center justify-center font-bold ml-1 transition" title="Xóa">✕</button>
+            </div>
+          </template>
+        </div>
       </div>
+
+      
 
       <!-- ===== MỤC 2: Khu vực / vị trí + nút quét mã vạch ===== -->
       <div>
@@ -163,10 +215,27 @@
         </p>
       </div>
 
-      <!-- ===== MỤC 5: Hình ảnh / clip ===== -->
+      <!-- ===== MỤC 5: Hiện trạng (Ghi chú, không bắt buộc) ===== -->
       <div>
         <label class="block text-sm font-semibold text-slate-700 mb-2">
-          5. Hình ảnh / clip tại thời điểm ghi nhận <span class="text-red-500">*</span>
+          5. Hiện trạng (ghi chú)
+        </label>
+        <textarea
+          x-model="form.hienTrang"
+          :rows="hangDong"
+          placeholder="Mô tả nhanh hiện trạng ghi nhận (không bắt buộc)..."
+          class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none transition"
+        ></textarea>
+      </div>
+
+      
+
+      
+
+      <!-- ===== MỤC 6: Hình ảnh / clip ===== -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          6. Hình ảnh / clip tại thời điểm ghi nhận <span class="text-red-500">*</span>
         </label>
 
         <div class="grid grid-cols-2 gap-2">
@@ -248,49 +317,7 @@
         </div>
       </div>
 
-      <!-- ===== Bộ chọn ẢNH BÁO CÁO của ngày (nạp từ pop-up Planogram, 17/09/2026) — tick 1 hoặc nhiều ảnh vi phạm ===== -->
-      <div x-show="moBC" x-cloak class="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-2" @click.self="moBC = false">
-        <div class="bg-white w-full max-w-lg rounded-3xl shadow-xl flex flex-col max-h-[92vh]">
-          <div class="px-5 pt-4 pb-2 border-b border-slate-100">
-            <p class="text-sm font-semibold text-slate-800">Ảnh báo cáo ngày <span x-text="ngayBCVN()"></span><template x-if="nguoiBC"><span> — <span x-text="nguoiBC"></span></span></template></p>
-            <p class="text-xs text-slate-500 mt-0.5">Chạm để tick ảnh có vi phạm (chọn được nhiều). Ảnh gốc chỉ tải khi bấm Thêm.</p>
-          </div>
-          <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-            <template x-if="!thuVienBC.length"><p class="text-sm text-slate-500 text-center py-6">Ngày này không có ảnh báo cáo nào.</p></template>
-            <template x-for="nhom in ['o','khac']" :key="nhom">
-              <div x-show="nhomBC(nhom).length">
-                <p class="text-xs font-semibold text-slate-600 mb-1.5" x-text="nhom === 'o' ? ('Ảnh của ô này (' + nhomBC('o').length + ')') : ('Ảnh khác cùng ngày của người báo cáo (' + nhomBC('khac').length + ')')"></p>
-                <div class="grid grid-cols-3 gap-2">
-                  <template x-for="x in nhomBC(nhom)" :key="x.i">
-                    <!-- 17/09/2026 — KHÔNG dùng :disabled ở đây: trình duyệt CHẶN mọi sự kiện click trên <button disabled>,
-                         mà thuộc tính này từng bị set ngay lúc mở (người dùng bắt được: "k tick chọn ảnh ở đây được").
-                         Ảnh đã thêm được chặn bằng chính tickBC() + làm mờ bằng class — chạm vẫn tới nơi, không câm. -->
-                    <button type="button" @click="tickBC(x.i)" :aria-pressed="chonBC[x.i] ? 'true' : 'false'"
-                      :class="(chonBC[x.i] ? 'ring-2 ring-blue-500' : 'ring-1 ring-slate-200') + (daThemBC[x.i] ? ' opacity-50 cursor-default' : '')"
-                      class="relative rounded-xl overflow-hidden bg-slate-100 h-24 text-left">
-                      <img :src="x.a.thumb || x.a.url" loading="lazy" decoding="async" class="w-full h-full object-cover" alt="">
-                      <span class="absolute bottom-0 inset-x-0 text-[10.5px] leading-tight text-white bg-black/55 px-1.5 py-0.5 truncate" x-text="x.a.vt || x.a.loc"></span>
-                      <span class="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                        :class="daThemBC[x.i] ? 'bg-green-600 text-white' : chonBC[x.i] ? 'bg-blue-600 text-white' : 'bg-white/90 text-slate-400 border border-slate-300'"
-                        x-text="(daThemBC[x.i] || chonBC[x.i]) ? '✓' : ''"></span>
-                    </button>
-                  </template>
-                </div>
-              </div>
-            </template>
-          </div>
-          <div class="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-2 items-center">
-            <!-- BẮT BUỘC ÉP BOOLEAN (17/09/2026): Alpine chỉ GỠ thuộc tính boolean khi giá trị là null/undefined/false.
-                 `dangTaiBC` là CHUỖI, nên khi rảnh nó = '' → biểu thức trả '' → Alpine set disabled="disabled" và nút chết cứng.
-                 Đây chính là lỗi người dùng gặp ở lưới ảnh. Mọi :disabled trong file này phải bọc !!() -->
-            <button type="button" @click="themAnhBC()" :disabled="!soChonBC() || !!dangTaiBC"
-              class="flex-1 min-w-[140px] rounded-2xl bg-blue-600 text-white text-sm font-semibold py-2.5 disabled:opacity-40"
-              x-text="dangTaiBC || ('Thêm ' + soChonBC() + ' ảnh đã chọn')"></button>
-            <button type="button" @click="moBC = false; $refs.fileInput.click()" class="rounded-2xl border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2.5">Chọn từ máy…</button>
-            <button type="button" @click="moBC = false" class="rounded-2xl text-slate-500 text-sm font-medium px-4 py-2.5">Đóng</button>
-          </div>
-        </div>
-      </div>
+      
 
       <!-- ===== Modal CAMERA: chụp ảnh / quay video trực tiếp ===== -->
       <div x-show="dangChupAnh" x-cloak class="fixed inset-0 z-50 bg-black/90 flex flex-col p-3"
@@ -445,10 +472,13 @@
       "Bảo quản hàng hóa, công cụ dụng cụ và tài sản cố định"
     ];
 
+    // Danh sách 293 nhân viên có lịch sử làm việc / chấm công tại 170 QL1A
+    const DANH_SACH_NV_170 = [{"name":"Nguyễn Bảo Duy","code":"221910","email":"duynb@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Nguyệt Quỳnh","code":"220830","email":"quynhnn@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Nguyễn Như","code":"220842","email":"nhuhn1@hasaki.vn","dept":"Đóng gói"},{"name":"Bùi Thị Lan Hương","code":"221292","email":"huongbtl@hasaki.vn","dept":"Vận hành Clinic"},{"name":"Trương Văn Hoàng","code":"221519","email":"hoangtv@hasaki.vn","dept":"Vận hành Logistic"},{"name":"Hà Bảo Phụng","code":"21536","email":"phunghb@hasaki.vn","dept":"Shipper ô tô"},{"name":"Phạm Như Thiên","code":"21253","email":"thienpn@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lâm Xuân Hầm","code":"20352","email":"hamlx@hasaki.vn","dept":"Đóng gói"},{"name":"Lưu Học Danh","code":"17131","email":"danhlh@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Thanh Tuyến","code":"250083","email":"tuyenntt6@hasaki.vn","dept":"Đóng gói"},{"name":"Phạm Ngọc Tồn","code":"250346","email":"tonpn@hasaki.vn","dept":"Shipper ô tô"},{"name":"Mạc Kiết My","code":"250462","email":"mymk@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Ngọc Tuyền","code":"241744","email":"tuyenhn@hasaki.vn","dept":"Đóng gói"},{"name":"Võ Nguyễn Tấn Lộc","code":"242024","email":"locvnt1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Bá Thành","code":"250608","email":"thanhlb@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Hoàng Thị Cẩm Ly","code":"250751","email":"lyhtc@hasaki.vn","dept":"Đóng gói"},{"name":"Dương Ngọc Duy","code":"242228","email":"duydn@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Võ Minh Hùng","code":"242484","email":"hungvm@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Văn Thanh Minh Châu","code":"242595","email":"chauvtm1@hasaki.vn","dept":"Shipper ô tô"},{"name":"Huỳnh Văn Đẹp","code":"243449","email":"dephv@hasaki.vn","dept":"Shipper ô tô"},{"name":"Phạm Thị Thu Hương","code":"243540","email":"huongptt1@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Hải Minh Nhựt","code":"243656","email":"nhuthhm@hasaki.vn","dept":"Shipper ô tô"},{"name":"Trương Thanh Bình","code":"251308","email":"binhtt3@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Thị Thùy Trang","code":"251480","email":"trangntt21@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Ngọc Thanh Ngân","code":"241616","email":"ngannnt1@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Phương Anh","code":"243980","email":"anhntp5@hasaki.vn","dept":"Đóng gói"},{"name":"Hồ Ngọc Tú Uyên","code":"243159","email":"uyenhnt@hasaki.vn","dept":"Quản lý đóng gói"},{"name":"Võ Văn Quang","code":"261621","email":"quangvv@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Đức Tài","code":"261672","email":"taild@hasaki.vn","dept":"Bảo trì máy móc"},{"name":"Nguyễn Thành Luân","code":"261812","email":"luannt3@hasaki.vn","dept":"Pick Pack OS"},{"name":"Đồng Minh Phúc","code":"261968","email":"phucdm2@hasaki.vn","dept":"Pick Pack OS"},{"name":"Viên Đức Thịnh","code":"261971","email":"thinhvd@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Thành Nhân","code":"262129","email":"nhanlt3@hasaki.vn","dept":"Pick Pack OS"},{"name":"Vũ Lê Hồng Hạnh","code":"262153","email":"hanhvlh@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Minh Khánh","code":"262165","email":"khanhtm1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Tấn Vũ","code":"262253","email":"vunt3@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Phạm Hoàng Minh","code":"262337","email":"minhph1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Võ Thị Ngọc Trâm","code":"262339","email":"tramvtn2@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Thị Thanh Hồng","code":"262473","email":"hongntt6@hasaki.vn","dept":"Vận hành Logistic"},{"name":"Huỳnh Kim Thiện","code":"263133","email":"thienhk@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Thị Thanh Thủy","code":"263185","email":"thuyltt8@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Nhật Quang","code":"263197","email":"quangnn@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Trần Trung","code":"263198","email":"trungnt7@hasaki.vn","dept":"Pick Pack OS"},{"name":"Đoàn Trung Hiếu","code":"263199","email":"hieudt1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Thị Nguyệt Linh","code":"263202","email":"linhttn3@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Thị Trúc Mai","code":"263203","email":"mailtt4@hasaki.vn","dept":"Pick Pack OS"},{"name":"Phạm Xuân Đài","code":"263207","email":"daipx@hasaki.vn","dept":"Pick Pack OS"},{"name":"Bùi Duy Khang","code":"263208","email":"khangbd@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Quốc Triệu","code":"263209","email":"trieulq@hasaki.vn","dept":"Pick Pack OS"},{"name":"Huỳnh Tấn Trình","code":"263216","email":"trinhht1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lý Nhựt Long","code":"263217","email":"longln@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Đỗ Đặng Cư","code":"263335","email":"cudd@hasaki.vn","dept":"Pick Pack OS"},{"name":"Ngô Hoàng Hiếu","code":"263472","email":"hieunh@hasaki.vn","dept":"Pick Pack OS"},{"name":"Huỳnh Minh Đạt","code":"263473","email":"dathm1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lý Thị Hoa Hạ","code":"263539","email":"halth1@hasaki.vn","dept":"Đóng gói"},{"name":"Đỗ Văn Anh Kiệt","code":"262612","email":"kietdva@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trịnh Thị Cẩm Nhan","code":"262695","email":"nhanttc@hasaki.vn","dept":"Đóng gói"},{"name":"Đặng Hoài Sơn","code":"262743","email":"sondh1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Hà Thành Đạt","code":"262809","email":"datht1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Minh Bằng","code":"262810","email":"bangnm@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Quốc Việt","code":"262851","email":"vietnq1@hasaki.vn","dept":"Nhân viên gia công VLĐG"},{"name":"Trần Thị Quỳnh Như","code":"262864","email":"nhuttq9@hasaki.vn","dept":"Pick Pack OS"},{"name":"Phan Thị Thanh Tâm","code":"262869","email":"tamptt3@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Thị Xý","code":"263072","email":"xytt@hasaki.vn","dept":"Đóng gói"},{"name":"Danh Hiếu","code":"261076","email":"hieud@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Tứ Quý","code":"261209","email":"quylt@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Minh Thiện","code":"261341","email":"thienlm@hasaki.vn","dept":"Pick Pack OS"},{"name":"Danh Bình Tính","code":"261342","email":"tinhdb@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Hữu Thắng","code":"261343","email":"thangnh1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Thúy Ngân","code":"261364","email":"ngantt21@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Ngọc Bảo Hân","code":"261365","email":"hannnb2@hasaki.vn","dept":"Pick Pack OS"},{"name":"Võ Văn Huy","code":"261569","email":"huyvv1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Ông Nhựt Nam","code":"261570","email":"namon@hasaki.vn","dept":"Pick Pack OS"},{"name":"Chu Văn Đăng","code":"261574","email":"dangcv@hasaki.vn","dept":"Pick Pack OS"},{"name":"Phạm Minh Thư","code":"263593","email":"thupm3@hasaki.vn","dept":"Đóng gói"},{"name":"Bùi Đăng Khoa","code":"263838","email":"khoabd@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Phạm Văn Hồng Thái","code":"263883","email":"thaipvh@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Công Khanh","code":"263922","email":"khanhnc2@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Mỹ Châu","code":"240304","email":"chauntm1@hasaki.vn","dept":"Đóng gói"},{"name":"Lê Thị Ngọc Hương","code":"240349","email":"huongltn1@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Tuyết Trâm","code":"240354","email":"tramntt3@hasaki.vn","dept":"Đóng gói"},{"name":"Lu Ngọc Phượng","code":"240519","email":"phuongln@hasaki.vn","dept":"Đóng gói"},{"name":"Võ Thanh Trúc","code":"231530","email":"trucvt2@hasaki.vn","dept":"Audit"},{"name":"Phạm Trần Gia Hân","code":"232535","email":"hanptg@hasaki.vn","dept":"Đóng gói"},{"name":"Lê Hữu Thọ","code":"232605","email":"tholh@hasaki.vn","dept":"Shipper ô tô"},{"name":"Huỳnh Trần Như Ý","code":"232650","email":"yhtn1@hasaki.vn","dept":"Audit"},{"name":"Trần Văn Dỉ","code":"232774","email":"ditv@hasaki.vn","dept":"Vận hành Retail"},{"name":"Nguyễn Đức Luyện","code":"232969","email":"luyennd@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Thị Yến Nhi","code":"232178","email":"nhinty13@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Huỳnh Như","code":"232219","email":"nhunh@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Anh Tài","code":"241030","email":"taina1@hasaki.vn","dept":"Audit"},{"name":"Cao Lương Bảo Cường","code":"241102","email":"cuongclb@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Văn Quý","code":"233154","email":"quynv@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Thanh Hoàng","code":"233216","email":"hoangnt@hasaki.vn","dept":"Vận hành Retail"},{"name":"Nguyễn Ngọc Thành","code":"240024","email":"thanhnn1@hasaki.vn","dept":"Audit"},{"name":"Hà Tuyết Trinh","code":"222530","email":"trinhht@hasaki.vn","dept":"Audit"},{"name":"Văn Thơ Mộng ","code":"230292","email":"mongvt@hasaki.vn","dept":"Shipper ô tô"},{"name":"Tăng Hiến Long","code":"230375","email":"longth@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Phạm Minh Qưới","code":"251790","email":"quoipm@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Tất Huy","code":"251926","email":"huylt@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Trần Nguyên Phúc","code":"251962","email":"phuctn@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Thị Thu Thủy","code":"260612","email":"thuyntt23@hasaki.vn","dept":"Đóng gói"},{"name":"Võ Tiểu Mi","code":"260852","email":"pg094305010241@hasaki.vn","dept":"PG"},{"name":"Lương Thùy Dương","code":"260970","email":"duonglt@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Phương Hoài Tâm","code":"253604","email":"tamntph@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Quế Chi","code":"253627","email":"chintq@hasaki.vn","dept":"Đóng gói"},{"name":"Phan Thị Ngọc Diệp","code":"253670","email":"bv082182016975@hasaki.vn","dept":"Bảo vệ"},{"name":"Phạm Mỹ Ngọc","code":"253774","email":"pg068304013567@hasaki.vn","dept":"PG"},{"name":"Lương Hoàng Luân","code":"253879","email":"luanlh@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Ngọc Đan Vy","code":"252696","email":"vynnd@hasaki.vn","dept":"Đóng gói"},{"name":"Trần Thị Phương Thảo","code":"252813","email":"thaottp6@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Duy Mạnh","code":"252889","email":"manhnd@hasaki.vn","dept":"Vận hành Logistic"},{"name":"Picker","code":"252187","email":"picker12@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252192","email":"picker03@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252195","email":"picker16@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252197","email":"picker17@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252199","email":"picker06@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252201","email":"picker07@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252203","email":"picker08@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252204","email":"picker09@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252205","email":"picker10@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Lê Thị Thảo","code":"252274","email":"thaolt6@hasaki.vn","dept":"Đóng gói"},{"name":"Picker","code":"252302","email":"picker21@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker ","code":"252304","email":"picker23@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Mai Lê Hoàng Phi","code":"260189","email":"phimlh@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Ngọc Duy Bảo","code":"260296","email":"baonnd@hasaki.vn","dept":"Shipper ô tô"},{"name":"Picker","code":"253144","email":"picker56@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253145","email":"picker26@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253148","email":"picker27@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253149","email":"picker59@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253150","email":"picker28@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253152","email":"picker29@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253154","email":"picker30@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253155","email":"picker31@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253157","email":"picker63@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253159","email":"picker33@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253163","email":"picker35@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253168","email":"picker68@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253169","email":"picker38@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253172","email":"picker41@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253175","email":"picker44@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253176","email":"picker45@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253177","email":"picker46@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253179","email":"picker48@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Nguyễn Đức Huy","code":"253261","email":"huynd2@hasaki.vn","dept":"Hành chính kho"},{"name":"Phạm Huỳnh Lâm","code":"253496","email":"lamhp@hasaki.vn","dept":"Shipper ô tô"},{"name":"Hồ Thị Thiên Thiên","code":"253564","email":"thienhtt@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Mỹ Duyên","code":"254719","email":"duyenntm11@hasaki.vn","dept":"Đóng gói"},{"name":"Lê Thị Thu Hương","code":"254728","email":"bv079165031933@hasaki.vn","dept":"Bảo vệ"},{"name":"Phan Thanh Hiền","code":"254987","email":"hienpt2@hasaki.vn","dept":"Đóng gói"},{"name":"Hà Thanh Trúc","code":"254301","email":"trucht1@hasaki.vn","dept":"Đóng gói"},{"name":"Bùi Đức Hoàng","code":"254488","email":"hoangbd@hasaki.vn","dept":"Shipper ô tô"},{"name":"Nguyễn Thị Huyền Trang","code":"263942","email":"trangnth12@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Lê Phương Lý","code":"221276","email":"lynlp@hasaki.vn","dept":"Vận hành Logistic"},{"name":"Diệp Quốc Hải","code":"221478","email":"haidq@hasaki.vn","dept":"Quản lý phát triển cửa hàng"},{"name":"Nguyễn Trung Luân","code":"221633","email":"luannt1@hasaki.vn","dept":"Shipper ô tô"},{"name":"Lâm Thanh Tú","code":"221959","email":"tult1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Thị Kim Ngân","code":"221986","email":"nganntk6@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Thị Thu Hương","code":"222049","email":"huonghtt@hasaki.vn","dept":"Audit"},{"name":"Nguyễn Tuấn Kiệt","code":"220818","email":"kietnt@hasaki.vn","dept":"Shipper ô tô"},{"name":"Ngô Thị Diễm Ly","code":"220996","email":"lyntd@hasaki.vn","dept":"Audit"},{"name":"Phan Đình Lâm","code":"21233","email":"lampd@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Võ Văn Đức","code":"20334","email":"ducvv@hasaki.vn","dept":"Quản lý phát triển cửa hàng"},{"name":"Lê Thị Thanh Nhã","code":"18254","email":"nhaltt@hasaki.vn","dept":"Audit"},{"name":"Phạm Duy Nhân","code":"18288","email":"nhanpd@hasaki.vn","dept":"Shipper ô tô"},{"name":"Phan Thị Đông Anh","code":"250882","email":"anhptd@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Kiệm","code":"250884","email":"kiemn@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Huyền Trang","code":"250965","email":"trangnh1@hasaki.vn","dept":"Đóng gói"},{"name":"Bùi Văn Non","code":"251215","email":"nonbv@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Thị Thuỷ Tiên","code":"251596","email":"tienntt9@hasaki.vn","dept":"Đóng gói"},{"name":"Dương Thị Út Nghĩa","code":"251599","email":"nghiadtu@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Thị Mỹ Trinh","code":"251726","email":"trinhhtm3@hasaki.vn","dept":"Đóng gói"},{"name":"Trần Thị Hoài Thảo","code":"251791","email":"thaotth1@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Hoài Sang","code":"252039","email":"sangnh@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Hoàng Thị Ánh Tuyết","code":"242926","email":"tuyethta@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Đức Phi","code":"242252","email":"phind@hasaki.vn","dept":"Shipper ô tô"},{"name":"Phùng Lê Cao Minh","code":"242485","email":"minhplc@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Ngọc Thùy Vân","code":"243582","email":"vannnt@hasaki.vn","dept":"Đóng gói"},{"name":"Phạm Thị Yến Nhi","code":"243600","email":"nhipty3@hasaki.vn","dept":"Đóng gói"},{"name":"Lê Hồng Đào","code":"241940","email":"daolh@hasaki.vn","dept":"Đóng gói"},{"name":"Lê Thị Ngọc Huyền","code":"242080","email":"huyenltn1@hasaki.vn","dept":"Quản lý đóng gói"},{"name":"Nguyễn Thị Hồng Ngọc","code":"242216","email":"ngocnth8@hasaki.vn","dept":"Đóng gói"},{"name":"Phan Viết Huấn","code":"262592","email":"huanpv1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Đỗ Nguyễn Hoàng Duy","code":"262614","email":"duydnh@hasaki.vn","dept":"Pick Pack OS"},{"name":"Phan Thị Thanh Huyền","code":"262639","email":"huyenptt@hasaki.vn","dept":"Tạp vụ"},{"name":"Nguyễn Tấn Trung","code":"262737","email":"trungnt6@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Gia Bảo","code":"262739","email":"baong2@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Hữu Hoàng Phúc","code":"262742","email":"phucnhh@hasaki.vn","dept":"Pick Pack OS"},{"name":"Đào Hải Dương","code":"262765","email":"duongdh@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Thị Mai Thi","code":"262779","email":"thiltm@hasaki.vn","dept":"Đóng gói"},{"name":"Đỗ Thị Tường Vy","code":"263071","email":"vydtt4@hasaki.vn","dept":"Đóng gói"},{"name":"Võ Quang Trung","code":"263196","email":"trungvq@hasaki.vn","dept":"Pick Pack OS"},{"name":"Phan Hữu Hoàng Huy","code":"263200","email":"huyphh@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Phạm Quốc Khánh","code":"263206","email":"khanhnpq@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Trần Công","code":"263475","email":"congnt1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Duy Bằng","code":"263479","email":"bangnd@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Thái Khang","code":"263484","email":"khangnt@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Ngọc Lan","code":"263487","email":"lannn@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Trung Thư","code":"262123","email":"thunt2@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Hoàng Ngọc Bích","code":"262131","email":"bichthn@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Thị Mai","code":"262154","email":"maitt3@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Thị Cẩm Hồng","code":"262169","email":"hongttc1@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Lê Ngân","code":"262338","email":"ngannl@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Văn Chí","code":"262341","email":"chinv@hasaki.vn","dept":"Pick Pack OS"},{"name":"Đặng Hoàng","code":"262366","email":"hoangd@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Công Vinh","code":"262400","email":"vinhlc@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Hoàng Trọng Phát","code":"261624","email":"phatht4@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Trần Anh Tuấn","code":"261813","email":"tuanta2@hasaki.vn","dept":"Pick Pack OS"},{"name":"Đặng Hoàng Phương Thy","code":"261960","email":"thydhp@hasaki.vn","dept":"Pick Pack OS"},{"name":"Nguyễn Trương Uyển Nhi","code":"263669","email":"nhintu2@hasaki.vn","dept":"Đóng gói"},{"name":"Lê Thị Thu Thủy","code":"263707","email":"thuyltt9@hasaki.vn","dept":"Tạp vụ"},{"name":"Nguyễn Tiến Đạt","code":"263764","email":"datnt7@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Tăng Huy","code":"263803","email":"huyt1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Trầm Hoàn Ca","code":"263804","email":"cath1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Xuân Phong","code":"263805","email":"phongnx1@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Trần Đức","code":"263839","email":"duclt2@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Phạm Công Danh","code":"263880","email":"danhpc@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Trương Ngọc Duy","code":"263914","email":"duytn1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Ngân Bảo Khánh","code":"232563","email":"khanhlnb@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Hồng Sơn","code":"232852","email":"sonlh@hasaki.vn","dept":"Hành chính kho"},{"name":"Nguyễn Thị Thúy Phượng","code":"232896","email":"phuongntt6@hasaki.vn","dept":"Nhân viên gia công VLĐG"},{"name":"Trần Phạm Việt Văn","code":"232927","email":"vantpv@hasaki.vn","dept":"Shipper ô tô"},{"name":"Huỳnh Thị Ngọc Điệp","code":"241243","email":"diephtn@hasaki.vn","dept":"Tạp vụ"},{"name":"Châu Ngọc Bảo Thy","code":"241418","email":"thycnb@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Thị Tuyết Nga","code":"241492","email":"ngantt8@hasaki.vn","dept":"Đóng gói"},{"name":"Đinh Ngọc Kiều Oanh","code":"241615","email":"oanhdnk@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Thanh Trung","code":"240451","email":"trunght2@hasaki.vn","dept":"Shipper ô tô"},{"name":"Đoàn Trọng Nhân","code":"240638","email":"nhandt@hasaki.vn","dept":"Shipper ô tô"},{"name":"Lâm Gia Mẫn","code":"241147","email":"manlg1@hasaki.vn","dept":"Vận hành Retail"},{"name":"Nguyễn Chí Hữu","code":"233038","email":"huunc@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lê Chí Tâm","code":"233135","email":"tamlc@hasaki.vn","dept":"Audit"},{"name":"Lê Ngọc Sang","code":"230204","email":"sangln@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Hà Trọng Thúc Bằng","code":"230442","email":"banghtt@hasaki.vn","dept":"Quản lý đóng gói"},{"name":"Trần Thế Nhật","code":"230918","email":"nhattt@hasaki.vn","dept":"Hành chính kho"},{"name":"Thạch Nghĩa","code":"232086","email":"nghiat@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Lâm Hoàng Duy","code":"261145","email":"duylh2@hasaki.vn","dept":"Shipper ô tô"},{"name":"Cao Võ Thanh Vy","code":"261320","email":"vycvt@hasaki.vn","dept":"Pick Pack OS"},{"name":"Lê Nguyễn Vân Quỳnh","code":"261566","email":"quynhlnv@hasaki.vn","dept":"Pick Pack OS"},{"name":"Trần Phạm Lý Hóa","code":"254127","email":"hoatpl@hasaki.vn","dept":"Shipper ô tô"},{"name":"Nguyễn Hoàng Tú Uyên","code":"254384","email":"uyennht@hasaki.vn","dept":"Đóng gói"},{"name":"Ma Nguyễn Thanh Vân","code":"254393","email":"vanmnt@hasaki.vn","dept":"Đóng gói"},{"name":"Đặng Trung Hậu","code":"260671","email":"haudt@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Văn Huynh","code":"261014","email":"huynhnv@hasaki.vn","dept":"Shipper ô tô"},{"name":"Picker","code":"253146","email":"picker57@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253147","email":"picker58@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253151","email":"picker60@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253153","email":"picker61@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253156","email":"picker62@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253158","email":"picker32@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253160","email":"picker64@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253161","email":"picker34@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253162","email":"picker65@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253164","email":"picker66@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253165","email":"picker36@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253166","email":"picker67@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253167","email":"picker37@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253170","email":"picker39@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253171","email":"picker40@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253173","email":"picker42@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253174","email":"picker43@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"253178","email":"picker47@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Võ Thị Kim Quyên","code":"253327","email":"quyenvtk1@hasaki.vn","dept":"Đóng gói"},{"name":"Đỗ Minh Hoan","code":"253397","email":"hoandm@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Trần Thị Phương","code":"252134","email":"phuongtt5@hasaki.vn","dept":"Đóng gói"},{"name":"Ngô Phương Vy","code":"252177","email":"vynp2@hasaki.vn","dept":"Đóng gói"},{"name":"Picker","code":"252181","email":"picker01@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252185","email":"picker11@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252188","email":"picker02@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252189","email":"picker13@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252191","email":"picker14@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252193","email":"picker15@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252194","email":"picker04@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252196","email":"picker05@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252198","email":"picker18@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252200","email":"picker19@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252202","email":"picker20@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252303","email":"picker22@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252305","email":"picker24@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Picker","code":"252306","email":"picker25@hasaki.vn","dept":"Vendor Outsourcing"},{"name":"Đoàn Lại Khánh Nguyên","code":"252324","email":"nguyendlk1@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Hoàng Tuấn","code":"252397","email":"tuannh3@hasaki.vn","dept":"Shipper ô tô"},{"name":"Trần Ngọc Hương Trà","code":"252481","email":"tratnh@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Ngọc Thúy Nga","code":"252529","email":"ngannt8@hasaki.vn","dept":"Đóng gói"},{"name":"Huỳnh Hữu Duy Trâm","code":"252540","email":"bv056177000344@hasaki.vn","dept":"Bảo vệ"},{"name":"Nguyễn Thị Hoàng Diệu","code":"252557","email":"pg079305030768@hasaki.vn","dept":"PG"},{"name":"Nguyễn Hoàng Minh Thám","code":"260077","email":"thamnhm@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Dương Thanh Phong","code":"260190","email":"phongdt@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Trần Ngọc Phúc ","code":"260377","email":"phuctn1@hasaki.vn","dept":"Shipper ô tô"},{"name":"Nguyễn Thị Kim Yến","code":"260394","email":"yenntk6@hasaki.vn","dept":"Đóng gói"},{"name":"Phạm Thị Kim Loan","code":"260535","email":"loanptk@hasaki.vn","dept":"Đóng gói"},{"name":"Nguyễn Đức Phan","code":"260549","email":"phannd@hasaki.vn","dept":"Shipper ô tô"},{"name":"Đào Minh Trí","code":"254008","email":"tridm1@hasaki.vn","dept":"Phát triển cửa hàng"},{"name":"Nguyễn Đức Huy","code":"254052","email":"huynd3@hasaki.vn","dept":"Shipper ô tô"}];
+
     function auditForm() {
       return {
         // ---- Trạng thái dữ liệu ----
-        form: { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' },
+        form: { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '', nhanVienViPham: '', nhanVienViPhamList: [] },
         hangDong: 3,        // số dòng ô Hiện trạng — nạp sẵn nhiều dòng thì nới ra để người dùng đọc hết trước khi gửi
         thuVienBC: [],      // ảnh báo cáo planogram của NGÀY (từ pop-up ô) — bộ chọn tick nhiều ảnh, thay cho chọn file máy
         nguoiBC: '', ngayBC: '',
@@ -460,6 +490,8 @@
         xemMedia: null,     // ảnh/clip đang xem phóng to (Mục 4)
         tuKhoa: '',         // từ khoá đang gõ ở mục 3
         moDropdown: false,
+        tuKhoaNV: '',       // từ khoá đang gõ ở mục 6
+        moDropdownNV: false,
         dangQuet: false,    // đang bật camera quét mã?
         keoVao: false,      // đang kéo file vào vùng thả?
         dangGui: false,
@@ -476,6 +508,35 @@
         MAX_VIDEO_MB: 100,  // > 100MB: chặn; 50-100MB: tự hạ 720p; <=50MB: giữ nguyên
         NGUONG_NEN_MB: 50,
         MAX_ANH_PX: 1800,   // 17/09/2026: 2560 → 1800 + nén 0,78 (mỗi ảnh ~500 KB xuống ~160 KB) để GỬI nhanh — chữ trên tem/nhãn vẫn đọc rõ
+
+        // ---- Mục 6: Lọc NV vi phạm (BẢO MẬT: CHỈ thả cuộn khi gõ từ khoá gần khớp) ----
+        danhSachLocNV() {
+          const k = (this.tuKhoaNV || '').toLowerCase().trim();
+          if (!k) return []; // Không gõ từ khoá -> KHÔNG hiện danh sách
+          return DANH_SACH_NV_170.filter(nv => {
+            const nm = (nv.name || '').toLowerCase();
+            const em = (nv.email || '').toLowerCase();
+            const cd = (nv.code || '').toLowerCase();
+            const dp = (nv.dept || '').toLowerCase();
+            return nm.includes(k) || em.includes(k) || cd.includes(k) || dp.includes(k);
+          });
+        },
+        chonNV(nv) {
+          if (!this.form.nhanVienViPhamList) this.form.nhanVienViPhamList = [];
+          const exists = this.form.nhanVienViPhamList.some(x => x.code === nv.code || x.email === nv.email);
+          if (!exists) {
+            this.form.nhanVienViPhamList.push({ name: nv.name, email: nv.email, code: nv.code, dept: nv.dept });
+          }
+          this.form.nhanVienViPham = this.form.nhanVienViPhamList.map(x => x.email || x.code).join(', ');
+          this.tuKhoaNV = '';
+          this.moDropdownNV = false;
+        },
+        xoaNV(idx) {
+          if (this.form.nhanVienViPhamList && this.form.nhanVienViPhamList[idx]) {
+            this.form.nhanVienViPhamList.splice(idx, 1);
+            this.form.nhanVienViPham = this.form.nhanVienViPhamList.map(x => x.email || x.code).join(', ');
+          }
+        },
 
         // ---- Alpine tự gọi khi khởi tạo: tải hạng mục mới nhất từ QUY-DINH ----
         init() { this.taiHangMuc(); this.ngheNapSan(); },
@@ -537,11 +598,16 @@
         napSan(du) {
           const hm = du.hangMuc ? this.khopHangMuc(du.hangMuc) : '';   // không có hạng mục xin nạp → để trống cho người chọn
           this._napSanHM = (du.hangMuc && !hm) ? String(du.hangMuc) : '';
+          // 22/09/2026 — NV vi phạm điền sẵn từ pop-up Planogram (ca "đi làm mà KHÔNG báo cáo ô này").
+          // Pop-up bản cũ không gửi trường này → danh sách rỗng, người dùng tự chọn như trước.
+          const dsNV = (Array.isArray(du.nvViPham) ? du.nvViPham : []).filter(x => x && (x.email || x.code));
           this.form = {
             hienTrang: String(du.hienTrang || ''),
             viTri: String(du.viTri || ''),
             maSanPham: String(du.maSanPham || ''),
-            hangMuc: hm
+            hangMuc: hm,
+            nhanVienViPhamList: dsNV.map(x => ({ name: x.name || x.email || x.code, email: x.email || '', code: x.code || '', dept: x.dept || '' })),
+            nhanVienViPham: dsNV.map(x => x.email || x.code).join(', ')
           };
           this.tuKhoa = ''; this.moDropdown = false;
           this.hangDong = Math.min(10, Math.max(3, this.form.hienTrang.split('\n').length + 1));
@@ -1070,12 +1136,17 @@
           const thoiGianViPham = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
                                  p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
 
+          // Chuẩn bị thông tin nhân viên vi phạm (gộp danh sách chọn + từ khoá nhập tay)
+          let nvVal = (this.form.nhanVienViPhamList || []).map(x => x.email || x.code).join(', ');
+          if (!nvVal && this.tuKhoaNV && this.tuKhoaNV.trim()) nvVal = this.tuKhoaNV.trim();
+
           // Gói dữ liệu gửi sang Google Apps Script
           const duLieu = {
             hienTrang: this.form.hienTrang.trim(),
             viTri: this.form.viTri.trim(),
             maSanPham: this.form.maSanPham.trim(),
             hangMuc: this.form.hangMuc.trim(),
+            nhanVienViPham: nvVal,
             thoiGianViPham: thoiGianViPham,
             // CHỈ gửi phần base64 THUẦN (cắt tiền tố data:...;base64,) — mime clip quay trực tiếp
             // có dấu phẩy (vd video/mp4;codecs=h264,aac) làm máy chủ split(',') giải mã sai chuỗi.
@@ -1109,8 +1180,8 @@
             if (ketQua.status === 'success') {
               this.thongBao = { loai: 'ok', noiDung: '✓ Gửi báo cáo thành công! Dữ liệu đã được lưu.' };
               // Reset form sau khi gửi
-              this.form = { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '' };
-              this.tuKhoa = ''; this.hangDong = 3; this._napSan = null; this._napSanHM = '';
+              this.form = { hienTrang: '', viTri: '', maSanPham: '', hangMuc: '', nhanVienViPham: '', nhanVienViPhamList: [] };
+              this.tuKhoa = ''; this.tuKhoaNV = ''; this.hangDong = 3; this._napSan = null; this._napSanHM = '';
               this.files = []; this._napSanFiles = []; this.thuVienBC = []; this.chonBC = {}; this.daThemBC = {};
             } else {
               throw new Error(ketQua.message || 'Lỗi không xác định từ máy chủ.');

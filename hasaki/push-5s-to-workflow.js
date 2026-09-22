@@ -205,8 +205,162 @@ async function createTask(token, row, type00) {
     body: fd,
   });
   let j = {}; try { j = JSON.parse(await res.text()); } catch {}
-  return { ok: res.status === 200 && (j.status === 1 || j.code === 200), code: (j.data && j.data.code) || "", raw: j, http: res.status };
+  return { ok: res.status === 200 && (j.status === 1 || j.code === 200), code: (j.data && j.data.code) || "", id: (j.data && j.data.id) || "", raw: j, http: res.status };
 }
+
+/* ------------------ 4b) Tra cứu NV & Tự động hoàn thành B1 ------------------ */
+const CACHE_DB = path.join(DIR, ".cache-danhba.json");
+const STAFF_API = "https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=10000&sort=staff_id";
+
+async function layDanhBa(token) {
+  try {
+    const c = JSON.parse(fs.readFileSync(CACHE_DB, "utf8"));
+    if (Date.now() - c.at < 12 * 3600 * 1000 && Array.isArray(c.data) && c.data.length) return c.data;
+  } catch {}
+  try {
+    const res = await fetch(STAFF_API, { headers: { authorization: token } });
+    const j = await res.json();
+    const data = j.data || j.rows || [];
+    if (data.length) try { fs.writeFileSync(CACHE_DB, JSON.stringify({ at: Date.now(), data })); } catch {}
+    return data;
+  } catch (e) {
+    try { return JSON.parse(fs.readFileSync(CACHE_DB, "utf8")).data || []; } catch {}
+    return [];
+  }
+}
+
+function timNhanVien(query, danhBa) {
+  if (!query || !danhBa || !danhBa.length) return null;
+  const q = String(query).trim().toLowerCase();
+  const qUser = q.includes("@") ? q.split("@")[0] : q;
+  return danhBa.find((s) => {
+    const email = String(s.staff_email || "").toLowerCase();
+    const emailUser = email.includes("@") ? email.split("@")[0] : email;
+    const code = String(s.code || "").toLowerCase();
+    const name = String(s.staff_name || "").toLowerCase();
+    const staffId = String(s.staff_id || "");
+    return email === q || emailUser === qUser || code === q || staffId === q || name === q;
+  }) || null;
+}
+
+/* ---- Hoàn thành bước B1 rồi để engine tự mở B1.1 (khuôn API đo thật 22/09/2026) ----------------
+ * BẮT ĐƯỢC TỪ WEB THẬT: ô cấu hình của MỘT BƯỚC ghi bằng FormData
+ *     POST mass-update-field-task-input  { id: <id bước>, field: "data", "value[configs][<KEY>]": <giá trị> }
+ * → server ghi vào `data.configs.<KEY>` VÀ tự sinh `data.logs.<KEY>` (ai sửa, lúc nào) y như thao tác tay.
+ * BẢN TRƯỚC (21/09) gửi JSON field "status" kèm khối "extra data / configs" — server trả 200 nhưng
+ * KHÔNG ghi gì: task HSK-16E66T6P chạy hôm 21/09 tới nay vẫn nằm ở B1 với data rỗng. Đừng quay lại khuôn đó.
+ * 3 bẫy đã đo:
+ *   · `field:"configs"` → SQL lỗi "Unknown column 'configs'" (chỉ có field "data").
+ *   · `value[<KEY>]` (không lồng `configs`) ghi vào data.<KEY> — web KHÔNG đọc chỗ đó, coi như mất.
+ *   · Nạp ảnh là CỘNG DỒN, không đè: phải xoá PIC02 trước rồi mới nạp, nếu không chạy lại là nhân đôi ảnh.
+ * Ô cần điền (đối chiếu phiếu người thật làm — HSK-XT2O04L0 ngày 19/09):
+ *   staff = mã NV vi phạm (nhiều người ngăn bằng dấu phẩy) · QLBP02 = tên quản lý trực tiếp · PIC02 = ảnh bằng chứng.
+ */
+const V_API = "https://wshr.hasaki.vn/api";
+const CDN_HR = "https://hr-media.hasaki.vn/production/hr/";
+
+async function ghiOBuoc(token, buocId, cap, files) {
+  const fd = new FormData();
+  fd.set("id", String(buocId));
+  fd.set("field", "data");
+  for (const [k, v] of Object.entries(cap || {})) fd.set(k, v);
+  for (const f of (files || [])) fd.append(f.field, new Blob([f.buf], { type: f.mime }), f.ten);
+  const r = await fetch(V_API + "/hr/projects/mass-update-field-task-input", {
+    method: "POST", body: fd,
+    headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" },
+    signal: AbortSignal.timeout(60000),
+  });
+  let j = null; try { j = JSON.parse(await r.text()); } catch { /* HTML lỗi */ }
+  return { ok: r.status === 200 && j && j.status === 1, http: r.status, j };
+}
+
+async function docTask(token, taskId) {
+  const r = await fetch(V_API + "/hr/projects/task-input/" + taskId, {
+    headers: { authorization: token, accept: "application/json" }, signal: AbortSignal.timeout(30000),
+  });
+  const j = await r.json();
+  return j && j.data;
+}
+
+/* Quản lý trực tiếp: Sub Leader → Leader → Supervisor/Manager cùng điểm làm việc. */
+function timQuanLy(nv, danhBa) {
+  let ten = nv.staff_dept || "Quản lý kho";
+  if (!nv.working_loc_id || !danhBa.length) return ten;
+  const cung = danhBa.filter((s) => s.working_loc_id === nv.working_loc_id);
+  let ql = cung.find((s) => s.position_id === 7 || /sub leader/i.test(s.staff_title));
+  if (!ql) ql = cung.find((s) => s.position_id === 5 || /leader/i.test(s.staff_title));
+  if (!ql) ql = cung.find((s) => s.position_id === 8 || s.position_id === 17 || /supervisor|manager/i.test(s.staff_title));
+  return (ql && ql.staff_name) ? ql.staff_name : ten;
+}
+
+async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
+  if (!taskId || !queryNV) return;
+
+  const nvQueries = String(queryNV).split(",").map((s) => s.trim()).filter(Boolean);
+  const danhSachNv = nvQueries.map((q) => timNhanVien(q, danhBa)).filter(Boolean);
+  if (!danhSachNv.length) {
+    log("    ⚠ Không tìm thấy NV vi phạm khớp với «" + queryNV + "» trong danh bạ — giữ nguyên ở B1.");
+    return;
+  }
+  const nv = danhSachNv[0];
+  const allCodes = danhSachNv.map((x) => String(x.code || x.staff_id)).join(",");
+  log("    ✓ Khớp " + danhSachNv.length + " NV vi phạm: " + danhSachNv.map((x) => x.staff_name + " (mã: " + x.code + ")").join(", "));
+
+  try {
+    const taskData = await docTask(token, taskId);
+    if (!taskData || !Array.isArray(taskData.subtasks)) { log("    ⚠ Không đọc được cây bước của task " + taskId); return; }
+    const b1 = taskData.subtasks.find((s) => String(s.workflow_step_id) === "7379" || /B1\./i.test(s.name || ""));
+    if (!b1) { log("    ⚠ Không tìm thấy bước B1 trong task " + taskId); return; }
+    if (b1.status === 2) { log("    ℹ B1 đã hoàn thành sẵn — bỏ qua."); return; }
+
+    const qltt = timQuanLy(nv, danhBa);
+
+    /* 1) Ảnh bằng chứng PIC02 = chính ảnh vi phạm đã nạp ở task cha (không tải lại từ Drive).
+          Xoá trước rồi nạp để chạy lại không nhân đôi. Ảnh lỗi thì BỎ QUA — không chặn việc đóng B1. */
+    const anh = (row.images || []).find((m) => !/^video\//i.test(m.mime || "image/jpeg"));
+    let nhanAnh = "không có ảnh";
+    if (anh && anh.base64) {
+      try {
+        await ghiOBuoc(token, b1.id, { "value[configs][PIC02]": "" });
+        const buf = Buffer.from(anh.base64, "base64");
+        let ten = anh.filename || "bang-chung.jpg";
+        if (!/\.[a-z0-9]{2,4}$/i.test(ten)) ten += ".jpg";
+        const rA = await ghiOBuoc(token, b1.id, {}, [{ field: "value[configs][PIC02][]", buf, mime: anh.mime || "image/jpeg", ten }]);
+        nhanAnh = rA.ok ? "đã nạp ảnh" : "nạp ảnh trượt (HTTP " + rA.http + ")";
+      } catch (e) { nhanAnh = "nạp ảnh lỗi: " + e.message; }
+    }
+
+    /* 2) NV vi phạm + Quản lý trực tiếp. */
+    const rCfg = await ghiOBuoc(token, b1.id, { "value[configs][staff]": allCodes, "value[configs][QLBP02]": qltt });
+    if (!rCfg.ok) { log("    ⚠ Ghi ô NV vi phạm/QLTT trượt (HTTP " + rCfg.http + ") — KHÔNG đóng B1 để không mất thông tin."); return; }
+
+    /* 3) Người thực hiện bước, rồi đóng bước (status 2 = Finished) → engine mở B1.1. */
+    const fdAs = new FormData();
+    fdAs.set("id", String(b1.id)); fdAs.set("field", "assign_staff"); fdAs.set("value", String(nv.staff_id));
+    await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdAs,
+      headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
+
+    const fdSt = new FormData();
+    fdSt.set("id", String(b1.id)); fdSt.set("field", "status"); fdSt.set("value", "2");
+    const rSt = await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdSt,
+      headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" }, signal: AbortSignal.timeout(30000) });
+    const tSt = await rSt.text();
+
+    /* 4) ĐỌC LẠI ĐỂ CHỐT — bài học 21/09: server trả 200 mà không đổi gì. Không thấy B1=2 thì báo TRƯỢT. */
+    const sau = await docTask(token, taskId);
+    const b1Sau = (sau && sau.subtasks || []).find((s) => String(s.id) === String(b1.id));
+    const b11 = (sau && sau.subtasks || []).find((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || ""));
+    if (b1Sau && b1Sau.status === 2) {
+      log("    🚀 ĐÓNG B1 XONG → " + (b11 ? "đã mở B1.1 cho " + nv.staff_name : "chờ engine mở B1.1") +
+          " · QLTT: " + qltt + " · " + nhanAnh);
+    } else {
+      log("    ⚠ B1 VẪN CHƯA ĐÓNG (status " + (b1Sau && b1Sau.status) + ", HTTP " + rSt.status + "): " + tSt.slice(0, 150));
+    }
+  } catch (err) {
+    log("    ⚠ Lỗi tự động hoàn thành B1: " + err.message);
+  }
+}
+
 
 /* ------------------------------- MAIN ------------------------------- */
 (async () => {
@@ -231,6 +385,8 @@ async function createTask(token, row, type00) {
   const options = await getType00Options(token);
   log("✓ Workflow có " + options.length + " lựa chọn 'Lỗi vi phạm'.");
 
+  const danhBa = await layDanhBa(token);
+
   const nghi = (ms) => new Promise((res) => setTimeout(res, ms));
   let ok = 0, skip = 0, fail = 0, daTao = 0;
   for (const row of rows) {
@@ -245,7 +401,33 @@ async function createTask(token, row, type00) {
     daTao++;
     try {
       const r = await createTask(token, row, type00);
-      if (r.ok) { ok++; log("  ✓ Hàng " + row.row + " → task " + r.code + " (ảnh:" + (row._soAnh||0) + " video:" + (row._soVideo||0) + ")"); await markDone(row.row, r.code); }
+      if (r.ok) {
+        ok++;
+        log("  ✓ Hàng " + row.row + " → task " + r.code + " (ảnh:" + (row._soAnh||0) + " video:" + (row._soVideo||0) + ")");
+        await markDone(row.row, r.code);
+
+        /* NV VI PHẠM — 2 nguồn, theo thứ tự tin cậy:
+           1) Ô "Nhân viên vi phạm" người dùng chọn ở form (cột 9 sheet WMS-5S-AUDIT; pop-up Planogram
+              điền sẵn ở ca "có đi làm mà KHÔNG báo cáo ô này").
+           2) Phiếu cũ chưa có ô đó → đọc lại dòng "Phụ trách:" của biên bản pop-up, mẫu chốt 17/09:
+              «Phụ trách: <Tên> (<mã>) -Có đi làm nhưng KHÔNG báo cáo vệ sinh ô này».
+           CHỈ nhận đúng câu tình trạng đó. Các ca còn lại (phụ trách nghỉ · người khác đã báo cáo · chưa
+           có dữ liệu chấm công · ô không có yêu cầu vệ sinh) KHÔNG có người chịu lỗi rõ ràng ⇒ để nguyên
+           ở B1 cho người xác minh quyết.
+           Luật cũ dò "Báo cáo gần nhất" + "đúng người trong bảng phân công" đã CHẾT từ 17/09: mẫu biên
+           bản mới không còn hai dòng đó, nên mọi phiếu từ pop-up đều nằm lại B1. */
+        let qNV = row.nhanVienViPham || row.nvViPham || "";
+        if (!String(qNV).trim()) {
+          const dongPT = String(row.hienTrang || "").split("\n").map((l) => l.trim())
+            .find((l) => /^Phụ trách:/i.test(l) && /KHÔNG báo cáo vệ sinh ô này/i.test(l));
+          const maPT = dongPT && dongPT.match(/\((\d{4,})\)/);
+          if (maPT) { qNV = maPT[1]; log("    (Tự suy) NV vi phạm lấy từ dòng Phụ trách: " + dongPT.slice(0, 80)); }
+        }
+
+        if (qNV && String(qNV).trim()) {
+          await tuDongHoanThanhB1(token, r.id || r.code, String(qNV).trim(), danhBa, log, row);
+        }
+      }
       else { fail++; log("  ✗ Hàng " + row.row + " thất bại (HTTP " + r.http + "): " + JSON.stringify(r.raw).slice(0, 200)); }
     } catch (e) { fail++; log("  ✗ Hàng " + row.row + " lỗi: " + e.message); }
   }

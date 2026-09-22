@@ -24,7 +24,8 @@ var KHONG_VI_PHAM_PREFIX = 'Không phát sinh vi phạm';
 var COL_MA_TASK = 6;
 var COL_TG_VI_PHAM = 7;
 var COL_MA_SP = 8;      // 03/09/2026: Mã sản phẩm (barcode/SKU quét ở form — không bắt buộc)
-var SO_COT = 8;
+var COL_NV_VP = 9;      // 22/09/2026: Nhân viên vi phạm (form chọn từ danh bạ) — mở đường tự đóng B1 → B1.1
+var SO_COT = 9;
 var MAX_PENDING = 25;
 var ALERT_EMAIL = 'th76tamle02@gmail.com';
 var ALERT_THROTTLE_GIO = 12;
@@ -381,12 +382,14 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pending') return keyBodyOK_(duLieu) ? apiPendingData_() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'anh') return keyBodyOK_(duLieu) ? apiAnhData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'mark') return keyBodyOK_(duLieu) ? apiMarkData_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'upsertPcLogin') return apiUpsertPcLogin(duLieu);
     if (duLieu && duLieu.action === 'alert') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); apiAlert({ parameter: { key: SECRET, msg: String(duLieu.msg || '') } }); return phanHoiJson({ status: 'success' }); }
     // 12/08/2026 — tầng tự chữa lành (google-script-TuChua.gs): sổ sự cố + thư cảnh báo + nhịp tim.
     if (duLieu && duLieu.action === 'suCo') return keyBodyOK_(duLieu) ? tcApiSuCo(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'heartbeat') return keyBodyOK_(duLieu) ? tcApiNhipTim(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && (duLieu.action === 'syncTasks')) { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiSyncTasks(duLieu); }
     if (duLieu && duLieu.action === 'purgeTab') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiPurgeTab(duLieu); }
+    if (duLieu && duLieu.action === 'ghiCot') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiGhiCot(duLieu); }
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
     // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu. BẮT BUỘC SECRET (trước đây public →
     // khách vô danh kích được GAS gọi WMS, "cho mượn" token nội bộ). Frontend hiện KHÔNG gọi (nút "Tải
@@ -483,7 +486,10 @@ function doPostGoc_(e) {
       duLieu.thoiGianViPham || '', // 7 Thời gian vi phạm
       // 8 Mã sản phẩm (không bắt buộc) — dấu nháy đơn ép Sheets giữ TEXT: barcode bắt đầu bằng 0
       // (EAN Bắc Mỹ) mà để Sheets tự hiểu là SỐ thì rụng số 0 đầu, tra hasaki.vn sẽ trượt.
-      duLieu.maSanPham ? ("'" + String(duLieu.maSanPham).trim()) : ''
+      duLieu.maSanPham ? ("'" + String(duLieu.maSanPham).trim()) : '',
+      // 9 Nhân viên vi phạm (email/mã NV, nhiều người ngăn bằng dấu phẩy) — bộ đẩy dùng để TỰ hoàn thành
+      // bước B1 rồi chuyển sang B1.1. Rỗng = giữ nguyên ở B1 cho người xác minh.
+      duLieu.nhanVienViPham || ''
     ]);
     return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
   } catch (err) {
@@ -576,7 +582,7 @@ function apiPendingData_() {
        9 dòng tồn (7 dòng 03/09 + 2 dòng 13/08) → phản hồi quá nặng → chặng 2 googleusercontent 404
        rồi rơi về trang doGet mặc định → bộ đẩy tưởng "0 báo cáo" → tồn càng dày càng chết hẳn.
        Nay pending chỉ trả METADATA + anhIds; bộ đẩy lấy ảnh TỪNG FILE qua action 'anh' bên dưới. */
-    rows.push({ row: rowIndex, ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), maSanPham: String(r[COL_MA_SP - 1] || '').trim(), anhIds: layIdAnh_(String(r[4] || '')) });
+    rows.push({ row: rowIndex, ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), maSanPham: String(r[COL_MA_SP - 1] || '').trim(), nhanVienViPham: String(r[COL_NV_VP - 1] || '').trim(), anhIds: layIdAnh_(String(r[4] || '')) });
   }
   return phanHoiJson({ status: 'success', rows: rows });
 }
@@ -816,6 +822,7 @@ function apiPending(e) {
       hangMuc: hangMuc,
       thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]),
       maSanPham: String(r[COL_MA_SP - 1] || '').trim(),
+      nhanVienViPham: String(r[COL_NV_VP - 1] || '').trim(),
       images: layAnhBase64(String(r[4] || ''))
     });
   }
@@ -897,6 +904,38 @@ function apiInfo(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   return phanHoiJson({ status: 'success', sheetId: ss.getId(), sheetUrl: ss.getUrl(), tabTasks: TEN_SHEET_TASKS });
+}
+
+/** Ghi ĐÚNG MỘT CỘT của một tab, KHÔNG chạm cột khác và KHÔNG clear tab (22/09/2026).
+ *  Sinh ra để cập nhật cột trạng thái trong những bảng nhiều định dạng (vd cột "KHAI BÁO PLANOGRAM"
+ *  của tab BAO-DUONG-170) — `syncTasks` không dùng được ở đó vì nó ghi đè cả tab.
+ *  Bắt buộc: tab · cot (1-based) · tuDong (≥2, chặn ghi lên hàng tiêu đề) · values[] (không rỗng).
+ *  Chỉ setValues nên định dạng/ô hợp nhất của cột giữ nguyên. Có LockService như đường ghi chính. */
+function apiGhiCot(duLieu) {
+  var tab = String(duLieu.tab || ''), cot = Number(duLieu.cot || 0), tuDong = Number(duLieu.tuDong || 0);
+  var values = duLieu.values || [];
+  if (!tab || !(cot >= 1) || !(tuDong >= 2) || !values.length)
+    return phanHoiJson({ status: 'error', message: 'Thiếu/sai tab, cot (≥1), tuDong (≥2) hoặc values rỗng.' });
+  var ss;
+  try { ss = duLieu.sheetId ? SpreadsheetApp.openById(String(duLieu.sheetId)) : SpreadsheetApp.getActiveSpreadsheet(); }
+  catch (eO) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet: ' + eO.message }); }
+  var sheet = ss.getSheetByName(tab);
+  if (!sheet) return phanHoiJson({ status: 'error', message: 'Không thấy tab ' + tab });
+  var lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(30000)) return phanHoiJson({ status: 'error', message: 'Sheet đang bận — thử lại sau.' });
+    var m = [];
+    for (var i = 0; i < values.length; i++) m.push([values[i] == null ? '' : String(values[i])]);
+    var can = tuDong + m.length - 1;
+    if (sheet.getMaxRows() < can) sheet.insertRowsAfter(sheet.getMaxRows(), can - sheet.getMaxRows());
+    sheet.getRange(tuDong, cot, m.length, 1).setValues(m);
+    SpreadsheetApp.flush();
+    return phanHoiJson({ status: 'success', tab: tab, cot: cot, tuDong: tuDong, soDong: m.length });
+  } catch (eG) {
+    return phanHoiJson({ status: 'error', message: eG.message });
+  } finally {
+    try { lock.releaseLock(); } catch (eL) { /* chưa giữ khoá thì thôi */ }
+  }
 }
 
 /** Ghi đè 1 tab bằng dữ liệu do bộ sync gửi lên (mặc định 5S-TASKS; có thể chỉ định tab khác, vd CHAM-CONG).
@@ -1693,7 +1732,7 @@ function layHoacTaoSheet() {
   var sheet = ss.getSheetByName(TEN_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(TEN_SHEET);
-    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow', 'Thời gian vi phạm', 'Mã sản phẩm']);
+    sheet.appendRow(['Ngày giờ ghi nhận', 'Hiện trạng (Ghi chú)', 'Vị trí (Mã vạch)', 'Hạng mục 5S', 'Chuỗi hình ảnh', 'Mã task workflow', 'Thời gian vi phạm', 'Mã sản phẩm', 'Nhân viên vi phạm']);
     sheet.getRange(1, 1, 1, SO_COT).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
     sheet.setFrozenRows(1);
     sheet.setColumnWidth(2, 280); sheet.setColumnWidth(4, 320); sheet.setColumnWidth(5, 320); sheet.setColumnWidth(6, 160); sheet.setColumnWidth(7, 170);
@@ -1709,6 +1748,13 @@ function layHoacTaoSheet() {
     if (!sheet.getRange(1, COL_MA_SP).getValue()) {
       sheet.getRange(1, COL_MA_SP).setValue('Mã sản phẩm').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
       sheet.setColumnWidth(8, 150);
+    }
+    // 22/09/2026 — cột 9 Nhân viên vi phạm. BẮT BUỘC nới khung cột TRƯỚC: getRange(...,SO_COT) trên sheet
+    // cũ chỉ có 8 cột sẽ NÉM LỖI, làm chết cả apiPending → bộ đẩy tưởng "0 báo cáo" (bẫy 0-giả 03/09).
+    if (sheet.getMaxColumns() < SO_COT) sheet.insertColumnsAfter(sheet.getMaxColumns(), SO_COT - sheet.getMaxColumns());
+    if (!sheet.getRange(1, COL_NV_VP).getValue()) {
+      sheet.getRange(1, COL_NV_VP).setValue('Nhân viên vi phạm').setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+      sheet.setColumnWidth(9, 220);
     }
   }
   return sheet;
@@ -2597,4 +2643,71 @@ function svGoiGemini_(b64, mime, khoa, chetCoSan, batDauTu) {
   }
   if (doiChet) { try { pp.setProperty(kChet, JSON.stringify(chet)); } catch (eS2) { /* best-effort */ } }
   return { status: 'error', message: 'Tất cả model AI miễn phí đều đang hết hạn mức (' + loiCuoi + ') — dashboard sẽ tự thử OCR của Google, hoặc gõ mã trên tem.' };
+}
+
+/* ---------- PC LOGIN AGENT (A8) ---------- */
+function apiUpsertPcLogin(duLieu) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('A8-PC-DANGNHAP');
+    if (!sheet) {
+      sheet = ss.insertSheet('A8-PC-DANGNHAP');
+      sheet.appendRow(['Hostname', 'IP', 'T�i kho?n WMS', 'T�n NV', 'User Windows', 'Th?i gian c?p nh?t']);
+      sheet.setFrozenRows(1);
+    }
+    
+    var hostname = String(duLieu.hostname || '').toUpperCase();
+    var sub = String(duLieu.wmsSub || '');
+    var ip = String(duLieu.ip || '');
+    var winUser = String(duLieu.winUser || '');
+    var timestamp = String(duLieu.timestamp || '');
+    
+    if (!hostname) return phanHoiJson({ status: 'error', message: 'Thieu hostname' });
+    
+    // 1. Tra danh ba tu sheet NHAN-SU de lay Ten NV
+    var tenNv = sub;
+    if (sub && PRIVATE_SHEET_ID) {
+       try {
+         var pss = SpreadsheetApp.openById(PRIVATE_SHEET_ID);
+         var pSheet = pss.getSheetByName('NHAN-SU');
+         if (pSheet) {
+           var data = pSheet.getDataRange().getValues();
+           var idxSub = data[0].indexOf('ID'); // hoac USER_ID
+           var idxTen = data[0].indexOf('NAME'); // hoac STAFF_NAME
+           if (idxSub > -1 && idxTen > -1) {
+             for (var i = 1; i < data.length; i++) {
+               if (String(data[i][idxSub]) === sub) {
+                 tenNv = String(data[i][idxTen]);
+                 break;
+               }
+             }
+           }
+         }
+       } catch(e) {}
+    }
+    
+    // 2. Tim xem hostname nay da co trong tab chua
+    var data = sheet.getDataRange().getValues();
+    var foundRow = -1;
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][0]).toUpperCase() === hostname) {
+        foundRow = r + 1; // index 1-based cua Spreadsheet
+        break;
+      }
+    }
+    
+    var rowData = [hostname, ip, sub, tenNv, winUser, timestamp];
+    
+    if (foundRow > -1) {
+      // Ghi de dong hien tai
+      sheet.getRange(foundRow, 1, 1, rowData.length).setValues([rowData]);
+    } else {
+      // Them dong moi
+      sheet.appendRow(rowData);
+    }
+    
+    return phanHoiJson({ status: 'success' });
+  } catch(e) {
+    return phanHoiJson({ status: 'error', message: e.toString() });
+  }
 }
