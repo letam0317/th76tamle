@@ -142,6 +142,12 @@ try {
     /b1Sau && b1Sau\.status === 2/.test(pushCode) && /B1 VẪN CHƯA ĐÓNG/.test(pushCode));
   check("Luật NV vi phạm khớp mẫu biên bản 17/09 (bỏ luật 'Báo cáo gần nhất' đã chết)",
     /KHÔNG báo cáo vệ sinh ô này/.test(pushCode) && !/Báo cáo gần nhất\/i/.test(pushCode));
+  /* 22/09 — đo trên 3 phiếu người thật: B1 luôn đứng tên NGƯỜI XÁC MINH. Bản thử gán B1 sang NV vi
+     phạm thì engine mở B1.1 và giao cho QUẢN LÝ của họ — sai người phải xác nhận lỗi. */
+  check("KHÔNG gán lại người thực hiện bước B1", !/fdAs/.test(pushCode));
+  check("CHỐT người ở B1.1 = NV vi phạm (không tin engine tự giao đúng)",
+    /fdG\.set\("id", String\(b11\.id\)\)/.test(pushCode) && /B1\.1 đang ở tay/.test(pushCode));
+  check("QLTT lấy từ sổ tra, không đoán thẳng", /timQLTT\(nv, danhBa, SO_QLTT\)/.test(pushCode) && !/function timQuanLy/.test(pushCode));
 } catch (e) {
   check("Lỗi kiểm thử push-5s-to-workflow.js", false, e.message);
 }
@@ -174,6 +180,30 @@ try {
   check("napSan dựng cả chip list lẫn chuỗi gửi đi", /nhanVienViPhamList: dsNV\.map/.test(fm) && /nhanVienViPham: dsNV\.map/.test(fm));
 } catch (e) {
   check("Lỗi kiểm thử pop-up Planogram", false, e.message);
+}
+
+// 6. QC SỔ TRA QUẢN LÝ TRỰC TIẾP (qltt.js) — ô QLBP02 ghi sai tên là lỗi nghiệp vụ thật.
+console.log("\n6️⃣ QC SỔ TRA QUẢN LÝ TRỰC TIẾP (qltt.js)");
+try {
+  const { docSoQLTT, timQLTT } = await import("./qltt.js");
+  const so = docSoQLTT(DIR);
+  check("Dựng được sổ từ phiếu đã đóng B1", so.size > 0, so.size + " mã NV");
+  check("Ca đã đo: 251726 → Lê Thị Ngọc Huyền (4 phiếu người thật điền)",
+    so.get("251726") && so.get("251726").ten === "Lê Thị Ngọc Huyền",
+    so.get("251726") ? so.get("251726").ten : "(không có trong sổ)");
+  const db = JSON.parse(fs.readFileSync(path.join(DIR, ".cache-danhba.json"), "utf8")).data || [];
+  const nvTest = db.find((x) => String(x.code) === "251726");
+  if (nvTest) {
+    const q = timQLTT(nvTest, db, so);
+    check("timQLTT ưu tiên sổ (nguồn = 'sổ') chứ không đoán", q.nguon === "sổ", q.nguon + " → " + q.ten);
+  }
+  const la = timQLTT({ code: "000000", staff_id: 0, staff_dept: "" }, db, so);
+  check("Mã lạ thì rơi về đoán và NÓI RÕ là đoán", la.nguon === "đoán", la.nguon);
+  const src = fs.readFileSync(path.join(DIR, "qltt.js"), "utf8");
+  check("Ghi lại vì sao HR + chat không dùng được (đừng tìm lại)",
+    /direct_manager_id/.test(src) && /chat\.hasaki\.vn/.test(src));
+} catch (e) {
+  check("Lỗi kiểm thử qltt.js", false, e.message);
 }
 
 console.log("\n==================================================================");

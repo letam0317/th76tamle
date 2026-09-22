@@ -17,6 +17,7 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
+import { docSoQLTT, timQLTT } from "./qltt.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { gasPost } from "./session-rules.js";
 import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
@@ -281,17 +282,9 @@ async function docTask(token, taskId) {
   const j = await r.json();
   return j && j.data;
 }
-
-/* Quản lý trực tiếp: Sub Leader → Leader → Supervisor/Manager cùng điểm làm việc. */
-function timQuanLy(nv, danhBa) {
-  let ten = nv.staff_dept || "Quản lý kho";
-  if (!nv.working_loc_id || !danhBa.length) return ten;
-  const cung = danhBa.filter((s) => s.working_loc_id === nv.working_loc_id);
-  let ql = cung.find((s) => s.position_id === 7 || /sub leader/i.test(s.staff_title));
-  if (!ql) ql = cung.find((s) => s.position_id === 5 || /leader/i.test(s.staff_title));
-  if (!ql) ql = cung.find((s) => s.position_id === 8 || s.position_id === 17 || /supervisor|manager/i.test(s.staff_title));
-  return (ql && ql.staff_name) ? ql.staff_name : ten;
-}
+/* Quản lý trực tiếp (ô QLBP02): ƯU TIÊN sổ tra dựng từ phiếu NGƯỜI đã điền, chỉ đoán khi sổ chưa
+   có mã đó — xem đầu qltt.js để biết vì sao không tin được cách đoán và vì sao HR/chat không dùng được. */
+const SO_QLTT = docSoQLTT(DIR);
 
 async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
   if (!taskId || !queryNV) return;
@@ -313,7 +306,9 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     if (!b1) { log("    ⚠ Không tìm thấy bước B1 trong task " + taskId); return; }
     if (b1.status === 2) { log("    ℹ B1 đã hoàn thành sẵn — bỏ qua."); return; }
 
-    const qltt = timQuanLy(nv, danhBa);
+    const q = timQLTT(nv, danhBa, SO_QLTT);
+    const qltt = q.ten;
+    log("    · QLTT: " + qltt + " (" + q.nguon + " — " + q.ghiChu + ")");
 
     /* 1) Ảnh bằng chứng PIC02 = chính ảnh vi phạm đã nạp ở task cha (không tải lại từ Drive).
           Xoá trước rồi nạp để chạy lại không nhân đôi. Ảnh lỗi thì BỎ QUA — không chặn việc đóng B1. */
@@ -334,12 +329,10 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     const rCfg = await ghiOBuoc(token, b1.id, { "value[configs][staff]": allCodes, "value[configs][QLBP02]": qltt });
     if (!rCfg.ok) { log("    ⚠ Ghi ô NV vi phạm/QLTT trượt (HTTP " + rCfg.http + ") — KHÔNG đóng B1 để không mất thông tin."); return; }
 
-    /* 3) Người thực hiện bước, rồi đóng bước (status 2 = Finished) → engine mở B1.1. */
-    const fdAs = new FormData();
-    fdAs.set("id", String(b1.id)); fdAs.set("field", "assign_staff"); fdAs.set("value", String(nv.staff_id));
-    await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdAs,
-      headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
-
+    /* 3) ĐÓNG bước (status 2) → engine mở B1.1.
+       KHÔNG gán lại assign_staff của B1: B1 "Xác minh lỗi vi phạm" là việc của NGƯỜI XÁC MINH
+       (đo 3 phiếu người thật làm: B1 luôn đứng tên Lâm Thanh Tú). Bản thử 22/09 gán B1 sang NV vi
+       phạm thì engine mở B1.1 và giao cho QUẢN LÝ của người đó — sai người phải xác nhận lỗi. */
     const fdSt = new FormData();
     fdSt.set("id", String(b1.id)); fdSt.set("field", "status"); fdSt.set("value", "2");
     const rSt = await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdSt,
@@ -350,9 +343,29 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     const sau = await docTask(token, taskId);
     const b1Sau = (sau && sau.subtasks || []).find((s) => String(s.id) === String(b1.id));
     const b11 = (sau && sau.subtasks || []).find((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || ""));
+
+    /* 5) CHỐT NGƯỜI Ở B1.1. Bước này là "Nhân viên xác nhận lỗi vi phạm" nên PHẢI đứng tên chính
+       NV vi phạm. Không tin engine tự giao đúng: lần thử 22/09 nó giao sang quản lý. Đọc xem ai
+       đang cầm, thiếu người nào thì giao lại cho đủ, rồi đọc lần nữa để báo tên thật. */
+    let aiB11 = "";
+    if (b11) {
+      const dangCam = (b11.staff || []).map((x) => String(x.info && x.info.code || "")).filter(Boolean);
+      const canCo = danhSachNv.map((x) => String(x.code || x.staff_id));
+      if (canCo.some((c) => !dangCam.includes(c))) {
+        const fdG = new FormData();
+        fdG.set("id", String(b11.id)); fdG.set("field", "assign_staff");
+        fdG.set("value", danhSachNv.map((x) => String(x.staff_id)).join(","));
+        await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdG,
+          headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
+      }
+      const lai = await docTask(token, taskId);
+      const b11b = (lai && lai.subtasks || []).find((s) => String(s.id) === String(b11.id));
+      aiB11 = ((b11b && b11b.staff) || []).map((x) => x.info && x.info.staff_name).filter(Boolean).join(", ");
+    }
+
     if (b1Sau && b1Sau.status === 2) {
-      log("    🚀 ĐÓNG B1 XONG → " + (b11 ? "đã mở B1.1 cho " + nv.staff_name : "chờ engine mở B1.1") +
-          " · QLTT: " + qltt + " · " + nhanAnh);
+      log("    🚀 ĐÓNG B1 XONG → " + (b11 ? "B1.1 đang ở tay: " + (aiB11 || "(chưa ai)") : "chờ engine mở B1.1") +
+          " · QLTT: " + qltt + " (" + q.nguon + ") · " + nhanAnh);
     } else {
       log("    ⚠ B1 VẪN CHƯA ĐÓNG (status " + (b1Sau && b1Sau.status) + ", HTTP " + rSt.status + "): " + tSt.slice(0, 150));
     }
