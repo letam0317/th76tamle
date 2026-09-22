@@ -1,143 +1,115 @@
+/**
+ * auto-complete-single-task.mjs — ĐÓNG TAY bước B1 của MỘT task 5S rồi để engine mở B1.1.
+ * ============================================================================================
+ *  Dùng khi phiếu đã tạo từ trước (lúc đó chưa có ô "Nhân viên vi phạm") mà nay đã biết ai vi phạm.
+ *  Luồng thường ngày KHÔNG cần file này — push-5s-to-workflow.js tự làm khi đẩy phiếu mới.
+ *
+ *  KHUÔN API là bản đã ĐO THẬT 22/09/2026 — giữ GIỐNG push-5s-to-workflow.js, đừng để lệch:
+ *    POST mass-update-field-task-input (FormData) {id, field:"data", "value[configs][<KEY>]": …}
+ *      → ghi data.configs.<KEY> + tự sinh data.logs.<KEY> y như thao tác tay trên web.
+ *    rồi {id, field:"status", value:"2"} để đóng bước.
+ *  Bẫy: khuôn JSON extra_data (bản 21/09) trả 200 mà KHÔNG ghi gì — đã làm task HSK-16E66T6P
+ *  đứng im ở B1 suốt một ngày mà không ai biết. Vì vậy script LUÔN đọc lại để chốt.
+ *
+ *  Chạy:
+ *    node auto-complete-single-task.mjs --task=13829903 --nv=trinhhtm3@hasaki.vn        # diễn tập
+ *    node auto-complete-single-task.mjs --task=13829903 --nv=trinhhtm3@hasaki.vn --lam  # làm thật
+ *    (--nv nhận email / mã NV / tên; nhiều người ngăn bằng dấu phẩy)
+ */
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { layTokenSongWork } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
+const V = "https://wshr.hasaki.vn/api";
 const CACHE_DB = path.join(DIR, ".cache-nv170.json");
-const STAFF_API = "https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=10000&sort=staff_id";
+const STAFF_API = V + "/news/staff/search-for-dropdown?limit=10000&sort=staff_id";
+const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
+
+const doc = (ten) => { const a = process.argv.find((x) => x.startsWith("--" + ten + "=")); return a ? a.split("=").slice(1).join("=") : ""; };
+const TASK = doc("task");
+const QUERY_NV = doc("nv");
+const LAM = process.argv.includes("--lam");          // mặc định DIỄN TẬP — không ghi gì
 
 async function layDanhBa(token) {
   try {
     const c = JSON.parse(fs.readFileSync(CACHE_DB, "utf8"));
     if (Date.now() - c.at < 12 * 3600 * 1000 && Array.isArray(c.data) && c.data.length) return c.data;
-  } catch {}
+  } catch { /* chưa có cache */ }
   try {
     const res = await fetch(STAFF_API, { headers: { authorization: token } });
     const j = await res.json();
     const data = j.data || j.rows || [];
-    if (data.length) try { fs.writeFileSync(CACHE_DB, JSON.stringify({ at: Date.now(), data })); } catch {}
+    if (data.length) try { fs.writeFileSync(CACHE_DB, JSON.stringify({ at: Date.now(), data })); } catch { /* best-effort */ }
     return data;
-  } catch (e) {
-    try { return JSON.parse(fs.readFileSync(CACHE_DB, "utf8")).data || []; } catch {}
-    return [];
+  } catch {
+    try { return JSON.parse(fs.readFileSync(CACHE_DB, "utf8")).data || []; } catch { return []; }
   }
 }
 
-function timNhanVien(query, danhBa) {
-  if (!query || !danhBa || !danhBa.length) return null;
-  const q = String(query).trim().toLowerCase();
-  const qUser = q.includes("@") ? q.split("@")[0] : q;
-  return danhBa.find((s) => {
-    const email = String(s.staff_email || "").toLowerCase();
-    const emailUser = email.includes("@") ? email.split("@")[0] : email;
-    const code = String(s.code || "").toLowerCase();
-    const name = String(s.staff_name || "").toLowerCase();
-    const staffId = String(s.staff_id || "");
-    return email === q || emailUser === qUser || code === q || staffId === q || name === q;
+function timNhanVien(q, db) {
+  if (!q || !db.length) return null;
+  const s = String(q).trim().toLowerCase(), user = s.includes("@") ? s.split("@")[0] : s;
+  return db.find((x) => {
+    const em = String(x.staff_email || "").toLowerCase();
+    return em === s || (em.includes("@") ? em.split("@")[0] : em) === user ||
+      String(x.code || "").toLowerCase() === s || String(x.staff_id || "") === s ||
+      String(x.staff_name || "").toLowerCase() === s;
   }) || null;
 }
 
-async function run() {
-  console.log("==================================================================");
-  console.log("🚀 KÍCH HOẠT TỰ ĐỘNG HOÀN THÀNH BƯỚC B1 CHO TASK HSK-16E66T6P (13829903)");
-  console.log("==================================================================\n");
-
-  const token = await layTokenSongWork(DIR, log);
-  if (!token) {
-    console.log("✗ Không lấy được token work.hasaki.vn.");
-    return;
-  }
-
-  const danhBa = await layDanhBa(token);
-  log(`✓ Danh bạ nhân viên: ${danhBa.length} nhân sự.`);
-
-  const taskId = "13829903"; // Task #HSK-16E66T6P
-  const queryNV = "trinhhtm3@hasaki.vn"; // Huỳnh Thị Mỹ Trinh (251726)
-
-  const nvQueries = String(queryNV).split(',').map(s => s.trim()).filter(Boolean);
-  const danhSachNv = nvQueries.map(q => timNhanVien(q, danhBa)).filter(Boolean);
-
-  if (!danhSachNv.length) {
-    log("✗ Không tìm thấy NV vi phạm trong danh bạ.");
-    return;
-  }
-
-  const nv = danhSachNv[0];
-  const allCodes = danhSachNv.map(x => String(x.code || x.staff_id)).join(',');
-  log(`✓ Tìm thấy Nhân viên vi phạm: ${nv.staff_name} | Mã: ${nv.code || nv.staff_id} | Email: ${nv.staff_email}`);
-
-  // 1. Đọc chi tiết subtasks
-  const resDetail = await fetch("https://wshr.hasaki.vn/api/hr/projects/task-input/" + taskId, {
-    headers: { authorization: token, accept: "application/json" },
-  });
-  const jDetail = await resDetail.json();
-  const taskData = jDetail && jDetail.data;
-
-  if (!taskData || !Array.isArray(taskData.subtasks)) {
-    log("✗ Không lấy được chi tiết subtasks của task " + taskId);
-    return;
-  }
-
-  const subtaskB1 = taskData.subtasks.find((s) => String(s.workflow_step_id) === "7379" || /B1\./i.test(s.name || ""));
-  if (!subtaskB1) {
-    log("✗ Không tìm thấy subtask B1 trong task " + taskId);
-    return;
-  }
-
-  log(`✓ Tìm thấy Subtask B1 (ID: ${subtaskB1.id}, Trạng thái hiện tại: ${subtaskB1.status})`);
-
-  // Tìm quản lý trực tiếp
-  let qlttName = nv.staff_dept || "Quản lý kho";
-  if (nv.working_loc_id && danhBa.length) {
-    const locId = nv.working_loc_id;
-    const cungDiem = danhBa.filter(s => s.working_loc_id === locId);
-    let ql = cungDiem.find(s => s.position_id === 7 || /sub leader/i.test(s.staff_title));
-    if (!ql) ql = cungDiem.find(s => s.position_id === 5 || /leader/i.test(s.staff_title));
-    if (!ql) ql = cungDiem.find(s => s.position_id === 8 || s.position_id === 17 || /supervisor|manager/i.test(s.staff_title));
-    if (ql && ql.staff_name) qlttName = ql.staff_name;
-  }
-  log(`✓ Quản lý trực tiếp suy đoán: ${qlttName}`);
-
-  // Gán NV vi phạm và Hoàn thành B1 (Status 2)
-  const bodyStatus = {
-    id: subtaskB1.id,
-    field: "status",
-    value: 2,
-    extra_data: {
-      configs: {
-        staff: allCodes,
-        NVVP02: String(nv.code || nv.staff_id),
-        QLBP02: qlttName
-      }
-    }
-  };
-
-  const resStatus = await fetch("https://wshr.hasaki.vn/api/hr/projects/mass-update-field-task-input", {
-    method: "POST",
-    headers: { authorization: token, accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify(bodyStatus),
-  });
-  const jStatus = await resStatus.json().catch(() => ({}));
-
-  // Gán NV xử lý subtask B1 (Assign staff)
-  await fetch("https://wshr.hasaki.vn/api/hr/projects/mass-update-field-task-input", {
-    method: "POST",
-    headers: { authorization: token, accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({ id: subtaskB1.id, field: "assign_staff", value: nv.staff_id }),
-  }).catch(() => {});
-
-  if (resStatus.ok && (jStatus.status === 1 || jStatus.data !== false)) {
-    log("==================================================================");
-    log(`🎉 THÀNH CÔNG! ĐÃ TỰ ĐỘNG HOÀN THÀNH BƯỚC B1 CHO TASK #${taskData.code || taskId}`);
-    log(`👉 Đã gán NV vi phạm: ${nv.staff_name} (${nv.code || nv.staff_id})`);
-    log(`👉 Đã gán Quản lý trực tiếp: ${qlttName}`);
-    log(`👉 Trạng thái B1: Hoàn thành (Status = 2) → Task tự động chuyển sang B1.1 (NV xác nhận)`);
-    log("==================================================================");
-  } else {
-    log("✗ Cập nhật thất bại: " + JSON.stringify(jStatus));
-  }
+function timQuanLy(nv, db) {
+  let ten = nv.staff_dept || "Quản lý kho";
+  if (!nv.working_loc_id || !db.length) return ten;
+  const cung = db.filter((s) => s.working_loc_id === nv.working_loc_id);
+  let ql = cung.find((s) => s.position_id === 7 || /sub leader/i.test(s.staff_title));
+  if (!ql) ql = cung.find((s) => s.position_id === 5 || /leader/i.test(s.staff_title));
+  if (!ql) ql = cung.find((s) => s.position_id === 8 || s.position_id === 17 || /supervisor|manager/i.test(s.staff_title));
+  return (ql && ql.staff_name) ? ql.staff_name : ten;
 }
 
-run();
+async function ghi(token, id, field, cap) {
+  const fd = new FormData();
+  fd.set("id", String(id)); fd.set("field", field);
+  for (const [k, v] of Object.entries(cap)) fd.set(k, v);
+  const r = await fetch(V + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fd,
+    headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" }, signal: AbortSignal.timeout(30000) });
+  return { http: r.status, t: await r.text() };
+}
+const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-input/" + id,
+  { headers: { authorization: token, accept: "application/json" } })).json()).data;
+
+(async () => {
+  if (!TASK || !QUERY_NV) { console.log("Thiếu tham số. Ví dụ:\n  node auto-complete-single-task.mjs --task=13829903 --nv=trinhhtm3@hasaki.vn --lam"); process.exit(1); }
+  const token = await layTokenSongWork(DIR, log);
+  if (!token) { log("✗ Không lấy được token work.hasaki.vn."); process.exit(2); }
+
+  const db = await layDanhBa(token);
+  const ds = QUERY_NV.split(",").map((s) => s.trim()).filter(Boolean).map((q) => timNhanVien(q, db)).filter(Boolean);
+  if (!ds.length) { log("✗ Không tìm thấy NV nào khớp «" + QUERY_NV + "» trong danh bạ " + db.length + " người."); process.exit(3); }
+  const nv = ds[0], codes = ds.map((x) => String(x.code || x.staff_id)).join(",");
+  const qltt = timQuanLy(nv, db);
+
+  const d = await docTask(token, TASK);
+  if (!d || !Array.isArray(d.subtasks)) { log("✗ Không đọc được task " + TASK); process.exit(4); }
+  const b1 = d.subtasks.find((s) => String(s.workflow_step_id) === "7379" || /B1\./i.test(s.name || ""));
+  if (!b1) { log("✗ Task " + d.code + " không có bước B1."); process.exit(5); }
+
+  log("Task " + d.code + " (" + TASK + ") · B1 id " + b1.id + " · status hiện tại " + b1.status);
+  log("  NV vi phạm : " + ds.map((x) => x.staff_name + " (" + x.code + ")").join(", "));
+  log("  QLTT (đoán): " + qltt);
+  if (b1.status === 2) { log("ℹ B1 đã đóng sẵn — không làm gì."); return; }
+  if (!LAM) { log("— DIỄN TẬP, chưa ghi gì. Thêm --lam để làm thật."); return; }
+
+  const r1 = await ghi(token, b1.id, "data", { "value[configs][staff]": codes, "value[configs][QLBP02]": qltt });
+  if (r1.http !== 200) { log("✗ Ghi NV vi phạm/QLTT trượt (HTTP " + r1.http + ") — dừng, KHÔNG đóng B1."); process.exit(6); }
+  await ghi(token, b1.id, "assign_staff", { value: String(nv.staff_id) }).catch(() => {});
+  const r2 = await ghi(token, b1.id, "status", { value: "2" });
+
+  const sau = await docTask(token, TASK);
+  const b1Sau = sau.subtasks.find((s) => String(s.id) === String(b1.id));
+  const b11 = sau.subtasks.find((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || ""));
+  if (b1Sau && b1Sau.status === 2) log("🚀 ĐÓNG B1 XONG → " + (b11 ? "B1.1 đã mở (" + b11.name + ")" : "chờ engine mở B1.1"));
+  else log("✗ B1 VẪN CHƯA ĐÓNG (status " + (b1Sau && b1Sau.status) + ", HTTP " + r2.http + "): " + r2.t.slice(0, 200));
+})();
