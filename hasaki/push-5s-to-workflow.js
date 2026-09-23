@@ -17,7 +17,7 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
-import { docSoQLTT, timQLTT } from "./qltt.js";
+import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { gasPost } from "./session-rules.js";
 import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
@@ -306,7 +306,7 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     if (!b1) { log("    ⚠ Không tìm thấy bước B1 trong task " + taskId); return; }
     if (b1.status === 2) { log("    ℹ B1 đã hoàn thành sẵn — bỏ qua."); return; }
 
-    const q = timQLTT(nv, danhBa, SO_QLTT);
+    const q = chonQLTTCanBang(nv, danhBa, SO_QLTT, DIR, false);   // peek: chưa cộng lượt
     const qltt = q.ten;
     log("    · QLTT: " + qltt + " (" + q.nguon + " — " + q.ghiChu + ")");
 
@@ -364,6 +364,7 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     }
 
     if (b1Sau && b1Sau.status === 2) {
+      if (q.pool && q.pool.length > 1) ghiLuot(DIR, qltt);   // chỉ cộng lượt khi B1 đã đóng THẬT (chia đều 0,2%)
       log("    🚀 ĐÓNG B1 XONG → " + (b11 ? "B1.1 đang ở tay: " + (aiB11 || "(chưa ai)") : "chờ engine mở B1.1") +
           " · QLTT: " + qltt + " (" + q.nguon + ") · " + nhanAnh);
     } else {
