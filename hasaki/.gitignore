@@ -55,7 +55,6 @@ ui_*.png
 .task-baocao-tay.json          # bao cao tay cho nhom B task hang ngay (noi dung cong viec that)
 # Cache danh bạ wshr — CÓ PII, tuyệt đối không commit
 .cache-danhba.json
-.cache-qltt-luot.json
 # Lịch sử báo cáo vệ sinh 60 ngày (sync-vesinh-all) — CÓ PII (email/tên NV), không commit
 .lichsu-vesinh.json
 # Chấm công theo ngày 60 ngày (sync-vesinh-all) — CÓ PII, không commit
@@ -95,9 +94,3 @@ kiemsoatkho/summary/
 
 # Pilot theo doi dang nhap PC (pc-login-agent) - CO PII (tai khoan/may), khong commit
 .pc-login-agent-last.json
-
-# Cò canh planogram — ảnh chụp/mốc/nhật ký, không đẩy lên repo PUBLIC
-.co-canh-*.json
-.co-canh-bam
-.co-canh.lock
-co-canh-planogram.log

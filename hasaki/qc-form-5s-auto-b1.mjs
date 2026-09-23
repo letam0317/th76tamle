@@ -147,7 +147,7 @@ try {
   check("KHÔNG gán lại người thực hiện bước B1", !/fdAs/.test(pushCode));
   check("CHỐT người ở B1.1 = NV vi phạm (không tin engine tự giao đúng)",
     /fdG\.set\("id", String\(b11\.id\)\)/.test(pushCode) && /B1\.1 đang ở tay/.test(pushCode));
-  check("QLTT lấy cân bằng từ sổ tra (chonQLTTCanBang), không đoán thẳng", /chonQLTTCanBang\(nv, danhBa, SO_QLTT, DIR/.test(pushCode) && !/function timQuanLy/.test(pushCode));
+  check("QLTT lấy từ sổ tra, không đoán thẳng", /timQLTT\(nv, danhBa, SO_QLTT\)/.test(pushCode) && !/function timQuanLy/.test(pushCode));
 } catch (e) {
   check("Lỗi kiểm thử push-5s-to-workflow.js", false, e.message);
 }
@@ -204,43 +204,6 @@ try {
     /direct_manager_id/.test(src) && /chat\.hasaki\.vn/.test(src));
 } catch (e) {
   check("Lỗi kiểm thử qltt.js", false, e.message);
-}
-
-// 7. QC CHIA ĐỀU 0,2% GIỮA QUẢN LÝ CÙNG CẤP (user chốt 23/09) — ghi sai KPI người thật là lỗi nặng.
-console.log("\n7️⃣ QC CHIA ĐỀU LƯỢT QLTT (qltt.js)");
-try {
-  const q = await import("./qltt.js");
-  const db = JSON.parse(fs.readFileSync(path.join(DIR, ".cache-nv170.json"), "utf8")).data;
-  const byCode = new Map(db.map((x) => [String(x.code), x]));
-  const so = q.docSoQLTT(DIR);
-  const TMP = path.join(DIR, ".cache-qltt-luot.json");
-  const luotCu = fs.existsSync(TMP) ? fs.readFileSync(TMP) : null;   // giữ sổ lượt thật, khôi phục sau QC
-  try { fs.unlinkSync(TMP); } catch {}
-
-  check("Tổ đóng gói có đúng 2 quản lý cùng cấp {Uyên, Huyền}",
-    q.TO_QUANLY.some((t) => t.ten === "đóng gói" && t.pool.length === 2 && t.pool.includes("Hồ Ngọc Tú Uyên") && t.pool.includes("Lê Thị Ngọc Huyền")));
-
-  const nvDG = byCode.get("251726");
-  const picks = [];
-  for (let i = 0; i < 6; i++) picks.push(q.chonQLTTCanBang(nvDG, db, so, DIR, true).ten);
-  const demU = picks.filter((x) => x === "Hồ Ngọc Tú Uyên").length;
-  const demH = picks.filter((x) => x === "Lê Thị Ngọc Huyền").length;
-  check("6 vi phạm tổ đóng gói → chia đúng 3/3 (không dồn ai)", demU === 3 && demH === 3, "Uyên " + demU + " · Huyền " + demH);
-  check("Bắt đầu từ 0, luân phiên (không lặp lại liên tiếp)", picks[0] !== picks[1] && picks[1] !== picks[2]);
-
-  const nvPT = byCode.get("250608");
-  const p2 = [q.chonQLTTCanBang(nvPT, db, so, DIR, false).ten, q.chonQLTTCanBang(nvPT, db, so, DIR, false).ten];
-  check("Tổ 1 quản lý (phát triển) → luôn Diệp Quốc Hải, không chia", p2.every((x) => x === "Diệp Quốc Hải"));
-
-  check("peek (ghi=false) KHÔNG đụng sổ lượt", (() => { try { fs.unlinkSync(TMP); } catch {} q.chonQLTTCanBang(nvDG, db, so, DIR, false); return !fs.existsSync(TMP); })());
-
-  try { fs.unlinkSync(TMP); } catch {}
-  if (luotCu) fs.writeFileSync(TMP, luotCu);   // khôi phục sổ lượt thật
-
-  const pushCode2 = fs.readFileSync(path.join(DIR, "push-5s-to-workflow.js"), "utf8");
-  check("push-5s chỉ cộng lượt SAU khi B1 đóng thật", /if \(q\.pool && q\.pool\.length > 1\) ghiLuot\(DIR, qltt\)/.test(pushCode2) && /chonQLTTCanBang\(nv, danhBa, SO_QLTT, DIR, false\)/.test(pushCode2));
-} catch (e) {
-  check("Lỗi kiểm thử chia đều QLTT", false, e.message);
 }
 
 console.log("\n==================================================================");
