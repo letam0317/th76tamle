@@ -28,6 +28,18 @@ const TEN_QL = "Quản lý trực tiếp";
 /** Dựng sổ {mã NV → {ten, ngay, lan, cacTen[]}} từ kho phiếu đã kết xuất. Không có kho → sổ rỗng. */
 export function docSoQLTT(DIR) {
   const so = new Map();
+
+  // 1) Đọc dữ liệu chính xác từ Hasaki Chat (chat.hasaki.vn)
+  try {
+    const chatData = JSON.parse(fs.readFileSync(path.join(DIR, ".cache-qltt-chat.json"), "utf8"));
+    for (const [ma, info] of Object.entries(chatData)) {
+      if (info && info.manager) {
+        so.set(String(ma), { ten: info.manager, ngay: "2026-09-22", lan: 99, cacTen: [info.manager], nguon: "chat.hasaki.vn" });
+      }
+    }
+  } catch {}
+
+  // 2) Đọc từ kho phiếu đã đóng B1 (.exports/tasks-cache.json)
   let kho;
   try { kho = JSON.parse(fs.readFileSync(path.join(DIR, ".exports", "tasks-cache.json"), "utf8")); }
   catch { return so; }
@@ -44,7 +56,8 @@ export function docSoQLTT(DIR) {
     const ngay = String(r[iNgay] || "");
     for (const ma of nv.split(",").map((s) => s.trim()).filter(Boolean)) {
       const cu = so.get(ma);
-      if (!cu) { so.set(ma, { ten: ql, ngay, lan: 1, cacTen: [ql] }); continue; }
+      if (!cu) { so.set(ma, { ten: ql, ngay, lan: 1, cacTen: [ql], nguon: "sổ" }); continue; }
+      if (cu.nguon === "chat.hasaki.vn") continue; // Ưu tiên chat.hasaki.vn
       cu.lan++;
       if (!cu.cacTen.includes(ql)) cu.cacTen.push(ql);
       if (ngay > cu.ngay) { cu.ten = ql; cu.ngay = ngay; }   // mới hơn thì thắng
@@ -53,29 +66,59 @@ export function docSoQLTT(DIR) {
   return so;
 }
 
-/** Đoán quản lý theo cơ cấu danh bạ — CHỈ dùng khi sổ chưa có mã đó. */
-export function doanQuanLy(nv, danhBa) {
-  const mac = nv.staff_dept || "Quản lý kho";
-  if (!nv.working_loc_id || !danhBa || !danhBa.length) return mac;
-  const cung = danhBa.filter((s) => s.working_loc_id === nv.working_loc_id);
-  let ql = cung.find((s) => s.position_id === 7 || /sub leader/i.test(s.staff_title));
-  if (!ql) ql = cung.find((s) => s.position_id === 5 || /leader/i.test(s.staff_title));
-  if (!ql) ql = cung.find((s) => s.position_id === 8 || s.position_id === 17 || /supervisor|manager/i.test(s.staff_title));
-  return (ql && ql.staff_name) ? ql.staff_name : mac;
+/** Tìm chính xác Sub Leader / Leader / Supervisor theo cơ cấu danh bạ thực tế. */
+export function timNguoiQuanLyChucDanh(nv, danhBa) {
+  if (!nv || !danhBa || !danhBa.length) return null;
+  const locId = nv.working_loc_id || nv.staff_loc_id;
+  const deptId = nv.staff_dept_id;
+
+  // Lọc nhân sự cùng địa điểm và cùng bộ phận/phòng ban
+  const cungNhom = danhBa.filter((s) => {
+    const sLoc = s.working_loc_id || s.staff_loc_id;
+    return sLoc === locId && (s.staff_dept_id === deptId || s.staff_dept === nv.staff_dept);
+  });
+
+  // Tìm Sub Leader
+  let ql = cungNhom.find((s) => s.position_id === 7 || /sub\s*leader/i.test(s.staff_title || "") || /sub\s*leader/i.test(s.staff_major || ""));
+  // Nếu không có, tìm Leader
+  if (!ql) ql = cungNhom.find((s) => s.position_id === 5 || /\bleader\b/i.test(s.staff_title || "") || /\bleader\b/i.test(s.staff_major || ""));
+  // Nếu không có, tìm Supervisor / Team Lead / Manager
+  if (!ql) ql = cungNhom.find((s) => s.position_id === 8 || s.position_id === 17 || /supervisor|manager|team lead/i.test(s.staff_title || "") || /supervisor|manager/i.test(s.staff_major || ""));
+
+  // Mở rộng tìm cùng địa điểm làm việc nếu bộ phận quá hẹp
+  if (!ql && locId) {
+    const cungDiaDiem = danhBa.filter((s) => (s.working_loc_id || s.staff_loc_id) === locId);
+    ql = cungDiaDiem.find((s) => s.position_id === 7 || /sub\s*leader/i.test(s.staff_title || ""));
+    if (!ql) ql = cungDiaDiem.find((s) => s.position_id === 5 || /\bleader\b/i.test(s.staff_title || ""));
+    if (!ql) ql = cungDiaDiem.find((s) => s.position_id === 8 || s.position_id === 17 || /supervisor|manager/i.test(s.staff_title || ""));
+  }
+
+  return ql ? { ten: ql.staff_name, chucDanh: ql.staff_title || ql.staff_major || "Quản lý", ma: ql.code } : null;
 }
 
-/** Trả {ten, nguon, ghiChu} — `nguon` = "sổ" (người đã điền) hoặc "đoán" (cơ cấu danh bạ). */
+/** Trả {ten, nguon, ghiChu} — `nguon` = "chat.hasaki.vn", "sổ" hoặc "đoán" (Sub Leader/Leader/Supervisor). */
 export function timQLTT(nv, danhBa, so) {
   const ma = String(nv.code || nv.staff_id || "");
   const g = so && so.get(ma);
   if (g && g.ten) {
     return {
-      ten: g.ten, nguon: "sổ",
-      ghiChu: g.lan + " phiếu, gần nhất " + String(g.ngay).slice(0, 10) +
-        (g.cacTen.length > 1 ? " · từng khai khác: " + g.cacTen.filter((x) => x !== g.ten).join(", ") : ""),
+      ten: g.ten, nguon: g.nguon || "sổ",
+      ghiChu: g.nguon === "chat.hasaki.vn" ? "Tra từ chat.hasaki.vn (Hồ sơ nhân viên chính thức)"
+        : g.lan + " phiếu, gần nhất " + String(g.ngay).slice(0, 10) +
+          (g.cacTen.length > 1 ? " · từng khai khác: " + g.cacTen.filter((x) => x !== g.ten).join(", ") : ""),
     };
   }
-  return { ten: doanQuanLy(nv, danhBa), nguon: "đoán", ghiChu: "chưa có phiếu nào khai cho mã " + ma };
+
+  // Tra chức danh Sub Leader / Leader / Supervisor thật trong danh bạ
+  const qlChucDanh = timNguoiQuanLyChucDanh(nv, danhBa);
+  if (qlChucDanh) {
+    return {
+      ten: qlChucDanh.ten, nguon: "đoán",
+      ghiChu: `Tra đúng nhân sự chức danh Sub Leader/Leader/Supervisor (${qlChucDanh.chucDanh} - Mã: ${qlChucDanh.ma})`,
+    };
+  }
+
+  return { ten: nv.staff_dept || "Quản lý bộ phận", nguon: "đoán", ghiChu: "Chưa có dữ liệu Quản lý trực tiếp riêng cho mã " + ma };
 }
 
 /* Chạy thẳng để soi sổ: node qltt.js [mã NV] */
@@ -85,13 +128,9 @@ if (/qltt\.js$/.test(String(process.argv[1] || ""))) {
   const ma = process.argv[2];
   if (ma) {
     const g = so.get(ma);
-    console.log(g ? `${ma} → ${g.ten}  (${g.lan} phiếu, gần nhất ${String(g.ngay).slice(0, 10)}${g.cacTen.length > 1 ? ", từng khai: " + g.cacTen.join(" | ") : ""})`
-                  : `${ma} → CHƯA có trong sổ (sẽ phải đoán theo danh bạ)`);
+    console.log(g ? `${ma} → ${g.ten} (${g.nguon || "sổ"})` : `${ma} → CHƯA có trong sổ (sẽ tra Sub Leader/Leader/Supervisor trong danh bạ)`);
   } else {
-    const nhieu = [...so.entries()].filter(([, g]) => g.cacTen.length > 1);
-    console.log("Sổ QLTT dựng từ phiếu đã đóng B1: " + so.size + " mã NV · " + nhieu.length + " mã từng khai nhiều tên (lấy lần gần nhất).");
-    const dem = new Map();
-    for (const [, g] of so) dem.set(g.ten, (dem.get(g.ten) || 0) + 1);
-    [...dem.entries()].sort((a, b) => b[1] - a[1]).forEach(([t, n]) => console.log("   " + String(n).padStart(3) + " NV  ← " + t));
+    console.log("Sổ QLTT (chat.hasaki.vn + phiếu B1 đã đóng): " + so.size + " mã NV.");
   }
 }
+
