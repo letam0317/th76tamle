@@ -358,6 +358,15 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
         await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdG,
           headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
       }
+      /* ≥2 NV vi phạm → B1.1 là "Làm việc nhóm · MỖI THÀNH VIÊN" (user chốt 24/09/2026): field
+         `type`=3 (đo thật: mass-update-field nhận 2↔3; bộ ba i18n single/teamWork/everyMember=1/2/3).
+         canh-b11.mjs là lớp quét bù cho task đã tạo trước đó / lượt này trượt. */
+      if (danhSachNv.length >= 2) {
+        const fdT = new FormData();
+        fdT.set("id", String(b11.id)); fdT.set("field", "type"); fdT.set("value", "3");
+        await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdT,
+          headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
+      }
       const lai = await docTask(token, taskId);
       const b11b = (lai && lai.subtasks || []).find((s) => String(s.id) === String(b11.id));
       aiB11 = ((b11b && b11b.staff) || []).map((x) => x.info && x.info.staff_name).filter(Boolean).join(", ");

@@ -107,3 +107,6 @@ Viec_lam_ca_dem.csv
 
 # so cai packer A8 theo ngay (co email NV = PII, repo public)
 hasaki/.packer-a8-ngay.json
+
+# so trang thai bo canh B1.1 (id task, khong bi mat)
+hasaki/.canh-b11.json
