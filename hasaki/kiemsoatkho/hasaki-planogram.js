@@ -264,31 +264,32 @@ function khoaO(loc){ var m = String(loc).match(/^F0-A1-(\d{3})-(\d{2})-/); retur
  * packer áp đảo từng camera 17→24/09 + lịch sử 6 tuần) đối chiếu báo cáo vệ sinh VESINH-LICHSU
  * cùng ngày + cột "Trạm đóng đơn" g-sheet phân công; 2 nguồn trùng 40/40 ca, 0 ca ngược.
  * Hệ camera top-review.io ghi trạm LỆCH +1 ô trong dãy nên KHÔNG chép từ đó.
- * "(dự đoán)" = bàn không phát sinh phiếu đóng gói 05/08→24/09, suy từ cấu trúc dãy, chưa có
- * bằng chứng trực tiếp. Bản đối chiếu đầy đủ: hasaki/.exports/CAMERA-VITRI-DOI-CHIEU.md. */
+ * 24/09 chiều: user KIỂM THỰC ĐỊA 9/10 ô nhóm dự đoán → đều ĐÚNG (đã gỡ nhãn); còn duy nhất
+ * camera_00009 (503-02) chưa kiểm nên giữ "(dự đoán)".
+ * Bản đối chiếu đầy đủ: hasaki/.exports/CAMERA-VITRI-DOI-CHIEU.md. */
 var CAMERA_BAN = {
-  "F0-A8-501-01-01-01": "camera_00016 (dự đoán)", "F0-A8-501-02-01-01": "camera_00002 (dự đoán)",
-  "F0-A8-501-03-01-01": "camera_00004 (dự đoán)", "F0-A8-501-04-01-01": "camera_00005",
+  "F0-A8-501-01-01-01": "camera_00016", "F0-A8-501-02-01-01": "camera_00002",
+  "F0-A8-501-03-01-01": "camera_00004", "F0-A8-501-04-01-01": "camera_00005",
   "F0-A8-501-05-01-01": "camera_00011", "F0-A8-501-06-01-01": "camera_00012",
   "F0-A8-501-07-01-01": "camera_00032", "F0-A8-501-08-01-01": "camera_00033",
-  "F0-A8-503-01-01-01": "camera_00006 (dự đoán)", "F0-A8-503-02-01-01": "camera_00009 (dự đoán)",
+  "F0-A8-503-01-01-01": "camera_00006", "F0-A8-503-02-01-01": "camera_00009 (dự đoán)",
   "F0-A8-503-03-01-01": "camera_00003", "F0-A8-503-04-01-01": "camera_00019",
   "F0-A8-503-05-01-01": "camera_00008", "F0-A8-503-06-01-01": "camera_00014",
   "F0-A8-503-07-01-01": "camera_00038", "F0-A8-503-08-01-01": "camera_00034",
   "F0-A8-504-01-01-01": "camera_00013", "F0-A8-504-02-01-01": "camera_00020",
   "F0-A8-504-03-01-01": "camera_00035", "F0-A8-504-04-01-01": "camera_00037",
-  "F0-A8-504-05-01-01": "camera_00001", "F0-A8-504-06-01-01": "camera_00018 (dự đoán)",
-  "F0-A8-504-07-01-01": "camera_00021", "F0-A8-504-08-01-01": "camera_00023 (dự đoán)",
-  "F0-A8-506-01-01-01": "camera_00007 (dự đoán)", "F0-A8-506-02-01-01": "camera_00010",
+  "F0-A8-504-05-01-01": "camera_00001", "F0-A8-504-06-01-01": "camera_00018",
+  "F0-A8-504-07-01-01": "camera_00021", "F0-A8-504-08-01-01": "camera_00023",
+  "F0-A8-506-01-01-01": "camera_00007", "F0-A8-506-02-01-01": "camera_00010",
   "F0-A8-506-03-01-01": "camera_00022", "F0-A8-506-04-01-01": "camera_00036",
   "F0-A8-506-05-01-01": "camera_00017", "F0-A8-506-06-01-01": "camera_00015",
-  "F0-A8-506-07-01-01": "camera_00025", "F0-A8-506-08-01-01": "camera_00024 (dự đoán)",
+  "F0-A8-506-07-01-01": "camera_00025", "F0-A8-506-08-01-01": "camera_00024",
   "F0-A8-507-01-01-01": "camera_00046", "F0-A8-507-02-01-01": "camera_00044",
   "F0-A8-507-03-01-01": "camera_00042", "F0-A8-507-04-01-01": "camera_00041",
   "F0-A8-507-05-01-01": "camera_00027", "F0-A8-507-06-01-01": "camera_00039",
   "F0-A8-507-07-01-01": "camera_00029", "F0-A8-507-08-01-01": "camera_00031",
   "F0-A8-509-01-01-01": "camera_00047", "F0-A8-509-02-01-01": "camera_00045",
-  "F0-A8-509-03-01-01": "camera_00043 (dự đoán)", "F0-A8-509-04-01-01": "camera_00040",
+  "F0-A8-509-03-01-01": "camera_00043", "F0-A8-509-04-01-01": "camera_00040",
   "F0-A8-509-05-01-01": "camera_00048", "F0-A8-509-06-01-01": "camera_00026",
   "F0-A8-509-07-01-01": "camera_00028", "F0-A8-509-08-01-01": "camera_00030",
   "F0-A8-510-01-01-01": "camera_00060", "F0-A8-510-02-01-01": "camera_00059",
