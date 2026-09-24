@@ -6,10 +6,10 @@
 >
 > **Thiết kế "dữ liệu luôn tươi" đang chốt: đọc PHẦN F.** Phần E là bản nháp 1 đã bị thay thế.
 >
-> ⏸ **17/09/2026 13:19 — CẦU DAO PLANOGRAM ĐANG BẬT** (`hasaki/.TAT-PLANOGRAM`): dừng chủ động sau tin "dev biết bộ
-> cào" → `sync-vesinh-all.js` · `sync-vesinh-ai.mjs` · `sync-vesinh-factory.mjs` thoát ngay, **0 request**.
-> **Đo 13:51: cổng planogram vẫn 200 OK (count=228) — CHƯA có chặn kỹ thuật**; cầu dao là quyết định vận hành, không phải sự cố.
-> Lịch bên dưới vẫn đúng về mặt "task nào gọi script nào", nhưng 3 bước này đang là bước rỗng. Chi tiết + đường đi: **§B5**.
+> ▶ **18/09/2026 11:25 — CẦU DAO PLANOGRAM ĐÃ GỠ (user yêu cầu bật lại làm tươi)**: xoá `hasaki/.TAT-PLANOGRAM`
+> → 3 bước vệ sinh chạy lại bình thường. Lượt chạy tay 11:25–11:29 **THÀNH CÔNG, không 403**: quét 45 ngày/19 trang,
+> 9.419 yêu cầu, ghi đủ 7 tab (mốc GAS 18/09 11:27–11:28). ⇒ Xác nhận lần 2: **cổng planogram KHÔNG bị chặn kỹ thuật**.
+> Lịch sử cầu dao 17/09 giữ nguyên ở **§B5** để đối chiếu.
 
 ---
 
@@ -32,9 +32,11 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 | **5S Cham cong** | **07:20**/ngày | `pull-timesheet.js` → tab `NHAN-SU` | `cham-cong.log` |
 | **Day bao cao 5S** | mỗi **15'** | `push-5s-to-workflow.js` (chiều **GHI**: inbox 5S → task WF 591) | `day-bao-cao-5s.log` |
 | **5S Canh yeu cau dang nhap** | mỗi **2'** | `watch-login-request.js` | stdout task |
-| **5S Tra UID tren Sheet** | mỗi **1'** (đo task thật 23/08/2026 — doc cũ ghi 2'; mỗi lượt ở lại ~51s, nhịp canh trong lượt **10s** từ 23/08) | `tra-uid-sheet.mjs` (file Sheet "TRA UID") | `tra-uid.log` |
+| ~~**5S Tra UID tren Sheet**~~ | **ĐÃ XOÁ 24/09/2026** (user gỡ task; trước đó mỗi 1', mỗi lượt ~51s) | `tra-uid-sheet.mjs` còn trên đĩa — chạy tay khi cần; tab TRA UID vẫn được **bước dự phòng đầu `watch-login-request.js`** điền mỗi 2' | `tra-uid.log` |
+| **5S Co canh planogram** | mỗi **15'**, tự bỏ lượt ngoài cửa **07:00–18:00 T2–T7** (cửa đặt ở ĐẦU main nên tick ngoài giờ tốn 0 lượt gọi) | `CO-CANH-PLANOGRAM.bat` → `co-canh-planogram.mjs` — canh lịch khai báo planogram: trạng thái · chu kỳ · bộ ảnh tiêu chuẩn · nội dung kiểm tra, đối chiếu tab `HANG-MUC-BAO-DUONG` của g-sheet kế hoạch; ghi tab `CO-CANH-HIEN-TRANG` + `CO-CANH-PLANOGRAM`, nhắn Telegram khi có mục NẶNG. **3 lượt gọi upstream/lượt ⇒ ~130 lượt/ngày**; hash-skip nên không đổi thì không ghi Sheet | `co-canh-planogram.log` + `.co-canh-nhiptim.json` |
 | **Factory agent in tem** | mỗi **5'** (bổ sung vào bảng 23/08/2026 — task đã chạy từ trước mà A2 thiếu; agent CHÍNH nay ở `Desktop-JE75K38`, task này là lớp phụ trên laptop) | `_AGENT-IN-TEM-AN.vbs` → `in-tem-agent.mjs --dich-vu` | `in-tem-agent.log` |
-| **5S Kenh tin nhan** | mỗi **2'** (mỗi lượt long-poll ~100s) | `tin-nhan-bot.mjs` — nghe lệnh Telegram cho cả 2 dự án (`KENH-TIN-NHAN.md`); chưa có token thì thoát êm | `tin-nhan.log` |
+| **5S Packer A8 sang / chieu** (thêm 24/09/2026) | **09:20** (chốt hôm qua) + **15:30** (giữa chiều) — 2 mốc đều trong giờ máy thường bật; máy tắt lỡ mốc thì lượt sau tự chốt bù vì script luôn kéo lại "hôm qua nếu chưa chốt" | `_SYNC-PACKER-A8.vbs` → `sync-packer-a8.mjs` — ai ĐÓNG GÓI thật tại từng bàn/camera A8 theo ngày (WMS `packings/v2`, size 5000 ⇒ **3-8 lượt gọi/lần, ~6-16 lượt/ngày**) → tab PRIVATE `PACKER-A8-NGAY` (cửa sổ 30 ngày, hash-skip; có email NV nên probe servedTabs trước khi ghi); pop-up ô A8 dashboard đọc làm thẻ "Báo cáo đóng gói tại vị trí". Backfill: `node sync-packer-a8.mjs --backfill=30` | `packer-a8.log` + sổ cái `.packer-a8-ngay.json` |
+| ~~**5S Kenh tin nhan**~~ | **ĐÃ XOÁ 24/09/2026** (user gỡ task — hết NGHE LỆNH qua Telegram; chiều ĐẨY cảnh báo vẫn sống: canh-suc-khoe/báo 17h do script khác tự gửi `tg()`) | `tin-nhan-bot.mjs` còn trên đĩa; dựng lại theo `KENH-TIN-NHAN.md` (task mỗi 2') | `tin-nhan.log` |
 | **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ — từ 31/07 gọi `AUTO-EXPORT.bat` nên vá được cả bước 5S) | `sync-guard.log` |
 | **Factory co cho may tram** | logon · **cắm/rút sạc** (Kernel-Power 105) · **máy thức dậy** (Power-Troubleshooter 1) · mỗi **2'** | `co-cho-hidden.vbs` → `CO-CHO-MAY-TRAM.ps1` — dựng lại agent in tem khi nó chết/treo, **dựng lại cò đăng nhập `co-dang-nhap.mjs` khi nó chết (mục 5b, thêm 14/09/2026)**, gỡ Offline·Pause·job mắc của máy in, áp lại cài đặt nguồn 1 lần/ngày (`CO-CHO-MAY-IN.md`) | `.co-cho.log` + `.co-cho.json` |
 | **Factory co cho bat may sang** | **06:50**/ngày, **được đánh thức máy** | cùng script — task RIÊNG vì `WakeToRun` là thuộc tính của cả task, gắn chung vào nhịp 2' thì máy bị dựng dậy 720 lần/ngày | như trên |
@@ -177,7 +179,7 @@ Ngoài khung: lượt 8:40 lo buổi sáng, watchdog 18:05 là lượt vét cu�
 | Phân công phụ trách | g-sheet gốc của bộ phận (gid `341809457` + `584257479`) + bù từ `PHU-TRACH-QUAY-KE` | `sync-phancong.mjs` | `VESINH-PHANCONG` |
 | work 5S | `api/hr/excel-io` (queue → poll → tải file) | `auto-export-sync.js` | `5S-TASKS` |
 | HR chấm công | `api/news/staff/...`, `api/hr/timesheet` | `pull-timesheet.js` | `NHAN-SU` |
-| Tra UID theo yêu cầu | `report-management/report-inventories?uids=` (header `Company-Ids`) | `tra-uid-sheet.mjs --dien` — task **"5S Tra UID tren Sheet"** mỗi 2' (TRA-UID.bat) + bước dự phòng đầu `watch-login-request.js` | `TRA-UID` (file riêng `1a_lsYf…x08U`) |
+| Tra UID theo yêu cầu | `report-management/report-inventories?uids=` (header `Company-Ids`) | `tra-uid-sheet.mjs --dien` — ~~task "5S Tra UID tren Sheet"~~ (XOÁ 24/09/2026, user gỡ) — nay chỉ còn bước dự phòng đầu `watch-login-request.js` | `TRA-UID` (file riêng `1a_lsYf…x08U`) |
 
 Cửa ghi **duy nhất** là Apps Script webhook (`action=syncTasks`). Dashboard đọc Sheet qua
 gviz/`readTab` — **không dashboard nào gọi WMS trực tiếp**. Đây là tính chất quyết định ở Phần B.
@@ -315,7 +317,20 @@ tem. Mất tính "một nguồn sự thật" (số của mình ≠ số WMS) nh�
 | 4 đổi/bỏ endpoint | ✅ | ✅ **chính** | ⚠️ | ✅ | – |
 | 5 chính sách cấm | ❌ | ❌ | ❌ | ✅ **duy nhất** | ✅ |
 
-### B5. ⏸ 17/09/2026 — API PLANOGRAM BỊ CHẶN (kiểu 5) · cầu dao `.TAT-PLANOGRAM`
+### B5. ⏸→▶ 17/09/2026 dừng · 18/09/2026 chạy lại — cầu dao `.TAT-PLANOGRAM` (ĐÃ GỠ)
+
+> **CẬP NHẬT 18/09/2026 11:25 — ĐÃ GỠ CẦU DAO theo yêu cầu của user** ("bật cập nhật làm tươi dữ liệu").
+> Dữ liệu trước đó neo ở 13:09 17/09 đúng như thiết kế của cầu dao (script thoát ở dòng đầu, 0 request).
+> Chạy tay ngay sau khi gỡ: `sync-vesinh-all.js` 11:25:39→11:29:18 **OK** (45 ngày · 19 trang · 9.419 yêu cầu ·
+> 228 vị trí · 65 NV đội vệ sinh · ghi 7 tab), `sync-vesinh-factory.mjs` OK (161 ô, planogram WMS vẫn **chưa bật**
+> cho kho 1339/1177 nên 0 yêu cầu — bình thường, không phải chặn), `sync-vesinh-ai.mjs` chạy bù tồn đọng 2 ngày.
+> Mốc GAS lastSync sau khi chạy: PHU-TRACH-QUAY-KE 11:27:51 · VESINH-YEUCAU 11:28:45 · VESINH-ANH 11:28:30 (18/09).
+> **Không có 403, không có Cloudflare, token dùng lại từ kho (get-me OK) — không đăng nhập mới, không đá phiên ai.**
+> ⇒ Sau 2 lần đo (13:51 17/09 và 11:25 18/09), "API planogram bị chặn" **vẫn chỉ là thông tin từ dev, chưa có bằng
+> chứng kỹ thuật nào**. Poller 15' đã tự nuôi dữ liệu trở lại. Muốn dừng lại: tạo lại file `hasaki/.TAT-PLANOGRAM`
+> (nội dung dòng 1 = lý do). Các đường P3/P4 bên dưới vẫn giữ nguyên làm dự phòng nếu dev chặn thật.
+
+**Bối cảnh gốc (17/09):**
 
 **Sự kiện:** user báo 13:15 "api planogram đã bị chặn, do lộ thông tin claude cào được api — dev biết". Lượt sync
 cuối còn chạy: 13:08–13:10 (poller, quét 8 ngày, 1.596 dòng).

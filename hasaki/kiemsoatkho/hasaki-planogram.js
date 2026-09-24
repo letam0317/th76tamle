@@ -85,6 +85,11 @@ var LS_NGAY = 60;                   // cửa sổ lịch sử (phải khớp VS_
  * CHAMCONG-VESINH chỉ có HÔM NAY → xem lại ngày cũ không biết "hôm đó phụ trách CÓ ĐI LÀM mà không
  * báo cáo (đáng truy) hay NGHỈ (phải bố trí người khác)". Nạp BẬC 3 cùng lúc mở pop-up. */
 var TAB_CCN = "VESINH-CHAMCONG-NGAY";
+/* PACKER-A8-NGAY (24/09/2026, sync-packer-a8.mjs): ai ĐÓNG GÓI thật tại từng bàn/camera A8 theo
+ * NGÀY (email + tên + giờ phiếu đầu/cuối + số phiếu, cửa sổ 30 ngày, từ WMS packings/v2). Pop-up ô
+ * A8 dùng nó thay thẻ "Báo cáo gần nhất": bằng chứng của bàn đóng hàng là PHIẾU ĐÓNG GÓI của đúng
+ * ngày đang xem, không phải lượt báo cáo vệ sinh gần nhất. Nạp BẬC 3 (mở pop-up ô A8 có camera). */
+var TAB_PK = "PACKER-A8-NGAY";
 var TAB_AI = "VESINH-AI";           // AI xét duyệt ảnh (sync-vesinh-ai.mjs — Claude chấm từng yêu cầu)
 /* Bảng phân công phụ trách theo vị trí (sync-phancong.mjs): g-sheet phân công gốc của bộ phận,
  * vị trí nào g-sheet bỏ trống thì bù bằng người báo cáo gần nhất 30 ngày → LUÔN có người.
@@ -693,6 +698,7 @@ var S = { ok: false, dangPT: false, all: [], area: "", lastAt: 0, tsData: 0,
   yc: { ok: false, dang: false, rows: [], ts: 0, ngay: "" },
   ls: { ok: false, dang: false, by: {}, ev: [], ts: 0, n: 0 },   // by[khoá ô] = [lượt báo cáo] mới → cũ (60 ngày) — nguồn "báo cáo gần nhất" của pop-up
   ccn: { ok: false, dang: false, em: {}, code: {}, ts: 0, ngay: {} },   // chấm công theo ngày: em/code -> { ten, d:{ngày:{vao,ra}} } · ngay = tập ngày CÓ dữ liệu
+  pk: { ok: false, dang: false, by: {}, ts: 0, ngay: {} },   // packer đóng gói theo ngày: by["ngày|camera"] = [{em,ten,dau,cuoi,n}] · ngay = tập ngày có trong tab
   anh: { ok: false, dang: false, by: {}, ts: 0, ngay: {} },   // ảnh báo cáo tách tab (bậc 3): by[request id] = [url…] · ngay = tập NGÀY có trong tab nhanh
   anhcu: { ok: false, dang: false, ts: 0 },   // ảnh ngày 4→7 (tab VESINH-ANH-CU) — nạp thêm khi soi ngày cũ, gộp thẳng vào anh.by
   ai: { ok: false, dang: false, by: {}, rows: [], ts: 0 }, aiKl: "", aiQ: "",
@@ -1325,7 +1331,7 @@ var NCOL = { loc: 6, req: 8, miss: 6 };
  *   NGÒI NỔ: readTab của Apps Script CHẬP CHỜN 404 (quá tải / redirect googleusercontent). Đo thật
  *   12/08: cùng một URL, lượt này 404 lượt sau 200 — nên cách chữa là THỬ LẠI readTab, tuyệt đối
  *   không mượn đường gviz. Thà thiếu dữ liệu (nói rõ vì sao) còn hơn có dữ liệu sai. */
-var TAB_PRIVATE = [TAB, TAB_CC, TAB_YC, TAB_ANH, TAB_ANH_CU, TAB_NK_BO, TAB_LS, TAB_CCN, TAB_AI, TAB_PC];
+var TAB_PRIVATE = [TAB, TAB_CC, TAB_YC, TAB_ANH, TAB_ANH_CU, TAB_NK_BO, TAB_LS, TAB_CCN, TAB_AI, TAB_PC, TAB_PK];
 /* ĐO THẬT 12/08/2026 (đừng suy đoán lại): độ trễ nền của Apps Script đã rất cao và 404 rơi NGẪU
  * NHIÊN, không theo kích thước — action=bridgeCaps chỉ trả 74 byte JSON tĩnh mà lượt này 404 ở giây
  * 6,5 lượt sau 200 ở giây 7,4; action=lastSync (đọc 1 Script Property) 404 ở giây 47,7; readTab
@@ -1457,6 +1463,9 @@ var NGUON = [
   { tab: TAB_CCN, cb: "hpgv_ccn",
     build: function(H, rows, ts){ if (ts > 0) S.ccn.ts = ts; S.ccn.dang = false; buildCCN(H, rows); },
     fail: function(){ S.ccn.ok = false; S.ccn.dang = false; veLaiVt(); } },
+  { tab: TAB_PK, cb: "hpgv_pk",
+    build: function(H, rows, ts){ if (ts > 0) S.pk.ts = ts; S.pk.dang = false; buildPK(H, rows); },
+    fail: function(){ S.pk.ok = false; S.pk.dang = false; veLaiVt(); } },
   { tab: TAB_ANH, cb: "hpgv_anh",
     build: function(H, rows, ts){ if (ts > 0) S.anh.ts = ts; S.anh.dang = false; buildANH(H, rows); },
     fail: function(){ S.anh.ok = false; S.anh.dang = false; veLaiVt(); } },
@@ -1488,6 +1497,7 @@ function bac1(){
     if (S.cc.ok || S.cc.dang) goiNguon(TAB_CC);   // đang mở sẵn danh sách NV / pop-up thì làm mới luôn
     if (S.ls.ok || S.ls.dang) goiNguon(TAB_LS);
     if (S.ccn.ok || S.ccn.dang) goiNguon(TAB_CCN);
+    if (S.pk.ok || S.pk.dang) goiNguon(TAB_PK);
     if (S.anh.ok || S.anh.dang) goiNguon(TAB_ANH);
     if (S.anhcu.ok || S.anhcu.dang) goiNguon(TAB_ANH_CU);
   }, 250);
@@ -1564,6 +1574,7 @@ function loadData(){
   if (S.cc.ok || S.cc.dang) tuCache(TAB_CC);
   if (S.ls.ok || S.ls.dang) tuCache(TAB_LS);
   if (S.ccn.ok || S.ccn.dang) tuCache(TAB_CCN);
+  if (S.pk.ok || S.pk.dang) tuCache(TAB_PK);
   if (S.anh.ok || S.anh.dang) tuCache(TAB_ANH);
   if (S.anhcu.ok || S.anhcu.dang) tuCache(TAB_ANH_CU);
   if (!coYc){
@@ -1974,6 +1985,29 @@ function buildCCN(H, rows2d){
      (trước chỉ pop-up dùng nó) → về tới là phải vẽ lại cả màn hình, không chỉ pop-up. */
   if (!laHomNay() && la1Ngay()){ renderToday(); render(); }
 }
+/* ===== PACKER-A8-NGAY — dựng chỉ mục "ngày|camera" → danh sách packer (nhiều n phiếu trước) ===== */
+function buildPK(H, rows2d){
+  var hl = H.map(function(h){ return String(h).replace(/\s+/g, " ").trim().toLowerCase(); });
+  var iNg = idxOf(hl, ["ngày"]), iCam = idxOf(hl, ["camera"]), iEm = idxOf(hl, ["email"]),
+      iTen = idxOf(hl, ["tên"]), iDau = idxOf(hl, ["phiếu đầu"]), iCuoi = idxOf(hl, ["phiếu cuối"]),
+      iN = idxOf(hl, ["số phiếu"]);
+  if (iNg < 0 || iCam < 0 || iEm < 0){ S.pk.ok = false; S.pk.by = {}; S.pk.ngay = {}; veLaiVt(); return; }
+  var by = {}, ngay = {};
+  rows2d.forEach(function(row){
+    function gv(i){ return (i >= 0 && row[i] != null) ? String(row[i]).trim() : ""; }
+    var ng = gv(iNg).slice(0, 10), cam = gv(iCam), em = gv(iEm).toLowerCase();
+    if (!ng || !cam || !em) return;
+    ngay[ng] = 1;
+    var k = ng + "|" + cam;
+    (by[k] = by[k] || []).push({ em: em, ten: gv(iTen) || tenNm(em) || em, dau: gv(iDau), cuoi: gv(iCuoi), n: Number(gv(iN)) || 0 });
+  });
+  Object.keys(by).forEach(function(k){ by[k].sort(function(a, b){ return b.n - a.n; }); });
+  S.pk.ok = true; S.pk.by = by; S.pk.ngay = ngay;
+  veLaiVt();   // pop-up đang mở thì vẽ lại để thẻ "Báo cáo đóng gói" có dữ liệu
+}
+/* Phiếu đóng gói theo ngày: chỉ cần khi mở pop-up ô A8 có camera — vẽ ngay từ cache phiên rồi mới gọi bản mới. */
+function canPK(){ if (S.pk.ok || S.pk.dang) return; S.pk.dang = true; tuCache(TAB_PK); goiNguon(TAB_PK); }
+
 var GIO_TRONG = "??:??";   // khớp sync-vesinh-all.js: ô giờ thiếu (chưa chấm ra / quên chấm)
 /** Chấm công của 1 người trong 1 NGÀY: null = chưa nạp được · {co:false} = hôm đó KHÔNG chấm công */
 function ccNgayCua(email, code, ngay){
@@ -3235,7 +3269,35 @@ function renderVt(){
      bên là cùng một nguồn, in "đúng người" chỉ là so nó với chính nó — vô nghĩa mà lại nghe như bằng chứng. */
   var soDuoc = tuGS && !!bcEm;
   var khacNguoi = soDuoc && String(bcEm).toLowerCase() !== String(pc.em).toLowerCase();
-  var cardBc = '<div class="hp-vtcard ref"><div class="hd">Báo cáo gần nhất <span class="hp-hint" style="font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:500">tham khảo</span></div>';
+  /* ===== BÀN ĐÓNG HÀNG A8 CÓ CAMERA (24/09/2026 — user chốt): thẻ phải đổi thành "Báo cáo đóng gói
+     tại vị trí" của ĐÚNG NGÀY đang chọn ở dải 7 ô ngày. Bằng chứng của bàn đóng là PHIẾU ĐÓNG GÓI
+     thật (packer × camera × ngày, tab PACKER-A8-NGAY từ WMS), không phải lượt báo cáo vệ sinh gần
+     nhất. Ô không có camera (kệ A1, băng chuyền) giữ nguyên thẻ "Báo cáo gần nhất" bên dưới. */
+  var camO = CAMERA_BAN[kO] ? String(CAMERA_BAN[kO]).replace(/\s*\(dự đoán\)$/, "") : "";
+  var cardBc;
+  if (camO){
+    canPK();
+    var dsPk = S.pk.by[d + "|" + camO] || [];
+    cardBc = '<div class="hp-vtcard ref"><div class="hd">Báo cáo đóng gói tại vị trí <span class="hp-hint" style="font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:500">' + esc(camO) + " · " + esc(ngayVN(d)) + '</span></div>';
+    if (dsPk.length){
+      dsPk.slice(0, 3).forEach(function(p){
+        var lech = pc && pc.em && tuGS && String(p.em).toLowerCase() !== String(pc.em).toLowerCase();
+        cardBc += '<div class="who"><span class="av" style="background:' + nmColor(p.ten) + '">' + esc(chuDau(p.ten)) + '</span>' +
+          '<div><b>' + esc(p.ten) + '</b><small>' + esc(p.em) + '</small></div></div>' +
+          '<div class="ln">đóng <b>' + p.n + '</b> phiếu · phiếu đầu <b>' + esc(p.dau || "?") + '</b> → phiếu cuối <b>' + esc(p.cuoi || "?") + '</b></div>' +
+          (!(pc && pc.em && tuGS) ? "" : lech ? '<div class="ln" style="color:#d97706">⚠ khác người trong bảng phân công</div>'
+            : '<div class="ln" style="color:#059669">✓ đúng người trong bảng phân công</div>');
+      });
+      if (dsPk.length > 3) cardBc += '<div class="ln mut">+ ' + (dsPk.length - 3) + ' người khác trong ngày</div>';
+    } else {
+      cardBc += '<div class="ln mut">' + (S.pk.dang ? "đang đọc phiếu đóng gói 30 ngày…"
+        : !S.pk.ok ? "chưa đọc được tab " + esc(TAB_PK)
+        : S.pk.ngay[d] ? "ngày " + esc(ngayVN(d)) + " bàn này không có phiếu đóng gói"
+        : "ngày " + esc(ngayVN(d)) + " ngoài cửa sổ dữ liệu 30 ngày (hoặc chưa đồng bộ)") + '</div>';
+    }
+    cardBc += '</div>';
+  } else {
+  cardBc = '<div class="hp-vtcard ref"><div class="hd">Báo cáo gần nhất <span class="hp-hint" style="font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:500">tham khảo</span></div>';
   if (bcTen || bcEm){
     var tenBc = bcTen || bcEm;
     cardBc += '<div class="who"><span class="av" style="background:' + nmColor(tenBc) + '">' + esc(chuDau(tenBc)) + '</span>' +
@@ -3253,6 +3315,7 @@ function renderVt(){
       : "chưa ai báo cáo vị trí này trong " + LS_NGAY + " ngày") + '</div>';
   }
   cardBc += '</div>';
+  }
 
   $id("hpVtBody").innerHTML =
     '<div class="hp-vthistrow">' + hist + '</div>' +

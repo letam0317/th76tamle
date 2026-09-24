@@ -36,7 +36,10 @@ var TEN_SHEET_TASKS = '5S-TASKS';
 // Dashboard KHÔNG đọc các tab này. ID được LƯU TỰ ĐỘNG vào Script Properties khi chạy thietLapSheetRieng().
 var PRIVATE_SHEET_ID = PropertiesService.getScriptProperties().getProperty('PRIVATE_SHEET_ID') || '';
 var PII_TABS = ['NHAN-SU', 'CHAM-CONG'];
-var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-ANH', 'VESINH-ANH-CU', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG', 'VESINH-LICHSU', 'VESINH-CHAMCONG-NGAY'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
+var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU', 'VESINH-ANH', 'VESINH-ANH-CU', 'VESINH-NHATKY', 'VESINH-AI', 'VESINH-PHANCONG', 'VESINH-LICHSU', 'VESINH-CHAMCONG-NGAY', 'PACKER-A8-NGAY'];   // ghi vào sheet PRIVATE + phục vụ dashboard qua action=readTab (sheet gốc KHÔNG public)
+// PACKER-A8-NGAY (24/09/2026, sync-packer-a8.mjs): ai ĐÓNG GÓI thật tại từng bàn/camera A8 theo NGÀY
+// (email + tên + giờ phiếu đầu/cuối + số phiếu, cửa sổ trượt 30 ngày, từ WMS packings/v2) —
+// pop-up ô A8 của dashboard đọc để hiện "Báo cáo đóng gói tại vị trí". Có PII nên BẮT BUỘC sheet private.
 // VESINH-PHANCONG (30/07/2026, sync-phancong.mjs): bảng phân công phụ trách theo vị trí —
 // kéo từ g-sheet phân công gốc của bộ phận, vị trí nào g-sheet bỏ trống thì bù bằng người
 // BÁO CÁO gần nhất trong 30 ngày (planogram). Có email + tên NV nên BẮT BUỘC nằm sheet private.
@@ -390,6 +393,8 @@ function doPostGoc_(e) {
     if (duLieu && (duLieu.action === 'syncTasks')) { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiSyncTasks(duLieu); }
     if (duLieu && duLieu.action === 'purgeTab') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiPurgeTab(duLieu); }
     if (duLieu && duLieu.action === 'ghiCot') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiGhiCot(duLieu); }
+    if (duLieu && duLieu.action === 'docSheet') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiDocSheet(duLieu); }
+    if (duLieu && duLieu.action === 'vungLenh') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiVungLenh(duLieu); }
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
     // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu. BẮT BUỘC SECRET (trước đây public →
     // khách vô danh kích được GAS gọi WMS, "cho mượn" token nội bộ). Frontend hiện KHÔNG gọi (nút "Tải
@@ -933,6 +938,98 @@ function apiGhiCot(duLieu) {
     return phanHoiJson({ status: 'success', tab: tab, cot: cot, tuDong: tuDong, soDong: m.length });
   } catch (eG) {
     return phanHoiJson({ status: 'error', message: eG.message });
+  } finally {
+    try { lock.releaseLock(); } catch (eL) { /* chưa giữ khoá thì thôi */ }
+  }
+}
+
+/** ĐỌC một spreadsheet bất kỳ mà tài khoản GAS mở được (openById) — cặp với apiGhiCot cho sheet ngoài.
+ *  Sinh 24/09/2026 (việc lắp công thức kỳ cân phế liệu): SA timvieclamdem mất quyền nên tool node
+ *  không tự đọc được sheet của người khác chia sẻ cho tài khoản này; GAS đọc hộ, SECRET gác server-side.
+ *  duLieu: sheetId (bắt buộc) · gid HOẶC tab (thiếu cả hai → chỉ trả DANH SÁCH tab) · vung (A1, mặc
+ *  định cả vùng dữ liệu) · congThuc=true trả kèm getFormulas. Chặn vùng > 60k ô để khỏi vỡ payload. */
+function apiDocSheet(duLieu) {
+  var sheetId = String(duLieu.sheetId || '');
+  if (!sheetId) return phanHoiJson({ status: 'error', message: 'Thiếu sheetId.' });
+  var ss;
+  try { ss = SpreadsheetApp.openById(sheetId); }
+  catch (eO) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet: ' + eO.message }); }
+  var coGid = duLieu.gid !== undefined && duLieu.gid !== null && duLieu.gid !== '';
+  if (!coGid && !duLieu.tab) {
+    var ds = ss.getSheets().map(function (s) {
+      return { gid: s.getSheetId(), tab: s.getName(), dong: s.getLastRow(), cot: s.getLastColumn() };
+    });
+    return phanHoiJson({ status: 'success', ten: ss.getName(), tabs: ds });
+  }
+  var sheet = null;
+  if (coGid) {
+    var gid = Number(duLieu.gid), all = ss.getSheets();
+    for (var i = 0; i < all.length; i++) if (all[i].getSheetId() === gid) { sheet = all[i]; break; }
+  } else {
+    sheet = ss.getSheetByName(String(duLieu.tab));
+  }
+  if (!sheet) return phanHoiJson({ status: 'error', message: 'Không thấy tab (gid/tab).' });
+  var range = duLieu.vung ? sheet.getRange(String(duLieu.vung))
+    : sheet.getRange(1, 1, Math.max(sheet.getLastRow(), 1), Math.max(sheet.getLastColumn(), 1));
+  if (range.getNumRows() * range.getNumColumns() > 60000)
+    return phanHoiJson({ status: 'error', message: 'Vùng quá lớn (' + range.getNumRows() + '×' + range.getNumColumns() + ' ô > 60k) — thu hẹp bằng vung.' });
+  var ra = { status: 'success', ten: ss.getName(), tab: sheet.getName(), gid: sheet.getSheetId(),
+             vung: range.getA1Notation(), values: range.getDisplayValues() };
+  if (duLieu.congThuc === true) ra.formulas = range.getFormulas();
+  return phanHoiJson(ra);
+}
+
+/** Thao tác VÙNG trên sheet bất kỳ (bộ ba docSheet/ghiCot/vungLenh — 24/09/2026, SECRET gác server-side).
+ *  duLieu: sheetId + gid HOẶC tab + lenh[] (1..30) chạy TUẦN TỰ, mỗi lệnh một trong:
+ *   {loai:'copy',         tu:'O25:W25', den:'O40'}     — copyTo đủ (định dạng + công thức; công thức
+ *                                                        tương đối TỰ DỊCH theo vị trí — cần thì ghi đè lại bằng 'ghi')
+ *   {loai:'copyDinhDang', tu:'O24:W24', den:'O25:W39'} — CHỈ định dạng (nguồn lặp phủ kín đích)
+ *   {loai:'ghi',          vung:'O2:O40', values:[[..],..]} — setValues khớp kích thước; chuỗi '=…' thành công thức
+ *   {loai:'xoa',          vung:'O25:W25'}              — clearContent (giữ định dạng)
+ *  Lỗi giữa chừng: dừng, trả daChay để biết đã chạy tới đâu. LockService như các đường ghi khác. */
+function apiVungLenh(duLieu) {
+  var lenh = duLieu.lenh || [];
+  if (!duLieu.sheetId || !lenh.length || lenh.length > 30)
+    return phanHoiJson({ status: 'error', message: 'Cần sheetId + lenh[] (1..30 lệnh).' });
+  var ss;
+  try { ss = SpreadsheetApp.openById(String(duLieu.sheetId)); }
+  catch (eO) { return phanHoiJson({ status: 'error', message: 'Không mở được sheet: ' + eO.message }); }
+  var sheet = null;
+  if (duLieu.gid !== undefined && duLieu.gid !== null && duLieu.gid !== '') {
+    var gid = Number(duLieu.gid), all = ss.getSheets();
+    for (var i = 0; i < all.length; i++) if (all[i].getSheetId() === gid) { sheet = all[i]; break; }
+  } else {
+    sheet = ss.getSheetByName(String(duLieu.tab || ''));
+  }
+  if (!sheet) return phanHoiJson({ status: 'error', message: 'Không thấy tab (gid/tab).' });
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return phanHoiJson({ status: 'error', message: 'Sheet đang bận — thử lại sau.' });
+  var nhatKy = [];
+  try {
+    for (var k = 0; k < lenh.length; k++) {
+      var l = lenh[k];
+      if (l.loai === 'copy' || l.loai === 'copyDinhDang') {
+        sheet.getRange(String(l.tu)).copyTo(sheet.getRange(String(l.den)), { formatOnly: l.loai === 'copyDinhDang' });
+        nhatKy.push(l.loai + ' ' + l.tu + '→' + l.den);
+      } else if (l.loai === 'ghi') {
+        var r = sheet.getRange(String(l.vung));
+        var vals = l.values || [];
+        if (r.getNumRows() * r.getNumColumns() > 10000) throw new Error('ghi ' + l.vung + ': quá 10k ô');
+        if (vals.length !== r.getNumRows() || (vals[0] || []).length !== r.getNumColumns())
+          throw new Error('ghi ' + l.vung + ': values ' + vals.length + '×' + (vals[0] || []).length + ' ≠ vùng ' + r.getNumRows() + '×' + r.getNumColumns());
+        r.setValues(vals);
+        nhatKy.push('ghi ' + l.vung);
+      } else if (l.loai === 'xoa') {
+        sheet.getRange(String(l.vung)).clearContent();
+        nhatKy.push('xoa ' + l.vung);
+      } else {
+        throw new Error('lệnh không hỗ trợ: ' + l.loai);
+      }
+    }
+    SpreadsheetApp.flush();
+    return phanHoiJson({ status: 'success', daChay: nhatKy });
+  } catch (eG) {
+    return phanHoiJson({ status: 'error', message: eG.message, daChay: nhatKy });
   } finally {
     try { lock.releaseLock(); } catch (eL) { /* chưa giữ khoá thì thôi */ }
   }

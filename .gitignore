@@ -104,3 +104,6 @@ service_account.json
 # clasp gắn với script id của bảng tính cá nhân
 viec-lam-ca-dem/.clasp.json
 Viec_lam_ca_dem.csv
+
+# so cai packer A8 theo ngay (co email NV = PII, repo public)
+hasaki/.packer-a8-ngay.json
