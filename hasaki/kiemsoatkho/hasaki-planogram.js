@@ -260,6 +260,46 @@ function ptKhongChac(r){ var t = ptTuoi(r); return t != null && t > NGUONG_PT_CU
  * (alias — vd kệ 513-02 có 4 mã); tra theo mã đúng từng ký tự sẽ lạc dữ liệu sang ô "trống".
  * A8 giữ nguyên mã đầy đủ (mỗi ô bàn/băng chuyền 1 mã ổn định). */
 function khoaO(loc){ var m = String(loc).match(/^F0-A1-(\d{3})-(\d{2})-/); return m ? "F0-A1-" + m[1] + "-" + m[2] : String(loc); }
+/* Bàn đóng hàng ↔ camera (khu A8, kho 170) — truy xuất 24/09/2026 từ packing WMS (packings/v2,
+ * packer áp đảo từng camera 17→24/09 + lịch sử 6 tuần) đối chiếu báo cáo vệ sinh VESINH-LICHSU
+ * cùng ngày + cột "Trạm đóng đơn" g-sheet phân công; 2 nguồn trùng 40/40 ca, 0 ca ngược.
+ * Hệ camera top-review.io ghi trạm LỆCH +1 ô trong dãy nên KHÔNG chép từ đó.
+ * "(dự đoán)" = bàn không phát sinh phiếu đóng gói 05/08→24/09, suy từ cấu trúc dãy, chưa có
+ * bằng chứng trực tiếp. Bản đối chiếu đầy đủ: hasaki/.exports/CAMERA-VITRI-DOI-CHIEU.md. */
+var CAMERA_BAN = {
+  "F0-A8-501-01-01-01": "camera_00016 (dự đoán)", "F0-A8-501-02-01-01": "camera_00002 (dự đoán)",
+  "F0-A8-501-03-01-01": "camera_00004 (dự đoán)", "F0-A8-501-04-01-01": "camera_00005",
+  "F0-A8-501-05-01-01": "camera_00011", "F0-A8-501-06-01-01": "camera_00012",
+  "F0-A8-501-07-01-01": "camera_00032", "F0-A8-501-08-01-01": "camera_00033",
+  "F0-A8-503-01-01-01": "camera_00006 (dự đoán)", "F0-A8-503-02-01-01": "camera_00009 (dự đoán)",
+  "F0-A8-503-03-01-01": "camera_00003", "F0-A8-503-04-01-01": "camera_00019",
+  "F0-A8-503-05-01-01": "camera_00008", "F0-A8-503-06-01-01": "camera_00014",
+  "F0-A8-503-07-01-01": "camera_00038", "F0-A8-503-08-01-01": "camera_00034",
+  "F0-A8-504-01-01-01": "camera_00013", "F0-A8-504-02-01-01": "camera_00020",
+  "F0-A8-504-03-01-01": "camera_00035", "F0-A8-504-04-01-01": "camera_00037",
+  "F0-A8-504-05-01-01": "camera_00001", "F0-A8-504-06-01-01": "camera_00018 (dự đoán)",
+  "F0-A8-504-07-01-01": "camera_00021", "F0-A8-504-08-01-01": "camera_00023 (dự đoán)",
+  "F0-A8-506-01-01-01": "camera_00007 (dự đoán)", "F0-A8-506-02-01-01": "camera_00010",
+  "F0-A8-506-03-01-01": "camera_00022", "F0-A8-506-04-01-01": "camera_00036",
+  "F0-A8-506-05-01-01": "camera_00017", "F0-A8-506-06-01-01": "camera_00015",
+  "F0-A8-506-07-01-01": "camera_00025", "F0-A8-506-08-01-01": "camera_00024 (dự đoán)",
+  "F0-A8-507-01-01-01": "camera_00046", "F0-A8-507-02-01-01": "camera_00044",
+  "F0-A8-507-03-01-01": "camera_00042", "F0-A8-507-04-01-01": "camera_00041",
+  "F0-A8-507-05-01-01": "camera_00027", "F0-A8-507-06-01-01": "camera_00039",
+  "F0-A8-507-07-01-01": "camera_00029", "F0-A8-507-08-01-01": "camera_00031",
+  "F0-A8-509-01-01-01": "camera_00047", "F0-A8-509-02-01-01": "camera_00045",
+  "F0-A8-509-03-01-01": "camera_00043 (dự đoán)", "F0-A8-509-04-01-01": "camera_00040",
+  "F0-A8-509-05-01-01": "camera_00048", "F0-A8-509-06-01-01": "camera_00026",
+  "F0-A8-509-07-01-01": "camera_00028", "F0-A8-509-08-01-01": "camera_00030",
+  "F0-A8-510-01-01-01": "camera_00060", "F0-A8-510-02-01-01": "camera_00059",
+  "F0-A8-510-03-01-01": "camera_00058", "F0-A8-510-04-01-01": "camera_00057",
+  "F0-A8-510-05-01-01": "camera_00052", "F0-A8-510-06-01-01": "camera_00051",
+  "F0-A8-510-07-01-01": "camera_00056", "F0-A8-510-08-01-01": "camera_00055",
+  "F0-A8-512-01-01-01": "camera_00068", "F0-A8-512-02-01-01": "camera_00067",
+  "F0-A8-512-03-01-01": "camera_00066", "F0-A8-512-04-01-01": "camera_00065",
+  "F0-A8-512-05-01-01": "camera_00064", "F0-A8-512-06-01-01": "camera_00063",
+  "F0-A8-512-07-01-01": "camera_00062", "F0-A8-512-08-01-01": "camera_00061"
+};
 /* Yêu cầu ĐẠI DIỆN của 1 ô trong 1 ngày (ô alias có thể dính nhiều mã cùng ngày): ưu tiên bản ĐÃ vệ sinh. */
 function repCua(list){ if (!list || !list.length) return null;
   for (var i = 0; i < list.length; i++) if (list[i].bk === "da") return list[i];
@@ -3058,7 +3098,11 @@ function renderVt(){
     var cur = byNgay[r.ngay]; if (!cur || (cur.bk !== "da" && r.bk === "da")) byNgay[r.ngay] = r; });
   var r = byNgay[d] || null;
   $id("hpVtTitle").textContent = locTitle(loc);
-  $id("hpVtSub").textContent = "Chi tiết báo cáo vệ sinh — bấm ô ngày bên dưới để xem ngày khác";
+  /* Ô là bàn đóng hàng A8 có camera → phụ đề mang luôn mã camera (map CAMERA_BAN, khoá theo khoaO);
+   * ô khác giữ nguyên câu chú dẫn cũ. Chỉ đổi CHỮ — không đổi vị trí/màu/element. */
+  $id("hpVtSub").textContent = CAMERA_BAN[kO]
+    ? "Bàn đóng hàng: " + CAMERA_BAN[kO]
+    : "Chi tiết báo cáo vệ sinh — bấm ô ngày bên dưới để xem ngày khác";
   /* Hyperlink DUY NHẤT của pop-up: "Yêu cầu #… ↗" ở góc phải trên (không còn nút Mở planogram riêng) */
   var pg = $id("hpVtPg");
   pg.href = r ? pgDetailUrl(r.id) : pgListUrlLoc(d, loc);
