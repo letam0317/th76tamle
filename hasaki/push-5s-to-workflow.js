@@ -358,12 +358,12 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
         await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdG,
           headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
       }
-      /* ≥2 NV vi phạm → B1.1 là "Làm việc nhóm · MỖI THÀNH VIÊN" (user chốt 24/09/2026): field
-         `type`=3 (đo thật: mass-update-field nhận 2↔3; bộ ba i18n single/teamWork/everyMember=1/2/3).
-         canh-b11.mjs là lớp quét bù cho task đã tạo trước đó / lượt này trượt. */
+      /* ≥2 NV vi phạm → B1.1 bật "MỖI THÀNH VIÊN": field `sub_type`=1 — số đo từ ví dụ thật
+         của user (task 13818654 sau khi bật đúng chế độ: type=2, sub_type=1; mọi task khác
+         sub_type=0). ĐỪNG dùng type=3 — suy đoán i18n ban đầu sai. canh-b11.mjs quét bù. */
       if (danhSachNv.length >= 2) {
         const fdT = new FormData();
-        fdT.set("id", String(b11.id)); fdT.set("field", "type"); fdT.set("value", "3");
+        fdT.set("id", String(b11.id)); fdT.set("field", "sub_type"); fdT.set("value", "1");
         await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdT,
           headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" } }).catch(() => {});
       }

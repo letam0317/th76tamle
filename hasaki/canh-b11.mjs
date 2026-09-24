@@ -12,16 +12,20 @@
  *     Mỗi task CHỈ NHẮC MỘT LẦN: sổ .canh-b11.json + soát marker trong bình luận
  *     trước khi đăng (chống trùng 2 lớp, giống bo-sung-sku-comment.mjs).
  *
- *  ② B1 xác minh ≥2 NV vi phạm → B1.1 phải là "Làm việc nhóm · MỖI THÀNH VIÊN":
+ *  ② B1 xác minh ≥2 NV vi phạm → B1.1 bật "MỖI THÀNH VIÊN" (không làm-chung-nhóm):
  *     - gán đủ MỌI NV vi phạm vào B1.1 (assign_staff),
- *     - đặt field `type` = 3 (đo thật 24/09: mass-update-field field=type nhận 2↔3;
- *       ánh xạ theo bộ ba i18n single/teamWork/everyMember = 1/2/3 của web).
+ *     - đặt field `sub_type` = 1 — SỐ ĐO TỪ VÍ DỤ THẬT của user 24/09: task 13818654
+ *       sau khi user bật đúng chế độ mong muốn trên panel Nhân sự có type=2, sub_type=1
+ *       (mọi task khác sub_type=0). ĐỪNG dùng type=3 — suy đoán i18n ban đầu đã sai.
  *     Chỉ đụng khi B1.1 còn MỞ (status 0).
  *
- *  ③ B1.1 xong → TỰ ĐIỀN "Nhân viên vi phạm" (NVVP04) vào B3.1 rồi CHỈ LƯU
- *     (không đóng bước — B3.1 là việc của người ghi nhận). "Xong" theo đúng luật
- *     user: MỌI thành viên của B1.1 đều status 2 (nhiều NV thì đợi đủ từng người);
- *     B1.1 bị đóng hộ mà thành viên chưa xong thì KHÔNG điền, chỉ ghi log.
+ *  ③ B1.1 xong VÀ NV xác nhận "LỖI CÁ NHÂN" → TỰ ĐIỀN "Nhân viên vi phạm" (NVVP04)
+ *     vào B3.1 rồi CHỈ LƯU (không đóng bước — B3.1 là việc của người ghi nhận).
+ *     Gate đủ 3 điều (user chốt 24/09 chiều):
+ *       · ô `xacnhan11` ("Xác nhận lỗi:") của B1.1 = "Lỗi cá nhân" — giá trị khác
+ *         ("Không phải lỗi cá nhân") thì KHÔNG điền, để người ghi nhận tự xử;
+ *       · B1.1 status 2;
+ *       · MỌI thành viên đều status 2 (nhiều NV thì đợi đủ từng người — đi đôi với ②).
  *     NVVP04 = mã NV từ B1 (configs.staff), phẩy — khuôn y các phiếu user đã điền tay.
  *
  *  Tải upstream: 1 GET board/lượt + vài GET/POST đúng lúc có việc (~11 lượt canh/ngày
@@ -45,7 +49,9 @@ const TREO_GIO = Number(process.env.B11_TREO_GIO || 48);
 const LOC_KHO170 = "398";
 const MAJOR_OK = ["phat trien cua hang", "dong goi"];   // so KHÔNG DẤU, lowercase
 const F_SO = path.join(DIR, ".canh-b11.json");
-const MARKER = "(auto-nhắc B1.1)";
+/* Nhận diện bình luận nhắc đã đăng (dedupe lớp 2 khi sổ local mất) — user 24/09 chiều yêu cầu BỎ
+ * đuôi marker "(auto-nhắc B1.1)" khỏi nội dung, nên nhận diện bằng chính câu nhắc. */
+const DAU_HIEU = "xác nhận lỗi vi phạm ở bước B1.1";
 const A = process.argv.slice(2);
 const THU = A.includes("--thu"), FORCE = A.includes("--force");
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
@@ -112,7 +118,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     try { await fetch(V + "/v2/task/comment", { method: "POST", body: fd, headers: H(token), signal: AbortSignal.timeout(20000) }); } catch { /* xác nhận bằng GET */ }
     await new Promise((r) => setTimeout(r, 800));
     const ds = await docBinhLuan(token, id);
-    if (ds && ds.some((x) => x.includes(MARKER))) return true;
+    if (ds && ds.some((x) => x.includes(text))) return true;   // xác nhận bằng CHÍNH câu vừa gửi
   }
   return false;
 }
@@ -148,19 +154,19 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     if (b11 && b11.status === 0 && codes.length >= 2 && !so.nhom[t.id]) {
       const dangCam = (b11.staff || []).map((x) => String((x.info && x.info.code) || "")).filter(Boolean);
       const thieu = codes.filter((c) => !dangCam.includes(c));
-      const canType = Number(b11.type) !== 3;
-      if (thieu.length || canType) {
+      const canMode = Number(b11.sub_type) !== 1;
+      if (thieu.length || canMode) {
         nNhom++;
-        log("② " + t.code + " (B1.1 " + b11.id + "): " + codes.length + " NV" + (thieu.length ? " · gán thêm " + thieu.join(",") : "") + (canType ? " · type " + b11.type + "→3 (mỗi thành viên)" : ""));
+        log("② " + t.code + " (B1.1 " + b11.id + "): " + codes.length + " NV" + (thieu.length ? " · gán thêm " + thieu.join(",") : "") + (canMode ? " · sub_type " + b11.sub_type + "→1 (mỗi thành viên)" : ""));
         if (!THU) {
           if (thieu.length) {
             const ids = nvs.map((x) => String(x.staff_id)).filter(Boolean).join(",");
             if (ids) await capNhat(token, b11.id, "assign_staff", { value: ids });
           }
-          if (canType) await capNhat(token, b11.id, "type", { value: "3" });
+          if (canMode) await capNhat(token, b11.id, "sub_type", { value: "1" });
           const d2 = await docTask(token, b11.id);   // đọc lại để chốt (bài học 21/09: 200 mà không ghi)
-          if (d2 && Number(d2.type) === 3) { so.nhom[t.id] = Date.now(); log("   ✓ B1.1 đã ở chế độ nhóm-mỗi-thành-viên, " + (d2.staff || []).length + " người."); }
-          else log("   ⚠ đọc lại type=" + (d2 && d2.type) + " — chưa chốt được, sẽ thử lượt sau.");
+          if (d2 && Number(d2.sub_type) === 1) { so.nhom[t.id] = Date.now(); log("   ✓ B1.1 đã bật Mỗi thành viên, " + (d2.staff || []).length + " người."); }
+          else log("   ⚠ đọc lại sub_type=" + (d2 && d2.sub_type) + " — chưa chốt được, sẽ thử lượt sau.");
         }
       } else so.nhom[t.id] = Date.now();
     }
@@ -179,13 +185,13 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
           else {
             const mNV = nvOk.map((x) => "@[" + x.staff_name + "](user_id:" + x.user_id + ")").join(", ");
             const text = "@[" + ql.staff_name + "](user_id:" + ql.user_id + ") Nhờ anh/chị nhắc " + mNV +
-              " xác nhận lỗi vi phạm ở bước B1.1 — đã treo " + Math.round(tuoiH / 24) + " ngày (quá hạn " + TREO_GIO + "h). " + MARKER;
+              " " + DAU_HIEU + " — đã treo " + Math.round(tuoiH / 24) + " ngày (quá hạn " + TREO_GIO + "h).";
             nNhac++;
             log("① " + t.code + " (task " + t.id + "): treo " + Math.round(tuoiH) + "h → tag " + ql.staff_name + " nhắc " + nvOk.map((x) => x.staff_name).join(", "));
             if (THU) log("   [thư nháp] " + text);
             else {
               const cu = await docBinhLuan(token, t.id);
-              if (cu && cu.some((x) => x.includes(MARKER))) { so.nhac[t.id] = Date.now(); log("   = đã có bình luận nhắc từ trước — chỉ ghi sổ."); }
+              if (cu && cu.some((x) => x.includes(DAU_HIEU))) { so.nhac[t.id] = Date.now(); log("   = đã có bình luận nhắc từ trước — chỉ ghi sổ."); }
               else if (await guiBinhLuan(token, t.id, text)) { so.nhac[t.id] = Date.now(); log("   ✓ đã đăng bình luận tag QLTT."); }
               else log("   ⚠ đăng bình luận không xác nhận được — sẽ thử lượt sau.");
             }
@@ -198,6 +204,14 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     if (b31 && b31.status === 0 && b11 && b11.status === 2 && codes.length && !so.b31[t.id]) {
       const daCo = String((b31.data && b31.data.configs && b31.data.configs.NVVP04) || "").trim();
       if (daCo) { so.b31[t.id] = Date.now(); continue; }
+      /* GATE "LỖI CÁ NHÂN" (user chốt 24/09 chiều): ô xacnhan11 của B1.1. Giá trị khác
+         ("Không phải lỗi cá nhân") → không điền, ghi sổ để im lặng các lượt sau. */
+      const xacNhan = String((b11.data && b11.data.configs && b11.data.configs.xacnhan11) || "").trim();
+      if (xacNhan !== "Lỗi cá nhân") {
+        if (xacNhan) { so.b31[t.id] = Date.now(); log("③ " + t.code + ": NV xác nhận «" + xacNhan + "» (không phải lỗi cá nhân) — KHÔNG tự điền B3.1, để người ghi nhận xử."); }
+        else log("③ " + t.code + ": B1.1 đóng nhưng ô Xác nhận lỗi còn trống — chờ.");
+        continue;
+      }
       const mem = new Map((b11.staff || []).map((x) => [String((x.info && x.info.code) || ""), x.status]));
       const chuaXong = codes.filter((c) => mem.get(c) !== 2);
       if (chuaXong.length) { log("③ " + t.code + ": B3.1 chờ vì " + chuaXong.length + "/" + codes.length + " NV chưa tự hoàn thành B1.1 (" + chuaXong.join(",") + ") — theo luật đợi đủ từng người."); continue; }
