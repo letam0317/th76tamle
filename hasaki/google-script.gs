@@ -1433,6 +1433,8 @@ function khoaBridge_(kind) {
   // khe chat (25/09/2026): token api.hasakichat.com từ phiên NGƯỜI THẬT (extension bắt) — chat 1 phiên
   // như WMS, bot tự đăng nhập là ĐÁ NGƯỜI (user bắt quả tang 25/09) nên bridge là đường duy nhất.
   if (k === 'chat') return { tk: 'BRIDGE_CHAT_TOKEN', at: 'BRIDGE_CHAT_TOKEN_AT', exp: 'BRIDGE_CHAT_TOKEN_EXP' };
+  // API chat cần 2 header: Authorization Bearer (accessToken, khe 'chat') + Auth-Token (authToken, khe này).
+  if (k === 'chatauth') return { tk: 'BRIDGE_CHATAUTH_TOKEN', at: 'BRIDGE_CHATAUTH_TOKEN_AT', exp: 'BRIDGE_CHATAUTH_TOKEN_EXP' };
   return { tk: 'BRIDGE_TOKEN', at: 'BRIDGE_TOKEN_AT', exp: 'BRIDGE_TOKEN_EXP' };
 }
 function apiBridgeToken(duLieu) {

@@ -35,20 +35,20 @@ const OUT_RAW = path.join(DIR, ".exports", "chat-phancong-raw.json");
 const SAU = Number((process.argv.find((x) => x.startsWith("--sau=")) || "").split("=")[1] || 0);
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 
-/* Lấy token chat từ GAS (khe kind='chat') — do extension đẩy lên. Không có/chết → null. */
+/* Lấy 2 token chat từ GAS: accessToken (khe 'chat') + authToken (khe 'chatauth').
+ * API chat cần CẢ HAI header (đo thật 25/09: chỉ 1 token → 401 "phiên hết hạn"). */
 async function layTokenChat() {
   if (!APPSCRIPT_KEY) { log("✗ thiếu APPSCRIPT_KEY trong .env"); return null; }
-  const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, kind: "chat" }, () => {}, "getBridgeToken-chat").catch(() => null);
-  if (!j || j.status !== "success") { log("✗ GAS getBridgeToken lỗi: " + (j && j.message || "?")); return null; }
-  if (!j.token) {
-    log("⚠ CHƯA có token chat sống trên GAS" + (j.coTungCo ? " (đã từng có — phiên chat của bạn có thể vừa đóng/hết hạn)" : "") + ".");
-    return null;
-  }
-  return String(j.token).replace(/^Bearer\s+/i, "");
+  const g = async (kind) => { const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, kind }, () => {}, "gb-" + kind).catch(() => null); return (j && j.status === "success" && j.token) ? String(j.token).replace(/^Bearer\s+/i, "") : null; };
+  const access = await g("chat"), auth = await g("chatauth");
+  if (!access) { log("⚠ CHƯA có token chat (accessToken) trên GAS."); return null; }
+  if (!auth) { log("⚠ có accessToken nhưng THIẾU authToken (khe chatauth) — API chat cần cả 2 header."); return null; }
+  return { access, auth };
 }
 
-const H = (tok) => ({
-  authorization: "Bearer " + tok,
+const H = (tk) => ({
+  authorization: "Bearer " + tk.access,
+  "auth-token": tk.auth,
   origin: "https://chat.hasaki.vn",
   referer: "https://chat.hasaki.vn/",
   accept: "application/json",
@@ -62,7 +62,10 @@ async function trang(tok, anchor) {
   if (r.status === 401 || r.status === 403) { const e = new Error("token chat chết (HTTP " + r.status + ")"); e.dead = true; throw e; }
   if (!r.ok) throw new Error("scrollLoad HTTP " + r.status + ": " + t.slice(0, 120));
   if (t[0] !== "{" && t[0] !== "[") throw new Error("scrollLoad không trả JSON: " + t.slice(0, 100));
-  return JSON.parse(t);
+  const j = JSON.parse(t);
+  const ec = j && j.status && j.status.error_code;   // API chat trả 401 TRONG body (HTTP vẫn 200)
+  if (ec === 401 || ec === 403) { const e = new Error("token chat chết (body " + ec + ": " + (j.status.error_message || "") + ")"); e.dead = true; throw e; }
+  return j;
 }
 
 /* Bóc mảng tin nhắn từ nhiều hình dạng response có thể gặp (chưa xác minh cấu trúc thật). */
@@ -89,7 +92,7 @@ function motTin(m) {
     console.log("  3) Extension tự đẩy token lên GAS; chạy lại lệnh này.");
     process.exit(0);
   }
-  log("✓ có token chat sống (đuôi …" + tok.slice(-8) + ")");
+  log("✓ có 2 token chat (access …" + tok.access.slice(-6) + " + auth …" + tok.auth.slice(-6) + ")");
 
   let anchor = "", tatCa = [], raw = [];
   for (let i = 0; i <= SAU; i++) {
