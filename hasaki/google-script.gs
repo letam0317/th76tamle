@@ -510,7 +510,7 @@ function doGet(e) {
   //  nhánh appendRow mặc định và ghi rác vào sheet 5S).
   // bridgeWshr: bản này CÓ khe token work/hr riêng (kind='wshr'). Extension PHẢI thấy cờ này mới
   // đẩy token wshr — bản GAS cũ bỏ qua `kind` nên đẩy mù sẽ ghi đè token WMS bằng token wshr.
-  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, bridgeWshr: true, stockFlag: true });
+  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, bridgeWshr: true, bridgeChat: true, stockFlag: true });
   // GET công khai bằng PIN (không chứa SECRET): dashboard/form gọi qua JSONP <script>
   if (action === 'requestSync') return apiRequestSync(e);           // nút "Cập nhật ngay" (PIN)
   if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (PIN)
@@ -986,6 +986,8 @@ function apiDocSheet(duLieu) {
  *   {loai:'copyDinhDang', tu:'O24:W24', den:'O25:W39'} — CHỈ định dạng (nguồn lặp phủ kín đích)
  *   {loai:'ghi',          vung:'O2:O40', values:[[..],..]} — setValues khớp kích thước; chuỗi '=…' thành công thức
  *   {loai:'xoa',          vung:'O25:W25'}              — clearContent (giữ định dạng)
+ *   {loai:'noiRong',      dong:120, cot:29}            — nới lưới tab tới tối thiểu dong×cot
+ *   {loai:'dinhDangSo',   vung:'Y3:Y40', mau:'mm/yyyy'} — setNumberFormat ('@' = chữ thuần)
  *  Lỗi giữa chừng: dừng, trả daChay để biết đã chạy tới đâu. LockService như các đường ghi khác. */
 function apiVungLenh(duLieu) {
   var lenh = duLieu.lenh || [];
@@ -1022,6 +1024,30 @@ function apiVungLenh(duLieu) {
       } else if (l.loai === 'xoa') {
         sheet.getRange(String(l.vung)).clearContent();
         nhatKy.push('xoa ' + l.vung);
+      } else if (l.loai === 'baoVe') {
+        // {loai:'baoVe', vung:'P3:R100', moTa:'Khoá công thức'} — bảo vệ CẢNH BÁO (Google không cho
+        // chặn tuyệt đối chủ sở hữu file; warning-only bật hộp xác nhận với MỌI người sửa, script vẫn ghi được)
+        var moTaBV = String(l.moTa || 'Khoá công thức');
+        var vungBV = sheet.getRange(String(l.vung));
+        var daCoBV = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE).some(function (p) {
+          return p.getDescription() === moTaBV && p.getRange() && p.getRange().getA1Notation() === vungBV.getA1Notation();
+        });
+        if (!daCoBV) vungBV.protect().setDescription(moTaBV).setWarningOnly(true);
+        nhatKy.push('baoVe ' + l.vung + (daCoBV ? ' (đã có)' : ''));
+      } else if (l.loai === 'toMau') {
+        // {loai:'toMau', vung:'Q1:R1', mau:'#d9ead3'} — tô nền; mau rỗng = trả về trắng mặc định
+        sheet.getRange(String(l.vung)).setBackground(l.mau ? String(l.mau) : null);
+        nhatKy.push('toMau ' + l.vung + ' = ' + (l.mau || 'trắng'));
+      } else if (l.loai === 'dinhDangSo') {
+        // {loai:'dinhDangSo', vung:'Y3:Y40', mau:'mm/yyyy'} — setNumberFormat ('@' = chữ thuần)
+        sheet.getRange(String(l.vung)).setNumberFormat(String(l.mau || '@'));
+        nhatKy.push('dinhDangSo ' + l.vung + ' = ' + (l.mau || '@'));
+      } else if (l.loai === 'noiRong') {
+        // {loai:'noiRong', dong?, cot?} — nới lưới tab tới tối thiểu dong×cot (getRange ngoài lưới là ném lỗi)
+        var canDong = Number(l.dong || 0), canCot = Number(l.cot || 0);
+        if (canDong > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), canDong - sheet.getMaxRows());
+        if (canCot > sheet.getMaxColumns()) sheet.insertColumnsAfter(sheet.getMaxColumns(), canCot - sheet.getMaxColumns());
+        nhatKy.push('noiRong → ' + sheet.getMaxRows() + '×' + sheet.getMaxColumns());
       } else {
         throw new Error('lệnh không hỗ trợ: ' + l.loai);
       }
@@ -1034,6 +1060,11 @@ function apiVungLenh(duLieu) {
     try { lock.releaseLock(); } catch (eL) { /* chưa giữ khoá thì thôi */ }
   }
 }
+
+/* Ghi chú 25/09/2026: quy ước "gõ đơn giá không cần dấu phẩy" của sheet phiếu cân phế liệu
+ * (23→2,3 ở cột G/T tab 9999) nằm ở BOUND SCRIPT gắn thẳng sheet đó (onEdit simple trigger,
+ * scriptId 1zkHvpQ8dUJcUPCvCeP3TNAJMtm-nLhH-zBTIE-HjQO7_JSiBl1sfuhIC) — không đi qua web app này
+ * vì ScriptApp.newTrigger đòi scope script.scriptapp chưa từng cấp cho project. */
 
 /** Ghi đè 1 tab bằng dữ liệu do bộ sync gửi lên (mặc định 5S-TASKS; có thể chỉ định tab khác, vd CHAM-CONG).
  *  Mở rộng:
@@ -1397,9 +1428,12 @@ function apiRequestStockSync(duLieu) {
  * kind='wshr' (work/hr). Khe wshr lưu vào khoá RIÊNG để không ghi đè token WMS.
  * Tương thích ngược: payload KHÔNG có `kind` vẫn được hiểu là 'wms' đúng như bản cũ. */
 function khoaBridge_(kind) {
-  return String(kind || 'wms') === 'wshr'
-    ? { tk: 'BRIDGE_WSHR_TOKEN', at: 'BRIDGE_WSHR_TOKEN_AT', exp: 'BRIDGE_WSHR_TOKEN_EXP' }
-    : { tk: 'BRIDGE_TOKEN', at: 'BRIDGE_TOKEN_AT', exp: 'BRIDGE_TOKEN_EXP' };
+  var k = String(kind || 'wms');
+  if (k === 'wshr') return { tk: 'BRIDGE_WSHR_TOKEN', at: 'BRIDGE_WSHR_TOKEN_AT', exp: 'BRIDGE_WSHR_TOKEN_EXP' };
+  // khe chat (25/09/2026): token api.hasakichat.com từ phiên NGƯỜI THẬT (extension bắt) — chat 1 phiên
+  // như WMS, bot tự đăng nhập là ĐÁ NGƯỜI (user bắt quả tang 25/09) nên bridge là đường duy nhất.
+  if (k === 'chat') return { tk: 'BRIDGE_CHAT_TOKEN', at: 'BRIDGE_CHAT_TOKEN_AT', exp: 'BRIDGE_CHAT_TOKEN_EXP' };
+  return { tk: 'BRIDGE_TOKEN', at: 'BRIDGE_TOKEN_AT', exp: 'BRIDGE_TOKEN_EXP' };
 }
 function apiBridgeToken(duLieu) {
   var K = khoaBridge_(duLieu.kind);
