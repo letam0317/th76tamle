@@ -105,10 +105,13 @@ export function truyVet(n, viTri, thoiDiem) {
   /* 2 báo cáo gần nhất TRƯỚC thời điểm ghi nhận */
   const truoc = bcKe.filter((x) => (x.ngay + " " + x.gio) <= (ngayGN + " " + gioGN))
     .sort((a, b) => (b.ngay + b.gio).localeCompare(a.ngay + a.gio)).slice(0, 2);
-  /* Nhãn "AI đánh giá" thay cho chữ ĐẠT trần (user chỉnh 25/09); kết luận KHÔNG ĐẠT vẫn ghi rõ chữ. */
+  /* Nhãn "AI đánh giá" thay cho chữ ĐẠT trần (user chỉnh 25/09); kết luận KHÔNG ĐẠT vẫn ghi rõ chữ.
+     Tab VESINH-AI lưu mã thô (DAT/KHONG_DAT/CAN_XEM) → đổi sang chữ đọc được. */
+  const TEN_KQ_AI = { dat: "", khong_dat: "KHÔNG ĐẠT", can_xem: "CẦN XEM" };
   const aiCua = (req) => { const a = n.ai.get(String(req)); if (!a || !a.kq) return null;
     const diem = (a.diem != null && a.diem !== "") ? " (" + a.diem + "/100)" : "";
-    return boDau(a.kq) === "dat" ? "AI đánh giá" + diem : "AI đánh giá: " + a.kq + diem; };
+    const kq = TEN_KQ_AI[boDau(a.kq).replace(/\s+/g, "_")];
+    return kq === "" ? "AI đánh giá" + diem : "AI đánh giá: " + (kq || a.kq) + diem; };
 
   /* Renderer của work.hasaki NUỐT <br> trong <p> (đo thật 25/09: cả khối dồn 1 hàng)
      → MỖI DÒNG MỘT THẺ <p> riêng, tuyệt đối không dựa vào <br>. */

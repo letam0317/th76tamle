@@ -20,7 +20,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { layTokenSongWork } from "./session-rules.js";
-import { docSoQLTT, timQLTT } from "./qltt.js";
+import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -83,7 +83,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   const ds = QUERY_NV.split(",").map((s) => s.trim()).filter(Boolean).map((q) => timNhanVien(q, db)).filter(Boolean);
   if (!ds.length) { log("✗ Không tìm thấy NV nào khớp «" + QUERY_NV + "» trong danh bạ " + db.length + " người."); process.exit(3); }
   const nv = ds[0], codes = ds.map((x) => String(x.code || x.staff_id)).join(",");
-  const q = timQLTT(nv, db, docSoQLTT(DIR));
+  const q = chonQLTTCanBang(nv, db, docSoQLTT(DIR), DIR, false);   // peek — cộng lượt sau khi đóng B1
   const qltt = q.ten;
 
   const d = await docTask(token, TASK);
@@ -123,6 +123,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   const b1Sau = sau.subtasks.find((s) => String(s.id) === String(b1.id));
   const b11 = sau.subtasks.find((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || ""));
   if (b1Sau && b1Sau.status === 2) {
+    if (q.pool && q.pool.length > 1) ghiLuot(DIR, qltt);   // chia đều 0,2%: chỉ cộng khi đóng thật
     /* B1.1 PHẢI đứng tên NV vi phạm — engine có thể giao sang quản lý, nên giao lại cho chắc. */
     if (b11) {
       const dangCam = (b11.staff || []).map((x) => String(x.info && x.info.code || ""));
