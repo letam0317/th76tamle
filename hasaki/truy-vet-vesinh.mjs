@@ -111,20 +111,18 @@ export function truyVet(n, viTri, thoiDiem) {
   T.push("Ngày " + dmy(ngayXet) + ": " + diLam + " · " + dongBc + ".");
   H.push("<p>―――<br>Phụ trách kệ (bảng phân công): <b>" + escH(dongPT) + "</b><br>" +
     "Ngày " + dmy(ngayXet) + ": " + escH(diLam) + " · " + escH(dongBc) + ".</p>");
+  /* Khuôn dòng báo cáo (user chỉnh 25/09): KHÔNG họ tên; đánh giá AI đứng CÙNG HÀNG sau link.
+     Web bóp méo <a> có target="_blank" (render href + "(opens in new tab)" rồi xả phần còn lại
+     ra chữ thô) → chỉ dùng <a href> TRẦN, không thuộc tính nào khác. */
   if (truoc.length) {
     T.push("Báo cáo 2 ngày gần nhất:");
     let h = "<p>Báo cáo 2 ngày gần nhất:";
     for (const x of truoc) {
-      T.push("· " + dmy(x.ngay) + " " + x.gio + " — " + (x.ten || x.email) + " → Yêu cầu " + x.req + ": " + PG_URL(x.req));
-      h += "<br>· " + dmy(x.ngay) + " " + x.gio + " — " + escH(x.ten || x.email) +
-        ' → <a href="' + PG_URL(x.req) + '" target="_blank">Yêu cầu ' + escH(x.req) + "</a>";
+      const ai = aiCua(x.req);
+      T.push("· " + dmy(x.ngay) + " " + x.gio + " — Yêu cầu " + x.req + ": " + PG_URL(x.req) + (ai ? " · " + ai : ""));
+      h += "<br>· " + dmy(x.ngay) + " " + x.gio + ' — <a href="' + PG_URL(x.req) + '">Yêu cầu ' + escH(x.req) + "</a>" + (ai ? " · " + escH(ai) : "");
     }
     H.push(h + "</p>");
-    const ai2 = truoc.map((x) => ({ x, kq: aiCua(x.req) })).filter((y) => y.kq);
-    if (ai2.length) {
-      const s = ai2.map((y) => dmy(y.x.ngay) + " " + y.kq).join(" · ");
-      T.push("Đánh giá AI: " + s); H.push("<p>Đánh giá AI: " + escH(s) + "</p>");
-    }
   } else { T.push("Chưa có báo cáo nào của vị trí này trong 60 ngày."); H.push("<p>Chưa có báo cáo nào của vị trí này trong 60 ngày.</p>"); }
 
   const suyNV = (pt && coDiLam === true && !daBC && !bcKhac) ? pt.code : "";
