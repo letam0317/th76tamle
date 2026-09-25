@@ -131,9 +131,10 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   const byCode = new Map(), byTen = new Map();
   for (const x of db) { if (x.code) byCode.set(String(x.code), x); if (x.staff_name) byTen.set(boDau(x.staff_name), x); }
 
-  let so = { nhac: {}, nhom: {}, b31: {}, tv: {} };
+  let so = { nhac: {}, nhom: {}, b31: {}, tv: {}, dgB1: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
   if (!so.tv) so.tv = {};
+  if (!so.dgB1) so.dgB1 = {};
   let nguonTV = null;   // 4 tab GAS — chỉ nạp khi thật sự có task cần truy vết
 
   const iso = (d) => d.toISOString().slice(0, 10);
@@ -151,19 +152,27 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     const b1 = sub(t, 7379), b11 = sub(t, 7826), b31 = sub(t, 7381);
 
     /* ═══ ④ TRUY VẾT VỆ SINH cho task CŨ còn mở (user duyệt 25/09 — xem truy-vet-vesinh.mjs) ═══
-       Lỗi "vệ sinh hằng ngày cuối ca" (mọi vị trí) + B1 hoặc B1.1 đang mở + Mô tả chưa có khối
-       → ghép khối truy vết (HTML, hyperlink "Yêu cầu <id>") vào Mô tả. KHÔNG tự đóng B1 ở đây —
-       ca "đi làm mà KHÔNG báo cáo" chỉ ghi log gợi ý auto-complete-single-task cho người xem. */
+       Lỗi "vệ sinh hằng ngày cuối ca" (mọi vị trí):
+       (a) B1/B1.1 đang mở + Mô tả chưa có khối → ghép khối truy vết vào Mô tả.
+       (b) B1 đang mở + suy được trách nhiệm (phụ trách CÓ đi làm ngày xét — cả ca KHÔNG BÁO CÁO
+           lẫn ca VỆ SINH CHƯA ĐẠT, user chốt 25/09 chiều) → TỰ ĐÓNG B1 bằng chính tool đã
+           kiểm chứng auto-complete-single-task (điền NV + QLTT + ảnh bằng chứng → B1.1). */
     const cfgCha = (t.data && t.data.configs) || {};
-    if (!so.tv[t.id] && laHangMucVeSinhHangNgay(cfgCha.TYPE00) && cfgCha.BIN00 &&
+    if (laHangMucVeSinhHangNgay(cfgCha.TYPE00) && cfgCha.BIN00 &&
         ((b1 && b1.status === 0) || (b11 && b11.status === 0))) {
-      const dChiTiet = await docTask(token, t.id);
-      const noteCu = String((dChiTiet && dChiTiet.note) || "");
-      if (noteCu.includes(DAU_TRUY_VET)) { so.tv[t.id] = Date.now(); }
-      else {
+      let kq = null;
+      const layKq = async () => {
+        if (kq) return kq;
         if (!nguonTV) nguonTV = await napNguonTruyVet(log).catch(() => null);
-        const kq = nguonTV && truyVet(nguonTV, cfgCha.BIN00, cfgCha.DATE00 || t.created_at || "");
-        if (kq) {
+        kq = nguonTV && truyVet(nguonTV, cfgCha.BIN00, cfgCha.DATE00 || t.created_at || "");
+        return kq;
+      };
+      /* (a) khối Mô tả */
+      if (!so.tv[t.id]) {
+        const dChiTiet = await docTask(token, t.id);
+        const noteCu = String((dChiTiet && dChiTiet.note) || "");
+        if (noteCu.includes(DAU_TRUY_VET)) { so.tv[t.id] = Date.now(); }
+        else if (await layKq()) {
           nTV++;
           log("④ " + t.code + ": ghép truy vết vệ sinh vào Mô tả (vị trí " + cfgCha.BIN00 + ", ngày xét " + kq.ngayXet + ")");
           if (!THU) {
@@ -171,8 +180,21 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
             const d2 = await docTask(token, t.id);
             if (rN.ok && String((d2 && d2.note) || "").includes(DAU_TRUY_VET)) { so.tv[t.id] = Date.now(); log("   ✓ đã ghi Mô tả."); }
             else log("   ⚠ ghi Mô tả chưa chốt được (HTTP " + rN.http + ") — thử lượt sau.");
-            if (kq.suyNV && b1 && b1.status === 0) log("   💡 đi làm mà KHÔNG báo cáo ngày " + kq.ngayXet + " → gợi ý: node auto-complete-single-task.mjs --task=" + t.id + " --nv=" + kq.suyNV + " --lam");
-          } else if (kq.suyNV) log("   [thư nháp] suy NV vi phạm = " + kq.suyNV);
+          }
+        }
+      }
+      /* (b) buộc trách nhiệm + đóng B1 → B1.1 */
+      if (b1 && b1.status === 0 && !so.dgB1[t.id] && await layKq() && kq.suyNV) {
+        const nhan = kq.ketLuan === "chua_dat" ? "VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn)" : "KHÔNG báo cáo";
+        log("④ " + t.code + ": phụ trách " + kq.suyNV + " đi làm ngày " + kq.ngayXet + " — " + nhan + " → đóng B1 mở B1.1");
+        if (!THU) {
+          try {
+            const { execFileSync } = await import("node:child_process");
+            const out = execFileSync(process.execPath, [path.join(DIR, "auto-complete-single-task.mjs"), "--task=" + t.id, "--nv=" + kq.suyNV, "--lam"], { cwd: DIR, timeout: 180000, encoding: "utf8" });
+            const cuoi = out.trim().split(/\r?\n/).slice(-2).join(" | ");
+            log("   " + cuoi.slice(0, 180));
+            if (/ĐÓNG B1 XONG/.test(out)) so.dgB1[t.id] = Date.now();
+          } catch (e) { log("   ⚠ đóng B1 trượt: " + String(e.message).slice(0, 120) + " — thử lượt sau."); }
         }
       }
     }

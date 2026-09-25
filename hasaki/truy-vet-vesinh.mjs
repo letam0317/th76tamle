@@ -94,8 +94,12 @@ export function truyVet(n, viTri, thoiDiem) {
   else { diLam = "không rõ đi làm (thiếu chấm công)"; coDiLam = null; }
   const daBC = bcPtNgayXet.length > 0;
   const bcKhac = !daBC && bcNgayXet.length ? bcNgayXet[0] : null;   // người KHÁC báo cáo thay
-  const dongBc = daBC ? "ĐÃ báo cáo vệ sinh vị trí này"
-    : bcKhac ? "KHÔNG tự báo cáo (người khác báo cáo: " + (bcKhac.ten || bcKhac.email) + ")"
+  /* PHÂN LOẠI (user chốt 25/09): khối này chỉ dựng khi PHIẾU VI PHẠM tồn tại (đã có ảnh bẩn),
+     nên "đã báo cáo" ≠ vô can — đó là ca VỆ SINH CHƯA ĐẠT (báo cáo rồi mà hôm sau vẫn bẩn),
+     phân biệt rạch ròi với KHÔNG BÁO CÁO. Cả hai ca (miễn CÓ đi làm) đều thuộc trách nhiệm
+     phụ trách khu vực → suyNV trả mã phụ trách. */
+  const dongBc = daBC ? "ĐÃ báo cáo (" + (bcPtNgayXet[0].gio || "?") + ") nhưng vẫn ghi nhận bẩn → VỆ SINH CHƯA ĐẠT"
+    : bcKhac ? "KHÔNG tự báo cáo (người khác báo cáo: " + (bcKhac.ten || bcKhac.email) + ") — vẫn ghi nhận bẩn"
     : "KHÔNG báo cáo vệ sinh vị trí này";
 
   /* 2 báo cáo gần nhất TRƯỚC thời điểm ghi nhận */
@@ -104,29 +108,35 @@ export function truyVet(n, viTri, thoiDiem) {
   const aiCua = (req) => { const a = n.ai.get(String(req)); if (!a || !a.kq) return null;
     return (boDau(a.kq) === "dat" ? "ĐẠT" : a.kq) + (a.diem != null && a.diem !== "" ? " (" + a.diem + "/100)" : ""); };
 
+  /* Renderer của work.hasaki NUỐT <br> trong <p> (đo thật 25/09: cả khối dồn 1 hàng)
+     → MỖI DÒNG MỘT THẺ <p> riêng, tuyệt đối không dựa vào <br>. */
   const dongPT = pt ? pt.ten + " (" + pt.code + ")" : "chưa có trong bảng phân công";
   const T = [], H = [];
   T.push("―――");
   T.push("Phụ trách kệ (bảng phân công): " + dongPT);
   T.push("Ngày " + dmy(ngayXet) + ": " + diLam + " · " + dongBc + ".");
-  H.push("<p>―――<br>Phụ trách kệ (bảng phân công): <b>" + escH(dongPT) + "</b><br>" +
-    "Ngày " + dmy(ngayXet) + ": " + escH(diLam) + " · " + escH(dongBc) + ".</p>");
+  H.push("<p>―――</p>");
+  H.push("<p>Phụ trách kệ (bảng phân công): <b>" + escH(dongPT) + "</b></p>");
+  H.push("<p>Ngày " + dmy(ngayXet) + ": " + escH(diLam) + " · " + escH(dongBc) + ".</p>");
   /* Khuôn dòng báo cáo (user chỉnh 25/09): KHÔNG họ tên; đánh giá AI đứng CÙNG HÀNG sau link.
      Web bóp méo <a> có target="_blank" (render href + "(opens in new tab)" rồi xả phần còn lại
      ra chữ thô) → chỉ dùng <a href> TRẦN, không thuộc tính nào khác. */
   if (truoc.length) {
     T.push("Báo cáo 2 ngày gần nhất:");
-    let h = "<p>Báo cáo 2 ngày gần nhất:";
+    H.push("<p>Báo cáo 2 ngày gần nhất:</p>");
     for (const x of truoc) {
       const ai = aiCua(x.req);
       T.push("· " + dmy(x.ngay) + " " + x.gio + " — Yêu cầu " + x.req + ": " + PG_URL(x.req) + (ai ? " · " + ai : ""));
-      h += "<br>· " + dmy(x.ngay) + " " + x.gio + ' — <a href="' + PG_URL(x.req) + '">Yêu cầu ' + escH(x.req) + "</a>" + (ai ? " · " + escH(ai) : "");
+      H.push("<p>· " + dmy(x.ngay) + " " + x.gio + ' — <a href="' + PG_URL(x.req) + '">Yêu cầu ' + escH(x.req) + "</a>" + (ai ? " · " + escH(ai) : "") + "</p>");
     }
-    H.push(h + "</p>");
   } else { T.push("Chưa có báo cáo nào của vị trí này trong 60 ngày."); H.push("<p>Chưa có báo cáo nào của vị trí này trong 60 ngày.</p>"); }
 
-  const suyNV = (pt && coDiLam === true && !daBC && !bcKhac) ? pt.code : "";
-  return { text: T.join("\n"), html: H.join(""), suyNV, ngayXet, phuTrach: pt };
+  /* suyNV (user chốt 25/09): phụ trách CÓ đi làm ngày xét là chịu trách nhiệm — cả ca
+     KHÔNG BÁO CÁO lẫn ca VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn). Nghỉ/không rõ → không buộc. */
+  const suyNV = (pt && coDiLam === true) ? pt.code : "";
+  const ketLuan = !pt ? "khong_phan_cong" : coDiLam !== true ? (coDiLam === false ? "nghi" : "khong_ro")
+    : daBC ? "chua_dat" : "khong_bao_cao";
+  return { text: T.join("\n"), html: H.join(""), suyNV, ketLuan, ngayXet, phuTrach: pt };
 }
 
 /* Dấu nhận biết khối đã ghi (chống ghi trùng khi chạy lại) */
