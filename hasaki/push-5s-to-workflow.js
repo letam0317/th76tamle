@@ -21,6 +21,7 @@ import { docSoQLTT, timQLTT } from "./qltt.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { gasPost } from "./session-rules.js";
 import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
+import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay } from "./truy-vet-vesinh.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -444,6 +445,29 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
             .find((l) => /^Phụ trách:/i.test(l) && /KHÔNG báo cáo vệ sinh ô này/i.test(l));
           const maPT = dongPT && dongPT.match(/\((\d{4,})\)/);
           if (maPT) { qNV = maPT[1]; log("    (Tự suy) NV vi phạm lấy từ dòng Phụ trách: " + dongPT.slice(0, 80)); }
+        }
+
+        /* ===== KHỐI TRUY VẾT VỆ SINH (user duyệt 25/09/2026 — xem truy-vet-vesinh.mjs) =========
+           Lỗi "vệ sinh hằng ngày cuối ca" (mọi vị trí): ghép vào Mô tả — phụ trách theo bảng phân
+           công + đi làm/báo cáo của NGÀY XÉT (ghi nhận −1; ghi nhận sau giờ RA thì chính ngày đó)
+           + 2 báo cáo gần nhất (hyperlink "Yêu cầu <id>") + đánh giá AI. Ghi note bằng HTML —
+           đã đo thật 25/09: mass-update-field field=note giữ nguyên thẻ <a>, web render được.
+           "Đi làm mà KHÔNG báo cáo" → suy luôn NV vi phạm (cùng luật buộc tội với dòng Phụ trách). */
+        if (laHangMucVeSinhHangNgay(type00)) {
+          try {
+            if (!global._nguonTV) global._nguonTV = await napNguonTruyVet(log);
+            const kq = truyVet(global._nguonTV, row.viTri, row.thoiGianViPham || row.ngay || "");
+            if (kq && r.id) {
+              const dTask = await docTask(token, r.id);
+              const noteMoi = String((dTask && dTask.note) || "") + kq.html;
+              const fdN = new FormData();
+              fdN.set("id", String(r.id)); fdN.set("field", "note"); fdN.set("value", noteMoi);
+              const rN = await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdN,
+                headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" }, signal: AbortSignal.timeout(30000) });
+              log("    Truy vết vệ sinh: " + (rN.status === 200 ? "đã ghép vào Mô tả (ngày xét " + kq.ngayXet + ")" : "ghi Mô tả trượt HTTP " + rN.status));
+              if (!String(qNV).trim() && kq.suyNV) { qNV = kq.suyNV; log("    (Tự suy truy vết) NV vi phạm = phụ trách " + kq.suyNV + " — đi làm mà KHÔNG báo cáo ngày " + kq.ngayXet); }
+            }
+          } catch (e) { log("    ⚠ Truy vết vệ sinh lỗi: " + e.message + " — task vẫn tạo bình thường."); }
         }
 
         if (qNV && String(qNV).trim()) {

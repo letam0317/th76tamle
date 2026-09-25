@@ -41,6 +41,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenSongWork, phutVN } from "./session-rules.js";
+import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET } from "./truy-vet-vesinh.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -130,8 +131,10 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   const byCode = new Map(), byTen = new Map();
   for (const x of db) { if (x.code) byCode.set(String(x.code), x); if (x.staff_name) byTen.set(boDau(x.staff_name), x); }
 
-  let so = { nhac: {}, nhom: {}, b31: {} };
+  let so = { nhac: {}, nhom: {}, b31: {}, tv: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
+  if (!so.tv) so.tv = {};
+  let nguonTV = null;   // 4 tab GAS — chỉ nạp khi thật sự có task cần truy vết
 
   const iso = (d) => d.toISOString().slice(0, 10);
   const from = iso(new Date(Date.now() - 45 * 864e5)), to = iso(new Date(Date.now() + 864e5));
@@ -142,10 +145,37 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
 
   const sub = (t, stepId) => (t.subtasks || []).find((s) => String(s.workflow_step_id) === String(stepId));
   const now = Date.now();
-  let nNhac = 0, nNhom = 0, nB31 = 0;
+  let nNhac = 0, nNhom = 0, nB31 = 0, nTV = 0;
 
   for (const t of rows) {
     const b1 = sub(t, 7379), b11 = sub(t, 7826), b31 = sub(t, 7381);
+
+    /* ═══ ④ TRUY VẾT VỆ SINH cho task CŨ còn mở (user duyệt 25/09 — xem truy-vet-vesinh.mjs) ═══
+       Lỗi "vệ sinh hằng ngày cuối ca" (mọi vị trí) + B1 hoặc B1.1 đang mở + Mô tả chưa có khối
+       → ghép khối truy vết (HTML, hyperlink "Yêu cầu <id>") vào Mô tả. KHÔNG tự đóng B1 ở đây —
+       ca "đi làm mà KHÔNG báo cáo" chỉ ghi log gợi ý auto-complete-single-task cho người xem. */
+    const cfgCha = (t.data && t.data.configs) || {};
+    if (!so.tv[t.id] && laHangMucVeSinhHangNgay(cfgCha.TYPE00) && cfgCha.BIN00 &&
+        ((b1 && b1.status === 0) || (b11 && b11.status === 0))) {
+      const dChiTiet = await docTask(token, t.id);
+      const noteCu = String((dChiTiet && dChiTiet.note) || "");
+      if (noteCu.includes(DAU_TRUY_VET)) { so.tv[t.id] = Date.now(); }
+      else {
+        if (!nguonTV) nguonTV = await napNguonTruyVet(log).catch(() => null);
+        const kq = nguonTV && truyVet(nguonTV, cfgCha.BIN00, cfgCha.DATE00 || t.created_at || "");
+        if (kq) {
+          nTV++;
+          log("④ " + t.code + ": ghép truy vết vệ sinh vào Mô tả (vị trí " + cfgCha.BIN00 + ", ngày xét " + kq.ngayXet + ")");
+          if (!THU) {
+            const rN = await capNhat(token, t.id, "note", { value: noteCu + kq.html });
+            const d2 = await docTask(token, t.id);
+            if (rN.ok && String((d2 && d2.note) || "").includes(DAU_TRUY_VET)) { so.tv[t.id] = Date.now(); log("   ✓ đã ghi Mô tả."); }
+            else log("   ⚠ ghi Mô tả chưa chốt được (HTTP " + rN.http + ") — thử lượt sau.");
+            if (kq.suyNV && b1 && b1.status === 0) log("   💡 đi làm mà KHÔNG báo cáo ngày " + kq.ngayXet + " → gợi ý: node auto-complete-single-task.mjs --task=" + t.id + " --nv=" + kq.suyNV + " --lam");
+          } else if (kq.suyNV) log("   [thư nháp] suy NV vi phạm = " + kq.suyNV);
+        }
+      }
+    }
     const cfgB1 = (b1 && b1.data && b1.data.configs) || {};
     const codes = String(cfgB1.staff || "").split(",").map((s) => s.trim()).filter(Boolean);
     const nvs = codes.map((c) => byCode.get(c)).filter(Boolean);
@@ -228,5 +258,5 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   }
 
   if (!THU) fs.writeFileSync(F_SO, JSON.stringify(so), "utf8");
-  log("XONG — ①tag " + nNhac + " · ②nhóm " + nNhom + " · ③điền B3.1 " + nB31 + (THU ? " (diễn tập, chưa ghi gì)" : ""));
+  log("XONG — ①tag " + nNhac + " · ②nhóm " + nNhom + " · ③điền B3.1 " + nB31 + " · ④truy vết " + nTV + (THU ? " (diễn tập, chưa ghi gì)" : ""));
 })().catch((e) => { log("LỖI:", e.message); process.exitCode = 1; });
