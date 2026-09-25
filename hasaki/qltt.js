@@ -126,17 +126,26 @@ export function timQLTT(nv, danhBa, so) {
  * cùng cấp thì phải CHIA ĐỀU lượt bị liên đới, không dồn 1 người (sổ phiếu lâu nay dồn hết cho
  * Lê Thị Ngọc Huyền dù Hồ Ngọc Tú Uyên cùng cấp). Đếm từ 0 (không bù quá khứ) — luân phiên 50/50.
  *
- * TỔ QUẢN LÝ suy từ danh bạ 23/09 (Sub Leader pos_id=7 tại loc 398, gom theo mảng phụ trách):
- *   · đóng gói           : pool {Hồ Ngọc Tú Uyên, Lê Thị Ngọc Huyền}  ← chia đều
- *   · phát triển cửa hàng: pool {Diệp Quốc Hải}                        ← 1 người, không chia
- * `tuyen` = cả tuyến (Sub Leader → Leader → Manager) chỉ để NHẬN DIỆN tổ từ tên đã ghi trong
- * sổ/chat; QLBP02 thật LUÔN lấy ở tầng `pool` (quản lý trực tiếp), kể cả khi sổ ghi nhầm lên Leader. */
+ * TỔ QUẢN LÝ — USER ĐÍNH CHÍNH 25/09/2026 (bản 23/09 SAI NẶNG vì gộp anh Bằng vào tuyến đóng gói
+ * rồi ép mọi NV sổ-ghi-Bằng xuống pool nữ):
+ *   · đóng gói NỮ        : pool {Hồ Ngọc Tú Uyên, Lê Thị Ngọc Huyền}   ← chia đều
+ *   · đóng gói NAM       : pool {Hà Trọng Thúc Bằng}                    ← 1 người, không chia
+ *     (danh sách mã NV nam user sẽ gửi → khai vào NAM_DONG_GOI bên dưới; trước đó nhận diện
+ *      qua sổ: phiếu cũ ghi Bằng thì GIỮ Bằng, tuyệt đối không kéo xuống pool nữ)
+ *   · phát triển cửa hàng: pool {Võ Văn Đức, Diệp Quốc Hải}             ← chia đều
+ * `tuyen` = các tên dùng để NHẬN DIỆN tổ từ tên đã ghi trong sổ/chat; QLBP02 thật lấy ở tầng `pool`. */
 export const TO_QUANLY = [
-  { ten: "đóng gói", pool: ["Hồ Ngọc Tú Uyên", "Lê Thị Ngọc Huyền"],
-    tuyen: ["Hồ Ngọc Tú Uyên", "Lê Thị Ngọc Huyền", "Hà Trọng Thúc Bằng", "Nguyễn Quang Đức"] },
-  { ten: "phát triển cửa hàng", pool: ["Diệp Quốc Hải"],
-    tuyen: ["Diệp Quốc Hải", "Võ Văn Đức", "Mai Thị Duyên"] },
+  { ten: "đóng gói nữ", pool: ["Hồ Ngọc Tú Uyên", "Lê Thị Ngọc Huyền"],
+    tuyen: ["Hồ Ngọc Tú Uyên", "Lê Thị Ngọc Huyền"] },
+  { ten: "đóng gói nam", pool: ["Hà Trọng Thúc Bằng"],
+    tuyen: ["Hà Trọng Thúc Bằng"] },
+  { ten: "phát triển cửa hàng", pool: ["Võ Văn Đức", "Diệp Quốc Hải"],
+    tuyen: ["Võ Văn Đức", "Diệp Quốc Hải", "Mai Thị Duyên"] },
 ];
+/* Danh sách MÃ NV nam nghiệp vụ đóng gói (user gửi) — có mã ở đây thì QLTT = Bằng bất kể sổ ghi gì. */
+export const NAM_DONG_GOI = new Set([
+  // "260189", … ← điền khi user gửi danh sách
+]);
 
 /** Nhận diện tổ của NV từ tập tên quản lý đã ghi (chat chain + các tên trong sổ). Khớp đúng 1 tổ → tổ đó;
  *  0 hoặc ≥2 tổ → null (chưa map được, để người xác nhận). */
@@ -174,6 +183,12 @@ export function chonItLuot(pool, DIR) {
 /** Giải ra tổ + pool quản lý trực tiếp của NV. Không map được tổ → rơi về timQLTT (1 tên) như cũ. */
 export function giaiTo(nv, danhBa, so) {
   const ma = String(nv.code || nv.staff_id || "");
+  /* Roster nam đóng gói (user cấp) thắng mọi suy luận — QLTT cố định là Bằng. */
+  if (NAM_DONG_GOI.has(ma)) {
+    const to = TO_QUANLY.find((t) => t.ten === "đóng gói nam");
+    return { pool: to.pool, nhom: to.ten, nguon: "danh sách nam đóng gói (user cấp)",
+      ghiChu: "QLTT cố định: " + to.pool[0] };
+  }
   const to = nhanDienTo(tenQuanLyCua(ma, so));
   if (to) return { pool: to.pool, nhom: to.ten, nguon: "tổ (" + to.ten + ")",
     ghiChu: "Chia đều 0,2% giữa " + to.pool.length + " quản lý cùng cấp: " + to.pool.join(", ") };

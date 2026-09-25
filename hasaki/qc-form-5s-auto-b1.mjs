@@ -217,8 +217,13 @@ try {
   const luotCu = fs.existsSync(TMP) ? fs.readFileSync(TMP) : null;   // giữ sổ lượt thật, khôi phục sau QC
   try { fs.unlinkSync(TMP); } catch {}
 
-  check("Tổ đóng gói có đúng 2 quản lý cùng cấp {Uyên, Huyền}",
-    q.TO_QUANLY.some((t) => t.ten === "đóng gói" && t.pool.length === 2 && t.pool.includes("Hồ Ngọc Tú Uyên") && t.pool.includes("Lê Thị Ngọc Huyền")));
+  /* Tổ chức thật — user đính chính 25/09: Uyên+Huyền CHỈ quản NỮ đóng gói; NAM đóng gói = Bằng
+     (1 người, không chia); PTCH = {Võ Văn Đức, Diệp Quốc Hải} chia đều. */
+  check("Tổ đóng gói NỮ có đúng 2 quản lý {Uyên, Huyền}",
+    q.TO_QUANLY.some((t) => t.ten === "đóng gói nữ" && t.pool.length === 2 && t.pool.includes("Hồ Ngọc Tú Uyên") && t.pool.includes("Lê Thị Ngọc Huyền")));
+  check("Tổ đóng gói NAM = 1 người {Hà Trọng Thúc Bằng}, tuyến KHÔNG dính pool nữ",
+    q.TO_QUANLY.some((t) => t.ten === "đóng gói nam" && t.pool.length === 1 && t.pool[0] === "Hà Trọng Thúc Bằng") &&
+    !q.TO_QUANLY.some((t) => t.ten === "đóng gói nữ" && t.tuyen.includes("Hà Trọng Thúc Bằng")));
 
   const nvDG = byCode.get("251726");
   const picks = [];
@@ -228,9 +233,18 @@ try {
   check("6 vi phạm tổ đóng gói → chia đúng 3/3 (không dồn ai)", demU === 3 && demH === 3, "Uyên " + demU + " · Huyền " + demH);
   check("Bắt đầu từ 0, luân phiên (không lặp lại liên tiếp)", picks[0] !== picks[1] && picks[1] !== picks[2]);
 
+  check("Tổ PTCH = pool 2 người {Võ Văn Đức, Diệp Quốc Hải} chia đều",
+    q.TO_QUANLY.some((t) => t.ten === "phát triển cửa hàng" && t.pool.length === 2 && t.pool.includes("Võ Văn Đức") && t.pool.includes("Diệp Quốc Hải")));
   const nvPT = byCode.get("250608");
-  const p2 = [q.chonQLTTCanBang(nvPT, db, so, DIR, false).ten, q.chonQLTTCanBang(nvPT, db, so, DIR, false).ten];
-  check("Tổ 1 quản lý (phát triển) → luôn Diệp Quốc Hải, không chia", p2.every((x) => x === "Diệp Quốc Hải"));
+  const p2 = [q.chonQLTTCanBang(nvPT, db, so, DIR, true).ten, q.chonQLTTCanBang(nvPT, db, so, DIR, true).ten];
+  check("2 vi phạm PTCH liên tiếp → chia 1/1 Đức·Hải (không dồn)",
+    p2[0] !== p2[1] && p2.every((x) => ["Võ Văn Đức", "Diệp Quốc Hải"].includes(x)), p2.join(" · "));
+  const nvNam = byCode.get("261624");
+  if (nvNam) {
+    const gNam = q.giaiTo(nvNam, db, so);
+    check("NV nam đóng gói (sổ ghi Bằng) → GIỮ Bằng, không rơi xuống pool nữ",
+      gNam.pool.length === 1 && gNam.pool[0] === "Hà Trọng Thúc Bằng", JSON.stringify(gNam.pool));
+  }
 
   check("peek (ghi=false) KHÔNG đụng sổ lượt", (() => { try { fs.unlinkSync(TMP); } catch {} q.chonQLTTCanBang(nvDG, db, so, DIR, false); return !fs.existsSync(TMP); })());
 
