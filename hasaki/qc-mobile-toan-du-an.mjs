@@ -361,9 +361,27 @@ const TRANG = [
         dong: "() => { try { HPLANOGRAM.closeAiModal(); } catch(e) {} }" },
       /* PANEL đáy trang nay chỉ còn "Nhân viên hôm nay" (chấm công nạp khi panel xuất hiện) — vẫn phải đo:
          panel-trong-tab nằm cuối trang, bộ đo mở tab rồi đo ngay thì không thấy nó (lỗ hổng 21/08). */
+      /* 28/09/2026: panel Nhân viên không còn là bảng — danh sách hàng .hp-nvr (tên · mã + giờ vào · trạng thái).
+         Bám số thật ở dòng phụ (mã nhân viên), không bám tbody nữa: tbody đã bỏ thì điều kiện cũ không bao giờ đúng
+         và màn bị "○ bỏ qua" im lặng — đúng bẫy mục 7. */
       { ten: "Planogram › Nhân viên hôm nay (panel đáy trang)",
         mo: "() => { setTab('planogram'); const b=document.getElementById('hpAI'); if(!b) return false; b.scrollIntoView({block:'start'}); return true; }",
-        sanSangMan: "() => [...document.querySelectorAll('#hpAI tbody tr td')].some(x => /[0-9]/.test(x.textContent))" },
+        sanSangMan: "() => [...document.querySelectorAll('#hpAI .hp-nvr small')].some(x => /[0-9]/.test(x.textContent))" },
+      /* Màn MỚI 28/09/2026 (bố cục Tiến độ · Cần xử lý): mỗi chế độ thứ hai của một panel là một màn riêng */
+      { ten: "Planogram › Nhân viên (bấm Xem cả)",
+        mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM || typeof HPLANOGRAM.nvXemHet!=='function') return false; HPLANOGRAM.nvXemHet(); const b=document.getElementById('hpAI'); if(b) b.scrollIntoView({block:'start'}); return true; }",
+        sanSangMan: "() => [...document.querySelectorAll('#hpAI .hp-nvr small')].some(x => /[0-9]/.test(x.textContent))",
+        dong: "() => { try { HPLANOGRAM.ccSetStatus('chua'); } catch(e) {} }" },
+      { ten: "Planogram › Cần xử lý (xổ người chưa báo cáo)",
+        mo: "() => { setTab('planogram'); return true; }",
+        sanSangMan: "() => { if(!window.HPLANOGRAM) return false; const r=document.querySelector('#hpNhacSlot .hp-tdrow[data-td=\"nhac\"]'); if(!r) return !!document.querySelector('#hpNhacSlot .hp-tdrow, #hpNhacSlot .hp-tdok'); " +
+          "if(!document.querySelector('#hpNhacSlot .hp-ptchip')){ HPLANOGRAM.togglePtNhac(); return false; } document.getElementById('hpTodo').scrollIntoView({block:'start'}); return true; }",
+        dong: "() => { try { if(document.querySelector('#hpNhacSlot .hp-ptchip')) HPLANOGRAM.togglePtNhac(); } catch(e) {} }" },
+      { ten: "Planogram › Sơ đồ phóng to (điện thoại)",
+        mo: "() => { setTab('planogram'); return true; }",
+        sanSangMan: "() => { if(!window.HPLANOGRAM || typeof HPLANOGRAM.togglePhong!=='function') return false; const b=document.querySelector('#hpMap .hp-chiM'); if(!b) return !!document.querySelector('#hpMap .hp-mapcell'); " +
+          "if(!b.classList.contains('on')){ HPLANOGRAM.togglePhong(); return false; } document.getElementById('hpMap').scrollIntoView({block:'start'}); return true; }",
+        dong: "() => { try { const b=document.querySelector('#hpMap .hp-chiM.on'); if(b) HPLANOGRAM.togglePhong(); } catch(e) {} }" },
       { ten: "Pop-up Vị trí quá hạn chưa vệ sinh (planogram Hasaki)", cho: "#hpModal.show",
         mo: "() => { setTab('planogram'); if(!window.HPLANOGRAM) return false; HPLANOGRAM.openCanhBao(); return true; }",
         sanSangMan: "() => document.querySelectorAll('#hpMBody tr').length > 0",
@@ -701,7 +719,10 @@ function raSoat() {
     const panes = [...document.querySelectorAll('#pane-planogram, #tabPlanogram, .tab-pane, #viewPlg, #viewKK, #viewAbn')].filter(thay);
     for (const pane of panes) {
       const topPane = pane.getBoundingClientRect().top;
-      const core = pane.querySelector('#hpMap, #plgMap, .pg-main, table, .cards, .hp-chart, .hp-cctbl, .tbl-wrap');
+      /* 28/09/2026: tab Vệ sinh mở đầu bằng #hpTop (thẻ Tiến độ = DẢI THẺ SỐ theo luật ⑮ + thẻ Cần xử lý = danh sách
+         việc) — đó là NỘI DUNG CHÍNH user đã duyệt đặt trước sơ đồ, không phải control/chú giải/dải cảnh báo mà luật ⑬
+         canh. querySelector lấy phần tử đứng TRƯỚC trong trang nên #hpTop thắng #hpMap. */
+      const core = pane.querySelector('#hpTop, #hpMap, #plgMap, .pg-main, table, .cards, .hp-chart, .hp-cctbl, .tbl-wrap');
       if (core && thay(core)) {
         const topCore = core.getBoundingClientRect().top;
         const khoangCach = Math.round(topCore - topPane);

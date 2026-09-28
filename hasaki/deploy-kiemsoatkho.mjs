@@ -39,6 +39,8 @@ const FILES = [
   ["kiemsoatkho/kho170-3d.html", "kho170-3d.html"],         // mô phỏng 3D kho 170 — nút "Mô phỏng 3D" ở tiêu đề Sơ đồ khu vực (28/09)
   ["kiemsoatkho/kho170-thongso.js", "kho170-thongso.js"],   // số đo kho cho trang 3D
   ["kiemsoatkho/kho170-vach.js", "kho170-vach.js"],         // danh sách vách rác cho trang 3D (qc-vach-kho170.mjs sinh)
+  ["kiemsoatkho/kho170-topview.js", "kho170-topview.js"],   // mặt bằng tab Planogram = ảnh top-view 3D (xuat-topview-kho170.mjs, 28/09)
+  ["kiemsoatkho/kho170-topview.webp", "kho170-topview.webp"],
 ];
 
 if (!TOKEN) {

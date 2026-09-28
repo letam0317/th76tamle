@@ -166,6 +166,7 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
 13. **Chống rác tích lũy đầu màn hình (Cumulative Header Clutter - 10/09/2026):**
     - Không để nhiều tầng điều khiển, bộ lọc, chú giải thường trực và dải cảnh báo xếp chồng đẩy nội dung chính (sơ đồ/bảng) rơi khỏi màn hình đầu tiên.
     - Trần chiều cao tích lũy từ đỉnh tab tới nội dung chính trên điện thoại (≤430px) **không được vượt quá 130px** (hoặc >22% viewport).
+    - **Nội dung chính gồm cả DẢI THẺ SỐ và danh sách việc cần làm** (28/09/2026): tab Vệ sinh mở đầu bằng thẻ Tiến độ + thẻ Cần xử lý (user duyệt đặt TRƯỚC sơ đồ) — đó là nội dung, không phải control/chú giải/dải cảnh báo. Bộ đo tính từ `#hpTop`.
     - Dải chú giải ≥4 mục **tuyệt đối không bung hàng tĩnh** trong tiêu đề; phải thu gọn vào nút popover con nhộng `Chú giải (N) ▾` hoặc thanh 1 hàng cuộn ngang.
     - Loại bỏ triệt để các nhãn rác ("Khu vực:", "Ngày:") làm tốn diện tích khi chip/lịch đã tự minh định ngữ cảnh.
     - Dải cảnh báo (Alert bar) phải nén dẹt siêu mỏng (≤26px, 1 hàng duy nhất).
@@ -198,6 +199,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 | `qc-nhan-dien-sku.mjs` | Đụng lõi tab Nhận diện SKU |
 | `qc-moc-lo-trinh.mjs` | So trước/sau lộ trình NDS (KHÔNG dùng `qc-loi-cu-moi` cho việc này) |
 | `do-toc-do-tem.mjs` | Đụng tốc độ AI đọc tem |
+| `qc-vesinh-muctieu.mjs` (≈34 ca × 4 máy; `--url` `--may=pc\|ip14\|ipse\|and`) | Mọi lần sửa tab Planogram › Vệ sinh — đo MỤC TIÊU chứ không chỉ luật bố cục: màn đầu có Tiến độ + Cần xử lý, các con số giữa các khối KHỚP nhau, xem ngày cũ ra đúng ngày, không chữ rác, sơ đồ vừa màn điện thoại, giả lập 25 khu |
 | `qc-tvt-mobile.mjs` (18 ca) | Mẫu bộ đo SÂU cho 1 mục — mục mới có pop-up thì viết `qc-<mục>-mobile.mjs` theo mẫu này |
 | `node --check` | Mọi file JS/MJS vừa sửa |
 
@@ -243,7 +245,45 @@ Nguyên tắc:
 - Bài học/bẫy chi tiết theo từng mảng vẫn ghi ở memory chuyên đề; file này giữ LUẬT, memory giữ
   BẰNG CHỨNG và bẫy.
 
+## 10. LỊCH & YÊU CẦU PLANOGRAM BẢO DƯỠNG — tạo / cập nhật / chỉnh sửa (chốt 26/09/2026)
+
+- **Thước đo duy nhất = bản gốc của user**: g-sheet kế hoạch bảo dưỡng, tab `BAO-DUONG-170` — mỗi dòng
+  = 1 đầu việc × 1 TẦN SUẤT × các MÃ VỊ TRÍ. **Ưu tiên số 1: đúng tiêu chí · tần suất · tiêu chuẩn kiểm tra
+  của hạng mục** — đứng trên việc giữ trạng thái "Đã duyệt" và trên việc gọn số lịch.
+- **1 lịch = 1 tần suất tại 1 ô.** Việc khác tần suất KHÔNG ở chung lịch (cấm việc 3 tháng/tháng nằm trong
+  lịch hằng ngày). Cùng tần suất thì gom chung 1 lịch được (1 hệ băng chuyền, nhiều thiết bị PCCC).
+- **Thiết bị có việc ở nhiều tần suất** (vd bình chữa cháy: tuần = ngoại quan, tháng = cân + van) → có mặt
+  ở MỖI lịch tương ứng, nội dung ảnh chỉ ghi việc của đúng tần suất đó (sinh từ đúng các dòng bản gốc).
+- **Số ảnh tiêu chuẩn = số lượng thiết bị** tại ô: mỗi cái 1 ảnh, tên `<tên thiết bị> · i/n`. Tên ảnh là chỗ
+  DUY NHẤT phân biệt đối tượng trong 1 yêu cầu.
+- **App quét chỉ hiện theo MÃ VỊ TRÍ**: nhóm "Mô tả tầng" = Floor Description, dòng dưới mã = Bin Location
+  Description; Display description KHÔNG hiện (đã kiểm màn "Xem thông tin"). Muốn tên đối tượng hiện ngay
+  trên danh sách → đối tượng phải có mã vị trí riêng (import vị trí, tiền lệ `…-TD-HN-00` / `…-TD-TG-00`).
+- **Cơ chế WMS**: nhịp lịch = nhịp BẢN KHAI của SKU; mỗi (vị trí, SKU) chỉ 1 bản khai ⇒ 1 SKU chỉ nằm ở 1
+  lịch. Lịch tần suất thứ hai cần SKU khác "chở" (vd đầu dò + chuông chở lịch tháng PCCC) hoặc lịch theo Vị
+  trí tạo tay trên giao diện (không SKU — tiền lệ cửa cuốn quý). Đối tượng không SKU, không có SKU chở ⇒
+  báo user khai tài sản / tạo lịch Vị trí, KHÔNG nhét tạm vào lịch khác nhịp.
+- **Quy đổi tần suất**: Hàng ngày = Daily · Hàng tuần = 1 thứ/tuần · Hàng tháng = 1 ngày/tháng ·
+  3 tháng/lần = 1 ngày/tháng (WMS không có chu kỳ quý — ghi chú rõ, không coi là lệch).
+- **Lịch Đã duyệt**: WMS cấm sửa ảnh ("Re-open or reject the schedule first") và không có đường gửi duyệt
+  lại bằng API ⇒ DỪNG, báo user tự Re-open rồi mới chạy.
+- **Mọi lần tạo/sửa**: sao lưu trước (công cụ tự lưu `_…-backup-<ô>-<giờ>.json`), chạy `--thu` trước khi ghi,
+  và SAU KHI GHI chạy `.exports/_doi-soat-bao-duong-planogram.mjs --ghi` (cập nhật cột KHAI BÁO PLANOGRAM
+  theo thực tế) + xem tab `THEO-DOI-PLANOGRAM`. Mục tiêu: 0 dòng lệch.
+
 ## NHẬT KÝ RULE
+
+- **28/09/2026** — Tab Vệ sinh thiết kế lại theo QC user duyệt ("tiện lợi · không mục rác · gọn"): (1) **mỗi con số
+  chỉ có MỘT hàm đếm** dùng chung cho mọi khối (nvTheoNgay) — 3 khối từng ra 116/38/31 cho cùng câu hỏi; (2) **khối
+  nào hiển thị theo ngày thì PHẢI theo ngày đang chọn**, tiêu đề ghi rõ ngày; (3) **danh sách khu/nhóm không viết
+  cứng** — ≥3 mục thì thành nút chọn + bảng tổng quan, mục không có sơ đồ vẽ tay dùng lưới tự sinh theo mã;
+  (4) luật ⑬: dải thẻ số + danh sách việc cần làm là NỘI DUNG CHÍNH; (5) bộ đo mới phải chạy thử trên bản CŨ
+  và bắt được lỗi cũ trước khi tin (qc-vesinh-muctieu trên live cũ: 6 ca đỏ đúng lỗi QC).
+
+- **26/09/2026** — Thêm mục 10 (lịch & yêu cầu planogram bảo dưỡng): rút từ đợt PCCC — bản gom 1 lịch/ô bị
+  user bác ("t chỉ quan tâm là có đúng theo tiêu chí/tần suất/tiêu chuẩn kiểm tra ở hạng mục hay k"); đối
+  soát cùng ngày cho thấy 303/461 cặp đầu việc × vị trí lệch tần suất do luật gom "1 hệ = 1 lịch" 19/09
+  (luật đó nay chỉ còn đúng khi CÙNG tần suất).
 
 - **17/09/2026** — Mục 6 + 7: `:disabled` Alpine phải ép boolean (chuỗi rỗng = nút chết) và bộ đo phải BẤM THẬT thay vì gọi hàm — rút từ lỗi người dùng bắt ở bộ chọn ảnh báo cáo ("k tick chọn ảnh ở đây được") mà bộ đo 60/60 vẫn báo xanh.
 

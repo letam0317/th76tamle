@@ -32,7 +32,10 @@ const KSK = path.join(DIR, "kiemsoatkho");
 const OUT = path.join(DIR, ".exports");
 const THAY = {                       // tên file trên live → file trên đĩa (bản chưa đẩy)
   "hasaki-planogram.js": path.join(KSK, "hasaki-planogram.js"),
-  "kho170-sodo.js": path.join(KSK, "kho170-sodo.js")
+  "kho170-sodo.js": path.join(KSK, "kho170-sodo.js"),
+  /* 28/09: mặt bằng = ảnh top-view tĩnh của mô phỏng 3D (xuat-topview-kho170.mjs) */
+  "kho170-topview.js": path.join(KSK, "kho170-topview.js"),
+  "kho170-topview.webp": path.join(KSK, "kho170-topview.webp")
 };
 const ok = (b) => (b ? "✓" : "✗");
 let loi = 0;
@@ -54,10 +57,10 @@ p.on("request", (r) => {
   const ten = path.basename(new globalThis.URL(r.url()).pathname);
   const cuc = THAY[ten];
   if (cuc && fs.existsSync(cuc)) {
-    const body = fs.readFileSync(cuc, "utf8");
+    const anh = /\.webp$/.test(ten), body = anh ? fs.readFileSync(cuc) : fs.readFileSync(cuc, "utf8");
     daThay.push(ten);
-    if (ten === "kho170-sodo.js") byteThem = Buffer.byteLength(body);
-    return r.respond({ status: 200, contentType: "text/javascript; charset=utf-8", body });
+    if (ten === "kho170-topview.js" || anh) byteThem += Buffer.byteLength(body);
+    return r.respond({ status: 200, contentType: anh ? "image/webp" : "text/javascript; charset=utf-8", body });
   }
   r.continue();
 });
@@ -75,13 +78,13 @@ const luoi = await p.evaluate(() => {
     if (/^F0-A1-/.test(l)) mau[l] = getComputedStyle(el).backgroundColor;
   });
   return { n, mau, nut: !!document.querySelector('#pane-planogram .hp-h2btn[onclick*="toggleMatBang"]'),
-    nutTen: (document.querySelector('#pane-planogram .hp-h2btn[onclick*="toggleMatBang"] .tx-full') || {}).textContent || "",
+    nutTen: ((document.querySelector('#pane-planogram .hp-h2btn[onclick*="toggleMatBang"]') || {}).textContent || '').trim(),
     nut3d: !!document.querySelector('#pane-planogram a.hp-h2btn[href="kho170-3d.html"]') };
 });
 console.log("1) Sơ đồ lưới (trạng thái nền)");
 bao(luoi.n > 0, "sơ đồ lưới có ô", luoi.n + " ô");
-bao(luoi.nut && luoi.nutTen === "Planogram", 'nút "Planogram" (tên cũ "Mặt bằng thật") có trong tiêu đề Sơ đồ', luoi.nutTen);
-bao(luoi.nut3d, 'nút "Mô phỏng 3D" (mở kho170-3d.html) có trong tiêu đề Sơ đồ');
+bao(luoi.nut, 'nút đổi lưới ↔ mặt bằng có trong tiêu đề Sơ đồ', luoi.nutTen);
+bao(luoi.nut3d, 'nút "Mô phỏng 3D" (mở kho170-3d.html) có trên tab');
 bao(Object.keys(luoi.mau).length >= 160, "đọc được màu ô A1 trên lưới", Object.keys(luoi.mau).length + " ô");
 
 /* ---- bật mặt bằng ---- */
@@ -92,7 +95,10 @@ const hienSvg = await p.waitForSelector("#pane-planogram .hp-mbsvg", { timeout: 
 await p.waitForFunction(() => document.querySelectorAll("#pane-planogram .hp-mbo.o-ke").length > 0, { timeout: 30000 }).catch(() => {});
 const tDung = Date.now() - t0;
 bao(hienSvg, "SVG mặt bằng dựng ra", tDung + "ms");
-bao(daThay.includes("kho170-sodo.js"), "nạp LAZY file dữ liệu sơ đồ", (byteThem / 1024).toFixed(0) + "KB (bản trên đĩa)");
+await p.waitForFunction(() => { const im = document.querySelector("#pane-planogram .hp-mbsvg image"); return im && im.getBBox().width > 0; }, { timeout: 20000 }).catch(() => {});
+await new Promise((r) => setTimeout(r, 800));
+bao(daThay.includes("kho170-topview.js") && daThay.includes("kho170-topview.webp"), "nạp LAZY dữ liệu + ảnh top-view 3D", (byteThem / 1024).toFixed(0) + "KB (bản trên đĩa)");
+bao(!daThay.includes("kho170-sodo.js"), "không còn tải bản vẽ nét kho170-sodo.js cho mặt bằng");
 
 const mb = await p.evaluate(() => {
   const q = (s) => document.querySelectorAll("#pane-planogram " + s).length;
@@ -107,16 +113,16 @@ const mb = await p.evaluate(() => {
   const svg = document.querySelector("#pane-planogram .hp-mbsvg");
   const r = svg ? svg.getBoundingClientRect() : null;
   const wrap = svg ? svg.parentElement.getBoundingClientRect() : null;
-  return { ke: q(".hp-mbo.o-ke"), ke2: q(".hp-mbo.o-ke2"), pallet: q(".hp-mbo.o-pallet"),
+  return { anh: !!document.querySelector("#pane-planogram .hp-mbtv svg image"), ke: q(".hp-mbo.o-ke"), ke2: q(".hp-mbo.o-ke2"), pallet: q(".hp-mbo.o-pallet"),
     pick: q(".hp-mbo.o-pick"), pack: q(".hp-mbo.o-pack"), mau, ngoai,
     rong: r ? Math.round(r.width) : 0, cao: r ? Math.round(r.height) : 0,
     tranNgang: !!(r && wrap && r.width > wrap.width + 1), doiRong: document.documentElement.scrollWidth > window.innerWidth + 1 };
 });
 console.log("\n3) Đếm ô trên mặt bằng");
 bao(mb.ke === 160, "ô kệ A1 bấm được = 160", "thấy " + mb.ke);
-bao(mb.pack === 64, "ô bàn đóng gói (PACK) = 64", "thấy " + mb.pack);
-bao(mb.ke2 > 0 && mb.pallet > 0 && mb.pick > 0, "ô nền A2/pallet/pick có mặt",
-  `A2 ${mb.ke2} · pallet ${mb.pallet} · pick ${mb.pick}`);
+bao(mb.anh, "nền là ẢNH top-view tĩnh của mô phỏng 3D (không WebGL, không hoạt ảnh)");
+bao(mb.ke2 + mb.pallet + mb.pick + mb.pack === 0, "ô nền A2/pallet/pick/pack KHÔNG vẽ đè (đã có trong ảnh)",
+  `A2 ${mb.ke2} · pallet ${mb.pallet} · pick ${mb.pick} · pack ${mb.pack}`);
 bao(mb.ngoai.length === 0, "ô ngoài phạm vi KHÔNG bấm được", mb.ngoai.length ? "lỗi ở " + mb.ngoai.join(",") : "đúng");
 
 console.log("\n4) Màu mặt bằng khớp sơ đồ lưới");
