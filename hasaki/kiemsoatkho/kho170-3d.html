@@ -81,34 +81,114 @@ details summary{cursor:pointer;font-weight:600}
 #timTag{position:fixed;display:none;pointer-events:none;transform:translate(-50%,-100%);background:#c0392b;color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:4px;white-space:nowrap;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.3)}
 #timTag:after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-top-color:#c0392b;border-bottom:0}
 @media (max-width:600px){#mmBox{top:calc(46px + env(safe-area-inset-top,0px));width:38vw}#vc{top:calc(44px + env(safe-area-inset-top,0px))}#hint{font-size:11px}}
+/* ── THANH CÔNG CỤ GỌN (28/09 tối, user duyệt): 1 hàng máy tính · ≤2 hàng điện thoại ──
+   Tìm mã · Góc nhìn ▾ · 4 chế độ · ⋯ (chiếu, màu, bản đồ nhỏ, nhãn, mái, tự xoay, tạm dừng, tốc độ) · Chi tiết.
+   Menu mở lên phía trên thanh (thanh nằm đáy màn); màn cảm ứng hẹp thì thành tấm đáy màn. */
+#ui{z-index:3;overflow:visible;max-height:none}
+#ui .full{max-height:calc(62vh - 60px);overflow:auto}
+#ui .tb{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#ui .tb h1{flex:0 1 auto;min-width:0;max-width:320px;margin-right:4px}
+#ui .tim{display:flex;align-items:center;gap:4px;flex:0 1 270px;min-width:170px}
+#ui .tim #timMa{flex:1 1 auto;width:auto;max-width:none;min-width:0}
+#timBo{flex:none;padding:5px 8px}
+#ui .seg{display:inline-flex;border:1px solid var(--ink);border-radius:5px;overflow:hidden;flex:none}
+#ui .seg button{border:0;border-radius:0;border-left:1px solid var(--rule);padding:5px 11px}
+#ui .seg button:first-child{border-left:0}
+#bTog{margin-left:auto}
+.dd{position:relative;flex:none}
+.ddb .dl{opacity:.7;margin-right:5px}
+.ddb .dv{font-weight:600}
+#bThem{font-weight:700;letter-spacing:.06em;min-width:34px}
+.dd.mo>.ddb{background:var(--ink);color:var(--paper)}
+.mn{display:none;position:absolute;bottom:calc(100% + 8px);left:0;min-width:210px;max-height:min(70vh,520px);overflow:auto;
+ background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.18);backdrop-filter:blur(8px);z-index:6}
+.mn.mnR{left:auto;right:0;width:300px}
+.dd.mo>.mn{display:flex;flex-direction:column;gap:3px;animation:mnVao .16s ease-out}
+@keyframes mnVao{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.mn>button,.mnG>button{text-align:left;border-color:transparent;border-radius:6px;padding:6px 10px}
+.mn>button:hover,.mnG>button:hover{border-color:var(--rule)}
+.mnG{display:flex;flex-wrap:wrap;gap:4px}
+.mnG>button{border-color:var(--rule);text-align:center}
+.mnN{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6;margin:6px 4px 1px}
+.mnH{display:none}
+.spd{display:inline-flex;align-items:center;gap:8px;font-size:13px;padding:0 6px}
+#rTt{font-size:12px;opacity:.75;padding:0 6px}
+#rTt:empty{display:none}
+#timTt{position:absolute;left:10px;bottom:calc(100% + 6px);max-width:calc(100% - 20px);font-size:12.5px;background:var(--card);border:1px solid var(--rule);
+ border-radius:6px;padding:4px 10px;box-shadow:0 4px 14px rgba(0,0,0,.12);pointer-events:none;opacity:1;transition:opacity .4s}
+#timTt:empty,#timTt.an{opacity:0}
+#mnNen{display:none;position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:2}
+#mnNen.on{display:block}
+#hint{transition:opacity .6s}
+@media (prefers-reduced-motion:reduce){.dd.mo>.mn{animation:none}#hint,#timTt{transition:none}}
+/* màn CẢM ỨNG: vùng chạm ≥40px (máy tính giữ mật độ cũ) */
+@media (pointer:coarse){
+ #ui button,#ui input:not([type=range]),#ui select,.vcNut button{min-height:40px;min-width:40px}
+ #ui input[type=range]{height:40px}
+ #timMa{font-size:16px}
+ #ui .seg button{padding:5px 12px}
+ #hint.tat{opacity:0}
+}
+/* cảm ứng HẸP (điện thoại dọc ≤600px · xoay ngang cao ≤500px) */
+@media (pointer:coarse) and (max-width:600px),(pointer:coarse) and (max-height:500px){
+ #ui{left:6px;right:6px;bottom:calc(6px + env(safe-area-inset-bottom,0px));padding:6px;backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--card)}
+ #ui.col{padding:6px}
+ #ui .tb h1{display:none}
+ #ui .tb{gap:5px}
+ .ddb .dv{display:none}
+ .ddb .dl{opacity:1;margin:0}
+ #ui .tb{gap:4px}
+ .mn,.mn.mnR{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;min-width:0;max-height:62vh;border-radius:14px 14px 0 0;
+  padding:8px 12px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+ .dd.mo>.mn{animation:mnDay .2s ease-out}
+ @keyframes mnDay{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
+ .mnH{display:flex;align-items:center;justify-content:space-between;margin:0 0 4px}
+ .mnH b{font-size:15px}
+ .mnX{border-color:transparent}
+ .mn>button{min-height:44px}
+ .mnG>button{flex:1 1 auto}
+ #ui:not(.col) .full{max-height:calc(60vh - 110px);overflow:auto}
+}
+@media (pointer:coarse) and (max-height:700px){
+ #vc{width:64px;top:calc(30px + env(safe-area-inset-top,0px))}#vcIn{width:64px;height:64px}
+ #mmBox{width:30vw}
+}
+@media (pointer:coarse) and (max-width:600px){
+ #ui .tim{flex:1 1 calc(100% - 190px);min-width:0}
+ #ui .seg{flex:1 1 auto}
+ #ui .seg button{flex:1 1 auto;padding:5px 6px}
+}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hint">Kéo để xoay · cuộn / chụm để phóng · kéo 2 ngón để dịch</div>
 <div id="ui" class="col">
- <div class="bar"><h1 id="tieu">Kho 170 – DC Hasaki</h1><button id="bTog">Chi tiết ▾</button></div>
- <div class="row">
-  <button id="bPause">Tạm dừng</button>
-  <label>Tốc độ <input id="spd" type="range" min="0.2" max="3" step="0.1" value="1"></label>
-  <button id="bLab" class="on">Nhãn</button>
-  <button id="bRot" class="on">Tự xoay</button>
-  <button id="bRoof">Mái</button>
+ <div class="tb" id="tb" role="toolbar" aria-label="Công cụ mô hình">
+  <h1 id="tieu">Kho 170 – DC Hasaki</h1>
+  <div class="tim"><input id="timMa" list="dsMa" placeholder="Tìm mã: F0-A1-506-05 · A8-501" aria-label="Tìm mã vị trí" autocomplete="off" spellcheck="false" enterkeyhint="search"><datalist id="dsMa"></datalist><button id="timBo" title="Bỏ đánh dấu" aria-label="Bỏ đánh dấu">✕</button></div>
+  <div class="dd" id="ddGoc"><button id="bGoc" class="ddb" aria-haspopup="true" aria-expanded="false"><span class="dl">Góc nhìn</span><span class="dv" id="gocTen">Toàn kho</span> ▾</button>
+   <div class="mn" id="mnGoc" role="menu"><div class="mnH"><b>Góc nhìn</b><button class="mnX" data-dong aria-label="Đóng">✕</button></div>
+    <button data-v="all" class="on">Toàn kho</button><button data-v="a1">Khối kệ A1</button><button data-v="a2">Khối kệ A2</button><button data-v="pack">Khu đóng gói</button><button data-v="bc">Băng chuyền</button><button data-v="out">Cửa xuất</button><button data-v="walk">Đi trong lối</button>
+   </div></div>
+  <div class="seg" id="segM" role="group" aria-label="Kiểu điều khiển">
+   <button data-m="orbit" class="on" title="Xoay tự do (phím 1)">Xoay</button><button data-m="map" title="Bản đồ (phím 2)">Bản đồ</button><button data-m="walk" title="Đi bộ (phím 3)">Đi bộ</button><button data-m="fly" title="Bay (phím 4)">Bay</button>
+  </div>
+  <div class="dd" id="ddThem"><button id="bThem" class="ddb" aria-haspopup="true" aria-expanded="false" title="Tuỳ chọn hiển thị" aria-label="Tuỳ chọn hiển thị">⋯</button>
+   <div class="mn mnR" id="mnThem" role="menu"><div class="mnH"><b>Tuỳ chọn hiển thị</b><button class="mnX" data-dong aria-label="Đóng">✕</button></div>
+    <div class="mnN">Kiểu vẽ</div>
+    <div class="mnG"><button data-r="chuan" class="on">Chuẩn</button><button data-r="hiendai">Hiện đại</button><button data-r="trang">Mô hình trắng</button></div>
+    <span id="rTt"></span>
+    <div class="mnN">Hiển thị</div>
+    <button id="bChieu" title="phím O">Chiếu: phối cảnh ▸ đổi trực giao</button>
+    <button id="bMode">Màu: loại khu ▸ đổi sang vệ sinh</button>
+    <div class="mnG"><button id="bMM" class="on">Bản đồ nhỏ</button><button id="bLab" class="on">Nhãn</button><button id="bRoof">Mái</button><button id="bRot" class="on">Tự xoay</button></div>
+    <div class="mnN">Mô phỏng</div>
+    <div class="mnG"><button id="bPause">Tạm dừng</button><label class="spd">Tốc độ <input id="spd" type="range" min="0.2" max="3" step="0.1" value="1"></label></div>
+   </div></div>
+  <button id="bTog">Chi tiết ▾</button>
  </div>
- <div class="row views">Tìm mã:
-  <input id="timMa" list="dsMa" placeholder="F0-A1-506-05 · A2-507 · A8-501" autocomplete="off" spellcheck="false"><datalist id="dsMa"></datalist>
-  <button id="timBo" title="bỏ đánh dấu">✕</button><span id="timTt"></span>
- </div>
- <div class="row views">Góc nhìn:
-  <button data-v="all" class="on">Toàn kho</button><button data-v="a1">Khối kệ A1</button><button data-v="a2">Khối kệ A2</button><button data-v="pack">Khu đóng gói</button><button data-v="bc">Băng chuyền</button><button data-v="out">Cửa xuất</button><button data-v="walk">Đi trong lối</button> <button id="bMode" style="margin-left:6px">Màu: loại khu ▸ đổi sang vệ sinh</button>
- </div>
- <div class="row views">Điều khiển:
-  <button data-m="orbit" class="on" title="phím 1">① Xoay tự do</button><button data-m="map" title="phím 2">② Bản đồ</button><button data-m="walk" title="phím 3">③ Đi bộ</button><button data-m="fly" title="phím 4">④ Bay</button>
-  <button id="bChieu" title="phím O">Chiếu: phối cảnh ▸ đổi trực giao</button><button id="bMM" class="on">Bản đồ nhỏ</button>
- </div>
- <div class="row views">Hiển thị:
-  <button data-r="chuan" class="on">Chuẩn</button><button data-r="hiendai">Hiện đại (tông phim)</button><button data-r="trang">Mô hình trắng + bóng khe</button><span id="rTt" style="font-size:12px;opacity:.75"></span>
- </div>
+ <div id="timTt" role="status" aria-live="polite"></div>
  <div class="full">
  <details open id="dTs"><summary>Thông số kho (sửa được) — gõ số thật vào đây</summary>
   <div id="tsNap">
@@ -138,6 +218,7 @@ details summary{cursor:pointer;font-weight:600}
 <div id="timTag"></div>
 <div id="mmBox"><canvas id="mm"></canvas></div>
 <div id="joy"><div id="joyN"></div></div>
+<div id="mnNen"></div>
 <div id="joyY"><button data-u="1">▲</button><button data-u="-1">▼</button></div>
 <div id="err"><div><b id="errT">Không tải được</b><br><span id="errC"></span></div></div>
 
@@ -693,13 +774,14 @@ function xeTai(mau,chu,mauChu){
 /* Người đơn lẻ (người quét, NV ĐVVC, người bê hàng băng chuyền): 3 khối gộp + kiện đang bê + máy quét */
 const NM={quan:new THREE.MeshLambertMaterial({color:0x2d3440}),da:new THREE.MeshLambertMaterial({color:0xd9a77a}),ao:{}};
 const aoMau=m=>NM.ao[m]||(NM.ao[m]=new THREE.MeshLambertMaterial({color:m}));
+const NGUOI_LE=[];   // người đơn lẻ — chế độ Đi bộ tránh đứng chồng lên họ
 function nguoiMoi(mau,coMay){
  mau=mau||0xe8c33a;const ao=aoMau(mau),t=new THREE.Group();
  [-0.1,0.1].forEach(dz=>{const c=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.82,0.14),NM.quan);c.position.set(0,0.41,dz);t.add(c)});
  const th=new THREE.Mesh(new THREE.CylinderGeometry(0.19,0.21,0.62,10),ao);th.position.y=1.13;t.add(th);
  [-0.25,0.25].forEach(dz=>{const ta=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.5),ao);ta.position.set(0.2,1.12,dz*0.8);ta.rotation.y=dz>0?0.5:-0.5;t.add(ta)});
  const d=new THREE.Mesh(new THREE.SphereGeometry(0.13,10,8),NM.da);d.position.y=1.58;t.add(d);
- const g=gopNhom(t);g.userData.tinh=false;
+ const g=gopNhom(t);g.userData.tinh=false;NGUOI_LE.push(g);
  const k=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.3,0.34),M.ct);k.position.set(0.34,1.05,0);k.visible=false;g.add(k);g.userData.kien=k;
  if(coMay){const m=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.05,0.08),new THREE.MeshLambertMaterial({color:0x2b2f36}));m.position.set(0.42,1.2,0.12);g.add(m)}
  GOC.add(g);return g}
@@ -1745,8 +1827,8 @@ const CAM=(function(){
   if(o.mode==='orbit'||o.mode==='map'){
    const p=viTriOrbit(o.target,o.theta,o.phi,o.dist),dir=o.target.clone().sub(p).normalize();
    o.yaw=Math.atan2(dir.z,dir.x);o.pitch=bay?Math.asin(clamp(dir.y,-0.99,0.99)):-0.05;
-   if(bay)o.pos.copy(p);else{o.pos.set(o.target.x,1.65,o.target.z);datChoTrong()}
-  }else if(!bay){o.pos.y=1.65;o.pitch=clamp(o.pitch,-0.6,0.6);datChoTrong()}
+   if(bay)o.pos.copy(p);else{o.pos.set(o.target.x,1.65,o.target.z);datChoTrong();tranhNguoi()}
+  }else if(!bay){o.pos.y=1.65;o.pitch=clamp(o.pitch,-0.6,0.6);datChoTrong();tranhNguoi()}
  }
  function sangOrbit(){
   if(o.mode==='walk'||o.mode==='fly'){
@@ -1760,11 +1842,11 @@ const CAM=(function(){
  function datMode(m){
   if(m===o.mode)return;
   if(m==='walk'||m==='fly')sangNguoi(m==='fly');else sangOrbit();
-  o.mode=m;o.anim=null;o.vel.th=o.vel.ph=0;o.vel.pan.set(0,0,0);tatXoay();
+  o.mode=m;o.anim=null;camera.near=m==='walk'?0.3:0.1;camera.updateProjectionMatrix();o.vel.th=o.vel.ph=0;o.vel.pan.set(0,0,0);tatXoay();
   document.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
   $('joy').style.display=(m==='walk'||m==='fly')&&('ontouchstart' in window)?'block':'none';
   $('joyY').style.display=m==='fly'&&('ontouchstart' in window)?'flex':'none';
-  $('hint').textContent=GOI_Y[m];luuNho()}
+  $('hint').textContent=GOI_Y[m];luuNho();window.__sauMode&&window.__sauMode(m)}
  const GOI_Y={orbit:'Kéo trái: xoay · Kéo phải / Shift+kéo / 2 ngón: dịch · Cuộn: phóng về chỗ con trỏ · Chạm đúp: bay tới',
   map:'Kéo: dịch như bản đồ · Kéo phải / Ctrl+kéo: xoay + nghiêng · 2 ngón: xoay, phóng · Chạm đúp: bay tới',
   walk:'W A S D / mũi tên: đi · Kéo: nhìn quanh · Shift: đi nhanh · Không đi xuyên kệ',
@@ -1807,6 +1889,16 @@ const CAM=(function(){
  /* không đi xuyên vật cản: dùng đúng lưới vật cản xe nâng đang dùng (oTrong) */
  function trong(x,z){if(typeof oTrong!=='function')return true;const r=0.28;
   return oTrong(x,z)&&oTrong(x+r,z)&&oTrong(x-r,z)&&oTrong(x,z+r)&&oTrong(x,z-r)}
+ /* vừa vào Đi bộ mà camera đứng trùng một người (đầu người chắn nửa khung nhìn) → dời ra chỗ trống ≥1 m */
+ const _m4=new THREE.Matrix4(),_p3=new V3();
+ function nguoiGan(x,z,r){
+  if(DONG&&DONG.a8&&DONG.a8.imN){const im=DONG.a8.imN[2];for(let i=0;i<im.count;i++){im.getMatrixAt(i,_m4);_p3.setFromMatrixPosition(_m4);if(Math.hypot(_p3.x-x,_p3.z-z)<r)return true}}
+  for(const g of NGUOI_LE){if(!g.parent||!g.visible)continue;g.getWorldPosition(_p3);if(Math.hypot(_p3.x-x,_p3.z-z)<r)return true}
+  return false}
+ function tranhNguoi(){if(!nguoiGan(o.pos.x,o.pos.z,1.4))return;
+  for(let r=0.5;r<8;r+=0.5)for(let a=0;a<16;a++){const x=o.pos.x+r*Math.cos(a*Math.PI/8),z=o.pos.z+r*Math.sin(a*Math.PI/8);
+   if(trong(x,z)&&!nguoiGan(x,z,1.4)){o.pos.x=x;o.pos.z=z;return}}}
+ window.__nguoiGan=nguoiGan;
  function datChoTrong(){if(trong(o.pos.x,o.pos.z))return;
   for(let r=0.5;r<14;r+=0.5)for(let a=0;a<16;a++){const x=o.pos.x+r*Math.cos(a*Math.PI/8),z=o.pos.z+r*Math.sin(a*Math.PI/8);
    if(trong(x,z)){o.pos.x=x;o.pos.z=z;return}}}
@@ -2018,7 +2110,7 @@ const CAM=(function(){
   if(!ds.length)ds=chiMuc.filter(c=>c.loc.indexOf(q)===0&&/[-]/.test(c.loc.charAt(q.length)||'-'));
   if(!ds.length){const cha=chiMuc.filter(c=>q.indexOf(c.loc+'-')===0);if(cha.length)ds=cha}
   if(!ds.length)ds=chiMuc.filter(c=>c.loc.indexOf(q)>=0);
-  if(!ds.length){$('timTt').textContent='Không có mã "'+q+'" trong mô hình.';boTim(true);return}
+  if(!ds.length){$('timTt').textContent='Không có mã "'+q+'" trong mô hình.';boTim(true);window.__sauTim&&window.__sauTim(false);return}
   let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9,h=0;ds.forEach(c=>{x0=Math.min(x0,c.x);z0=Math.min(z0,c.z);x1=Math.max(x1,c.x+c.w);z1=Math.max(z1,c.z+c.d);h=Math.max(h,c.h)});
   if(!timBox){timBox=new THREE.Group();
    timBox.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)),new THREE.LineBasicMaterial({color:0xff2d20,depthTest:false,transparent:true})));
@@ -2026,7 +2118,7 @@ const CAM=(function(){
    timBox.renderOrder=20;timBox.children.forEach(c=>c.renderOrder=20);scene.add(timBox)}
   const cx=(x0+x1)/2,cz=(z0+z1)/2;timBox.position.set(cx,h/2,cz);timBox.scale.set(x1-x0+0.1,h+0.1,z1-z0+0.1);timBox.visible=true;
   const ten=ds.length===1?ds[0].loc:q+' ('+ds.length+' ô)';timHop={q:q0,x:cx,y:h+0.3,z:cz,ten:ten};
-  $('timTag').textContent=ten;$('timTt').textContent=ds.length===1?'Đã tìm thấy.':'Khớp '+ds.length+' ô — gõ thêm số tủ để chọn đúng 1 ô.';
+  $('timTag').textContent=ten;$('timTt').textContent=ds.length===1?'Đã tìm thấy.':'Khớp '+ds.length+' ô — gõ thêm số tủ để chọn đúng 1 ô.';window.__sauTim&&window.__sauTim(ds.length===1);
   if(!imLang){tatXoay();const to=Math.max(x1-x0,z1-z0);if(o.mode!=='orbit'&&o.mode!=='map')datMode('orbit');
    flyTo({theta:o.theta,phi:Math.min(Math.max(o.phi,0.7),1.05),dist:clamp(to*1.6+10,12,90),t:[cx,Math.min(h/2,2),cz]},1100)}}
  function boTim(giuChu){if(timBox)timBox.visible=false;timHop=null;$('timTag').style.display='none';if(!giuChu)$('timTt').textContent=''}
@@ -2038,7 +2130,7 @@ const CAM=(function(){
  $('timMa').addEventListener('keydown',e=>{if(e.key==='Enter'){timMa(e.target.value);e.target.blur()}e.stopPropagation()});
  $('timBo').addEventListener('click',()=>{$('timMa').value='';boTim()});
  function khoiDong(){let n={};try{n=JSON.parse(localStorage.getItem('kho170-cam')||'{}')}catch(e){}
-  taoChiMuc();chupMM();if(n.o)datChieu(true);if(n.k&&n.k!=='chuan')datKieu(n.k);if(n.m&&n.m!=='orbit')datMode(n.m);else $('hint').textContent=GOI_Y.orbit}
+  taoChiMuc();chupMM();if(n.o)datChieu(true);if(n.k&&n.k!=='chuan')datKieu(n.k);if(n.m&&n.m!=='orbit')datMode(n.m);else $('hint').textContent=GOI_Y.orbit;window.__goiY&&window.__goiY()}
  /* dựng lại kho (sửa thông số) thì chụp lại bản đồ + áp lại kiểu */
  function sauDung(){goc.clear();const k=kieu;if(k!=='chuan')datKieu(k);taoChiMuc();chupMM()}
  return {o,apply,cam,tick,render,flyTo,datMode,datChieu,datKieu,khoiDong,sauDung,chupMM,timMa,boTim,get chiMuc(){return chiMuc}}
@@ -2064,6 +2156,40 @@ document.getElementById('bTog').addEventListener('click',e=>{const col=document.
 document.getElementById('bRot').addEventListener('click',e=>{rot=e.target.classList.toggle('on')});
 document.getElementById('bRoof').addEventListener('click',e=>{roofG.visible=e.target.classList.toggle('on')});
 document.getElementById('bMode').addEventListener('click',()=>{mauVs=!mauVs;toMau()});
+/* ── THANH CÔNG CỤ: menu Góc nhìn / ⋯ · tự thu bảng · cần gạt nổi trên bảng · gợi ý thao tác tự mờ ── */
+(function(){
+ const $=id=>document.getElementById(id),ui=$('ui'),nen=$('mnNen');
+ const HEP=matchMedia('(pointer:coarse) and (max-width:600px),(pointer:coarse) and (max-height:500px)');
+ const CAM_UNG=matchMedia('(pointer:coarse)');
+ function dong(){document.querySelectorAll('.dd.mo').forEach(d=>{d.classList.remove('mo');d.querySelector('.ddb').setAttribute('aria-expanded','false')});nen.classList.remove('on')}
+ function mo(dd){const dang=dd.classList.contains('mo');dong();if(dang)return;dd.classList.add('mo');dd.querySelector('.ddb').setAttribute('aria-expanded','true');if(HEP.matches)nen.classList.add('on')}
+ document.querySelectorAll('.dd>.ddb').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();mo(b.parentNode)}));
+ document.querySelectorAll('.mn').forEach(m=>m.addEventListener('click',e=>e.stopPropagation()));
+ document.querySelectorAll('[data-dong]').forEach(b=>b.addEventListener('click',dong));
+ nen.addEventListener('click',dong);
+ document.addEventListener('click',dong);
+ addEventListener('keydown',e=>{if(e.key==='Escape')dong()});
+ /* chọn góc nhìn: đổi nhãn nút + đóng menu (bay camera do handler [data-v] sẵn có lo) */
+ document.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{$('gocTen').textContent=b.textContent;dong()}));
+ function thu(){if(!ui.classList.contains('col')){ui.classList.add('col');$('bTog').textContent='Chi tiết ▾'}dong();datJoy()}
+ /* cần gạt đi bộ/bay luôn nằm TRÊN mép bảng — không đè lên nút nào */
+ function datJoy(){const r=ui.getBoundingClientRect(),b=Math.max(24,innerHeight-r.top+14)+'px';$('joy').style.bottom=b;$('joyY').style.bottom=b}
+ window.__datJoy=datJoy;
+ if(window.ResizeObserver)new ResizeObserver(datJoy).observe(ui);
+ addEventListener('resize',datJoy);$('bTog').addEventListener('click',()=>setTimeout(datJoy,0));datJoy();
+ let hT=null;
+ function goiY(){const h=$('hint');h.classList.remove('tat');clearTimeout(hT);if(CAM_UNG.matches)hT=setTimeout(()=>h.classList.add('tat'),5000)}
+ window.__goiY=goiY;
+ window.__sauMode=m=>{goiY();if((m==='walk'||m==='fly')&&CAM_UNG.matches)thu();else datJoy()};
+ let tT=null;
+ window.__sauTim=ok=>{const t=$('timTt');t.classList.remove('an');clearTimeout(tT);
+  if(ok){tT=setTimeout(()=>t.classList.add('an'),2600);if(CAM_UNG.matches)thu()}};
+ $('timMa').addEventListener('input',()=>{if(!$('timMa').value)$('timTt').classList.add('an')});
+ /* điện thoại: bảng thông số dài ~7.000px → mặc định đóng, mở khi cần */
+ if(HEP.matches){const d=$('dTs');if(d)d.removeAttribute('open')}
+ goiY();
+})();
+
 document.getElementById('tsFile').addEventListener('change',e=>napTep(e.target.files[0]));
 (function keoTha(){const z=document.getElementById('tsNap');
  ['dragenter','dragover'].forEach(k=>z.addEventListener(k,e=>{e.preventDefault();z.classList.add('keo')}));

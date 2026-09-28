@@ -470,6 +470,83 @@ const bao = (d, t, c) => (d ? ok : loi).push(`${d ? "ĐẠT " : "LỖI "} · ${t
     })();
     bao(fpsNhe.bong, "màn hẹp (<900px) tự TẮT bóng đổ để đỡ nặng máy");
     bao(fpsNhe.f >= 6, "điện thoại 390px vẫn vẽ được", fpsNhe.f + " fps");
+
+    /* ── THANH CÔNG CỤ GỌN (28/09 tối, user duyệt): máy tính 1 hàng · điện thoại ≤2 hàng, menu = tấm đáy màn,
+       vùng chạm ≥40px, cần gạt không đè bảng, vào Đi bộ không đứng chồng người. BẤM THẬT (tap/click), không gọi hàm. */
+    const doThanh = async (vp, touch) => {
+      const q = await br.newPage();
+      await q.setViewport(touch ? { ...vp, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : vp);
+      await q.goto(URL_DO, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await q.evaluate(() => { try { localStorage.removeItem("kho170-cam"); } catch (e) {} });
+      await q.reload({ waitUntil: "domcontentloaded" });
+      await q.waitForFunction("(" + (() => window.__SAN_SANG === true) + ")()", { timeout: 45000 });
+      await new Promise((x) => setTimeout(x, 600));
+      const bam = async (sel) => { if (touch) await q.tap(sel); else await q.click(sel); await new Promise((x) => setTimeout(x, 450)); };
+      const r = await q.evaluate(() => {
+        const hien = (e) => { const s = getComputedStyle(e), b = e.getBoundingClientRect(); return s.display !== "none" && s.visibility !== "hidden" && +s.opacity > 0.05 && b.width > 0 && b.height > 0 && b.bottom > 0 && b.top < innerHeight; };
+        const ui = document.getElementById("ui").getBoundingClientRect();
+        const tops = new Set([...document.querySelectorAll("#tb > *")].filter(hien).map((e) => { const b = e.getBoundingClientRect(); return Math.round((b.top + b.height / 2) / 16); }));
+        const nut = [...document.querySelectorAll("button,input,select,a")].filter(hien);
+        const nho = nut.filter((e) => { const b = e.getBoundingClientRect(); return b.height < 40 || b.width < 40; }).map((e) => e.id || e.textContent.trim().slice(0, 12));
+        const phu = [...document.querySelectorAll("body > *")].filter((e) => e.tagName !== "CANVAS" && e.tagName !== "SCRIPT" && hien(e) && /fixed|absolute/.test(getComputedStyle(e).position))
+          .reduce((a, e) => { const b = e.getBoundingClientRect(); return a + Math.max(0, Math.min(b.right, innerWidth) - Math.max(b.left, 0)) * Math.max(0, Math.min(b.bottom, innerHeight) - Math.max(b.top, 0)); }, 0);
+        return { hang: tops.size, uiH: Math.round(ui.height), phu: Math.round(phu / (innerWidth * innerHeight) * 100), nho, ngang: document.documentElement.scrollWidth - innerWidth };
+      });
+      /* menu Góc nhìn: mở → nằm trọn màn → chọn A1 → nhãn đổi + menu đóng */
+      await bam("#bGoc");
+      /* chờ tấm trượt vào XONG rồi mới đo (máy bận: khung hình thưa, animation còn ở mốc đầu translateY 24px) */
+      const mn1 = await q.evaluate(async () => { await Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => 0))), new Promise((x) => setTimeout(x, 4000))]); const b = document.getElementById("mnGoc").getBoundingClientRect(); return { mo: !!document.querySelector("#ddGoc.mo"), trong: b.left >= 0 && b.top >= 0 && b.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5, day: Math.round(innerHeight - b.bottom) }; });
+      await bam('[data-v="a1"]');
+      const mn1b = await q.evaluate(() => ({ nhan: document.getElementById("gocTen").textContent, dong: !document.querySelector(".dd.mo"), on: document.querySelector('[data-v="a1"]').classList.contains("on") }));
+      await bam("#bThem");
+      const mn2 = await q.evaluate(async () => { await Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => 0))), new Promise((x) => setTimeout(x, 4000))]); const m = document.getElementById("mnThem"), b = m.getBoundingClientRect();
+        const ds = [...m.querySelectorAll("button,input")].filter((e) => e.getBoundingClientRect().width && e.getBoundingClientRect().height < 40)
+          .map((e) => (e.id || e.textContent.trim()) + " " + Math.round(e.getBoundingClientRect().width) + "×" + Math.round(e.getBoundingClientRect().height));
+        return { mo: !!document.querySelector("#ddThem.mo"), trong: b.left >= 0 && b.top >= 0 && b.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5,
+          nho: ds.length, ds, rect: [b.left, b.top, b.right, b.bottom].map(Math.round) + " / " + innerWidth + "×" + innerHeight, tf: getComputedStyle(m).transform }; });
+      await bam("#bRoof");
+      const maiBat = await q.evaluate(() => window.roofG.visible && !!document.querySelector("#ddThem.mo"));
+      await bam("#bRoof");
+      await q.keyboard.press("Escape"); await new Promise((x) => setTimeout(x, 200));
+      const escDong = await q.evaluate(() => !document.querySelector(".dd.mo"));
+      /* tìm mã bằng ô nhập thật → trên màn cảm ứng bảng tự thu gọn */
+      await bam("#bTog");
+      await bam("#timMa"); await q.type("#timMa", "F0-A1-506-05"); await q.keyboard.press("Enter"); await new Promise((x) => setTimeout(x, 700));
+      const tim = await q.evaluate(() => ({ tag: document.getElementById("timTag").textContent, thu: document.getElementById("ui").classList.contains("col") }));
+      /* đi bộ bằng nút thật */
+      await bam('[data-m="walk"]'); await new Promise((x) => setTimeout(x, 400));
+      const di = await q.evaluate(() => { const j = document.getElementById("joy"), jb = j.getBoundingClientRect(), u = document.getElementById("ui").getBoundingClientRect();
+        const e = jb.width ? document.elementFromPoint(jb.left + jb.width / 2, jb.top + jb.height / 2) : null, c = window.camera.position;
+        return { joy: jb.width > 0, joyDung: !!(e && j.contains(e)), joyTren: jb.bottom <= u.top, nguoi: window.__nguoiGan ? window.__nguoiGan(c.x, c.z, 1.0) : null, near: window.camera.near }; });
+      await q.close();
+      return { ...r, mn1, mn1b, mn2, maiBat, escDong, tim, di };
+    };
+    const tPC = await doThanh({ width: 1440, height: 900 }, false).catch((e) => { bao(false, "thanh công cụ gọn (máy tính) đo được", e.message.slice(0, 90)); return null; });
+    if (tPC) {
+    bao(tPC.hang === 1 && tPC.uiH <= 52, "máy tính: thanh công cụ gọn 1 hàng", tPC.hang + " hàng · cao " + tPC.uiH + "px");
+    bao(tPC.mn1.mo && tPC.mn1.trong && tPC.mn1b.nhan === "Khối kệ A1" && tPC.mn1b.dong && tPC.mn1b.on, "máy tính: menu Góc nhìn mở, chọn A1 → nhãn đổi + menu tự đóng", tPC.mn1b.nhan);
+    bao(tPC.mn2.mo && tPC.mn2.trong && tPC.maiBat && tPC.escDong, "máy tính: menu ⋯ mở, bấm Mái trong menu ăn (menu vẫn mở), Esc đóng");
+    }
+    const tDT = await doThanh({ width: 390, height: 844 }, true).catch((e) => { bao(false, "thanh công cụ gọn (điện thoại 390) đo được", e.message.slice(0, 90)); return null; });
+    if (tDT) {
+    bao(tDT.hang <= 2, "điện thoại: thanh thu gọn tối đa 2 hàng", tDT.hang + " hàng · cao " + tDT.uiH + "px");
+    bao(tDT.phu <= 25, "điện thoại dọc: lớp phủ che cảnh ≤25% màn lúc mở trang (bản cũ 41%)", tDT.phu + "%");
+    bao(tDT.nho.length === 0, "điện thoại: mọi nút/ô nhìn thấy ≥40px", tDT.nho.join(", "));
+    bao(tDT.ngang <= 0, "điện thoại: trang không kéo ngang", tDT.ngang + "px");
+    bao(tDT.mn1.mo && tDT.mn1.trong && tDT.mn1.day <= 1 && tDT.mn1b.nhan === "Khối kệ A1" && tDT.mn1b.dong, "điện thoại: Góc nhìn mở dạng tấm đáy màn, chạm chọn A1 là đóng", "cách đáy " + tDT.mn1.day + "px · " + tDT.mn1b.nhan);
+    bao(tDT.mn2.mo && tDT.mn2.trong && tDT.mn2.nho === 0 && tDT.maiBat && tDT.escDong, "điện thoại: tấm ⋯ nằm trọn màn, nút trong tấm ≥40px, chạm Mái ăn", tDT.mn2.nho + " nút nhỏ" + (tDT.mn2.ds.length ? " [" + tDT.mn2.ds.join(", ") + "]" : "") + " · mở " + tDT.mn2.mo + " · trong " + tDT.mn2.trong + " (" + tDT.mn2.rect + ", transform " + tDT.mn2.tf + ") · mái " + tDT.maiBat + " · Esc " + tDT.escDong);
+    bao(tDT.tim.tag === "F0-A1-506-05" && tDT.tim.thu, "điện thoại: gõ mã + Enter → tìm thấy và bảng tự thu gọn để không che ô", tDT.tim.tag);
+    bao(tDT.di.joy && tDT.di.joyDung && tDT.di.joyTren, "điện thoại Đi bộ: cần gạt hiện, nằm TRÊN mép bảng, chạm tâm trúng cần gạt");
+    bao(tDT.di.nguoi === false && tDT.di.near >= 0.3, "điện thoại Đi bộ: vừa vào không đứng chồng người (≤1 m) · near clip 0,3 m", "near " + tDT.di.near);
+    }
+    const tSE = await doThanh({ width: 375, height: 667 }, true).catch((e) => { bao(false, "thanh công cụ gọn (iPhone SE) đo được", e.message.slice(0, 90)); return null; });
+    if (tSE) {
+    bao(tSE.phu <= 25 && tSE.hang <= 2 && tSE.nho.length === 0, "iPhone SE 375×667: lớp phủ ≤25% · ≤2 hàng · nút ≥40px", tSE.phu + "% · " + tSE.hang + " hàng");
+    }
+    const tNg = await doThanh({ width: 844, height: 390 }, true).catch((e) => { bao(false, "thanh công cụ gọn (xoay ngang) đo được", e.message.slice(0, 90)); return null; });
+    if (tNg) {
+    bao(tNg.phu <= 35 && tNg.nho.length === 0, "điện thoại xoay ngang: lớp phủ ≤35% (bản cũ 55%) · nút ≥40px", tNg.phu + "% · " + tNg.hang + " hàng");
+    }
   }
   bao(loiTrang.length === 0, "console sạch", loiTrang.slice(0, 2).join(" | "));
   await p.close(); await br.close();
