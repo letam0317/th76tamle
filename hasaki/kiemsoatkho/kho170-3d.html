@@ -1145,8 +1145,10 @@ function nguoiGanXe(x,r,phia){if(!DONG)return false;const d=HUONG[x.h];
  return ds.some(p=>{const rx=p[0]-x.x,rz=p[1]-x.z;if(phia===-1&&rx*d[0]+rz*d[1]>0)return false;return Math.hypot(rx,rz)<r})}
 /* sau khi thả xe nâng: người đi pick nào đang đứng trong khung thân xe ⇒ dời tới trước dọc tuyến cho tới khi thoát */
 function tachNguoiKhoiXe(){if(!DONG)return;const tx=(x,z)=>xes.some(e=>{const b=hopXe(e.x,e.z,e.h);return x>b[0]-0.6&&x<b[2]+0.6&&z>b[1]-0.6&&z<b[3]+0.6});
- DONG.a8.NV.forEach(n=>{if(n.pha==='tram')return;let g=0;while(tx(n.x,n.z)&&g++<200){const p=n.duong[n.k];if(!p)break;const dx=p[0]-n.x,dz=p[1]-n.z,L=Math.hypot(dx,dz);
-  if(L<0.3){n.k++;continue}n.x+=dx/L*0.3;n.z+=dz/L*0.3;n.h=Math.atan2(-dz,dx)}n.rx=n.x;n.rz=n.z})}
+ /* dời tới trước tới khi thoát khung xe VÀ không đè lên người đã đặt (đè nhau lúc mở trang ⇒ 2 người chờ nhau mãi) */
+ const daDat=[],gan=n=>daDat.some(o=>Math.hypot(o.x-n.x,o.z-n.z)<0.6);
+ DONG.a8.NV.forEach(n=>{if(n.pha==='tram')return;let g=0;while((tx(n.x,n.z)||gan(n))&&g++<200){const p=n.duong[n.k];if(!p)break;const dx=p[0]-n.x,dz=p[1]-n.z,L=Math.hypot(dx,dz);
+  if(L<0.3){n.k++;continue}n.x+=dx/L*0.3;n.z+=dz/L*0.3;n.h=Math.atan2(-dz,dx)}n.rx=n.x;n.rz=n.z;daDat.push(n)})}
 let _id8=0;function D8(){return ++_id8}
 /* người quét: đứng cuối băng đang phục vụ → băng chạy → quét EDA52 (flash) → bỏ vào sóng; hết hàng thì qua băng kia;
    sóng đủ 30 kiện → đẩy tới cổng dây → thu dây → đẩy sóng qua → chờ NV ĐVVC nhận (quét) → đóng dây → lấy sóng rỗng về */
