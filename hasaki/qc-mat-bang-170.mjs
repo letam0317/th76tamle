@@ -74,11 +74,14 @@ const luoi = await p.evaluate(() => {
     const l = el.getAttribute("data-l");
     if (/^F0-A1-/.test(l)) mau[l] = getComputedStyle(el).backgroundColor;
   });
-  return { n, mau, nut: !!document.querySelector('#pane-planogram .hp-h2btn[onclick*="toggleMatBang"]') };
+  return { n, mau, nut: !!document.querySelector('#pane-planogram .hp-h2btn[onclick*="toggleMatBang"]'),
+    nutTen: (document.querySelector('#pane-planogram .hp-h2btn[onclick*="toggleMatBang"] .tx-full') || {}).textContent || "",
+    nut3d: !!document.querySelector('#pane-planogram a.hp-h2btn[href="kho170-3d.html"]') };
 });
 console.log("1) Sơ đồ lưới (trạng thái nền)");
 bao(luoi.n > 0, "sơ đồ lưới có ô", luoi.n + " ô");
-bao(luoi.nut, 'nút "Mặt bằng thật" có trong tiêu đề Sơ đồ');
+bao(luoi.nut && luoi.nutTen === "Planogram", 'nút "Planogram" (tên cũ "Mặt bằng thật") có trong tiêu đề Sơ đồ', luoi.nutTen);
+bao(luoi.nut3d, 'nút "Mô phỏng 3D" (mở kho170-3d.html) có trong tiêu đề Sơ đồ');
 bao(Object.keys(luoi.mau).length >= 160, "đọc được màu ô A1 trên lưới", Object.keys(luoi.mau).length + " ô");
 
 /* ---- bật mặt bằng ---- */

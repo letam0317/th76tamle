@@ -36,6 +36,9 @@ const FILES = [
   ["kiemsoatkho/hasaki-kiemke.js", "hasaki-kiemke.js"],     // module tab Kiểm kê HASAKI (lazy-load, nhân bản từ Audit Factory)
   ["kiemsoatkho/hasaki-pc.js", "hasaki-pc.js"],             // module DÙNG CHUNG: giỏ chọn SKU -> tạo lệnh kiểm kê .xlsx + Kế hoạch chờ push (lazy-load)
   ["kiemsoatkho/kho170-sodo.js", "kho170-sodo.js"],         // dữ liệu SƠ ĐỒ MẶT BẰNG kho 170 (bê từ bản vẽ CAD) — hasaki-planogram.js nạp lười khi bấm "Mặt bằng thật"
+  ["kiemsoatkho/kho170-3d.html", "kho170-3d.html"],         // mô phỏng 3D kho 170 — nút "Mô phỏng 3D" ở tiêu đề Sơ đồ khu vực (28/09)
+  ["kiemsoatkho/kho170-thongso.js", "kho170-thongso.js"],   // số đo kho cho trang 3D
+  ["kiemsoatkho/kho170-vach.js", "kho170-vach.js"],         // danh sách vách rác cho trang 3D (qc-vach-kho170.mjs sinh)
 ];
 
 if (!TOKEN) {

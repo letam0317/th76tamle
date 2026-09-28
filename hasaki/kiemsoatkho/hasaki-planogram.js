@@ -907,6 +907,7 @@ var CSS = [
    mắt phân biệt được: viên trong THANH LỌC = lọc, viên trong TIÊU ĐỀ = mở bảng/pop-up. */
 "#pane-planogram .hp-legbtn,#pane-planogram .hp-h2btn{border:1px solid var(--border,#d5dbe4);background:var(--surface,#fff);color:var(--text,#374151);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;gap:5px;min-height:26px;transition:background .16s ease,border-color .16s ease;}",
 "#pane-planogram .hp-legbtn:hover,#pane-planogram .hp-h2btn:hover{background:color-mix(in srgb,var(--accent,#326e51) 8%,transparent);border-color:var(--accent,#326e51);}",
+"#pane-planogram a.hp-h2btn{text-decoration:none;margin-left:4px;}",
 "#pane-planogram .hp-legbtn .hp-legdot{width:7px;height:7px;border-radius:50%;background:var(--accent,#326e51);display:inline-block;}",
 "#pane-planogram .hp-legbtn .hp-legcnt,#pane-planogram .hp-h2btn .hp-legcnt{background:color-mix(in srgb,var(--accent,#326e51) 12%,transparent);color:var(--accent,#326e51);border-radius:999px;padding:0 5px;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;}",
 "#pane-planogram .hp-legpop{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:90;width:max-content;min-width:270px;max-width:92vw;background:var(--surface,#fff);border:1px solid var(--border,#d5dbe4);border-radius:12px;box-shadow:0 12px 36px rgba(16,24,40,.2);padding:10px 12px;animation:hp-in .2s cubic-bezier(.16,1,.3,1);}",
@@ -2950,8 +2951,11 @@ function renderMap(){
      nên không sinh thêm một loại điều khiển mới trên màn. */
   var btnMB = '<button type="button" class="hp-h2btn' + (S.mb ? " on" : "") + '" onclick="HPLANOGRAM.toggleMatBang()" title="' +
     (S.mb ? "Về sơ đồ lưới (ô đều nhau, gọn màn hình)" : "Xem mặt bằng thật theo bản vẽ kho — đúng tỉ lệ, đúng lối đi") + '">' +
-    '<span class="tx-full">' + (S.mb ? "Sơ đồ lưới" : "Mặt bằng thật") + '</span>' +
-    '<span class="tx-short">' + (S.mb ? "Lưới" : "Mặt bằng") + '</span></button>';
+    '<span class="tx-full">' + (S.mb ? "Sơ đồ lưới" : "Planogram") + '</span>' +
+    '<span class="tx-short">' + (S.mb ? "Lưới" : "Planogram") + '</span></button>' +
+    /* 28/09: mô hình 3D kho 170 (kho170-3d.html) — cùng kiểu nút tiêu đề, mở tab mới vì trang WebGL nặng */
+    '<a class="hp-h2btn" href="kho170-3d.html" target="_blank" rel="noopener" title="Mô phỏng 3D kho 170: xoay/đi bộ/bay, tìm mã vị trí">' +
+    '<span class="tx-full">Mô phỏng 3D</span><span class="tx-short">3D</span></a>';
 
   var slot = $id("hpNhacSlot");
   if (!S.mb && !htmlA1 && !htmlA8){ box.innerHTML = ""; if (slot) slot.innerHTML = ""; return; }
