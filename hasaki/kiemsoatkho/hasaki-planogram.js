@@ -815,8 +815,7 @@ var CSS = [
    30/07 chống layout-shift: cột phải chốt cứng 380px (bỏ minmax co theo nội dung) — bề rộng
    cột trái BẤT BIẾN từ 0ms, data/font về sau không làm sơ đồ bị "đá ngang" trái↔giữa. */
 "#pane-planogram .hp-main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:10px 12px;align-items:stretch;margin-top:10px;}",
-/* 29/09: đang xem MẶT BẰNG THẬT ⇒ sơ đồ trải HẾT bề ngang (to hơn ~35 %, vẫn vừa màn — không kéo ngang), danh sách NV xuống dưới */
-"#pane-planogram .hp-main.mb{grid-template-columns:minmax(0,1fr);}",
+
 "#pane-planogram #hpToday > .hp-panel{height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;}",
 /* cột sơ đồ: căn giữa/giữ chỗ THUẦN CSS ngay khung hình đầu — flex dọc + min-height khi có ruột
    (skeleton lúc tải cũng tính), panel giãn hết cao; :empty (không có dữ liệu) thì xẹp tự nhiên */
@@ -862,7 +861,16 @@ var CSS = [
 "#pane-planogram .hp-mbwrap{margin:6px 0 2px;border-radius:10px;overflow:hidden;background:color-mix(in srgb, var(--panel,#fff) 92%, var(--text,#0f172a) 8%);}",
 "#pane-planogram .hp-mbsvg{display:block;width:100%;height:auto;max-height:min(62vh,560px);}",
 /* 29/09 (lượt 2): mặt bằng VỪA KHÍT bề ngang, KHÔNG kéo ngang — bỏ trần chiều cao cũ (62vh/560px làm ảnh bé); khung đã cắt sân bãi */
-"#pane-planogram .hp-mbtv .hp-mbsvg{width:100%;max-height:none;}",
+"#pane-planogram .hp-mbtv .hp-mbsvg{width:100%;max-height:none;touch-action:pan-y;user-select:none;-webkit-user-select:none;}",
+"#pane-planogram .hp-mbtv{position:relative;margin-left:-8px;margin-right:-8px;}",
+"#pane-planogram .hp-mbtv.zoom .hp-mbsvg{touch-action:none;cursor:grab;}",
+"#pane-planogram .hp-mbtv.zoom .hp-mbsvg:active{cursor:grabbing;}",
+"#pane-planogram .hp-mbzoom{position:absolute;right:10px;top:10px;z-index:2;display:flex;flex-direction:column;gap:0;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(15,23,42,.18);border:1px solid var(--border,#e2e8f0);}",
+"#pane-planogram .hp-mbzoom button{width:34px;height:34px;border:0;border-top:1px solid var(--border,#e2e8f0);background:var(--surface,#fff);color:var(--text,#0f172a);font-size:18px;font-weight:700;line-height:1;cursor:pointer;transition:background .15s ease;}",
+"#pane-planogram .hp-mbzoom button:first-child{border-top:0;}",
+"#pane-planogram .hp-mbzoom button:hover{background:color-mix(in srgb, var(--accent,#2f7a55) 10%, var(--surface,#fff));}",
+"#pane-planogram .hp-mbzoom button:focus-visible{outline:2px solid var(--accent,#2f7a55);outline-offset:-2px;}",
+"@media(pointer:coarse){#pane-planogram .hp-mbzoom button{width:40px;height:40px;}}",
 /* VÙNG KHU — bình thường vô hình; trỏ vào: nền màu khu 16 % + viền nét đứt CHẠY LIÊN TỤC + thẻ tên trong khu; phần khác mờ đi */
 "#pane-planogram .hp-mbv .hp-mbvr{fill:var(--vc);fill-opacity:0;stroke:var(--vc);stroke-opacity:0;stroke-width:2.2;stroke-dasharray:9 6;vector-effect:non-scaling-stroke;pointer-events:all;transition:fill-opacity .2s ease,stroke-opacity .2s ease;}",
 "#pane-planogram .hp-mbv.co{cursor:pointer;}",
@@ -3072,16 +3080,53 @@ function svgMatBang(veO, demKhu){
       oTrong.map(veO).join("") + chip + the + '</g>';
   }).join("");
   var le = coO.filter(function(v){ return !daVe[v.loc]; }).map(veO).join("");
-  return '<div class="hp-mbwrap hp-mbtv"><svg class="hp-mbsvg" viewBox="' + K.x + ' ' + K.y + ' ' + K.w + ' ' + K.h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mặt bằng kho 170 (nhìn từ trên xuống, mô phỏng 3D) — trỏ vào khu để xem tên, bấm khu để mở sơ đồ lưới">' +
+  return '<div class="hp-mbwrap hp-mbtv" id="hpMbWrap">' +
+    '<div class="hp-mbzoom" role="group" aria-label="Phóng mặt bằng"><button type="button" data-z="in" title="Phóng to (hoặc lăn chuột / chụm 2 ngón)" aria-label="Phóng to">+</button>' +
+    '<button type="button" data-z="out" title="Thu nhỏ" aria-label="Thu nhỏ">−</button><button type="button" data-z="fit" title="Vừa khung" aria-label="Vừa khung">⤢</button></div>' +
+    '<svg class="hp-mbsvg" viewBox="' + K.x + ' ' + K.y + ' ' + K.w + ' ' + K.h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mặt bằng kho 170 (nhìn từ trên xuống, mô phỏng 3D) — trỏ vào khu để xem tên, bấm khu để mở sơ đồ lưới">' +
     '<image href="' + T.anh + '?v=' + (T.ver || T.ngay) + '" x="0" y="0" width="' + T.W + '" height="' + T.H + '" preserveAspectRatio="none"/>' +
     vung + le + '</svg></div>';
+}
+/* PHÓNG / KÉO mặt bằng NGAY TRONG khung Sơ đồ (user 29/09: to hơn nhưng giữ nguyên khổ mục Sơ đồ, NV hôm nay đứng nguyên chỗ,
+   không thanh kéo ngang). Đổi viewBox — không đổi kích thước phần tử. Nút + − ⤢ · lăn chuột (khi đã phóng, hoặc giữ Ctrl) · kéo để
+   di chuyển · chụm 2 ngón · nhấp đúp phóng tại chỗ. Mức phóng giữ qua các lần vẽ lại (S.mbZ). Kéo xong KHÔNG tính là bấm khu/ô. */
+function ganZoomMB(){
+  var w = $id("hpMbWrap"), T = window.KHO170_TOPVIEW; if (!w || !T) return;
+  var svg = w.querySelector("svg"), K = T.khung || { x: 0, y: 0, w: T.W, h: T.H };
+  var Z = S.mbZ || (S.mbZ = { s: 1, cx: K.x + K.w / 2, cy: K.y + K.h / 2 });
+  function ap(){ Z.s = Math.min(6, Math.max(1, Z.s)); var vw = K.w / Z.s, vh = K.h / Z.s;
+    Z.cx = Math.min(K.x + K.w - vw / 2, Math.max(K.x + vw / 2, Z.cx)); Z.cy = Math.min(K.y + K.h - vh / 2, Math.max(K.y + vh / 2, Z.cy));
+    svg.setAttribute("viewBox", (Z.cx - vw / 2).toFixed(3) + " " + (Z.cy - vh / 2).toFixed(3) + " " + vw.toFixed(3) + " " + vh.toFixed(3));
+    w.classList.toggle("zoom", Z.s > 1.001); }
+  function diem(ex, ey){ var r = svg.getBoundingClientRect(), vw = K.w / Z.s, vh = K.h / Z.s;
+    return { x: Z.cx - vw / 2 + (ex - r.left) / r.width * vw, y: Z.cy - vh / 2 + (ey - r.top) / r.height * vh }; }
+  function phong(k, ex, ey){ var r = svg.getBoundingClientRect();
+    var p = ex == null ? { x: Z.cx, y: Z.cy } : diem(ex, ey), s0 = Z.s; Z.s = Math.min(6, Math.max(1, Z.s * k));
+    Z.cx = p.x - (p.x - Z.cx) * s0 / Z.s; Z.cy = p.y - (p.y - Z.cy) * s0 / Z.s; ap(); }
+  w.querySelectorAll(".hp-mbzoom button").forEach(function(b){ b.onclick = function(e){ e.stopPropagation();
+    var z = b.getAttribute("data-z"); if (z === "in") phong(1.4); else if (z === "out") phong(1 / 1.4); else { Z.s = 1; ap(); } }; });
+  svg.addEventListener("wheel", function(e){ if (Z.s <= 1.001 && !e.ctrlKey && e.deltaY > 0) return; if (Z.s <= 1.001 && !e.ctrlKey) return;
+    e.preventDefault(); phong(e.deltaY < 0 ? 1.18 : 1 / 1.18, e.clientX, e.clientY); }, { passive: false });
+  svg.addEventListener("dblclick", function(e){ e.preventDefault(); phong(1.6, e.clientX, e.clientY); });
+  var tro = {}, keo = null, hai = null, daKeo = false;
+  svg.addEventListener("pointerdown", function(e){ tro[e.pointerId] = { x: e.clientX, y: e.clientY }; var ids = Object.keys(tro);
+    if (ids.length === 2){ var a = tro[ids[0]], b = tro[ids[1]]; hai = { d: Math.hypot(a.x - b.x, a.y - b.y) }; keo = null; }
+    else { keo = { x: e.clientX, y: e.clientY }; daKeo = false; } });
+  svg.addEventListener("pointermove", function(e){ if (!tro[e.pointerId]) return; tro[e.pointerId] = { x: e.clientX, y: e.clientY }; var ids = Object.keys(tro);
+    if (hai && ids.length === 2){ var a = tro[ids[0]], b = tro[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y); if (hai.d > 0) phong(d / hai.d, (a.x + b.x) / 2, (a.y + b.y) / 2); hai.d = d; daKeo = true; return; }
+    if (!keo || Z.s <= 1.001) return; var dx = e.clientX - keo.x, dy = e.clientY - keo.y; if (!daKeo && Math.hypot(dx, dy) < 5) return;
+    if (!daKeo){ daKeo = true; try { svg.setPointerCapture(e.pointerId); } catch (x) {} }
+    var r = svg.getBoundingClientRect(); Z.cx -= dx / r.width * K.w / Z.s; Z.cy -= dy / r.height * K.h / Z.s; keo = { x: e.clientX, y: e.clientY }; ap(); });
+  function tha(e){ delete tro[e.pointerId]; if (Object.keys(tro).length < 2) hai = null; if (!Object.keys(tro).length) keo = null; }
+  svg.addEventListener("pointerup", tha); svg.addEventListener("pointercancel", tha);
+  svg.addEventListener("click", function(e){ if (daKeo){ e.stopPropagation(); e.preventDefault(); daKeo = false; } }, true);
+  ap();
 }
 /* thẻ số vị trí trên mặt bằng → sang sơ đồ lưới của đúng khu đó */
 function moKhuMB(k){ S.mb = false; if (S.area !== k) setArea(k); renderMap(); }
 
 function renderMap(){
   var box = $id("hpMap"); if (!box) return;
-  var hm = $id("hpMain"); if (hm) hm.classList.toggle("mb", !!S.mb);
   if (!S.yc.ok || !S.yc.rows.length){ box.innerHTML = S.yc.dang ? SK_MAP : ""; return; }
   var k = khoang(), homNay = laHomNay(), mot = la1Ngay();
   /* byL gom theo KHOÁ Ô (khoaO) — kệ A1 có mã alias vẫn rơi đúng ô của nó */
@@ -3330,6 +3375,7 @@ function renderMap(){
     legRow + (S.mb ? htmlMB : (htmlA1 + htmlA8 + htmlGen)) +
     '</section>';
   if (!S.mb) fitMaps();   // mặt bằng là SVG tự co theo viewBox, không cần (và không được) phóng bằng hệ số như lưới
+  else ganZoomMB();
 }
 /* ===== THẺ "CẦN XỬ LÝ" (28/09/2026) — gom 4 việc từng nằm rải rác thành 1 danh sách, mỗi dòng
  * = SỐ + VIỆC + nút mở: (1) người đi làm mà chưa báo cáo [xổ chip từng người, bấm tên = soi ô trên

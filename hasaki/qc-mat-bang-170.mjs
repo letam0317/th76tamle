@@ -121,6 +121,11 @@ const mb = await p.evaluate(() => {
     cuonTrong: !!(wrap && /auto|scroll/.test(getComputedStyle(svg.parentElement).overflowX)), ti: r && wrap ? r.width / wrap.width : 0,
     ke1: document.querySelectorAll("#pane-planogram .hp-mbo.o-ke[data-l^='F0-A1-']").length,
     ke8: document.querySelectorAll("#pane-planogram .hp-mbo.o-ke[data-l^='F0-A8-']").length,
+    cungHang: (() => { const m = document.querySelector("#pane-planogram #hpMap"), n = document.querySelector("#pane-planogram #hpAI"); if (!m || !n) return false;
+      const a = m.getBoundingClientRect(), b = n.getBoundingClientRect(); return Math.abs(a.top - b.top) < 4 && b.left > a.right - 4; })(),
+    phong: (() => { const w = document.getElementById("hpMbWrap"); if (!w) return null; const sv = w.querySelector("svg"), v0 = sv.getAttribute("viewBox"), bt = w.querySelectorAll(".hp-mbzoom button");
+      bt[0] && bt[0].click(); const v1 = sv.getAttribute("viewBox"); bt[2] && bt[2].click(); const v2 = sv.getAttribute("viewBox");
+      return { nut: bt.length, doi: v1 !== v0, ve: v2 === v0 }; })(),
     vung: document.querySelectorAll("#pane-planogram .hp-mbv").length, nhan: document.querySelectorAll("#pane-planogram .hp-mbkhu").length };
 });
 console.log("\n3) Đếm ô trên mặt bằng");
@@ -165,7 +170,9 @@ bao(veLuoi.cell === luoi.n && veLuoi.svg === 0, "lưới trở lại nguyên tr�
 
 console.log("\n7) Bố cục" + (MOBILE ? " điện thoại" : ""));
 /* 29/09 lượt 2: VỪA KHÍT bề ngang (không kéo ngang) và to hơn ≥ 25 % so với bản cũ (máy tính: bản cũ 974 px ảnh đủ sân bãi ⇒ nay khung cắt theo nhà + trải hết bề ngang) */
-bao(!mb.tranNgang && mb.ti <= 1.01 && (MOBILE || mb.rong >= 1250), "mặt bằng vừa khít bề ngang (không kéo ngang) · máy tính trải hết khung (≥ 1250 px)", mb.rong + "×" + mb.cao + "px · " + mb.ti.toFixed(2) + "× khung");
+bao(!mb.tranNgang && mb.ti <= 1.01, "mặt bằng vừa khít bề ngang khung Sơ đồ (không kéo ngang)", mb.rong + "×" + mb.cao + "px · " + mb.ti.toFixed(2) + "× khung");
+bao(MOBILE || mb.cungHang, "mục Nhân viên hôm nay vẫn CÙNG HÀNG với Sơ đồ (29/09 lượt 3)", mb.cungHang ? "cùng hàng" : "bị đẩy xuống");
+bao(mb.phong && mb.phong.nut === 3 && mb.phong.doi && mb.phong.ve, "nút phóng + − ⤢: phóng to đổi khung nhìn, ⤢ về vừa khung", JSON.stringify(mb.phong));
 bao(!mb.doiRong, "trang không sinh cuộn ngang");
 
 console.log("\n8) Lỗi trang");
