@@ -981,7 +981,9 @@ const VAT_GOC=[].concat(
  [11.7,12.9].map((z,i)=>({id:'reit-bt-'+(i+1),loai:'ban',x:43.02,z:z,xoay:90,w:1.2,d:0.6,mt:1})),
  [43.95,45.15,46.35].map((x,i)=>({id:'reit-ke-'+(i+1),loai:'keV',x:x,z:17.2,xoay:0,w:1.2,d:0.45})),
  [14.4,15.6].map((z,i)=>({id:'reit-dao-'+(2*i+1),loai:'ban',x:44.8,z:z,xoay:270,w:1.2,d:0.6,mt:1})),
- [14.4,15.6].map((z,i)=>({id:'reit-dao-'+(2*i+2),loai:'ban',x:45.4,z:z,xoay:90,w:1.2,d:0.6,mt:1})));
+ [14.4,15.6].map((z,i)=>({id:'reit-dao-'+(2*i+2),loai:'ban',x:45.4,z:z,xoay:90,w:1.2,d:0.6,mt:1})),
+ /* user 29/09: thêm 2 bàn KHÔNG ghế, nối đầu cụm bàn đảo phía bắc */
+ [44.8,45.4].map((x,i)=>({id:'reit-dao-'+(5+i),loai:'ban',x:x,z:13.2,xoay:i?90:270,w:1.2,d:0.6,mt:0,ghe:0})));
 /* loại món: tên hiện ở bảng chỉnh sửa + cỡ mặc định khi Thêm mới */
 const LOAI_VAT={
  ban:{ten:'Bàn',w:1.5,d:0.6,mt:1},
@@ -1009,7 +1011,8 @@ function dungVat(v){
   b(w,0.04,d,MV.go,0,H-0.02,0);
   [-1,1].forEach(k=>b(0.05,H-0.04,d*0.9,MV.khung,k*(w/2-0.05),(H-0.04)/2,0));
   if(v.mt){b(Math.min(0.56,w-0.1),0.34,0.03,MV.man,0,H+0.26,-(d/2-0.15));          // màn hình ở mép XA người ngồi
-   b(0.2,0.42,0.42,MV.den,w/2-0.2,0.22,0);
+   b(0.2,0.42,0.42,MV.den,w/2-0.2,0.22,0)}
+  if(v.ghe!==undefined?v.ghe:v.mt){                                              // ghế bật/tắt riêng (user 29/09)
    const gz=d/2+0.35;b(0.48,0.08,0.48,MV.ghe,0,0.47,gz);b(0.46,0.5,0.06,MV.ghe,0,0.76,gz+0.22);b(0.06,0.43,0.06,MV.khung,0,0.22,gz)}
   for(let k=0;k<(v.thung||0);k++){const n=v.thung,xk=n>1?-w/2+0.4+k*(w-0.8)/(n-1):0;
    b(0.3,0.18+0.12*(k%2),0.34,k%2?M.ct:M.ct2,xk,H+0.1+0.06*(k%2),0)}}
@@ -2468,7 +2471,7 @@ function frame(now){requestAnimationFrame(frame);
   if(!v){b.innerHTML='<span class="suaGoiY">Bấm vào 1 bàn / kệ / sóng để chọn, rồi kéo đi. Bấm chỗ trống để bỏ chọn.</span>';return}
   const L=LOAI_VAT[v.loai]||{ten:v.loai},o=(k,nhan,st)=>'<label>'+nhan+'<input data-k="'+k+'" type="number" step="'+(st||0.05)+'" value="'+(v[k]||0)+'"></label>';
   let h='<b>'+L.ten+'</b> <small>'+v.id+'</small>'+o('x','X')+o('z','Z')+o('xoay','Xoay°',90)+o('w','Dài')+o('d','Rộng');
-  if(v.loai==='ban')h+='<label class="ck"><input data-k="mt" type="checkbox"'+(v.mt?' checked':'')+'>máy tính + ghế</label>'+o('thung','Thùng',1);
+  if(v.loai==='ban')h+='<label class="ck"><input data-k="mt" type="checkbox"'+(v.mt?' checked':'')+'>máy tính</label><label class="ck"><input data-k="ghe" type="checkbox"'+((v.ghe!==undefined?v.ghe:v.mt)?' checked':'')+'>ghế</label>'+o('thung','Thùng',1);
   if(v.loai==='song')h+='<label>Màu<select data-k="mau"><option value="xanh"'+(v.mau!=='la'?' selected':'')+'>xanh dương</option><option value="la"'+(v.mau==='la'?' selected':'')+'>xanh lá</option></select></label>';
   const l=loiCua(v);if(l.length)h+='<span class="suaLoi">⚠ '+l.join(' · ')+'</span>';
   b.innerHTML=h;
