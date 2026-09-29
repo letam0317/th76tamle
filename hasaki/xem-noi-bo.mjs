@@ -47,7 +47,7 @@ const BUOC_CHOT = [
   ["QC mô phỏng 3D", ["qc-kho170-3d.mjs"]],
   ["QC sơ đồ lưới tab Planogram", ["qc-mat-bang-170.mjs"]],
   ["QC sơ đồ lưới trên điện thoại", ["qc-mat-bang-170.mjs", "--mobile"]],
-  ["đẩy lên live", ["deploy-kiemsoatkho.mjs", "--chi", "kho170-3d.html,kho170-bocuc.js,kho170-topview.js,kho170-topview.webp,hasaki-planogram.js"]],
+  ["đẩy lên live", ["deploy-kiemsoatkho.mjs", "--chi", "kho170-3d.html,kho170-bocuc.js,kho170-topview.js,kho170-topview.webp,hasaki-planogram.js,taisan-vitri.js"]],
 ];
 let CHOT = { chay: false, xong: false, ok: false, buoc: 0, ten: "", loi: "" };
 const laMayNay = (req) => /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(req.socket.remoteAddress || "");

@@ -862,7 +862,12 @@ var CSS = [
 "#pane-planogram .hp-mbsvg{display:block;width:100%;height:auto;max-height:min(62vh,560px);}",
 /* 29/09 (lượt 2): mặt bằng VỪA KHÍT bề ngang, KHÔNG kéo ngang — bỏ trần chiều cao cũ (62vh/560px làm ảnh bé); khung đã cắt sân bãi */
 "#pane-planogram .hp-mbtv .hp-mbsvg{width:100%;max-height:none;touch-action:pan-y;user-select:none;-webkit-user-select:none;}",
-"#pane-planogram .hp-mbtv{position:relative;margin-left:-8px;margin-right:-8px;}",
+"#pane-planogram .hp-mbtv{position:relative;margin-left:-8px;margin-right:-8px;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);}",
+/* BỎ NỀN (29/09 lượt 4): ảnh nền trắng hoà multiply ⇒ chỉ còn nét kệ/tường/đồ; nhà tô nền nhạt, khối ngoài nhà nền xám nhạt nét đứt */
+"#pane-planogram .hp-mbanh{mix-blend-mode:multiply;}",
+"#pane-planogram .hp-mbnha{fill:#f6f8fb;}",
+"#pane-planogram .hp-mbnhavien{fill:none;stroke:#475569;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round;}",
+"#pane-planogram .hp-mbngoai{fill:#eef2f6;stroke:#94a3b8;stroke-width:1.2;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;}",
 "#pane-planogram .hp-mbtv.zoom .hp-mbsvg{touch-action:none;cursor:grab;}",
 "#pane-planogram .hp-mbtv.zoom .hp-mbsvg:active{cursor:grabbing;}",
 "#pane-planogram .hp-mbzoom{position:absolute;right:10px;top:10px;z-index:2;display:flex;flex-direction:column;gap:0;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(15,23,42,.18);border:1px solid var(--border,#e2e8f0);}",
@@ -878,7 +883,6 @@ var CSS = [
 "#pane-planogram .hp-mbv:hover .hp-mbvr,#pane-planogram .hp-mbv:focus-visible .hp-mbvr{fill-opacity:.16;stroke-opacity:1;stroke-width:2.4;animation:hpKien .9s linear infinite;}",
 "@keyframes hpKien{to{stroke-dashoffset:-15;}}",
 "#pane-planogram .hp-mbv:focus{outline:none;}",
-"#pane-planogram .hp-mbsvg:has(.hp-mbv:hover) .hp-mbv:not(:hover) .hp-mbvr{fill:#0f172a;fill-opacity:.1;}",
 /* thẻ tên: viên thuốc trắng bo tròn, mã khu nền màu khu, tên đậm + dòng phụ — hiện mượt khi trỏ vào */
 "#pane-planogram .hp-mbvtag{opacity:0;pointer-events:none;transition:opacity .18s ease;}",
 "#pane-planogram .hp-mbv:hover .hp-mbvtag,#pane-planogram .hp-mbv:focus-visible .hp-mbvtag{opacity:1;}",
@@ -1117,6 +1121,17 @@ var CSS = [
    Tái dùng keyframes hp-in + easing/độ mượt sẵn có của module, không chế animation mới. */
 ".hp-vtduo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 0;}",
 "@media(max-width:560px){.hp-vtduo{grid-template-columns:1fr;}}",
+".hp-vtts{margin-top:10px;}",
+".hp-vtts>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;}",
+".hp-vtts>summary::-webkit-details-marker{display:none;}",
+".hp-vtts>summary::after{content:'▾';margin-left:auto;opacity:.6;transition:transform .2s ease;}",
+".hp-vtts[open]>summary::after{transform:rotate(180deg);}",
+".hp-vttsn{font-size:12px;font-weight:700;color:var(--accent,#2f7a55);}",
+".hp-vtts ul{margin:4px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px;}",
+".hp-vtts li{display:flex;flex-direction:column;gap:1px;font-size:12.5px;padding:6px 8px;border-radius:8px;background:var(--surface,#fff);border:1px solid var(--border,#e8ecf1);}",
+".hp-vtts li .sl{font-weight:700;color:var(--accent,#2f7a55);}",
+".hp-vtts li small{font-size:11px;color:var(--muted,#6b7280);line-height:1.35;}",
+".hp-vtts li small.ma{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;}",
 ".hp-vtcard{border:1px solid var(--border,#e8ecf1);border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:8px;background:color-mix(in srgb, var(--muted,#9ca3af) 6%, var(--surface,#fff));animation:hp-in .34s cubic-bezier(.32,.72,0,1) both;}",
 ".hp-vtcard.pt{border-color:color-mix(in srgb, var(--accent,#326e51) 32%, transparent);background:color-mix(in srgb, var(--accent,#326e51) 7%, var(--surface,#fff));}",
 ".hp-vtcard.ref{animation-delay:.06s;}",
@@ -3031,7 +3046,10 @@ var KHU_DAY = { A1: "Tủ quầy kệ", A2: "Khu vực quà tặng",
   A19: "Khu vực băng chuyền xuất &bàn giao đơn vị vận chuyển", A20: "Khu vực gia cố, đóng gói để vận chuyển nội bộ",
   A21: "Khu vực khai báo bảo vệ &tủ khóa cá nhân", A22: "Khu vực xe giao nhận nội bộ", A23: "Bãi xe nhân viên",
   A24: "Phòng giặt sấy", A25: "Bãi xe nhà cung cấp, đối tác &thùng trữ rác sinh hoạt ngoài kho", A26: "Phòng ăn nhân viên",
-  CB: "Băng chuyền phân loại đầu vào &in nhãn đóng gói" };
+  CB: "Băng chuyền phân loại đầu vào &in nhãn đóng gói",
+  /* không có trong tab "Tên khu vực": kệ tường A1 (bản vẽ DCMTG1) + khối hầm nước ngoài nhà (DC HASAKI 6.6) */
+  "5L1": "Kệ sát tường trái khối A1 (24 ô pallet)", "5L2": "Kệ sát tường trên khối A1 (26 ô pallet)",
+  "5L3": "Kệ áp vách Re-IT · Ortery · SPA (27 ô pallet)", PCCC: "Phòng bơm PCCC · hầm nước (chưa xác minh)" };
 /* màu vùng: A1/A8 theo màu nhóm planogram; khu khác xoay vòng 1 bảng màu dịu, cố định theo mã (không đổi giữa các lần tải) */
 var MAU_VUNG = ["#7c3aed", "#db2777", "#ea580c", "#0d9488", "#4f46e5", "#16a34a", "#c026d3", "#0284c7", "#b45309", "#e11d48"];
 function mauVung(k){ var a = AREAS.filter(function(q){ return q.k === k; })[0]; if (a && a.map) return a.c;
@@ -3084,7 +3102,10 @@ function svgMatBang(veO, demKhu){
     '<div class="hp-mbzoom" role="group" aria-label="Phóng mặt bằng"><button type="button" data-z="in" title="Phóng to (hoặc lăn chuột / chụm 2 ngón)" aria-label="Phóng to">+</button>' +
     '<button type="button" data-z="out" title="Thu nhỏ" aria-label="Thu nhỏ">−</button><button type="button" data-z="fit" title="Vừa khung" aria-label="Vừa khung">⤢</button></div>' +
     '<svg class="hp-mbsvg" viewBox="' + K.x + ' ' + K.y + ' ' + K.w + ' ' + K.h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mặt bằng kho 170 (nhìn từ trên xuống, mô phỏng 3D) — trỏ vào khu để xem tên, bấm khu để mở sơ đồ lưới">' +
-    '<image href="' + T.anh + '?v=' + (T.ver || T.ngay) + '" x="0" y="0" width="' + T.W + '" height="' + T.H + '" preserveAspectRatio="none"/>' +
+    (T.nha ? '<polygon class="hp-mbnha" points="' + T.nha.map(function(p){ return p[0] + "," + p[1]; }).join(" ") + '"/>' : "") +
+    (T.vung || []).filter(function(z){ return z.ngoai; }).map(function(z){ return '<rect class="hp-mbngoai" x="' + z.x + '" y="' + z.y + '" width="' + z.w + '" height="' + z.h + '" rx="0.5"/>'; }).join("") +
+    '<image class="hp-mbanh" href="' + T.anh + '?v=' + (T.ver || T.ngay) + '" x="0" y="0" width="' + T.W + '" height="' + T.H + '" preserveAspectRatio="none"/>' +
+    (T.nha ? '<polygon class="hp-mbnhavien" points="' + T.nha.map(function(p){ return p[0] + "," + p[1]; }).join(" ") + '"/>' : "") +
     vung + le + '</svg></div>';
 }
 /* PHÓNG / KÉO mặt bằng NGAY TRONG khung Sơ đồ (user 29/09: to hơn nhưng giữ nguyên khổ mục Sơ đồ, NV hôm nay đứng nguyên chỗ,
@@ -3763,9 +3784,43 @@ function renderVt(){
   $id("hpVtBody").innerHTML =
     '<div class="hp-vthistrow">' + hist + '</div>' +
     rows.map(function(x){ return '<div class="hp-vtrow"><label>' + x[0] + '</label><div>' + x[1] + '</div></div>'; }).join("") +
-    '<div class="hp-vtduo">' + cardPt + cardBc + '</div>';
+    '<div class="hp-vtduo">' + cardPt + cardBc + '</div>' + theTaiSan(loc);
   capNhatNutGhi(loc, d, r, pc, lsAll);   // nút / dòng đếm luỹ tiến ở góc phải trên — cần pc + chấm công nên đặt cuối
   lazyQuet();
+}
+
+/* ===== TÀI SẢN TẠI VỊ TRÍ (29/09/2026 — user duyệt thử ở QC) =====================================
+ * Nguồn: sổ khai báo tài sản theo mã vị trí (g-sheet 1dUFvmLM…, gid 602603419, khai 11/07→12/09/2025) — chụp tĩnh thành
+ * taisan-vitri.js (117 KB), NẠP LƯỜI lần đầu mở pop-up, không gọi thêm nguồn nào. Gom theo tên thiết bị, bấm mở danh sách
+ * serial / mã QR. Mã vị trí trong sổ đã bỏ khoảng trắng (sổ gốc có mã dính dấu cách cuối). */
+var TS_SRC = "taisan-vitri.js?v=20260929a", TS = { dang: false, ok: false };
+function napTaiSan(){
+  if (window.TAISAN_VT){ TS.ok = true; return; }
+  if (TS.dang) return; TS.dang = true;
+  var sc = document.createElement("script"); sc.src = TS_SRC;
+  sc.onload = function(){ TS.dang = false; TS.ok = !!window.TAISAN_VT; if (VT.loc && $id("hpVtModal").style.display === "flex") renderVt(); };
+  sc.onerror = function(){ TS.dang = false; };
+  document.head.appendChild(sc);
+}
+function theTaiSan(loc){
+  napTaiSan();
+  var T = window.TAISAN_VT, key = String(loc || "").replace(/\s+/g, "").toUpperCase();
+  if (!T) return '<div class="hp-vtcard hp-vtts"><div class="hd">Tài sản tại vị trí</div><div class="ln mut">' + (TS.dang ? "đang tải sổ tài sản…" : "chưa tải được sổ tài sản") + '</div></div>';
+  var ds = T.by[key] || [];
+  if (!ds.length){ var kk = khoaO(key); Object.keys(T.by).forEach(function(k){ if (!ds.length && khoaO(k) === kk) ds = T.by[k]; }); }
+  var hd = '<div class="hd">Tài sản tại vị trí <span class="hp-hint" style="font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:500">sổ khai báo ' +
+    esc(ngayVN(T.tu)) + '→' + esc(ngayVN(T.den)) + '/' + esc(String(T.den).slice(0, 4)) + '</span></div>';
+  if (!ds.length) return '<div class="hp-vtcard hp-vtts">' + hd + '<div class="ln mut">sổ tài sản chưa khai món nào cho vị trí này</div></div>';
+  var nhom = {}, thu = [];
+  ds.forEach(function(x){ var ten = String(x[0] || "").split("/")[0].trim() || x[0]; var g = nhom[ten];
+    if (!g){ g = nhom[ten] = { ten: ten, full: x[0], n: 0, ct: [] }; thu.push(g); } g.n += (+x[1] || 1); g.ct.push(x); });
+  var tong = thu.reduce(function(a, g){ return a + g.n; }, 0);
+  return '<details class="hp-vtcard hp-vtts"><summary>' + hd.replace('<div class="hd">', '<span class="hd">').replace(/<\/div>$/, '</span>') +
+    '<span class="hp-vttsn">' + nf(tong) + ' món · ' + thu.length + ' loại</span></summary><ul>' +
+    thu.map(function(g){ return '<li><b>' + esc(g.ten) + '</b>' + (g.n > 1 ? ' <span class="sl">×' + g.n + '</span>' : "") +
+      '<small>' + esc(g.full) + '</small>' +
+      g.ct.filter(function(x){ return x[2] || x[3]; }).map(function(x){ return '<small class="ma">' + (x[2] ? "S/N " + esc(x[2]) : "") + (x[2] && x[3] ? " · " : "") + (x[3] ? "QR " + esc(x[3]) : "") + '</small>'; }).join("") + '</li>'; }).join("") +
+    '</ul></details>';
 }
 
 /* ===== GHI NHẬN 5S TỪ POP-UP Ô (17/09/2026 — user yêu cầu) ======================================

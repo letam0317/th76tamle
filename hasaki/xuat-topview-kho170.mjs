@@ -55,6 +55,9 @@ const kq = await p.evaluate((RONG) => {
   /* tường/vách trong 3D để trong suốt (nhìn xuyên vào kho) — ảnh mặt bằng thì cần nét tường đậm */
   const tuong = [HM.wall, HM.vach].map((m) => [m, m.opacity, m.color.getHex()]);
   tuong.forEach(([m]) => { m.opacity = 1; m.color.set(0x5f6873); m.needsUpdate = true; });
+  /* user 29/09 lượt 4: BỎ NỀN — giấu mặt sàn bê tông (vân + lưới), nền trắng tinh; mặt bằng tự tô nền nhà nhạt bằng SVG */
+  scene.traverse((m) => { if (m.isMesh && m.material === matSan) giau(m); });
+  const nenCu = scene.background; scene.background = new THREE.Color(0xffffff);
   /* nhìn thẳng xuống (-y), "lên" của ảnh = -z ⇒ ảnh: x sang phải, z đi xuống — đúng hệ toạ độ bản vẽ */
   const cam = new THREE.OrthographicCamera(0, HX, 0, -HZ, 0.1, 300);
   cam.position.set(0, 120, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix();
@@ -64,7 +67,7 @@ const kq = await p.evaluate((RONG) => {
   const bongCu = renderer.shadowMap.enabled, doiVL = () => scene.traverse((m) => { if (m.material) [].concat(m.material).forEach((q) => (q.needsUpdate = true)); });
   renderer.shadowMap.enabled = false; doiVL();
   renderer.render(scene, cam);
-  renderer.shadowMap.enabled = bongCu; doiVL();
+  renderer.shadowMap.enabled = bongCu; doiVL(); scene.background = nenCu;
   const anh = renderer.domElement.toDataURL("image/webp", 0.82);
   renderer.setPixelRatio(pr); renderer.setSize(sz.x, sz.y, false);
   an.forEach((o) => (o.visible = true));
@@ -103,11 +106,22 @@ const kq = await p.evaluate((RONG) => {
     Object.assign({ k: "CB", ten: "Băng chuyền phân loại" }, hcn(83.4, 92.1, 8.5, 42.6)),
     Object.assign({ k: "A19", ten: "Băng chuyền xuất · bàn giao", uoc: 1 }, hcn(93.5, 106.5, 30.0, 42.85)),
     Object.assign({ k: "A16", ten: "Kho hành chánh", uoc: 1 }, hcn(108.46, 112.46, 17.65, 38.15)),
+    /* kệ sát tường A1 (khung lấy từ mô hình 3D) */
+    ...(window.__o5L || []).map((q) => Object.assign({ k: q.nhan, ten: q.nhan }, { x: r2(q.x - 0.15), y: r2(q.y - 0.15), w: r2(q.w + 0.3), h: r2(q.h + 0.3) })),
+    /* NGOÀI NHÀ — bản vẽ DC HASAKI 6.6.dwg (bản có "BÃI XE MÁY NHÂN VIÊN"; đổi toạ độ x = X+74664,42 · z = 49308,76−Y).
+       Giặt sấy chỉ có ở bản biến thể ⇒ neo theo khoảng cách tới HẦM NƯỚC. "PCCC" = khối HẦM NƯỚC (bể + bơm chữa cháy — CHƯA xác minh). */
+    Object.assign({ k: "A23", ten: "Bãi xe máy nhân viên", ngoai: 1 }, hcn(54.8, 104.7, 73.5, 77.5)),
+    Object.assign({ k: "A24", ten: "Phòng giặt sấy", ngoai: 1 }, hcn(42.15, 48.57, -6.5, -2.0)),
+    Object.assign({ k: "PCCC", ten: "Phòng bơm PCCC · hầm nước", ngoai: 1, uoc: 1 }, hcn(75.5, 85.3, -5.7, -1.2)),
   ].filter(Boolean);
   /* khung cắt ảnh: chỉ phần NHÀ (bỏ sân bãi trống) */
   const X0 = +V("nhaX0"), X1 = +V("nhaX1"), Y0 = +V("nhaY0"), YT = +V("nhaYTrai");
-  const khung = { x: r2(X0 - 0.5), y: r2(Y0 - 0.5), w: r2(X1 - X0 + 1.0), h: r2(YT - Y0 + 1.0) };
-  return { W: HX, H: HZ, anh, o, khu, vung, khung, px: [RONG, CAO] };
+  const XG = +V("nhaGiua"), YP = +V("nhaYPhai");
+  const zMin = Math.min(Y0, ...vung.map((z) => z.y)) - 0.8, zMax = Math.max(YT, ...vung.map((z) => z.y + z.h)) + 0.8;
+  const khung = { x: r2(X0 - 0.8), y: r2(zMin), w: r2(X1 - X0 + 1.6), h: r2(zMax - zMin) };
+  /* vỏ nhà chữ L — SVG tô nền nhà nhạt dưới ảnh (ảnh nền trắng, hoà trộn multiply) */
+  const nha = [[X0, Y0], [X1, Y0], [X1, YP], [XG, YP], [XG, YT], [X0, YT]].map((p) => [r2(p[0]), r2(p[1])]);
+  return { W: HX, H: HZ, anh, o, khu, vung, khung, nha, px: [RONG, CAO] };
 }, RONG);
 
 await b.close();
@@ -115,7 +129,7 @@ if (loi.length) { console.error("Lỗi trang 3D:", loi.join(" | ")); process.exi
 const buf = Buffer.from(kq.anh.split(",")[1], "base64");
 fs.writeFileSync(path.join(OUT, "kho170-topview.webp"), buf);
 const du = { nguon: "kho170-3d.html (ảnh trực giao từ trên xuống, tĩnh)", ngay: new Date().toISOString().slice(0, 10),
-  ver: Date.now().toString(36), W: kq.W, H: kq.H, anh: "kho170-topview.webp", px: kq.px, khung: kq.khung, o: kq.o, khu: kq.khu, vung: kq.vung };
+  ver: Date.now().toString(36), W: kq.W, H: kq.H, anh: "kho170-topview.webp", px: kq.px, khung: kq.khung, nha: kq.nha, o: kq.o, khu: kq.khu, vung: kq.vung };
 fs.writeFileSync(path.join(OUT, "kho170-topview.js"),
   "/* kho170-topview.js — SINH TỰ ĐỘNG bởi hasaki/xuat-topview-kho170.mjs. ĐỪNG SỬA TAY. */\nwindow.KHO170_TOPVIEW=" + JSON.stringify(du) + ";\n");
 const dem = {}; kq.o.forEach((q) => { const kk = q.k + (q.loc ? q.loc.slice(0, 5) : ""); dem[kk] = (dem[kk] || 0) + 1; });

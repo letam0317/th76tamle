@@ -249,7 +249,8 @@ body.dangSua #c{cursor:grab}
  <div class="suaR">
   <select id="suaThem" aria-label="Thêm món"><option value="">＋ Thêm…</option><option value="ban">Bàn D1500 × R600</option><option value="keMam">Kệ mâm sắt D1500 × R500</option><option value="song">Sóng hàng hoàn</option><option value="keV">Kệ sắt V lỗ D1200 × R450</option><option value="mcs">Máy chà sàn KMS-90B</option><option value="banAn">Bàn ăn 1600 × 800</option><option value="gheNhua">Chồng ghế nhựa</option>
    <option value="vach">Vách ngăn 3 m</option><option value="cuaSo">Cửa sổ 1200 × 1200</option><option value="cuaSat">Cửa sắt 900 × 2100</option><option value="cuaCuon">Cửa cuốn 3000 × 3000</option>
-   <option value="locker">Tủ locker 30 ngăn (đen)</option><option value="cay">Cây xanh</option><option value="xeMay">Xe máy</option><option value="xeNangTay">Xe nâng tay càng ngắn 800</option><option value="palletDen">Pallet nhựa đen 1200 × 1000</option></select>
+   <option value="locker">Tủ locker 30 ngăn (đen)</option><option value="cay">Cây xanh</option><option value="xeMay">Xe máy</option><option value="xeNangTay">Xe nâng tay càng ngắn 800</option><option value="palletDen">Pallet nhựa đen 1200 × 1000</option>
+   <option value="keLuoi">Kệ mâm lưới trắng 500×1200×1800</option><option value="quatTran">Quạt trần đảo</option><option value="loViSong">Lò vi sóng</option><option value="mayChup">Máy chụp ảnh 3D</option><option value="mayLanh">Máy lạnh treo tường</option></select>
   <span class="suaKhu"><button data-khu="a6" class="on">Khu A6</button><button data-khu="reit">Re-IT</button><button data-khu="ortery">Ortery</button><button data-khu="spa">SPA</button><button data-khu="an">Phòng ăn</button><button data-khu="mcs">Máy chà sàn</button></span>
   <button id="suaXoay" title="phím R">⟳ Xoay 90°</button><button id="suaNhan" title="Ctrl+D">⧉ Nhân bản</button><button id="suaXoa" title="Delete">🗑 Xoá</button><button id="suaLui" title="Ctrl+Z">↶ Hoàn tác</button>
  </div>
@@ -1033,7 +1034,20 @@ const VAT_GOC=[].concat(
  /* máy chà sàn ngồi lái Kumisai KMS-90B (user 29/09) — CHỖ ĐỖ TẠM ở khoảng trống đầu bắc Re-IT, kéo về chỗ đỗ thật */
  [{id:'mcs-1',loai:'mcs',x:44.8,z:8.9,xoay:0,w:1.45,d:0.8}],
  /* TẦNG LỬNG (mặt sàn y = S_GAC): phòng ăn 4 bàn ăn + 2 chồng ghế nhựa xanh (ảnh) · văn phòng 7 bàn — CHƯA có ảnh bên trong, số TẠM */
- [26.81,28.81,30.81,32.81].map((z,i)=>({id:'an-ban-'+(i+1),loai:'banAn',x:45.36,z:z,y:S_GAC,xoay:90,w:1.6,d:0.8})),
+ /* 29/09 THEO SỔ TÀI SẢN (g-sheet 1dUFvmLM…, mã F1-A26-501-01-01-01): 7 bàn 1,2 m chân sắt · 2 bàn gấp inox 1000×600×750 ·
+    3 quạt trần đảo SenKo TD105 · 1 lò vi sóng Sharp R-207VN 20 L — thay 4 bàn ăn đoán trước đó (an-ban-* khai tử) */
+    /* 7 bàn 1,2 m của sổ KHÔNG dựng: user đã tự xếp 6 bàn ăn trong bản QC (banAn-*) — giữ bố cục của user */
+ [31.9,32.9].map((z,i)=>({id:'an-inox-'+(i+1),loai:'banAn',x:46.62,z:z,y:S_GAC,xoay:90,w:1.0,d:0.6})),
+ [{id:'an-lvs-1',loai:'loViSong',x:46.62,z:32.9,y:S_GAC+0.74,xoay:270,w:0.45,d:0.34}],
+ [27.4,30.2,33.0].map((z,i)=>({id:'an-quat-'+(i+1),loai:'quatTran',x:44.81,z:z,y:S_GAC,xoay:0,w:0.9,d:0.9})),
+ /* SPA / Kho Clinic A12 (sổ: 4 kệ mâm lưới trắng 500×1200×1800 · 35 mâm V lỗ 50×150 ≈ 7 kệ) — vị trí TẠM, kéo lại cho đúng */
+ [24.2,25.4,26.6,27.8].map((z,i)=>({id:'spa-luoi-'+(i+1),loai:'keLuoi',x:42.97,z:z,xoay:90,w:1.2,d:0.5,h:1.8})),
+ [28.0,29.5,31.0,32.5].map((z,i)=>({id:'spa-v-'+(i+1),loai:'keMam',x:44.55,z:z,xoay:90,w:1.5,d:0.5})),
+ [28.0,29.5,31.0].map((z,i)=>({id:'spa-v-'+(i+5),loai:'keMam',x:45.1,z:z,xoay:90,w:1.5,d:0.5})),
+ /* Ortery A13 (sổ: máy chụp 3D Office Photo Machine 1650×1550×1800 · máy lạnh Midea 1,5 HP) */
+ [{id:'ort-may-1',loai:'mayChup',x:46.12,z:18.38,xoay:0,w:1.55,d:1.65,h:1.8},{id:'ort-lanh-1',loai:'mayLanh',x:44.0,z:17.64,y:2.2,xoay:0,w:0.8,d:0.2}],
+ /* A11 hàng đổi trả + IT (sổ: 42 mâm V lỗ ≈ 8 kệ) — 2 cặp kệ quay lưng, chừa cầu thang x 42,7–43,7 */
+ [[34.96,44.6],[34.96,46.1],[35.52,44.6],[35.52,46.1],[37.3,44.6],[37.3,46.1],[37.86,44.6],[37.86,46.1]].map(([z,x],i)=>({id:'a11-v-'+(i+1),loai:'keMam',x:x,z:z,xoay:0,w:1.5,d:0.5})),
  [34.21,33.76].map((z,i)=>({id:'an-ghe-'+(i+1),loai:'gheNhua',x:46.61,z:z,y:S_GAC,xoay:0,w:0.36,d:0.36,n:5})),
  /* cửa ở tường đông dãy SPA/Ortery (ảnh phòng ăn: 1 cửa sổ + 1 cửa sắt; bản vẽ có cung cửa ở z 22,54 / 23,79 / 24,85) — vị trí TẠM */
  [{id:'cua-spa-so-1',loai:'cuaSo',x:46.96,z:30.5,xoay:90,w:1.2,d:0.08,h:1.2,y0:1.0},
@@ -1061,7 +1075,12 @@ const LOAI_VAT={
  cay:{ten:'Cây xanh',w:0.5,d:0.5,h:1.5},
  xeMay:{ten:'Xe máy',w:1.9,d:0.7},
  xeNangTay:{ten:'Xe nâng tay càng ngắn 800',w:1.2,d:0.54},
- palletDen:{ten:'Pallet nhựa đen',w:1.2,d:1.0}};
+ palletDen:{ten:'Pallet nhựa đen',w:1.2,d:1.0},
+ keLuoi:{ten:'Kệ mâm lưới trắng 500×1200×1800',w:1.2,d:0.5,h:1.8},
+ quatTran:{ten:'Quạt trần đảo',w:0.9,d:0.9},
+ loViSong:{ten:'Lò vi sóng',w:0.45,d:0.34},
+ mayChup:{ten:'Máy chụp ảnh 3D (Ortery)',w:1.55,d:1.65,h:1.8},
+ mayLanh:{ten:'Máy lạnh treo tường',w:0.8,d:0.2}};
 const MAU_VAT={denTu:0x1c1f23,denCua:0x2c3036,la2:0x2e7d32,la3:0x43a047,chau:0xeeeeee,datTrong:0x5d4037,xmDo:0xb71c1c,xmDen:0x202326,crom:0xc9cdd1,vang:0xf2c230,doXN:0xc62828,pal:0x16181b,nhom:0xb4b9be,sat2:0x6f767d,inox:0xd9dde1,nhua:0x1f5fbf,teal:0x159e98,xam:0x7c8288,cam:0xf28c28,camDe:0xe2552b,lop:0x1b1e22,go:0xd8b98a,khung:0x5b6168,den:0x1d2126,man:0x33495c,ghe:0x2b2f35,sat:0xaab2ba,xanh:0x1f5fbf,la:0x2e8b57};
 let MV=null;   // vật liệu dùng CHUNG (gopNhom gom theo vật liệu — tạo 1 lần)
 const SUA={bat:false,g:{},keo:null};   // chế độ Chỉnh sửa bố cục — hàm gắn ở cuối trang
@@ -1072,7 +1091,7 @@ function dsVatDaLuu(){const b=window.KHO170_BOCUC;
  const co=new Set(b.vat.map(v=>v.id)),xoa=new Set(b.xoa||[]);
  const thay=new Set();
  return b.vat.concat(VAT_GOC.filter(v=>!co.has(v.id)&&!xoa.has(v.id)))
-  .filter(v=>!/^vp-ban-/.test(v.id)&&!thay.has(v.id)&&thay.add(v.id)).map(v=>Object.assign({},v))}
+  .filter(v=>!/^(vp-ban-|an-ban-)/.test(v.id)&&!thay.has(v.id)&&thay.add(v.id)).map(v=>Object.assign({},v))}   // vp-ban: bỏ khu văn phòng · an-ban: thay bằng bàn theo sổ tài sản
 let VAT=dsVatDaLuu();
 function hatVat(id){let n=7;for(let i=0;i<id.length;i++)n=(n*31+id.charCodeAt(i))%9973;return n}
 /* khung chiếm sàn (hộp thẳng trục) của 1 món — dùng cho vật cản, cảnh báo đè, hít cạnh */
@@ -1160,6 +1179,20 @@ function dungVat(v){
   b(w,0.03,d,MV.pal,0,h-0.015,0);for(let k=0;k<5;k++)b(0.02,0.012,d-0.04,MV.xmDen,-w/2+w*(k+0.5)/5,h+0.002,0);
   [-1,0,1].forEach(k=>b(w,0.03,0.12,MV.pal,0,0.015,k*(d/2-0.06)));
   [-1,0,1].forEach(i=>[-1,0,1].forEach(j=>b(0.14,h-0.06,0.14,MV.pal,i*(w/2-0.07),h/2,j*(d/2-0.07))))}
+ else if(v.loai==='keLuoi'){const h=+v.h||1.8,tang=[0.12,0.55,1.0,1.45,h-0.02];   // kệ mâm lưới trắng: mâm lưới + 4 trụ tròn
+  tang.forEach(y=>{b(w,0.02,d,MV.chau,0,y,0);for(let k=1;k<6;k++)b(0.01,0.025,d,MV.crom,-w/2+w*k/6,y+0.01,0)});
+  [-1,1].forEach(i=>[-1,1].forEach(j=>{const c=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,h,8),MV.crom);c.position.set(i*(w/2-0.02),h/2,j*(d/2-0.02));g.add(c)}));
+  const hat=hatVat(v.id);tang.slice(0,4).forEach((y,k)=>{for(let q=0;q<3;q++)if((k+q+hat)%3)b(w/3-0.06,0.24,d-0.1,(k+q)%2?M.ct:M.ct2,-w/3+q*w/3,y+0.13,0)})}
+ else if(v.loai==='quatTran'){const Y=GAC_REIT&&+v.y>0?2.3:2.9;                   // quạt đảo trần: ti treo + hộp đảo + lồng quạt
+  b(0.03,0.3,0.03,MV.khung,0,Y+0.15,0);b(0.2,0.1,0.2,MV.chau,0,Y-0.05,0);
+  const l=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.08,20),MV.chau);l.position.set(0,Y-0.16,0);l.rotation.x=0.35;g.add(l);
+  const r=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.012,6,24),MV.crom);r.position.set(0,Y-0.16,0);r.rotation.x=Math.PI/2+0.35;g.add(r)}
+ else if(v.loai==='loViSong'){b(w,0.26,d,MV.xmDen,0,0.13,0);b(w*0.62,0.19,0.01,MV.kinh,-w*0.12,0.13,d/2+0.005);b(w*0.2,0.2,0.01,MV.crom,w*0.36,0.13,d/2+0.005)}
+ else if(v.loai==='mayChup'){const h=+v.h||1.8;                                     // máy chụp 3D: khung trắng, buồng sáng, cánh tay camera
+  b(w,0.9,d,MV.chau,0,0.45,0);b(w-0.2,0.02,d-0.2,MV.kinh,0,0.92,0);
+  [-1,1].forEach(i=>b(0.06,h-0.9,0.06,MV.crom,i*(w/2-0.05),0.9+(h-0.9)/2,-d/2+0.05));b(w,0.06,0.06,MV.crom,0,h,-d/2+0.05);
+  b(0.14,0.1,0.22,MV.xmDen,0,h-0.12,-d/2+0.2);b(0.3,0.3,0.02,MV.chau,-w/2+0.15,1.5,0);b(0.3,0.3,0.02,MV.chau,w/2-0.15,1.5,0)}
+ else if(v.loai==='mayLanh'){b(w,0.28,d,MV.chau,0,0.14,0);b(w-0.08,0.02,0.02,MV.crom,0,0.03,d/2)}
  else if(v.loai==='song'){const m=MV[v.mau==='la'?'la':'xanh'];
   b(w,0.66,d,m,0,0.36,0);b(w-0.08,0.12,d-0.08,M.ct,0,0.72,0);b(0.5,0.18,0.4,M.ct2,-0.2,0.86,0.1)}
  /* rotation.y = θ đưa local +z (ghế) về (sin θ, 0, cos θ): 90° → +x, 270° → −x */
@@ -1781,6 +1814,7 @@ function dungKho(){
  dungHeKe(HANG);
  const o5L=HANG.filter(r=>r.ten==='5L').map(r=>{const u0=r.khung[0],u1=r.khung.at(-1);
   return r.axis==='z'?{x:r.v0,y:u0,w:r.sau,h:u1-u0}:{x:u0,y:r.v0,w:u1-u0,h:r.sau}});
+ window.__o5L=HANG.filter(r=>r.ten==='5L').map((r,i)=>Object.assign({nhan:r.nhan},o5L[i]));   // khung 5L1/5L2/5L3 cho vùng khu mặt bằng Planogram
 
  const ds=[];
  [[KE_A1,A1_2MAT?[]:oA1,3]].forEach(function(g){const P=g[0],list=g[1],n=g[2];
@@ -2649,7 +2683,7 @@ function frame(now){requestAnimationFrame(frame);
   if(v.loai==='cuaSo')h+=o('y0','Bệ');
   if(v.loai==='gheNhua')h+=o('n','Số ghế',1);
   if(!LA_VACH(v)&&!LA_CUA(v))h+=o('y','Cao đế');
-  if(v.loai==='locker'||v.loai==='cay')h+=o('h','Cao');
+  if(v.loai==='locker'||v.loai==='cay'||v.loai==='keLuoi'||v.loai==='mayChup')h+=o('h','Cao');
   if(v.loai==='xeMay')h+='<label>Màu<select data-k="mau"><option value="do"'+(v.mau!=='den'?' selected':'')+'>đỏ</option><option value="den"'+(v.mau==='den'?' selected':'')+'>đen</option></select></label>';
   if(v.loai==='song')h+='<label>Màu<select data-k="mau"><option value="xanh"'+(v.mau!=='la'?' selected':'')+'>xanh dương</option><option value="la"'+(v.mau==='la'?' selected':'')+'>xanh lá</option></select></label>';
   const l=loiCua(v);if(l.length)h+='<span class="suaLoi">⚠ '+l.join(' · ')+'</span>';
