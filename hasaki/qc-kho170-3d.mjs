@@ -236,8 +236,9 @@ const bao = (d, t, c) => (d ? ok : loi).push(`${d ? "ĐẠT " : "LỖI "} · ${t
     const sua4 = await p.evaluate(async () => { const S = window.__sua, n0 = S.VAT.length;
       S.them("ban"); const n1 = S.VAT.length, id = S.chon; S.xoa(); const n2 = S.VAT.length; S.hoanTac(); S.hoanTac();
       const n3 = S.VAT.length; S.ra(); await new Promise((x) => setTimeout(x, 300));
-      return { n0, n1, n2, n3, id, an: document.getElementById("sua").hidden, a6: window.__a6.length }; });
-    bao(sua4.n1 === sua4.n0 + 1 && sua4.n2 === sua4.n0 && sua4.n3 === sua4.n0 && sua4.an && sua4.a6 === sua4.n0,
+      return { n0, n1, n2, n3, id, an: document.getElementById("sua").hidden, a6: window.__a6.length,
+        can: S.VAT.filter((v) => !LA_VACH(v) && !LA_CUA(v) && !(+v.y > 0)).length }; });   // vật cản = đồ trên sàn tầng trệt (bỏ vách, cửa, đồ tầng lửng)
+    bao(sua4.n1 === sua4.n0 + 1 && sua4.n2 === sua4.n0 && sua4.n3 === sua4.n0 && sua4.an && sua4.a6 === sua4.can,
       "Thêm → Xoá → Hoàn tác đúng số món · Xong ⇒ đóng bảng, dựng lại kho đủ món", JSON.stringify(sua4));
 
     /* Sửa thông số phải ĐỔI THẬT hình dựng ra, không chỉ đổi chữ */
