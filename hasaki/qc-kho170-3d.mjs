@@ -78,6 +78,7 @@ const bao = (d, t, c) => (d ? ok : loi).push(`${d ? "ĐẠT " : "LỖI "} · ${t
       soTs: Object.keys(window.GOC_TS).length,
       soTam: document.querySelectorAll("#tsBox .ng.tam").length,
       netVach: window.KHO170_SODO.nen.filter(window.netLaVach).length,
+      soVach: window.__soVach,   // 29/09: vách = vật rời (user kéo/xoá/thêm được, gộp nét trùng) — đếm theo bố cục đang dựng
       soRac: ((window.KHO170_VACH || {}).rac || []).length,
       keDem: JSON.parse(JSON.stringify(window.KE_DEM || {})),
       bangMa: window.__bang || null,
@@ -118,8 +119,8 @@ const bao = (d, t, c) => (d ? ok : loi).push(`${d ? "ĐẠT " : "LỖI "} · ${t
     bao(d.dem.includes(sumTru), "số trụ dựng ra khớp tổng khung của mọi dãy", sumTru + " trụ");
     /* nét trong vùng băng chuyền là khung băng tải + đường gióng kích thước, không dựng thành vách */
     /* vách = nét ≥2 m trùng tường hồng của "DC HASAKI 3d.pdf" (qc-vach-kho170.mjs), trừ khung băng chuyền */
-    bao(d.dem.includes(d.netVach) && d.soRac > 300 && d.netVach >= 50 && d.netVach <= 90,
-      "vách chỉ còn tường thật (đối soát PDF màu, bỏ vách rác)", d.netVach + " vách · bỏ " + (G.net2m - d.netVach) + " nét rác");
+    bao(d.dem.includes(d.soVach) && d.soVach <= d.netVach + 40 && d.soRac > 300 && d.netVach >= 50 && d.netVach <= 90,
+      "vách chỉ còn tường thật (đối soát PDF màu, bỏ vách rác)", d.soVach + " vách đang dựng (bản vẽ " + d.netVach + ") · bỏ " + (G.net2m - d.netVach) + " nét rác");
     bao(d.soBanMa === 64 && d.soBangA8 === 4, "khu A8: 64 bàn có mã + 4 băng chuyền (502·505·508·511)",
       d.soBanMa + " bàn có mã · " + d.soBangA8 + " băng");
     bao(d.conLan >= 3 * 20, "đủ con lăn cho 3 line xuất (máng phân loại dùng mặt vân con lăn)", d.conLan + " con lăn");
