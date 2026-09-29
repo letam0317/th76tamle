@@ -1036,7 +1036,7 @@ const VAT_GOC=[].concat(
  /* TẦNG LỬNG (mặt sàn y = S_GAC): phòng ăn 4 bàn ăn + 2 chồng ghế nhựa xanh (ảnh) · văn phòng 7 bàn — CHƯA có ảnh bên trong, số TẠM */
  /* 29/09 THEO SỔ TÀI SẢN (g-sheet 1dUFvmLM…, mã F1-A26-501-01-01-01): 7 bàn 1,2 m chân sắt · 2 bàn gấp inox 1000×600×750 ·
     3 quạt trần đảo SenKo TD105 · 1 lò vi sóng Sharp R-207VN 20 L — thay 4 bàn ăn đoán trước đó (an-ban-* khai tử) */
-    /* 7 bàn 1,2 m của sổ KHÔNG dựng: user đã tự xếp 6 bàn ăn trong bản QC (banAn-*) — giữ bố cục của user */
+    /* 7 bàn 1,2 m của sổ KHÔNG dựng: phòng ăn đã có bàn do user xếp — user 29/09: nội thất theo sổ CHỈ BỔ SUNG, không đổi bố trí món cũ */
  [31.9,32.9].map((z,i)=>({id:'an-inox-'+(i+1),loai:'banAn',x:46.62,z:z,y:S_GAC,xoay:90,w:1.0,d:0.6})),
  [{id:'an-lvs-1',loai:'loViSong',x:46.62,z:32.9,y:S_GAC+0.74,xoay:270,w:0.45,d:0.34}],
  [27.4,30.2,33.0].map((z,i)=>({id:'an-quat-'+(i+1),loai:'quatTran',x:44.81,z:z,y:S_GAC,xoay:0,w:0.9,d:0.9})),
@@ -1091,7 +1091,7 @@ function dsVatDaLuu(){const b=window.KHO170_BOCUC;
  const co=new Set(b.vat.map(v=>v.id)),xoa=new Set(b.xoa||[]);
  const thay=new Set();
  return b.vat.concat(VAT_GOC.filter(v=>!co.has(v.id)&&!xoa.has(v.id)))
-  .filter(v=>!/^(vp-ban-|an-ban-)/.test(v.id)&&!thay.has(v.id)&&thay.add(v.id)).map(v=>Object.assign({},v))}   // vp-ban: bỏ khu văn phòng · an-ban: thay bằng bàn theo sổ tài sản
+  .filter(v=>!/^vp-ban-/.test(v.id)&&!thay.has(v.id)&&thay.add(v.id)).map(v=>Object.assign({},v))}   // vp-ban: user bỏ khu văn phòng. LUẬT 29/09: món mới CHỈ BỔ SUNG — không xoá/dời món cũ
 let VAT=dsVatDaLuu();
 function hatVat(id){let n=7;for(let i=0;i<id.length;i++)n=(n*31+id.charCodeAt(i))%9973;return n}
 /* khung chiếm sàn (hộp thẳng trục) của 1 món — dùng cho vật cản, cảnh báo đè, hít cạnh */
