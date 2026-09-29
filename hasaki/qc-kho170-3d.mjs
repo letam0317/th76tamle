@@ -205,8 +205,40 @@ const bao = (d, t, c) => (d ? ok : loi).push(`${d ? "ĐẠT " : "LỖI "} · ${t
     bao(moi.mot && moi.a8, "tìm đúng 1 mã (A1 thiếu F0- vẫn ra · A8 mã đủ 6 đoạn) → khoanh + nhãn đúng mã");
     bao(moi.nhieu && moi.khong, "tìm một phần mã ra nhiều ô · mã không có thì báo không có");
     bao(moi.mode.length === 4 && moi.mode.every(Boolean) && moi.chieu, "4 kiểu điều khiển + đổi phép chiếu chạy", JSON.stringify(moi.mode));
-    bao(moi.a6 >= 20 && moi.a6DeVach === 0, "khu A6 có bàn quản lý + bàn dọc ranh ĐVVC, KHÔNG bàn nào đè vạch x 24,8", moi.a6 + " vật · " + moi.a6DeVach + " đè vạch");
+    bao(moi.a6 >= 1 && moi.a6DeVach === 0, "khu A6 có đồ đạc (số món do user tự kéo thả — 29/09), KHÔNG món nào đè vạch x 24,8", moi.a6 + " vật · " + moi.a6DeVach + " đè vạch");
     bao(moi.wc >= 15, "WC có tường + vách ngăn buồng + cửa", moi.wc + " tấm");
+
+    /* 29/09 CHẾ ĐỘ CHỈNH SỬA BỐ CỤC — chỉ bản QC. Bộ đo CHẶN lệnh ghi (fetch giả) để không đụng kho170-bocuc.js thật
+       (bộ đo này cũng chạy giữa lúc bấm "Chốt lên live"). Kéo thật bằng chuột, không gọi hàm tắt. */
+    const suaNut = await p.evaluate(() => ({ hien: !document.getElementById("bSua").hidden, co: !!window.__sua }));
+    bao(suaNut.co && suaNut.hien, "bản QC (localhost + xem-noi-bo) có nút ✎ Chỉnh sửa bố cục trong menu ⋯");
+    await p.evaluate(() => { const f0 = window.fetch; window.__ghiGia = 0;
+      window.fetch = (u, o) => (/\/api\/3d\/bocuc/.test(u) ? (window.__ghiGia++, Promise.resolve(new Response('{"ok":true}')))
+        : /github\.io\/kiemsoatkho\/kho170-bocuc/.test(u) ? Promise.resolve(new Response("")) : f0(u, o));
+      window.__sua.vao(); });
+    await new Promise((x) => setTimeout(x, 1500));
+    const suaViTri = () => p.evaluate(() => { const v = window.__sua.VAT.find((q) => q.id === "a6-ql-1"); const P = new THREE.Vector3(v.x, 0.76, v.z).project(CAM.cam());
+      return { x: (P.x + 1) / 2 * innerWidth, y: (1 - P.y) / 2 * innerHeight, vx: v.x, vz: v.z, xoay: v.xoay }; });
+    const s0 = await suaViTri(), cam0 = await p.evaluate(() => [CAM.o.theta, CAM.o.target.x, CAM.o.target.z].join());
+    await p.mouse.move(s0.x, s0.y); await p.mouse.down();
+    for (let k = 1; k <= 8; k++) await p.mouse.move(s0.x + k * 5, s0.y + k * 3);
+    await p.mouse.up(); await new Promise((x) => setTimeout(x, 900));
+    const s1 = await suaViTri(), cam1 = await p.evaluate(() => [CAM.o.theta, CAM.o.target.x, CAM.o.target.z].join());
+    bao((s1.vx !== s0.vx || s1.vz !== s0.vz) && cam1 === cam0, "chế độ chỉnh sửa: kéo chuột trúng bàn ⇒ bàn đi theo, camera đứng yên",
+      [s0.vx, s0.vz] + " → " + [s1.vx, s1.vz]);
+    await p.keyboard.press("KeyR");
+    const s2 = await suaViTri();
+    await p.keyboard.down("Control"); await p.keyboard.press("KeyZ"); await p.keyboard.press("KeyZ"); await p.keyboard.up("Control");
+    await new Promise((x) => setTimeout(x, 900));
+    const s3 = await suaViTri(), ghi = await p.evaluate(() => window.__ghiGia);
+    bao(s2.xoay === 90 && s3.vx === s0.vx && s3.vz === s0.vz && s3.xoay === s0.xoay, "phím R xoay 90° · Ctrl+Z hoàn tác về đúng chỗ cũ", "xoay " + s2.xoay + " · về " + [s3.vx, s3.vz, s3.xoay]);
+    bao(ghi >= 1, "mỗi thay đổi tự gửi lệnh lưu vào bản QC", ghi + " lần");
+    const sua4 = await p.evaluate(async () => { const S = window.__sua, n0 = S.VAT.length;
+      S.them("ban"); const n1 = S.VAT.length, id = S.chon; S.xoa(); const n2 = S.VAT.length; S.hoanTac(); S.hoanTac();
+      const n3 = S.VAT.length; S.ra(); await new Promise((x) => setTimeout(x, 300));
+      return { n0, n1, n2, n3, id, an: document.getElementById("sua").hidden, a6: window.__a6.length }; });
+    bao(sua4.n1 === sua4.n0 + 1 && sua4.n2 === sua4.n0 && sua4.n3 === sua4.n0 && sua4.an && sua4.a6 === sua4.n0,
+      "Thêm → Xoá → Hoàn tác đúng số món · Xong ⇒ đóng bảng, dựng lại kho đủ món", JSON.stringify(sua4));
 
     /* Sửa thông số phải ĐỔI THẬT hình dựng ra, không chỉ đổi chữ */
     const ts = await p.evaluate(async () => {
@@ -337,9 +369,9 @@ const bao = (d, t, c) => (d ? ok : loi).push(`${d ? "ĐẠT " : "LỖI "} · ${t
       "mọi lượt nâng đều dừng ĐÚNG một cao độ tầng của khối đó",
       `${(nang.daDung || []).length} lượt · ${sai.length} lượt sai` +
       (sai.length ? " " + JSON.stringify(sai.slice(0, 3)) : ""));
-    bao(muc.A1.some((m) => Math.abs(m - nang.caoMax.A1) < 0.01), "A1 không nâng quá tầng cao nhất của nó",
+    bao(nang.caoMax.A1 <= Math.max(...muc.A1) + 0.01, "A1 không nâng quá tầng cao nhất của nó",   // 29/09: bản cũ đòi max RƠI ĐÚNG 1 tầng ⇒ lượt đo dừng giữa lúc nâng là báo lỗi oan
       nang.caoMax.A1.toFixed(2) + " m / trần " + Math.max(...muc.A1) + " m");
-    bao(muc.A2.some((m) => Math.abs(m - nang.caoMax.A2) < 0.01), "A2 không nâng quá tầng cao nhất của nó",
+    bao(nang.caoMax.A2 <= Math.max(...muc.A2) + 0.01, "A2 không nâng quá tầng cao nhất của nó",   // 29/09: bản cũ đòi max RƠI ĐÚNG 1 tầng ⇒ lượt đo dừng giữa lúc nâng là báo lỗi oan
       nang.caoMax.A2.toFixed(2) + " m / trần " + Math.max(...muc.A2) + " m");
 
     /* ── Va chạm + xi-nhan: chạy mô phỏng thật rồi soi từng khung hình ── */
