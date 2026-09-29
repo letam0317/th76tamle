@@ -128,6 +128,7 @@ details summary{cursor:pointer;font-weight:600}
 .suaH{display:flex;align-items:center;gap:8px}.suaH b{flex:none}
 .suaQc{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--do);color:#fff}
 #suaRa{margin-left:auto}
+.suaKhu{display:inline-flex;gap:3px;margin-left:auto}
 .suaR{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 #sua button:disabled{opacity:.4}
 #sua select,#sua input{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--rule);border-radius:4px;background:var(--paper);color:var(--ink)}
@@ -242,7 +243,8 @@ body.dangSua #c{cursor:grab}
 <div id="sua" hidden role="dialog" aria-label="Chỉnh sửa bố cục">
  <div class="suaH"><b>✎ Chỉnh sửa bố cục</b><span class="suaQc">BẢN QC</span><button id="suaRa">Xong ✕</button></div>
  <div class="suaR">
-  <select id="suaThem" aria-label="Thêm món"><option value="">＋ Thêm…</option><option value="ban">Bàn D1500 × R600</option><option value="keMam">Kệ mâm sắt D1500 × R500</option><option value="song">Sóng hàng hoàn</option></select>
+  <select id="suaThem" aria-label="Thêm món"><option value="">＋ Thêm…</option><option value="ban">Bàn D1500 × R600</option><option value="keMam">Kệ mâm sắt D1500 × R500</option><option value="song">Sóng hàng hoàn</option><option value="keV">Kệ sắt V lỗ D1200 × R450</option></select>
+  <span class="suaKhu"><button data-khu="a6" class="on">Khu A6</button><button data-khu="reit">Re-IT</button></span>
   <button id="suaXoay" title="phím R">⟳ Xoay 90°</button><button id="suaNhan" title="Ctrl+D">⧉ Nhân bản</button><button id="suaXoa" title="Delete">🗑 Xoá</button><button id="suaLui" title="Ctrl+Z">↶ Hoàn tác</button>
  </div>
  <div id="suaMon"></div>
@@ -931,6 +933,29 @@ function dungVachWC(){
  [[44.69,46.95],[46.07,46.95]].forEach(([x,z])=>b(0.42,1.2,0.03,mV,x,1.0,z));
  window.__wc=t.children.length;GOC.add(gopNhom(t))}
 
+/* SÀN GÁC trên phòng Re-IT (ảnh 29/09: trần = sàn gỗ ván ép trên dầm thép, cột thép sơn nâu ở góc mở):
+   mặt dưới dầm 2,8 m · ván 0,12 · lan can 1,0 m ở 2 cạnh hở (phía lối A2 x 46,96 và phía bắc z 10,81).
+   Chưa có số đo thật chiều cao sàn — số TẠM, sửa ở đây khi có. Trả về ô vật cản (cột). */
+const GAC_REIT={x0:42.66,x1:46.96,z0:10.81,z1:17.51,cao:2.8};
+function dungGacReIT(){const t=new THREE.Group(),G=GAC_REIT,can=[],
+  go=new THREE.MeshLambertMaterial({color:0xb58a5a}),dam=new THREE.MeshLambertMaterial({color:0x3a3f45}),
+  cot=new THREE.MeshLambertMaterial({color:0x5a3a26}),lc=new THREE.MeshLambertMaterial({color:0x6b7178});
+ const b=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);t.add(o)};
+ const W=G.x1-G.x0,Dz=G.z1-G.z0,cx=(G.x0+G.x1)/2,cz=(G.z0+G.z1)/2,Y=G.cao;
+ b(W,0.12,Dz,go,cx,Y+0.21,cz);                                                   // ván sàn
+ b(W,0.2,0.1,cot,cx,Y+0.05,G.z0+0.05);b(W,0.2,0.1,cot,cx,Y+0.05,G.z1-0.05);       // dầm biên nâu (ảnh 3)
+ b(0.1,0.2,Dz,cot,G.x1-0.05,Y+0.05,cz);
+ for(let x=G.x0+0.6;x<G.x1-0.3;x+=1.2)b(0.08,0.15,Dz,dam,x,Y+0.075,cz);          // dầm thép chạy dọc
+ [[G.x1-0.1,G.z0+0.1],[G.x1-0.1,(G.z0+G.z1)/2],[G.x1-0.1,G.z1-0.1],[G.x0+0.1,G.z0+0.1]].forEach(([x,z])=>{
+  b(0.2,Y,0.2,cot,x,Y/2,z);can.push({x:x-0.1,y:z-0.1,w:0.2,h:0.2})});
+ const Yl=Y+0.27;                                                                // lan can 2 cạnh hở
+ for(let z=G.z0;z<=G.z1+0.01;z+=1.1)b(0.04,1.0,0.04,lc,G.x1-0.03,Yl+0.5,Math.min(z,G.z1-0.03));
+ for(let x=G.x0;x<=G.x1+0.01;x+=1.1)b(0.04,1.0,0.04,lc,Math.min(x,G.x1-0.03),Yl+0.5,G.z0+0.03);
+ [0.5,1.0].forEach(h=>{b(0.04,0.04,Dz,lc,G.x1-0.03,Yl+h,cz);b(W,0.04,0.04,lc,cx,Yl+h,G.z0+0.03)});
+ const gg=gopNhom(t);gg.userData.gac=1;GOC.add(gg);
+ wlabel('Sàn gác trên Re-IT',cx,Y+1.8,cz,0.55,3);
+ return can}
+
 /* ══ VẬT RỜI — đồ đạc DỜI ĐƯỢC ở chế độ Chỉnh sửa bố cục (user 29/09) ══
    Mỗi món = 1 bản ghi {id, loai, x, z, xoay (độ), w (dài), d (rộng), …}; toạ độ = TÂM món, mét.
    Dựng ở toạ độ riêng rồi đặt vào chỗ: local x = chiều DÀI, người ngồi ở phía local +z.
@@ -949,17 +974,28 @@ const VAT_GOC=[].concat(
  [49.52,50.08,51.22,51.78,52.92,53.48,62.62].map((z,i)=>({id:'a6-km-'+(i+1),loai:'keMam',x:13.16,z:z,xoay:0,w:1.5,d:0.5})),
  [{id:'a6-km-8',loai:'keMam',x:14.66,z:62.62,xoay:0,w:1.5,d:0.5}],
  /* bàn dọc ranh bàn giao ĐVVC: D1500 × R600, mép phải x 24,55 < vạch 24,8 (không đè cột inox r 0,19) */
- [58.5,60.0,61.5].map((z,i)=>({id:'a6-dv-'+(i+1),loai:'ban',x:24.25,z:z,xoay:270,w:1.5,d:0.6,thung:2})));
+ [58.5,60.0,61.5].map((z,i)=>({id:'a6-dv-'+(i+1),loai:'ban',x:24.25,z:z,xoay:270,w:1.5,d:0.6,thung:2})),
+ /* RE-IT (A14 · kiểm/nhập IT SHOP) — phòng x 42,66–46,96 · z 10,81–17,51, theo 3 ảnh hiện trường 29/09:
+    2 bàn gỗ D1200 × R600 dọc tường dài (máy tính + máy in, người ngồi quay lưng ra giữa phòng),
+    3 kệ sắt V lỗ D1200 × R450 × C2100 dọc tường ngắn (5 tầng thùng hàng), cụm bàn đảo 2 × 2 bàn giữa phòng (người ngồi 2 phía) */
+ [11.7,12.9].map((z,i)=>({id:'reit-bt-'+(i+1),loai:'ban',x:43.02,z:z,xoay:90,w:1.2,d:0.6,mt:1})),
+ [43.95,45.15,46.35].map((x,i)=>({id:'reit-ke-'+(i+1),loai:'keV',x:x,z:17.2,xoay:0,w:1.2,d:0.45})),
+ [14.4,15.6].map((z,i)=>({id:'reit-dao-'+(2*i+1),loai:'ban',x:44.8,z:z,xoay:270,w:1.2,d:0.6,mt:1})),
+ [14.4,15.6].map((z,i)=>({id:'reit-dao-'+(2*i+2),loai:'ban',x:45.4,z:z,xoay:90,w:1.2,d:0.6,mt:1})));
 /* loại món: tên hiện ở bảng chỉnh sửa + cỡ mặc định khi Thêm mới */
 const LOAI_VAT={
  ban:{ten:'Bàn',w:1.5,d:0.6,mt:1},
  keMam:{ten:'Kệ mâm sắt',w:1.5,d:0.5},
- song:{ten:'Sóng hàng hoàn',w:1.18,d:0.88,mau:'xanh'}};
+ song:{ten:'Sóng hàng hoàn',w:1.18,d:0.88,mau:'xanh'},
+ keV:{ten:'Kệ sắt V lỗ',w:1.2,d:0.45}};
 const MAU_VAT={go:0xd8b98a,khung:0x5b6168,den:0x1d2126,man:0x33495c,ghe:0x2b2f35,sat:0xaab2ba,xanh:0x1f5fbf,la:0x2e8b57};
 let MV=null;   // vật liệu dùng CHUNG (gopNhom gom theo vật liệu — tạo 1 lần)
 const SUA={bat:false,g:{},keo:null};   // chế độ Chỉnh sửa bố cục — hàm gắn ở cuối trang
 function dsVatDaLuu(){const b=window.KHO170_BOCUC;
- return b&&Array.isArray(b.vat)&&b.vat.length?b.vat.map(v=>Object.assign({},v)):VAT_GOC.map(v=>Object.assign({},v))}
+ if(!(b&&Array.isArray(b.vat)&&b.vat.length))return VAT_GOC.map(v=>Object.assign({},v));
+ /* món MỚI thêm vào VAT_GOC sau lần lưu (vd Re-IT 29/09) tự có mặt — trừ món user đã xoá (danh sách xoa) */
+ const co=new Set(b.vat.map(v=>v.id)),xoa=new Set(b.xoa||[]);
+ return b.vat.map(v=>Object.assign({},v)).concat(VAT_GOC.filter(v=>!co.has(v.id)&&!xoa.has(v.id)).map(v=>Object.assign({},v)))}
 let VAT=dsVatDaLuu();
 function hatVat(id){let n=7;for(let i=0;i<id.length;i++)n=(n*31+id.charCodeAt(i))%9973;return n}
 /* khung chiếm sàn (hộp thẳng trục) của 1 món — dùng cho vật cản, cảnh báo đè, hít cạnh */
@@ -982,6 +1018,11 @@ function dungVat(v){
   [-1,1].forEach(i=>[-1,1].forEach(j=>b(0.04,2.0,0.04,MV.sat,i*(w/2-0.02),1.0,j*(d/2-0.02))));
   const hat=hatVat(v.id),n=Math.max(1,Math.round(w/0.5));
   tang.slice(0,4).forEach((y,k)=>{for(let q=0;q<n;q++)if((k+q+hat)%3!==2)b(Math.min(0.42,w/n-0.06),0.3,Math.min(0.4,d-0.08),(k+q)%2?M.ct:M.ct2,-w/2+w/n*(q+0.5),y+0.17,0)})}
+ else if(v.loai==='keV'){const tang=[0.08,0.5,0.92,1.34,1.76,2.08],hat=hatVat(v.id),n=Math.max(1,Math.round(w/0.4));
+  tang.forEach(y=>b(w,0.03,d,MV.sat,0,y,0));
+  [-1,1].forEach(i=>[-1,1].forEach(j=>b(0.035,2.1,0.035,MV.sat,i*(w/2-0.02),1.05,j*(d/2-0.02))));
+  tang.slice(0,5).forEach((y,k)=>{for(let q=0;q<n;q++)if((k*2+q+hat)%4!==3)b(w/n-0.05,0.26,d-0.08,(k+q)%2?M.ct:M.ct2,-w/2+w/n*(q+0.5),y+0.145,0)});
+  for(let q=0;q<2;q++)b(w/2-0.05,0.4,d-0.05,q?M.ct:M.ct2,-w/4+q*w/2,2.3,0)}                 // thùng chất trên nóc kệ (ảnh)
  else if(v.loai==='song'){const m=MV[v.mau==='la'?'la':'xanh'];
   b(w,0.66,d,m,0,0.36,0);b(w-0.08,0.12,d-0.08,M.ct,0,0.72,0);b(0.5,0.18,0.4,M.ct2,-0.2,0.86,0.1)}
  /* rotation.y = θ đưa local +z (ghế) về (sin θ, 0, cos θ): 90° → +x, 270° → −x */
@@ -1110,7 +1151,7 @@ function dungDong(oA8,bangA8,oA1){
  const nIn=nguoiMoi(),nIT=nguoiMoi(0x3b82c4);
  const nOut=BC.out.map((o,i)=>{const n=nguoiMoi();n.position.set(CUA_BC[i+1].x,0,YP-0.6);huong(n,0,1);return n});
  const kM=new THREE.BoxGeometry(0.42,0.3,0.34),nhanA7=new THREE.MeshLambertMaterial({color:0xffffff});
- const cong=dungRanh();dungWCKho();dungVachWC();
+ const cong=dungRanh();dungWCKho();dungVachWC();window.__gacReIT=dungGacReIT();
  /* ── A8 + A1: 64 NV (instanced) · 100 xe đẩy 2 tầng (64 theo người, 36 trữ ở khu số 1) ── */
  const tram=oBanVe('pick').filter(o=>o._a8).map(o=>{const cxp=o.x+o.w/2,czp=o.y+o.h/2;
   const b=bangA8.reduce((p,q)=>Math.abs((q.x0+q.x1)/2-cxp)<Math.abs((p.x0+p.x1)/2-cxp)?q:p);const bcx=(b.x0+b.x1)/2,huongB=Math.sign(bcx-cxp);
@@ -1640,7 +1681,7 @@ function dungKho(){
  /* xe nâng KHÔNG vào khu đóng gói A8 + khu bàn giao ĐVVC (cả phần khối trái phía dưới dãy A1) */
  const vungCam=[{x:12.4,y:38.5+A8_DZ,w:29.6,h:25-A8_DZ},{x:38.7,y:43.3,w:2.7,h:9.8}];
  dungCan([oA1,oA2,o5L,canSac,vungCam,HANG.filter(r=>r.ten==='A2T').map(r=>({x:r.khung[0],y:r.v0,w:r.khung.at(-1)-r.khung[0],h:r.sau})),palletSan(),bcCan(),oA8,
-   bangA8.map(b=>({x:b.x0,y:b.z0,w:b.x1-b.x0,h:b.zDuoi-b.z0})),oBanVe('pick'),oA6],HX,HZ);
+   bangA8.map(b=>({x:b.x0,y:b.z0,w:b.x1-b.x0,h:b.zDuoi-b.z0})),oBanVe('pick'),oA6,window.__gacReIT||[]],HX,HZ);
  xes=[];
  const CAO_TANG={A1:A1_2MAT?[+V('a1P1'),+V('a1P2'),+V('a1P3')]:[+V('a1T2'),+V('a1T3'),+V('a1T4')],A2:[+V('a2B1'),+V('a2B2'),+V('a2B3')]};
  function thaXe(khu,list,soXe){
@@ -2412,7 +2453,7 @@ function frame(now){requestAnimationFrame(frame);
  function ghiLui(){lui.push(JSON.stringify(VAT));if(lui.length>80)lui.shift();$('suaLui').disabled=false}
  function doi(){try{localStorage.setItem('kho170-bocuc-nhap',JSON.stringify(VAT))}catch(e){}
   clearTimeout(tLuu);tt('Đang lưu vào bản QC…');tLuu=setTimeout(luu,700);veBang();khung()}
- function luu(){return fetch(API+'bocuc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vat:VAT})})
+ function luu(){return fetch(API+'bocuc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vat:VAT,xoa:VAT_GOC.map(v=>v.id).filter(id=>!VAT.some(v=>v.id===id))})})
   .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.loi||'lỗi');const n=soLoi();
    tt('Đã lưu vào bản QC ✓ · '+VAT.length+' món'+(live?' · khác bản live '+khacLive()+' món':'')+(n?' · ⚠ '+n+' món đang đè nhau/đè vạch':''),n>0)})
   .catch(e=>tt('KHÔNG lưu được vào bản QC: '+e.message+' — mở trang qua XEM-BAN-NOI-BO (xem-noi-bo.mjs).',true))}
@@ -2466,8 +2507,15 @@ function frame(now){requestAnimationFrame(frame);
   if(CAM.o.mode!=='orbit'&&CAM.o.mode!=='map')CAM.datMode('map');
   /* nhìn thẳng xuống khu A6, hướng giống sơ đồ lưới (x → phải, z → xuống) · tắt tự xoay cho khỏi trôi lúc kéo */
   CAM.o.rot=false;$('bRot').classList.remove('on');
-  CAM.flyTo({theta:Math.PI/2,phi:0.03,dist:26,t:[18.6,0,58.2]},700);
-  napLive().then(()=>{if(live&&SUA.bat)tt('Bản QC khác bản live '+khacLive()+' món · '+VAT.length+' món dời được (khu A6).')})}
+  bayKhu('a6');
+  napLive().then(()=>{if(live&&SUA.bat)tt('Bản QC khác bản live '+khacLive()+' món · '+VAT.length+' món dời được (khu A6 + Re-IT).')})}
+ /* camera nhìn thẳng xuống từng khu có đồ dời được */
+ const KHU_SUA={a6:{t:[18.6,0,58.2],dist:26},reit:{t:[44.8,0,14.2],dist:14}};
+ function bayKhu(k){const q=KHU_SUA[k];if(!q)return;CAM.flyTo({theta:Math.PI/2,phi:0.03,dist:q.dist,t:q.t},700);
+  document.querySelectorAll('[data-khu]').forEach(b=>b.classList.toggle('on',b.dataset.khu===k));
+  /* Re-IT nằm dưới sàn gác ⇒ ẩn sàn khi đang sửa khu này, không thì nhìn từ trên chỉ thấy ván */
+  GOC.traverse(o=>{if(o.userData&&o.userData.gac)o.visible=k!=='reit'})}
+ document.querySelectorAll('[data-khu]').forEach(b=>b.addEventListener('click',()=>bayKhu(b.dataset.khu)));
  function ra(){SUA.bat=false;SUA.keo=null;chon=null;if(hop){scene.remove(hop);hop=null}
   document.body.classList.remove('dangSua');$('sua').hidden=true;SUA.g={};dungKho()}
  /* ── chốt: máy chủ nội bộ làm 4 bước, trang hỏi tiến độ 2 s/lần ── */

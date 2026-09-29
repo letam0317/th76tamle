@@ -54,14 +54,14 @@ const traJson = (res, code, j) => { res.writeHead(code, { "Content-Type": "appli
 function docThan(req) {
   return new Promise((ok, loi) => { let b = ""; req.on("data", (c) => { b += c; if (b.length > 2e6) req.destroy(); }); req.on("end", () => ok(b)); req.on("error", loi); });
 }
-function ghiBoCuc(vat) {
+function ghiBoCuc(vat, xoa) {
   if (!Array.isArray(vat)) throw new Error("thiếu danh sách vat");
   const sach = vat.map((v) => {
     if (!v || typeof v.id !== "string" || typeof v.loai !== "string") throw new Error("món thiếu id/loai");
     ["x", "z", "w", "d"].forEach((k) => { if (!isFinite(+v[k])) throw new Error("món " + v.id + " sai số " + k); });
     return v;
   });
-  const j = { ver: 1, ngay: new Date().toISOString(), vat: sach };
+  const j = { ver: 1, ngay: new Date().toISOString(), vat: sach, xoa: Array.isArray(xoa) ? xoa.filter((x) => typeof x === "string") : [] };
   fs.writeFileSync(TEP_BOCUC, "/* kho170-bocuc.js — BỐ CỤC ĐỒ ĐẠC dời được của trang 3D kho 170.\n" +
     " * Ghi bởi chế độ Chỉnh sửa bố cục (bản QC, xem-noi-bo.mjs). Đừng sửa tay — mở bản QC mà kéo thả. */\n" +
     "window.KHO170_BOCUC = " + JSON.stringify(j, null, 1) + ";\n", "utf8");
@@ -86,7 +86,7 @@ async function api3d(req, res, u) {
   if (!laMayNay(req)) return traJson(res, 403, { ok: false, loi: "chỉ máy chạy bản QC mới được sửa/chốt" });
   if (u === "/api/3d/ping") return traJson(res, 200, { ok: true, chay: CHOT.chay });
   if (u === "/api/3d/bocuc" && req.method === "POST") {
-    try { ghiBoCuc(JSON.parse(await docThan(req)).vat); return traJson(res, 200, { ok: true }); }
+    try { const j = JSON.parse(await docThan(req)); ghiBoCuc(j.vat, j.xoa); return traJson(res, 200, { ok: true }); }
     catch (e) { return traJson(res, 400, { ok: false, loi: e.message }); }
   }
   if (u === "/api/3d/chot" && req.method === "POST") {
