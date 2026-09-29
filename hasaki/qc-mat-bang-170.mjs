@@ -164,7 +164,8 @@ const veLuoi = await p.evaluate(() => ({
 bao(veLuoi.cell === luoi.n && veLuoi.svg === 0, "lưới trở lại nguyên trạng", veLuoi.cell + " ô · " + veLuoi.svg + " svg");
 
 console.log("\n7) Bố cục" + (MOBILE ? " điện thoại" : ""));
-bao(mb.cuonTrong && mb.ti > 1.25 && mb.ti < 1.35, "mặt bằng to hơn 30 % và cuộn ngang TRONG khung (không tràn trang)", mb.rong + "×" + mb.cao + "px · " + mb.ti.toFixed(2) + "× khung");
+/* 29/09 lượt 2: VỪA KHÍT bề ngang (không kéo ngang) và to hơn ≥ 25 % so với bản cũ (máy tính: bản cũ 974 px ảnh đủ sân bãi ⇒ nay khung cắt theo nhà + trải hết bề ngang) */
+bao(!mb.tranNgang && mb.ti <= 1.01 && (MOBILE || mb.rong >= 1250), "mặt bằng vừa khít bề ngang (không kéo ngang) · máy tính trải hết khung (≥ 1250 px)", mb.rong + "×" + mb.cao + "px · " + mb.ti.toFixed(2) + "× khung");
 bao(!mb.doiRong, "trang không sinh cuộn ngang");
 
 console.log("\n8) Lỗi trang");
