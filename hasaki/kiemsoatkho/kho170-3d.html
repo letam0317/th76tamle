@@ -2714,7 +2714,9 @@ function frame(now){requestAnimationFrame(frame);
   /* tay nắm 2 đầu vách (đang chọn 1 vách) — bấm trúng thì kéo DÀI / NGẮN vách, đầu kia đứng yên */
   if(TAY.length){const th=ray.intersectObjects(TAY,false);if(th.length){const v=vat(chon),dau=th[0].object.userData.dau,y=th[0].point.y,p=diemSan(e,y);if(!v||!p)return true;
    SUA.keo={id:e.pointerId,y:y,tay:dau,truoc:JSON.stringify(VAT),di:false};return true}}
-  const ds=ray.intersectObjects(Object.values(SUA.g),true);if(!ds.length){chonMon(null);return false}
+  /* bỏ món đang ẨN (vd sửa SPA/Re-IT thì tầng lửng + phòng ăn ẩn — three vẫn cho tia trúng vật ẩn ⇒ bấm kệ SPA lại kéo bàn ăn, 29/09) */
+  const hien=o=>{for(;o;o=o.parent)if(!o.visible)return false;return true};
+  const ds=ray.intersectObjects(Object.values(SUA.g).filter(g=>g.visible),true).filter(h=>hien(h.object));if(!ds.length){chonMon(null);return false}
   const cuaMon=h=>{let o=h.object;while(o&&!o.userData.vat)o=o.parent;return o};
   /* cửa sổ/cửa sắt nằm TRONG vách: tia trúng vách trước ⇒ nếu ngay sau đó (≤ 0,4 m) có cửa thì chọn cửa */
   let hi=0;{const o0=cuaMon(ds[0]),v0=o0&&vat(o0.userData.vat);if(v0&&LA_VACH(v0)){const k=ds.findIndex(h=>{const o=cuaMon(h),u=o&&vat(o.userData.vat);return u&&LA_CUA(u)&&h.distance-ds[0].distance<0.4});if(k>0)hi=k}}
