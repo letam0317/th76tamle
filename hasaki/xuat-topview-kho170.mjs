@@ -60,8 +60,11 @@ const kq = await p.evaluate((RONG) => {
   cam.position.set(0, 120, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix();
   const pr = renderer.getPixelRatio(), sz = renderer.getSize(new THREE.Vector2());
   renderer.setPixelRatio(1); renderer.setSize(RONG, CAO, false);
-  renderer.shadowMap.needsUpdate = true;
+  /* user 29/09: mặt bằng KHÔNG đổ bóng — tắt shadow map khi chụp (phải biên dịch lại vật liệu), chụp xong trả lại */
+  const bongCu = renderer.shadowMap.enabled, doiVL = () => scene.traverse((m) => { if (m.material) [].concat(m.material).forEach((q) => (q.needsUpdate = true)); });
+  renderer.shadowMap.enabled = false; doiVL();
   renderer.render(scene, cam);
+  renderer.shadowMap.enabled = bongCu; doiVL();
   const anh = renderer.domElement.toDataURL("image/webp", 0.82);
   renderer.setPixelRatio(pr); renderer.setSize(sz.x, sz.y, false);
   an.forEach((o) => (o.visible = true));
@@ -76,7 +79,35 @@ const kq = await p.evaluate((RONG) => {
     A8.meta.forEach((mt, i) => { A8.im.getMatrixAt(i, m); m.decompose(ps, qq, sc);
       o.push({ k: "pack", x: r2(ps.x - sc.x / 2), y: r2(ps.z - sc.z / 2), w: r2(sc.x), h: r2(sc.z), loc: mt.loc || "" }); }); }
   const khu = KHO170_SODO.khu.map((t) => ({ s: t.s, x: t.x, y: t.y }));
-  return { W: HX, H: HZ, anh, o, khu, px: [RONG, CAO] };
+  /* VÙNG KHU 5S (user 29/09: trỏ vào khu = tô mờ + tên khu). k = mã khu trong mã vị trí F0-<k>-…; hình chữ nhật
+     theo mô hình 3D (A1/A2/A8 = khung bao các ô) và bản vẽ (phòng). "uoc" = ranh ước lượng, chưa có nét bản vẽ. */
+  const bao = (ds, le) => { const x0 = Math.min(...ds.map((q) => q.x)), y0 = Math.min(...ds.map((q) => q.y)),
+    x1 = Math.max(...ds.map((q) => q.x + q.w)), y1 = Math.max(...ds.map((q) => q.y + q.h));
+    return { x: r2(x0 - le), y: r2(y0 - le), w: r2(x1 - x0 + 2 * le), h: r2(y1 - y0 + 2 * le) }; };
+  const hcn = (x0, x1, y0, y1) => ({ x: x0, y: y0, w: r2(x1 - x0), h: r2(y1 - y0) });
+  const pk = o.filter((q) => q.k === "pack");
+  const vung = [
+    Object.assign({ k: "A1", ten: "Quầy kệ A1" }, bao(oA1, 0.6)),
+    Object.assign({ k: "A2", ten: "Khối kệ A2" }, bao(oA2, 0.6)),
+    pk.length ? Object.assign({ k: "A8", ten: "Bàn đóng gói · băng chuyền" }, bao(pk, 1.2)) : null,
+    Object.assign({ k: "A5", ten: "Bàn giao ĐVVC" }, hcn(24.8, 42.0, 57.8, 62.85)),
+    Object.assign({ k: "A6", ten: "Bàn quản lý · hàng hoàn" }, hcn(12.46, 24.8, 55.6, 62.85)),
+    Object.assign({ k: "A10", ten: "Nhà vệ sinh" }, hcn(42.18, 46.38, 43.05, 49.05)),
+    Object.assign({ k: "A3", ten: "Kệ trữ VPP" }, hcn(38.79, 41.29, 43.47, 53.03)),
+    Object.assign({ k: "A4", ten: "Kho VPP · tái chế giấy", uoc: 1 }, hcn(46.4, 53.4, 43.05, 48.0)),
+    Object.assign({ k: "A15", ten: "Xe nâng điện đứng" }, hcn(42.66, 46.96, 7.9, 10.81)),
+    Object.assign({ k: "A14", ten: "Kiểm nhập IT Shop (Re-IT)" }, hcn(42.66, 46.96, 10.81, 17.51)),
+    Object.assign({ k: "A13", ten: "Phòng chụp Ortery" }, hcn(42.66, 46.96, 17.51, 23.51)),
+    Object.assign({ k: "A12", ten: "Kho Clinic (SPA)" }, hcn(42.66, 46.96, 23.51, 34.71)),
+    Object.assign({ k: "A11", ten: "Hàng đổi trả · IT" }, hcn(42.66, 46.96, 34.71, 39.3)),
+    Object.assign({ k: "CB", ten: "Băng chuyền phân loại" }, hcn(83.4, 92.1, 8.5, 42.6)),
+    Object.assign({ k: "A19", ten: "Băng chuyền xuất · bàn giao", uoc: 1 }, hcn(93.5, 106.5, 30.0, 42.85)),
+    Object.assign({ k: "A16", ten: "Kho hành chánh", uoc: 1 }, hcn(108.46, 112.46, 17.65, 38.15)),
+  ].filter(Boolean);
+  /* khung cắt ảnh: chỉ phần NHÀ (bỏ sân bãi trống) */
+  const X0 = +V("nhaX0"), X1 = +V("nhaX1"), Y0 = +V("nhaY0"), YT = +V("nhaYTrai");
+  const khung = { x: r2(X0 - 0.5), y: r2(Y0 - 0.5), w: r2(X1 - X0 + 1.0), h: r2(YT - Y0 + 1.0) };
+  return { W: HX, H: HZ, anh, o, khu, vung, khung, px: [RONG, CAO] };
 }, RONG);
 
 await b.close();
@@ -84,7 +115,7 @@ if (loi.length) { console.error("Lỗi trang 3D:", loi.join(" | ")); process.exi
 const buf = Buffer.from(kq.anh.split(",")[1], "base64");
 fs.writeFileSync(path.join(OUT, "kho170-topview.webp"), buf);
 const du = { nguon: "kho170-3d.html (ảnh trực giao từ trên xuống, tĩnh)", ngay: new Date().toISOString().slice(0, 10),
-  W: kq.W, H: kq.H, anh: "kho170-topview.webp", px: kq.px, o: kq.o, khu: kq.khu };
+  ver: Date.now().toString(36), W: kq.W, H: kq.H, anh: "kho170-topview.webp", px: kq.px, khung: kq.khung, o: kq.o, khu: kq.khu, vung: kq.vung };
 fs.writeFileSync(path.join(OUT, "kho170-topview.js"),
   "/* kho170-topview.js — SINH TỰ ĐỘNG bởi hasaki/xuat-topview-kho170.mjs. ĐỪNG SỬA TAY. */\nwindow.KHO170_TOPVIEW=" + JSON.stringify(du) + ";\n");
 const dem = {}; kq.o.forEach((q) => { const kk = q.k + (q.loc ? q.loc.slice(0, 5) : ""); dem[kk] = (dem[kk] || 0) + 1; });

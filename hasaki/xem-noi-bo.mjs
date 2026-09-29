@@ -46,7 +46,8 @@ const BUOC_CHOT = [
   ["chụp lại sơ đồ lưới (top-view)", ["xuat-topview-kho170.mjs"]],
   ["QC mô phỏng 3D", ["qc-kho170-3d.mjs"]],
   ["QC sơ đồ lưới tab Planogram", ["qc-mat-bang-170.mjs"]],
-  ["đẩy lên live", ["deploy-kiemsoatkho.mjs", "--chi", "kho170-3d.html,kho170-bocuc.js,kho170-topview.js,kho170-topview.webp"]],
+  ["QC sơ đồ lưới trên điện thoại", ["qc-mat-bang-170.mjs", "--mobile"]],
+  ["đẩy lên live", ["deploy-kiemsoatkho.mjs", "--chi", "kho170-3d.html,kho170-bocuc.js,kho170-topview.js,kho170-topview.webp,hasaki-planogram.js"]],
 ];
 let CHOT = { chay: false, xong: false, ok: false, buoc: 0, ten: "", loi: "" };
 const laMayNay = (req) => /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(req.socket.remoteAddress || "");
@@ -69,7 +70,7 @@ function ghiBoCuc(vat, xoa) {
 function chayBuoc(i) {
   if (i >= BUOC_CHOT.length) { CHOT = { ...CHOT, chay: false, xong: true, ok: true }; console.log("✓ Chốt bố cục 3D xong — đã lên live"); return; }
   const [ten, args] = BUOC_CHOT[i];
-  CHOT = { ...CHOT, buoc: i + 1, ten };
+  CHOT = { ...CHOT, buoc: i + 1, tong: BUOC_CHOT.length, ten };
   console.log("… chốt bố cục 3D · bước " + (i + 1) + "/" + BUOC_CHOT.length + ": " + ten);
   let duoi = "";
   const p = spawn(process.execPath, args, { cwd: DIR, env: process.env });

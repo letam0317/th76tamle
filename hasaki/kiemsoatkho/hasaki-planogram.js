@@ -859,6 +859,20 @@ var CSS = [
    Nét vẽ dùng vector-effect để luôn mảnh 1px dù SVG co giãn bao nhiêu. */
 "#pane-planogram .hp-mbwrap{margin:6px 0 2px;border-radius:10px;overflow:hidden;background:color-mix(in srgb, var(--panel,#fff) 92%, var(--text,#0f172a) 8%);}",
 "#pane-planogram .hp-mbsvg{display:block;width:100%;height:auto;max-height:min(62vh,560px);}",
+/* 29/09: mặt bằng TO HƠN 30 % — rộng 130 % khung, kéo ngang để xem hết (khung đã cắt bỏ sân bãi trống) */
+"#pane-planogram .hp-mbtv{overflow-x:auto;overscroll-behavior-x:contain;}",
+"#pane-planogram .hp-mbtv .hp-mbsvg{width:130%;max-width:none;max-height:none;}",
+/* vùng khu: trống bình thường · trỏ vào = tô mờ màu khu + viền + tên khu; khu đã có planogram viền nét đứt mờ sẵn */
+"#pane-planogram .hp-mbv .hp-mbvr{fill:var(--vc);fill-opacity:0;stroke:var(--vc);stroke-opacity:0;stroke-width:2;vector-effect:non-scaling-stroke;pointer-events:all;transition:fill-opacity .15s,stroke-opacity .15s;}",
+"#pane-planogram .hp-mbv.co .hp-mbvr{stroke-opacity:.55;stroke-dasharray:6 4;}",
+"#pane-planogram .hp-mbv:hover .hp-mbvr{fill-opacity:.2;stroke-opacity:.9;stroke-dasharray:none;}",
+"#pane-planogram .hp-mbvt{font-size:1.5px;font-weight:700;text-anchor:middle;fill:#0f172a;paint-order:stroke;stroke:#fff;stroke-width:.4px;opacity:0;pointer-events:none;transition:opacity .15s;}",
+"#pane-planogram .hp-mbv:hover .hp-mbvt{opacity:1;}",
+"#pane-planogram .hp-mbvb{cursor:pointer;}",
+"#pane-planogram .hp-mbvb rect{fill:var(--vc);fill-opacity:.92;stroke:#fff;stroke-width:1;vector-effect:non-scaling-stroke;}",
+"#pane-planogram .hp-mbvb text{font-size:1.25px;font-weight:700;fill:#fff;text-anchor:middle;pointer-events:none;}",
+"#pane-planogram .hp-mbtv .hp-mbo.o-pack{cursor:pointer;fill-opacity:.85;stroke:rgba(15,23,42,.35);}",
+"@media (prefers-reduced-motion:reduce){#pane-planogram .hp-mbv .hp-mbvr,#pane-planogram .hp-mbvt{transition:none;}}",
 "#pane-planogram .hp-mbnet{fill:none;stroke:color-mix(in srgb, var(--muted,#94a3b8) 55%, transparent);stroke-width:1;vector-effect:non-scaling-stroke;}",
 "#pane-planogram .hp-mbo{stroke:color-mix(in srgb, var(--line,#cbd5e1) 80%, transparent);stroke-width:.5;vector-effect:non-scaling-stroke;}",
 "#pane-planogram .hp-mbo.o-ke{cursor:pointer;}",
@@ -2962,7 +2976,7 @@ function fitMaps(){
 /* 28/09/2026: mặt bằng = ẢNH TOP-VIEW TĨNH của mô phỏng 3D (user: "đổi Mặt bằng thật thành topview của mô phỏng 3D,
    không hoạt ảnh"). kho170-topview.js + .webp do hasaki/xuat-topview-kho170.mjs chụp từ kho170-3d.html; toạ độ ô lấy từ
    MÔ HÌNH 3D (A1 tách 2 mặt, A8 đã dời) nên ô tô màu nằm đúng trên ảnh. Chỉ ô A1 được tô + bấm; phần còn lại là ảnh. */
-var MB_SRC = "kho170-topview.js?v=20260928a";
+var MB_SRC = "kho170-topview.js?v=20260929b";
 function napMatBang(xong){
   if (window.KHO170_TOPVIEW) return xong(true);
   if (S.mbDang) return;
@@ -2981,15 +2995,44 @@ function toggleMatBang(){
 }
 /* veO(ô) do renderMap truyền vào — nó giữ trạng thái/màu/tooltip nên mặt bằng và lưới luôn cùng
    một sự thật, không có đường nào tự chế màu riêng. */
-function svgMatBang(veO){
+/* 29/09/2026 (user): bỏ nhãn chữ · to hơn 30 % (cắt sân bãi trống + phóng, kéo ngang nếu tràn) · ảnh không đổ bóng ·
+   CHIA VÙNG KHU 5S: trỏ vào khu = tô mờ + hiện tên khu · khu nào ĐÃ CÓ planogram thì hiện luôn: ô có toạ độ (kệ A1,
+   bàn A8) tô màu trạng thái như sơ đồ lưới; khu chưa có toạ độ từng ô thì hiện thẻ "số vị trí · đã vệ sinh" giữa vùng
+   (bấm = mở sơ đồ lưới của khu đó). demKhu[k] = {n, da} do renderMap đếm từ đúng danh mục dmChuan. */
+function svgMatBang(veO, demKhu){
   var T = window.KHO170_TOPVIEW;
   if (!T) return '<div class="hp-mbload">' + (S.mbDang ? "Đang tải sơ đồ mặt bằng…" : "Không tải được sơ đồ mặt bằng.") + '</div>';
-  return '<div class="hp-mbwrap hp-mbtv"><svg class="hp-mbsvg" viewBox="0 0 ' + T.W + ' ' + T.H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mặt bằng kho 170 (nhìn từ trên xuống, mô phỏng 3D)">' +
-    '<image href="' + T.anh + '?v=' + T.ngay + '" x="0" y="0" width="' + T.W + '" height="' + T.H + '" preserveAspectRatio="none"/>' +
-    T.o.filter(function(v){ return v.loc && v.loc.indexOf("F0-A1-") === 0; }).map(veO).join("") +
-    T.khu.map(function(t){ return '<text class="hp-mbkhu" x="' + t.x + '" y="' + t.y + '">' + esc(t.s) + '</text>'; }).join("") +
-    '</svg></div>';
+  demKhu = demKhu || {};
+  var K = T.khung || { x: 0, y: 0, w: T.W, h: T.H };
+  var coO = T.o.filter(function(v){ return v.loc && (v.loc.indexOf("F0-A1-") === 0 || v.loc.indexOf("F0-A8-") === 0); });
+  var daVe = {};
+  var vung = (T.vung || []).map(function(z){
+    var a = AREAS.filter(function(q){ return q.k === z.k; })[0];
+    var mau = a ? a.c : "#2563eb", ten = (KHU_TEN[z.k] || (a && a.ngan) || z.ten), d = demKhu[z.k];
+    var oTrong = coO.filter(function(v){ return v.loc.indexOf("F0-" + z.k + "-") === 0; });
+    oTrong.forEach(function(v){ daVe[v.loc] = 1; });
+    var cx = z.x + z.w / 2, cy = z.y + z.h / 2;
+    /* thẻ số vị trí: khu có planogram mà KHÔNG có ô toạ độ riêng (ô A1/A8 đã tự tô màu rồi) */
+    var the = "";
+    if (d && d.n && !oTrong.length){
+      var chu = nf(d.n) + " vị trí · " + nf(d.da) + " đã VS", bw = Math.max(6, chu.length * 0.62);
+      the = '<g class="hp-mbvb" onclick="HPLANOGRAM.moKhuMB(\'' + z.k + '\')"><rect x="' + (cx - bw / 2) + '" y="' + (cy - 1.1) + '" width="' + bw + '" height="2.2" rx="0.5"/>' +
+        '<text x="' + cx + '" y="' + (cy + 0.55) + '">' + esc(chu) + '</text></g>';
+    }
+    return '<g class="hp-mbv' + (d && d.n ? " co" : "") + '" style="--vc:' + mau + '">' +
+      '<rect class="hp-mbvr" x="' + z.x + '" y="' + z.y + '" width="' + z.w + '" height="' + z.h + '"><title>' +
+        esc(ten + " (F0-" + z.k + ")" + (d && d.n ? "\n" + nf(d.n) + " vị trí có planogram · " + nf(d.da) + " đã vệ sinh" : "\nChưa có vị trí planogram") + (z.uoc ? "\n(ranh khu ước lượng)" : "")) + '</title></rect>' +
+      oTrong.map(veO).join("") +
+      /* tên khu không được lọt ra ngoài khung ảnh (khu sát tường có tên dài hơn bề ngang khu) */
+      '<text class="hp-mbvt" x="' + Math.min(Math.max(cx, K.x + ten.length * 0.4 + 0.4), K.x + K.w - ten.length * 0.4 - 0.4) + '" y="' + (z.y + Math.min(2.2, z.h * 0.3)) + '">' + esc(ten) + '</text>' + the + '</g>';
+  }).join("");
+  var le = coO.filter(function(v){ return !daVe[v.loc]; }).map(veO).join("");
+  return '<div class="hp-mbwrap hp-mbtv"><svg class="hp-mbsvg" viewBox="' + K.x + ' ' + K.y + ' ' + K.w + ' ' + K.h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mặt bằng kho 170 (nhìn từ trên xuống, mô phỏng 3D) — trỏ vào khu để xem tên">' +
+    '<image href="' + T.anh + '?v=' + (T.ver || T.ngay) + '" x="0" y="0" width="' + T.W + '" height="' + T.H + '" preserveAspectRatio="none"/>' +
+    vung + le + '</svg></div>';
 }
+/* thẻ số vị trí trên mặt bằng → sang sơ đồ lưới của đúng khu đó */
+function moKhuMB(k){ S.mb = false; if (S.area !== k) setArea(k); renderMap(); }
 
 function renderMap(){
   var box = $id("hpMap"); if (!box) return;
@@ -3150,11 +3193,15 @@ function renderMap(){
   var htmlMB = "";
   if (S.mb){
     var keMB = keA1();
+    /* đếm theo khu trên đúng danh mục ô (dmChuan) — thẻ số vị trí trên mặt bằng dùng chung lượt đếm với sơ đồ lưới */
+    var demKhu = {}, dmMB = dmChuan();
+    Object.keys(dmMB).forEach(function(kk){ var o = dmMB[kk], d = demKhu[o.area] || (demKhu[o.area] = { n: 0, da: 0 });
+      d.n++; if (stateCua(byL[kk]) === "done") d.da++; });
     htmlMB = svgMatBang(function(v){
       var r = 'x="' + v.x + '" y="' + v.y + '" width="' + v.w + '" height="' + v.h + '"';
-      if (v.loc && v.loc.indexOf("F0-A1-") === 0){
-        var p = v.loc.split("-");                                   // F0-A1-<dãy>-<tủ>
-        var locThat = keMB[p[2] + "|" + p[3]] || (v.loc + "-01-01");  // mã thật (có alias) để tra đúng dữ liệu
+      if (v.loc && (v.loc.indexOf("F0-A1-") === 0 || v.loc.indexOf("F0-A8-") === 0)){
+        var p = v.loc.split("-");                                   // F0-A1-<dãy>-<tủ> · F0-A8-<dãy>-<bàn>-01-01 (đủ mã)
+        var locThat = v.loc.indexOf("F0-A8-") === 0 ? v.loc : (keMB[p[2] + "|" + p[3]] || (v.loc + "-01-01"));  // A1: mã thật (có alias)
         var kk = khoaO(locThat), list = byL[kk], st = stateCua(list), m = cellMeta(st);
         var cls = "hp-mbo o-ke" + cellCls(m) + (m.dashed ? " trong" : "") + (alert[kk] ? " canhbao" : "");
         return '<rect class="' + cls + '" ' + r + (m.dashed ? "" : ' fill="' + m.c + '"') +
@@ -3171,7 +3218,7 @@ function renderMap(){
       if (v.k === "pack" || v.k === "pick") t += "\nBản vẽ không ghi dãy nào là 501/503… nên chưa gán mã vị trí";
       /* ô kệ A2 dùng lớp riêng o-ke2: cùng là "kệ" nhưng KHÔNG bấm được, không được có con trỏ tay */
       return '<rect class="hp-mbo o-' + (v.k === "ke" ? "ke2" : v.k) + '" ' + r + '><title>' + esc(t) + '</title></rect>';
-    });
+    }, demKhu);
   }
   /* --- KHU KHÔNG CÓ SƠ ĐỒ VẼ TAY (28/09/2026): lưới TỰ SINH theo mã vị trí F0-<khu>-<dãy>-<ô>-…
      Mỗi dãy 1 cột, ô xếp theo số. Kho mở thêm khu (WC, phòng Ortery, bãi xe…) là tự có sơ đồ, không
@@ -4420,7 +4467,7 @@ function init(pane){
 }
 
 window.HPLANOGRAM = {
-  init: init, reload: loadData, setArea: setArea, setNgay: setNgay, setKhoang: setKhoang, chonNgay: chonNgay, moLocNgay: moLocNgay, dongLocNgay: dongLocNgay, setListMode: setListMode,
+  init: init, reload: loadData, setArea: setArea, moKhuMB: moKhuMB, setNgay: setNgay, setKhoang: setKhoang, chonNgay: chonNgay, moLocNgay: moLocNgay, dongLocNgay: dongLocNgay, setListMode: setListMode,
   openAll: openAll, openArea: openArea, openStatus: openStatus, openName: openName, openYc: openYc, openYcAi: openYcAi, closeModal: closeModal,
   openAiList: openAiList, closeAiModal: closeAiModal, renderAiModal: renderAiModal,
   comboInput: comboInput, comboMenu: comboMenu, quick: quick, openAnh: openAnh, anhLui: anhLui,

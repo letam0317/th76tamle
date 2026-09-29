@@ -2719,11 +2719,11 @@ function frame(now){requestAnimationFrame(frame);
  /* ── chốt: máy chủ nội bộ làm 4 bước, trang hỏi tiến độ 2 s/lần ── */
  function chot(){const n=soLoi();
   if(n&&!confirm(n+' món đang đè nhau hoặc đè vạch ranh. Vẫn chốt?'))return;
-  if(!confirm('Chốt bố cục này lên LIVE (Audit Hasaki)?\nMáy sẽ chụp lại sơ đồ lưới, chạy QC mô phỏng + sơ đồ (~5 phút), đạt mới đẩy lên.'))return;
+  if(!confirm('Chốt bố cục này lên LIVE (Audit Hasaki)?\nMáy sẽ chụp lại sơ đồ lưới, chạy QC mô phỏng + sơ đồ lưới (máy tính + điện thoại, ~7 phút), đạt mới đẩy lên.'))return;
   clearTimeout(tLuu);luu().then(()=>fetch(API+'chot',{method:'POST'})).then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.loi);$('suaChot').disabled=true;hoiChot()})
    .catch(e=>tt('Không chốt được: '+e.message,true))}
  function hoiChot(){clearTimeout(chotT);fetch(API+'chot').then(r=>r.json()).then(j=>{
-  if(j.chay){$('suaChot').disabled=true;tt('Đang chốt · bước '+j.buoc+'/4: '+j.ten+' …');chotT=setTimeout(hoiChot,2000);return}
+  if(j.chay){$('suaChot').disabled=true;tt('Đang chốt · bước '+j.buoc+'/'+(j.tong||5)+': '+j.ten+' …');chotT=setTimeout(hoiChot,2000);return}
   $('suaChot').disabled=false;if(!j.xong)return;
   if(j.ok){live=VAT.map(v=>Object.assign({},v));tt('✓ ĐÃ LÊN LIVE — mô phỏng 3D + sơ đồ lưới tab Planogram. GitHub Pages cập nhật sau ~1 phút.')}
   else tt('✗ Dừng ở bước '+j.buoc+' ('+j.ten+') — CHƯA đẩy gì lên live. '+(j.loi||''),true)}).catch(()=>{chotT=setTimeout(hoiChot,3000)})}

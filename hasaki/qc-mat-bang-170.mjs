@@ -116,10 +116,16 @@ const mb = await p.evaluate(() => {
   return { anh: !!document.querySelector("#pane-planogram .hp-mbtv svg image"), ke: q(".hp-mbo.o-ke"), ke2: q(".hp-mbo.o-ke2"), pallet: q(".hp-mbo.o-pallet"),
     pick: q(".hp-mbo.o-pick"), pack: q(".hp-mbo.o-pack"), mau, ngoai,
     rong: r ? Math.round(r.width) : 0, cao: r ? Math.round(r.height) : 0,
-    tranNgang: !!(r && wrap && r.width > wrap.width + 1), doiRong: document.documentElement.scrollWidth > window.innerWidth + 1 };
+    tranNgang: !!(r && wrap && r.width > wrap.width + 1), doiRong: document.documentElement.scrollWidth > window.innerWidth + 1,
+    /* 29/09: mặt bằng to 130 % ⇒ tràn CÓ CHỦ Ý, nhưng phải cuộn được TRONG khung (không đẩy cả trang) */
+    cuonTrong: !!(wrap && /auto|scroll/.test(getComputedStyle(svg.parentElement).overflowX)), ti: r && wrap ? r.width / wrap.width : 0,
+    ke1: document.querySelectorAll("#pane-planogram .hp-mbo.o-ke[data-l^='F0-A1-']").length,
+    ke8: document.querySelectorAll("#pane-planogram .hp-mbo.o-ke[data-l^='F0-A8-']").length,
+    vung: document.querySelectorAll("#pane-planogram .hp-mbv").length, nhan: document.querySelectorAll("#pane-planogram .hp-mbkhu").length };
 });
 console.log("\n3) Đếm ô trên mặt bằng");
-bao(mb.ke === 160, "ô kệ A1 bấm được = 160", "thấy " + mb.ke);
+bao(mb.ke1 === 160 && mb.ke8 === 64, "ô bấm được = 160 kệ A1 + 64 bàn A8 (29/09: bàn A8 có planogram cũng tô màu)", mb.ke1 + " + " + mb.ke8);
+bao(mb.vung >= 12 && mb.nhan === 0, "chia vùng khu (trỏ vào hiện tên) · không còn nhãn chữ cũ", mb.vung + " vùng · " + mb.nhan + " nhãn");
 bao(mb.anh, "nền là ẢNH top-view tĩnh của mô phỏng 3D (không WebGL, không hoạt ảnh)");
 bao(mb.ke2 + mb.pallet + mb.pick + mb.pack === 0, "ô nền A2/pallet/pick/pack KHÔNG vẽ đè (đã có trong ảnh)",
   `A2 ${mb.ke2} · pallet ${mb.pallet} · pick ${mb.pick} · pack ${mb.pack}`);
@@ -158,7 +164,7 @@ const veLuoi = await p.evaluate(() => ({
 bao(veLuoi.cell === luoi.n && veLuoi.svg === 0, "lưới trở lại nguyên trạng", veLuoi.cell + " ô · " + veLuoi.svg + " svg");
 
 console.log("\n7) Bố cục" + (MOBILE ? " điện thoại" : ""));
-bao(!mb.tranNgang, "mặt bằng không tràn khỏi khung", mb.rong + "×" + mb.cao + "px");
+bao(mb.cuonTrong && mb.ti > 1.25 && mb.ti < 1.35, "mặt bằng to hơn 30 % và cuộn ngang TRONG khung (không tràn trang)", mb.rong + "×" + mb.cao + "px · " + mb.ti.toFixed(2) + "× khung");
 bao(!mb.doiRong, "trang không sinh cuộn ngang");
 
 console.log("\n8) Lỗi trang");
