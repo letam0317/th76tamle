@@ -2611,7 +2611,8 @@ function frame(now){requestAnimationFrame(frame);
   if(m&&v&&CAM.o.mode!=='walk'&&CAM.o.mode!=='fly'){e.preventDefault();ghiLui();v.x=r2(v.x+m[0]*0.05);v.z=r2(v.z+m[1]*0.05);SUA.g[v.id].position.set(v.x,0,v.z);doi()}});
  /* nút chỉ hiện ở bản QC VÀ khi máy chủ nội bộ có đường lưu (bản live không bao giờ thấy) */
  if(LA_QC)fetch(API+'ping').then(r=>r.json()).then(j=>{if(!j.ok)return;$('suaN').hidden=false;$('bSua').hidden=false;
-  if(j.chay){vao();hoiChot()}}).catch(()=>{});
+  /* đang chốt dở ⇒ mở lại bảng để xem tiến độ — TRỪ trang do máy mở (bộ QC chạy GIỮA lúc chốt: bật bảng là che màn + đọc bản live ⇒ QC trượt oan, 29/09) */
+  if(j.chay&&!navigator.webdriver){vao();hoiChot()}}).catch(()=>{});
  window.__sua={vao,ra,them,xoay,nhanBan,xoa,hoanTac,chonMon,loiCua,soLoi,luu,get chon(){return chon},get VAT(){return VAT}};
 })();
 requestAnimationFrame(frame);
