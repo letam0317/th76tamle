@@ -85,6 +85,8 @@ async function day(localFile, repoPath) {
 
 (async () => {
   console.log(`→ Đẩy lên ${OWNER}/${REPO}@${BRANCH} (https://${OWNER}.github.io/${REPO}/)`);
-  for (const [local, remote] of FILES) await day(local, remote);
+  /* --chi kho170-3d.html,kho170-topview.js → chỉ đẩy các tệp repo này (khi tệp khác trên máy còn sửa dở chưa duyệt) */
+  const iC = process.argv.indexOf("--chi"), CHI = iC > 0 ? process.argv[iC + 1].split(",") : null;
+  for (const [local, remote] of FILES) if (!CHI || CHI.includes(remote)) await day(local, remote);
   console.log("✓ Xong. GitHub Pages cập nhật sau ~30–60 giây.");
 })().catch((e) => { console.error("✗ " + e.message); process.exit(2); });

@@ -902,8 +902,7 @@ function dungVachWC(){
 function dungA6(){
  const t=new THREE.Group(),can=[],go=new THREE.MeshLambertMaterial({color:0xd8b98a}),khung=new THREE.MeshLambertMaterial({color:0x5b6168}),
   den=new THREE.MeshLambertMaterial({color:0x1d2126}),man=new THREE.MeshLambertMaterial({color:0x33495c}),ghe=new THREE.MeshLambertMaterial({color:0x2b2f35}),
-  sat=new THREE.MeshLambertMaterial({color:0xaab2ba}),xanh=new THREE.MeshLambertMaterial({color:0x1f5fbf}),la=new THREE.MeshLambertMaterial({color:0x2e8b57}),
-  ct=M.ct,ct2=M.ct2,mDo=new THREE.MeshLambertMaterial({color:0xc62828});
+  sat=new THREE.MeshLambertMaterial({color:0xaab2ba}),ct=M.ct,ct2=M.ct2;
  const b=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);t.add(o)};
  const H=0.75;
  /* bàn: mặt gỗ + 2 khung chân. truc = trục người ngồi ('z' ⇒ ghế ở phía z, 'x' ⇒ phía x); huong = +1/-1;
@@ -922,17 +921,19 @@ function dungA6(){
   [-1,1].forEach(i=>[-1,1].forEach(j=>b(0.04,2.0,0.04,sat,x+i*(w/2-0.02),1.0,z+j*(d/2-0.02))));can.push({x:x-w/2,y:z-d/2,w:w,h:d})}
  /* 1) dãy bàn máy tính dọc tường dưới (z 62,95), người ngồi quay lưng ra giữa phòng */
  [16.11,17.51,18.91,20.31,21.71].forEach(x=>ban(x,62.5,1.4,0.7,'z',-1,true));   // lùi 0,21 m nhường kệ mâm sắt dời về tường dưới
- keSat(23.25,62.65,1.2,0.5,[0.1,0.7,1.3,1.9]);
- for(let k=0;k<3;k++){b(0.36,0.22,0.38,mDo,22.87+k*0.38,0.83,62.65);b(0.36,0.3,0.4,k%2?ct:ct2,22.87+k*0.38,1.46,62.65)}
+ /* lần 6 (ảnh screenshot_1790647330, số 1): kệ sắt đầu dãy đổi thành bàn D1000 × R600, cùng hàng dãy bàn máy tính */
+ ban(23.25,62.55,1.0,0.6,'z',-1,true);
  /* 2) BÀN QUẢN LÝ — bàn D1500 × R600 (user 28/09, ảnh screenshot_1790582206):
     dãy 1 (2 bàn VUÔNG GÓC tường trái, ghế phía +z) dời theo mũi tên: góc đầu tự do về (15,41 · 60,9);
     dãy 2, 3 xoay 90° ⇒ bàn DỌC tường trái, sát tường, ghế ngay cạnh bàn phía trong phòng */
  /* lần 4 (ảnh screenshot_1790583065): dãy 1 dời sang +x 1,06 m (theo mũi tên) · 4 bàn dọc tường thu còn D1000 × R600,
     đảo thứ tự thành BÀN → GHẾ → TƯỜNG (người ngồi quay lưng vào tường), cả cột dời lên theo mũi tên tới z 61,0 */
- [14.5,16.0].forEach(x=>ban(x,60.6,1.5,0.6,'z',1,true));
+ /* lần 6 (ảnh screenshot_1790647330, mũi tên đỏ ngang): dãy 1 dời −1,03 m theo x, đầu bàn về sát tường trái */
+ [13.47,14.97].forEach(x=>ban(x,60.6,1.5,0.6,'z',1,true));
  /* lần 5 (ảnh screenshot_1790584162): tách cột ở vạch xanh (giữa bàn 2 và 3) — 2 bàn dưới dời theo mũi tên xanh −2,75 m,
     đầu bàn dừng ngay trên cụm kệ mâm sắt */
- [59.5,60.5,54.75,55.75].forEach(z=>ban(13.41,z,0.6,1.0,'x',-1,true));
+ /* lần 6 (mũi tên đỏ dọc): 2 bàn trên dời −1,4 m theo z, nhường chỗ dãy 1 dời vào tường */
+ [58.1,59.1,54.75,55.75].forEach(z=>ban(13.41,z,0.6,1.0,'x',-1,true));
  /* 3) KỆ MÂM SẮT D1500 × R500 × C2000 — VUÔNG GÓC tường trái, sát tường (ảnh screenshot_1790581263):
     4 kệ ở 2 ô đỏ (mỗi ô 2 kệ quay lưng nhau) + 1 kệ góc dưới-trái; kệ còn lại dời theo mũi tên về sát tường
     dưới, nối tiếp kệ góc (x 13,91–15,41) */
@@ -943,9 +944,7 @@ function dungA6(){
  /* 4) bàn dọc ranh bàn giao ĐVVC: 3 bàn D1500 × R600, mép phải x 24,55 < vạch 24,8 (không đè cột inox r 0,19) */
  [58.5,60.0,61.5].forEach(z=>{ban(24.25,z,0.6,1.5,'x',-1,false);   // user 28/09: bỏ 1 bàn, còn 3
   for(let k=0;k<2;k++)b(0.34,0.18+0.12*k,0.3,k?ct:ct2,24.25,H+0.1+0.06*k,z-0.35+k*0.7)});
- /* 5) giữa phòng: sóng hàng hoàn (1.180 × 880 × 689) xanh dương / xanh lá, đầy hàng */
- [[18.0,57.3,xanh],[19.5,57.3,la],[21.0,57.3,xanh],[22.5,57.3,xanh],[18.6,59.5,xanh],[20.1,59.5,xanh],[21.6,59.5,la]].forEach(([x,z,m])=>{
-  b(1.18,0.66,0.88,m,x,0.36,z);b(1.1,0.12,0.8,ct,x,0.72,z);b(0.5,0.18,0.4,ct2,x-0.2,0.86,z+0.1);can.push({x:x-0.59,y:z-0.44,w:1.18,h:0.88})});
+ /* 5) sóng hàng hoàn giữa phòng: BỎ (user 29/09, ảnh screenshot_1790647330) */
  GOC.add(gopNhom(t));
  wlabel('A6 · Bàn quản lý · hàng hoàn',18.4,2.6,60.0,0.6,2);
  return can}
