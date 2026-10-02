@@ -233,9 +233,9 @@ var AREAS = [
  * chưa có trong AREAS thì areaOf() tự đăng ký một khu mới (tên theo KHU_TEN, màu xoay vòng PAL). Khu không có
  * sơ đồ vẽ tay (map:false) được vẽ bằng lưới tự sinh theo mã vị trí (xem veKhuTuSinh). Bộ sync hiện vẫn chỉ
  * gửi A1/A8 (AREA_RE trong sync-vesinh-all.js) — mở thêm khu ở đó là đủ, dashboard không phải sửa nữa. */
-var KHU_TEN = { A2: "Quà tặng · hàng MTG", A3: "Kệ trữ VPP", A4: "Kho VPP · tái chế giấy", A5: "Bàn giao ĐVVC",
+var KHU_TEN = { A2: "Kệ lưu trữ WH", A3: "Kệ trữ VPP", A4: "Kho VPP · tái chế giấy", A5: "Bàn giao ĐVVC",
   A6: "Bàn quản lý · hàng hoàn", A7: "Xe soạn hàng", A9: "Đồng kiểm PO", A10: "Nhà vệ sinh", A11: "Hàng đổi trả · IT",
-  A12: "Kho Clinic", A13: "Phòng chụp Ortery", A14: "Kiểm nhập IT Shop", A15: "Xe nâng đứng", A16: "Kho hành chánh",
+  A12: "Kho Clinic", A13: "Phòng họp", A14: "Kiểm nhập IT Shop", A15: "Xe nâng đứng", A16: "Kho hành chánh",
   A17: "Bàn Logistic", A18: "Chờ xử lý · xe nâng ngồi", A19: "Băng chuyền xuất", A20: "Gia cố · đóng gói nội bộ",
   A21: "Bảo vệ · tủ khoá", A22: "Xe giao nhận nội bộ", A23: "Bãi xe nhân viên", A24: "Phòng giặt sấy",
   A25: "Bãi xe NCC · rác ngoài kho", CB: "Băng chuyền phân loại" };
@@ -863,6 +863,8 @@ var CSS = [
 /* 29/09 (lượt 2): mặt bằng VỪA KHÍT bề ngang, KHÔNG kéo ngang — bỏ trần chiều cao cũ (62vh/560px làm ảnh bé); khung đã cắt sân bãi */
 "#pane-planogram .hp-mbtv .hp-mbsvg{width:100%;max-height:none;touch-action:pan-y;user-select:none;-webkit-user-select:none;}",
 "#pane-planogram .hp-mbtv{position:relative;margin-left:-8px;margin-right:-8px;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);}",
+/* 02/10/2026 (user): mặt bằng nhỏ lại ~13 % cho thoáng, canh giữa khung Sơ đồ (máy tính; điện thoại giữ trọn bề ngang) */
+"@media(min-width:769px){#pane-planogram .hp-mbtv{width:87%;margin-left:auto;margin-right:auto;}}",
 /* BỎ NỀN (29/09 lượt 4): ảnh nền trắng hoà multiply ⇒ chỉ còn nét kệ/tường/đồ; nhà tô nền nhạt, khối ngoài nhà nền xám nhạt nét đứt */
 "#pane-planogram .hp-mbanh{mix-blend-mode:multiply;}",
 "#pane-planogram .hp-mbnha{fill:#f6f8fb;}",
@@ -3010,7 +3012,7 @@ function fitMaps(){
 /* 28/09/2026: mặt bằng = ẢNH TOP-VIEW TĨNH của mô phỏng 3D (user: "đổi Mặt bằng thật thành topview của mô phỏng 3D,
    không hoạt ảnh"). kho170-topview.js + .webp do hasaki/xuat-topview-kho170.mjs chụp từ kho170-3d.html; toạ độ ô lấy từ
    MÔ HÌNH 3D (A1 tách 2 mặt, A8 đã dời) nên ô tô màu nằm đúng trên ảnh. Chỉ ô A1 được tô + bấm; phần còn lại là ảnh. */
-var MB_SRC = "kho170-topview.js?v=20260929b";
+var MB_SRC = "kho170-topview.js?v=20261002a";
 function napMatBang(xong){
   if (window.KHO170_TOPVIEW) return xong(true);
   if (S.mbDang) return;
@@ -3035,12 +3037,12 @@ function toggleMatBang(){
    (bấm = mở sơ đồ lưới của khu đó). demKhu[k] = {n, da} do renderMap đếm từ đúng danh mục dmChuan. */
 /* Tên khu đầy đủ — đúng theo g-sheet danh mục vị trí kho 170 (1dUFvmLM…, tab gid 1505594129 cột "Tên khu vực", 29/09/2026).
    A1 không có trong tab đó ⇒ lấy tên nhóm planogram. Hiện trên mặt bằng dạng "A8 | Khu vực bàn đóng gói, băng chuyền". */
-var KHU_DAY = { A1: "Tủ quầy kệ", A2: "Khu vực quà tặng",
+var KHU_DAY = { A1: "Tủ quầy kệ", A2: "Khu vực kệ lưu trữ WH",
   A3: "Kệ cao tầng trữ văn phòng phẩm, sóng nhựa xanh dương &thùng rác sinh hoạt trong kho",
   A4: "Kho trữ văn phòng phẩm, tái chế giấy", A5: "Khu vực bàn giao đơn vị vận chuyển",
   A6: "Bàn quản lý &khu vực hàng hoàn, văn phòng phẩm, SPKPH", A7: "Khu trữ xe soạn hàng",
   A8: "Khu vực bàn đóng gói, băng chuyền", A9: "Khu vực đồng kiểm PO, bàn làm việc", A10: "Nhà vệ sinh &thiết bị vệ sinh",
-  A11: "Khu vực hàng đổi trả ngành hàng &thiết bị IT", A12: "Kho hàng CLINIC", A13: "Phòng máy chụp hình Ortery",
+  A11: "Khu vực hàng đổi trả ngành hàng &thiết bị IT", A12: "Kho hàng CLINIC", A13: "Phòng họp",
   A14: "Khu vực kiểm, nhập hàng IT SHOP", A15: "Khu vực xe nâng điện đứng", A16: "Khu vực kho hành chánh",
   A17: "Bàn làm việc LOGISTIC", A18: "Khu chờ xử lý (pending zone) &xe nâng điện ngồi",
   A19: "Khu vực băng chuyền xuất &bàn giao đơn vị vận chuyển", A20: "Khu vực gia cố, đóng gói để vận chuyển nội bộ",
@@ -3094,7 +3096,8 @@ function svgMatBang(veO, demKhu){
     }
     return '<g class="hp-mbv' + (co ? " co" : "") + '" style="--vc:' + mau + '"' +
       (co ? ' role="button" tabindex="0" aria-label="' + esc(z.k + " | " + ten + " — " + phu) + '" onclick="HPLANOGRAM.moKhuMB(\'' + z.k + '\')" onkeydown="if(event.key===\'Enter\')HPLANOGRAM.moKhuMB(\'' + z.k + '\')"' : ' aria-label="' + esc(z.k + " | " + ten) + '"') + '>' +
-      '<rect class="hp-mbvr" x="' + z.x + '" y="' + z.y + '" width="' + z.w + '" height="' + z.h + '" rx="0.6"/>' +
+      (z.pts ? '<polygon class="hp-mbvr" points="' + z.pts.map(function(p){ return p[0] + "," + p[1]; }).join(" ") + '"/>'   // vùng không chữ nhật (A2 chữ L)
+        : '<rect class="hp-mbvr" x="' + z.x + '" y="' + z.y + '" width="' + z.w + '" height="' + z.h + '" rx="0.6"/>') +
       oTrong.map(veO).join("") + chip + the + '</g>';
   }).join("");
   var le = coO.filter(function(v){ return !daVe[v.loc]; }).map(veO).join("");

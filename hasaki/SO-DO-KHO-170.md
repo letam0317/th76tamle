@@ -45,7 +45,7 @@ Cách dựng lại ảnh từ PDF (máy không có poppler/ghostscript, Edge hea
 | S | A16 | 1443 | Khu kho hành chánh | dải phải, cạnh PHÒNG HỌP |
 | T | A23 | 1443 | Bãi xe nhân viên | "NHÀ ĐỂ XE NHÂN VIÊN" (20,00 m) |
 | U | A22 | 1443 | Khu xe giao nhận nội bộ | "BÃI ĐỖ XE VAN, XE TẢI NỘI BỘ" ~22 m × 7,50 m, 8 chỗ |
-| V | A02 | 1443 | Khu vực quà tặng | dải kệ góc trên-phải |
+| V | A02 | 1443 | Khu vực kệ lưu trữ WH (user đổi tên 02/10/2026, trước: "Khu vực quà tặng"; vùng mặt bằng KHÔNG gồm hàng pallet A9 PO + A20 chia IT phía dưới) | dải kệ góc trên-phải |
 | W | A02 | 1443 | Hàng MTG + 1:1 | dải kệ dọc tường trên khối A2 |
 | X | A21 | 1443 | Khai báo bảo vệ & tủ khoá cá nhân | ô giữa-dưới |
 | Y | A17 | 1443 | Bàn làm việc LOGISTIC | dải phải, dưới kho hành chánh |

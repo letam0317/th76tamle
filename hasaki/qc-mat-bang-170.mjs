@@ -49,6 +49,7 @@ else await p.setViewport({ width: 1440, height: 900 });
 
 const loiConsole = [];
 p.on("console", (m) => { if (m.type() === "error") loiConsole.push(m.text().slice(0, 160)); });
+p.on("response", (r) => { if (r.status() >= 400) loiConsole.push("HTTP " + r.status() + " " + r.url().slice(0, 140)); });
 p.on("pageerror", (e) => loiConsole.push("pageerror: " + String(e).slice(0, 160)));
 
 let byteThem = 0, daThay = [];
@@ -119,6 +120,7 @@ const mb = await p.evaluate(() => {
     tranNgang: !!(r && wrap && r.width > wrap.width + 1), doiRong: document.documentElement.scrollWidth > window.innerWidth + 1,
     /* 29/09: mặt bằng to 130 % ⇒ tràn CÓ CHỦ Ý, nhưng phải cuộn được TRONG khung (không đẩy cả trang) */
     cuonTrong: !!(wrap && /auto|scroll/.test(getComputedStyle(svg.parentElement).overflowX)), ti: r && wrap ? r.width / wrap.width : 0,
+    tiKhung: (() => { const w = document.querySelector("#pane-planogram .hp-mbtv"); return w ? w.getBoundingClientRect().width / w.parentElement.getBoundingClientRect().width : 0; })(),
     ke1: document.querySelectorAll("#pane-planogram .hp-mbo.o-ke[data-l^='F0-A1-']").length,
     ke8: document.querySelectorAll("#pane-planogram .hp-mbo.o-ke[data-l^='F0-A8-']").length,
     cungHang: (() => { const m = document.querySelector("#pane-planogram #hpMap"), n = document.querySelector("#pane-planogram #hpAI"); if (!m || !n) return false;
@@ -171,6 +173,7 @@ bao(veLuoi.cell === luoi.n && veLuoi.svg === 0, "lưới trở lại nguyên tr�
 console.log("\n7) Bố cục" + (MOBILE ? " điện thoại" : ""));
 /* 29/09 lượt 2: VỪA KHÍT bề ngang (không kéo ngang) và to hơn ≥ 25 % so với bản cũ (máy tính: bản cũ 974 px ảnh đủ sân bãi ⇒ nay khung cắt theo nhà + trải hết bề ngang) */
 bao(!mb.tranNgang && mb.ti <= 1.01, "mặt bằng vừa khít bề ngang khung Sơ đồ (không kéo ngang)", mb.rong + "×" + mb.cao + "px · " + mb.ti.toFixed(2) + "× khung");
+if (!MOBILE) bao(mb.tiKhung >= 0.84 && mb.tiKhung <= 0.9, "máy tính: mặt bằng nhỏ lại 10–15 % so với khung Sơ đồ (02/10)", mb.tiKhung.toFixed(2) + "× khung");
 bao(MOBILE || mb.cungHang, "mục Nhân viên hôm nay vẫn CÙNG HÀNG với Sơ đồ (29/09 lượt 3)", mb.cungHang ? "cùng hàng" : "bị đẩy xuống");
 bao(mb.phong && mb.phong.nut === 3 && mb.phong.doi && mb.phong.ve, "nút phóng + − ⤢: phóng to đổi khung nhìn, ⤢ về vừa khung", JSON.stringify(mb.phong));
 bao(!mb.doiRong, "trang không sinh cuộn ngang");

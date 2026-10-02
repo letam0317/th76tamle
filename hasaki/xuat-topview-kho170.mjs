@@ -89,9 +89,19 @@ const kq = await p.evaluate((RONG) => {
     return { x: r2(x0 - le), y: r2(y0 - le), w: r2(x1 - x0 + 2 * le), h: r2(y1 - y0 + 2 * le) }; };
   const hcn = (x0, x1, y0, y1) => ({ x: x0, y: y0, w: r2(x1 - x0), h: r2(y1 - y0) });
   const pk = o.filter((q) => q.k === "pack");
+  const a2ChuL = () => { const duoi = oA2.filter((q) => /^F0-A2-51[56]-/.test(q.loc || "")), chinh = oA2.filter((q) => !duoi.includes(q));
+    const A = bao(chinh, 0.6), B = bao(duoi, 0.6), yA = r2(A.y + A.h), yB = r2(B.y + B.h), xB1 = r2(B.x + B.w), xA1 = r2(A.x + A.w);
+    return { k: "A2", ten: "Kệ lưu trữ WH", x: A.x, y: A.y, w: A.w, h: r2(yB - A.y),
+      pts: [[A.x, A.y], [xA1, A.y], [xA1, yA], [xB1, yA], [xB1, yB], [B.x, yB], [B.x, yA], [A.x, yA]] }; };
   const vung = [
     Object.assign({ k: "A1", ten: "Quầy kệ A1" }, bao(oA1, 0.6)),
-    Object.assign({ k: "A2", ten: "Khối kệ A2" }, bao(oA2, 0.6)),
+    /* 02/10/2026 (user): A2 = "Khu vực kệ lưu trữ WH", CHỈ ôm dãy kệ. Khung bao cũ kéo tới đáy dãy 515/516 (dọc băng chuyền,
+       xuống z≈38) nên nuốt luôn 7 cụm pallet nhận PO (A9) + chia IT (A20) ⇒ vẽ hình chữ L: khối dãy chính + đuôi 515|516. */
+    a2ChuL(),
+    /* hàng 7 cụm pallet dưới khối A2 — PDF DC HASAKI 3D: trái "KHU VỰC NHẬN, KIỂM TRA PO" (3 cụm), phải "KHU VỰC CHIA IT" (4 cụm);
+       toạ độ đo trên ảnh trực giao (cụm PO x 49,2–60,6 · cụm IT x 63,0–79,1 · z 33,5–39,4), lề 0,6 như A2 */
+    Object.assign({ k: "A9", ten: "Nhận, kiểm tra PO" }, hcn(48.56, 61.22, 32.9, 40.0)),
+    Object.assign({ k: "A20", ten: "Chia IT" }, hcn(62.43, 79.68, 32.9, 40.0)),
     pk.length ? Object.assign({ k: "A8", ten: "Bàn đóng gói · băng chuyền" }, bao(pk, 1.2)) : null,
     Object.assign({ k: "A5", ten: "Bàn giao ĐVVC" }, hcn(24.8, 42.0, 57.8, 62.85)),
     Object.assign({ k: "A6", ten: "Bàn quản lý · hàng hoàn" }, hcn(12.46, 24.8, 55.6, 62.85)),
@@ -100,7 +110,7 @@ const kq = await p.evaluate((RONG) => {
     Object.assign({ k: "A4", ten: "Kho VPP · tái chế giấy", uoc: 1 }, hcn(46.4, 53.4, 43.05, 48.0)),
     Object.assign({ k: "A15", ten: "Xe nâng điện đứng" }, hcn(42.66, 46.96, 7.9, 10.81)),
     Object.assign({ k: "A14", ten: "Kiểm nhập IT Shop (Re-IT)" }, hcn(42.66, 46.96, 10.81, 17.51)),
-    Object.assign({ k: "A13", ten: "Phòng chụp Ortery" }, hcn(42.66, 46.96, 17.51, 23.51)),
+    Object.assign({ k: "A13", ten: "Phòng họp" }, hcn(42.66, 46.96, 17.51, 23.51)),
     Object.assign({ k: "A12", ten: "Kho Clinic (SPA)" }, hcn(42.66, 46.96, 23.51, 34.71)),
     Object.assign({ k: "A11", ten: "Hàng đổi trả · IT" }, hcn(42.66, 46.96, 34.71, 39.3)),
     Object.assign({ k: "CB", ten: "Băng chuyền phân loại" }, hcn(83.4, 92.1, 8.5, 42.6)),
