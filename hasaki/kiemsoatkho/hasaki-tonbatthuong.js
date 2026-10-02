@@ -477,7 +477,10 @@ var FDEF = [
 function fdefOf(k){ for (var i = 0; i < FDEF.length; i++) if (FDEF[i].k === k) return FDEF[i]; return null; }
 function openAll(){ canDong(function(){ showModal(rowsInScope(), "Tất cả SKU bất thường" + (S.wh ? (" · " + S.wh) : ""), null); }); }
 function openWh(w){ canDong(function(){ showModal(S.rows.filter(function(r){ return r.wh === w; }), "Bất thường tại kho: " + w, null); }); }
-function openType(k){ var ty = typeOf(k); if (!ty) return; canDong(function(){ showModal(rowsInScope(), "SKU có " + ty.lb + (S.wh ? (" · " + S.wh) : ""), { k: "type", raw: ty.lb }); }); }
+/* 28/09/2026: nền pop-up = CHỈ dòng có loại đó > 0. Bản cũ đưa cả rowsInScope() làm nền rồi
+   lọc bằng combo, nên phụ đề "N dòng (kho | SKU)" và mẫu số "x / N" hiện 2.191 (mọi dòng bất
+   thường) dưới tiêu đề "SKU có Not Found" — trong khi Not Found chỉ có 184 dòng. */
+function openType(k){ var ty = typeOf(k); if (!ty) return; canDong(function(){ showModal(rowsInScope().filter(function(r){ return r[k] > 0; }), "SKU có " + ty.lb + (S.wh ? (" · " + S.wh) : ""), { k: "type", raw: ty.lb }); }); }
 function showModal(base, title, preset){
   MODAL.base = base || []; MODAL.preset = preset || null;
   $id("htMtitle").textContent = title;

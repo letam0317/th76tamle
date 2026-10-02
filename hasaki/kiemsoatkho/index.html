@@ -2270,7 +2270,15 @@ const _chuan=s=>String(s||'').toLowerCase().replace(/[.,;:!?()"'“”‘’–�
 function kpiTheoLoi(loi,lan){
   if(!QD.length) return null;
   const n=_chuan(loi); if(!n) return null;
-  const row=QD.find(r=>{const q=_chuan(r[1]); return q===n||q.startsWith(n.slice(0,60))||n.startsWith(q.slice(0,60));});
+  let row=QD.find(r=>{const q=_chuan(r[1]); return q===n||q.startsWith(n.slice(0,60))||n.startsWith(q.slice(0,60));});
+  /* 25/09/2026 — QUY-DINH đổi câu chữ GIỮA CHỪNG ("…phải được vệ sinh VÀ BÁO CÁO hằng ngày…")
+     trong khi 146 phiếu cũ (và form live) vẫn mang câu cũ không có "và báo cáo" → lệch ngay trong
+     60 ký tự đầu, tra trượt → task hoàn thành mà KPI trừ 0% oan. Vá 2 lớp khi lớp 1 trượt:
+     bỏ cụm "và báo cáo" rồi so lại, kèm khớp 45 ký tự đầu (32 hạng mục hiện phân biệt nhau sớm). */
+  if(!row){
+    const bo=s=>s.replace(/\bvà báo cáo\b/g,' ').replace(/\s+/g,' ').trim(), n2=bo(n);
+    row=QD.find(r=>{const q=bo(_chuan(r[1])); return q===n2||q.slice(0,45)===n2.slice(0,45);});
+  }
   if(!row) return null;
   const v=String(row[lan>=3?9:(lan===2?6:3)]).trim();
   return v===''?null:v;
