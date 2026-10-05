@@ -36,6 +36,37 @@ export function laHangMucVeSinhHangNgay(type00) {
 /* Khoá vị trí: A1 gom mức KỆ (1 kệ nhiều mã mâm-bin), nơi khác giữ mã đầy đủ — trùng khoaO dashboard. */
 const khoaO = (loc) => { const m = String(loc).match(/^F0-A1-(\d{3})-(\d{2})-/); return m ? "F0-A1-" + m[1] + "-" + m[2] : String(loc).trim(); };
 
+/* Tra phụ trách CHỊU ĐƯỢC mã gõ thiếu (user chốt 25/09/2026): mã thiếu "F0-"/thiếu khu
+ * ("A1-506-08-03-01", "509-06", "504-04-03-02"…) thì so PHẦN TỬ với danh mục phân công:
+ *   · khớp đúng 1 vị trí → gán luôn vị trí đó;
+ *   · khớp NHIỀU vị trí nhưng tất cả cùng 1 phụ trách → vẫn gán cho người đó;
+ *   · khớp nhiều vị trí KHÁC phụ trách → không đoán (trả pt=null).
+ * Vị trí tự do ("Bãi giấy rọc", "IT WH"…) không có dạng mã-gạch-nối → bỏ qua ngay. */
+export function traPhanCong(n, viTri) {
+  const khoa = khoaO(viTri);
+  const chinh = n.pc.get(khoa);
+  if (chinh) return { pt: chinh, khoa };
+  const b = boDau(khoa).replace(/^f0-/, "");
+  if (!/^[a-z0-9]+(-[a-z0-9]+)+$/.test(b)) return { pt: null, khoa };
+  const ung = [];
+  for (const [k, v] of n.pc) {
+    const kb = boDau(k).replace(/^f0-/, "");
+    let khop = kb === b || kb.endsWith("-" + b) || b.startsWith(kb + "-") || kb.includes("-" + b + "-");
+    if (!khop) {                     // đuôi của khoá phân công khớp ĐẦU của mã gõ: "a1-504-04" ↔ "504-04-03-02"
+      const seg = kb.split("-");
+      for (let i = 1; i < seg.length && !khop; i++) {
+        const duoi = seg.slice(i).join("-");
+        if (duoi.split("-").length >= 2 && (b === duoi || b.startsWith(duoi + "-") || duoi.startsWith(b + "-"))) khop = true;
+      }
+    }
+    if (khop) ung.push({ khoa: k, pt: v });
+  }
+  if (!ung.length) return { pt: null, khoa };
+  const cungNguoi = new Set(ung.map((u) => String(u.pt.code))).size === 1;
+  if (ung.length === 1 || cungNguoi) return { pt: ung[0].pt, khoa: ung[0].khoa, mo: true, soKhop: ung.length };
+  return { pt: null, khoa, nhieuKhop: ung.length };   // mơ hồ giữa nhiều người — để người xác minh
+}
+
 /* ---- nạp 4 tab nguồn (gọi 1 lần mỗi lượt chạy) ---- */
 export async function napNguonTruyVet(log = () => {}) {
   const [pc, ls, ccn, ai] = await Promise.all([
@@ -72,10 +103,11 @@ const escH = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").repla
  */
 export function truyVet(n, viTri, thoiDiem) {
   if (!n || !n.du) return null;
-  const khoa = khoaO(viTri);
+  const tra = traPhanCong(n, viTri);        // 25/09: chịu được mã gõ thiếu F0-/thiếu khu
+  const khoa = tra.khoa;
   const ngayGN = String(thoiDiem || "").slice(0, 10), gioGN = String(thoiDiem || "").slice(11, 16);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ngayGN)) return null;
-  const pt = n.pc.get(khoa) || null;
+  const pt = tra.pt;
 
   /* ngày xét: −1; ngoại lệ ghi nhận SAU giờ RA của phụ trách trong ngày ghi nhận */
   let ngayXet = congNgay(ngayGN, -1);
@@ -139,9 +171,26 @@ export function truyVet(n, viTri, thoiDiem) {
   /* suyNV (user chốt 25/09): phụ trách CÓ đi làm ngày xét là chịu trách nhiệm — cả ca
      KHÔNG BÁO CÁO lẫn ca VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn). Nghỉ/không rõ → không buộc. */
   const suyNV = (pt && coDiLam === true) ? pt.code : "";
-  const ketLuan = !pt ? "khong_phan_cong" : coDiLam !== true ? (coDiLam === false ? "nghi" : "khong_ro")
+
+  /* PHÂN LOẠI NGHỈ (user chốt 25/09 chiều) — đo CHUỖI ngày không chấm công chứa ngày xét:
+   *   nghi_ngan  (1–2 ngày)   → phiếu fail "Nhân sự phụ trách … không đi làm ngày …"
+   *   nghi_dai   (≥3 ngày)    → trách nhiệm QLTT (không chia nhân sự vệ sinh kịp thời)
+   *   nghi_viec  (≥14 ngày tính đến ngày xét VÀ không đi lại) → như nghỉ dài, nhãn nghỉ việc */
+  let nghi = null;
+  if (coDiLam === false) {
+    const ngays = [...(n.cc.get(pt.code) || new Map()).keys()].sort();
+    const dTruoc = ngays.filter((x) => x < ngayXet), dSau = ngays.filter((x) => x > ngayXet);
+    const cach = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 864e5);
+    const gapTruoc = dTruoc.length ? cach(dTruoc[dTruoc.length - 1], ngayXet) : 999;
+    const gapSau = dSau.length ? cach(ngayXet, dSau[0]) : Math.max(1, cach(ngayXet, new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10)));
+    const run = Math.min(999, gapTruoc + gapSau - 1);
+    nghi = { run, loai: (!dSau.length && gapTruoc >= 14) ? "nghi_viec" : run >= 3 ? "nghi_dai" : "nghi_ngan",
+      lamCuoi: dTruoc.length ? dTruoc[dTruoc.length - 1] : "", lamLai: dSau.length ? dSau[0] : "" };
+  }
+  const ketLuan = !pt ? "khong_phan_cong" : coDiLam !== true ? (coDiLam === false ? nghi.loai : "khong_ro")
     : daBC ? "chua_dat" : "khong_bao_cao";
-  return { text: T.join("\n"), html: H.join(""), suyNV, ketLuan, ngayXet, phuTrach: pt };
+  return { text: T.join("\n"), html: H.join(""), suyNV, ketLuan, ngayXet, phuTrach: pt,
+    nghi, coBaoCaoNgayXet: bcNgayXet.length > 0, khoa, khopMo: !!tra.mo };
 }
 
 /* Dấu nhận biết khối đã ghi (chống ghi trùng khi chạy lại) */

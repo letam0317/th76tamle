@@ -28,7 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { layTokenSongWms, fetchThuLai, docMocBuoc } from "./session-rules.js";
+import { layTokenSongWms, fetchThuLai, docMocBuoc, mayDuocChay } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCK = path.join(DIR, ".poller.lock");
@@ -61,6 +61,21 @@ const PING_MIN = Number(process.env.POLLER_PING_MIN || 10) * PHUT;
    (thiếu phiên work/hr thì mốc bước không nhích, không có nó sẽ spawn lại mỗi tick 2'). */
 const S5_MIN = Number(process.env.POLLER_5S_MIN || 45) * PHUT;
 const S5_THU_LAI_MIN = Number(process.env.POLLER_5S_THU_LAI_MIN || 10) * PHUT;
+/* ---- CHẾ ĐỘ ÉP TƯƠI (14/09/2026 — ep-tuoi.mjs gọi vào) ----------------------------------
+ * EP_TUOI=1 nghĩa là lượt này KHÔNG do đồng hồ gọi mà do SỰ KIỆN "có người vừa đăng nhập"
+ * (cò co-dang-nhap.mjs, hoặc tick canh thấy jti đổi). Khác lượt thường đúng 4 điểm:
+ *   1. Bỏ cửa giờ + cửa Chủ nhật — có người đăng nhập tức là có người đang làm việc thật.
+ *   2. Ngưỡng "tới hạn" hạ từ 15/30/45 phút xuống EP_NGUONG (5 phút) cho ĐÚNG nhóm bước của
+ *      khe token vừa đăng nhập (wms = vệ sinh/kiểm kê · wshr = 5S). Bước còn tươi dưới 5 phút
+ *      vẫn KHÔNG chạy lại: ép là KÉO SỚM lượt sắp tới, không phải THÊM lượt (BO-CHUAN §2).
+ *   3. Bỏ jitter 3-10s — jitter sinh ra để rải các nhịp đồng hồ trùng giây, còn lượt sự kiện
+ *      chỉ có một và người vừa đăng nhập đang ngồi chờ.
+ *   4. Bước 5S chạy TRƯỚC (đo 14/09: 5S lên Sheet sau ~17 giây, vệ sinh quét planogram 2-3 phút).
+ * KHÔNG nới: khoá đơn lượt, cửa né cụm đang chạy (FAIL-CLOSED) và luật token phiên sống. */
+const EP_TUOI = String(process.env.EP_TUOI || "") === "1";
+const EP_KHE = process.env.EP_KHE === "wshr" ? "wshr" : "wms";
+const EP_NGUON = process.env.EP_NGUON || "?";
+const EP_NGUONG = Number(process.env.EP_NGUONG_PHUT || 5) * PHUT;
 const WINDOW = process.env.POLLER_WINDOW || "08:45-18:00";   // theo giờ làm việc — ngoài khung: 8h40 + guard 18:05 lo
 const SLOTS = (process.env.POLLER_SLOTS || "12:15,17:00").split(",").map((s) => s.trim()).filter(Boolean);
 const SLOT_CUA_MS = 90 * PHUT;   // mỗi slot mở cửa 90' (máy bận/thiếu token thì các tick sau trong cửa vẫn kịp vá)
@@ -130,25 +145,30 @@ async function pingKiemKe(token) {
 }
 
 async function main() {
+  if (!mayDuocChay(log)) return;   // vai máy (laptop/PC) — Phần G; PC có watch-login riêng nên lượt ép tươi không mất
   const now = new Date(), bayGio = now.getTime(), pNow = now.getHours() * 60 + now.getMinutes();
 
   // 0) Trong khung hoạt động? (ngoài khung: lịch 8h40 + guard 18:05 đã lo phần còn lại)
   const [wa, wb] = WINDOW.split("-").map(phut);
-  if (wa == null || wb == null || pNow < wa || pNow >= wb) return 0;   // im lặng — ngoài giờ poller
+  if (!EP_TUOI && (wa == null || wb == null || pNow < wa || pNow >= wb)) return 0;   // im lặng — ngoài giờ poller
+  if (EP_TUOI) log("⚡ LƯỢT ÉP TƯƠI — nguồn " + EP_NGUON + ", khe " + EP_KHE + " (bỏ cửa giờ/Chủ nhật, ngưỡng " + Math.round(EP_NGUONG / PHUT) + "').");
   /* CỔNG NGÀY LÀM (24/08/2026 — nối tiếp cửa giờ của sync-guard): guard đã nghỉ Chủ nhật, nhưng
      poller thì chỉ có khung GIỜ nên CN vẫn tự phát vệ sinh 15'/AI 30'/5S 45' + 2 slot tồn kho.
      Đo log CN 23/08: 116 trang planogram + 6 lượt quét 178k dòng + 284 call chi tiết kiểm kê cho
      một ngày KHÔNG AI LÀM VIỆC. Chủ nhật thì dữ liệu đứng yên — nghỉ luôn cho nhẹ upstream.
      Muốn chạy CN (đợt kiểm kê cuối tuần): đặt POLLER_CHU_NHAT=1 trong .env. */
-  if (now.getDay() === 0 && process.env.POLLER_CHU_NHAT !== "1") return 0;   // im lặng — Chủ nhật
+  if (!EP_TUOI && now.getDay() === 0 && process.env.POLLER_CHU_NHAT !== "1") return 0;   // im lặng — Chủ nhật
 
   // 1) Có việc gì tới hạn không? (tính TRƯỚC khi động tới token cho rẻ)
   const st = docState();
   const tuoi = (buoc) => bayGio - docMocBuoc(DIR, buoc);
-  const vesinhDue = tuoi("vesinh") >= VESINH_MIN;
+  const epWms = EP_TUOI && EP_KHE === "wms", epWshr = EP_TUOI && EP_KHE === "wshr";
+  const vesinhDue = tuoi("vesinh") >= (epWms ? EP_NGUONG : VESINH_MIN);
+  /* AI xét ảnh GIỮ NGUYÊN nhịp 30 phút kể cả trong lượt ép: nó tiêu khoá Gemini chứ không phải
+     lượt WMS, và ngay sau khi đăng nhập thì chưa thể có ảnh báo cáo mới để xét. */
   const aiDue = bayGio - (st.aiAt || 0) >= AI_MIN;
-  const kkPingDue = tuoi("kiemke") >= KIEMKE_MIN && bayGio - (st.pcPingAt || 0) >= PING_MIN;
-  const s5Due = tuoi("5s") >= S5_MIN && bayGio - (st.s5At || 0) >= S5_THU_LAI_MIN;
+  const kkPingDue = tuoi("kiemke") >= (epWms ? EP_NGUONG : KIEMKE_MIN) && bayGio - (st.pcPingAt || 0) >= (epWms ? 0 : PING_MIN);
+  const s5Due = tuoi("5s") >= (epWshr ? EP_NGUONG : S5_MIN) && bayGio - (st.s5At || 0) >= (epWshr ? 0 : S5_THU_LAI_MIN);
   const slotDue = [];   // [{buoc, script, logFile}] tới hạn trong cửa slot trưa/chiều
   for (const s of SLOTS) {
     const p = phut(s); if (p == null) continue;
@@ -167,7 +187,17 @@ async function main() {
   const token = await layTokenSongWms(DIR, log);
   if (!token && !s5Due) { log("… chưa có token phiên sống (đợi operator mở WMS/bridge) — thôi, tick sau."); return 0; }
   if (!token) log("… chưa có token WMS — chỉ chạy bước 5S (cổng work/hr riêng).");
-  await nghi(3000 + Math.floor(Math.random() * 7000));   // jitter 3-10s: tránh mọi nhịp rơi đúng 1 giây
+  if (!EP_TUOI) await nghi(3000 + Math.floor(Math.random() * 7000));   // jitter 3-10s: tránh mọi nhịp rơi đúng 1 giây
+
+  /* Bước 5S tách thành hàm để LƯỢT ÉP gọi được TRƯỚC vệ sinh (ghi chú EP_TUOI ở đầu file).
+     Lượt thường vẫn gọi ở đúng chỗ cũ, đúng thứ tự cũ. */
+  const chay5S = async () => {
+    st.s5At = bayGio;
+    log("→ 5S: mốc cũ " + Math.round(tuoi("5s") / PHUT) + "'" + " — chạy auto-export-sync.js...");
+    const ma = await chayBuoc("poller: 5S (" + (EP_TUOI ? "ÉP TƯƠI · " + EP_NGUON : "nhịp " + Math.round(S5_MIN / PHUT) + "'") + ")", "node auto-export-sync.js", "auto-export.log", { KHONG_LOGIN: "1" });
+    log(ma === 0 ? "  ✓ 5S xong." : ma === 75 ? "  … 5S hoãn (chưa có phiên work/hr sống) — thử lại sau " + Math.round(S5_THU_LAI_MIN / PHUT) + "'" + "." : "  ⚠ 5S exit " + ma + " — xem auto-export.log.");
+  };
+  if (EP_TUOI && s5Due) await chay5S();
 
   // 3) VỆ SINH mỗi ≥15' (script con tự hash-skip ghi Sheet nếu dữ liệu không đổi)
   if (token && vesinhDue) {
@@ -207,12 +237,7 @@ async function main() {
   /* 6) 5S mỗi ≥45' — bộ duy nhất đi cổng wshr. KHONG_LOGIN=1: hết phiên thì tự exit 75, KHÔNG
      đăng nhập (giữ đúng nguyên tắc "poller không bao giờ tạo phiên mới"). s5At chạm kể cả khi
      hoãn/lỗi để không dội lại mỗi tick 2'. */
-  if (s5Due) {
-    st.s5At = bayGio;
-    log("→ 5S: mốc cũ " + Math.round(tuoi("5s") / PHUT) + "' — chạy auto-export-sync.js...");
-    const ma = await chayBuoc("poller: 5S (nhịp " + Math.round(S5_MIN / PHUT) + "')", "node auto-export-sync.js", "auto-export.log", { KHONG_LOGIN: "1" });
-    log(ma === 0 ? "  ✓ 5S xong." : ma === 75 ? "  … 5S hoãn (chưa có phiên work/hr sống) — thử lại sau " + Math.round(S5_THU_LAI_MIN / PHUT) + "'." : "  ⚠ 5S exit " + ma + " — xem auto-export.log.");
-  }
+  if (!EP_TUOI && s5Due) await chay5S();
 
   // 7) Slot trưa/chiều cho tồn kho (đổi chậm — 8h40 + 2 slot = 3 lần/ngày là đủ tươi)
   for (const s of (token ? slotDue : [])) {
@@ -226,7 +251,20 @@ async function main() {
 }
 
 (async () => {
-  if (!giuKhoa()) return;   // poller khác đang chạy — im lặng rút lui, không nhả lock của họ
+  /* LƯỢT ÉP KHÔNG ĐƯỢC CHẾT CÂM VÌ TRÙNG TICK ĐỒNG HỒ (bắt được trong QC 14/09/2026):
+     tick canh 2 phút có thể đang chạy đúng lúc người vừa đăng nhập — đo thật: ép lúc 15:18:37
+     rơi vào lượt tick 15:18:30, giuKhoa() trả false, lượt ép thoát IM LẶNG và sự kiện đăng nhập
+     mất hẳn. Với tick 2 phút mà mỗi lượt tốn ~30-60 giây thì xác suất trùng không hề nhỏ.
+     Nay: lượt ép CHỜ lượt kia xong rồi vào (trần EP_CHO_KHOA_GIAY), quá hạn thì BÁO RÕ.
+     Lượt thường vẫn rút lui im lặng như cũ — chúng có tick sau, còn sự kiện thì không. */
+  if (!giuKhoa()) {
+    if (!EP_TUOI) return;   // poller khác đang chạy — im lặng rút lui, không nhả lock của họ
+    const tranCho = Number(process.env.EP_CHO_KHOA_GIAY || 120) * 1000, t0 = Date.now();
+    let vaoDuoc = false;
+    while (Date.now() - t0 < tranCho) { await nghi(3000); if (giuKhoa()) { vaoDuoc = true; break; } }
+    if (!vaoDuoc) { log("⚡ lượt ép (" + EP_NGUON + " · khe " + EP_KHE + ") BỎ — lượt poller khác giữ khoá quá " + Math.round(tranCho / 1000) + "s."); return; }
+    log("⚡ lượt ép chờ " + Math.round((Date.now() - t0) / 1000) + "s cho lượt poller kia xong rồi mới vào.");
+  }
   let code = 0;
   try { code = await main(); }
   catch (e) { log("✗ " + (e && e.message ? e.message : e)); code = 2; }

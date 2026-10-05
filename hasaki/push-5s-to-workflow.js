@@ -23,6 +23,7 @@ import { gasPost } from "./session-rules.js";
 import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay } from "./truy-vet-vesinh.mjs";
 
+import crypto from "node:crypto"; import fs from "node:fs";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
 /* ----------------------------- CẤU HÌNH ----------------------------- */
@@ -420,6 +421,14 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     if (!Array.isArray(row.images)) row.images = await layAnhTheoDong(row);
     const coAnh = (row.images || []).some((m) => !/^video\//i.test(m.mime || "image/jpeg"));
     if (!coAnh) { skip++; log("  ⚠ Bỏ qua hàng " + row.row + ": thiếu ẢNH (IMA00 bắt buộc; chỉ có video không tạo được task)."); continue; }
+    /* 05/10 DL-03 TẠI NGUỒN (user: "kiểm tra lý do gì lại có 2 phiếu giống nhau 100%" — 14047709/14048521 = người ghi
+       nhận GỬI FORM 2 LẦN cách 9′, cùng ảnh): mọi ẢNH của dòng đã từng đẩy (sha1 nội dung) + cùng vị trí + cùng hạng mục
+       trong 48h ⇒ không lập phiếu mới, đánh dấu dòng = phiếu cũ. Sổ .push-5s-anh.json. */
+    const soAnh = (() => { try { return JSON.parse(fs.readFileSync(path.join(DIR, ".push-5s-anh.json"), "utf8")); } catch { return {}; } })();
+    const bam = (row.images || []).filter((m) => !/^video\//i.test(m.mime || "image/jpeg")).map((m) => crypto.createHash("sha1").update(Buffer.from(m.base64 || "", "base64")).digest("hex"));
+    const khoa = (h) => h + "|" + norm(row.viTri || row.vitri || "") + "|" + norm(type00);
+    const cu = bam.length && bam.every((h) => soAnh[khoa(h)] && Date.now() - soAnh[khoa(h)].luc < 48 * 3600e3) ? soAnh[khoa(bam[0])] : null;
+    if (cu) { skip++; log("  ↷ Hàng " + row.row + ": TRÙNG ảnh + vị trí + lỗi với phiếu " + cu.code + " (gửi form lặp) — không lập phiếu mới."); await markDone(row.row, cu.code); continue; }
     // THROTTLE: giãn 300ms giữa các lần createTask để không dội POST create-task khi tồn đọng lớn
     if (daTao > 0) await nghi(300);
     daTao++;
@@ -429,6 +438,7 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
         ok++;
         log("  ✓ Hàng " + row.row + " → task " + r.code + " (ảnh:" + (row._soAnh||0) + " video:" + (row._soVideo||0) + ")");
         await markDone(row.row, r.code);
+        try { for (const h of bam) soAnh[khoa(h)] = { code: r.code, luc: Date.now() }; fs.writeFileSync(path.join(DIR, ".push-5s-anh.json"), JSON.stringify(soAnh)); } catch { }
 
         /* NV VI PHẠM — 2 nguồn, theo thứ tự tin cậy:
            1) Ô "Nhân viên vi phạm" người dùng chọn ở form (cột 9 sheet WMS-5S-AUDIT; pop-up Planogram

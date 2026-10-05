@@ -1,0 +1,48 @@
+﻿2026-09-28 09:42:52 Bat dau
+  adb shell settings get system cloud_sleepmode_networkpolicy_enabled -> off
+  adb shell settings get system cloud_sleepmode_networkpolicy_enabled -> off
+  adb shell settings get system MILLET_NO_RESTRICT_APP -> (an)
+  adb shell settings get system MILLET_NO_RESTRICT_APP -> (an)
+  adb shell dumpsys greezer IM GMS disable -> (khong ghi ket qua)
+  adb shell dumpsys greezer | grep -m1 GmsLimit -> IM mGmsLimitEnabled : false
+2026-09-28 09:42:58 Lop 1 - tat ngat mang khi ngu      : OK
+2026-09-28 09:42:58 Lop 2 - Google khong bi dong bang   : OK
+2026-09-28 09:42:58 Lop 3 - tat bo gioi han Google      : OK
+2026-09-28 09:43:16 GO APP: net.extrawdw.apps.miuisucks.powerkeeper, moe.shizuku.privileged.api (khong dung duoc cung VietinBank)
+2026-09-28 09:43:26 Bat dau
+  adb shell settings get system cloud_sleepmode_networkpolicy_enabled -> off
+  adb shell settings get system cloud_sleepmode_networkpolicy_enabled -> off
+  adb shell settings get system MILLET_NO_RESTRICT_APP -> (an)
+  adb shell appops set com.android.shell WRITE_SETTINGS allow -> 
+  adb shell settings put system MILLET_NO_RESTRICT_APP (an)
+  adb shell appops set com.android.shell WRITE_SETTINGS default -> 
+  adb shell settings get system MILLET_NO_RESTRICT_APP -> (an)
+  adb shell dumpsys greezer IM GMS disable -> (khong ghi ket qua)
+  adb shell dumpsys greezer | grep -m1 GmsLimit -> IM mGmsLimitEnabled : false
+2026-09-28 09:43:26 Lop 1 - tat ngat mang khi ngu      : OK
+2026-09-28 09:43:26 Lop 2 - Google khong bi dong bang   : OK
+2026-09-28 09:43:26 Lop 3 - tat bo gioi han Google      : OK
+2026-09-28 10:12:42 KIEM TRA SUC KHOE (chi doc)
+2026-09-28 10:22:59 CAI THU: Termux 0.118.3 (sha 72fdb596) + Termux:Widget 0.15.0 (sha 780ae459) - thu VietinBank truoc
+Success
+Success
+2026-09-28 10:23:14 Bat dau
+  adb shell settings get system cloud_sleepmode_networkpolicy_enabled -> off
+  adb shell settings get system cloud_sleepmode_networkpolicy_enabled -> off
+  adb shell settings get system MILLET_NO_RESTRICT_APP -> (an)
+  adb shell appops set com.android.shell WRITE_SETTINGS allow -> 
+  adb shell settings put system MILLET_NO_RESTRICT_APP (an)
+  adb shell appops set com.android.shell WRITE_SETTINGS default -> 
+  adb shell settings get system MILLET_NO_RESTRICT_APP -> (an)
+  adb shell dumpsys greezer IM GMS disable -> (khong ghi ket qua)
+  adb shell dumpsys greezer | grep -m1 GmsLimit -> IM mGmsLimitEnabled : false
+2026-09-28 10:23:15 Lop 1 - tat ngat mang khi ngu      : OK
+2026-09-28 10:23:15 Lop 2 - Google khong bi dong bang   : OK
+2026-09-28 10:23:15 Lop 3 - tat bo gioi han Google      : OK
+2026-09-28 10:28:15 Termux: apt install android-tools (qua run-as)
+2026-09-28 10:29:05 adb tcpip 5555 + nap nut SuaThongBao vao Termux ~/.shortcuts
+2026-09-28 10:29:47 QC nut Termux: tam bo GMS khoi MILLET roi chay SuaThongBao.sh
+2026-09-28 10:40:28 cap quyen SYSTEM_ALERT_WINDOW cho com.termux
+2026-09-28 12:00:59 tao icon nho: mo TermuxCreateShortcutActivity + bam SuaThongBao.sh (input tap)
+2026-09-28 12:01:49 appops set com.termux.widget 10017 (tao loi tat man hinh chinh) allow
+2026-09-28 12:05:05 doi ten nut -> stb, tao lai icon

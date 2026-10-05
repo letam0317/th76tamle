@@ -33,16 +33,34 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 | **Day bao cao 5S** | mỗi **15'** | `push-5s-to-workflow.js` (chiều **GHI**: inbox 5S → task WF 591) | `day-bao-cao-5s.log` |
 | **5S Canh yeu cau dang nhap** | mỗi **2'** | `watch-login-request.js` | stdout task |
 | ~~**5S Tra UID tren Sheet**~~ | **ĐÃ XOÁ 24/09/2026** (user gỡ task; trước đó mỗi 1', mỗi lượt ~51s) | `tra-uid-sheet.mjs` còn trên đĩa — chạy tay khi cần; tab TRA UID vẫn được **bước dự phòng đầu `watch-login-request.js`** điền mỗi 2' | `tra-uid.log` |
-| **5S Co canh planogram** | mỗi **15'**, tự bỏ lượt ngoài cửa **07:00–18:00 T2–T7** (cửa đặt ở ĐẦU main nên tick ngoài giờ tốn 0 lượt gọi) | `CO-CANH-PLANOGRAM.bat` → `co-canh-planogram.mjs` — canh lịch khai báo planogram: trạng thái · chu kỳ · bộ ảnh tiêu chuẩn · nội dung kiểm tra, đối chiếu tab `HANG-MUC-BAO-DUONG` của g-sheet kế hoạch; ghi tab `CO-CANH-HIEN-TRANG` + `CO-CANH-PLANOGRAM`, nhắn Telegram khi có mục NẶNG. **3 lượt gọi upstream/lượt ⇒ ~130 lượt/ngày**; hash-skip nên không đổi thì không ghi Sheet | `co-canh-planogram.log` + `.co-canh-nhiptim.json` |
+| **5S Co canh planogram** | mỗi **15'**, tự bỏ lượt ngoài cửa **07:00–18:00 T2–T7** (cửa đặt ở ĐẦU main nên tick ngoài giờ tốn 0 lượt gọi) | `co-canh-planogram-hidden.vbs` → `co-canh-planogram.mjs` — canh lịch khai báo planogram: trạng thái · chu kỳ · bộ ảnh tiêu chuẩn · nội dung kiểm tra. G-sheet kế hoạch từ 26/09/2026: `MỤC LỤC` + `BAO-DUONG-170` là bản gốc của user (KHÔNG đụng); **`THEO-DOI-PLANOGRAM`** là trang cho NGƯỜI đọc — ô B4 câu TÌNH TRẠNG, bảng ① ĐIỂM LỆCH A10:G309, bảng ② NHẬT KÝ I10:O509, loại lệch đã dịch sang câu thường, cò ghi bằng GAS `vungLenh` (không clear tab); mốc gốc (bảng tiêu chuẩn 302×23) nằm ở tab **ẨN `DU-LIEU-MAY`**; nhắn Telegram khi có mục NẶNG. **3 lượt gọi upstream/lượt ⇒ ~130 lượt/ngày**; hash-skip nên không đổi thì không ghi Sheet | `co-canh-planogram.log` + `.co-canh-nhiptim.json` |
 | **Factory agent in tem** | mỗi **5'** (bổ sung vào bảng 23/08/2026 — task đã chạy từ trước mà A2 thiếu; agent CHÍNH nay ở `Desktop-JE75K38`, task này là lớp phụ trên laptop) | `_AGENT-IN-TEM-AN.vbs` → `in-tem-agent.mjs --dich-vu` | `in-tem-agent.log` |
 | **5S Canh B11** (thêm 24/09/2026) | mỗi **giờ** :35, cửa **07:00–18:00 T2–T7** đặt ở đầu main (tick ngoài giờ 0 lượt gọi) | `canh-b11.mjs` — 3 luật trên 1 GET board WF591/lượt: ① B1.1 treo >48h → bình luận TAG QLTT (ô QLBP02 của B1, mention `@[Tên](user_id:…)`) nhắc NV, CHỈ khi NV thuộc Phát triển cửa hàng/Đóng gói kho 170 (loc 398), mỗi task nhắc 1 lần (sổ `.canh-b11.json` + marker); ② B1 ≥2 NV → B1.1 gán đủ người + `sub_type=1` = "Mỗi thành viên" (số đo từ ví dụ thật 13818654 của user — KHÔNG phải type=3; push-5s cũng tự đặt lúc tạo); ③ B1.1 xong ĐỦ TỪNG thành viên VÀ ô `xacnhan11` = "Lỗi cá nhân" → điền `NVVP04` (Nhân viên vi phạm, mã phẩy) vào B3.1 rồi CHỈ LƯU, không đóng bước ("Không phải lỗi cá nhân" thì để người ghi nhận xử tay); ④ (25/09) lỗi "vệ sinh hằng ngày cuối ca" mọi vị trí + B1/B1.1 còn mở + Mô tả chưa có khối → ghép KHỐI TRUY VẾT (`truy-vet-vesinh.mjs`: phụ trách theo phân công · đi làm/báo cáo của NGÀY XÉT = ghi nhận −1, ghi nhận sau giờ RA thì chính ngày đó · 2 báo cáo gần nhất hyperlink "Yêu cầu <id>" · đánh giá AI) vào Mô tả bằng HTML; 4 tab GAS chỉ nạp khi có ứng viên; ca buộc được trách nhiệm (phụ trách CÓ đi làm ngày xét: KHÔNG BÁO CÁO hoặc VỆ SINH CHƯA ĐẠT — có báo cáo mà vẫn bẩn, user chốt 25/09 chiều) thì TỰ ĐÓNG B1 → B1.1 qua auto-complete-single-task (sổ dgB1). push-5s cũng ghép khối này cho PHIẾU MỚI ngay lúc tạo + tự suy NV vi phạm ca đó | `canh-b11.log` |
 | **5S Packer A8 sang / chieu** (thêm 24/09/2026) | **09:20** (chốt hôm qua) + **15:30** (giữa chiều) — 2 mốc đều trong giờ máy thường bật; máy tắt lỡ mốc thì lượt sau tự chốt bù vì script luôn kéo lại "hôm qua nếu chưa chốt" | `_SYNC-PACKER-A8.vbs` → `sync-packer-a8.mjs` — ai ĐÓNG GÓI thật tại từng bàn/camera A8 theo ngày (WMS `packings/v2`, size 5000 ⇒ **3-8 lượt gọi/lần, ~6-16 lượt/ngày**) → tab PRIVATE `PACKER-A8-NGAY` (cửa sổ 30 ngày, hash-skip; có email NV nên probe servedTabs trước khi ghi); pop-up ô A8 dashboard đọc làm thẻ "Báo cáo đóng gói tại vị trí". Backfill: `node sync-packer-a8.mjs --backfill=30` | `packer-a8.log` + sổ cái `.packer-a8-ngay.json` |
+| **5S Canh bai xe sang / chieu / toi** (thêm 02/10/2026, sửa 05/10) | **10:15 · 14:45 · 18:45** (tối dời 18:15 → 18:45 ngày 05/10 để kịp mốc 18:30) | `_CANH-BAI-XE.vbs` → `canh-bai-xe.mjs` — 2 camera bãi xe NCC (AIBV kênh 16 đầu ghi .16, BXM kênh 32 đầu ghi .12) lấy mẫu 15 s mỗi 3' trong 05:30–10:00, 12:00–14:30, gặp xe vào/ra đứng lại thì tải đoạn ≤6' + chấm công + sổ cổng → ảnh/clip chờ bạn quyết ở tab Xác minh. **Khu giấy/rác (PLR kênh 30, KGC kênh 31) từ 05/10 CHỈ chụp 2 mốc 12:01 + 18:31** (luật PL-03; trước đó ~130 đoạn/khu/ngày) → `<ngày>/PLR-moc1200.jpg`… + `mocChup` trong `ket-qua.json`. Chỉ tải đầu ghi top-review, 0 lượt gọi work/wms | `bai-xe.log` + `Videos/5S-bang-chung/bai-xe/<ngày>/` |
+| **5S Bai xe lap phieu** (thêm 02/10/2026) | mỗi **30'** 07:00–19:00 | `_BAI-XE-PHIEU.vbs` → `bai-xe-phieu.mjs` — đọc quyết định (tab Xác minh + g-sheet bãi xe) → lập phiếu WF591 + chuyển B1.1 | `bai-xe-phieu.log` |
+| **5S Canh xac minh B1** (thêm 05/10/2026) | mỗi **2 giờ** 07:50→17:50 T2–T7 (IgnoreNew, giới hạn 50') | `canh-xac-minh-hidden.vbs` → `canh-b1.mjs --lam` (luật đã duyệt + cột Quyết định sheet; TB-01/02 1 người nay ra «cho-camera», chỉ B1.1 khi có `.exports/xac-nhan-camera.json`) → `canh-trung-nv.mjs --lam` (CH-05 gộp cùng NV·cùng lỗi·cùng ngày khác vị trí: dừng phiếu sau + tag QLTT; CH-06 ≥3 lỗi/tháng → tag QLTT từ lỗi thứ 4; cửa 07–18 T2–T7 + khoá `.canh-trung-nv.lock`) → `python sheet-b1-treo.py --lam` | `canh-xac-minh.log` |
+| **5S Tim bang chung B1** (thêm 05/10/2026) | **08:30** rồi mỗi **2 giờ** tới 18:30 (IgnoreNew, giới hạn 50') | `_TIM-BANG-CHUNG-B1.vbs` → `tim-bang-chung-b1.mjs --max=6` — phiếu B1 còn mở có giờ cất/châm từ cò B1 (`.exports/canh-b1-ketqua.json`) → `_kenh-luc-chup.mjs <id> --luc=<giờ kho>` chọn kênh theo mã ô, chụp khung đúng giờ → `Videos/5S-bang-chung/may/<id>_KHO-*.jpg` + `.exports/bang-chung-b1.json`; phiếu không có giờ kho thì chụp camera GIỜ NGƯỜI KIỂM CHỤP (không mở khoá Quyết định) rồi `dai-lui-thoi-gian-b1.mjs --max=6` dựng dải 9 khung T…−72h (`may/<id>_LUI-*.jpg`, log `dai-lui.log`); dashboard Xác minh đọc để hiện bằng chứng + mở khoá nút Quyết định. Không gắn lên phiếu. Chỉ tải đầu ghi top-review, 0 lượt work/wms/hr | `tim-bang-chung-b1.log` |
 | ~~**5S Kenh tin nhan**~~ | **ĐÃ XOÁ 24/09/2026** (user gỡ task — hết NGHE LỆNH qua Telegram; chiều ĐẨY cảnh báo vẫn sống: canh-suc-khoe/báo 17h do script khác tự gửi `tg()`) | `tin-nhan-bot.mjs` còn trên đĩa; dựng lại theo `KENH-TIN-NHAN.md` (task mỗi 2') | `tin-nhan.log` |
 | **Factory watchdog ton kho** | logon **+5'** và mỗi giờ **07:05→18:05** | `sync-guard.js` (vá bước còn cũ — từ 31/07 gọi `AUTO-EXPORT.bat` nên vá được cả bước 5S) | `sync-guard.log` |
 | **Factory co cho may tram** | logon · **cắm/rút sạc** (Kernel-Power 105) · **máy thức dậy** (Power-Troubleshooter 1) · mỗi **2'** | `co-cho-hidden.vbs` → `CO-CHO-MAY-TRAM.ps1` — dựng lại agent in tem khi nó chết/treo, **dựng lại cò đăng nhập `co-dang-nhap.mjs` khi nó chết (mục 5b, thêm 14/09/2026)**, gỡ Offline·Pause·job mắc của máy in, áp lại cài đặt nguồn 1 lần/ngày (`CO-CHO-MAY-IN.md`) | `.co-cho.log` + `.co-cho.json` |
 | **Factory co cho bat may sang** | **06:50**/ngày, **được đánh thức máy** | cùng script — task RIÊNG vì `WakeToRun` là thuộc tính của cả task, gắn chung vào nhịp 2' thì máy bị dựng dậy 720 lần/ngày | như trên |
 | **Cò đăng nhập** (thường trú, KHÔNG phải task riêng) | chạy liên tục · được `Factory co cho may tram` dựng lại trong ≤2' nếu chết | `co-dang-nhap-hidden.vbs` → `co-dang-nhap.mjs` — nghe cổng `127.0.0.1:8790`, extension `wms-bridge` v1.5.0 báo "vừa có người đăng nhập" thì ép `sync-poller EP_TUOI=1` chạy ngay | `co-dang-nhap.log` |
 | ~~**5S Task hang ngay**~~ | **ĐÃ TẮT 19/08/2026** (Disabled) | Thay bằng **NÚT BẤM TAY** `NUT-NOP-TASK.bat` → `task-hangngay.mjs --nut` (làm tươi số liệu nếu mốc cũ → in nháp → HỎI rồi mới nộp). Không bấm = người tự bấm Hoàn thành trên work.hasaki.vn | `task-hangngay.log` |
+
+### A2b. Lịch Windows NGOÀI thư mục hasaki + lịch đang chạy mà A2 chưa ghi (khảo sát 05/10/2026 khi dọn thư mục gốc)
+
+Thư mục gốc `New folder` từ 05/10/2026 chỉ còn: `hasaki/` · `factory/` · `viec-lam-ca-dem/` · `xiaomi-fix/` · `kenh-trinh-tham/` (dự án cá nhân) · `Chung/` (khoá + script máy) · `GEMINI.md` + `.agents/` (Antigravity, `GEMINI.bat` cd về gốc). Bản sao mọi thứ đã xoá/dời: `_backup-don-dep-2026-10-05/` (có MANIFEST SHA-256 + XML 2 task).
+
+| Task | Lịch | Chạy gì | Ghi chú |
+|---|---|---|---|
+| **VSCode-Khoa-Tieng-Viet** | mỗi lần đăng nhập Windows | `Chung\may-tinh\khoa-vscode-tieng-viet.ps1` (dời từ gốc 05/10, task đã trỏ lại, chạy thử mã 0) | giữ VS Code tiếng Việt; log cạnh script |
+| ~~**DailyNightJobSync**~~ | **ĐÃ TẮT 05/10/2026** (trước đó 09:00/ngày, chạy tới sáng 05/10) | `viec-lam-ca-dem\python-cu\daily-job-sync-hidden.vbs` → `daily_job_sync.py` → `upload_to_sheet.py` | chuỗi Python CŨ của Việc làm ca đêm: không cào gì, chỉ đẩy 20 tin cứng lên Sheet và **GHI ĐÈ** dữ liệu Apps Script cào được (README dự án ghi rõ). Chỉ bật lại khi cố ý: `Enable-ScheduledTask DailyNightJobSync`. Khoá SA nay ở `Chung\khoa\service_account.json` |
+| **5S Ban noi bo (8123)** | logon | `_XEM-NOI-BO.vbs` | chưa từng chạy thành công (mã 267011) |
+| **5S Bang xac minh (8591)** | logon | `_BANG-591.vbs` | dashboard nội bộ Việc 5S |
+| **5S Nhac cai may in** | 1 lần 06/10/2026 07:50 | `node _NHAC-CAI-MAY-IN.mjs` | nhắc một lần |
+| **PC-login-agent-pilot** | mỗi 5' | `_PC-LOGIN-AGENT.vbs` | thí điểm theo dõi đăng nhập PC |
+
 
 Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và đụng
 khung chặn re-login `07:45–18:00` → cụm hoãn trong im lặng (sự cố 22/07).
@@ -911,3 +929,107 @@ locked"*. Đồng hồ máy lệch −0,6s nên **không phải** TOTP trôi gi�
   Đã kiểm `node --check` toàn bộ + chạy thử cửa kiểm thật (chặn đúng, exit 75, không mở browser).
   **Hành vi lịch/đồng bộ hiện tại KHÔNG đổi** — luật khung giờ cũ vẫn nguyên, chỉ thêm một lớp
   chặn an toàn cho lượt login tự động.
+
+---
+
+## PHẦN G — CÒ CANH TRÊN 2 PC KHI LAPTOP KHÔNG CÓ NGƯỜI (user chốt 01/10/2026)
+
+> Đầu bài: laptop không phải lúc nào cũng có người → extension trong Edge của laptop không còn phiên để
+> cho mượn → mọi cò đứng sau khi token hết hạn (WMS ~30 h, work/hr ~48 h). Cần cò chạy được trên PC.
+
+### G1. Ba điều user đã chốt
+1. **Máy được tự đăng nhập bằng tài khoản của user** (`HASAKI_EMAIL`/`HASAKI_PASSWORD` hiện có — chính là
+   `tamlc@hasaki.vn`). **Mã OTP thì nhắn cho user, user đưa** — KHÔNG dùng seed TOTP (seed đã ở app Hasaki
+   Authenticator từ 12/08, bot không sinh mã được).
+2. **Laptop chạy cò 09:00–18:00; ngoài khung đó 2 PC dự phòng chạy.**
+3. Tự đăng nhập chỉ khi không thấy phiên sống nào (luật phiên F1) — và luôn có người trong vòng lặp (OTP).
+
+### G2. Những gì ĐÃ CÓ sẵn — dùng lại, không viết mới
+| Mảnh | Ở đâu | Trạng thái 01/10 |
+|---|---|---|
+| Đăng nhập xin OTP qua Telegram | `login-hasaki.js --auto` + `LOGIN_OTP_CHAT=1` (Đường 2b, 19/08) → `hop-thu.mjs hoiOtpQuaChat` | Code có; bot `@hsk23bot` getMe OK; không webhook; **không** tiến trình getUpdates nào khác ⇒ không đụng 409 |
+| Chốt cấm tự đăng nhập | `CAM_TU_DANG_NHAP=1` (`session-rules.js`) | **Miễn trừ** đúng lượt `--auto` có kênh OTP người (`--otp-chat`/`LOGIN_OTP_FILE`) — đúng ca này |
+| Luật phiên (chỉ login khi không ai sống) | `trangThaiPhien` + `chanReLoginNgoaiKhung` (F7 bước 3) | Chạy khi máy có mốc `.bridge-wshr-ok` |
+| Cầu dao chống khoá tài khoản | `.login-that-bai.json` (login-hasaki) | Có |
+| Token dùng chung qua GAS | `bridgeToken`/`getBridgeToken` (khoá = `APPSCRIPT_KEY`) | Có — **máy in đã có khoá này trong gói** |
+| Dựng máy mới | `SETUP-PC-MOI.ps1` + `CHUYEN-MAY-PC.md` | Có (lịch cũ 7h00 trong doc — lấy lịch ở A2) |
+| PC không màn hình chạy được trình duyệt thật | F4 (auto-logon Windows, dummy plug, không ngủ, RTC alarm, không RDP) | Checklist, chưa áp lên PC nào |
+
+### G3. Thiết kế chốt
+- **Phân vai theo giờ, không chồng nhau:** laptop = runner **09:00–17:55**; PC = runner **18:10 → 08:50 hôm sau**
+  + cả ngày T7/CN khi laptop tắt. Mỗi cò kiểm cửa giờ máy ở ĐẦU (`RUNNER_GIO` trong `.env` từng máy, 0 lượt gọi):
+  laptop `RUNNER_GIO=09:00-17:55`, PC `RUNNER_GIO=18:10-08:50`. Khe trống 15' hai đầu để lượt đang chạy xong hẳn.
+- **Token:** trong giờ laptop → bridge (phiên Edge của user) như hôm nay. Ngoài giờ → PC dùng token còn trong kho/GAS;
+  hết cả → **PC tự đăng nhập** (`CAM_TU_DANG_NHAP=0` + `LOGIN_OTP_CHAT=1` + `LOGIN_OTP_TAY=1` chỉ trên PC; laptop
+  GIỮ `CAM_TU_DANG_NHAP=1`). Một lượt đăng nhập tối cho token sống trọn hôm sau (WMS 30 h, work 48 h) ⇒ ngày thường
+  user vẫn đăng nhập trên laptop nên bridge làm tươi kho mỗi ngày, bot **hiếm khi** phải xin OTP (chủ yếu sau cuối
+  tuần/ngày nghỉ).
+- **Giờ lịch sự xin OTP (THÊM MỚI, nhỏ):** chỉ nhắn xin OTP trong `LOGIN_OTP_GIO` (đề xuất 07:00–21:30), tối đa
+  1 lần/2 h, không nhắc lại nếu user không trả lời — ngoài khung thì hoãn (exit 75), dữ liệu đứng tới khung kế.
+  Không có mục này thì token WMS chết lúc 00:15 là bot nhắn OTP nửa đêm.
+- **PC phải là desktop thật** để Puppeteer + Turnstile chạy: F4 (tự đăng nhập Windows, dummy plug/Indirect Display,
+  `powercfg` không ngủ, BIOS AC BACK + RTC alarm, cấm RDP — dùng điều khiển bám console). Task trên PC để
+  **Interactive** như laptop (có phiên Windows tự đăng nhập là đủ).
+- **Cò nào sang PC:** mọi cò chỉ gọi API — Canh B1.1 (work), Kiểm giải trình AI (work+Gemini), Báo cáo 5S, Cò
+  planogram (WMS), Luật 3 ngày (work + Edge ẩn dựng ảnh), Packer A8 (WMS), watchdog/poller/auto-export, Chấm công
+  07:20, (Canh B1 khi user duyệt luật). Agent in tem đã ở máy in sẵn.
+- **Sổ cục bộ không nhìn thấy nhau giữa 2 máy** (`.canh-b11.json`, `.luat-3-ngay.json`, `.canh-b1.json`…): dedupe
+  lớp 2 bằng dấu hiệu trong bình luận/board vẫn chặn được nhắc trùng; việc **đóng B1 / giao B1.1 / lập phiếu**
+  đọc lại phiếu trước khi ghi nên không đúp. Chấp nhận ở GĐ 1; GĐ 2 đưa sổ lên GAS (Script Properties) nếu thấy đúp.
+- **Bí mật trên PC:** `.env` đầy đủ (mật khẩu Hasaki, token Telegram, khoá Gemini) ⇒ thư mục dự án chỉ cho
+  SYSTEM + Administrators (khuôn `C:\AuditFactory`, nhớ bẫy `icacls` mục CO-CHO-MAY-IN §3.5), không share SMB thư
+  mục có `.env`.
+
+### G4. Việc làm (theo thứ tự) — chưa làm gì cho tới khi user trả lời G5
+1. Thêm `RUNNER_GIO` (session-rules `mayDuocChay()`), gọi ở đầu 8 cò/cụm; laptop `.env` đặt `09:00-17:55`. Diễn tập.
+2. Thêm `LOGIN_OTP_GIO` + nhịp 2 h vào `login-hasaki.js`/`hop-thu.mjs`. Thử trên laptop lúc **không có ai làm**
+   (sau 18:00, user đồng ý nhận 1 tin OTP) → đo được: tin nhắn tới, gõ mã, token vào kho + GAS.
+3. Dựng PC #1: clone repo, node, `.env` (PC: `CAM_TU_DANG_NHAP=0`, `LOGIN_OTP_CHAT=1`, `RUNNER_GIO=18:10-08:50`),
+   chép `.bridge-wshr-ok`, F4, `SETUP-PC-MOI.ps1` (sửa lịch theo A2). QC từ xa bằng file cờ như máy in.
+4. Chạy song song 3 ngày: PC chỉ **diễn tập** (log, không ghi) để so với laptop; rồi bật ghi ngoài giờ.
+5. PC #2 giống #1, nhưng **chỉ 1 PC được ghi cùng lúc** → thêm `RUNNER_LEASE` trên GAS (F5) trước khi bật PC #2.
+6. Cập nhật A2 (lịch), CHUYEN-MAY-PC.md (lịch cũ), memory.
+
+### G5. Còn chờ user
+- 2 PC dự phòng là máy nào (tên/IP)? Desktop-JE75K38 (máy in) có phải một trong hai? Lúc 16:30 01/10 máy in
+  **không liên lạc được** (cổng 445 đóng) — nếu nó không bật 24/7 thì không làm runner đêm được.
+- Mỗi PC: có ai dùng hằng ngày không · cắm được dây mạng không · cho đặt tự đăng nhập Windows + không ngủ không
+  · có màn hình không (không có thì mua dummy plug).
+- Khung giờ chịu nhận tin xin OTP (đề xuất 07:00–21:30) và cuối tuần có nhận không.
+
+### G6. User trả lời G5 + ĐÃ DỰNG BẢN NỘI BỘ (01/10/2026 ~17:15) — chưa đổi gì trên máy thật
+**User trả lời (16:55):** 2 PC = **máy in Desktop-JE75K38 + 1 PC khác** (tên/IP chưa có); PC **có người dùng ban ngày,
+tối rảnh**; **ưu tiên extension từ laptop — không có mới xin OTP**.
+**Hệ quả thiết kế:** PC có người dùng ⇒ ban đêm không chắc có màn hình làm việc cho Puppeteer/Turnstile ⇒ **PC chỉ
+chạy cò bằng token sẵn có trong kho/GAS, KHÔNG tự đăng nhập**; lượt đăng nhập xin OTP làm **trên laptop** (nơi có
+màn hình + extension), và chỉ khi laptop còn bật. Laptop tắt + token hết ⇒ cò đứng tới khi có người đăng nhập — đây
+là trần của phương án, nói rõ để user biết.
+Phát hiện cùng lúc: laptop lúc 16:30–17:15 ở mạng `192.168.1.x` (không phải mạng công ty) ⇒ máy in "không liên lạc
+được" là do laptop ở ngoài, chưa kết luận được máy in có bật 24/7 hay không. `.co-cho-mayin-mac.txt` nay ghi
+`172.16.0.236 / 14-EB-B6-30-7A-18` (khác `.113 / 3C-64-…` hồi 21/08) ⇒ máy in có vẻ đã đổi card mạng (cắm dây?).
+
+**Đã dựng (QC `node --check` ✓, 7 mốc giờ ✓, diễn tập ✓):**
+| Mảnh | File | Ghi chú |
+|---|---|---|
+| Vai máy | `session-rules.js` → `laptopDuocChay(d)`, `mayDuocChay(log, d)` | `RUNNER_VAI=laptop\|pc` (trống = chạy như cũ); `LAPTOP_GIO` mặc định `09:00-17:55` T2–T7, `LAPTOP_CUOI_TUAN=1` nếu laptop cũng chạy T7/CN; PC = phần bù; `EP_RUNNER=1`/`--force` bỏ qua |
+| Cửa cho .bat | `runner-gio.mjs` | exit 0 = chạy · 75 = máy kia trực (ghi 1 dòng `runner-gio.log`) |
+| Đã nối cửa | `canh-b11.mjs` · `co-canh-planogram.mjs` · `sync-guard.js` (đầu `main`) · `sync-poller.js` (đầu `main`) · `DAY-BAO-CAO-5S.bat` · `AUTO-EXPORT.bat` · `LAY-CHAM-CONG.bat` · `SYNC-PACKER-A8.bat` | Phiên new-folder-47 nối `canh-b1.mjs` cùng mẫu khi tới lượt. `luat-3-ngay` / `kiem-giai-trinh-ai` chưa có task nên chưa nối |
+| Xin OTP đúng lúc | `cap-token-toi.mjs` (diễn tập mặc định, `--lam` mới gọi) | Không chạy ở máy `pc`; chỉ trong `LOGIN_OTP_GIO` (07:00-21:30); `trangThaiPhien` phải = `khong` + đủ cửa im lặng (bridge/kho sống → thôi); trần `CAP_TOKEN_MAX_NGAY`=2 lượt/ngày, cách ≥120'; gọi `login-hasaki.js --auto --otp-chat` (Đường 2b có sẵn; `CAM_TU_DANG_NHAP=1` miễn trừ vì có người đưa OTP) |
+
+**Cutover (làm khi user duyệt, theo thứ tự):**
+1. **Diễn tập thật 1 lượt OTP trên laptop** vào lúc user KHÔNG làm việc trên WMS/work (vd sau 18:00): user đăng xuất
+   WMS + work trong Edge → chờ cửa im lặng (5' ngoài giờ) → `node cap-token-toi.mjs --lam` → Telegram xin 6 số → user
+   trả lời → token vào kho + GAS. Đo: tin tới sau bao lâu, login mất bao lâu, `session-ledger.log` ghi jti mới.
+2. Đăng ký task laptop **"5S Cap token toi"** mỗi 30' (Interactive, giống các task khác):
+   `node cap-token-toi.mjs --lam >> cap-token-toi.log 2>&1` (qua .vbs ẩn như khuôn `canh-b11-hidden.vbs`).
+3. Dựng PC #1 (máy in) khi laptop ở mạng công ty: gói kiểu `TAO-GOI-MAY-IN.mjs` nhưng đủ cò (node.exe + closure + repo
+   hasaki) hoặc clone repo + `SETUP-PC-MOI.ps1`; `.env` PC: `RUNNER_VAI=pc`, giữ `CAM_TU_DANG_NHAP=1`, KHÔNG cần
+   `LOGIN_OTP_CHAT`; chép `.bridge-wshr-ok`; task Interactive dưới tài khoản Windows có sẵn trên máy đó (người dùng ban
+   ngày để máy bật + khoá màn khi về). QC từ xa bằng file cờ như máy in.
+4. Chạy song song 3 ngày: PC `RUNNER_VAI=pc` nhưng mọi cò **diễn tập** (`--thu`) để so log với laptop → rồi bỏ `--thu`.
+5. Đặt `RUNNER_VAI=laptop` vào `.env` laptop (từ đây laptop im ngoài 09:00–17:55). PC #2 chỉ thêm sau khi có
+   `RUNNER_LEASE` trên GAS (F5).
+6. Cập nhật A2 (lịch) + `CHUYEN-MAY-PC.md` + memory.
+
+**Còn chờ user:** tên/IP PC #2 · xác nhận máy in bật 24/7 (kiểm `_nhip-mayin.txt` khi laptop về mạng công ty) · chọn
+giờ diễn tập OTP (bước 1).

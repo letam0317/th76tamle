@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bố trí kho Liên Anh</title>
+<!-- lienanh-3d.html — CÔNG CỤ BỐ TRÍ MẶT BẰNG KHO MỚI LIÊN ANH (05/10/2026) — CHỈ CHẠY NỘI BỘ (localhost + xem-noi-bo.mjs)
+     Khung dựng: trang mẫu new-warehouse (Kho Liên Anh C15 – cross-belt v18) + bộ sửa bố cục / camera của kho170-3d.html (chép có rút gọn).
+     Số liệu nhà: lienanh-thongso.js (chuỗi kích thước, tự cộng) · luật: lienanh-luat.js · hình học/luật/xuất: lienanh-xuat.js ·
+     bố cục: lienanh-bocuc-goc.js (gitignore) + lienanh-bocuc.js (máy chủ ghi, gitignore). Tệp này KHÔNG chứa bố cục. -->
+<style>
+:root{--ink:#1c2430;--paper:#f3f4f2;--card:rgba(255,255,255,.93);--rule:#d5d8d3;--steel:#2f5d8a;--do:#c0392b;--vang:#c9a000;--xanh:#16a34a;
+ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#e8eaee;--paper:#15181d;--card:rgba(24,27,32,.93);--rule:#333a44;--steel:#8fb4dd}}
+:root[data-theme="dark"]{--ink:#e8eaee;--paper:#15181d;--card:rgba(24,27,32,.93);--rule:#333a44;--steel:#8fb4dd}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ui{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:8px 10px;max-height:46vh;overflow:auto;backdrop-filter:blur(6px);z-index:4}
+#ui h1{font-size:14px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+#ui.col .full{display:none}
+#ui.col .row:not(.views){display:none}
+#ui.col{max-height:none;padding:6px 10px}
+.bar{display:flex;align-items:center;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+button{font:inherit;font-size:13px;padding:5px 9px;border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:4px;cursor:pointer}
+button.on{background:var(--ink);color:var(--paper)}
+button:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+input[type=range]{width:110px}
+#ui ul{margin:4px 0;padding-left:16px}
+#ui li{margin:2px 0}
+details summary{cursor:pointer;font-weight:600}
+.k{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#hint{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;text-align:center;font-size:12px;color:var(--ink);opacity:.75;pointer-events:none;z-index:3}
+#err{position:fixed;inset:0;display:none;place-items:center;background:var(--paper);z-index:20;padding:20px;text-align:center}
+#err.on{display:grid}
+#err b{color:var(--do)}
+/* bảng tham số / diện tích / luật */
+table.bg{border-collapse:collapse;font-size:12.5px;width:100%}
+table.bg th,table.bg td{border-bottom:1px solid var(--rule);padding:3px 6px;text-align:left;vertical-align:top}
+table.bg td.so{text-align:right;white-space:nowrap}
+table.bg input{width:70px;font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--rule);border-radius:4px;background:var(--paper);color:var(--ink)}
+.ng{font-size:11px;padding:1px 6px;border-radius:999px;border:1px solid var(--rule);white-space:nowrap}
+.ng.tam{color:var(--do);border-color:var(--do)}
+.chuoi{font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-all}
+.chuoi b{color:var(--xanh)}
+.chuoi b.sai{color:var(--do)}
+/* ── bảng BỐ TRÍ (chép khuôn #sua của kho170-3d.html, bỏ icon) ── */
+#sua{position:fixed;top:calc(40px + env(safe-area-inset-top,0px));right:10px;width:min(400px,calc(100vw - 20px));max-height:calc(100vh - 120px);overflow:auto;z-index:5;box-sizing:border-box;
+ background:var(--card);border:1px solid var(--steel);border-radius:10px;padding:8px 10px;box-shadow:0 10px 30px rgba(0,0,0,.2);backdrop-filter:blur(8px);
+ display:flex;flex-direction:column;gap:6px;font-size:13px}
+#sua[hidden]{display:none}
+#sua.gon>:not(.suaH){display:none}
+body.dangSua{-webkit-user-select:none;user-select:none}
+body.dangSua input,body.dangSua select{-webkit-user-select:auto;user-select:auto}
+.suaH{display:flex;align-items:center;gap:8px}.suaH b{flex:none}
+.suaQc{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--do);color:#fff}
+#suaGon{margin-left:auto}
+.suaR{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.buoc{display:flex;gap:4px}
+.buoc button{flex:1;padding:6px 8px;font-weight:600}
+#sua select,#sua input{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--rule);border-radius:4px;background:var(--paper);color:var(--ink);max-width:100%}
+#suaMon{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 8px;border:1px dashed var(--rule);border-radius:6px;min-height:30px}
+#suaMon label{display:inline-flex;align-items:center;gap:4px}
+#suaMon input[type=number]{width:70px}
+#suaMon input[type=text]{width:150px}
+#suaMon small{opacity:.6}
+.suaLoi{color:var(--do);font-weight:600}
+#suaLoiDs{max-height:150px;overflow:auto;font-size:12px;display:flex;flex-direction:column;gap:2px}
+#suaLoiDs:empty{display:none}
+#suaLoiDs button{text-align:left;border-color:transparent;padding:2px 6px;border-radius:4px}
+#suaLoiDs button.loi{color:var(--do)}
+#suaLoiDs button.canhBao{color:#b45309}
+#suaLoiDs button:hover{border-color:var(--rule)}
+#suaTt{font-size:12px;opacity:.9;flex:1 1 200px}
+#suaTt.loi{color:var(--do);opacity:1;font-weight:600}
+.suaGoiY{font-size:11.5px;opacity:.7}
+kbd{font:inherit;font-size:11px;border:1px solid var(--rule);border-radius:3px;padding:0 4px}
+body.dangSua #hint{display:none}
+body.dangSua #c{cursor:grab}
+#dt{font-size:12.5px}
+/* khay khối chưa đặt (user 05/10: mặt bằng trống, kéo từng khối vào) */
+#khay{display:flex;flex-direction:column;gap:3px;max-height:220px;overflow:auto}
+#khay:empty{display:none}
+.khayDong{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--rule);border-radius:6px;cursor:grab;background:var(--paper);touch-action:none;-webkit-user-select:none;user-select:none}
+.khayDong:active{cursor:grabbing;border-color:var(--steel)}
+.khayDong b{flex:1;font-size:12.5px;font-weight:600}
+.khayDong small{opacity:.7;white-space:nowrap}
+.khayDong button{padding:3px 8px;font-size:12px}
+#khayH b{font-size:12.5px}
+#vc{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:8px;display:flex;gap:4px;z-index:4}
+#vc button{padding:4px 8px;font-size:12px;background:var(--card)}
+#mmBox{position:fixed;left:8px;bottom:calc(60px + env(safe-area-inset-bottom,0px));width:min(240px,34vw);background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:3px;z-index:4}
+#mm{display:block;width:100%;height:auto;cursor:crosshair}
+@media (max-width:760px){#sua{left:6px;right:6px;width:auto;top:calc(44px + env(safe-area-inset-top,0px));max-height:45vh}.suaGoiY{display:none}#mmBox{display:none}}
+@media (pointer:coarse){#ui button,#ui input:not([type=range]),#ui select,#sua button,#sua select,#vc button{min-height:40px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">Kéo để xoay · cuộn / chụm để phóng · kéo phải hoặc 2 ngón để dịch</div>
+<div id="err"><div><b>Không dựng được mô hình.</b><div id="errT"></div></div></div>
+<div id="vc" aria-label="Góc nhìn nhanh"><button data-g="tren">Nhìn thẳng</button><button data-g="goc">Góc 3/4</button><button id="bChieu" title="phím O">Trực giao</button><button id="bMM" class="on">Bản đồ nhỏ</button></div>
+<div id="mmBox"><canvas id="mm"></canvas></div>
+<div id="ui" class="col">
+ <div class="bar"><h1 id="tieu">Kho Liên Anh 108 × 80 m — bố trí mặt bằng</h1><button id="bTog">Chi tiết ▾</button></div>
+ <div class="row views">Góc nhìn:
+  <button data-v="all" class="on">Toàn kho</button><button data-v="sorter">Sorter</button><button data-v="it">Soạn IT</button><button data-v="gd1">Kệ GĐ1</button><button data-v="gd2">Kệ GĐ2</button><button data-v="gd3">Double-deep</button><button data-v="nhanpo">Nhận PO</button><button data-v="stg">Staging</button>
+  <button id="bMode" class="on" data-m="orbit">Xoay</button><button data-m="map">Bản đồ</button>
+  <button id="bLab" class="on">Nhãn</button><button id="bRoof">Mái</button><button id="bRot">Tự xoay</button><button id="bPause">Tạm dừng</button>
+  <button id="bTram">Trạm: lồng tự rơi</button>
+ </div>
+ <div class="full">
+ <details open id="dTs"><summary>Số liệu nhà — chuỗi kích thước bản vẽ KT 4-01 (máy tự cộng)</summary>
+  <div id="tsChuoi" class="chuoi"></div>
+  <div id="tsBox"></div>
+  <div class="row"><button id="tsAp">Áp dụng số đã sửa</button><button id="tsGoc">Đặt lại số gốc</button><span id="tsTt"></span></div>
+ </details>
+ <details id="dDt"><summary>Diện tích khu vực</summary><div id="dt"></div></details>
+ <details id="dLuat"><summary>Luật khoảng cách (sửa được số)</summary><div id="luatBox"></div></details>
+ <details><summary>Chú giải</summary>
+  <ul>
+   <li><span class="k" style="background:#f2c230"></span>Khu vực (viền vàng, tên + m²) · <span class="k" style="background:#2f5d8a"></span>Trụ kệ · <span class="k" style="background:#e07a1f"></span>Beam · <span class="k" style="background:#c9a86a"></span>GĐ1 · <span class="k" style="background:#3fa39a"></span>GĐ2 · <span class="k" style="background:#9b7bd6"></span>GĐ3 · <span class="k" style="background:#3b6ea8"></span>Xe sorter · <span class="k" style="background:#2c8a5a"></span>Băng nạp · <span class="k" style="background:#f0a060"></span>Cửa đề xuất (mới)</li>
+   <li>Khung <b style="color:#dc2626">đỏ</b> = món đang vi phạm luật (mức LỖI — chặn Chốt) · khung <b style="color:#b45309">cam</b> = cảnh báo.</li>
+   <li>Hệ toạ độ: x = trục 1 → 19 (trái → phải), z = trục M → A (trên → dưới) đúng tờ bản vẽ. Bản 2D/DXF xuất cùng hướng.</li>
+  </ul>
+ </details>
+ </div>
+</div>
+<div id="sua" hidden role="dialog" aria-label="Bố trí mặt bằng">
+ <div class="suaH"><b>Bố trí mặt bằng</b><span class="suaQc" id="suaQc">BẢN NỘI BỘ</span><button id="suaGon" title="Thu gọn / mở bảng">▾</button></div>
+ <div class="buoc"><button id="b1" class="on">Bước 1 · Khu vực</button><button id="b2">Bước 2 · Chi tiết trong khu</button></div>
+ <div class="suaR" id="hangKhu"><select id="suaKhuChon" aria-label="Chọn khu để sửa chi tiết"><option value="">— chọn khu —</option></select><button id="suaVaoKhu">Vào khu</button></div>
+ <div class="suaR" id="khayH"><b>Khay khối chưa đặt (<span id="khaySo">0</span>)</b><button id="suaMau" title="Đặt mọi khối theo bố cục mẫu new-warehouse + khu bổ sung">Xếp theo bản mẫu</button><button id="suaCatHet">Cất hết vào khay</button></div>
+ <div id="khay" aria-label="Khay khối: kéo một dòng vào mặt bằng, hoặc bấm Đặt"></div>
+ <div class="suaR">
+  <select id="suaThem" aria-label="Thêm"><option value="">+ Thêm…</option></select>
+  <button id="suaXoay" title="phím R">Xoay 90°</button><button id="suaNhan" title="Ctrl+D">Nhân bản</button><button id="suaXoa" title="Delete">Xoá</button><button id="suaLui" title="Ctrl+Z">Hoàn tác</button><button id="suaKhit" title="Co khu vừa khít đồ bên trong">Thu vừa khít</button>
+ </div>
+ <div id="suaMon"></div>
+ <div id="suaLoiDs"></div>
+ <div class="suaR"><button id="xSvg">Tải SVG 2D</button><button id="xDxf">Tải DXF (AutoCAD)</button><button id="xPng">Tải PNG</button><button id="xPdf">In PDF</button><button id="suaChot" class="on">Chốt (kiểm luật + QC + DXF)</button></div>
+ <div class="suaR"><span id="suaTt" role="status" aria-live="polite"></span></div>
+ <div class="suaGoiY">Bước 1: kéo một dòng trong khay vào mặt bằng để đặt khối; kéo khu đã đặt — đồ bên trong đi theo; đè lên khu khác thì khung đỏ; kéo 8 chấm cam để nới/thu. Bước 2: vào khu rồi kéo từng món (hít lưới 5 cm + hít cạnh + hít biên khu; giữ <kbd>Alt</kbd> thả tự do). Dãy kệ: kéo 2 chấm xanh ở đầu dãy để thêm/bớt bay. R xoay · Ctrl+D nhân bản · Delete xoá · Ctrl+Z hoàn tác · mũi tên nhích.</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="lienanh-thongso.js"></script>
+<script src="lienanh-luat.js"></script>
+<script src="lienanh-xuat.js"></script>
+<script src="lienanh-bocuc-goc.js" onerror="window.__thieuGoc=1"></script>
+<script src="lienanh-bocuc.js" onerror="window.__thieuBocuc=1"></script>
+<script>
+'use strict';
+/* ═══════════════ 0. DỮ LIỆU ═══════════════ */
+const $=id=>document.getElementById(id);
+const X=window.LIENANH_XUAT,TS=window.LIENANH_TS,LUATDS=window.LIENANH_LUAT;
+const r2=X.r2,soVn=v=>String(v).replace('.',',');
+const GOC_TS={};TS.nhom.forEach(n=>n.ts.forEach(t=>GOC_TS[t.id]=t.gt));
+let GIA=Object.assign({},GOC_TS);try{Object.assign(GIA,JSON.parse(localStorage.getItem('lienanh-gia')||'{}'))}catch(e){}
+let N=X.nha(TS,GIA);
+function baoLoi(t){$('errT').textContent=t;$('err').classList.add('on');window.__SAN_SANG=false;throw new Error(t)}
+if(!N.ok)baoLoi(N.loi);
+if(window.__thieuGoc&&!window.LIENANH_BOCUC)baoLoi('Thiếu tệp bố cục gốc lienanh-bocuc-goc.js (tệp gitignore — chép từ máy đã có).');
+/* gộp bố cục: bản máy chủ ghi (lienanh-bocuc.js) + món MỚI của bản gốc chưa có (luật chỉ bổ sung), trừ món đã xoá */
+let KHU=[],VAT=[],XOA=[],LUAT_SUA={};
+(function(){const G=window.LIENANH_GOC||{khu:[],vat:[]},B=window.LIENANH_BOCUC;
+ if(B&&Array.isArray(B.khu)){KHU=B.khu.map(k=>Object.assign({},k));VAT=(B.vat||[]).map(v=>Object.assign({},v));XOA=B.xoa||[];LUAT_SUA=B.luat||{};
+  const xoa=new Set(XOA),coK=new Set(KHU.map(k=>k.id)),coV=new Set(VAT.map(v=>v.id));
+  G.khu.forEach(k=>{if(!coK.has(k.id)&&!xoa.has(k.id))KHU.push(Object.assign({},k))});G.vat.forEach(v=>{if(!coV.has(v.id)&&!xoa.has(v.id))VAT.push(Object.assign({},v))})}
+ else{KHU=G.khu.map(k=>Object.assign({},k));VAT=G.vat.map(v=>Object.assign({},v))}})();
+const km=()=>X.khuMap(KHU);const khuCua=id=>KHU.find(k=>k.id===id);const vatCua=id=>VAT.find(v=>v.id===id);
+/* khu ĐÃ ĐẶT lên mặt bằng (không nằm trong khay) + món thuộc khu đã đặt — mọi việc dựng / luật / xuất / diện tích chỉ xét phần này */
+const khuDat=()=>KHU.filter(k=>!k.trongKhay),vatDat=()=>VAT.filter(v=>{const k=khuCua(v.khu);return !v.khu||(k&&!k.trongKhay)});
+const LA_QC=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const API='/api/3d/lienanh/';
+/* loại món thêm được (bước 2) — tên + cỡ mặc định (lấy từ kho170 LOAI_VAT + loại mới Liên Anh) */
+const LOAI_VAT={
+ dayKe:{ten:'Dãy kệ selective đôi (10 bay)',kieu:'sel',nBay:10,gd:1},dayKeDon:{ten:'Dãy kệ đơn sát tường (10 bay)',loai:'dayKe',kieu:'don',nBay:10,gd:1},dayKeDD:{ten:'Khối double-deep 4 hàng (10 bay)',loai:'dayKe',kieu:'dd',nBay:10,gd:3},
+ ban:{ten:'Bàn D1500 × R600',w:1.5,d:0.6,mt:1},keMam:{ten:'Kệ mâm sắt D1500 × R500',w:1.5,d:0.5},keV:{ten:'Kệ sắt V lỗ D1200 × R450',w:1.2,d:0.45},keLuoi:{ten:'Kệ mâm lưới 500×1200×1800',w:1.2,d:0.5,h:1.8},
+ locker:{ten:'Tủ locker 30 ngăn',w:1.5,d:0.45,h:1.85},vach:{ten:'Vách ngăn 3 m',w:3.0,d:0.12,h:2.4},cuaSat:{ten:'Cửa sắt 900 × 2100',w:0.9,d:0.06,h:2.1},
+ xeNangTay:{ten:'Xe nâng tay',w:1.2,d:0.54},xeSat2Tang:{ten:'Xe sắt 2 tầng',w:1.0,d:0.6},palletDen:{ten:'Pallet nhựa 1200 × 1000',w:1.2,d:1.0},
+ baoBong:{ten:'Bao bóng vụn',w:1.0,d:1.0},thungGiay:{ten:'Sóng giấy tái chế',w:1.2,d:1.0},cumLong:{ten:'Cụm lồng pallet 4 × 4',w:4.6,d:5.4,n:4,m:4},
+ quay:{ten:'Quầy tiếp NCC',w:2.4,d:0.8},gheCho:{ten:'Ghế chờ',w:0.5,d:0.5},tuSac:{ten:'Tủ sạc treo tường',w:0.5,d:0.35},oXeNang:{ten:'Ô đậu xe nâng',w:1.2,d:2.6},
+ cua:{ten:'Cửa xuất 4 m (trên tường)',w:4,d:0.3,kieu:'xuat',moi:1},cuaThoat:{ten:'Cửa thoát hiểm 1,2 m',loai:'cua',w:1.2,d:0.3,kieu:'thoat',moi:1},dockCont:{ten:'Dock cont',w:4,d:0.3,kieu:'dock'},
+ cay:{ten:'Cây xanh',w:0.5,d:0.5,h:1.5},mayLanh:{ten:'Máy lạnh treo tường',w:0.8,d:0.2},gheNhua:{ten:'Chồng ghế nhựa',w:0.36,d:0.36,n:5},banAn:{ten:'Bàn ăn 1600 × 800',w:1.6,d:0.8}};
+const NHOM_KHU={staging:'Staging',sorter:'Sorter',nhan:'Nhận / soạn',ke:'Kệ lưu trữ',phu:'Phụ trợ',chay:'Giấy · bóng vụn (dễ cháy)',ngoai:'Ngoài nhà'};
+const TEN_LOAI=X.TEN_LOAI;
+/* ═══════════════ 1. SCENE ═══════════════ */
+const canvas=$('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xdfe3e8);
+const camera=new THREE.PerspectiveCamera(50,1,0.1,600);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a9099,0.85));
+const sun=new THREE.DirectionalLight(0xfff0dc,0.9);sun.position.set(40,80,-30);sun.target.position.set(54,0,40);scene.add(sun.target);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-75,right:75,top:70,bottom:-70,near:1,far:220});scene.add(sun);
+const GOC=new THREE.Group();scene.add(GOC);           // mọi thứ dựng lại được
+const roofG=new THREE.Group();roofG.visible=false;scene.add(roofG);
+const M={floor:new THREE.MeshLambertMaterial({color:0xb9bcb8}),track:new THREE.MeshLambertMaterial({color:0x6b7280}),leg:new THREE.MeshLambertMaterial({color:0x50565e}),
+ car:new THREE.MeshLambertMaterial({color:0x3b6ea8}),belt:new THREE.MeshLambertMaterial({color:0x2a2f36}),feed:new THREE.MeshLambertMaterial({color:0x2c8a5a}),feedBelt:new THREE.MeshLambertMaterial({color:0x1f2a24}),
+ chute:new THREE.MeshLambertMaterial({color:0xb8862b}),chuteRail:new THREE.MeshLambertMaterial({color:0x8a6420}),pallet:new THREE.MeshLambertMaterial({color:0x8a5a2b}),
+ box:new THREE.MeshLambertMaterial({color:0xd9c27a}),box2:new THREE.MeshLambertMaterial({color:0xc9a86a}),aisle:new THREE.MeshLambertMaterial({color:0x7fc59a}),arrow:new THREE.MeshLambertMaterial({color:0x1f7a45}),
+ jack:new THREE.MeshLambertMaterial({color:0xe0781f}),human:new THREE.MeshLambertMaterial({color:0xd8a577}),vest:new THREE.MeshLambertMaterial({color:0xf2b705}),scan:new THREE.MeshLambertMaterial({color:0x444a52}),
+ line:new THREE.MeshLambertMaterial({color:0xe6c400}),mesh:new THREE.MeshLambertMaterial({color:0x9aa3ad,transparent:true,opacity:0.5,side:THREE.DoubleSide})};
+const HM={wall:new THREE.MeshLambertMaterial({color:0xb8c0c8,transparent:true,opacity:0.18,side:THREE.DoubleSide}),col:new THREE.MeshLambertMaterial({color:0x5b6470}),
+ roof:new THREE.MeshLambertMaterial({color:0x9aa4ae,transparent:true,opacity:0.25,side:THREE.DoubleSide}),plinth:new THREE.MeshLambertMaterial({color:0xa8a49c}),
+ zone:new THREE.MeshLambertMaterial({color:0xf2e2a0,transparent:true,opacity:0.55}),zoneNgoai:new THREE.MeshLambertMaterial({color:0xe8e4d0,transparent:true,opacity:0.35}),
+ line:new THREE.MeshLambertMaterial({color:0xd9a800}),upright:new THREE.MeshLambertMaterial({color:0x2f5d8a}),beam:new THREE.MeshLambertMaterial({color:0xe07a1f}),palW:new THREE.MeshLambertMaterial({color:0xb08a5a}),
+ truck:new THREE.MeshLambertMaterial({color:0xd8dde3}),cont:new THREE.MeshLambertMaterial({color:0x8a3b2b}),glass:new THREE.MeshLambertMaterial({color:0x3a5570}),chassis:new THREE.MeshLambertMaterial({color:0x2a2e33}),
+ vach:new THREE.MeshLambertMaterial({color:0xcfd6dd,transparent:true,opacity:0.6,side:THREE.DoubleSide})};
+const MAU_VAT={denTu:0x1c1f23,denCua:0x2c3036,chau:0xeeeeee,datTrong:0x5d4037,la2:0x2e7d32,la3:0x43a047,doXN:0xb71c1c,xmDen:0x202326,crom:0xc9cdd1,vang:0xf2c230,pal:0x16181b,nhom:0xb4b9be,sat2:0x6f767d,inox:0xd9dde1,nhua:0x1f5fbf,xam:0x7c8288,cam:0xf28c28,lop:0x1b1e22,go:0xd8b98a,khung:0x5b6168,den:0x1d2126,man:0x33495c,ghe:0x2b2f35,sat:0xaab2ba,xanh:0x1f5fbf,giay:0xc8b48a,bong:0xdfe8f0,thep:0x8a9096};
+const MV={};Object.keys(MAU_VAT).forEach(k=>MV[k]=new THREE.MeshLambertMaterial({color:MAU_VAT[k]}));MV.kinh=new THREE.MeshLambertMaterial({color:0xbfdbe6,transparent:true,opacity:0.35,depthWrite:false});
+const PH={1:0xc9a86a,2:0x3fa39a,3:0x9b7bd6};
+function tex(w,h,ve){const c=document.createElement('canvas');c.width=w;c.height=h;ve(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+const doorT=tex(64,256,(x,w,h)=>{x.fillStyle='#9aa4ad';x.fillRect(0,0,w,h);x.fillStyle='#7d8791';for(let y=0;y<h;y+=16)x.fillRect(0,y,w,3)});
+HM.door=new THREE.MeshLambertMaterial({map:doorT});HM.doorNew=new THREE.MeshLambertMaterial({map:doorT,color:0xf0a060});
+function box(w,h,d,mat,x,y,z,parent,shadow){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=shadow!==false;m.receiveShadow=true;(parent||GOC).add(m);return m}
+/* nhãn sprite (tier 1 luôn hiện · 2 hiện khi gần · 3 chỉ khi sát) */
+let labels=[],labelsOn=true;
+function nhan(text,x,y,z,parent,scale,tier){const c=document.createElement('canvas');const ctx=c.getContext('2d');ctx.font='600 30px -apple-system,Segoe UI,Roboto,Arial';const w=ctx.measureText(text).width+36;c.width=w;c.height=52;ctx.font='600 30px -apple-system,Segoe UI,Roboto,Arial';ctx.fillStyle='rgba(28,36,48,.92)';ctx.fillRect(0,0,w,52);ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.fillText(text,18,27);
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));sp.userData={a:w/52,k:scale||1,t:tier||3};sp.position.set(x,y,z);(parent||GOC).add(sp);labels.push(sp);return sp}
+/* ═══════════════ 2. NHÀ (từ chuỗi kích thước) ═══════════════ */
+const NHA=new THREE.Group();scene.add(NHA);
+function roofH(z){const EAVE=+GIA.caoDiem,NOC=+GIA.caoNoc;return EAVE+(NOC-EAVE)*Math.min(z,N.HZ-z)/(N.HZ/2)}
+function dungNha(){while(NHA.children.length)NHA.remove(NHA.children[0]);while(roofG.children.length)roofG.remove(roofG.children[0]);
+ const HX=N.HX,HZ=N.HZ,EAVE=+GIA.caoDiem,NOC=+GIA.caoNoc,td=N.tuongDay,cc=N.cotCanh;
+ const floorTex=tex(512,512,(x,w,h)=>{x.fillStyle='#b4b7b3';x.fillRect(0,0,w,h);const img=x.getImageData(0,0,w,h);for(let i=0;i<img.data.length;i+=4){const n=(Math.random()-0.5)*22;img.data[i]+=n;img.data[i+1]+=n;img.data[i+2]+=n}x.putImageData(img,0,0);x.strokeStyle='rgba(60,60,60,0.35)';x.lineWidth=3;x.strokeRect(1,1,w-2,h-2)});
+ floorTex.repeat.set((HX+40)/8,(HZ+40)/8);const fl=new THREE.Mesh(new THREE.PlaneGeometry(HX+40,HZ+40),new THREE.MeshLambertMaterial({map:floorTex}));fl.rotation.x=-Math.PI/2;fl.position.set(HX/2,0,HZ/2);fl.receiveShadow=true;NHA.add(fl);
+ N.cot.forEach(c=>{const h=roofH(c.z);const trong=c.z>0.5&&c.z<HZ-0.5&&c.x>0.5&&c.x<HX-0.5;
+  if(trong){box(cc,h,0.02,HM.col,c.x,h/2,c.z-cc/2+0.01,NHA);box(cc,h,0.02,HM.col,c.x,h/2,c.z+cc/2-0.01,NHA);box(0.02,h,cc-0.02,HM.col,c.x,h/2,c.z,NHA);box(0.7,0.04,0.7,HM.col,c.x,0.02,c.z,NHA,false)}
+  else box(cc*0.9,h,cc*0.9,HM.col,c.x,h/2,c.z,NHA)});
+ box(HX,+GIA.caoChan,td,HM.plinth,HX/2,GIA.caoChan/2,-td/2,NHA);box(HX,+GIA.caoChan,td,HM.plinth,HX/2,GIA.caoChan/2,HZ+td/2,NHA);box(td,+GIA.caoChan,HZ,HM.plinth,-td/2,GIA.caoChan/2,HZ/2,NHA);box(td,+GIA.caoChan,HZ,HM.plinth,HX+td/2,GIA.caoChan/2,HZ/2,NHA);
+ box(HX,EAVE,0.2,HM.wall,HX/2,EAVE/2,0,NHA,false);box(HX,EAVE,0.2,HM.wall,HX/2,EAVE/2,HZ,NHA,false);box(0.2,EAVE,HZ,HM.wall,0,EAVE/2,HZ/2,NHA,false);box(0.2,EAVE,HZ,HM.wall,HX,EAVE/2,HZ/2,NHA,false);
+ [0,HX].forEach(x=>{const sh=new THREE.Shape();sh.moveTo(0,EAVE);sh.lineTo(HZ,EAVE);sh.lineTo(HZ/2,NOC);sh.closePath();const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),HM.wall);m.rotation.y=-Math.PI/2;m.position.set(x,0,0);NHA.add(m)});
+ [[0,HZ/2],[HZ/2,HZ]].forEach(([z0,z1])=>{const len=Math.hypot(HZ/2,NOC-EAVE);const m=new THREE.Mesh(new THREE.PlaneGeometry(HX,len),HM.roof);m.position.set(HX/2,(EAVE+NOC)/2,(z0+z1)/2);m.rotation.x=-Math.PI/2+(z0===0?1:-1)*Math.atan2(NOC-EAVE,HZ/2);roofG.add(m)});
+ /* mái phụ ngoài trục 19 (vệ tinh) — nét mờ */
+ const mp=+GIA.maiPhuDong;if(mp>0){const m=box(mp,0.1,HZ,HM.roof,HX+td+mp/2,EAVE-0.5,HZ/2,NHA,false);m.material=HM.roof}
+ /* nhãn trục */
+ N.X.forEach((x,i)=>{nhan(N.nhanX[i],x,2.2,HZ+3.2,NHA,0.6,2);nhan(N.nhanX[i],x,2.2,-3.2,NHA,0.6,3)});
+ N.Z.forEach((z,i)=>{nhan(N.nhanZ[i],HX+3.2,2.2,z,NHA,0.6,2);nhan(N.nhanZ[i],-3.2,2.2,z,NHA,0.6,3)});
+ nhan('Trục 1 (tường có cửa xuất · cửa nạp sorter)',-6,6,HZ/2,NHA,0.8,2);nhan('Trục 19 · mái phụ '+soVn(mp)+' m',HX+6,6,HZ/2,NHA,0.8,2);
+ nhan('Trục M (mép trên tờ vẽ)',HX/2,6,-5,NHA,0.8,2);nhan('Trục A (mép dưới tờ vẽ) · dock cont',HX/2,6,HZ+5,NHA,0.8,2)}
+/* ═══════════════ 3. KHU VỰC ═══════════════ */
+const KHU_G={};
+function dungKhu(k){const g=new THREE.Group();g.userData.khu=k.id;
+ if(k.anSan){g.position.set(k.x,0,k.z);GOC.add(g);KHU_G[k.id]=g;return g}                 // khu 'nha' (cửa/dock gắn tường): không vẽ vùng vàng
+ const pts=X.ptsKhu(k),b=X.vetKhu(k);
+ const sh=new THREE.Shape();pts.forEach((p,i)=>i?sh.lineTo(p[0]-k.x,-(p[1]-k.z)):sh.moveTo(p[0]-k.x,-(p[1]-k.z)));
+ const pl=new THREE.Mesh(new THREE.ShapeGeometry(sh),k.ngoai?HM.zoneNgoai:HM.zone);pl.rotation.x=-Math.PI/2;pl.position.y=0.008;pl.receiveShadow=true;pl.userData.matKhu=1;g.add(pl);
+ for(let i=0;i<pts.length;i++){const a=pts[i],c=pts[(i+1)%pts.length];const L=Math.hypot(c[0]-a[0],c[1]-a[1]);const m=box(Math.max(0.08,L),0.012,0.1,HM.line,(a[0]+c[0])/2-k.x,0.012,(a[1]+c[1])/2-k.z,g,false);m.rotation.y=-Math.atan2(c[1]-a[1],c[0]-a[0])}
+ const S=X.dienTich(k);nhan((k.ten||k.id)+' ('+soVn(S)+' m²)',b.x+b.w/2-k.x,3.6,b.y+b.h/2-k.z,g,0.8,1);
+ g.position.set(k.x,0,k.z);GOC.add(g);KHU_G[k.id]=g;return g}
+/* ═══════════════ 4. DÃY KỆ (InstancedMesh, port new-warehouse 388–410) ═══════════════ */
+const upG=new THREE.BoxGeometry(0.09,5.5,0.09),bmG=new THREE.BoxGeometry(2.4,0.12,0.1),palG=new THREE.BoxGeometry(1.0,0.14,1.2),ctG=new THREE.BoxGeometry(0.47,0.41,0.57),brG=new THREE.BoxGeometry(0.03,1.55,0.03);
+const KE_MAT={};
+function dungDayKe(v){const k=X.kichThuocKe(v,GIA);const g=new THREE.Group();const T=new THREE.Object3D();const tang=+GIA.keTang||4,pitch=+GIA.kePitch||1.4,cao=+GIA.keCao||5.5;
+ const LV=Array.from({length:tang},(_,i)=>i*pitch);const nH=k.hangDs.length;
+ const cPal=k.n*2*tang*nH,cUp=(k.n+1)*2*nH,cBm=k.n*(tang-1)*2*nH,cBr=(k.n+1)*(tang)*nH;
+ const mp=KE_MAT[v.gd]||(KE_MAT[v.gd]=new THREE.MeshLambertMaterial({color:PH[v.gd]||0xc9a86a}));
+ const up=new THREE.InstancedMesh(upG,HM.upright,cUp),bm=new THREE.InstancedMesh(bmG,HM.beam,Math.max(1,cBm)),pal=new THREE.InstancedMesh(palG,HM.palW,Math.max(1,cPal)),ct=new THREE.InstancedMesh(ctG,mp,Math.max(1,cPal*8)),br=new THREE.InstancedMesh(brG,HM.upright,Math.max(1,cBr));
+ let iu=0,ib=0,ip=0,ic=0,ibr=0;const x0=-k.L/2+0.045;const occ=SUA.bat?0.35:1;
+ k.hangDs.forEach(zc=>{for(let i=0;i<=k.n;i++){[-0.45,0.45].forEach(dz=>{T.position.set(x0+i*k.bay,cao/2,zc+dz*k.sau);T.rotation.set(0,0,0);T.scale.set(1,cao/5.5,1);T.updateMatrix();up.setMatrixAt(iu++,T.matrix)});
+   T.scale.set(1,1,1);LV.forEach((y,j)=>{T.position.set(x0+i*k.bay,y+0.9,zc);T.rotation.set((j%2?1:-1)*0.52,0,0);T.updateMatrix();br.setMatrixAt(ibr++,T.matrix)});T.rotation.set(0,0,0)}
+  for(let i=0;i<k.n;i++){LV.slice(1).forEach(y=>{[-0.45,0.45].forEach(dz=>{T.position.set(x0+i*k.bay+k.bay/2,y-0.06,zc+dz*k.sau);T.scale.set(k.bay/2.4,1,1);T.updateMatrix();bm.setMatrixAt(ib++,T.matrix)})});T.scale.set(1,1,1);
+   LV.forEach(y=>{[-0.6,0.6].forEach(dx=>{const cx=x0+i*k.bay+k.bay/2+dx;if(Math.random()<occ){T.position.set(cx,y+0.145,zc);T.rotation.set(0,0,0);T.updateMatrix();pal.setMatrixAt(ip++,T.matrix);
+     for(let L=0;L<2;L++)for(let a=0;a<2;a++)for(let b=0;b<2;b++){T.position.set(cx-0.25+a*0.5,y+0.075+0.14+0.21+L*0.42,zc-0.3+b*0.6);T.rotation.set(0,(Math.random()-0.5)*0.06,0);T.updateMatrix();ct.setMatrixAt(ic++,T.matrix)}}})})}});
+ up.count=iu;bm.count=ib;pal.count=ip;ct.count=ic;br.count=ibr;[up,bm,pal,ct,br].forEach(m=>{m.instanceMatrix.needsUpdate=true;m.castShadow=true;m.receiveShadow=true;g.add(m)});
+ nhan((k.kieu==='dd'?'Double-deep':k.kieu==='don'?'Kệ đơn':'Selective')+(v.gd?' GĐ'+v.gd:'')+' · '+k.n+' bay · '+k.viTri+' vị trí',0,cao+1.0,0,g,0.7,3);
+ return g}
+/* ═══════════════ 5. SORTER CROSS-BELT (port nguyên khối new-warehouse 73–329) ═══════════════ */
+const SORTERS=[];
+function dungSorter(v){
+ const KT=X.sorterKT(GIA,v.tram);const Ls=KT.Ls,Lw=KT.Lw,R=KT.R,H=KT.H,PITCH=0.7,V=2.0,XL=KT.XL,ZW=KT.ZW,TW=KT.TW;
+ const CAGE_H=1.3,HEND=CAGE_H+0.25,CH_DY=H-HEND,CH_ANG=25*Math.PI/180,CH_LEN=CH_DY/Math.sin(CH_ANG),CH_DX=CH_LEN*Math.cos(CH_ANG),CAGE_D=1.2,D_CAGE=CH_DX+0.35,AISLE_IN=2.5,AISLE=KT.AISLE,CLR=2.0;
+ const IND_Z=Array.from({length:KT.nLine},(_,i)=>-1.2*(KT.nLine-1)+2.4*i);
+ const HEND_B=0.75,CH_DY_B=H-HEND_B,CH_LEN_B=CH_DY_B/Math.sin(CH_ANG),CH_DX_B=CH_LEN_B*Math.cos(CH_ANG),FLAT_B=0.6,WORK_B=0.8,PAL_D=1.2,D_PAL_B=CH_DX_B+FLAT_B+WORK_B+PAL_D/2;
+ let MODE=v.tram==='manual'?'manual':'cage';
+ const G=new THREE.Group();const S=new THREE.Group();S.rotation.y=Math.PI;G.add(S);     // S = hệ trang mẫu, xoay 180° như gốc
+ const Q=Math.PI/2*R;
+ const SEG=[{t:'s',x0:R,z0:-ZW/2,x1:R+Ls,z1:-ZW/2},{t:'a',cx:R+Ls,cz:-ZW/2+R,a0:-Math.PI/2},{t:'s',x0:XL,z0:-ZW/2+R,x1:XL,z1:ZW/2-R},{t:'a',cx:R+Ls,cz:ZW/2-R,a0:0},
+  {t:'s',x0:R+Ls,z0:ZW/2,x1:R,z1:ZW/2},{t:'a',cx:R,cz:ZW/2-R,a0:Math.PI/2},{t:'s',x0:0,z0:ZW/2-R,x1:0,z1:-ZW/2+R},{t:'a',cx:R,cz:-ZW/2+R,a0:Math.PI}];
+ let acc=0;SEG.forEach(g=>{g.s0=acc;g.len=g.t==='s'?Math.hypot(g.x1-g.x0,g.z1-g.z0):Q;acc+=g.len});
+ const L=acc,NCAR=Math.floor(L/PITCH);
+ function ring(s){s=((s%L)+L)%L;for(const g of SEG){if(s<=g.s0+g.len||g===SEG[7]){const d=s-g.s0;if(g.t==='s'){const tx=(g.x1-g.x0)/g.len,tz=(g.z1-g.z0)/g.len;return {x:g.x0+tx*d,z:g.z0+tz*d,tx,tz}}
+   const a=g.a0+d/R;return {x:g.cx+R*Math.cos(a),z:g.cz+R*Math.sin(a),tx:-Math.sin(a),tz:Math.cos(a)}}}}
+ const S_SOUTH=SEG[0].s0,S_EAST=SEG[2].s0,S_NORTH=SEG[4].s0,S_WEST=SEG[6].s0;
+ const bx=(w,h,d,mat,x,y,z,parent,shadow)=>box(w,h,d,mat,x,y,z,parent||S,shadow);
+ (function(){const pts=[];for(let s=0;s<=L;s+=0.25){const p=ring(s);pts.push(new THREE.Vector3(p.x,H-0.15,p.z))}
+  const curve=new THREE.CatmullRomCurve3(pts,true);const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,480,0.18,4,true),M.track);tube.castShadow=true;S.add(tube);
+  S.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p.x,p.y+0.12,p.z)),true),480,0.04,6,true),M.leg));
+  const pts2=[];for(let s=0;s<=L;s+=0.25){const p=ring(s);pts2.push(new THREE.Vector3(p.x,H-0.42,p.z))}
+  S.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts2,true),480,0.22,4,true),M.track));
+  for(let s=0;s<L;s+=4){const p=ring(s);const nx=-p.tz,nz=p.tx;for(const k of[-1,1]){const x=p.x+nx*k*(TW/2+0.15),z=p.z+nz*k*(TW/2+0.15);const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,H-0.45,8),M.leg);leg.position.set(x,(H-0.45)/2,z);leg.castShadow=true;S.add(leg)}
+   const bm=bx(0.12,0.12,TW+0.6,M.leg,p.x,H-0.5,p.z);bm.rotation.y=-Math.atan2(p.tz,p.tx)}})();
+ const carGeo=new THREE.BoxGeometry(0.62,0.08,0.7),beltGeo=new THREE.BoxGeometry(0.6,0.04,0.66);
+ const cars=[];for(let i=0;i<NCAR;i++){const g=new THREE.Group();const b=new THREE.Mesh(carGeo,M.car);b.castShadow=true;g.add(b);const bl=new THREE.Mesh(beltGeo,M.belt);bl.position.y=0.06;g.add(bl);S.add(g);cars.push({g,s:i*PITCH,box:null})}
+ function human(x,z,ry,parent){const g=new THREE.Group();const b=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.2,0.7,8),M.vest);b.position.y=0.95;g.add(b);const l=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.14,0.6,8),M.belt);l.position.y=0.3;g.add(l);const h=new THREE.Mesh(new THREE.SphereGeometry(0.13,10,8),M.human);h.position.y=1.45;g.add(h);g.position.set(x,0,z);g.rotation.y=ry;g.traverse(o=>o.castShadow=true);(parent||S).add(g);g.userData.nguoi=1;return g}
+ const feedLines=[];
+ IND_Z.forEach((z,i)=>{const xEdge=XL+TW/2;const stag=(i%2)?1.0:0;const xTop=xEdge+1.2+2.0,xIncl0=xTop+KT.doc,x0=xIncl0+2.5+stag;
+  const fl=x0-xIncl0;bx(fl,0.12,0.7,M.feed,(x0+xIncl0)/2,0.85-0.06,z);bx(fl-0.1,0.02,0.62,M.feedBelt,(x0+xIncl0)/2,0.86,z);
+  [[x0-0.2],[(x0+xIncl0)/2],[xIncl0+0.2]].forEach(([x])=>{[-0.3,0.3].forEach(dz=>{const l=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.8,6),M.leg);l.position.set(x,0.4,z+dz);S.add(l)})});
+  const dx=xTop-xIncl0,dy=H-0.85,len=Math.hypot(dx,dy);const inc=bx(len,0.12,0.7,M.feed,(xIncl0+xTop)/2,(0.85+H)/2-0.06,z);inc.rotation.z=-Math.atan2(dy,-dx);
+  const incb=bx(len-0.1,0.02,0.62,M.feedBelt,(xIncl0+xTop)/2,(0.85+H)/2+0.01,z);incb.rotation.z=inc.rotation.z;
+  [0.25,0.5,0.75].forEach(f=>{const x=xIncl0+dx*f,y=0.85+dy*f;[-0.3,0.3].forEach(dz=>{const l=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,y-0.1,6),M.leg);l.position.set(x,(y-0.1)/2,z+dz);S.add(l)})});
+  const arch=new THREE.Group();bx(0.5,0.1,1.4,M.scan,0,0.9,0,arch);bx(0.5,0.9,0.1,M.scan,0,0.45,-0.65,arch);bx(0.5,0.9,0.1,M.scan,0,0.45,0.65,arch);arch.position.set(xTop-0.1,H,z);S.add(arch);
+  const xG=xEdge+1.2;bx(2.0,0.12,0.7,M.feed,(xTop+xG)/2,H-0.06,z);bx(1.9,0.02,0.62,M.feedBelt,(xTop+xG)/2,H+0.01,z);
+  const ex=XL+0.45,ez=z+1.2,mlen=Math.hypot(ex-xG,ez-z);const mg=bx(mlen,0.12,0.7,M.feed,(xG+ex)/2,H-0.06,(z+ez)/2);mg.rotation.y=-Math.atan2(ez-z,ex-xG);
+  const mgb=bx(mlen-0.1,0.02,0.62,M.feedBelt,(xG+ex)/2,H+0.01,(z+ez)/2);mgb.rotation.y=mg.rotation.y;
+  human(x0+0.6,z,-Math.PI/2);
+  feedLines.push({path:[[x0,0.9,z],[xIncl0,0.9,z],[xTop,H+0.05,z],[xG,H+0.05,z],[ex,H+0.05,ez]],mergeS:S_EAST+(ez+ZW/2-R),t:Math.random()*3})});
+ /* trạm lồng + máng */
+ const chutes=[];const rollerGeo=new THREE.CylinderGeometry(0.04,0.04,0.66,8);rollerGeo.rotateZ(Math.PI/2);
+ const NR=Math.floor(CH_LEN/0.16),NRB=Math.floor(CH_LEN_B/0.16)+Math.floor(FLAT_B/0.16);
+ const rollers=new THREE.InstancedMesh(rollerGeo,M.leg,100*NR);S.add(rollers);let rIdx=0;const tmp=new THREE.Object3D();
+ const SA=new THREE.Group(),SB=new THREE.Group();S.add(SA);S.add(SB);SB.visible=false;
+ const rollersB=new THREE.InstancedMesh(rollerGeo,M.leg,100*NRB);SB.add(rollersB);let rIdxB=0;const invS=new THREE.Matrix4();
+ function localMat(grp){grp.updateMatrixWorld(true);S.updateMatrixWorld(true);return invS.copy(S.matrixWorld).invert()}
+ function makeCage(){const g=new THREE.Group();bx(1.0,0.14,CAGE_D,M.pallet,0,0.07,0,g);const hw=CAGE_H-0.14;
+  bx(1.0,hw,0.02,M.mesh,0,0.14+hw/2,-CAGE_D/2,g,false);bx(1.0,hw,0.02,M.mesh,0,0.14+hw/2,CAGE_D/2,g,false);bx(0.02,hw,CAGE_D,M.mesh,-0.5,0.14+hw/2,0,g,false);bx(0.02,hw,CAGE_D,M.mesh,0.5,0.14+hw/2,0,g,false);
+  [[-0.5,-CAGE_D/2],[0.5,-CAGE_D/2],[-0.5,CAGE_D/2],[0.5,CAGE_D/2]].forEach(([x,z])=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,hw,6),M.leg);p.position.set(x,0.14+hw/2,z);g.add(p)});return g}
+ function addChute(name,s,nx,nz){const p=ring(s);const tx=p.tx,tz=p.tz;const ex=p.x+nx*TW/2,ez=p.z+nz*TW/2;const ry=Math.atan2(nx,nz);
+  const g=new THREE.Group();g.rotation.y=ry;g.position.set(ex,H-0.05,ez);SA.add(g);const inc=new THREE.Group();inc.rotation.x=CH_ANG;g.add(inc);
+  [-0.37,0.37].forEach(dx=>bx(0.05,0.18,CH_LEN,M.chute,dx,0.02,CH_LEN/2,inc));
+  {const inv=localMat(inc);for(let i=0;i<NR;i++){tmp.position.set(0,0,0.1+i*0.16);tmp.rotation.set(0,0,0);tmp.updateMatrix();const m=new THREE.Matrix4().copy(tmp.matrix);m.premultiply(inc.matrixWorld).premultiply(inv);rollers.setMatrixAt(rIdx++,m)}}
+  const px=ex+nx*D_CAGE,pz=ez+nz*D_CAGE;const cage=makeCage();cage.position.set(px,0,pz);cage.rotation.y=ry;SA.add(cage);
+  const gb=new THREE.Group();gb.rotation.y=ry;gb.position.set(ex,H-0.05,ez);SB.add(gb);const incb=new THREE.Group();incb.rotation.x=CH_ANG;gb.add(incb);
+  [-0.37,0.37].forEach(dx=>bx(0.05,0.18,CH_LEN_B,M.chute,dx,0.02,CH_LEN_B/2,incb));
+  {const inv=localMat(incb);for(let i=0;i<Math.floor(CH_LEN_B/0.16);i++){tmp.position.set(0,0,0.1+i*0.16);tmp.rotation.set(0,0,0);tmp.updateMatrix();const m=new THREE.Matrix4().copy(tmp.matrix);m.premultiply(incb.matrixWorld).premultiply(inv);rollersB.setMatrixAt(rIdxB++,m)}}
+  const flat=new THREE.Group();flat.position.set(0,-CH_DY_B,CH_DX_B);gb.add(flat);[-0.37,0.37].forEach(dx=>bx(0.05,0.18,FLAT_B,M.chute,dx,0.02,FLAT_B/2,flat));
+  {const inv=localMat(flat);for(let i=0;i<Math.floor(FLAT_B/0.16);i++){tmp.position.set(0,0,0.1+i*0.16);tmp.rotation.set(0,0,0);tmp.updateMatrix();const m=new THREE.Matrix4().copy(tmp.matrix);m.premultiply(flat.matrixWorld).premultiply(inv);rollersB.setMatrixAt(rIdxB++,m)}}
+  bx(0.74,0.3,0.05,M.chuteRail,0,0.1,FLAT_B+0.02,flat);
+  const dW=CH_DX_B+FLAT_B+WORK_B/2;human(ex+nx*dW,ez+nz*dW,Math.atan2(-nx,-nz),SB);
+  const pxB=ex+nx*D_PAL_B,pzB=ez+nz*D_PAL_B;const pal=bx(1.0,0.14,PAL_D,M.pallet,pxB,0.07,pzB,SB);pal.rotation.y=ry;
+  const ch={name,s,nx,nz,tx,tz,ex,ez,ry,inner:name.endsWith('I'),stack:[],A:{px,pz,pallet:cage},B:{px:pxB,pz:pzB,pallet:pal}};
+  Object.defineProperty(ch,'px',{get(){return this[MODE==='cage'?'A':'B'].px}});Object.defineProperty(ch,'pz',{get(){return this[MODE==='cage'?'A':'B'].pz}});
+  Object.defineProperty(ch,'pallet',{get(){return this[MODE==='cage'?'A':'B'].pallet},set(q){this[MODE==='cage'?'A':'B'].pallet=q}});chutes.push(ch)}
+ const START=CLR+0.55,NLONG=25;
+ for(let k=0;k<NLONG;k++){const s0=S_SOUTH+START+1.1*k;addChute('SO',s0,0,-1);addChute('SI',s0,0,1)}
+ for(let k=0;k<NLONG;k++){const s0=S_NORTH+START+1.1*k;addChute('NO',s0,0,1);addChute('NI',s0,0,-1)}
+ rollers.instanceMatrix.needsUpdate=true;rollersB.instanceMatrix.needsUpdate=true;
+ (function(){function strip(x,z,w,d,mat,grp){const a=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat||M.aisle);a.rotation.x=-Math.PI/2;a.position.set(x,0.012,z);a.receiveShadow=true;(grp||SA).add(a)}
+  const laneC=ZW/2-TW/2-D_CAGE-CAGE_D/2-AISLE_IN/2;strip(XL/2,laneC,XL-TW,AISLE_IN);strip(XL/2,-laneC,XL-TW,AISLE_IN);strip(TW/2+CLR/2,0,CLR,ZW-TW-0.4);strip(XL-TW/2-CLR/2,0,CLR,ZW-TW-0.4);
+  const bufM=new THREE.MeshLambertMaterial({color:0xcfd6cc});strip(XL/2,0,XL-TW-2*CLR-1,2*laneC-AISLE_IN-0.4,bufM);
+  for(let i=0;i<22;i++){const c=makeCage();c.position.set(R+1.2+i*1.15,0,0);c.rotation.y=Math.PI/2;SA.add(c)}
+  const laneB=ZW-TW-2*(D_PAL_B+PAL_D/2);strip(XL/2,0,XL-TW,Math.max(1,laneB),null,SB);
+  const outB=TW/2+D_PAL_B+PAL_D/2+AISLE/2;strip(XL/2,-ZW/2-outB,XL+2*outB,AISLE,null,SB);strip(XL/2,ZW/2+outB,XL+2*outB,AISLE,null,SB);
+  const outA=TW/2+D_CAGE+CAGE_D/2+AISLE/2;strip(XL/2,-ZW/2-outA,XL+2*outA,AISLE);strip(XL/2,ZW/2+outA,XL+2*outA,AISLE);strip(-outA,0,AISLE,ZW+2*outA,null,S);
+  function arrow(x,z,rot){const sh=new THREE.Shape();sh.moveTo(0,0.6);sh.lineTo(-0.5,-0.4);sh.lineTo(0.5,-0.4);sh.closePath();const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),M.arrow);m.rotation.x=-Math.PI/2;m.rotation.z=rot;m.position.set(x,0.02,z);S.add(m)}
+  [[R,-ZW/2+R,-1,-1],[R+Ls,-ZW/2+R,1,-1],[R+Ls,ZW/2-R,1,1],[R,ZW/2-R,-1,1]].forEach(([cx,cz,sx,sz])=>{for(let i=0;i<3;i++){const d=-1.2+i*1.6;arrow(cx+sx*d*0.707,cz+sz*d*0.707,Math.atan2(-sx,-sz))}})})();
+ const jackG=()=>{const g=new THREE.Group();bx(0.6,0.25,1.4,M.jack,0,0.15,0,g);bx(0.1,0.9,0.1,M.jack,0,0.7,0.75,g);g.traverse(o=>o.castShadow=true);S.add(g);return g};
+ const boxGeo=new THREE.BoxGeometry(0.42,0.3,0.34);const active=[];const movingPallets=[];
+ function spawnBox(line){const m=new THREE.Mesh(boxGeo,Math.random()<0.5?M.box:M.box2);m.castShadow=true;S.add(m);active.push({m,state:'feed',line,t:0,car:null,chute:null,ct:0})}
+ function lerpPath(path,d){let acc=0;for(let i=0;i<path.length-1;i++){const a=path[i],b=path[i+1];const seg=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]);if(d<=acc+seg){const f=(d-acc)/seg;return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,false]}acc+=seg}const e=path[path.length-1];return [e[0],e[1],e[2],true]}
+ function pathLen(path){let acc=0;for(let i=0;i<path.length-1;i++){const a=path[i],b=path[i+1];acc+=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2])}return acc}
+ function palletFull(ch){const g=new THREE.Group();const j=jackG();S.remove(j);g.add(j);j.rotation.y=Math.PI/2;j.position.set(0,0,ch.inner?-0.9:0.9);
+  const c=ch.pallet;c.parent.remove(c);c.position.set(0,0,0);c.rotation.y=0;g.add(c);
+  ch.stack.forEach(b=>{S.remove(b);b.position.sub(new THREE.Vector3(ch.px,0,ch.pz));b.position.applyAxisAngle(new THREE.Vector3(0,1,0),-ch.ry);b.rotation.y-=ch.ry;g.add(b)});
+  g.position.set(ch.px,0,ch.pz);g.rotation.y=ch.ry;S.add(g);const route=[[ch.px,ch.pz]];
+  if(ch.inner){const ax=ch.px,ly=MODE==='cage'?ch.ez+ch.nz*(D_CAGE+CAGE_D/2+AISLE_IN/2):0;route.push([ax,ly]);const corners=[[R,-ZW/2+R],[R+Ls,-ZW/2+R],[R+Ls,ZW/2-R],[R,ZW/2-R]];
+   let best=null,bd=1e9;corners.forEach((c,i)=>{const d=Math.hypot(c[0]-ax,c[1]-ly);if(d<bd){bd=d;best=i}});const c=corners[best];const sx=(best===0||best===3)?-1:1,sz=(best<2)?-1:1;
+   route.push([c[0]-sx*1.0,ly]);route.push([c[0]+sx*3.0,c[1]+sz*3.0]);route.push([c[0]+sx*9,c[1]+sz*9])}
+  else{const dO=MODE==='cage'?(D_CAGE+CAGE_D/2+AISLE/2):(D_PAL_B+PAL_D/2+AISLE/2);const az=ch.ez+ch.nz*dO,ax=ch.ex+ch.nx*dO;route.push([ax,az]);if(ch.nx===0)route.push([ch.px<XL/2?-8:XL+8,az]);else route.push([-10,az])}
+  let len=0;for(let i=1;i<route.length;i++)len+=Math.hypot(route[i][0]-route[i-1][0],route[i][1]-route[i-1][1]);movingPallets.push({g,route,d:0,len});
+  ch.stack=[];if(MODE==='cage'){ch.pallet=makeCage();ch.pallet.position.set(ch.px,0,ch.pz);ch.pallet.rotation.y=ch.ry;SA.add(ch.pallet)}else{const pal=bx(1.0,0.14,PAL_D,M.pallet,ch.px,0.07,ch.pz,SB);pal.rotation.y=ch.ry;ch.pallet=pal}}
+ function stackBox(ch,m){const n=ch.stack.length;const col=n%2,row=Math.floor(n/2)%2,lay=Math.floor(n/4);const u=-0.24+col*0.48+(Math.random()-0.5)*0.08,w=-0.32+row*0.64+(Math.random()-0.5)*0.08;
+  m.position.set(ch.px+ch.tx*u+ch.nx*w,0.14+0.15+lay*0.3,ch.pz+ch.tz*u+ch.nz*w);m.rotation.set(0,ch.ry+(Math.random()-0.5)*0.5,0);m.castShadow=true;S.add(m);ch.stack.push(m)}
+ function seedStacks(){chutes.forEach(ch=>{const n=Math.floor(Math.random()*(MODE==='cage'?9:6));for(let k=0;k<n;k++)stackBox(ch,new THREE.Mesh(boxGeo,Math.random()<0.5?M.box:M.box2))})}
+ seedStacks();
+ function setMode(m){MODE=m;SA.visible=(m==='cage');SB.visible=(m!=='cage');for(let i=active.length-1;i>=0;i--){const b=active[i];if(b.state!=='feed'){if(b.car)b.car.box=null;S.remove(b.m);active.splice(i,1)}}chutes.forEach(ch=>{ch.stack.forEach(b=>S.remove(b));ch.stack=[]});seedStacks()}
+ /* line #5 từ khu soạn IT */
+ (function(){function seg3(ax,ay,az,bx2,by,bz,w,hh,mat,inset){inset=inset||0;const dx=bx2-ax,dz=bz-az,dh=Math.hypot(dx,dz),len=Math.hypot(dh,by-ay);const g=new THREE.Group();g.rotation.order='YXZ';g.rotation.y=Math.atan2(dx,dz);g.rotation.x=-Math.atan2(by-ay,dh);g.position.set((ax+bx2)/2,(ay+by)/2,(az+bz)/2);box(w,hh,len-inset,mat,0,0,0,g);S.add(g);return g}
+  const zi=0,xEdge=-TW/2,xG=xEdge-1.2,xTop=xG-2.0,xIn0=xTop-KT.doc,xLab1=xIn0-0.3,xLab0=xLab1-3.6,x0=xLab0-0.6;
+  seg3(x0,0.79,zi,xIn0,0.79,zi,0.7,0.12,M.feed);seg3(x0,0.86,zi,xIn0,0.86,zi,0.62,0.02,M.feedBelt,0.1);
+  [x0+0.2,xIn0-0.2,(x0+xIn0)/2].forEach(x=>{[-0.3,0.3].forEach(dz=>{const l=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.8,6),M.leg);l.position.set(x,0.4,zi+dz);S.add(l)})});
+  const gx=(xLab0+xLab1)/2;const portal=new THREE.Group();portal.position.set(gx,0,zi);[[-0.6,-0.55],[0.6,-0.55],[-0.6,0.55],[0.6,0.55]].forEach(([dx,dz])=>bx(0.08,2.0,0.08,M.scan,dx,1.0,dz,portal));
+  bx(1.4,0.45,1.3,M.scan,0,2.0,0,portal);bx(0.5,0.3,0.4,M.scan,0,1.35,-0.75,portal);bx(0.45,0.35,0.35,M.leg,-0.9,1.1,0.75,portal);S.add(portal);
+  seg3(xIn0,0.79,zi,xTop,H-0.06,zi,0.7,0.12,M.feed);seg3(xIn0,0.86,zi,xTop,H+0.01,zi,0.62,0.02,M.feedBelt,0.1);
+  [0.25,0.5,0.75].forEach(f=>{const x=xIn0+(xTop-xIn0)*f,y=0.85+(H-0.85)*f;[-0.3,0.3].forEach(dz=>{const l=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,y-0.1,6),M.leg);l.position.set(x,(y-0.1)/2,zi+dz);S.add(l)})});
+  const arch=new THREE.Group();bx(0.5,0.1,1.4,M.scan,0,0.9,0,arch);bx(0.5,0.9,0.1,M.scan,0,0.45,-0.65,arch);bx(0.5,0.9,0.1,M.scan,0,0.45,0.65,arch);arch.position.set(xTop+0.1,H,zi);S.add(arch);
+  seg3(xTop,H-0.06,zi,xG,H-0.06,zi,0.7,0.12,M.feed);seg3(xTop,H+0.01,zi,xG,H+0.01,zi,0.62,0.02,M.feedBelt,0.1);
+  const ex=xEdge,ez=zi-1.2;seg3(xG,H-0.06,zi,ex,H-0.06,ez,0.7,0.12,M.feed);seg3(xG,H+0.01,zi,ex,H+0.01,ez,0.62,0.02,M.feedBelt,0.1);human(x0-0.8,zi+0.9,Math.PI/2);
+  feedLines.push({path:[[x0,0.9,zi],[xIn0,0.9,zi],[xTop,H+0.05,zi],[xG,H+0.05,zi],[ex,H+0.05,ez]],mergeS:S_WEST+(ZW/2-R-ez),t:1.5});
+  nhan('Line nạp #5 – soạn IT: dán nhãn tự động → dốc 15° → nhập làn 45°',gx,H+1.6,zi,S,0.9,2)})();
+ nhan('Ring '+soVn(Ls)+' × '+soVn(Lw)+' m · cua R'+soVn(R)+' · '+NCAR+' xe · '+KT.nLine+' line nạp',XL/2,H+2.0,-ZW/2,S,1,2);
+ nhan('Máng con lăn 25° → lồng pallet 1,0 × 1,2 · lối kéo lồng '+soVn(AISLE)+' m',XL/2,H+1.0,-ZW/2-TW/2-CH_DX-0.3,S,0.85,3);
+ function tick(dt){for(const c of cars){c.s=(c.s+V*dt)%L;const p=ring(c.s);c.g.position.set(p.x,H-0.1,p.z);c.g.rotation.y=-Math.atan2(p.tz,p.tx);
+   if(c.box){const b=c.box.m;b.position.set(p.x,H+0.2,p.z);b.rotation.y=c.g.rotation.y;const ch=c.box.chute;let ds=ch.s-c.s;if(ds<-L/2)ds+=L;if(ds>L/2)ds-=L;if(Math.abs(ds)<V*dt/2+0.02){c.box.state='chute';c.box.ct=0;c.box.car=null;c.box=null}}}
+  for(const f of feedLines){f.t-=dt;if(f.t<=0){f.t=2.2+Math.random()*0.5;if(active.length<140)spawnBox(f)}}
+  for(let i=active.length-1;i>=0;i--){const b=active[i];
+   if(b.state==='feed'){const f=b.line;const plen=pathLen(f.path);b.t+=0.9*dt;const [x,y,z]=lerpPath(f.path,b.t);b.m.position.set(x,y+0.15,z);b.m.rotation.y=b.t>plen-1.7?Math.PI/4:0;
+    if(b.t>=plen-0.05){const c=cars.find(c=>!c.box&&Math.abs(((c.s-f.mergeS)%L+L)%L)<0.4);if(c){b.state='ride';b.car=c;c.box=b;b.chute=chutes[Math.floor(Math.random()*chutes.length)]}else b.t=plen-0.05}}
+   else if(b.state==='chute'){const ch=b.chute;const cage=MODE==='cage';const DX=cage?CH_DX:CH_DX_B,DY=cage?CH_DY:CH_DY_B;b.ct+=dt/(cage?0.9:1.4);const f=Math.min(1,b.ct);const d=DX*f;b.m.position.set(ch.ex+ch.nx*d,H+0.15-DY*f,ch.ez+ch.nz*d);b.m.rotation.order='YXZ';b.m.rotation.set(CH_ANG,ch.ry,0);
+    if(f>=1){if(cage){b.state='drop';b.ct=0;b.y0=H+0.15-CH_DY;b.yT=0.14+0.15+Math.floor(ch.stack.length/4)*0.3}else{b.state='flat';b.ct=0}}}
+   else if(b.state==='flat'){const ch=b.chute;b.ct+=dt;const d=CH_DX_B+Math.min(FLAT_B-0.25,b.ct*0.5);b.m.position.set(ch.ex+ch.nx*d,HEND_B+0.17,ch.ez+ch.nz*d);b.m.rotation.set(0,ch.ry,0);
+    if(b.ct>1.6){active.splice(i,1);S.remove(b.m);const mm=new THREE.Mesh(boxGeo,b.m.material);stackBox(ch,mm);if(ch.stack.length>=8)palletFull(ch)}}
+   else if(b.state==='drop'){const ch=b.chute;b.ct+=dt;const y=Math.max(b.yT,b.y0-4.9*b.ct*b.ct);const d=Math.min(D_CAGE,CH_DX+0.3+b.ct*0.6);b.m.position.set(ch.ex+ch.nx*d,y,ch.ez+ch.nz*d);b.m.rotation.set(0,ch.ry,0);
+    if(y<=b.yT){active.splice(i,1);S.remove(b.m);const mm=new THREE.Mesh(boxGeo,b.m.material);stackBox(ch,mm);if(ch.stack.length>=12)palletFull(ch)}}}
+  for(let i=movingPallets.length-1;i>=0;i--){const p=movingPallets[i];p.d+=1.2*dt;const r=p.route;let acc=0,done=true;for(let k=0;k<r.length-1;k++){const seg=Math.hypot(r[k+1][0]-r[k][0],r[k+1][1]-r[k][1]);if(p.d<=acc+seg){const f=(p.d-acc)/seg;p.g.position.set(r[k][0]+(r[k+1][0]-r[k][0])*f,0,r[k][1]+(r[k+1][1]-r[k][1])*f);p.g.rotation.y=Math.atan2(r[k+1][0]-r[k][0],r[k+1][1]-r[k][1])-Math.PI/2;done=false;break}acc+=seg}if(done){S.remove(p.g);movingPallets.splice(i,1)}}}
+ const ob={g:G,tick,setMode,get MODE(){return MODE}};SORTERS.push(ob);G.userData.sorter=ob;return G}
+/* ═══════════════ 6. ĐỒ RỜI (chép nhánh dungVat kho170-3d.html 1100–1197 + loại mới Liên Anh) ═══════════════ */
+function hatVat(id){let n=7;for(let i=0;i<id.length;i++)n=(n*31+id.charCodeAt(i))%9973;return n}
+function dungVat(v){const g=new THREE.Group(),H=0.75,b=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
+ const w=+v.w||1,d=+v.d||1;
+ if(v.loai==='ban'){b(w,0.04,d,MV.go,0,H-0.02,0);[-1,1].forEach(k=>b(0.05,H-0.04,d*0.9,MV.khung,k*(w/2-0.05),(H-0.04)/2,0));
+  if(v.mt){b(Math.min(0.56,w-0.1),0.34,0.03,MV.man,0,H+0.26,-(d/2-0.15));b(0.2,0.42,0.42,MV.den,w/2-0.2,0.22,0)}
+  if(v.ghe!==undefined?v.ghe:v.mt){const gz=d/2+0.35;b(0.48,0.08,0.48,MV.ghe,0,0.47,gz);b(0.46,0.5,0.06,MV.ghe,0,0.76,gz+0.22);b(0.06,0.43,0.06,MV.khung,0,0.22,gz)}}
+ else if(v.loai==='keMam'){const tang=[0.1,0.55,1.0,1.45,1.97];tang.forEach(y=>b(w,0.03,d,MV.sat,0,y,0));[-1,1].forEach(i=>[-1,1].forEach(j=>b(0.04,2.0,0.04,MV.sat,i*(w/2-0.02),1.0,j*(d/2-0.02))));
+  const hat=hatVat(v.id),n=Math.max(1,Math.round(w/0.5));tang.slice(0,4).forEach((y,k)=>{for(let q=0;q<n;q++)if((k+q+hat)%3!==2)b(Math.min(0.42,w/n-0.06),0.3,Math.min(0.4,d-0.08),(k+q)%2?M.box:M.box2,-w/2+w/n*(q+0.5),y+0.17,0)})}
+ else if(v.loai==='keV'){const tang=[0.08,0.5,0.92,1.34,1.76,2.08],hat=hatVat(v.id),n=Math.max(1,Math.round(w/0.4));tang.forEach(y=>b(w,0.03,d,MV.sat,0,y,0));[-1,1].forEach(i=>[-1,1].forEach(j=>b(0.035,2.1,0.035,MV.sat,i*(w/2-0.02),1.05,j*(d/2-0.02))));
+  tang.slice(0,5).forEach((y,k)=>{for(let q=0;q<n;q++)if((k*2+q+hat)%4!==3)b(w/n-0.05,0.26,d-0.08,(k+q)%2?M.box:M.box2,-w/2+w/n*(q+0.5),y+0.145,0)})}
+ else if(v.loai==='keLuoi'){const h=+v.h||1.8,tang=[0.12,0.55,1.0,1.45,h-0.02];tang.forEach(y=>{b(w,0.02,d,MV.chau,0,y,0)});[-1,1].forEach(i=>[-1,1].forEach(j=>{const c=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,h,8),MV.crom);c.position.set(i*(w/2-0.02),h/2,j*(d/2-0.02));g.add(c)}))}
+ else if(v.loai==='vach'){const h=+v.h||+GIA.caoVach;b(w,h,d,HM.vach,0,h/2,0)}
+ else if(v.loai==='cuaSat'){const h=+v.h||2.1;b(w-0.08,h-0.04,Math.max(0.04,d-0.02),MV.sat2,0,h/2,0);[-1,1].forEach(k=>b(0.05,h,d+0.04,MV.khung,k*(w/2-0.025),h/2,0));b(w,0.05,d+0.04,MV.khung,0,h,0)}
+ else if(v.loai==='banAn'){b(w,0.04,d,MV.inox,0,0.72,0);[-1,1].forEach(i=>[-1,1].forEach(j=>b(0.04,0.7,0.04,MV.sat2,i*(w/2-0.06),0.35,j*(d/2-0.06))))}
+ else if(v.loai==='gheNhua'){const n=Math.max(1,Math.min(15,+v.n||5));for(let k=0;k<n;k++)b(w-0.02,0.1,d-0.02,MV.nhua,0,0.05+k*0.1,0);b(w,0.03,d,MV.nhua,0,0.12+n*0.1,0)}
+ else if(v.loai==='locker'){const h=+v.h||1.85,C=5,R=6,cw=w/C,rh=(h-0.1)/R;b(w,h,d,MV.denTu,0,h/2,0);
+  for(let i=0;i<C;i++)for(let j=0;j<R;j++){const x=-w/2+cw*(i+0.5),y=0.1+rh*(j+0.5);b(cw-0.02,rh-0.02,0.01,MV.denCua,x,y,d/2+0.005);b(0.02,0.06,0.015,MV.crom,x+cw/2-0.05,y,d/2+0.012)}}
+ else if(v.loai==='cay'){const h=+v.h||1.5,r=Math.min(w,d)/2;const cyl=(r1,r2b,hh,m,y)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2b,hh,16),m);o.position.set(0,y,0);g.add(o)};
+  cyl(r*0.85,r*0.65,0.42,MV.chau,0.21);cyl(0.03,0.04,h*0.45,MV.datTrong,0.42+h*0.2);[[0,h*0.62,0,r*1.05,MV.la2],[0.12,h*0.8,0.08,r*0.8,MV.la3],[-0.1,h*0.9,-0.06,r*0.65,MV.la2]].forEach(([x,y,z,rr,m])=>{const o=new THREE.Mesh(new THREE.IcosahedronGeometry(rr,1),m);o.position.set(x,y,z);g.add(o)})}
+ else if(v.loai==='xeNangTay'){const cang=0.8,CAO=0.085,rc=0.16;const xc=w/2-cang/2;[-1,1].forEach(k=>{b(cang,CAO-0.02,rc,MV.doXN,xc,CAO/2+0.01,k*(d/2-rc/2))});
+  b(0.3,0.16,d,MV.doXN,-w/2+0.2,0.12,0);b(0.12,0.3,0.14,MV.doXN,-w/2+0.16,0.35,0);const c=b(0.04,1.0,0.04,MV.xmDen,-w/2+0.02,0.85,0);c.rotation.z=0.22;b(0.05,0.05,0.34,MV.xmDen,-w/2-0.1,1.32,0)}
+ else if(v.loai==='palletDen'){const h=0.15;b(w,0.03,d,MV.pal,0,h-0.015,0);[-1,0,1].forEach(k=>b(w,0.03,0.12,MV.pal,0,0.015,k*(d/2-0.06)));[-1,0,1].forEach(i=>[-1,0,1].forEach(j=>b(0.14,h-0.06,0.14,MV.pal,i*(w/2-0.07),h/2,j*(d/2-0.07))))}
+ else if(v.loai==='mayLanh'){b(w,0.28,d,MV.chau,0,0.14,0)}
+ /* ── loại mới Liên Anh ── */
+ else if(v.loai==='xeSat2Tang'){const h=+v.h||1.0;[0.25,h-0.08].forEach(y=>b(w,0.03,d,MV.thep,0,y,0));[-1,1].forEach(i=>[-1,1].forEach(j=>b(0.03,h,0.03,MV.thep,i*(w/2-0.03),h/2,j*(d/2-0.03))));
+  [-1,1].forEach(i=>[-1,1].forEach(j=>{const bx2=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.04,10),MV.xmDen);bx2.rotation.z=Math.PI/2;bx2.position.set(i*(w/2-0.1),0.06,j*(d/2-0.08));g.add(bx2)}));b(0.03,0.03,d,MV.thep,-w/2+0.02,h+0.12,0);b(0.03,0.26,0.03,MV.thep,-w/2+0.02,h,-d/2+0.03);b(0.03,0.26,0.03,MV.thep,-w/2+0.02,h,d/2-0.03)}
+ else if(v.loai==='baoBong'){const h=+v.h||1.0;b(w*0.96,h,d*0.96,MV.bong,0,h/2,0);b(w*0.5,0.12,d*0.5,MV.bong,0,h+0.06,0)}
+ else if(v.loai==='thungGiay'){const h=+v.h||0.9;b(w,0.1,d,MV.pal,0,0.05,0);b(w*0.95,h-0.1,d*0.95,MV.giay,0,0.1+(h-0.1)/2,0);for(let k=0;k<3;k++)b(w*0.9,0.02,d*0.9,MV.go,0,0.3+k*0.25,0)}
+ else if(v.loai==='cumLong'){const n=Math.max(1,+v.n||4),m=Math.max(1,+v.m||4),cw=w/n,cd=d/m;for(let i=0;i<n;i++)for(let j=0;j<m;j++){const x=-w/2+cw*(i+0.5),z=-d/2+cd*(j+0.5);b(1.0,0.14,1.2,M.pallet,x,0.07,z);const hw=1.16;
+   [[0,-0.6,1.0,0.02],[0,0.6,1.0,0.02],[-0.5,0,0.02,1.2],[0.5,0,0.02,1.2]].forEach(([dx,dz,ww,dd])=>{const o=new THREE.Mesh(new THREE.BoxGeometry(ww,hw,dd),M.mesh);o.position.set(x+dx,0.14+hw/2,z+dz);g.add(o)})}}
+ else if(v.loai==='quay'){b(w,0.9,d,MV.go,0,0.45,0);b(w+0.1,0.04,d+0.1,MV.inox,0,0.92,0);b(w-0.2,0.3,0.02,MV.man,0,1.12,-(d/2-0.2))}
+ else if(v.loai==='gheCho'){b(w,0.06,d,MV.nhua,0,0.45,0);b(w,0.4,0.05,MV.nhua,0,0.68,-d/2+0.03);[-1,1].forEach(i=>[-1,1].forEach(j=>b(0.03,0.42,0.03,MV.sat2,i*(w/2-0.04),0.21,j*(d/2-0.04))))}
+ else if(v.loai==='tuSac'){b(w,1.2,d,HM.beam,0,1.2,0);b(w*0.6,0.3,0.02,MV.man,0,1.5,d/2+0.01);b(0.03,0.6,0.03,MV.xmDen,w/2-0.05,0.5,d/2+0.1)}
+ else if(v.loai==='oXeNang'){[[0,-d/2+0.05,w,0.1],[0,d/2-0.05,w,0.1],[-w/2+0.05,0,0.1,d],[w/2-0.05,0,0.1,d]].forEach(([x,z,ww,dd])=>b(ww,0.012,dd,HM.line,x,0.012,z));b(1.0,1.6,2.2,HM.truck,0,0.8,0);b(0.9,0.1,0.6,M.belt,0,0.15,-d/2+0.5)}
+ else if(v.loai==='cua'||v.loai==='dockCont'){const h=+GIA.cuaCao||4.5;const m=b(w,h,d,v.moi?HM.doorNew:HM.door,0,h/2,0);m.castShadow=false;
+  if(v.loai==='dockCont'){const t=v.tuong||'TA';const huong=(t==='TA')?1:(t==='TM')?-1:0;const cont=new THREE.Group();   // cont + đầu kéo đậu NGOÀI tường, dọc trục z
+   const add=(mm,x,y,z)=>{mm.position.set(x,y,z);cont.add(mm);return mm};add(new THREE.Mesh(new THREE.BoxGeometry(2.4,0.3,13.5),HM.chassis),0,1.05,8.2);add(new THREE.Mesh(new THREE.BoxGeometry(2.44,2.6,12.2),HM.cont),0,2.5,7.6);
+   add(new THREE.Mesh(new THREE.BoxGeometry(2.4,2.4,2.4),HM.truck),0,2.2,15.7);[[-1.2,2.5],[1.2,2.5],[-1.2,4.0],[1.2,4.0],[-1.2,14.2],[1.2,14.2],[-1.2,15.8],[1.2,15.8]].forEach(([dx,dz])=>{const wl=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.32,14),HM.chassis);wl.rotation.z=Math.PI/2;wl.position.set(dx,0.5,dz);cont.add(wl)});
+   cont.traverse(o=>{o.castShadow=true});if(huong<0)cont.rotation.y=Math.PI;g.add(cont)}}
+ else if(v.loai==='xeTai19'){const add=(mm)=>{g.add(mm);return mm};add(new THREE.Mesh(new THREE.BoxGeometry(4.3,2.0,1.9),HM.truck)).position.set(-0.7,1.7,0);add(new THREE.Mesh(new THREE.BoxGeometry(1.7,1.6,1.9),new THREE.MeshLambertMaterial({color:0xe8ecef}))).position.set(2.35,1.5,0);
+  add(new THREE.Mesh(new THREE.BoxGeometry(6.0,0.25,1.1),HM.chassis)).position.set(0,0.55,0);[[-2.0,0.9],[1.7,0.9],[-2.0,-0.9],[1.7,-0.9]].forEach(([dx,dz])=>{const wl=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.28,14),HM.chassis);wl.rotation.x=Math.PI/2;wl.position.set(dx,0.42,dz);g.add(wl)})}
+ else{b(w,+v.h||0.8,d,MV.xam,0,(+v.h||0.8)/2,0)}
+ if(v.nhan&&v.loai!=='cua')nhan(v.nhan,0,(+v.h||1.2)+0.6,0,g,0.55,3);
+ return g}
+/* ═══════════════ 7. DỰNG CẢ KHO ═══════════════ */
+const VAT_G={};
+const LOI_HOP=[];
+function viTriVat(v){const c=X.tuyetDoi(v,km());return {x:c.x,z:c.z}}
+function dungMon(v){const cu=VAT_G[v.id];if(cu){GOC.remove(cu);delete VAT_G[v.id]}
+ const g=v.loai==='sorter'?dungSorter(v):v.loai==='dayKe'?dungDayKe(v):dungVat(v);g.userData.vat=v.id;const c=viTriVat(v);g.position.set(c.x,+v.y||0,c.z);g.rotation.y=(v.xoay||0)*Math.PI/180;
+ /* hộp BẮT CHỌN vô hình bao cả vết chiếm sàn: đồ mảnh (xe nâng tay, kệ V lỗ, lồng lưới…) bấm đúng tâm thì tia xuyên qua khe, không chọn được */
+ if(v.loai!=='sorter'){const L=X.khungLocal(v,GIA),h=Math.max(0.4,+v.h||(v.loai==='dayKe'?+GIA.keCao||5.5:v.loai==='cua'||v.loai==='dockCont'?+GIA.cuaCao||4.5:1.2));
+  const pk=new THREE.Mesh(new THREE.BoxGeometry(L.x1-L.x0,h,L.z1-L.z0),PICK_MAT);pk.position.set((L.x0+L.x1)/2,h/2,(L.z0+L.z1)/2);pk.userData.pick=1;g.add(pk)}
+ GOC.add(g);VAT_G[v.id]=g;return g}
+const PICK_MAT=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});
+function dungKho(){while(GOC.children.length)GOC.remove(GOC.children[0]);labels=labels.filter(s=>s.parent===NHA);SORTERS.length=0;Object.keys(VAT_G).forEach(k=>delete VAT_G[k]);Object.keys(KHU_G).forEach(k=>delete KHU_G[k]);
+ khuDat().forEach(dungKhu);vatDat().forEach(dungMon);
+ $('tieu').textContent='Kho Liên Anh '+soVn(N.HX)+' × '+soVn(N.HZ)+' m — bố trí mặt bằng · '+khuDat().filter(k=>!k.anSan).length+' khu đã đặt · '+KHU.filter(k=>k.trongKhay).length+' trong khay · '+vatDat().length+' món';
+ veDienTich();if(window.__sua&&window.__sua.veKhay)window.__sua.veKhay()}
+/* ═══════════════ 8. CAMERA (rút gọn từ kho170-3d: xoay / bản đồ · trực giao · bay mượt · bản đồ nhỏ) ═══════════════ */
+const CAM=(function(){const V3=THREE.Vector3;const o={mode:'orbit',theta:-2.2,phi:0.9,dist:130,target:new V3(N.HX/2,2,N.HZ/2),anim:null,ortho:false,rot:false};
+ const ortho=new THREE.OrthographicCamera(-1,1,1,-1,-400,1200);const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ function viTri(t,th,ph,d,out){return (out||new V3()).set(t.x+d*Math.sin(ph)*Math.cos(th),t.y+d*Math.cos(ph),t.z+d*Math.sin(ph)*Math.sin(th))}
+ function apply(){viTri(o.target,o.theta,o.phi,o.dist,camera.position);camera.up.set(0,1,0);if(o.phi<0.02)camera.up.set(-Math.cos(o.theta),0,-Math.sin(o.theta));camera.lookAt(o.target);
+  if(o.ortho){const h=o.dist*Math.tan(camera.fov*Math.PI/360),w=h*camera.aspect;Object.assign(ortho,{left:-w,right:w,top:h,bottom:-h});ortho.updateProjectionMatrix();ortho.position.copy(camera.position);ortho.quaternion.copy(camera.quaternion)}}
+ function cam(){return o.ortho?ortho:camera}
+ function flyTo(v,ms){let th=v.theta;while(th-o.theta>Math.PI)th-=2*Math.PI;while(th-o.theta<-Math.PI)th+=2*Math.PI;
+  o.anim={t0:performance.now(),ms:ms||800,a:{th:o.theta,ph:o.phi,d:o.dist,t:o.target.clone()},b:{th,ph:v.phi,d:v.dist,t:new V3(v.t[0],v.t[1],v.t[2])}}}
+ function chayAnim(now){const A=o.anim;if(!A)return;let k=Math.min(1,(now-A.t0)/A.ms);const e=k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;o.theta=A.a.th+(A.b.th-A.a.th)*e;o.phi=A.a.ph+(A.b.ph-A.a.ph)*e;o.dist=A.a.d+(A.b.d-A.a.d)*e;o.target.lerpVectors(A.a.t,A.b.t,e);if(k>=1)o.anim=null}
+ function datChieu(on){o.ortho=on;$('bChieu').classList.toggle('on',on);$('bChieu').textContent=on?'Trực giao ✓':'Trực giao'}
+ function datMode(m){o.mode=m;document.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===m));$('hint').textContent=m==='map'?'Kéo: dịch như bản đồ · kéo phải / Ctrl+kéo: xoay · cuộn: phóng':'Kéo: xoay · kéo phải / Shift+kéo / 2 ngón: dịch · cuộn: phóng'}
+ /* điểm trên sàn dưới con trỏ */
+ const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),MAT=new THREE.Plane(new V3(0,1,0),0),P=new V3();
+ function diemSan(e,y){const r=canvas.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ndc,cam());MAT.constant=-(y||0);return ray.ray.intersectPlane(MAT,P)?P.clone():null}
+ let drag=null;const touches=new Map();let pinch=null;
+ /* bắt con trỏ NGAY khi bấm (kể cả kéo đồ): nhả chuột ngoài canvas vẫn nhận pointerup — không thì món dính theo con trỏ (bộ đo 05/10 bắt được) */
+ canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;try{canvas.setPointerCapture(e.pointerId)}catch(x){}if(SUA.bam(e))return;drag={x:e.clientX,y:e.clientY,b:e.button,shift:e.shiftKey||e.ctrlKey,p0:diemSan(e,0),t0:o.target.clone()};o.rot=false;$('bRot').classList.remove('on')});
+ canvas.addEventListener('pointercancel',()=>{if(SUA.keo)SUA.tha();drag=null});
+ canvas.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;if(SUA.keo){SUA.di(e);return}if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  const xoay=(o.mode==='orbit'&&drag.b===0&&!drag.shift)||(o.mode==='map'&&(drag.b===2||drag.shift));
+  if(xoay){o.theta+=dx*0.006;o.phi=clamp(o.phi-dy*0.006,0.02,1.5);drag.x=e.clientX;drag.y=e.clientY}
+  else{const p=diemSan(e,0);if(p&&drag.p0){o.target.copy(drag.t0);o.target.x-=p.x-drag.p0.x;o.target.z-=p.z-drag.p0.z;apply();const q=diemSan(e,0)}}});
+ canvas.addEventListener('pointerup',e=>{if(SUA.keo){SUA.tha(e);return}drag=null});
+ canvas.addEventListener('contextmenu',e=>e.preventDefault());
+ canvas.addEventListener('wheel',e=>{const p0=diemSan(e,0);o.dist=clamp(o.dist*(1+e.deltaY*0.001),4,260);apply();const p1=diemSan(e,0);if(p0&&p1){o.target.x+=p0.x-p1.x;o.target.z+=p0.z-p1.z}e.preventDefault()},{passive:false});
+ canvas.addEventListener('touchstart',e=>{for(const t of e.changedTouches)touches.set(t.identifier,{x:t.clientX,y:t.clientY});if(touches.size===2){const a=[...touches.values()];pinch={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),cx:(a[0].x+a[1].x)/2,cy:(a[0].y+a[1].y)/2}}
+  else if(touches.size===1){const t=e.changedTouches[0];const ev={clientX:t.clientX,clientY:t.clientY,button:0,altKey:false,pointerId:-1};if(SUA.bam(ev)){e.preventDefault();return}drag={x:t.clientX,y:t.clientY,b:0,p0:diemSan(ev,0),t0:o.target.clone()}}},{passive:false});
+ canvas.addEventListener('touchmove',e=>{for(const t of e.changedTouches)touches.set(t.identifier,{x:t.clientX,y:t.clientY});
+  if(touches.size===1){const t=e.changedTouches[0];const ev={clientX:t.clientX,clientY:t.clientY,altKey:false};if(SUA.keo){SUA.di(ev);e.preventDefault();return}if(!drag)return;
+   if(o.mode==='map'){const p=diemSan(ev,0);if(p&&drag.p0){o.target.copy(drag.t0);o.target.x-=p.x-drag.p0.x;o.target.z-=p.z-drag.p0.z}}else{o.theta+=(t.clientX-drag.x)*0.006;o.phi=clamp(o.phi-(t.clientY-drag.y)*0.006,0.02,1.5);drag.x=t.clientX;drag.y=t.clientY}e.preventDefault()}
+  else if(touches.size===2&&pinch){const a=[...touches.values()];const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),cx=(a[0].x+a[1].x)/2,cy=(a[0].y+a[1].y)/2;o.dist=clamp(o.dist*pinch.d/d,4,260);
+   const right=new V3().subVectors(camera.position,o.target).cross(camera.up).normalize();const fwd=new V3().crossVectors(camera.up,right).normalize();o.target.addScaledVector(right,(cx-pinch.cx)*0.02*o.dist/40).addScaledVector(fwd,-(cy-pinch.cy)*0.02*o.dist/40);pinch={d,cx,cy};e.preventDefault()}},{passive:false});
+ canvas.addEventListener('touchend',e=>{for(const t of e.changedTouches)touches.delete(t.identifier);if(touches.size<2)pinch=null;if(touches.size===0){if(SUA.keo)SUA.tha();drag=null}});
+ /* bản đồ nhỏ */
+ const MM=$('mm'),mx=MM.getContext('2d');let anhMM=null;
+ function chupMM(){const w=Math.round(MM.clientWidth*devicePixelRatio)||320,h=Math.round(w*N.HZ/N.HX);MM.width=w;MM.height=h;
+  const c=new THREE.OrthographicCamera(-N.HX/2-4,N.HX/2+4,N.HZ/2+4,-N.HZ/2-4,0.1,400);c.position.set(N.HX/2,150,N.HZ/2);c.up.set(0,0,-1);c.lookAt(N.HX/2,0,N.HZ/2);
+  const an=[];labels.forEach(s=>{an.push([s,s.visible]);s.visible=false});const r0=roofG.visible;roofG.visible=false;
+  const sz=renderer.getSize(new THREE.Vector2()),pr=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(w,h,false);renderer.render(scene,c);
+  const im=document.createElement('canvas');im.width=w;im.height=h;im.getContext('2d').drawImage(renderer.domElement,0,0,w,h);anhMM=im;renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);an.forEach(a=>a[0].visible=a[1]);roofG.visible=r0}
+ function veMM(){if(!anhMM||MM.offsetParent===null)return;const w=MM.width,h=MM.height,sx=w/(N.HX+8),sz=h/(N.HZ+8);mx.drawImage(anhMM,0,0);
+  const t=o.target;mx.strokeStyle='#c0392b';mx.lineWidth=2*devicePixelRatio;mx.beginPath();mx.arc((t.x+4)*sx,(t.z+4)*sz,5*devicePixelRatio,0,7);mx.stroke()}
+ MM.addEventListener('pointerdown',e=>{const r=MM.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*(N.HX+8)-4,z=(e.clientY-r.top)/r.height*(N.HZ+8)-4;flyTo({theta:o.theta,phi:o.phi,dist:Math.min(o.dist,60),t:[x,1,z]},600)});
+ const views={all:{theta:-2.2,phi:0.9,dist:130,t:[N.HX/2,2,N.HZ/2]},sorter:{theta:-2.4,phi:1.0,dist:60,t:[30,1.5,40]},it:{theta:-2.0,phi:1.0,dist:40,t:[72,1.5,40]},gd1:{theta:-2.0,phi:0.9,dist:50,t:[92,3,40]},
+  gd2:{theta:-1.8,phi:0.9,dist:70,t:[64,3,12]},gd3:{theta:-1.2,phi:0.9,dist:60,t:[47,3,68]},nhanpo:{theta:-1.0,phi:1.0,dist:45,t:[94,1.5,68]},stg:{theta:-2.8,phi:1.0,dist:45,t:[9,1.5,68]}};
+ document.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{const v=views[b.dataset.v];flyTo(v,800);document.querySelectorAll('[data-v]').forEach(x=>x.classList.toggle('on',x===b));o.rot=false;$('bRot').classList.remove('on')}));
+ document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>datMode(b.dataset.m)));
+ document.querySelectorAll('[data-g]').forEach(b=>b.addEventListener('click',()=>{const t=[o.target.x,o.target.y,o.target.z];flyTo(b.dataset.g==='tren'?{theta:Math.PI/2,phi:0.001,dist:o.dist,t}:{theta:-2.2,phi:0.9,dist:o.dist,t},700)}));
+ $('bChieu').addEventListener('click',()=>datChieu(!o.ortho));$('bMM').addEventListener('click',e=>{const on=e.target.classList.toggle('on');$('mmBox').style.display=on?'':'none'});
+ $('bRot').addEventListener('click',e=>{o.rot=e.target.classList.toggle('on')});
+ /* nhìn thẳng xuống 1 hộp (x,z,w,h) vừa màn */
+ function nhinThang(b,ms){const asp=camera.aspect;const h=b.h/2/Math.tan(camera.fov*Math.PI/360),w=b.w/2/asp/Math.tan(camera.fov*Math.PI/360);flyTo({theta:Math.PI/2,phi:0.001,dist:Math.max(h,w)*1.15+4,t:[b.x+b.w/2,0,b.y+b.h/2]},ms||700)}
+ return {o,cam,apply,flyTo,chayAnim,datChieu,datMode,diemSan,chupMM,veMM,nhinThang,views}})();
+/* ═══════════════ 9. BỘ SỬA 2 BƯỚC (chép khuôn SUA kho170-3d.html 2584–2787, viết lại cho KHU cha – VAT con) ═══════════════ */
+const SUA={bat:false,keo:null,buoc:1,khu:null};
+(function(){
+ const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+ let chon=null,hop=null,lui=[],tLuu=null,TAY=[],LOI=[],chotT=null;
+ const vat=id=>VAT.find(v=>v.id===id),khu=id=>KHU.find(k=>k.id===id);
+ function tt(s,loi){const t=$('suaTt');t.textContent=s;t.classList.toggle('loi',!!loi)}
+ function ndcTu(e){const r=canvas.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1)}
+ /* ── luật + khung đỏ ── */
+ function moHinh(){return {TS,GIA,LUAT:LUATDS,luatSua:LUAT_SUA,KHU:khuDat(),VAT:vatDat(),ver:(window.LIENANH_BOCUC||window.LIENANH_GOC||{}).ver||'',ngay:new Date().toISOString().slice(0,10)}}
+ function luat(){LOI=X.kiemLuat(moHinh());LOI_HOP.forEach(h=>scene.remove(h));LOI_HOP.length=0;
+  const dem=X.demLoi(LOI);const ds=$('suaLoiDs');ds.innerHTML='';
+  LOI.forEach(l=>{const b=document.createElement('button');b.className=l.muc;b.textContent=(l.muc==='loi'?'LỖI ':'Cảnh báo ')+l.ma+' · '+l.ten+': '+l.a+(l.b?' ↔ '+l.b:'')+(l.min?' (cách '+soVn(l.kc)+' m, cần ≥ '+soVn(l.min)+')':'')+(l.mo?' — '+l.mo:'');
+   b.addEventListener('click',()=>bayToi(l.a,l.b));ds.appendChild(b);
+   [l.a,l.b].forEach(id=>{const g=VAT_G[id]||KHU_G[id];if(!g||typeof id!=='string')return;const h=new THREE.BoxHelper(g,l.muc==='loi'?0xdc2626:0xd97706);scene.add(h);LOI_HOP.push(h)})});
+  $('suaChot').disabled=dem.loi>0;return dem}
+ function bayToi(a,b){const g=VAT_G[a]||KHU_G[a];if(!g)return;const bx=new THREE.Box3().setFromObject(g);const c=bx.getCenter(new THREE.Vector3());CAM.flyTo({theta:CAM.o.theta,phi:CAM.o.phi,dist:Math.max(14,bx.getSize(new THREE.Vector3()).length()*1.2),t:[c.x,0,c.z]},600);
+  const v=vat(a);if(v&&SUA.buoc===2&&v.khu===SUA.khu)chonMon('vat',a);else if(khu(a)&&SUA.buoc===1)chonMon('khu',a)}
+ /* ── khung chọn + tay nắm ── */
+ function khung(){if(hop){scene.remove(hop);hop=null}TAY.forEach(m=>scene.remove(m));TAY=[];if(!chon)return;
+  const g=chon.kind==='khu'?KHU_G[chon.id]:VAT_G[chon.id];if(!g)return;
+  const deKhuChon=chon.kind==='khu'&&khu(chon.id)&&deKhu(khu(chon.id)).length>0;        // khu đang chọn đè khu khác ⇒ khung chọn ĐỎ (cả sau khi thả)
+  hop=new THREE.BoxHelper(g,deKhuChon?0xdc2626:0x2f5d8a);scene.add(hop);
+  const tay=(x,z,ud,mau)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(0.28,14,10),new THREE.MeshBasicMaterial({color:mau||0xf59e0b}));m.position.set(x,0.5,z);m.userData=ud;scene.add(m);TAY.push(m)};
+  if(chon.kind==='khu'){const k=khu(chon.id),b=X.vetKhu(k);if(k.pts)return;
+   [[0,0,'tl'],[1,0,'tr'],[1,1,'br'],[0,1,'bl'],[0.5,0,'t'],[1,0.5,'r'],[0.5,1,'b'],[0,0.5,'l']].forEach(([fx,fz,c])=>tay(b.x+b.w*fx,b.y+b.h*fz,{canh:c}))}
+  else{const v=vat(chon.id);if(v.loai==='dayKe'){const c=viTriVat(v),k=X.kichThuocKe(v,GIA);[-1,1].forEach(dau=>{const p=X.xoayDiem(dau*k.L/2,0,v.xoay);tay(c.x+p[0],c.z+p[1],{dau},0x16a34a)})}}}
+ /* ── hít ── */
+ function canhNha(){return {x:[{v:0,a:0,b:N.HZ},{v:N.HX,a:0,b:N.HZ}],z:[{v:0,a:0,b:N.HX},{v:N.HZ,a:0,b:N.HX}]}}
+ function hitHop(f,dsX,dsZ,luoi,bat){                      // f = hộp {x,y,w,h}; trả về {dx,dz} để hít cạnh
+  let bx=bat,dx=0,bz=bat,dz=0;dsX.forEach(c=>{if(c.b<f.y-0.5||c.a>f.y+f.h+0.5)return;[f.x,f.x+f.w].forEach(e=>{const d=c.v-e;if(Math.abs(d)<bx){bx=Math.abs(d);dx=d}})});
+  dsZ.forEach(c=>{if(c.b<f.x-0.5||c.a>f.x+f.w+0.5)return;[f.y,f.y+f.h].forEach(e=>{const d=c.v-e;if(Math.abs(d)<bz){bz=Math.abs(d);dz=d}})});return {dx,dz}}
+ function hitKhu(k,tuDo){k.x=r2(Math.round(k.x/0.5)*0.5);k.z=r2(Math.round(k.z/0.5)*0.5);if(tuDo)return;const f=X.vetKhu(k),C=canhNha(),dsX=C.x.slice(),dsZ=C.z.slice();
+  KHU.forEach(u=>{if(u===k)return;const g=X.vetKhu(u);dsX.push({v:g.x,a:g.y,b:g.y+g.h},{v:g.x+g.w,a:g.y,b:g.y+g.h});dsZ.push({v:g.y,a:g.x,b:g.x+g.w},{v:g.y+g.h,a:g.x,b:g.x+g.w})});
+  N.cot.forEach(c=>{const h=N.cotCanh/2;dsX.push({v:c.x-h,a:c.z-h,b:c.z+h},{v:c.x+h,a:c.z-h,b:c.z+h});dsZ.push({v:c.z-h,a:c.x-h,b:c.x+h},{v:c.z+h,a:c.x-h,b:c.x+h})});
+  const d=hitHop(f,dsX,dsZ,0.5,0.3);k.x=r2(k.x+d.dx);k.z=r2(k.z+d.dz);
+  if(!k.ngoai){k.x=r2(Math.max(0,Math.min(N.HX-k.w,k.x)));k.z=r2(Math.max(0,Math.min(N.HZ-k.d,k.z)))}}   // khu trong nhà không ra ngoài tường bao
+ /* khu đang kéo ĐÈ lên khu nào (báo ngay lúc kéo, chưa cần thả) */
+ function deKhu(k){return khuDat().filter(u=>u!==k&&!u.ngoai&&!u.anSan&&!k.ngoai&&X.chong(X.vetKhu(k),X.vetKhu(u),0.012)).map(u=>u.ten||u.id)}
+ function hitVat(v,tuDo){v.rx=r2(Math.round(v.rx/0.05)*0.05);v.rz=r2(Math.round(v.rz/0.05)*0.05);const k=khu(v.khu);
+  if(v.loai==='cua'||v.loai==='dockCont'){const c=X.tuyetDoi(v,km());const cand=[[0,'T1',90],[N.HX,'T19',90]];let best=null,bd=0.8;cand.forEach(([x,t,xo])=>{const d=Math.abs(c.x-x);if(d<bd){bd=d;best={x,t,xo}}});
+   [[0,'TM',0],[N.HZ,'TA',0]].forEach(([z,t,xo])=>{const d=Math.abs(c.z-z);if(d<bd){bd=d;best={z,t,xo}}});
+   if(best){if(best.x!==undefined){v.rx=r2(best.x-(k?k.x:0));v.xoay=90}else{v.rz=r2(best.z-(k?k.z:0));v.xoay=0}v.tuong=best.t}return}
+  if(tuDo)return;const f=X.vetVat(v,km(),GIA),dsX=[],dsZ=[];
+  VAT.forEach(u=>{if(u===v||u.khu!==v.khu||/^cua|dockCont/.test(u.loai))return;const g=X.vetVat(u,km(),GIA);dsX.push({v:g.x,a:g.y,b:g.y+g.h},{v:g.x+g.w,a:g.y,b:g.y+g.h});dsZ.push({v:g.y,a:g.x,b:g.x+g.w},{v:g.y+g.h,a:g.x,b:g.x+g.w})});
+  if(k){const g=X.vetKhu(k);dsX.push({v:g.x,a:g.y,b:g.y+g.h},{v:g.x+g.w,a:g.y,b:g.y+g.h});dsZ.push({v:g.y,a:g.x,b:g.x+g.w},{v:g.y+g.h,a:g.x,b:g.x+g.w})}
+  const d=hitHop(f,dsX,dsZ,0.05,0.1);v.rx=r2(v.rx+d.dx);v.rz=r2(v.rz+d.dz);
+  /* chặn ra ngoài biên khu (trừ sorter, cửa) */
+  if(k&&v.loai!=='sorter'&&v.loai!=='xeTai19'){const g=X.vetKhu(k),f2=X.vetVat(v,km(),GIA);let sx=0,sz=0;if(f2.x<g.x)sx=g.x-f2.x;if(f2.x+f2.w>g.x+g.w)sx=g.x+g.w-(f2.x+f2.w);if(f2.y<g.y)sz=g.y-f2.y;if(f2.y+f2.h>g.y+g.h)sz=g.y+g.h-(f2.y+f2.h);
+   if(f2.w<=g.w+0.01&&f2.h<=g.h+0.01){v.rx=r2(v.rx+sx);v.rz=r2(v.rz+sz)}}}
+ /* ── lịch sử + lưu ── */
+ function trangThai(){return JSON.stringify({KHU,VAT,XOA,LUAT_SUA})}
+ function ghiLui(){lui.push(trangThai());if(lui.length>80)lui.shift();$('suaLui').disabled=false}
+ function doi(){try{localStorage.setItem('lienanh-bocuc-nhap',trangThai())}catch(e){}clearTimeout(tLuu);tt('Đang lưu…');tLuu=setTimeout(luu,700);veBang();khung();luat();veDienTich()}
+ function luu(){const ctl=new AbortController();setTimeout(()=>ctl.abort(),15000);
+  return fetch(API+'bocuc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({khu:KHU,vat:VAT,xoa:XOA,luat:LUAT_SUA}),signal:ctl.signal})
+   .then(r=>r.text()).then(t=>{const j=t[0]==='{'?JSON.parse(t):{ok:false,loi:t.slice(0,80)};if(!j.ok)throw new Error(j.loi||'lỗi');const d=X.demLoi(LOI);
+    const de=chon&&chon.kind==='khu'&&khu(chon.id)?deKhu(khu(chon.id)):[];          // khu đang chọn còn đè khu khác ⇒ giữ dòng ĐÈ LÊN sau khi lưu
+    tt((de.length?'ĐÈ LÊN: '+de.join(' · ')+' — dời ra chỗ trống · ':'')+'Đã lưu ✓ · '+khuDat().filter(k=>!k.anSan).length+' khu đã đặt · '+vatDat().length+' món'+(d.loi?' · '+d.loi+' LỖI luật (chưa Chốt được)':'')+(d.canhBao?' · '+d.canhBao+' cảnh báo':''),d.loi>0||de.length>0)})
+   .catch(e=>tt('KHÔNG lưu được: '+e.message+' — mở trang bằng BO-TRI-LIEN-ANH.bat (xem-noi-bo.mjs mới).',true))}
+ /* ── bảng thuộc tính ── */
+ function o(k,nhan2,st,obj){return '<label>'+nhan2+'<input data-k="'+k+'" type="number" step="'+(st||0.05)+'" value="'+(obj[k]!==undefined?obj[k]:0)+'"></label>'}
+ function veBang(){const b=$('suaMon');['suaXoay','suaNhan','suaXoa'].forEach(k=>$(k).disabled=!chon);$('suaKhit').disabled=!(chon&&chon.kind==='khu');
+  if(!chon){b.innerHTML='<small>'+(SUA.buoc===1?(khuDat().some(k=>!k.anSan)?'Bấm vào một khu (vùng vàng) để chọn, rồi kéo đi; đồ bên trong đi theo. Kéo chấm cam để nới/thu. Khối chưa đặt nằm trong khay bên trên — kéo dòng vào mặt bằng.':'Mặt bằng đang TRỐNG. Kéo một dòng trong khay vào mặt bằng (hoặc bấm Đặt), hoặc bấm "Xếp theo bản mẫu" để đặt cả bộ theo trang mẫu.'):'Bấm vào một món trong khu '+(khu(SUA.khu)||{}).ten+' để chọn rồi kéo.')+'</small>';return}
+  let h='';
+  if(chon.kind==='khu'){const k=khu(chon.id);h+='<b>Khu</b> <small>'+k.id+'</small><label>Tên <input data-k="ten" type="text" value="'+(k.ten||'').replace(/"/g,'&quot;')+'"></label>'+o('x','X',0.5,k)+o('z','Z',0.5,k)+o('w','Rộng',0.5,k)+o('d','Sâu',0.5,k)+
+   '<label>Nhóm <select data-k="nhom">'+Object.keys(NHOM_KHU).map(n=>'<option value="'+n+'"'+(k.nhom===n?' selected':'')+'>'+NHOM_KHU[n]+'</option>').join('')+'</select></label>'+
+   '<label class="ck"><input data-k="ngoai" type="checkbox"'+(k.ngoai?' checked':'')+'>ngoài nhà</label><label class="ck"><input data-k="khoa" type="checkbox"'+(k.khoa?' checked':'')+'>khoá</label><small>'+soVn(X.dienTich(k))+' m² · '+VAT.filter(v=>v.khu===k.id).length+' món</small>'+
+   (k.anSan?'':'<button id="suaCat" title="Gỡ khỏi mặt bằng, cất lại vào khay (đồ bên trong đi theo)">Cất vào khay</button>');
+   const de=deKhu(k);if(de.length)h+='<span class="suaLoi">ĐÈ LÊN: '+de.join(' · ')+'</span>'}
+  else{const v=vat(chon.id),L=LOAI_VAT[v.loai]||{ten:TEN_LOAI[v.loai]||v.loai};h+='<b>'+(TEN_LOAI[v.loai]||v.loai)+'</b> <small>'+v.id+'</small><label>Nhãn <input data-k="nhan" type="text" value="'+(v.nhan||'').replace(/"/g,'&quot;')+'"></label>'+o('rx','X trong khu',0.05,v)+o('rz','Z trong khu',0.05,v)+o('xoay','Xoay°',90,v);
+   if(v.loai==='dayKe'){h+=o('nBay','Số bay',1,v)+'<label>Kiểu <select data-k="kieu"><option value="sel"'+(v.kieu==='sel'?' selected':'')+'>selective đôi</option><option value="don"'+(v.kieu==='don'?' selected':'')+'>đơn (sát tường)</option><option value="dd"'+(v.kieu==='dd'?' selected':'')+'>double-deep 4 hàng</option></select></label>'+o('gd','Giai đoạn',1,v)+'<small>'+X.kichThuocKe(v,GIA).viTri+' vị trí pallet</small>'}
+   else if(v.loai==='sorter'){h+='<label>Trạm <select data-k="tram"><option value="cage"'+(v.tram!=='manual'?' selected':'')+'>lồng tự rơi</option><option value="manual"'+(v.tram==='manual'?' selected':'')+'>người xếp pallet</option></select></label>'}
+   else{h+=o('w','Dài',0.05,v)+o('d','Rộng',0.05,v);if(v.loai==='ban')h+='<label class="ck"><input data-k="mt" type="checkbox"'+(v.mt?' checked':'')+'>máy tính</label><label class="ck"><input data-k="ghe" type="checkbox"'+((v.ghe!==undefined?v.ghe:v.mt)?' checked':'')+'>ghế</label>';
+    if(v.loai==='cua'||v.loai==='dockCont')h+='<label>Kiểu <select data-k="kieu">'+['xuat','nap','thoat','dock'].map(q=>'<option value="'+q+'"'+(v.kieu===q?' selected':'')+'>'+q+'</option>').join('')+'</select></label><label class="ck"><input data-k="moi" type="checkbox"'+(v.moi?' checked':'')+'>cửa đề xuất mới</label>';
+    if(/^(vach|locker|keLuoi|cay|cuaSat|baoBong|thungGiay|xeSat2Tang)$/.test(v.loai))h+=o('h','Cao',0.05,v);if(v.loai==='cumLong')h+=o('n','Cột lồng',1,v)+o('m','Hàng lồng',1,v)}
+   h+='<label class="ck"><input data-k="khoa" type="checkbox"'+(v.khoa?' checked':'')+'>khoá</label>'}
+  const l=LOI.filter(q=>q.a===chon.id||q.b===chon.id);if(l.length)h+='<span class="suaLoi">'+l.map(q=>q.ma+' '+q.mo).join(' · ')+'</span>';
+  b.innerHTML=h;
+  const bc=b.querySelector('#suaCat');if(bc)bc.addEventListener('click',()=>catKhay(chon.id));
+  b.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('change',()=>{const k=el.dataset.k;const obj=chon.kind==='khu'?khu(chon.id):vat(chon.id);ghiLui();
+   if(el.type==='checkbox')obj[k]=el.checked?1:0;else if(el.tagName==='SELECT'||el.type==='text')obj[k]=el.value;
+   else{let x=+el.value;if(el.value===''||!isFinite(x))return;if(k==='xoay')x=((Math.round(x)%360)+360)%360;if(k==='w'||k==='d')x=Math.max(0.2,x);if(k==='nBay')x=Math.max(1,Math.min(40,Math.round(x)));if(k==='gd')x=Math.max(1,Math.min(3,Math.round(x)));if(k==='n'||k==='m')x=Math.max(1,Math.round(x));obj[k]=r2(x)}
+   if(chon.kind==='khu')veKhuDoi(obj);else dungMon(obj);doi()}))}
+ function chonMon(kind,id){chon=id?{kind,id}:null;veBang();khung()}
+ /* ── dời khu + con ── */
+ function veKhuDoi(k){const g=KHU_G[k.id];if(g){GOC.remove(g);delete KHU_G[k.id]}dungKhu(k);VAT.filter(v=>v.khu===k.id).forEach(v=>{const c=viTriVat(v);const gv=VAT_G[v.id];if(gv)gv.position.set(c.x,+v.y||0,c.z)})}
+ function keoDauKe(v,dau,p){const c0=viTriVat(v),k=X.kichThuocKe(v,GIA);const a=(v.xoay||0)*Math.PI/180,ux=Math.cos(a),uz=-Math.sin(a);
+  const fx=c0.x-dau*ux*k.L/2,fz=c0.z-dau*uz*k.L/2;const Lmoi=Math.max(k.bay,(p.x-fx)*ux*dau+(p.z-fz)*uz*dau);const n=Math.max(1,Math.round((Lmoi-0.09)/k.bay));if(n===k.n)return false;
+  v.nBay=n;const L2=n*k.bay+0.09;const cx=fx+dau*ux*L2/2,cz=fz+dau*uz*L2/2;const kk=khu(v.khu);v.rx=r2(cx-(kk?kk.x:0));v.rz=r2(cz-(kk?kk.z:0));return true}
+ function naoKhu(k,canh,p,tuDo){const b=X.vetKhu(k);let x0=b.x,z0=b.y,x1=b.x+b.w,z1=b.y+b.h;const lam=tuDo?0.05:0.5;const q=v=>Math.round(v/lam)*lam;
+  if(/l/.test(canh))x0=Math.min(q(p.x),x1-1);if(/r/.test(canh))x1=Math.max(q(p.x),x0+1);if(/t/.test(canh))z0=Math.min(q(p.z),z1-1);if(/b/.test(canh))z1=Math.max(q(p.z),z0+1);
+  /* vật con giữ toạ độ TUYỆT ĐỐI khi nới/thu (neo theo góc gốc): đổi rx/rz theo gốc mới */
+  const dx=x0-k.x,dz=z0-k.z;VAT.filter(v=>v.khu===k.id).forEach(v=>{v.rx=r2(v.rx-dx);v.rz=r2(v.rz-dz)});k.x=r2(x0);k.z=r2(z0);k.w=r2(x1-x0);k.d=r2(z1-z0)}
+ function thuKhit(){if(!chon||chon.kind!=='khu')return;const k=khu(chon.id);const ds=VAT.filter(v=>v.khu===k.id&&v.loai!=='sorter'&&!/^cua|dockCont/.test(v.loai)).map(v=>X.vetVat(v,km(),GIA));if(!ds.length){tt('Khu chưa có món nào bên trong.',true);return}ghiLui();
+  const x0=Math.min(...ds.map(b=>b.x))-0.5,z0=Math.min(...ds.map(b=>b.y))-0.5,x1=Math.max(...ds.map(b=>b.x+b.w))+0.5,z1=Math.max(...ds.map(b=>b.y+b.h))+0.5;
+  const dx=r2(x0)-k.x,dz=r2(z0)-k.z;VAT.filter(v=>v.khu===k.id).forEach(v=>{v.rx=r2(v.rx-dx);v.rz=r2(v.rz-dz)});k.x=r2(x0);k.z=r2(z0);k.w=r2(x1-x0);k.d=r2(z1-z0);veKhuDoi(k);doi()}
+ /* ── kéo thả ── */
+ const hien=ob=>{for(;ob;ob=ob.parent)if(!ob.visible)return false;return true};
+ const monCua=h=>{let ob=h.object;while(ob&&!(ob.userData.vat||ob.userData.khu))ob=ob.parent;return ob};
+ SUA.bam=function(e){if(!SUA.bat||(e.button!==undefined&&e.button!==0))return false;ndcTu(e);ray.setFromCamera(ndc,CAM.cam());
+  if(TAY.length){const th=ray.intersectObjects(TAY,false);if(th.length){const p=CAM.diemSan(e,0);if(!p)return true;SUA.keo={tay:th[0].object.userData,truoc:trangThai(),di:false};return true}}
+  const ds=ray.intersectObjects(GOC.children,true).filter(h=>hien(h.object));
+  let id=null,kind=null;for(const h of ds){const ob=monCua(h);if(!ob)continue;
+   if(SUA.buoc===1){const kid=ob.userData.khu||(vat(ob.userData.vat)||{}).khu;if(kid==='nha')continue;if(kid){id=kid;kind='khu';break}}
+   else{if(ob.userData.vat){const v=vat(ob.userData.vat);if(v&&v.khu===SUA.khu){id=v.id;kind='vat';break}}}}
+  if(!id){chonMon(null);return false}
+  const obj=kind==='khu'?khu(id):vat(id);chonMon(kind,id);if(obj.khoa){tt((kind==='khu'?'Khu':'Món')+' đang KHOÁ — bỏ khoá trong bảng để kéo.');return true}
+  const p=CAM.diemSan(e,0);if(!p)return true;const c=kind==='khu'?{x:obj.x,z:obj.z}:viTriVat(obj);
+  SUA.keo={kind,id,dx:c.x-p.x,dz:c.z-p.z,truoc:trangThai(),di:false};return true};
+ SUA.di=function(e){const K=SUA.keo;if(!K)return;const p=CAM.diemSan(e,0);if(!p)return;
+  if(K.tay){if(!chon)return;if(chon.kind==='khu'){const k=khu(chon.id);naoKhu(k,K.tay.canh,p,e.altKey);K.di=true;veKhuDoi(k);khung();tt('Khu '+soVn(k.w)+' × '+soVn(k.d)+' m = '+soVn(X.dienTich(k))+' m²');return}
+   const v=vat(chon.id);if(v&&v.loai==='dayKe'&&keoDauKe(v,K.tay.dau,p)){K.di=true;dungMon(v);khung();tt('Dãy kệ '+v.nBay+' bay · '+X.kichThuocKe(v,GIA).viTri+' vị trí')}return}
+  if(K.kind==='khu'){const k=khu(K.id);const x0=k.x,z0=k.z;k.x=p.x+K.dx;k.z=p.z+K.dz;hitKhu(k,e.altKey);if(k.x===x0&&k.z===z0)return;K.di=true;
+   const g=KHU_G[k.id];g.position.set(k.x,0,k.z);VAT.filter(v=>v.khu===k.id).forEach(v=>{const c=viTriVat(v);const gv=VAT_G[v.id];if(gv)gv.position.set(c.x,+v.y||0,c.z)});khung();
+   const de=deKhu(k);if(hop)hop.material.color.set(de.length?0xdc2626:0x2f5d8a);
+   if(de.length)tt('ĐÈ LÊN: '+de.join(' · ')+' — dời ra chỗ trống',true);else tt(k.ten+' → X '+soVn(k.x)+' · Z '+soVn(k.z)+(e.altKey?' (tự do)':''))}
+  else{const v=vat(K.id),k=khu(v.khu);const rx0=v.rx,rz0=v.rz;v.rx=r2(p.x+K.dx-(k?k.x:0));v.rz=r2(p.z+K.dz-(k?k.z:0));hitVat(v,e.altKey);if(v.rx===rx0&&v.rz===rz0)return;K.di=true;
+   const c=viTriVat(v);VAT_G[v.id].position.set(c.x,+v.y||0,c.z);if(/^cua|dockCont/.test(v.loai))VAT_G[v.id].rotation.y=(v.xoay||0)*Math.PI/180;khung();tt((TEN_LOAI[v.loai]||v.loai)+' → X '+soVn(c.x)+' · Z '+soVn(c.z)+(e.altKey?' (tự do)':''))}};
+ SUA.tha=function(){const K=SUA.keo;SUA.keo=null;if(!K||!K.di)return;lui.push(K.truoc);$('suaLui').disabled=false;doi()};
+ /* ── thao tác ── */
+ function xoay(){if(!chon)return;ghiLui();
+  if(chon.kind==='khu'){const k=khu(chon.id);if(k.pts){tt('Khu đa giác chưa xoay được.',true);return}const cx=k.x+k.w/2,cz=k.z+k.d/2;const w=k.w;k.w=k.d;k.d=w;k.x=r2(cx-k.w/2);k.z=r2(cz-k.d/2);
+   VAT.filter(v=>v.khu===k.id).forEach(v=>{const ax=v.rx-w/2,az=v.rz-k.w/2;/* quay 90° ngược kim đồng hồ quanh tâm: (ax,az) → (az,−ax) */const nx=az,nz=-ax;v.rx=r2(nx+k.w/2);v.rz=r2(nz+k.d/2);v.xoay=((v.xoay||0)+90)%360;dungMon(v)});veKhuDoi(k)}
+  else{const v=vat(chon.id);v.xoay=((v.xoay||0)+90)%360;hitVat(v);dungMon(v)}doi()}
+ function nhanBan(){if(!chon)return;ghiLui();
+  if(chon.kind==='khu'){const k=khu(chon.id);const n=Object.assign({},k,{id:'khu-'+Date.now().toString(36),ten:k.ten+' (bản sao)',x:r2(k.x+k.w+1),trongKhay:0});delete n.mauX;delete n.mauZ;KHU.push(n);dungKhu(n);napKhuChon();chonMon('khu',n.id)}
+  else{const v=vat(chon.id),f=X.vetVat(v,km(),GIA);const n=Object.assign({},v,{id:v.loai+'-'+Date.now().toString(36)});if(f.w>=f.h)n.rz=r2(v.rz+f.h+0.05);else n.rx=r2(v.rx+f.w+0.05);VAT.push(n);dungMon(n);chonMon('vat',n.id)}doi()}
+ function xoa(){if(!chon)return;ghiLui();
+  if(chon.kind==='khu'){const k=khu(chon.id);const con=VAT.filter(v=>v.khu===k.id);if(con.length&&!confirm('Xoá khu "'+k.ten+'" cùng '+con.length+' món bên trong?'))return;con.forEach(v=>{XOA.push(v.id);GOC.remove(VAT_G[v.id]);delete VAT_G[v.id]});
+   VAT=VAT.filter(v=>v.khu!==k.id);KHU.splice(KHU.indexOf(k),1);XOA.push(k.id);GOC.remove(KHU_G[k.id]);delete KHU_G[k.id];napKhuChon()}
+  else{const v=vat(chon.id);VAT.splice(VAT.indexOf(v),1);XOA.push(v.id);GOC.remove(VAT_G[v.id]);delete VAT_G[v.id]}chonMon(null);doi()}
+ function them(ma){ghiLui();const t=CAM.o.target;
+  if(SUA.buoc===1){const k={id:'khu-'+Date.now().toString(36),ten:'Khu mới',nhom:'phu',x:r2(t.x-6),z:r2(t.z-4),w:12,d:8};hitKhu(k);KHU.push(k);dungKhu(k);napKhuChon();chonMon('khu',k.id);tt('Đã thêm khu ở giữa màn hình — gõ tên, kéo về chỗ, kéo chấm cam để nới/thu.');doi();return}
+  const L=LOAI_VAT[ma];if(!L||!SUA.khu)return;const k=khu(SUA.khu);const v=Object.assign({},L,{id:(L.loai||ma)+'-'+Date.now().toString(36),loai:L.loai||ma,khu:k.id,rx:r2(t.x-k.x),rz:r2(t.z-k.z),xoay:0});delete v.ten;
+  hitVat(v);VAT.push(v);dungMon(v);chonMon('vat',v.id);tt('Đã thêm '+L.ten+' ở giữa màn hình — kéo về đúng chỗ.');doi()}
+ function hoanTac(){if(!lui.length)return;const s=JSON.parse(lui.pop());KHU=s.KHU;VAT=s.VAT;XOA=s.XOA;LUAT_SUA=s.LUAT_SUA||{};$('suaLui').disabled=!lui.length;dungKho();napKhuChon();chon=null;veBang();khung();doi()}
+ /* ── bước 1 / bước 2 ── */
+ function napKhuChon(){const s=$('suaKhuChon');const cu=s.value;s.innerHTML='<option value="">— chọn khu —</option>'+khuDat().map(k=>'<option value="'+k.id+'">'+(k.ten||k.id)+'</option>').join('');s.value=cu}
+ /* ── KHAY KHỐI (user 05/10: mặt bằng trống, kéo từng khối vào) ── */
+ function veKhay(){const ds=KHU.filter(k=>k.trongKhay);$('khaySo').textContent=ds.length;const b=$('khay');
+  b.innerHTML=ds.map(k=>'<div class="khayDong" data-khay="'+k.id+'" title="Kéo dòng này vào mặt bằng"><b>'+(k.ten||k.id)+'</b><small>'+soVn(k.w)+' × '+soVn(k.d)+' m · '+soVn(X.dienTich(k))+' m² · '+VAT.filter(v=>v.khu===k.id).length+' món</small><button data-dat="'+k.id+'">Đặt</button></div>').join('');
+  b.querySelectorAll('[data-khay]').forEach(r=>r.addEventListener('pointerdown',e=>batDauKeoKhay(e,r.dataset.khay)));
+  b.querySelectorAll('[data-dat]').forEach(bt=>bt.addEventListener('click',e=>{e.stopPropagation();datKhu(bt.dataset.dat)}));
+  $('suaCatHet').disabled=!KHU.some(k=>!k.anSan&&!k.trongKhay);$('suaMau').disabled=!KHU.some(k=>k.mauX!==undefined)}
+ function datLen(k,x,z){k.trongKhay=0;k.x=r2(x);k.z=r2(z);hitKhu(k);dungKhu(k);VAT.filter(v=>v.khu===k.id).forEach(dungMon);napKhuChon();veKhay()}
+ function datKhu(id){const k=khu(id);if(!k||!k.trongKhay)return;ghiLui();const t=CAM.o.target;datLen(k,t.x-k.w/2,t.z-k.d/2);chonMon('khu',k.id);
+  const de=deKhu(k);tt(de.length?'Đã đặt '+k.ten+' — đang ĐÈ LÊN '+de.join(' · ')+', kéo ra chỗ trống.':'Đã đặt '+k.ten+' ở giữa màn hình — kéo về đúng chỗ.',de.length>0);doi()}
+ function batDauKeoKhay(e,id){if(e.target.tagName==='BUTTON')return;const k=khu(id);if(!k||!k.trongKhay)return;e.preventDefault();
+  const truoc=trangThai();const p=CAM.diemSan(e,0)||{x:CAM.o.target.x,z:CAM.o.target.z};datLen(k,p.x-k.w/2,p.z-k.d/2);chonMon('khu',k.id);
+  SUA.keo={kind:'khu',id:k.id,dx:k.x-p.x,dz:k.z-p.z,truoc,di:true,khay:1};
+  const di=ev=>SUA.di(ev),tha=ev=>{document.removeEventListener('pointermove',di);document.removeEventListener('pointerup',tha);document.removeEventListener('pointercancel',tha);SUA.tha(ev)};
+  document.addEventListener('pointermove',di);document.addEventListener('pointerup',tha);document.addEventListener('pointercancel',tha);
+  tt('Kéo khối vào mặt bằng rồi thả. Đè lên khu khác thì khung đỏ.')}
+ function catKhay(id){const k=khu(id);if(!k||k.anSan||k.trongKhay)return;ghiLui();k.trongKhay=1;
+  VAT.filter(v=>v.khu===k.id).forEach(v=>{const g=VAT_G[v.id];if(g){GOC.remove(g);delete VAT_G[v.id]}});const g=KHU_G[k.id];if(g){GOC.remove(g);delete KHU_G[k.id]}
+  if(SUA.khu===k.id)datBuoc(1);chonMon(null);napKhuChon();veKhay();tt('Đã cất '+k.ten+' vào khay.');doi()}
+ function xepMau(){ghiLui();KHU.forEach(k=>{if(k.mauX!==undefined){k.trongKhay=0;k.x=k.mauX;k.z=k.mauZ}});dungKho();napKhuChon();chonMon(null);tt('Đã xếp cả bộ theo bản mẫu (trang new-warehouse + khu bổ sung). Kéo lại tuỳ ý.');doi()}
+ function catHet(){if(!confirm('Cất mọi khu vào khay — mặt bằng về trống?'))return;ghiLui();KHU.forEach(k=>{if(!k.anSan)k.trongKhay=1});datBuoc(1);dungKho();napKhuChon();chonMon(null);tt('Mặt bằng đã trống. Kéo khối từ khay vào.');doi()}
+ $('suaMau').addEventListener('click',xepMau);$('suaCatHet').addEventListener('click',catHet);
+ function napThem(){const s=$('suaThem');if(SUA.buoc===1)s.innerHTML='<option value="">+ Thêm…</option><option value="khu">Khu vực mới 12 × 8 m</option>';
+  else s.innerHTML='<option value="">+ Thêm…</option>'+Object.keys(LOAI_VAT).map(k=>'<option value="'+k+'">'+LOAI_VAT[k].ten+'</option>').join('')}
+ function datBuoc(b,khuId){SUA.buoc=b;SUA.khu=b===2?(khuId||$('suaKhuChon').value||SUA.khu):null;$('b1').classList.toggle('on',b===1);$('b2').classList.toggle('on',b===2);$('hangKhu').style.display=b===2?'':'none';chonMon(null);napThem();
+  /* bước 1: đồ con mờ · bước 2: khu khác mờ */
+  Object.keys(VAT_G).forEach(id=>{const v=vat(id);VAT_G[id].traverse(ob=>{if(ob.isMesh&&ob.material&&ob.material.transparent!==undefined){}});});
+  if(b===2&&SUA.khu){const k=khu(SUA.khu);napKhuChon();$('suaKhuChon').value=SUA.khu;CAM.nhinThang(X.vetKhu(k),700);tt('Đang sửa chi tiết trong khu '+(k.ten||k.id)+' · '+VAT.filter(v=>v.khu===k.id).length+' món.')}
+  else if(b===2){tt('Chọn khu ở ô bên trên rồi bấm Vào khu.',true)}
+  else{tt('Bước 1 — kéo khu, nới/thu khu. Đồ bên trong đi theo.')}}
+ $('b1').addEventListener('click',()=>datBuoc(1));$('b2').addEventListener('click',()=>datBuoc(2));$('suaVaoKhu').addEventListener('click',()=>{const id=$('suaKhuChon').value;if(!id){tt('Chọn khu trước.',true);return}datBuoc(2,id)});
+ /* ── xuất ── */
+ function tai(ten,noiDung,kieu){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([noiDung],{type:kieu}));a.download=ten;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+ const ngay=()=>new Date().toISOString().slice(0,10);
+ function svg(){const Mh=moHinh();Mh.loi=LOI;return X.xuatSVG(Mh)}
+ function dxf(){const Mh=moHinh();Mh.loi=LOI;return X.xuatDXF(Mh)}
+ function png(){/* chụp trực giao từ trên như xuat-topview-kho170.mjs: ẩn nhãn/người/mái, rồi chồng lớp SVG (khu vàng + m²) lên */
+  const W=2600,Hh=Math.round(W*(N.HZ+24)/(N.HX+56));const c=new THREE.OrthographicCamera(-10,N.HX+46,-(-12),-(N.HZ+12),0.1,400);c.position.set(0,150,0);c.up.set(0,0,-1);c.lookAt(0,0,0);
+  c.left=-10;c.right=N.HX+46;c.top=12;c.bottom=-(N.HZ+12);c.updateProjectionMatrix();
+  const an=[];labels.forEach(s=>{an.push([s,s.visible]);s.visible=false});scene.traverse(ob=>{if(ob.userData&&ob.userData.nguoi){an.push([ob,ob.visible]);ob.visible=false}});const r0=roofG.visible;roofG.visible=false;LOI_HOP.forEach(h=>{an.push([h,h.visible]);h.visible=false});if(hop){an.push([hop,hop.visible]);hop.visible=false}
+  const sz=renderer.getSize(new THREE.Vector2()),pr=renderer.getPixelRatio(),bg=scene.background;renderer.setPixelRatio(1);renderer.setSize(W,Hh,false);scene.background=new THREE.Color(0xffffff);renderer.render(scene,c);
+  const out=document.createElement('canvas');out.width=W;out.height=Hh;const g=out.getContext('2d');g.drawImage(renderer.domElement,0,0,W,Hh);
+  renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);scene.background=bg;an.forEach(a=>a[0].visible=a[1]);roofG.visible=r0;
+  return new Promise(res=>{const im=new Image();const u=URL.createObjectURL(new Blob([svg()],{type:'image/svg+xml'}));im.onload=()=>{g.globalAlpha=0.9;g.drawImage(im,0,0,W,Hh);URL.revokeObjectURL(u);res(out.toDataURL('image/png'))};im.onerror=()=>res(out.toDataURL('image/png'));im.src=u})}
+ $('xSvg').addEventListener('click',()=>tai('LIENANH-'+ngay()+'.svg',svg(),'image/svg+xml'));
+ $('xDxf').addEventListener('click',()=>tai('LIENANH-'+ngay()+'.dxf',dxf(),'application/dxf'));
+ $('xPng').addEventListener('click',()=>{tt('Đang chụp PNG…');png().then(d=>{const a=document.createElement('a');a.href=d;a.download='LIENANH-'+ngay()+'.png';a.click();tt('Đã tải PNG.')})});
+ $('xPdf').addEventListener('click',()=>{const w=window.open('','_blank');if(!w){tt('Trình duyệt chặn cửa sổ in — cho phép pop-up rồi bấm lại.',true);return}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kho Liên Anh — mặt bằng 2D</title><style>@page{size:A3 landscape;margin:8mm}body{margin:0}svg{width:100%;height:auto}p{font:11px Arial;margin:4px 8px}</style></head><body>'+svg()+'<p>Tỉ lệ in chỉ đúng khi in 100 % — DXF là bản đo chính xác. In ngày '+ngay()+'.</p><script>setTimeout(function(){window.print()},400)<\/script></body></html>');w.document.close()});
+ /* ── chốt ── */
+ function chot(){const d=luat();if(d.loi>0){tt('Còn '+d.loi+' LỖI luật — sửa hết mới Chốt được (bấm dòng đỏ để bay tới).',true);return}
+  if(!confirm('Chốt bố cục này?\nMáy sẽ lưu bản chốt + xuất SVG/DXF/PNG vào .exports/lienanh/ và chạy QC + kiểm DXF bằng AutoCAD (~2–3 phút). Không đẩy lên Internet.'))return;
+  clearTimeout(tLuu);tt('Đang chụp PNG + xuất tệp…');$('suaChot').disabled=true;
+  png().then(p=>luu().then(()=>{const ctl=new AbortController();setTimeout(()=>ctl.abort(),120000);
+   return fetch(API+'chot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({svg:svg(),dxf:dxf(),png:p,khu:KHU,vat:VAT,luat:LUAT_SUA}),signal:ctl.signal})}))
+   .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.loi);hoiChot()}).catch(e=>{tt('Không chốt được: '+e.message,true);$('suaChot').disabled=false})}
+ function hoiChot(){clearTimeout(chotT);fetch(API+'chot',{signal:AbortSignal.timeout(10000)}).then(r=>r.json()).then(j=>{
+  if(j.chay){$('suaChot').disabled=true;tt('Đang chốt · bước '+j.buoc+'/'+(j.tong||3)+': '+j.ten+' …');chotT=setTimeout(hoiChot,2000);return}
+  $('suaChot').disabled=false;if(!j.xong)return;if(j.ok)tt('✓ ĐÃ CHỐT — tệp ở '+(j.thuMuc||'.exports/lienanh/')+' (SVG · DXF · DWG · PNG). '+(j.ghiChu||''));else tt('✗ Dừng ở bước '+j.buoc+' ('+j.ten+'): '+(j.loi||''),true)}).catch(()=>{chotT=setTimeout(hoiChot,3000)})}
+ /* ── nút + phím ── */
+ $('suaXoay').addEventListener('click',xoay);$('suaNhan').addEventListener('click',nhanBan);$('suaXoa').addEventListener('click',xoa);$('suaLui').addEventListener('click',hoanTac);$('suaKhit').addEventListener('click',thuKhit);$('suaChot').addEventListener('click',chot);
+ $('suaThem').addEventListener('change',e=>{const k=e.target.value;e.target.value='';if(k)them(k)});
+ $('suaGon').addEventListener('click',()=>{const g=$('sua').classList.toggle('gon');$('suaGon').textContent=g?'▸':'▾'});
+ addEventListener('keydown',e=>{if(!SUA.bat||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();hoanTac();return}if((e.ctrlKey||e.metaKey)&&e.code==='KeyD'){e.preventDefault();nhanBan();return}
+  if(e.code==='KeyR'){xoay();return}if(e.code==='Delete'||e.code==='Backspace'){e.preventDefault();xoa();return}if(e.code==='Escape'){chonMon(null);return}if(e.code==='KeyO'){CAM.datChieu(!CAM.o.ortho);return}
+  const m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.code];if(m&&chon){e.preventDefault();ghiLui();const buoc=chon.kind==='khu'?0.5:0.05;
+   if(chon.kind==='khu'){const k=khu(chon.id);k.x=r2(k.x+m[0]*buoc);k.z=r2(k.z+m[1]*buoc);veKhuDoi(k)}else{const v=vat(chon.id);v.rx=r2(v.rx+m[0]*buoc);v.rz=r2(v.rz+m[1]*buoc);const c=viTriVat(v);VAT_G[v.id].position.set(c.x,+v.y||0,c.z)}doi()}});
+ function vao(){SUA.bat=true;document.body.classList.add('dangSua');$('sua').hidden=false;dungKho();napKhuChon();veKhay();datBuoc(1);CAM.datMode('map');CAM.datChieu(true);CAM.nhinThang({x:-4,y:-4,w:N.HX+8,h:N.HZ+8},900);luat();veBang();
+  if(!khuDat().some(k=>!k.anSan))tt('Mặt bằng TRỐNG — kéo khối từ khay (bảng bên phải) vào mặt bằng, hoặc bấm "Xếp theo bản mẫu".')}
+ if(LA_QC){const ctl=new AbortController();setTimeout(()=>ctl.abort(),5000);fetch(API+'ping',{signal:ctl.signal}).then(r=>r.json()).then(j=>{if(!j.ok)return;vao();if(j.chay&&!navigator.webdriver)hoiChot()}).catch(()=>{vao();tt('Máy chủ nội bộ chưa có đường lưu Liên Anh — mở bằng BO-TRI-LIEN-ANH.bat. Vẫn kéo/xuất được, nhưng KHÔNG lưu.',true)})}
+ else{tt('')}
+ window.__sua={vao,them,xoay,nhanBan,xoa,hoanTac,chonMon,datBuoc,luat,thuKhit,svg,dxf,png,veKhay,datKhu,catKhay,xepMau,catHet,khuDat,vatDat,deKhu,get chon(){return chon},get hop(){return hop},get KHU(){return KHU},get VAT(){return VAT},get LOI(){return LOI},moHinh}})();
+/* ═══════════════ 10. BẢNG: số liệu nhà · diện tích · luật ═══════════════ */
+function veChuoi(){const c=$('tsChuoi');const ok=N.ok;const sX=TS.chuoiX,sZ=TS.chuoiZ;
+ c.innerHTML='Trục 1→19: '+sX.buoc.join(' + ')+' = <b class="'+(ok?'':'sai')+'">'+N.tongX.toLocaleString('vi-VN')+' mm</b> ('+sX.mo+')<br>Trục M→A: '+sZ.buoc.join(' + ')+' = <b class="'+(ok?'':'sai')+'">'+N.tongZ.toLocaleString('vi-VN')+' mm</b> ('+sZ.mo+')<br><small>Nguồn: '+TS.banVe+' · 3 nguồn độc lập khớp (chuỗi · trang mẫu · ảnh vệ tinh) — xem SO-DO-KHO-LIEN-ANH.md §2</small>'}
+function veBangTs(){let h='<table class="bg"><tr><th>Thông số</th><th>Giá trị</th><th>Nguồn</th></tr>';TS.nhom.forEach(n=>{h+='<tr><td colspan="3"><b>'+n.ten+'</b></td></tr>';n.ts.forEach(t=>{const tam=/TẠM/.test(t.nguon||'');
+  h+='<tr><td>'+t.ten+(t.mo?' <small>— '+t.mo+'</small>':'')+'</td><td class="so"><input data-ts="'+t.id+'" type="number" step="any" value="'+GIA[t.id]+'"'+(t.id==='HX'||t.id==='HZ'?' disabled':'')+'> '+(t.dv||'')+'</td><td><span class="ng'+(tam?' tam':'')+'">'+(t.nguon||'')+'</span></td></tr>'})});$('tsBox').innerHTML=h+'</table>'}
+$('tsAp').addEventListener('click',()=>{document.querySelectorAll('[data-ts]').forEach(el=>{const v=+el.value;if(isFinite(v))GIA[el.dataset.ts]=v});try{localStorage.setItem('lienanh-gia',JSON.stringify(GIA))}catch(e){}N=X.nha(TS,GIA);dungNha();dungKho();window.__sua.luat();$('tsTt').textContent='Đã áp dụng (nhớ trong máy này).'});
+$('tsGoc').addEventListener('click',()=>{GIA=Object.assign({},GOC_TS);try{localStorage.removeItem('lienanh-gia')}catch(e){}N=X.nha(TS,GIA);veBangTs();dungNha();dungKho();window.__sua.luat();$('tsTt').textContent='Đã về số gốc.'});
+function veDienTich(){const nhom={};let tong=0;khuDat().filter(k=>!k.anSan).forEach(k=>{const S=X.dienTich(k);if(!k.ngoai)tong+=S;(nhom[k.nhom||'phu']=nhom[k.nhom||'phu']||[]).push([k,S])});
+ let h='<table class="bg"><tr><th>Khu</th><th>m²</th><th>Món</th></tr>';Object.keys(nhom).forEach(n=>{const ds=nhom[n];const s=ds.reduce((a,b)=>a+b[1],0);h+='<tr><td><b>'+(NHOM_KHU[n]||n)+'</b></td><td class="so"><b>'+soVn(Math.round(s*10)/10)+'</b></td><td></td></tr>';
+  ds.forEach(([k,S])=>{h+='<tr><td>&nbsp;&nbsp;'+(k.ten||k.id)+(k.ngoai?' <small>(ngoài nhà)</small>':'')+'</td><td class="so">'+soVn(S)+'</td><td class="so">'+VAT.filter(v=>v.khu===k.id).length+'</td></tr>'})});
+ h+='<tr><td><b>Tổng trong nhà</b> ('+khuDat().filter(k=>!k.ngoai&&!k.anSan).length+' khu đã đặt)</td><td class="so"><b>'+soVn(Math.round(tong*10)/10)+'</b></td><td class="so">/ '+soVn(N.HX*N.HZ)+'</td></tr></table>';$('dt').innerHTML=h}
+function veLuat(){let h='<table class="bg"><tr><th>Mã</th><th>Luật</th><th>Tối thiểu</th><th>Mức</th><th>Nguồn</th></tr>';LUATDS.luat.forEach(l=>{const s=LUAT_SUA[l.ma]||{};
+ h+='<tr><td>'+l.ma+'</td><td>'+l.ten+(l.mo?' <small>— '+l.mo+'</small>':'')+'</td><td class="so"><input data-luat="'+l.ma+'" type="number" step="0.1" value="'+(s.min!==undefined?s.min:l.min)+'"> '+l.dv+'</td><td>'+(s.muc||l.muc)+'</td><td><span class="ng'+(l.verify?'':' tam')+'">'+l.nguon+'</span></td></tr>'});
+ $('luatBox').innerHTML=h+'</table>';$('luatBox').querySelectorAll('[data-luat]').forEach(el=>el.addEventListener('change',()=>{const v=+el.value;if(!isFinite(v))return;LUAT_SUA[el.dataset.luat]=Object.assign({},LUAT_SUA[el.dataset.luat],{min:v});window.__sua.luat();if(window.__sua)localStorage.setItem('lienanh-luat-sua',JSON.stringify(LUAT_SUA))}))}
+/* ═══════════════ 11. NÚT CHUNG + VÒNG LẶP ═══════════════ */
+let paused=false;
+$('bPause').addEventListener('click',e=>{paused=!paused;e.target.textContent=paused?'Tiếp tục':'Tạm dừng';e.target.classList.toggle('on',paused)});
+$('bLab').addEventListener('click',e=>{labelsOn=e.target.classList.toggle('on')});
+$('bRoof').addEventListener('click',e=>{roofG.visible=e.target.classList.toggle('on')});
+$('bTog').addEventListener('click',e=>{const ui=$('ui');const col=ui.classList.toggle('col');e.target.textContent=col?'Chi tiết ▾':'Thu gọn ▴'});
+$('bTram').addEventListener('click',()=>{const s=VAT.find(v=>v.loai==='sorter');if(!s)return;s.tram=s.tram==='manual'?'cage':'manual';$('bTram').textContent='Trạm: '+(s.tram==='manual'?'người xếp pallet':'lồng tự rơi');dungMon(s);if(SUA.bat)window.__sua.luat()});
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();CAM.apply()}addEventListener('resize',resize);
+const WP=new THREE.Vector3();let last=performance.now(),khung=0;
+function frame(now){requestAnimationFrame(frame);let dt=Math.min(0.05,(now-last)/1000);last=now;if(paused||SUA.keo)dt=0;
+ if(CAM.o.rot)CAM.o.theta+=0.0015;CAM.chayAnim(now);CAM.apply();const c=CAM.cam();
+ for(const sp of labels){sp.getWorldPosition(WP);const d=c.position.distanceTo(WP);const t=sp.userData.t||3;sp.visible=labelsOn&&(t===1||(t===2&&d<90)||(t===3&&d<40));if(!sp.visible)continue;const k=Math.max(0.35,(CAM.o.ortho?CAM.o.dist:d)*0.022)*sp.userData.k;sp.scale.set(sp.userData.a*k,k,1)}
+ if(dt>0)SORTERS.forEach(s=>s.tick(dt));
+ if(window.__sua&&window.__sua.hop)window.__sua.hop.update();LOI_HOP.forEach(h=>h.update());
+ renderer.render(scene,c);CAM.veMM();
+ if(++khung===3){CAM.chupMM();window.__SAN_SANG=true}
+ if(khung%600===0)CAM.chupMM()}
+/* ═══════════════ 12. KHỞI ĐỘNG ═══════════════ */
+dungNha();dungKho();veChuoi();veBangTs();veLuat();resize();CAM.datMode('orbit');CAM.apply();
+window.LA={get KHU(){return KHU},get VAT(){return VAT},N,GIA,KHU_G,VAT_G,GOC,NHA,SORTERS,CAM,SUA,labels:()=>labels,X};
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

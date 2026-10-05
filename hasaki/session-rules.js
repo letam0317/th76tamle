@@ -332,6 +332,35 @@ export function duocPhepReLogin(d = new Date()) {
   return trongKhungAnToan(d);
 }
 
+/* ══════════ VAI MÁY: LAPTOP 09:00–17:55 · PC phần còn lại (user chốt 01/10/2026, LICH-VA-DU-PHONG Phần G) ══════════
+ * Hai máy cùng chạy một cò = hai nguồn ghi đè nhau, mà khoá file cục bộ không nhìn thấy nhau giữa 2 máy.
+ * Nên chia theo ĐỒNG HỒ, không chồng: laptop chạy trong LAPTOP_GIO (mặc định 09:00-17:55, T2–T7), PC chạy
+ * phần bù (đêm + cả ngày T7/CN). Khe 15' hai đầu để lượt đang chạy xong hẳn. Mỗi cò gọi hàm này Ở ĐẦU
+ * (0 lượt gọi upstream). RUNNER_VAI trống = chạy mọi lúc như cũ (máy chưa tham gia chia vai).
+ *   .env laptop: RUNNER_VAI=laptop        .env PC: RUNNER_VAI=pc
+ *   LAPTOP_GIO=09:00-17:55 (ghi đè được) · LAPTOP_CUOI_TUAN=1 nếu laptop cũng chạy T7/CN theo khung đó
+ *   EP_RUNNER=1 hoặc --force: bỏ qua (chữa cháy tay). */
+export function laptopDuocChay(d = new Date()) {
+  const [a, b] = String(process.env.LAPTOP_GIO || "09:00-17:55").split("-").map((s) => phut(s));
+  if (a == null || b == null) return true;
+  const thu = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Ho_Chi_Minh", weekday: "short" }).format(d);
+  const cuoiTuan = thu === "Sat" || thu === "Sun";
+  if (cuoiTuan && String(process.env.LAPTOP_CUOI_TUAN || "") !== "1") return false;
+  const p = phutVN(d);
+  return a <= b ? (p >= a && p < b) : (p >= a || p < b);
+}
+/** true = máy này được chạy cò lúc này. Ghi 1 dòng lý do khi KHÔNG được. */
+export function mayDuocChay(log = () => {}, d = new Date()) {
+  const vai = String(process.env.RUNNER_VAI || "").trim().toLowerCase();
+  if (!vai) return true;
+  if (String(process.env.EP_RUNNER || "") === "1" || process.argv.includes("--force")) return true;
+  const lap = laptopDuocChay(d);
+  const ok = vai === "pc" ? !lap : lap;
+  if (!ok) log("⏸ ngoài giờ của máy này (RUNNER_VAI=" + vai + ", laptop " + (process.env.LAPTOP_GIO || "09:00-17:55") + " T2–T7" +
+    (String(process.env.LAPTOP_CUOI_TUAN || "") === "1" ? "+T7/CN" : "") + ") — máy kia đang trực, bỏ lượt.");
+  return ok;
+}
+
 /* ══════════ CHỐT CỨNG: CẤM MÁY TỰ TẠO PHIÊN (23/08/2026) ══════════
  * VÌ SAO: tài khoản `tamlc@hasaki.vn` dùng chung, mà WMS chỉ cho 1 phiên/tài khoản ⇒ mỗi lần
  * MÁY tạo phiên mới là ĐÁ người thật đang làm. Các cửa kiểm cũ đều chặn ở nước SAU:

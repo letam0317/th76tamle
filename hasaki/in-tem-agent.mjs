@@ -585,7 +585,7 @@ async function chayDichVu(nhip) {
   const napLai = () => {
     console.log("── mã đã đổi → nạp lại agent (tiến trình mới thay thế tiến trình này)");
     try {
-      spawn(process.execPath, process.argv.slice(1), { detached: true, stdio: "ignore", cwd: DIR }).unref();
+      spawn(process.execPath, process.argv.slice(1), { detached: true, stdio: "ignore", cwd: DIR, windowsHide: true }).unref();
     } catch (e) { console.error("  không sinh được tiến trình mới: " + (e.message || e) + " — task 5 phút sẽ bật lại"); }
     process.exit(0);
   };

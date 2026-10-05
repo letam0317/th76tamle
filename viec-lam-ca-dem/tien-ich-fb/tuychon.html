@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Gom tin việc ca đêm từ nhóm Facebook</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.55 "Segoe UI", system-ui, sans-serif; margin: 0; padding: 22px 26px 48px; max-width: 820px; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 26px 0 6px; }
+  p.phu { color: #6b7280; margin: 0 0 18px; }
+  label { display: block; font-weight: 600; margin: 14px 0 5px; }
+  input[type=text], input[type=number], input[type=search], textarea {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #c3c7cf;
+    border-radius: 6px; font: inherit; background: canvas; color: canvastext;
+  }
+  textarea { min-height: 70px; resize: vertical; }
+  .hang { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hang > div { flex: 1 1 170px; }
+  .nut { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button { padding: 9px 16px; border-radius: 6px; border: 1px solid #1c4587; background: #1c4587; color: #fff; font: inherit; cursor: pointer; }
+  button.phu2 { background: transparent; color: #1c4587; }
+  button:disabled { opacity: .55; cursor: default; }
+  .bat { display: flex; align-items: center; gap: 9px; margin: 16px 0 2px; font-weight: 600; }
+  #dsNhom { border: 1px solid #c3c7cf; border-radius: 8px; max-height: 300px; overflow: auto; padding: 4px 0; margin-top: 8px; }
+  #dsNhom .mot { display: flex; gap: 9px; align-items: flex-start; padding: 6px 12px; }
+  #dsNhom .mot:hover { background: rgba(28,69,135,.07); }
+  #dsNhom .ten { flex: 1; }
+  #dsNhom .link { display: block; font-size: 11px; color: #6b7280; word-break: break-all; }
+  .the { font-size: 11px; padding: 1px 7px; border-radius: 10px; margin-left: 7px; white-space: nowrap; }
+  .the.tg { background: #e4edff; color: #1c4587; }
+  .the.tim { background: #e9f7ec; color: #1d6b32; }
+  .the.uu { background: #fdeede; color: #9a4b0a; }
+  .the.bo { background: #fde8e8; color: #a12020; }
+  .demNhom { color: #1c4587; font-weight: 600; }
+  #nhatKy { white-space: pre-wrap; font: 12px/1.5 Consolas, monospace; background: #f4f5f7; color: #222;
+            border-radius: 8px; padding: 12px 14px; max-height: 240px; overflow: auto; margin-top: 8px; }
+  .luuY { border-left: 3px solid #d9822b; padding: 9px 13px; background: #fff8ef; color: #603b13; border-radius: 0 6px 6px 0; margin-top: 24px; }
+  @media (prefers-color-scheme: dark) {
+    #nhatKy { background: #23262b; color: #ddd; }
+    .luuY { background: #2c2519; color: #f0d5ae; }
+    #dsNhom .link { color: #9aa3b2; }
+  }
+</style>
+</head>
+<body>
+<h1>Gom tin việc ca đêm từ nhóm Facebook</h1>
+<p class="phu">Dùng đúng phiên Facebook bạn đã đăng nhập trong trình duyệt này. Các nhóm được mở trong <b>một cửa sổ riêng đã thu nhỏ sẵn</b> rồi tự đóng — cửa sổ bạn đang làm việc không bị đụng, chuột không bị cướp.</p>
+
+<h2>1. Nối với bảng tính</h2>
+<label for="diaChiGas">Địa chỉ nhận bài (Apps Script)</label>
+<input type="text" id="diaChiGas" placeholder="https://script.google.com/macros/s/..../exec">
+
+<label for="khoa">Khoá</label>
+<input type="text" id="khoa" placeholder="Lấy ở bảng tính: menu Việc ca đêm → Khoá cho tiện ích Facebook">
+<div class="nut">
+  <button id="thuNoi" class="phu2">Thử nối bảng tính (gửi 1 bài giả)</button>
+  <span id="ketQuaNoi" class="demNhom"></span>
+</div>
+
+<h2>2. Chọn nhóm</h2>
+<p class="phu">Hai nguồn nhóm: nhóm bạn <b>đã tham gia</b>, và nhóm <b>công khai</b> tìm theo từ khoá (không cần tham gia vẫn đọc được bài — nhóm riêng tư thì chỉ thấy tên, tiện ích sẽ tự bỏ qua sau 3 lượt đọc hụt).</p>
+<div class="nut">
+  <button id="layNhom" class="phu2">Lấy danh sách nhóm của tôi</button>
+  <button id="timNhom" class="phu2">Tìm nhóm công khai theo từ khoá</button>
+</div>
+
+<label for="tuKhoaTim">Từ khoá tìm nhóm (mỗi dòng một từ khoá)</label>
+<textarea id="tuKhoaTim" placeholder="việc làm buồng phòng"></textarea>
+
+<div class="nut">
+  <button id="chonUuTien" class="phu2">Tick nhóm buồng phòng / nhà hàng / khách sạn</button>
+  <button id="chonViec" class="phu2">Tick mọi nhóm việc làm</button>
+  <button id="boChon" class="phu2">Bỏ tick tất cả</button>
+  <button id="batLai" class="phu2">Bật lại nhóm bị bỏ qua</button>
+  <span class="demNhom" id="dem"></span>
+</div>
+<label for="loc">Lọc nhanh trong danh sách</label>
+<input type="search" id="loc" placeholder="gõ để tìm: việc làm, tuyển dụng, ca đêm…">
+<div id="dsNhom"></div>
+
+<label for="nhom">Thêm tay (mỗi dòng một link, nếu nhóm nào không có trong danh sách)</label>
+<textarea id="nhom" placeholder="https://www.facebook.com/groups/..."></textarea>
+
+<h2>3. Nhịp chạy</h2>
+<div class="bat"><input type="checkbox" id="bat"><label for="bat" style="margin:0">Bật chạy tự động theo giờ</label></div>
+<div class="bat"><input type="checkbox" id="moXemThem"><label for="moXemThem" style="margin:0">Bấm "Xem thêm" để lấy đủ nội dung bài</label></div>
+<div class="bat"><input type="checkbox" id="ngheLenh"><label for="ngheLenh" style="margin:0">Nghe lệnh "Cào ngay" từ bảng tính</label></div>
+<p class="phu" style="margin:4px 0 0">Bật mục này thì bấm <b>Cào ngay</b> bên bảng tính là đủ: tiện ích hỏi bảng tính mỗi 3 phút, thấy lệnh thì tự gom nhóm Facebook rồi báo bảng tính gộp lại. Không phải chạy hai nơi.</p>
+<div class="hang">
+  <div>
+    <label for="phutMoiLuot">Bao lâu một lượt (phút)</label>
+    <input type="number" id="phutMoiLuot" min="30" step="30">
+  </div>
+  <div>
+    <label for="nhomMoiLuot">Số nhóm mỗi lượt</label>
+    <input type="number" id="nhomMoiLuot" min="1" max="40">
+  </div>
+  <div>
+    <label for="cheDoCuaSo">Cách chạy</label>
+    <select id="cheDoCuaSo" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #c3c7cf;border-radius:6px;font:inherit;background:canvas;color:canvastext">
+      <option value="goc">Cửa sổ nhỏ nằm góc (chắc ăn)</option>
+      <option value="thunho">Thu nhỏ hẳn (kín hơn, dễ hụt bài)</option>
+    </select>
+  </div>
+  <div>
+    <label for="songSong">Mở cùng lúc mấy nhóm (1-20)</label>
+    <input type="number" id="songSong" min="1" max="20">
+  </div>
+  <div>
+    <label for="giayGiuaNhom">Nghỉ giữa 2 đợt (giây)</label>
+    <input type="number" id="giayGiuaNhom" min="2" max="120">
+  </div>
+  <div>
+    <label for="soLanCuon">Nhịp cuộn mỗi nhóm</label>
+    <input type="number" id="soLanCuon" min="1" max="10">
+  </div>
+  <div>
+    <label for="toiDaMoiNhom">Tối đa bài mỗi nhóm</label>
+    <input type="number" id="toiDaMoiNhom" min="5" max="60">
+  </div>
+</div>
+<p class="phu" id="giaiThichXoay" style="margin-top:8px"></p>
+<p class="phu" id="canhBaoTab" style="margin-top:-8px"></p>
+
+<div class="nut">
+  <button id="luu">Lưu</button>
+  <button id="chay" class="phu2">Chạy thử ngay</button>
+  <button id="xoaLog" class="phu2">Xoá nhật ký</button>
+</div>
+
+<h2>Nhật ký</h2>
+<div id="nhatKy">chưa chạy lần nào</div>
+
+<div class="luuY">
+  Facebook không cho phép thu thập dữ liệu tự động. Tiện ích này chỉ đọc bài trong nhóm bạn đã tham gia,
+  chạy thưa và xoay vòng từng nhóm, không thao tác gì khác — nhưng rủi ro tài khoản bị hỏi lại mật khẩu
+  vẫn không phải bằng không. Muốn an toàn tuyệt đối thì tắt chạy tự động và chỉ bấm
+  "Chạy thử ngay" khi bạn ngồi trước máy.
+</div>
+
+<script src="tuychon.js"></script>
+</body>
+</html>

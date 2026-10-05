@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { docTokenCu } from "./token-store.js";
 import { gasPost } from "./session-rules.js";
+import { epNeuCan } from "./ep-tuoi.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -153,6 +154,27 @@ try {
     }
   }
 } catch { /* sổ phiên best-effort — không chặn các việc chính */ }
+
+/* 1g) ÉP TƯƠI KHI THẤY PHIÊN MỚI (14/09/2026) — đường DỰ PHÒNG của cò co-dang-nhap.mjs.
+ * Cò bắt tiếng đăng nhập trong ~3-5 giây, nhưng chỉ chạy khi extension đã nạp bản v1.5.0.
+ * Đường này không cần extension: jti của token trong kho ĐỔI nghĩa là phiên MỚI, tức có người
+ * vừa đăng nhập — trễ nhất 1 tick canh (2 phút). Hai đường dùng CHUNG cửa debounce 10 phút
+ * trong ep-tuoi.mjs nên không bao giờ ép đôi. Lượt đầu tiên chỉ GIEO mốc, không ép
+ * (máy vừa boot mà ép ngay là tự tạo thêm một lượt upstream vô cớ). */
+try {
+  const JTI_STATE = path.join(DIR, ".ep-jti.json");
+  const jtiCua = (t) => { try { return JSON.parse(Buffer.from(String(t).replace(/^Bearer /i, "").split(".")[1], "base64url").toString()).jti || ""; } catch { return ""; } };
+  let jst = {}; try { jst = JSON.parse(fs.readFileSync(JTI_STATE, "utf8")); } catch { /* lần đầu */ }
+  let doi = false;
+  for (const [khe, kho] of [["wms", "wms"], ["wshr", "work"]]) {
+    const t = docTokenCu(DIR, kho);
+    const jti = t && t.token ? jtiCua(t.token) : "";
+    if (!jti) continue;
+    if (jst[khe] && jst[khe] !== jti) { coViec = true; log("⚡ Phiên MỚI ở khe " + khe + " (jti đổi) — xét ép làm tươi..."); await epNeuCan(DIR, khe, "tick-jti", log); }
+    if (jst[khe] !== jti) { jst[khe] = jti; doi = true; }
+  }
+  if (doi) fs.writeFileSync(JTI_STATE, JSON.stringify(jst));
+} catch (e) { log("· ép tươi theo jti bỏ qua (" + (e && e.message ? e.message : e) + ")"); }
 
 // 2) Yêu cầu ĐĂNG NHẬP (nút trong email). Bỏ qua nếu cửa sổ login đang mở (<15').
 let boQuaLogin = false;

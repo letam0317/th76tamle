@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Gom tin viec ca dem tu nhom Facebook",
+  "version": "1.0.0",
+  "description": "Khi ban da dang nhap Facebook, tien ich mo nhom trong tab nen, doc bai dang hien thi roi gui ve Google Sheet. Khong dang nhap ho, khong dung vao tab ban dang xem.",
+  "permissions": ["alarms", "storage", "scripting", "tabs"],
+  "host_permissions": [
+    "https://www.facebook.com/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "background": { "service_worker": "nen.js" },
+  "options_page": "tuychon.html",
+  "action": { "default_title": "Gom tin viec ca dem ngay bay gio" }
+}

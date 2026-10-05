@@ -126,7 +126,7 @@ const GIO_THUC_TE = Number(process.env.TASK_GIO_THUC_TE || 1);   // mặc địn
  * Không có mốc nào (F0-A0, việc tay) ⇒ giữ mặc định 1 phút — đúng yêu cầu "không có dữ liệu thì 1".
  * Tổng cả ngày được KẸP trong PHUT_NGAY: mốc của nhiều task chồng lên nhau nên cộng thô là đếm
  * trùng, thà thấp còn hơn khai vượt 8h. */
-const PHUT_NGAY = Number(process.env.TASK_PHUT_NGAY || 480);     // quỹ công 1 ngày, để trừ ra phần còn lại
+let PHUT_NGAY = Number(process.env.TASK_PHUT_NGAY || 480);     // quỹ công 1 ngày, để trừ ra phần còn lại
 const KHE_PHIEN = Number(process.env.TASK_KHE_PHIEN || 30);      // phút: cách nhau hơn ngần này ⇒ phiên mới
 const BU_PHIEN = Number(process.env.TASK_BU_PHIEN || 5);         // phút cộng thêm cho mỗi phiên
 /* Task "Sắp xếp hàng hóa tại kho tổng" ôm phần quỹ còn lại của ngày (chốt 25/08/2026):
@@ -203,6 +203,9 @@ const ngayGon = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.sl
    khai, danh sách task) đều bám NGAY_BC — chỉ giờ KIỂM tồn F0-A0 là giờ thật lúc chạy. */
 if (CO.ngay && !/^\d{4}-\d{2}-\d{2}$/.test(CO.ngay)) { console.log("✗ --ngay phải là YYYY-MM-DD"); process.exit(1); }
 const NGAY_BC = CO.ngay || ngayVN();
+if (!process.env.TASK_PHUT_NGAY && new Date(NGAY_BC + "T00:00:00+07:00").getDay() === 6) {
+  PHUT_NGAY = 240;
+}
 const gioVN = () => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }).format(new Date()));
 const docJson = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
 const linkTrongNote = (t) => (String(t.note || "").match(/https?:\/\/[^\s)"']+/) || [""])[0];

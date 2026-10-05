@@ -5,6 +5,8 @@ REM  -> ghi tab CHAM-CONG. Task Scheduler goi qua cham-cong-hidden.vbs.
 REM  Log: cham-cong.log
 REM ============================================================
 cd /d "%~dp0"
+call "%~dp0XOAY-LOG.bat" runner-gio.log
+node runner-gio.mjs "LAY-CHAM-CONG.bat" >> runner-gio.log 2>&1 || exit /b 0
 REM Xoay log truoc khi ghi (log ghi bang >> nen khong tu nho lai - xem XOAY-LOG.bat)
 call "%~dp0XOAY-LOG.bat" cham-cong.log
 echo [%date% %time%] Bat dau lay cham cong... >> cham-cong.log

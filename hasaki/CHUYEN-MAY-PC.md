@@ -43,13 +43,14 @@ Commit + push xong mới được sang mục 3.
 ### Kho code (theo git — clone lại được, KHÔNG cần chép)
 | Thư mục | Repo | Ghi chú |
 |---|---|---|
-| `New folder/` (chứa `hasaki/`, `kiemsoatkho/`) | `letam0317/th76tamle` | repo chính |
+| `New folder/` (chứa `hasaki/` với `hasaki/kiemsoatkho/`, `viec-lam-ca-dem/`, `kenh-trinh-tham/`, `Chung/`) | `letam0317/th76tamle` | repo chính; bố cục gốc dọn lại 05/10/2026, xem `LICH-VA-DU-PHONG.md` mục A2b |
 | `New folder/factory/` | `letam0317/stocklocationfactory` | repo Pages độc lập, nested (repo cha ignore) |
-| `baocao5s/` | — | **vỏ rỗng, xoá được** |
+| `baocao5s/` | — | **đã xoá 05/10/2026** (vỏ rỗng) |
 
 ### Dữ liệu RIÊNG ngoài git — PHẢI chép tay sang PC mới
 | File/thư mục | Vai trò | Nếu mất? |
 |---|---|---|
+| `Chung/khoa/service_account.json` | Khoá service account Google (timvieclamdem) cho `hasaki/bo-sung-link-anh-drive.py` + chuỗi Python cũ Việc làm ca đêm | Tải lại từ Google Cloud console |
 | `hasaki/.env` | TOÀN BỘ secret: WMS + Hasaki (user/pass/**2FA TOTP**), `APPSCRIPT_KEY/URL`, workflow id | Điền lại tay từ đầu — phiền nhất |
 | `hasaki/.exports/tasks-cache.json` | Kho **đóng băng task terminal** (đồng bộ tăng dần 45 ngày) | Phải chạy `FULL_RESYNC=1` một lần (nặng WMS) |
 | `hasaki/nhansu-manual.json` | Danh bạ NV khai tay (PII, gitignore) | Mất danh sách khai tay |

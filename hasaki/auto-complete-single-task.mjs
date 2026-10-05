@@ -32,6 +32,10 @@ const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour1
 const doc = (ten) => { const a = process.argv.find((x) => x.startsWith("--" + ten + "=")); return a ? a.split("=").slice(1).join("=") : ""; };
 const TASK = doc("task");
 const QUERY_NV = doc("nv");
+/* --qltt=<tên>: ÉP tên "Quản lý trực tiếp" (QLBP02) thay vì tra sổ. Dùng cho ca luật ⑤(4) canh-b11:
+   NV vi phạm chính LÀ một QLTT (nghỉ dài/nghỉ việc của cấp dưới) → QLBP02 phải là CẤP TRÊN của họ,
+   tra sổ sẽ ra chính họ hoặc người cùng cấp. Có override thì KHÔNG cộng lượt chia đều. */
+const QLTT_EP = doc("qltt");
 const LAM = process.argv.includes("--lam");          // mặc định DIỄN TẬP — không ghi gì
 
 async function layDanhBa(token) {
@@ -84,7 +88,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   if (!ds.length) { log("✗ Không tìm thấy NV nào khớp «" + QUERY_NV + "» trong danh bạ " + db.length + " người."); process.exit(3); }
   const nv = ds[0], codes = ds.map((x) => String(x.code || x.staff_id)).join(",");
   const q = chonQLTTCanBang(nv, db, docSoQLTT(DIR), DIR, false);   // peek — cộng lượt sau khi đóng B1
-  const qltt = q.ten;
+  const qltt = QLTT_EP || q.ten;
 
   const d = await docTask(token, TASK);
   if (!d || !Array.isArray(d.subtasks)) { log("✗ Không đọc được task " + TASK); process.exit(4); }
@@ -93,7 +97,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
 
   log("Task " + d.code + " (" + TASK + ") · B1 id " + b1.id + " · status hiện tại " + b1.status);
   log("  NV vi phạm : " + ds.map((x) => x.staff_name + " (" + x.code + ")").join(", "));
-  log("  QLTT       : " + qltt + "  ← " + q.nguon + " (" + q.ghiChu + ")");
+  log("  QLTT       : " + qltt + "  ← " + (QLTT_EP ? "ÉP qua --qltt" : q.nguon + " (" + q.ghiChu + ")"));
   if (b1.status === 2) { log("ℹ B1 đã đóng sẵn — không làm gì."); return; }
   if (!LAM) { log("— DIỄN TẬP, chưa ghi gì. Thêm --lam để làm thật."); return; }
 
@@ -103,7 +107,11 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   /* PIC02 "Hình ảnh bằng chứng" là Ô BẮT BUỘC: thiếu thì đóng bước trả 422 "Vui lòng cập nhật dữ
      liệu cấu hình!" (đo thật 22/09). Lấy lại chính ảnh vi phạm ở task cha (IMA00) — đúng thứ người
      xác minh vẫn đính kèm. Nạp ảnh là CỘNG DỒN nên xoá trước rồi mới nạp. */
+  /* 01/10: B1 đã có PIC02 (vd. ảnh ghép camera người xác minh gắn) → GIỮ, không đè bằng IMA00. */
+  const pic = (b1.data && b1.data.configs && b1.data.configs.PIC02) || [];
   const ima = (d.data && d.data.configs && d.data.configs.IMA00) || [];
+  if (Array.isArray(pic) ? pic.length : pic) log("  Ảnh bằng chứng: GIỮ ảnh B1 đang có (" + [].concat(pic).length + " ảnh)");
+  else {
   if (!ima.length) { log("✗ Task cha không có ảnh vi phạm (IMA00) để làm bằng chứng B1 — dừng."); process.exit(7); }
   const rAnh = await fetch(CDN + String(ima[0]).replace(/^\/+/, ""), { signal: AbortSignal.timeout(60000) });
   const buf = Buffer.from(await rAnh.arrayBuffer());
@@ -115,6 +123,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   const rA = await fetch(V + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdA,
     headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" }, signal: AbortSignal.timeout(60000) });
   log("  Ảnh bằng chứng: " + (rA.status === 200 ? "đã nạp (" + Math.round(buf.length / 1024) + " KB)" : "TRƯỢT HTTP " + rA.status));
+  }
   /* KHÔNG gán lại người thực hiện B1 — B1 là việc của NGƯỜI XÁC MINH (3 phiếu người thật đều đứng
      tên Lâm Thanh Tú). Gán sang NV vi phạm thì engine mở B1.1 và giao cho QUẢN LÝ của họ. */
   const r2 = await ghi(token, b1.id, "status", { value: "2" });
@@ -123,7 +132,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   const b1Sau = sau.subtasks.find((s) => String(s.id) === String(b1.id));
   const b11 = sau.subtasks.find((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || ""));
   if (b1Sau && b1Sau.status === 2) {
-    if (q.pool && q.pool.length > 1) ghiLuot(DIR, qltt);   // chia đều 0,2%: chỉ cộng khi đóng thật
+    if (!QLTT_EP && q.pool && q.pool.length > 1) ghiLuot(DIR, qltt);   // chia đều 0,2%: chỉ cộng khi đóng thật
     /* B1.1 PHẢI đứng tên NV vi phạm — engine có thể giao sang quản lý, nên giao lại cho chắc. */
     if (b11) {
       const dangCam = (b11.staff || []).map((x) => String(x.info && x.info.code || ""));

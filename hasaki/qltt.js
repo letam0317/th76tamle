@@ -25,15 +25,33 @@ import { fileURLToPath } from "node:url";
 const TEN_NV = "Nhân viên vi phạm";
 const TEN_QL = "Quản lý trực tiếp";
 
+/** Chuẩn hoá không dấu (dùng nội bộ file này). */
+const kd = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Sổ TASK PHÂN CÔNG VỆ SINH (qltt-phancong.mjs nuôi) — nguồn ưu tiên CAO NHẤT (user chốt 25/09/2026):
+ *  người TẠO task "Sắp xếp hàng hóa kho tổng" (suggest 1297) = QLTT của mọi NV được giao trong task. */
+export function docPhanCongQLTT(DIR) {
+  try { return JSON.parse(fs.readFileSync(path.join(DIR, ".cache-qltt-phancong.json"), "utf8")).map || {}; } catch { return {}; }
+}
+/** Giới tính từ hồ sơ HR (/news/staff/{id} → gender 1 nam · 2 nữ) — cache do quét 25/09 dựng. */
+export function docGioiTinh(DIR) {
+  try { return JSON.parse(fs.readFileSync(path.join(DIR, ".cache-gioi-tinh.json"), "utf8")); } catch { return {}; }
+}
+
 /** Dựng sổ {mã NV → {ten, ngay, lan, cacTen[]}} từ kho phiếu đã kết xuất. Không có kho → sổ rỗng. */
 export function docSoQLTT(DIR) {
   const so = new Map();
+
+  // 0) TASK PHÂN CÔNG VỆ SINH — thắng mọi nguồn khác (user chốt 25/09/2026)
+  for (const [ma, x] of Object.entries(docPhanCongQLTT(DIR))) {
+    if (x && x.qltt) so.set(String(ma), { ten: x.qltt, ngay: x.ngay || "", lan: 999, cacTen: [x.qltt], nguon: "task phân công" });
+  }
 
   // 1) Đọc dữ liệu chính xác từ Hasaki Chat (chat.hasaki.vn)
   try {
     const chatData = JSON.parse(fs.readFileSync(path.join(DIR, ".cache-qltt-chat.json"), "utf8"));
     for (const [ma, info] of Object.entries(chatData)) {
-      if (info && info.manager) {
+      if (info && info.manager && !so.has(String(ma))) {
         so.set(String(ma), { ten: info.manager, ngay: "2026-09-22", lan: 99, cacTen: [info.manager], nguon: "chat.hasaki.vn" });
       }
     }
@@ -57,7 +75,7 @@ export function docSoQLTT(DIR) {
     for (const ma of nv.split(",").map((s) => s.trim()).filter(Boolean)) {
       const cu = so.get(ma);
       if (!cu) { so.set(ma, { ten: ql, ngay, lan: 1, cacTen: [ql], nguon: "sổ" }); continue; }
-      if (cu.nguon === "chat.hasaki.vn") continue; // Ưu tiên chat.hasaki.vn
+      if (cu.nguon === "task phân công" || cu.nguon === "chat.hasaki.vn") continue; // nguồn mạnh hơn thắng
       cu.lan++;
       if (!cu.cacTen.includes(ql)) cu.cacTen.push(ql);
       if (ngay > cu.ngay) { cu.ten = ql; cu.ngay = ngay; }   // mới hơn thì thắng
@@ -142,9 +160,15 @@ export const TO_QUANLY = [
   { ten: "phát triển cửa hàng", pool: ["Võ Văn Đức", "Diệp Quốc Hải"],
     tuyen: ["Võ Văn Đức", "Diệp Quốc Hải", "Mai Thị Duyên"] },
 ];
-/* Danh sách MÃ NV nam nghiệp vụ đóng gói (user gửi) — có mã ở đây thì QLTT = Bằng bất kể sổ ghi gì. */
+/* Mã NV NAM nghiệp vụ đóng gói — QLTT = Bằng bất kể sổ ghi gì. 25/09/2026: dựng từ giới tính
+ * hồ sơ HR (/news/staff gender=1); user đính chính 17131 Lưu Học Danh là NỮ (hồ sơ HR khai sai). */
 export const NAM_DONG_GOI = new Set([
-  // "260189", … ← điền khi user gửi danh sách
+  "263922",  // Nguyễn Công Khanh
+]);
+/* NỮ đóng gói do USER XÁC NHẬN 25/09/2026 — thắng giới tính hồ sơ HR (HR khai sai/thiếu). */
+export const NU_XAC_NHAN = new Set([
+  "17131",   // Lưu Học Danh (HR khai gender=1 — SAI)
+  "263669",  // Nguyễn Trương Uyển Nhi (HR chưa khai)
 ]);
 
 /** Nhận diện tổ của NV từ tập tên quản lý đã ghi (chat chain + các tên trong sổ). Khớp đúng 1 tổ → tổ đó;
@@ -166,28 +190,55 @@ function tenQuanLyCua(ma, so) {
 /* Sổ lượt bị-tính-QLTT (đếm từ 0) — để chọn người ít lượt nhất. Best-effort: hỏng thì coi như 0. */
 const FILE_LUOT = ".cache-qltt-luot.json";
 export function docLuot(DIR) { try { return JSON.parse(fs.readFileSync(path.join(DIR, FILE_LUOT), "utf8")); } catch { return {}; } }
-export function ghiLuot(DIR, ten) {
+/* loai = "" → lượt liên đới QLBP02 (0,2%) · "tru" → lượt QLTT CHỊU trừ KPI thay NV nghỉ dài (canh-b11 ⑤4).
+   Hai sổ ĐẾM RIÊNG (user chốt 28/09): trừ QLTT phải chia đều tự thân, không bị lượt QLBP02 kéo lệch. */
+const khoaLuot = (ten, loai) => (loai ? loai + "|" : "") + ten;
+export function ghiLuot(DIR, ten, loai = "") {
   if (!ten) return;
-  try { const o = docLuot(DIR); o[ten] = (o[ten] || 0) + 1; fs.writeFileSync(path.join(DIR, FILE_LUOT), JSON.stringify(o, null, 1)); }
+  try { const o = docLuot(DIR), k = khoaLuot(ten, loai); o[k] = (o[k] || 0) + 1; fs.writeFileSync(path.join(DIR, FILE_LUOT), JSON.stringify(o, null, 1)); }
   catch { /* mất 1 lượt đếm không chặn việc ghi biên bản */ }
 }
 
 /** Chọn người bị tính ít lượt nhất trong pool (hoà → theo thứ tự pool). KHÔNG ghi sổ (peek). */
-export function chonItLuot(pool, DIR) {
+export function chonItLuot(pool, DIR, loai = "") {
   const luot = docLuot(DIR);
-  let ten = pool[0], min = luot[pool[0]] || 0;
-  for (const p of pool) { const c = luot[p] || 0; if (c < min) { min = c; ten = p; } }
+  let ten = pool[0], min = luot[khoaLuot(pool[0], loai)] || 0;
+  for (const p of pool) { const c = luot[khoaLuot(p, loai)] || 0; if (c < min) { min = c; ten = p; } }
   return ten;
 }
 
-/** Giải ra tổ + pool quản lý trực tiếp của NV. Không map được tổ → rơi về timQLTT (1 tên) như cũ. */
-export function giaiTo(nv, danhBa, so) {
+/** Giải ra tổ + pool quản lý trực tiếp của NV — thang ưu tiên user chốt 25/09/2026:
+ *  1) TASK PHÂN CÔNG VỆ SINH (đích danh người tạo task) — mạnh nhất;
+ *  2) NAM đóng gói (giới tính HR / roster) → Bằng;
+ *  3) NỮ đóng gói → pool Uyên/Huyền (kiểm chứng 25/09: đóng gói kho 170 = 62 nữ / 2 nam);
+ *  4) PTCH chưa có trong task phân công → pool Đức/Hải;
+ *  5) fallback cũ: nhận diện tổ theo tên đã ghi → timQLTT. */
+export function giaiTo(nv, danhBa, so, DIR) {
   const ma = String(nv.code || nv.staff_id || "");
-  /* Roster nam đóng gói (user cấp) thắng mọi suy luận — QLTT cố định là Bằng. */
-  if (NAM_DONG_GOI.has(ma)) {
+  const pc = so && so.get(ma);
+  /* 28/09 (user): Uyên + Huyền CÙNG là QLTT nữ đóng gói → chia đều, không nghiêng ai. Task phân công
+     đích danh 1 người trong tổ nhiều quản lý chỉ còn dùng để NHẬN DIỆN tổ, lượt vẫn chia đều cả tổ. */
+  const toPC = pc && pc.nguon === "task phân công" && TO_QUANLY.find((t) => t.pool.length > 1 && t.pool.includes(pc.ten));
+  if (toPC) return { pool: toPC.pool, nhom: toPC.ten, nguon: "task phân công → tổ " + toPC.ten,
+    ghiChu: "Chia đều giữa " + toPC.pool.join(", ") };
+  if (pc && pc.nguon === "task phân công")
+    return { pool: [pc.ten], nhom: "task phân công", nguon: "task phân công",
+      ghiChu: "Người tạo task phân công vệ sinh gần nhất (" + String(pc.ngay).slice(0, 10) + ")" };
+  let gioi = DIR ? docGioiTinh(DIR)[ma] : undefined;   // 1 nam · 2 nữ
+  if (NU_XAC_NHAN.has(ma)) gioi = 2;                   // user đính chính thắng hồ sơ HR
+  if (NAM_DONG_GOI.has(ma) || (kd(nv.staff_major) === "dong goi" && gioi === 1)) {
     const to = TO_QUANLY.find((t) => t.ten === "đóng gói nam");
-    return { pool: to.pool, nhom: to.ten, nguon: "danh sách nam đóng gói (user cấp)",
-      ghiChu: "QLTT cố định: " + to.pool[0] };
+    return { pool: to.pool, nhom: to.ten, nguon: "nam đóng gói", ghiChu: "QLTT cố định: " + to.pool[0] };
+  }
+  if (kd(nv.staff_major) === "dong goi" && gioi === 2) {
+    const to = TO_QUANLY.find((t) => t.ten === "đóng gói nữ");
+    return { pool: to.pool, nhom: to.ten, nguon: "nữ đóng gói",
+      ghiChu: "Chia đều 0,2% giữa " + to.pool.join(", ") };
+  }
+  if (kd(nv.staff_major) === "phat trien cua hang") {
+    const to = TO_QUANLY.find((t) => t.ten === "phát triển cửa hàng");
+    return { pool: to.pool, nhom: to.ten, nguon: "PTCH (chưa có trong task phân công)",
+      ghiChu: "Chia đều 0,2% giữa " + to.pool.join(", ") };
   }
   const to = nhanDienTo(tenQuanLyCua(ma, so));
   if (to) return { pool: to.pool, nhom: to.ten, nguon: "tổ (" + to.ten + ")",
@@ -198,10 +249,10 @@ export function giaiTo(nv, danhBa, so) {
 
 /** DÙNG KHI GHI BIÊN BẢN THẬT: trả tên QLTT đã CÂN BẰNG. ghi=true thì cộng 1 lượt cho người được chọn.
  *  Trả {ten, pool, nhom, nguon, ghiChu}. Dry-run gọi ghi=false để xem ai SẼ bị tính mà không đụng sổ. */
-export function chonQLTTCanBang(nv, danhBa, so, DIR, ghi = false) {
-  const g = giaiTo(nv, danhBa, so);
-  const ten = chonItLuot(g.pool, DIR);
-  if (ghi) ghiLuot(DIR, ten);
+export function chonQLTTCanBang(nv, danhBa, so, DIR, ghi = false, loai = "") {
+  const g = giaiTo(nv, danhBa, so, DIR);
+  const ten = chonItLuot(g.pool, DIR, loai);
+  if (ghi) ghiLuot(DIR, ten, loai);
   const chia = g.pool.length > 1;
   return { ten, pool: g.pool, nhom: g.nhom, nguon: g.nguon,
     ghiChu: g.ghiChu + (chia ? " · lượt này → " + ten : "") };

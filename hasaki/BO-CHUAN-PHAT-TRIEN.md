@@ -24,6 +24,13 @@
 5. **Sau khi push/deploy: kiểm dấu vết rồi mới đo live** — GitHub Pages/CDN trả bản cũ vài phút.
    So SỐ BYTE (`curl -s <url> | wc -c` = `wc -c < file`) hoặc GitHub API `/contents` → `size`,
    hoặc grep chuỗi CHỈ có ở bản mới. Đừng đếm giây, đừng kết luận "sửa không ăn" khi chưa kiểm.
+6. **RÀ VIỆC CŨ SAU MỖI THAY ĐỔI (chốt 01/10/2026)** — mỗi khi đổi cách làm (luật, khuôn bằng chứng, clip,
+   bình luận, mẫu nộp…) phải rà LẠI mọi task/phiếu đã làm theo cách cũ: **TASK (phiếu cha) đã HOÀN THÀNH →
+   để nguyên**; **task CHƯA hoàn thành → ghi đè bằng bản mới** (xoá bản cũ theo QC-01, mục 11) — kể cả khi BƯỚC
+   chứa dữ liệu (vd B1) đã xong: xét theo TASK, không xét theo bước (user đính chính 01/10: "không phải hoàn thành
+   bước, mà là task hoàn thành… đang trong giai đoạn cải tiến liên tục nên cần đồng bộ trước sau thay đổi").
+   Trước khi ghi đè đọc lại phiếu: đúng việc, đúng mục đích — dữ liệu mới thay đúng chỗ dữ liệu cũ.
+   Báo cáo cuối đợt phải có dòng: bao nhiêu phiếu rà · bao nhiêu để nguyên (đã xong) · bao nhiêu đã ghi đè.
 
 **Không bắt nhập PIN** cho bất kỳ chức năng nào, NGOẠI TRỪ ghi nhận 5S. Bảo mật phải bằng
 cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → localStorage, quota server-side, nonce.
@@ -201,6 +208,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 | `do-toc-do-tem.mjs` | Đụng tốc độ AI đọc tem |
 | `qc-vesinh-muctieu.mjs` (≈34 ca × 4 máy; `--url` `--may=pc\|ip14\|ipse\|and`) | Mọi lần sửa tab Planogram › Vệ sinh — đo MỤC TIÊU chứ không chỉ luật bố cục: màn đầu có Tiến độ + Cần xử lý, các con số giữa các khối KHỚP nhau, xem ngày cũ ra đúng ngày, không chữ rác, sơ đồ vừa màn điện thoại, giả lập 25 khu |
 | `qc-tvt-mobile.mjs` (18 ca) | Mẫu bộ đo SÂU cho 1 mục — mục mới có pop-up thì viết `qc-<mục>-mobile.mjs` theo mẫu này |
+| `qc-lienanh-3d.mjs` (≈40 ca, `--url`) + `kiem-dxf-lienanh.mjs <tep.dxf>` (AutoCAD nền) | Mọi lần sửa công cụ bố trí kho Liên Anh (`lienanh-3d.html`, `lienanh-xuat.js`, `xem-noi-bo.mjs`); kiểm DXF sau mỗi lần đổi hàm xuất — AutoCAD từ chối DXF im lặng (05/10/2026: thiếu từ điển PlotStyleName) |
 | `node --check` | Mọi file JS/MJS vừa sửa |
 
 Nguyên tắc:
@@ -271,7 +279,90 @@ Nguyên tắc:
   và SAU KHI GHI chạy `.exports/_doi-soat-bao-duong-planogram.mjs --ghi` (cập nhật cột KHAI BÁO PLANOGRAM
   theo thực tế) + xem tab `THEO-DOI-PLANOGRAM`. Mục tiêu: 0 dòng lệch.
 
+## 11. XÁC MINH B1 (WF591) — bộ quy tắc + cò canh + bằng chứng (chốt 01/10/2026)
+
+- **NGUYÊN TẮC GỐC (user 05/10/2026, viết hoa):** MỌI cải tiến đều phát triển cho việc **chạy tự động hoàn toàn, không phụ thuộc AI**. Mỗi ca làm xong phải để lại luật/khuôn/vùng camera/script mà máy chạy được không cần Claude soi; bước còn cần AI ghi `tuDong:"chua"` + cách gỡ trong kinh-nghiem-xac-minh.json.
+
+- **Mục tiêu:** bộ quy tắc xác minh ngày càng hoàn thiện, tiến tới cò canh B1 tự động hoàn toàn
+  (tự chuyển B1.1 / dừng điều hướng / các trường hợp khác). **Ca nào nghi ngờ → ghi g-sheet để user quyết**,
+  không tự quyết.
+- **Nguồn luật DUY NHẤT** = `hasaki/quy-tac-xac-minh-b1.json` → hiện ở g-sheet tab `QUY TẮC XÁC MINH`
+  (dựng bằng `sheet-b1-treo.py`). Máy CHỈ tự làm luật user duyệt «Cho máy tự làm» VÀ kết luận chắc (đúng 1 người);
+  còn lại ghi «⚠ NGHI NGỜ — bạn quyết» ở tab `PHIẾU B1 TREO`.
+- **Án lệ = bài kiểm tra:** mỗi ca user quyết lưu thành án lệ (`.exports/an-le-b1.json` + `anLe` trong bộ luật).
+  Sửa/thêm luật xong phải chạy `node canh-b1.mjs --qc` ra đúng MỌI án lệ rồi mới chạy thật.
+- **Cò canh** `canh-b1.mjs` (lỗi ngoài vệ sinh; vệ sinh hằng ngày để canh-b11 ⑤): danh sách phiếu từ tasks-cache
+  (0 lượt), WMS transfer-bins **lọc `bin_in`** (KHÔNG dùng `keywords` — trả cả kho) 1 lượt/phiếu, cache vĩnh viễn,
+  trần `--max`. Diễn tập mặc định; `--lam` mới ghi, trong cửa 07–18 T2–T7. Đóng B1 qua auto-complete-single-task,
+  dừng phiếu theo khuôn canh-b11. Chưa lên lịch: user duyệt luật trên sheet trước.
+- **Truy người chịu lỗi phải liệt kê ĐỦ mọi người cất/lấy trong cửa sổ** (lọc đúng theo ô), không dừng ở người
+  đầu tiên khớp — 01/10 bỏ sót người đặt pallet gốc 19/08 khi kết luận "không ai khác" (phải đính chính).
+- **QC bằng chứng (QC-01):** thay clip/ảnh/bình luận bằng chứng thì **xoá bản cũ** — mỗi phiếu chỉ còn 1 bình luận
+  bằng chứng mới nhất; đăng bản mới → đọc lại thấy → mới xoá bản cũ. Ảnh B1 (PIC02) đã có thì công cụ đóng B1 GIỮ.
+- **Clip camera (CAM-01):** quay tới điểm mấu chốt (tới lúc người đó rời đi / lệnh WMS xong); đoạn chỉ đi lại tua ×2,
+  thao tác chính tốc độ thật, không bỏ thao tác; thêm clip đúng lúc chụp ảnh vi phạm; thử góc kề, chỉ dùng khi rõ hơn;
+  chú thích phải khớp hình (soi khung trước khi viết "phía trước/sau", "thấy mặt"). Máy KHÔNG nhận diện mặt.
+- **Tìm người từ VẬT (CAM-03, 01/10/2026 — user chốt khi xem clip 13389950 "vẫn chưa hiểu"):** thứ tự BẮT BUỘC:
+  ① mở **ảnh ghi nhận vi phạm** (IMA00) → nhận đúng ĐỒ VẬT vi phạm (vd thùng rỗng) → tìm nó trên camera ở ô đó,
+  so các góc kề, **luôn chọn góc thấy rõ nhất**; ② lùi thời gian TRƯỚC giờ ghi nhận, tìm **ai tác động đồ vật gần nhất**,
+  gồm cả tác động VẬT LÝ (chạm, vô tình đụng…) lẫn HỆ THỐNG (WMS cất/soạn ở ô, theo phút); ③ đối chiếu **ảnh cổng bảo vệ**
+  (`/hr/history-location`) để biết hình dáng/trang phục NV hôm đó, ngày ghi nhận không có ảnh thì lùi các ngày trước —
+  ảnh cổng CHỈ để máy/người xác minh đối chiếu, **KHÔNG đính kèm lên phiếu/bình luận** (user 01/10: "KHÔNG KÈM ẢNH BẢO VỆ");
+  ④ camera + WMS + ảnh cổng KHỚP thì mới đặt nghi ngờ và cắt clip đúng đoạn tác động (đoạn giữa không quan trọng tua ×2,
+  khung bám sát đối tượng di chuyển). Không khớp đủ thì ghi "nghi ngờ, user quyết", không kết luận.
+- **Khung bám người (CAM-02, 01/10/2026):** khung đỏ khoanh người cần xác minh PHẢI chạy theo người (khung đứng
+  yên 1 chỗ = không biết cần xem ai). `_clip-chu-thich.mjs` bám mặc định (dò "người" COCO-SSD, KHÔNG nhận mặt):
+  nét liền = đang thấy, nét đứt = tạm khuất. Dựng xong PHẢI soi ≥8 khung kiểm; khung nào lạc sang đồ vật
+  phải sửa rồi mới gắn lên phiếu.
+
+- **Sửa/thêm luật phải nêu KHÁC LUẬT CŨ (02/10/2026):** mỗi luật sửa/thêm có trường `khacCu` = khác luật cũ ở đâu + bối cảnh
+  (án lệ, số phiếu, kết quả chạy thử) → hiện ở cột cuối tab QUY TẮC XÁC MINH để user duyệt (user: "cần nêu điểm khác gì với luật
+  cũ/bối cảnh như nào khi sửa để t duyệt"). Án lệ 151 phiếu đã chốt B3: `.exports/an-le-b3.json` (`_gom-an-le-b3.cjs`).
+
+- **Bãi xe NCC/bảo vệ (BX-01, 02/10/2026):** `canh-bai-xe.mjs` chạy mỗi ngày (task 10:15 + 14:45) — CHỈ chụp + gợi ý ứng viên
+  (chấm công −3…+6', sổ cổng −1…+10') vào `Videos/5S-bang-chung/bai-xe/<ngày>/BAO-CAO.html` (ngoài repo, có mặt người); user quyết và
+  nhận diện, máy KHÔNG lập phiếu. Bẫy đã gặp: trang 404 làm canvas bị khoá (phải phục vụ trang trắng cùng nguồn); đường dẫn có dấu cách
+  phải dùng fileURLToPath; camera ngoài trời cần ngưỡng riêng; schtasks qua Git Bash làm hỏng dấu ngoặc kép → tạo task bằng PowerShell.
+  **Quyết định trên g-sheet (02/10):** sheet riêng BÃI XE NCC (`sheet-bai-xe.py`, ảnh nhúng 900 px + link ảnh gốc Drive riêng) → task 30' `bai-xe-phieu.mjs` lập phiếu + B1.1. Clip tự động: khung đỏ bám người CHỈ trong khoảng CÓ CHUYỂN ĐỘNG (so khung 3 s trước/sau — so với đầu/cuối đoạn làm nhiều xe nối tiếp thành 1 khoảng 5'), đệm −4/+10 s, nối khi cách <30 s, khúc còn lại tua ×3; soi 12 khung trước khi tin.
+
+- **Quy trình từng bước: `hasaki/SOP-XAC-MINH-CAMERA.md`** (3 nguyên tắc gốc + bảng tự kiểm 7 câu). Đọc TRƯỚC mỗi lần xác minh bằng camera.
+- **Bài học 13389950 + 14010729 (02/10/2026 — user đính chính 2 lần):**
+  - **CAM-05 thùng gốc + quy cách:** trước khi kết luận "lấy hết thùng" phải xác định thùng có phải THÙNG GỐC của SKU
+    (logo, nhãn EA trên thùng gốc cùng pallet/ảnh ghi nhận). Thùng trơn/thùng lẻ → KHÔNG suy số còn lại từ WMS, soi camera
+    TỪNG lần có người thò tay vào thùng. 01/10 suy "Như lấy 6 = hết" ⇒ sai; thực tế Hương 09:50 + Oanh 09:51 còn lấy.
+  - **Camera chỉ được XÁC NHẬN hoặc BÁC luật hệ thống bằng chứng thấy rõ, không được "đoán đè":** SH-01(a) "người soạn
+    cuối SKU tại ô" vốn ra Oanh = đúng; lần xác minh camera 01/10 đổi sang Như mà không thấy được lòng thùng ⇒ sai.
+    Camera không thấy rõ → giữ kết luận hệ thống + ghi "camera không bác được".
+  - **CAM-06 clip nối 1 mạch** từ lần tác động nghi ngờ → lúc chụp ảnh (`_clip-noi.mjs`): khung ĐỎ đứng yên = đồ vật,
+    khung VÀNG bám người + nhãn tài khoản; mỗi người lại gần đồ vật = 1 mốc tốc độ thật, chú thích phải soi TỪNG GIÂY
+    (09:41 suýt ghi "đi ngang" khi NV đang lấy hàng; 09:50 ghi Hương lấy "trên nóc" — user bác: lấy trong thùng).
+  - **Khung bám người trên camera mắt cá/nhìn từ trên:** mô hình chỉ dò ra 0–40 % khung → dự phòng bám vùng CHUYỂN ĐỘNG
+    lọc theo MÀU ÁO (không lọc màu thì trôi sang xe pallet đang kéo) + **điểm neo** người soi tay mỗi 3–6 s ở đoạn khó.
+    Dựng xong soi ≥12 khung; khung nào lệch người thì thêm neo rồi dựng lại.
+  - **NV-01 định danh khi không có lệnh WMS:** chấm công đúng phút (bộ phận theo màu đồng phục) → camera SAU vi phạm (còn làm
+    hay đã rời khu ⇒ ca sáng/chiều, khớp giờ chấm ra) → ảnh cổng gần nhất ≤10 ngày (dáng, tóc, quần, dép — KHÔNG so mặt).
+    Sổ cổng có thể TRỐNG cả ngày (01/10 bảo vệ không chụp) → lùi ngày. Còn ≥2 người → gửi user ảnh so sánh nội bộ.
+  - **Từ ngữ (TU-01):** "châm hàng" (không dùng "cất"); "không ai tác động thùng" (không dùng "không ai lấy hàng ở thùng");
+    tên trên clip = tài khoản WMS.
+  - **Tải file lớn lên wshr:** fetch của Node tự ngắt sau 300 s chờ phản hồi (clip >25 MB server xử lý lâu) → gửi bằng
+    https thuần (`_tao-phieu-5s.mjs`, `_thay-file-phieu.mjs`, `_thay-bang-chung-b1.mjs`); lỗi quá giờ → KIỂM phiếu đã
+    tạo chưa trước khi gửi lại (tránh trùng).
+
 ## NHẬT KÝ RULE
+
+- **02/10/2026 (chiều)** — Mục 11: CAM-05 thùng gốc + quy cách, camera không được đoán đè luật hệ thống, CAM-06 clip nối
+  (`_clip-noi.mjs` khung vàng bám người + neo), NV-01 định danh không có WMS, TU-01 từ ngữ (user: "Hương lấy 1 chai trong
+  thùng đó", "thay cất → châm hàng", "lấy → tác động", "sao k thấy vòng khoanh vùng người di chuyển", "sao k đối chiếu ảnh ra vào").
+
+- **02/10/2026** — Mục 11: luật sửa/thêm phải có `khacCu` (khác luật cũ + bối cảnh) để user duyệt; sổ luật gộp án lệ 151 phiếu B3 (XE-01, BX-01, CAM-04, CH-04 đề xuất; VS-03 giữ; SH-01 tách 3 dạng ảnh).
+
+- **01/10/2026 (chiều)** — Mục 0 bước 6 "rà việc cũ sau mỗi thay đổi" (user: "mỗi khi có thay đổi mới thì cần xem
+  lại các task cũ đã hoàn thành chưa, nếu đã hoàn thành rồi thì thôi còn chưa hoàn thành thì ghi đè… đảm bảo đúng
+  việc/đúng mục đích"); mục 11 CAM-02 khung bám người (user: "khung cần di chuyển theo người").
+
+- **01/10/2026** — Thêm mục 11 (xác minh B1): bộ luật JSON + tab QUY TẮC XÁC MINH có cột Bạn duyệt, cò `canh-b1.mjs`
+  (nghi ngờ → sheet), án lệ làm bài kiểm tra, QC-01 xoá bằng chứng cũ (user: "sao k xoá cái cũ? quy tắc QC đâu"),
+  luật liệt kê đủ người trong cửa sổ (rút từ lần bỏ sót minhplc ở phiếu 13393072).
 
 - **28/09/2026** — Tab Vệ sinh thiết kế lại theo QC user duyệt ("tiện lợi · không mục rác · gọn"): (1) **mỗi con số
   chỉ có MỘT hàm đếm** dùng chung cho mọi khối (nvTheoNgay) — 3 khối từng ra 116/38/31 cho cùng câu hỏi; (2) **khối

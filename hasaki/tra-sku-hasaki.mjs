@@ -86,13 +86,8 @@ export async function traCuuSanPham(ma) {
  */
 export function dongMoTaSP(ma, sp) {
   let s = "Mã SP quét: " + ma;
-  if (sp) {
-    if (sp.sku && sp.sku !== String(ma)) s += " → SKU " + sp.sku;
-    if (sp.ten) s += " · " + sp.ten;
-    if (sp.url) s += " · " + sp.url;
-    if (sp.anh) s += " · Ảnh: " + sp.anh;
-  } else {
-    s += " (không tìm thấy trên hasaki.vn)";
+  if (sp && sp.sku && String(sp.sku) !== String(ma)) {
+    s += " → SKU " + sp.sku;
   }
   return s;
 }

@@ -1,0 +1,443 @@
+{
+  "_ghiChu": "02/10/2026 user: MỖI LƯỢT XÁC MINH ĐỀU GHI LẠI KINH NGHIỆM — mục đích: luồng chuẩn chạy TỰ ĐỘNG ONLINE không cần AI, cải tiến TỪNG TRƯỜNG HỢP MỘT. Mỗi ca = 1 mục 'ca'; mỗi 'khuon' = 1 dạng lỗi đã có các bước chuẩn. Trường tuDong: 'co' = máy làm được không AI · 'mot-phan' · 'chua' (cần người/AI, ghi rõ vì sao + cách gỡ). Ca mới: tìm khuôn khớp → làm theo bước → ghi chỗ khuôn sai/thiếu → sửa khuôn.",
+  "khuon": {
+    "PALLET-NGOAI-O": {
+      "ten": "Pallet hàng nguyên thùng/chưa rọc để ngoài ô (lối đi) — TB-01 / chắn lối",
+      "nhanDien": "ảnh ghi nhận: pallet quấn màng hoặc thùng nguyên đặt trên sàn lối đi; ảnh thứ 2 thường là ô kệ trống/ít hàng",
+      "buoc": [
+        {
+          "so": 1,
+          "viec": "WMS transfer-bins lọc bin_in = ô, 72h trước ảnh → danh sách lượt châm hàng (người, số lượng, giờ)",
+          "tuDong": "co",
+          "ton": "1 lượt WMS/phiếu (canh-b1 đã làm, có cache)"
+        },
+        {
+          "so": 2,
+          "viec": "Ô → kênh camera + ROI lối đi (ban-do-camera-o.json)",
+          "tuDong": "mot-phan",
+          "luuY": "ô chưa có trong bản đồ → người soi 1 lần rồi ghi vào bản đồ; lần sau tự động"
+        },
+        {
+          "so": 3,
+          "viec": "Khung hình đúng giờ chụp ảnh (±1') → xác nhận ROI: có người kiểm đứng ở ô + vật trong ROI giống ảnh",
+          "tuDong": "mot-phan",
+          "luuY": "so ảnh ghi nhận ↔ khung hình còn cần mắt người; tự động hoá được bằng so màu/kích thước ROI khi đã có ảnh mẫu"
+        },
+        {
+          "so": 4,
+          "viec": "Kẹp mốc: khung hình 60–90 s ở các giờ lùi dần (giờ lượt châm WMS lớn nhất, mỗi 2–3h) → tìm khoảng VẮNG→CÓ vật trong ROI",
+          "tuDong": "co",
+          "cach": "so điểm ảnh xám ROI với mốc gốc (vật có/không); camera ghi theo chuyển động → mốc nào không có hình thì lấy mốc kề",
+          "luuY": "chỉ đúng khi vật xuất hiện ĐỘT NGỘT (14007579). Vật đổi dần (14007380) → dò bước nhảy giữa khung liền kề — CHƯA làm"
+        },
+        {
+          "so": 5,
+          "viec": "Thu hẹp khoảng VẮNG→CÓ bằng đoạn 300 s, khung mỗi 4–25 s → mốc đặt pallet (thường thấy XE NÂNG)",
+          "tuDong": "co",
+          "cach": "chênh điểm ảnh ROI lớn + kéo dài = mốc đặt"
+        },
+        {
+          "so": 6,
+          "viec": "Ghép WMS đúng phút (±3') với mốc đặt → tài khoản châm hàng = người đặt",
+          "tuDong": "co"
+        },
+        {
+          "so": "6b",
+          "viec": "Không có lệnh WMS ở ô: 1 lượt WMS TOÀN KHO ±5′ quanh mốc đặt → cặp PICK (ô tầng cao 20/30, số lớn) → PUSH ngay sau; đối SKU với chữ trên thùng trong ảnh",
+          "tuDong": "mot-phan",
+          "luuY": "đọc chữ thùng trong ảnh = OCR Drive miễn phí (memory ocr-google-drive-gas) — chưa nối; tên→SKU tra .exports/ton-kho170.json"
+        },
+        {
+          "so": 7,
+          "viec": "Soát vật KHÔNG bị dời từ mốc đặt tới lúc chụp: mỗi 1–2h so ROI với khung sau mốc đặt",
+          "tuDong": "co"
+        },
+        {
+          "so": 8,
+          "viec": "Kết luận + ghi sheet (bạn quyết); dựng clip _clip-noi.mjs nếu bạn chọn",
+          "tuDong": "co",
+          "luuY": "gán người: chỉ khi luật được duyệt «Cho máy tự làm»"
+        },
+        {
+          "so": "4b",
+          "viec": "Vật CÓ SẴN (không có mốc đặt): lùi WMS bin_in 30 ngày (1 lượt/ô), lấy lượt châm cỡ pallet (≥1/3 lượt lớn nhất) GẦN NHẤT trước mốc camera thấy vật → người nghi (TB-01b)",
+          "tuDong": "co",
+          "luuY": "user 05/10 chọn cách này thay dò camera từng ngày; QC 3/3 ca camera-xác-nhận đều ra đúng"
+        }
+      ],
+      "khiNaoNghiNgo": [
+        "Pallet có từ TRƯỚC cửa sổ 72h WMS (14007380): lùi thêm, người đặt ban đầu có thể ngoài danh sách 72h",
+        "Nhiều lượt châm thêm vào cùng pallet: người ĐẶT RA LỐI ĐI là người vi phạm chính; người châm thêm ghi phụ (bạn quyết)",
+        "Mốc đặt không có lệnh WMS đúng phút (xe nâng dời pallet, 13393784): ghi 'không có tài khoản' → định danh theo NV-01",
+        "Vật CÓ SẴN trong mọi mốc, chỉ bị lấy bớt dần (14007380, 14007566): _roi-moc không dùng được → cần dò ngược theo NGÀY tới mốc vắng thật (tốn lượt) hoặc dựa WMS lần châm lớn đầu tiên (bạn quyết)"
+      ],
+      "lotTat": "canh-b1 ra 1 người duy nhất (≥10 cái/72h) → tải 1 đoạn 6′ quanh giờ lệnh WMS (thấy xe nâng + pallet xuất hiện) + 1 khung lúc chụp ảnh (người kiểm đứng cạnh vật) là đủ; không cần _roi-moc"
+    },
+    "THUNG-RONG": {
+      "ten": "Thùng rỗng / lấy dở — SH-01",
+      "xem": "SOP-XAC-MINH-CAMERA.md + án lệ 13389950",
+      "tuDong": "mot-phan",
+      "luuY": "cần kiểm thùng gốc/quy cách (CAM-05) và soi từng lần thò tay — hiện còn cần mắt người"
+    },
+    "RAC-KHONG-PHAN-LOAI": {
+      "ten": "Không phân loại rác (phòng cắt giấy)",
+      "xem": "án lệ 14010729",
+      "tuDong": "chua",
+      "luuY": "không có WMS → định danh NV-01 (ca làm + giờ ra ca); phiên new-folder-6e dựng cò khu này"
+    },
+    "DE-CHE-O-TANG-CAO": {
+      "ten": "Đè/che khuất sản phẩm trong ô tầng cao (TB-02)",
+      "tuDong": "co",
+      "buoc": [
+        {
+          "so": 1,
+          "viec": "WMS bin_in 72h: đúng 1 người châm → ghi sheet người đó + 'camera không xác nhận'; ≥2 người → bạn quyết",
+          "tuDong": "co"
+        }
+      ]
+    },
+    "CCDC-DE-SAI-CHO": {
+      "ten": "CCDC/vật tư (màng co, thùng mở, pallet nhựa) để sai chỗ trong ô kệ",
+      "tuDong": "mot-phan",
+      "buoc": [
+        {
+          "so": 1,
+          "viec": "_kenh-luc-chup.mjs <phiếu> → chọn kênh thấy người kiểm",
+          "tuDong": "co"
+        },
+        {
+          "so": 2,
+          "viec": "đặt ROI sát vật (người soi 1 lần)",
+          "tuDong": "chua"
+        },
+        {
+          "so": 3,
+          "viec": "dò 1 khung/ngày lùi tới khi vắng → _roi-moc --chia trong khoảng đó (chuẩn cùng điều kiện đèn)",
+          "tuDong": "co"
+        },
+        {
+          "so": 4,
+          "viec": "soi khung quanh mốc: ai thao tác, màu áo",
+          "tuDong": "chua",
+          "luuY": "gỡ: vùng chuyển động lớn nhất quanh ROI ±60 s = người; màu áo = histogram thân trên"
+        },
+        {
+          "so": 5,
+          "viec": "NV-01: chấm công đúng phút theo nhóm màu áo + ảnh cổng → ≥2 người thì sheet",
+          "tuDong": "mot-phan"
+        }
+      ]
+    },
+    "LECH-TON": {
+      "ten": "Lệch tồn (ảnh màn hình app: hệ thống ≠ đếm) — TB-03",
+      "tuDong": "mot-phan",
+      "buoc": [
+        {
+          "so": 1,
+          "viec": "nhận dạng: ảnh có màn hình «Danh sách vị trí / Counted / Chênh lệch» (OCR Drive)",
+          "tuDong": "chua"
+        },
+        {
+          "so": 2,
+          "viec": "WMS transfer-bins bin_in 7 ngày (đúng kho 863/874) → lượt châm cuối + lượt lớn",
+          "tuDong": "co"
+        },
+        {
+          "so": 3,
+          "viec": "ghi sheet ứng viên (TB-03 = hỏi); camera đúng giờ châm chỉ là phụ",
+          "tuDong": "co"
+        }
+      ]
+    },
+    "BAN-VAN-PHONG": {
+      "ten": "Vật dụng cá nhân / hàng để trên bàn làm việc khu văn phòng",
+      "tuDong": "chua",
+      "buoc": [
+        {
+          "so": 1,
+          "viec": "_kenh-luc-chup --them kênh khu → so nền phía sau",
+          "tuDong": "mot-phan"
+        },
+        {
+          "so": 2,
+          "viec": "tra sổ chủ bàn (mã ô bàn → NV) + chấm công ngày đó",
+          "tuDong": "chua",
+          "luuY": "chưa có sổ chủ bàn"
+        },
+        {
+          "so": 3,
+          "viec": "camera chỉ dùng xác nhận người ngồi bàn trước giờ chụp",
+          "tuDong": "mot-phan"
+        }
+      ]
+    }
+  },
+  "ca": [
+    {
+      "phieu": "14007579",
+      "ngay": "2026-10-02",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "Mai Lê Hoàng Phi (260189) — đặt pallet ra lối đi 10:54 01/10 (xe nâng), WMS 10:55 1.318 cái; không ai dời tới 08:44 02/10",
+      "tonLuot": "WMS 1 · đầu ghi ~20 đoạn ngắn (60–300 s)",
+      "thoiGian": "~35 phút (lần đầu, có dựng bản đồ)",
+      "baiHoc": [
+        "Kênh 53/54 ghi theo chuyển động: dò 5 s ở mốc tròn hay trả 400 → xin đoạn 60–90 s",
+        "Gọi đầu ghi dồn dập bị 401 → nghỉ 2–3 s giữa lượt",
+        "Xác nhận đúng vật bằng chi tiết riêng (băng keo 'sonori', thùng mở có chai) trước khi lùi thời gian — tránh nhầm pallet ô kề (5L2-18 cùng kênh)",
+        "Mốc đặt lộ rõ nhờ XE NÂNG trong khung — dấu hiệu dễ dò tự động (vật lớn chuyển động vào ROI)",
+        "_roi-moc.mjs tự ra đúng mốc 10:54:39–10:56:31 + WMS 10:55 phimlh — KHÔNG cần AI, ~16 lượt đầu ghi (bài kiểm tra hồi quy cho công cụ)"
+      ]
+    },
+    {
+      "phieu": "14007380",
+      "ngay": "2026-10-02",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "ĐANG LÀM — pallet có ở lối đi ô 5L2-01 từ trước 30/09 14:30; _roi-moc so-với-chuẩn không ra mốc (nội dung đổi dần) → cần phương pháp bước nhảy",
+      "baiHoc": [
+        "Cửa sổ 72h không đủ khi pallet nằm lâu → khuôn phải lùi tới mốc VẮNG đầu tiên, không dừng ở 72h",
+        "Camera đổi chế độ ĐÊM (hồng ngoại, đen trắng) ↔ NGÀY lúc ~05:54 → so điểm ảnh vọt 50 dù vật còn nguyên ⇒ _roi-moc.mjs bỏ qua khung khác chế độ + chuẩn hoá sáng/tương phản ROI",
+        "Mốc không so được (đêm/không hình) phải coi là CHƯA BIẾT, không phải vắng — lỗi đầu tiên của _roi-moc dồn kết quả về lúc bật đèn",
+        "Pallet nằm lâu + nhiều người châm thêm → nội dung đổi DẦN (điểm 5→10→13), không có mốc vọt ⇒ so với 1 khung chuẩn KHÔNG đủ; cần dò BƯỚC NHẢY giữa 2 khung liền kề (khuôn chưa có — việc tiếp theo)"
+      ]
+    },
+    {
+      "phieu": "13883900",
+      "ngay": "2026-10-02",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "Phùng Lê Cao Minh (242485) — xe nâng đặt pallet JMsolution ra lối đi 13:44 23/09; WMS pick A2-503-09-30 13:42 → push 5L2-01 13:45, SKU 422221746 khớp thùng trong ảnh",
+      "tonLuot": "WMS 3 · đầu ghi ~35 đoạn",
+      "baiHoc": [
+        "Vị trí ghi tắt «Lối đi giữa 5L1-06» → canh-b1 bỏ (DL-01); nên chuẩn hoá: «lối đi giữa <ô>» = ROI lối đi của ô đó",
+        "Xe nâng chạy sát ống kính che cả ROI (21:11:58) → «vắng» giả ⇒ _roi-moc xác nhận bằng khung +95 s",
+        "Đêm hồng ngoại nằm giữa 2 mốc → chia đôi phải thử dịch cả SỚM lẫn MUỘN",
+        "Khung chuẩn lúc chụp ảnh khác dần (hàng bị lấy bớt qua đêm) → lấy chuẩn ở mốc chắc có vật gần đó rồi lùi tiếp",
+        "Ô ghi nhận KHÔNG có lệnh WMS ≠ không có người: lệnh châm ghi vào Ô KHÁC (5L2-01) trong khi pallet bỏ ngoài lối đi ⇒ bước 6b: WMS TOÀN KHO ±5′ quanh mốc đặt, cặp PICK tầng cao (20/30 = xe nâng) → PUSH số lớn, đối SKU với tên trên thùng",
+        "Lỗi công cụ: cache WMS không ghi khoảng phủ → dùng nhầm cache khác mốc ⇒ nay ghi tu/den"
+      ]
+    },
+    {
+      "phieu": "13790367",
+      "ngay": "2026-10-02",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "Mai Lê Hoàng Phi (260189) — xe nâng đặt pallet 07:44–07:46 18/09, WMS phimlh 07:47:15 816 cái vào 5L1-11",
+      "tonLuot": "WMS 1 · đầu ghi ~20 đoạn",
+      "tuDongDuoc": "_roi-moc tự ra mốc + tài khoản (lượt 2)",
+      "baiHoc": [
+        "Khung CHUẨN có người kiểm đứng che ROI (08:35, người chụp ảnh) → mọi mốc đều 'khác' ⇒ lấy chuẩn SAU lúc chụp vài phút (08:40) khi người đã đi",
+        "Lệnh WMS ghi SAU mốc đặt ~1–3′ (quét lúc xong việc) → cửa sổ ghép ±3′ là vừa"
+      ]
+    },
+    {
+      "phieu": "14007376",
+      "ngay": "2026-10-02",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "CHƯA RA — ROI [820,270,150,180] kênh 53 cho điểm 7–9 suốt 27/09→02/10 (không có bước nhảy) ⇒ nhiều khả năng ROI đặt SAI chỗ (trúng kệ tĩnh, không trúng pallet trong ảnh)",
+      "baiHoc": [
+        "ROI đoán từ 1 khung mà không đối chiếu chi tiết riêng của vật (nhãn xanh, quấn màng) thì vô dụng — phải xác nhận ROI bằng khung có NGƯỜI KIỂM đứng chụp đúng vật trước khi chạy",
+        "Điểm phẳng mọi mốc = dấu hiệu ROI sai, KHÔNG phải vật có từ lâu → công cụ nên cảnh báo khi độ lệch các mốc < 2 điểm"
+      ]
+    },
+    {
+      "phieu": "14007582",
+      "ngay": "2026-10-05",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "Mai Lê Hoàng Phi (260189) — pallet xuất hiện 15:41:45 01/10 sau xe nâng; WMS phimlh 15:41 936 cái; còn nguyên tới lúc chụp",
+      "tonLuot": "WMS 0 (canh-b1 đã có) · đầu ghi 3 đoạn",
+      "thoiGian": "~10 phút",
+      "baiHoc": [
+        "Khi canh-b1 đã ra ĐÚNG 1 người châm ≥10 cái → bỏ bước dò mốc dài, chỉ cần 1 đoạn 6′ quanh giờ lệnh WMS + 1 khung lúc chụp: nhanh nhất (khuôn PALLET-NGOAI-O bước 4–5 rút gọn)",
+        "Ô ở đầu xa khung hình: vẫn xác nhận được bằng CHUỖI SỰ KIỆN (xe nâng tới → pallet xuất hiện → người kiểm đứng cạnh lúc chụp) dù không đọc được chữ",
+        "Token top-review hết hạn sau vài ngày → _cat-doan trước đây hỏng im lặng; nay báo token_expired (thoát mã 3) → chạy node camera-a8.mjs để đăng nhập lại"
+      ]
+    },
+    {
+      "phieu": "14007391",
+      "ngay": "2026-10-05",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "CHƯA RA — _roi-moc báo xuất hiện 21:16 29/09 nhưng soi khung: 2 thùng mở có TỪ TRƯỚC; 21:16 là xe nâng + 2 NV dọn chồng pallet nhựa bên dưới",
+      "baiHoc": [
+        "ROI phải ôm SÁT đồ vật vi phạm, không trùm vật nền (chồng pallet) — đổi nền bị bắt nhầm là vật xuất hiện",
+        "Mọi mốc _roi-moc tìm ra phải được 1 lượt soi khung xác nhận ĐÚNG đồ vật trước khi ghép WMS (không được tin thẳng)",
+        "Ảnh phiếu có 2 tấm khác vật (pallet gỗ + 2 thùng mở) → xác định vật nào là lỗi chính trước khi đặt ROI"
+      ]
+    },
+    {
+      "phieu": "14007566+14007570",
+      "ngay": "2026-10-05",
+      "khuon": "PALLET-NGOAI-O",
+      "ketQua": "CHƯA RA — pallet P/S có từ trước 01/10 09:55, đổi dần do lấy bớt",
+      "baiHoc": [
+        "Khung chuẩn lấy đúng lúc chụp có người kiểm đứng che → lần 2 vẫn dính; quy tắc: chuẩn = lúc chụp + 10–15′",
+        "Điểm 'vắng' chỉ nhỉnh ngưỡng (≤ NG+6) = vật còn, chỉ đổi dần ⇒ _roi-moc nay in ⚠ MỐC YẾU",
+        "Ô kệ 508 nhưng pallet chắn lối hiện ở góc kênh 53 (dãy 5L2) — chưa chắc là cùng vật; cần đối chiếu chữ thùng trước khi dò"
+      ]
+    },
+    {
+      "phieu": "13808721",
+      "ngay": "2026-10-05",
+      "khuon": "DE-CHE-O-TANG-CAO",
+      "ketQua": "Chỉ WMS: Phùng Lê Cao Minh (1 người châm 72h); camera không thấy được ô tầng 04",
+      "baiHoc": [
+        "Lỗi bên TRONG ô tầng cao (đè/che sản phẩm) — camera lối đi không soi được; khuôn cho dạng này = WMS 1 người duy nhất + ghi rõ 'camera không xác nhận' (bạn quyết)"
+      ]
+    },
+    {
+      "phieu": "14007380+14007376+14007391+14007566+14007570",
+      "ngay": "2026-10-05",
+      "khuon": "PALLET-NGOAI-O bước 4b",
+      "ketQua": "14007376→minhplc@hasaki.vn 2026-09-28 09:42:52 3456 · 14007380→minhplc@hasaki.vn 2026-09-27 09:51:30 571 · 14007391→phimlh@hasaki.vn 2026-09-27 11:56:59 4180 · 14007566→phimlh@hasaki.vn 2026-09-29 10:13:01 1200",
+      "tonLuot": "WMS 4 (1/ô)",
+      "baiHoc": [
+        "Lượt châm LỚN NHẤT 30 ngày là sai (pallet đầu tháng đã hết) — phải lấy lượt cỡ pallet GẦN NHẤT trước mốc camera",
+        "14007566: SKU lượt châm (P/S 36×230g) khớp chữ thùng trong ảnh — đối SKU là bước xác nhận rẻ nhất"
+      ]
+    },
+    {
+      "phieu": "14046962",
+      "ngay": "2026-10-05",
+      "khuon": "BAI-XE-NCC (BX-01) gán tên người trên clip",
+      "ketQua": "Bai Xe May 02/10 08:54–08:59: Người nghi 1 = Hồ Ngọc Tú Uyên 243159 · Huyền 242080 = người chạy xe máy THỨ 2 vào (≈08:58, vào cổng 09:00) — KHÔNG phải người đứng cạnh ở khung 08:54:59",
+      "tonLuot": "HR history-location 1 lượt",
+      "baiHoc": [
+        "Đánh số Người nghi theo TỪNG LƯỢT XE VÀO (mỗi khoảng có người = 1 xe), không theo số khung người trong 1 ảnh — 2 người đứng chung 1 ảnh có thể là 1 người gửi xe + 1 người đi cùng/qua đường",
+        "Gán tên cho khung: lấy thứ tự xe vào khớp với thứ tự vào cổng (Lịch sử ra vào) + trang phục ảnh cổng, rồi mới gắn nhãn lên khung bám — không gắn theo thứ tự khung trong ảnh mốc",
+        "User góp ý 05/10 để học, phiếu 14046962 giữ nguyên (không sửa)"
+      ]
+    },
+    {
+      "phieu": "14007579+14007582+13883900+13790367",
+      "ngay": "2026-10-05",
+      "khuon": "PALLET-NGOAI-O bước 8",
+      "ketQua": "B1→B1.1 lúc đầu chỉ gắn VIDEO GỐC — user bác; dựng lại clip chuẩn và thay video02",
+      "baiHoc": [
+        "Bằng chứng B1 LUÔN là clip chuẩn _clip-noi (khung vàng vật, khung đỏ người + tên, chú thích, tua) — _chuyen-b11-camera.mjs nay chặn video gốc",
+        "Khung đỏ chỉ đặt trong đoạn biết chắc người đó (ngồi trên xe nâng); ngoài đoạn đó không khoanh ai — dò AI tự do nhảy sang người soạn hàng gần đó (3/4 clip lần 1)",
+        "Camera nhìn xa/từ trên: AI hầu như không thấy người (13883900: 1/400 lượt) → dùng chiNeo (neo mỗi 5–15 s) nhanh hơn và đúng hơn"
+      ]
+    },
+    {
+      "phieu": "14007566+14007380+14007376+14007391",
+      "ngay": "2026-10-05",
+      "khuon": "PALLET-NGOAI-O bước 4b + xác nhận camera",
+      "ketQua": "14007566 xác nhận (Phi, B1.1) · 14007380/14007376 camera BÁC ứng viên TB-01b · 14007391 chưa đủ",
+      "baiHoc": [
+        "TB-01b (người châm cỡ pallet gần nhất) chỉ ra ỨNG VIÊN: 1/4 được camera xác nhận, 2/4 bị bác ⇒ không bao giờ gán chỉ theo TB-01b",
+        "Kiểm camera theo giờ châm rất rẻ: 1 đoạn 5′ quanh giờ lệnh + 12 khung (25 s) đủ thấy xe nâng đặt/không đặt",
+        "Mạng chập chờn: công cụ chuyển B1.1 từng đi tiếp khi nạp lỗi + đăng bình luận trùng khi chạy lại ⇒ nay đọc lại đủ ảnh+clip mới chuyển, kiểm câu y hệt trước khi đăng"
+      ]
+    },
+    {
+      "phieu": "13774436",
+      "ngay": "2026-10-05",
+      "khuon": "CCDC-DE-SAI-CHO (mới)",
+      "ketQua": "mốc 15/09 14:10, người áo phản quang vàng — chưa định danh",
+      "baiHoc": [
+        "Bản đồ tên kênh: lọc tên mặc định phải đúng mẫu ^Kênh\\d+$ — lọc theo chữ K đầu làm MẤT toàn bộ kênh «KE …» kệ A2",
+        "_kenh-luc-chup.mjs chọn đúng góc A2 (.11) khi có kênh «KE <dãy>»; dãy A2-503 KHÔNG có kênh riêng",
+        "Đèn khu bật ~10:05 làm điểm ROI vọt → mốc giả; quy tắc: lấy chuẩn và mốc so cùng điều kiện sáng (sau 10:05)",
+        "Dò theo ngày (1 khung 15:00/ngày) rồi _roi-moc trong 2 ngày đó: ~25 lượt đầu ghi để ra mốc 2 phút",
+        "Lỗi CCDC không có WMS → khuôn mới: mốc vật xuất hiện + màu áo người (áo phản quang = nhóm khác PTCH) + NV-01"
+      ]
+    },
+    {
+      "phieu": "A2 + lệch tồn 05/10",
+      "ngay": "2026-10-05",
+      "khuon": "nhiều",
+      "baiHoc": [
+        "KỆ A2 = KHO WMS 874 (canh-b1 + _roi-moc tra cứng 863 → mọi phiếu A2 ra 0 lệnh) — đã sửa chọn kho theo mã ô",
+        "A2 ít biến động: lần châm cuối thường quá hạn lưu camera A2 (~34 ngày) ⇒ phiếu A2 cần xử trong ~1 tuần sau ghi nhận",
+        "Phiếu «Thao tác vật lý» kèm ảnh màn hình app WMS (Trong bin / Counted / Chênh lệch) = LỆCH TỒN → luật TB-03 (WMS), camera không phân xử được",
+        "transfer-bins KHÔNG có lượt SOẠN (bin_out trống ở ô A1) — soạn nằm ở picking-group",
+        "DL-03 lại gặp: 2 phiếu cùng ảnh 09:54:48 (14047709/14048521) → dừng phiếu sau",
+        "Áo phản quang vàng gặp 2 lần (13774436 kệ A2, 14048790 dãy 510-511 lúc longln châm) — có thể dùng làm dấu nhận nhóm"
+      ]
+    },
+    {
+      "phieu": "14046434/14046438/14046443",
+      "ngay": "2026-10-05",
+      "khuon": "BAN-VAN-PHONG (mới)",
+      "ketQua": "góc camera tìm được, chưa định danh — cần chủ bàn",
+      "baiHoc": [
+        "Khu bàn quản lý PO (A9/A10) nằm ở dãy bàn sát tường trái của kênh .11/20 «Tong Quan PO 1»; kênh .16/24 «Logistics» là PHÒNG KHÁC (bàn gỗ giống nhưng nền phía sau không khớp)",
+        "Nhận góc bằng NỀN PHÍA SAU ảnh (tường xanh + ghế đen + màn hình) chứ không bằng vật chính (bàn gỗ giống nhau ở nhiều phòng)",
+        "Vật nhỏ trên bàn (ly nước) KHÔNG thấy ở góc toàn cảnh → camera không phân xử; người vi phạm = người dùng bàn ⇒ cần sổ chủ bàn (bàn → NV)",
+        "Kênh .11 đôi khi trả rỗng ở mốc 5–6 s (07:20, 08:05) → lấy 10 s hoặc lùi 1 phút"
+      ]
+    },
+    {
+      "phieu": "14046434/14046438",
+      "ngay": "2026-10-05",
+      "khuon": "BAN-VAN-PHONG",
+      "ketQua": "bàn số 1 dãy QL PO = F0-A9-501-01-01-01 (phiếu ghi nhầm A10); ly nước quá nhỏ ở góc .11/20 → chưa định danh",
+      "baiHoc": [
+        "User chỉ bàn trên ảnh đánh số (.exports/ban-po-danh-so.jpg) = cách nhanh nhất định vị bàn; nên làm sổ bàn→NV một lần cho cả dãy",
+        "Mã ô trên phiếu có thể SAI khu (A10 thay vì A9) → đối chiếu với vị trí thật trước khi tra WMS/camera",
+        "Góc .11/20: bàn ~60 px, ly nước ~5 px → _roi-moc chỉ bắt NGƯỜI tới bàn, không bắt ly; điểm 13–14 kéo dài = ánh sáng sáng sớm (mốc yếu, bỏ)",
+        "Camera .11/20 có ghi đêm (hồng ngoại) và đèn khu sáng cả CN 04/10 17:18–21:19",
+        "Cách đúng cho ly/vật nhỏ: hỏi lúc chủ bàn rời bàn sạch lần cuối → quét NGƯỜI dừng ở bàn trong khoảng đó (người to, bắt được)"
+      ]
+    },
+    {
+      "phieu": "14046434",
+      "ngay": "2026-10-05",
+      "khuon": "BAN-VAN-PHONG",
+      "ketQua": "ứng viên thứ 7 12:00–12:17",
+      "baiHoc": [
+        "_quet-nguoi-o.mjs (nền = trung vị) quét 62h/15 phút ra đúng lúc có người ngồi bàn; ngưỡng tự động quá thấp (gần hết khung bị đánh cao) → cần chỉnh ngưỡng theo phân bố",
+        "Cách đã chạy ra: hỏi chủ bàn giờ rời bàn sạch → quét 15 phút → mốc có người → 2 phút → clip; so góc bàn trước/sau"
+      ]
+    },
+    {
+      "phieu": "14046434/14046438",
+      "ngay": "2026-10-05",
+      "khuon": "BAN-VAN-PHONG",
+      "ketQua": "ly = Trần Thế Nhật (T7 12:17), thùng = Văn Thanh Minh Châu (T7 18:17)",
+      "baiHoc": [
+        "ĐỊNH DANH KHÔNG AI: người rời vật rồi ĐI VỀ → giờ rời khung khớp phút CHECK-OUT chấm công (_cc-ngay.mjs <ngày> <từ> <đến>) + kênh .11/11 FACE ID thấy cùng áo đi ngang ±1 phút",
+        "2 phiếu cùng bàn ≠ cùng người: ly (trưa) và thùng (chiều) do 2 người khác nhau — phải dò mốc RIÊNG từng vật",
+        "Vật to (thùng) dò bằng lưới 15 phút vùng vật; vật nhỏ (ly) dò bằng so góc bàn trước/sau lúc có người ngồi",
+        "Thùng bị CHUYỂN từ bàn 2 sang bàn 1 (không phải mang từ ngoài vào) → xem cả bàn bên cạnh trong khung"
+      ]
+    }
+  ],
+  "doTocDo": {
+    "ngay": "2026-10-05",
+    "chiVideoGoc": "tải 6′ từ đầu ghi 30–60 s + gắn ~8 s ⇒ ~1 phút máy/phiếu — KHÔNG đạt chuẩn (user bác 05/10)",
+    "clipChuan": {
+      "dungLan1": "277–353 s/clip (dò AI mọi đoạn có người) — 3/4 khung đỏ SAI người",
+      "dungLan2": "199–264 s/clip sau khi giới hạn khung đỏ vào đoạn người lái trên xe nâng + điểm neo",
+      "chiNeo": "167 s (= thời lượng phát clip) khi khung đỏ chỉ nội suy theo neo soi tay, bỏ AI",
+      "soiToaDo": "~3–5 phút/phiếu (lấy 3 khung có lưới, đặt neo)",
+      "qc": "~1 phút/phiếu (soi 5–8 khung)",
+      "taiLen": "~8 s/clip 12–15 MB"
+    },
+    "tongKet": "Clip chuẩn ≈ 6–9 phút/phiếu (đã có video gốc + mốc); lần đầu làm sai phải dựng lại ⇒ 12–15 phút. Đắt nhất là đặt neo/ROI (người soi) chứ không phải máy dựng."
+  },
+  "conPhuThuocAI": [
+    {
+      "buoc": "Đặt ROI vật vi phạm (ô chưa có trong bản đồ)",
+      "hienNay": "Claude soi khung có lưới",
+      "cachGo": "khung đúng giờ chụp ảnh: vùng chuyển động nơi người kiểm đứng ±2′ → ROI mặc định; bản đồ ô→ROI tích luỹ dần"
+    },
+    {
+      "buoc": "Đặt điểm neo khung đỏ người",
+      "hienNay": "Claude soi khung",
+      "cachGo": "neo = vùng chuyển động lớn nhất quanh ROI ở mốc đặt (xe nâng) — tất định, không cần nhận người"
+    },
+    {
+      "buoc": "Xác nhận vật trên camera đúng vật trong ảnh",
+      "hienNay": "Claude so ảnh",
+      "cachGo": "so màu/histogram ROI với ảnh ghi nhận; đối SKU WMS với chữ trên thùng (OCR Drive miễn phí)"
+    },
+    {
+      "buoc": "Xác nhận mốc _roi-moc",
+      "hienNay": "Claude soi khung",
+      "cachGo": "đã có kiểm +95 s, bỏ khung đêm, cảnh báo MỐC YẾU — mốc yếu tự chuyển sang chờ người"
+    },
+    {
+      "buoc": "Định danh khi không có WMS (NV-01)",
+      "hienNay": "Claude so ảnh cổng",
+      "cachGo": "chỉ lọc tất định: ca làm đúng phút + giờ chấm ra; còn ≥2 người → sheet cho người quyết"
+    }
+  ]
+}

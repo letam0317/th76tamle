@@ -110,3 +110,24 @@ hasaki/.packer-a8-ngay.json
 
 # so trang thai bo canh B1.1 (id task, khong bi mat)
 hasaki/.canh-b11.json
+
+# --- Don thu muc goc 05/10/2026 ---
+# Tai lieu rieng cua hasaki (bang chung phieu can, trang tai kho 170) — du lieu noi bo, repo PUBLIC
+hasaki/_tai-lieu-rieng/
+# Khoa dung chung (service account) — khong bao gio commit
+Chung/khoa/
+# Kenh trinh tham: khoa API, mau giong thu, video xuat
+kenh-trinh-tham/.env
+kenh-trinh-tham/giong/thu/
+kenh-trinh-tham/giong/vieneu/
+kenh-trinh-tham/giong/mau-giong-cua-toi.wav
+kenh-trinh-tham/xuat/
+
+# 05/10/2026 — không commit: mã đăng nhập, đệm/trạng thái có mã NV, ảnh, tệp chạy, đệm Python
+hasaki/.tr-token.json
+hasaki/.cache-*
+hasaki/.canh-*.json
+hasaki/.phan-cong-khu-giay.json
+hasaki/*.jpg
+__pycache__/
+xiaomi-fix/adb/

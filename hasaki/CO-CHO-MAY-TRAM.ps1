@@ -49,6 +49,7 @@ $MOC_WOL   = Join-Path $DIR '.co-cho-wol.txt'
 $MOC_MCLOI = Join-Path $DIR '.co-cho-mcloi.txt'      # số lượt LIỀN NHAU không gọi được máy chủ in
 $LOG_AGENT = Join-Path $DIR '.in-tem-agent.log'
 $VBS_AGENT = Join-Path $DIR '_AGENT-IN-TEM-AN.vbs'
+$VBS_CO_DN = Join-Path $DIR 'co-dang-nhap-hidden.vbs'
 
 $daSua = New-Object System.Collections.ArrayList   # việc ĐÃ SỬA trong lượt này
 $vande = New-Object System.Collections.ArrayList   # việc THẤY nhưng KHÔNG sửa được từ đây
@@ -325,6 +326,30 @@ if ($pidAgent -le 0) {
       Sua 'khởi động lại agent in tem'
     } catch { Ken "không khởi động được agent: $($_.Exception.Message)" }
   } else { Ken "thiếu file $VBS_AGENT" }
+}
+
+# ------------------------------------------------------------------------------------------------
+# 5b. CÒ ĐĂNG NHẬP (14/09/2026) — nghe extension báo "vừa có người đăng nhập" rồi ép làm tươi
+# ------------------------------------------------------------------------------------------------
+#  Đây là tiến trình THƯỜNG TRÚ giữ cổng 127.0.0.1:8790. Nó rất nhẹ (một http server, không vòng
+#  lặp, không gọi mạng khi rỗi) nên không cần bắt mạch "treo" như agent in tem — chỉ cần CÒN SỐNG.
+#  Bám nhờ nhịp 2 phút sẵn có ở đây thay vì đăng ký thêm một task Scheduler: đỡ một lần xin quyền
+#  quản trị, và chết lúc nào thì chậm nhất 2 phút sau có mặt lại. Bản thân cò tự thoát êm nếu cổng
+#  đã có bản khác giữ, nên hai tầng cùng gọi cũng chỉ ra MỘT cò.
+$pidCo = 0
+try {
+  $psCo = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction Stop |
+          Where-Object { $_.CommandLine -like '*co-dang-nhap*' }
+  if ($psCo) { $pidCo = [int]($psCo | Select-Object -First 1).ProcessId }
+} catch { Ken "không hỏi được tiến trình node (cò đăng nhập): $($_.Exception.Message)" }
+
+if ($pidCo -le 0) {
+  if (Test-Path $VBS_CO_DN) {
+    try {
+      Start-Process -FilePath "$env:SystemRoot\System32\wscript.exe" -ArgumentList "`"$VBS_CO_DN`"" -WindowStyle Hidden -ErrorAction Stop
+      Sua 'khởi động lại cò đăng nhập (ép làm tươi khi có phiên mới)'
+    } catch { Ken "không khởi động được cò đăng nhập: $($_.Exception.Message)" }
+  } else { Ken "thiếu file $VBS_CO_DN" }
 }
 
 # ------------------------------------------------------------------------------------------------

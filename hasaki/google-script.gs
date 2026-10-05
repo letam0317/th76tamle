@@ -415,6 +415,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pr_xong') return keyBodyOK_(duLieu) ? apiPrXong(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_hoan') return keyBodyOK_(duLieu) ? apiPrHoan(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_trangthai') return apiPrTrangThai(duLieu);
+    if (duLieu && /^dc_(them|lay|xong|trangthai|tai)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? apiDc(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 05/10 dựng clip từ xa
     if (duLieu && duLieu.action === 'pr_hangdoi') return apiPrHangDoi(duLieu);
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -2843,4 +2844,69 @@ function apiUpsertPcLogin(duLieu) {
   } catch(e) {
     return phanHoiJson({ status: 'error', message: e.toString() });
   }
+}
+
+/* ==============================================================================================
+ *  DỰNG CLIP TỪ XA — hàng đợi cho Desktop-JE75K38 (máy in tem) · 05/10/2026
+ * ----------------------------------------------------------------------------------------------
+ *  User 05/10: "cách 2 đi, vì đang k ở cạnh pc" — laptop (mạng khách, không vào được mạng nội bộ)
+ *  đẩy việc dựng clip bằng chứng 5S lên đây; agent dung-clip-agent.mjs trên máy in tự lấy việc,
+ *  tải video từ top-review (Internet), dựng clip, gửi file về; laptop tải về rồi XOÁ khỏi Drive.
+ *  Cùng khuôn với hàng đợi in tem (pr_*): mọi lệnh đòi SECRET; 1 việc / 1 thuộc tính; lấy việc trong LockService.
+ *  Clip có mặt người ⇒ thư mục Drive riêng của chủ script, KHÔNG chia sẻ, file bị xoá ngay khi laptop tải xong.
+ * ============================================================================================== */
+var DC_P_IDS = 'DC_IDS', DC_P_MAY = 'DC_MAY', DC_P_THU = 'DC_THU_MUC', DC_TRE_DANG = 90 * 60000;
+function dcSP_() { return PropertiesService.getScriptProperties(); }
+function dcIds_() { try { return JSON.parse(dcSP_().getProperty(DC_P_IDS) || '[]') || []; } catch (e) { return []; } }
+function dcDoc_(id) { try { return JSON.parse(dcSP_().getProperty('DC_J_' + id) || 'null'); } catch (e) { return null; } }
+function dcGhi_(o) { dcSP_().setProperty('DC_J_' + o.id, JSON.stringify(o)); }
+function dcThuMuc_() {
+  var sp = dcSP_(), id = sp.getProperty(DC_P_THU);
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* bị xoá → tạo lại */ } }
+  var f = DriveApp.createFolder('AuditHasaki-clip-tam (không chia sẻ)'); sp.setProperty(DC_P_THU, f.getId()); return f;
+}
+function apiDc(duLieu) {
+  var a = String(duLieu.action), now = new Date().getTime(), lock = LockService.getScriptLock();
+  if (a === 'dc_them') {
+    var id = String(duLieu.id || '').replace(/[^\w-]/g, '').slice(0, 60), cfg = String(duLieu.cfg || '');
+    if (!id || !cfg) return phanHoiJson({ status: 'error', message: 'Thiếu id/cfg' });
+    if (cfg.length > 8500) return phanHoiJson({ status: 'error', message: 'Cấu hình quá dài (' + cfg.length + ' > 8500 ký tự)' });
+    lock.waitLock(20000);
+    try { var ids = dcIds_(); if (ids.indexOf(id) < 0) ids.push(id); dcSP_().setProperty(DC_P_IDS, JSON.stringify(ids.slice(-60)));
+      dcGhi_({ id: id, ts: now, tt: 'cho', cfg: cfg }); } finally { lock.releaseLock(); }
+    return phanHoiJson({ status: 'success', id: id });
+  }
+  if (a === 'dc_lay') {
+    if (duLieu.may) { try { dcSP_().setProperty(DC_P_MAY, JSON.stringify({ tt: String(duLieu.may).slice(0, 2000), luc: now })); } catch (e) {} }
+    if (duLieu.chiBao) return phanHoiJson({ status: 'success', viec: null });   // máy đang thiếu RAM: chỉ báo tình trạng, KHÔNG nhận việc
+    lock.waitLock(20000);
+    try { var ds = dcIds_(), chon = null;
+      for (var i = 0; i < ds.length && !chon; i++) { var o = dcDoc_(ds[i]); if (!o) continue;
+        if (o.tt === 'cho' || (o.tt === 'dang' && now - Number(o.nhan || 0) > DC_TRE_DANG)) { o.tt = 'dang'; o.nhan = now; dcGhi_(o); chon = o; } }
+      return phanHoiJson({ status: 'success', viec: chon ? { id: chon.id, cfg: chon.cfg } : null });
+    } finally { lock.releaseLock(); }
+  }
+  if (a === 'dc_xong') {
+    var o2 = dcDoc_(String(duLieu.id || '')); if (!o2) return phanHoiJson({ status: 'error', message: 'Không thấy việc' });
+    if (duLieu.b64) { var blob = Utilities.newBlob(Utilities.base64Decode(String(duLieu.b64)), String(duLieu.mime || 'video/webm'), String(duLieu.ten || (o2.id + '.webm')));
+      var f = dcThuMuc_().createFile(blob); o2.file = f.getId(); o2.tt = 'xong'; o2.co = blob.getBytes().length; }
+    else { o2.tt = 'loi'; o2.loi = String(duLieu.loi || 'không rõ').slice(0, 500); }
+    o2.xong = now; o2.nhatKy = String(duLieu.nhatKy || '').slice(0, 1500); dcGhi_(o2);
+    return phanHoiJson({ status: 'success' });
+  }
+  if (a === 'dc_trangthai') {
+    var m = null; try { m = JSON.parse(dcSP_().getProperty(DC_P_MAY) || 'null'); } catch (e) {}
+    var o3 = duLieu.id ? dcDoc_(String(duLieu.id)) : null;
+    return phanHoiJson({ status: 'success', may: m ? { tt: m.tt, tre: now - Number(m.luc) } : null,
+      viec: o3 ? { id: o3.id, tt: o3.tt, loi: o3.loi || '', co: o3.co || 0, nhan: o3.nhan || 0, xong: o3.xong || 0, nhatKy: o3.nhatKy || '' } : null,
+      hang: dcIds_().map(function (x) { var y = dcDoc_(x); return y ? x + ':' + y.tt : x + ':?'; }) });
+  }
+  if (a === 'dc_tai') {
+    var o4 = dcDoc_(String(duLieu.id || '')); if (!o4 || !o4.file) return phanHoiJson({ status: 'error', message: 'Chưa có file' });
+    var fl = DriveApp.getFileById(o4.file), bl = fl.getBlob();
+    var kq = { status: 'success', ten: fl.getName(), mime: bl.getContentType(), b64: Utilities.base64Encode(bl.getBytes()) };
+    if (duLieu.xoa) { fl.setTrashed(true); o4.file = ''; o4.tt = 'da-tai'; dcGhi_(o4); }
+    return phanHoiJson(kq);
+  }
+  return phanHoiJson({ status: 'error', message: 'Lệnh dc lạ' });
 }

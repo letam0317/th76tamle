@@ -37,7 +37,7 @@ import path from "node:path";
 import { spawn, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { duocPhepReLogin, layTokenSongWms, layTokenSongWork, DEFER_EXIT, docMocBuoc, CAC_BUOC_SYNC,
-         trangThaiPhien, kenhWshrDaChungThuc, phutVN } from "./session-rules.js";
+         trangThaiPhien, kenhWshrDaChungThuc, phutVN, mayDuocChay } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SHEET_ID = process.env.STOCKLOC_SHEET_ID || "1eY_oo9fAvWCTXp24x-Z0FXq9mp_jJPlTHg09qdemETs";
@@ -99,6 +99,7 @@ async function docMocMeta() {
 const fmtVN = (ms) => new Date(ms).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
 
 async function main() {
+  if (!mayDuocChay(log)) return;   // vai máy (laptop 09:00–17:55 / PC phần bù) — Phần G; đứng trước mọi lượt gọi
   /* CỬA GIỜ CỤM NẶNG (audit 23/08/2026) — đặt TRƯỚC MỌI THỨ: tick ngoài giờ thoát ngay, không tốn
      cả lượt Get-CimInstance lẫn lượt gviz đọc Metadata (guard chạy mỗi 2', đêm + CN là ~600 lượt
      vô ích/ngày). Đo log 22-23/08: cụm AUTO-EXPORT 8 bước nổ 19:14/20:48/22:20 và 07:00 Chủ nhật.

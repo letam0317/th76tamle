@@ -1,0 +1,888 @@
+{
+  "_ghiChu": "BỘ QUY TẮC XÁC MINH B1 (WF591) — nguồn DUY NHẤT. Hiện lên g-sheet tab QUY TẮC XÁC MINH (sheet-b1-treo.py); bạn duyệt ở cột 'Bạn duyệt' → .exports/quy-tac-duyet.json → canh-b1.mjs chỉ TỰ LÀM luật đã duyệt 'Cho máy tự làm'. Luật mới/sửa: thêm dòng, ghi ngày + án lệ; chạy `node canh-b1.mjs --qc` phải ra đúng mọi án lệ.",
+  "mucTuDong": {
+    "tu-lam": "Cho máy tự làm",
+    "hoi": "Chỉ ghi sheet để tôi quyết",
+    "tat": "Tạm tắt"
+  },
+  "luat": [
+    {
+      "ma": "VS-01",
+      "nhom": "Vệ sinh hằng ngày",
+      "ten": "Trùng lưu trình",
+      "dieuKien": "Cùng ngày ghi nhận + cùng người phụ trách kệ có nhiều phiếu",
+      "mayLam": "Giữ phiếu sớm nhất; dừng các phiếu sau, bình luận «Trùng lưu trình khai báo vi phạm trước đó <link>»",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ⑤(1)",
+      "tu": "25/09/2026",
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 7 bắt buộc 2 việc: vệ sinh VÀ báo cáo cuối ca → lỗi = người phụ trách khu vực đi làm mà không có báo cáo; không đi làm thì không thể là lỗi của người đó."
+    },
+    {
+      "ma": "VS-02",
+      "nhom": "Vệ sinh hằng ngày",
+      "ten": "Phụ trách đi làm mà không báo cáo",
+      "dieuKien": "Người phụ trách ô có chấm công ngày xét, không có báo cáo vệ sinh ô đó",
+      "mayLam": "Đóng B1 → B1.1 cho người phụ trách",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ⑤(2)",
+      "tu": "25/09/2026",
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 7 bắt buộc 2 việc: vệ sinh VÀ báo cáo cuối ca → lỗi = người phụ trách khu vực đi làm mà không có báo cáo; không đi làm thì không thể là lỗi của người đó."
+    },
+    {
+      "ma": "VS-03",
+      "nhom": "Vệ sinh hằng ngày",
+      "ten": "Phụ trách nghỉ ngắn 1–2 ngày",
+      "dieuKien": "Người phụ trách nghỉ 1–2 ngày (các ngày TRƯỚC ngày ghi nhận) và không ai báo cáo ô trong ngày xét — kể cả khi ảnh cho thấy bụi nhiều lớp",
+      "mayLam": "Dừng phiếu, bình luận «Nhân sự phụ trách vệ sinh quầy kệ không đi làm ngày dd/MM»",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ⑤(3)",
+      "tu": "25/09/2026",
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 7 bắt buộc 2 việc: vệ sinh VÀ báo cáo cuối ca → lỗi = người phụ trách khu vực đi làm mà không có báo cáo; không đi làm thì không thể là lỗi của người đó.",
+      "khacCu": "02/10: GIỮ NGUYÊN cách xử (dừng phiếu), chỉ ghi rõ «nghỉ trước ngày ghi nhận» + «kể cả bụi nhiều lớp». Bối cảnh: 5 phiếu cũ (tháng 5–7) vẫn ghi lỗi dù NV nghỉ, vì «bụi nhiều lớp» (11819055…) — bạn chốt 02/10 KHÔNG ghi nhận ca này; bỏ đề xuất VS-06. 5 phiếu cũ đã xong → để nguyên (RA-01).",
+      "anLe": [
+        {
+          "phieu": "11819055",
+          "ghiChu": "05/2026 ghi lỗi dù NV off («bụi nhiều lớp») — theo luật 02/10 sẽ DỪNG phiếu; phiếu đã xong, để nguyên"
+        }
+      ]
+    },
+    {
+      "ma": "VS-04",
+      "nhom": "Vệ sinh hằng ngày",
+      "ten": "Phụ trách nghỉ dài / nghỉ việc",
+      "dieuKien": "Nghỉ từ 3 ngày liên tiếp hoặc đã nghỉ việc, chưa ai báo cáo ô",
+      "mayLam": "Nhắc QLTT ngày 4 và 5; ngày 6 ghi lỗi cho QLTT (không chia người vệ sinh kịp thời)",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ⑤(4)",
+      "tu": "28/09/2026",
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 7 bắt buộc 2 việc: vệ sinh VÀ báo cáo cuối ca → lỗi = người phụ trách khu vực đi làm mà không có báo cáo; không đi làm thì không thể là lỗi của người đó."
+    },
+    {
+      "ma": "VS-05",
+      "nhom": "Vệ sinh hằng ngày",
+      "ten": "Có người khác báo cáo / không tra được phụ trách",
+      "dieuKien": "Phụ trách nghỉ nhưng người khác đã báo cáo ô ngày xét, hoặc ô không có trong bảng phân công",
+      "mayLam": "Không tự quyết — ghi sheet để bạn quyết",
+      "macDinh": "hoi",
+      "chay": "canh-b11 ⑤",
+      "tu": "25/09/2026",
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 7 bắt buộc 2 việc: vệ sinh VÀ báo cáo cuối ca → lỗi = người phụ trách khu vực đi làm mà không có báo cáo; không đi làm thì không thể là lỗi của người đó."
+    },
+    {
+      "ma": "CH-01",
+      "nhom": "Chung",
+      "ten": "1 vị trí · 1 người · 1 lỗi chỉ ghi 1 lần / 7 ngày",
+      "dieuKien": "Đã có phiếu cùng vị trí + cùng người + cùng lỗi trong 7 ngày",
+      "mayLam": "Không lập/không gán thêm (tránh trừ đúp)",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ⑤ + luat-3-ngay",
+      "tu": "29/09/2026",
+      "quyDinh": null
+    },
+    {
+      "ma": "CH-02",
+      "nhom": "Chung",
+      "ten": "Nhiều NV vi phạm → mỗi người tự xác nhận",
+      "dieuKien": "B1 ghi từ 2 NV trở lên",
+      "mayLam": "B1.1 bật chế độ Mỗi thành viên, giao đủ từng người",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ②",
+      "tu": "24/09/2026",
+      "quyDinh": null
+    },
+    {
+      "ma": "CH-03",
+      "nhom": "Chung",
+      "ten": "B1.1 treo: nhắc 48h, quá 72h tự ghi lỗi cá nhân",
+      "dieuKien": "B1.1 quá 48h chưa xác nhận → tag QLTT; quá 72h sau nhắc vẫn im",
+      "mayLam": "Tự ghi «Lỗi cá nhân» + đóng B1.1",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ① ①b",
+      "tu": "26/09/2026",
+      "quyDinh": null
+    },
+    {
+      "ma": "TB-01",
+      "nhom": "Trưng bày / châm hàng",
+      "ten": "Chưa rọc băng keo · trưng bày nguyên thùng",
+      "tuKhoa": [
+        "roc bang keo",
+        "cat nap",
+        "nguyen thung",
+        "so luong nhieu dang thung"
+      ],
+      "dieuKien": "Người CHÂM HÀNG SỐ LƯỢNG LỚN (lệnh chuyển vào ô ≥10 cái, bỏ lệnh trả hàng huỷ đơn) trong 72h trước giờ chụp ảnh — VÀ camera (CAM-03) xác nhận hàng của lượt châm hàng đó CÒN ở ô và chính là đồ vật trong ảnh; lượt châm hàng trước khi pallet trong ảnh tới, hoặc hàng đã bị chở đi/đổi pallet → LOẠI người đó · TB-01b (05/10): camera thấy vật CÓ SẴN, không có mốc đặt trong 72h → lùi WMS bin_in 30 ngày, lấy lượt châm CỠ PALLET (≥1/3 lượt lớn nhất 30 ngày) GẦN NHẤT trước mốc camera thấy vật.",
+      "mayLam": "WMS bin_in 72h (TB-01b: lọc lượt cỡ pallet) → ỨNG VIÊN; tra camera ĐÚNG GIỜ CHÂM xem người đó có chuyển pallet tới vị trí → đúng thì ghi .exports/xac-nhan-camera.json rồi chuyển B1.1 (_chuyen-b11-camera.mjs: ảnh 3 mốc + video gốc + bình luận gọn). Chưa xác nhận camera → «chờ camera», KHÔNG chuyển.",
+      "macDinh": "hoi",
+      "chay": "canh-b1",
+      "tu": "01/10/2026",
+      "anLe": [
+        {
+          "phieu": "13393072",
+          "ketLuan": {
+            "loai": "nghi-ngo",
+            "nv": [
+              "242485",
+              "260189"
+            ]
+          },
+          "ghiChu": "01/10: camera 55 — Phùng Lê Cao Minh đặt pallet gốc 19/08 19:43 (900 cái), Mai Lê Hoàng Phi xếp thêm 20/08 10:41 (432+72); cả hai không rọc. B1.1 đã giao Phi theo quyết định của bạn; CHỜ bạn quyết có thêm Minh không"
+        },
+        {
+          "phieu": "13393074",
+          "ghiChu": "01/10: WMS chọn Sang (516 cái 09:56 19/08) nhưng camera 55 cho thấy pallet đó bị xe nâng chở đi 17:42 19/08 — không có trong ảnh → Sang LOẠI; ảnh trùng 13393072"
+        },
+        {
+          "phieu": "13393784",
+          "ghiChu": "01/10: Minh đặt pallet Nivea 14:07 19/08 (WMS 1.092) quấn màng, không rọc tới 21/08 → Minh; Sang (36 cái 08:15, trước khi pallet tới) LOẠI"
+        },
+        {
+          "phieu": "14007579",
+          "ketLuan": {
+            "loai": "B1.1",
+            "nv": [
+              "260189"
+            ]
+          },
+          "ghiChu": "camera + WMS 10:55 1.318 cái"
+        },
+        {
+          "phieu": "14007582",
+          "ketLuan": {
+            "loai": "B1.1",
+            "nv": [
+              "260189"
+            ]
+          },
+          "ghiChu": "camera + WMS 15:41 936 cái"
+        }
+      ],
+      "moi": true,
+      "quyDinh": [
+        {
+          "muc": 5,
+          "cau": "Hàng hóa số lượng nhiều dạng thùng khi trưng bày ở khu vực soạn hàng phải được rọc băng keo tất cả các thùng nhưng không được cắt nắp",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 5: người trưng bày thùng ở khu soạn phải rọc băng keo → lỗi thuộc người ĐẶT/ĐỂ LẠI thùng nguyên băng keo mà ảnh chụp được, không phải mọi người từng châm hàng vào ô.",
+      "khacCu": "02/10: KHÔNG đổi điều kiện. Thêm bối cảnh: 14 phiếu B3 cùng hạng mục (mục 5) đều 1 người = người châm hàng số lượng lớn gần nhất, 0 NV chối; bằng chứng mẫu = ảnh lịch sử chuyển WMS tô dòng PUSH_MASTER (13262000: phongdt 1.562 cái 20:28). Đề xuất TB-04 đã gộp vào đây. | 05/10 thêm TB-01b — user: «trỏ ngược về theo người châm lớn vào» thay cho dò camera từng ngày (tốn lượt đầu ghi). Chạy thử khớp 3/3 ca đã xác nhận camera (14007579, 14007582, 13790367 → Phi). | 05/10 user: WMS không đủ — phải đối chiếu camera đúng giờ châm trước khi B1.1 (canh-b1 thêm trạng thái cho-camera)."
+    },
+    {
+      "ma": "TB-02",
+      "nhom": "Trưng bày / châm hàng",
+      "ten": "Sắp xếp không gọn · đè/che khuất · quá sức chứa",
+      "tuKhoa": [
+        "sap xep gon gang",
+        "de len hoac che khuat",
+        "suc chua",
+        "trung bay du"
+      ],
+      "dieuKien": "Người châm hàng vào ô GẦN NHẤT trước giờ chụp (trong 72h)",
+      "mayLam": "Chỉ 1 người châm hàng trong 72h → B1.1 người đó; nhiều người → NGHI NGỜ, ghi sheet người châm hàng cuối + danh sách",
+      "macDinh": "hoi",
+      "chay": "canh-b1",
+      "tu": "01/10/2026",
+      "anLe": [],
+      "moi": true,
+      "quyDinh": [
+        {
+          "muc": 1,
+          "cau": "Hàng hóa phải được sắp xếp gọn gàng, trưng bày đủ theo sức chứa của thùng, khay, hộp, mâm kệ hoặc pallet",
+          "tru": "5%",
+          "xuLy": "Biên bản"
+        },
+        {
+          "muc": 4,
+          "cau": "Khi trưng bày hàng hóa tuyệt đối không đè lên hoặc che khuất sản phẩm khác",
+          "tru": "5%",
+          "xuLy": "Biên bản"
+        }
+      ]
+    },
+    {
+      "ma": "SH-01",
+      "nhom": "Soạn hàng",
+      "ten": "Lấy dở thùng · bỏ thùng rỗng · không mang thùng về",
+      "tuKhoa": [
+        "lay het hang trong thung",
+        "lay luon thung",
+        "thung rong"
+      ],
+      "dieuKien": "Theo DẠNG ẢNH: (a) thùng rỗng hoặc thùng còn dở do người soạn để lại → người SOẠN CUỐI CÙNG SKU đó tại ô trước giờ chụp (≤8h, chi tiết nhóm soạn); (b) ≥2 thùng lẻ cùng mở, chưa gom → người CHÂM HÀNG gần nhất (lệnh push vào ô); (c) mở thùng mới khi thùng cũ còn hàng → mọi người soạn SKU đó tại ô từ lần châm hàng gần nhất, camera chọn người mở thùng thứ 2",
+      "mayLam": "Tra picking-group (danh sách theo ngày 1–2 lượt + chi tiết nhóm, quét ngược từ giờ ảnh, dừng sớm: 7–27 lượt/phiếu) → ghi sheet người theo dạng ảnh + clip camera đúng phút. Chỉ tự kết luận khi camera xác nhận (CAM-03).",
+      "macDinh": "hoi",
+      "chay": "canh-b1 (chỉ ghi sheet)",
+      "tu": "01/10/2026",
+      "anLe": [
+        {
+          "phieu": "13389950",
+          "ghiChu": "[KẾT LUẬN NGƯỜI: Oanh (oanhdnk) — chờ máy đủ khả năng liệt kê ứng viên soạn hàng tại ô] 02/10 (user đính chính lần 2): thùng bỏ lại là THÙNG GIẤY TRƠN, không phải thùng gốc (thùng gốc in xanh, nhãn 20 EA). Như 09:23:44 lấy 6 rồi đi khi thùng CÒN chai; Hương 09:50:10 lấy 1 chai trong thùng; Oanh 09:51:06–10 (WMS 09:51:09) lấy nốt → người soạn CUỐI = Oanh. Luật (a) 'người soạn cuối SKU tại ô' vốn ra ĐÚNG; bản 01/10 'Như' sai vì suy 'lấy 6 = hết thùng' mà không kiểm thùng gốc/quy cách."
+        },
+        {
+          "phieu": "11976910",
+          "ghiChu": "dạng (a): máy ra nganntk6 10:16 = B1 Nguyễn Thị Kim Ngân ✓"
+        },
+        {
+          "phieu": "12163813",
+          "ghiChu": "dạng (a): máy ra trangnh1 10:59 = B1 Nguyễn Huyền Trang ✓"
+        },
+        {
+          "phieu": "11684195",
+          "ghiChu": "dạng (c): soạn cuối tuyenhn 07:07 nhưng B1 = Lu Ngọc Phượng (soạn SKU ở ô 18:17 hôm trước, mở thùng mới)"
+        },
+        {
+          "phieu": "11903194",
+          "ghiChu": "dạng (b): B1 = Phùng Lê Cao Minh (người châm hàng, không soạn)"
+        },
+        {
+          "phieu": "12229738",
+          "ghiChu": "dạng (b): bình luận B1 «push phải gom 2 thùng lẻ thành 1» → Hoàng Trọng Phát (người châm hàng)"
+        }
+      ],
+      "moi": true,
+      "quyDinh": [
+        {
+          "muc": 13,
+          "cau": "Lấy luôn thùng nếu NV là người soạn hàng cuối cùng của thùng đó đem về khu vực soạn hàng để tái sử dụng hoặc rọc thùng để vào nơi quy định",
+          "tru": "5%",
+          "xuLy": "Không"
+        },
+        {
+          "muc": 12,
+          "cau": "Lấy hết hàng trong thùng mới lấy qua thùng khác…",
+          "tru": "5%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 13: người soạn LẤY ITEM CUỐI của thùng phải mang thùng về/rọc → lỗi thuộc người làm thùng rỗng, không phải người soạn cuối ở ô.",
+      "khacCu": "02/10: Cũ = 1 cách «người làm thùng rỗng / soạn cuối». Mới = tách 3 dạng ảnh. Bối cảnh: chạy thử 5 phiếu cũ, «người soạn cuối» chỉ đúng 2/5 (11976910, 12163813); 11684195 lỗi là người mở thùng mới (soạn hôm trước); 11903194 và 12229738 lỗi là người châm hàng (2 thùng lẻ chưa gom). 18 phiếu B3 cùng nhóm: 100% có clip camera, 0 NV chối."
+    },
+    {
+      "ma": "TB-03",
+      "nhom": "Trưng bày / châm hàng",
+      "ten": "Hàng không ở đúng ô / thực tế lệch hệ thống (mục 28)",
+      "tuKhoa": [
+        "thao tac vat ly voi hang hoa",
+        "luan chuyen",
+        "han su dung",
+        "luu tru o nhung vi tri the hien ro thong tin"
+      ],
+      "dieuKien": "Hệ thống có tồn ở ô mà ra kệ KHÔNG thấy hàng (hoặc ngược lại: hàng ở ô mà hệ thống không có), ghi chú phiếu 'không có hàng vật lý', 'hàng không tồn hệ thống', lệch tồn; hoặc camera cho thấy hàng bị dời khỏi ô mà WMS không có lệnh chuyển; hoặc lệnh push/pick ở ô có số không khớp thực tế (vd push 36, thực tế 18; push kệ trên mà bỏ hàng kệ dưới)",
+      "mayLam": "KHÔNG dừng phiếu. Người chịu = người TÁC ĐỘNG HÀNG Ở Ô GẦN NHẤT làm thực tế lệch hệ thống: theo CAM-03 (camera: ai dời/lấy/đặt hàng ở ô) + WMS (lệnh châm hàng/lấy/chuyển cuối ở ô; chuyển vật lý KHÔNG có lệnh WMS = dấu hiệu mạnh). Đúng 1 người → NGHI NGỜ độ chắc cao, ghi sheet (bạn quyết); không tìm ra → ghi sheet + đề nghị kiểm kê vị trí. Ghi chú không nói lệch tồn → xử theo luật của hạng mục.",
+      "macDinh": "hoi",
+      "chay": "canh-b1 (chưa chạy — ĐỀ XUẤT)",
+      "tu": "01/10/2026 (viết lại theo đính chính 16h)",
+      "moi": true,
+      "deXuat": true,
+      "anLe": [
+        {
+          "phieu": "13299871",
+          "ghiChu": "soi tay 29/09: ghi chú 'Không có hàng vật lý' (A2) → mục 28, cần tìm người tác động cuối (CHƯA làm)"
+        },
+        {
+          "phieu": "13586497",
+          "ghiChu": "soi tay 29/09: ghi chú 'Hàng k tồn hệ thống', SKU 422207326 → mục 28, cần tìm người tác động cuối (CHƯA làm)"
+        },
+        {
+          "phieu": "13393784",
+          "ghiChu": "01/10 camera 52: pallet Nivea bị xe nâng dời khỏi ô 5L1-24 lúc 14:26:50 19/08, WMS không lệnh → dấu hiệu mục 28 kèm lỗi rọc băng keo; ô trống trong ảnh 1"
+        },
+        {
+          "phieu": "12171228",
+          "ghiChu": "B3.2: Minh push inbin 36 thực tế 18; Phi push kệ trên, thực tế bỏ kệ dưới — 2 NV, clip camera 505-8-10 + lịch sử WMS"
+        },
+        {
+          "phieu": "12543937",
+          "ghiChu": "B3.2: chuyển bin dư so với thực tế — Phạm Đức Minh (clip minhpd3)"
+        }
+      ],
+      "quyDinh": [
+        {
+          "muc": 28,
+          "cau": "Thao tác vật lý với hàng hóa (trưng bày, luân chuyển, hạn sử dụng) đúng theo yêu cầu của hệ thống và ngược lại",
+          "tru": "5%",
+          "xuLy": "Biên bản (lần 3: Ngưng hợp tác)"
+        },
+        {
+          "muc": 16,
+          "cau": "Tất cả sản phẩm ở kho chỉ được lưu trữ ở những vị trí thể hiện rõ thông tin và phải để đúng nơi có tồn sản phẩm đó trên hệ thống",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Mục 28: thao tác vật lý với hàng (trưng bày, luân chuyển, HSD) phải đúng yêu cầu hệ thống VÀ NGƯỢC LẠI → hàng thật không khớp hệ thống CHÍNH LÀ lỗi mục 28 (trừ 5%, Biên bản), KHÔNG phải 'lệch tồn → không lỗi cá nhân → dừng phiếu'. Mục 16 bổ trợ: hàng chỉ được để đúng nơi hệ thống có tồn.",
+      "khacCu": "02/10: thêm dấu hiệu «lệnh push/pick có số không khớp thực tế» + bằng chứng chuẩn của người xác minh (clip chia đôi: camera kệ + lịch sử chuyển WMS tô dòng). Bối cảnh: 39 phiếu B3 mục 28 — 21 phiếu là lệch số/sai vị trí (luật này), 18 phiếu là lấy xe soạn sai thứ tự (tách sang XE-01). Đề xuất TB-05 gộp vào đây."
+    },
+    {
+      "ma": "A1-01",
+      "nhom": "Kệ A1 có phụ trách",
+      "ten": "Lỗi trưng bày/rác trên ô kệ có người phụ trách → gán phụ trách kệ",
+      "tuKhoa": [
+        "sap xep gon gang",
+        "de len hoac che khuat",
+        "khong duoc de rac",
+        "chan loi di"
+      ],
+      "dieuKien": "Ô kệ A1 có người phụ trách trong bảng phân công vệ sinh, người đó đi làm ngày xét; WMS KHÔNG chỉ ra đúng 1 người châm hàng (≥2 người hoặc không ai trong 72h)",
+      "mayLam": "Đóng B1 → B1.1 cho NGƯỜI PHỤ TRÁCH KỆ (kệ bẩn/lộn xộn là trách nhiệm người giữ kệ dù không phải người châm hàng). CẦN BẠN CHỌN: luật này hay TB-02 (người châm hàng gần nhất) thắng khi cả hai cùng áp?",
+      "macDinh": "hoi",
+      "chay": "canh-b1 (chưa chạy — ĐỀ XUẤT)",
+      "tu": "01/10/2026",
+      "moi": true,
+      "deXuat": true,
+      "anLe": [
+        {
+          "phieu": "13774097",
+          "ghiChu": "rác trên sàn F0-A1-508-10-01-01, phụ trách Lê Thị Mai Thi (262779) — 29/09 đề xuất 'cò tự gán người'"
+        },
+        {
+          "phieu": "13808708",
+          "ghiChu": "510-07-04-05 sắp xếp không gọn, phụ trách Đỗ Thị Tường Vy; WMS 5 người châm hàng trong 72h"
+        }
+      ],
+      "quyDinh": [
+        {
+          "muc": 1,
+          "cau": "Hàng hóa phải được sắp xếp gọn gàng, trưng bày đủ theo sức chứa của thùng, khay, hộp, mâm kệ hoặc pallet",
+          "tru": "5%",
+          "xuLy": "Biên bản"
+        },
+        {
+          "muc": 4,
+          "cau": "Khi trưng bày hàng hóa tuyệt đối không đè lên hoặc che khuất sản phẩm khác",
+          "tru": "5%",
+          "xuLy": "Biên bản"
+        },
+        {
+          "muc": 9,
+          "cau": "Trên sàn kho/hàng hóa: không được để rác…",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ]
+    },
+    {
+      "ma": "DL-01",
+      "nhom": "Dữ liệu phiếu",
+      "ten": "Phiếu thiếu thông tin để truy",
+      "dieuKien": "Không có ngày/giờ ghi nhận, hoặc vị trí ghi chữ tự do (không phải mã ô)",
+      "mayLam": "NGHI NGỜ — ghi sheet, không tự quyết",
+      "macDinh": "hoi",
+      "chay": "canh-b1",
+      "tu": "01/10/2026",
+      "moi": true,
+      "quyDinh": null
+    },
+    {
+      "ma": "DL-02",
+      "nhom": "Dữ liệu phiếu",
+      "ten": "Ảnh vi phạm trùng với phiếu khác (so NỘI DUNG ảnh)",
+      "dieuKien": "Ảnh IMA00 trùng byte hoặc hash 16×16 lệch ≤6 với ảnh của phiếu khác (khác tên file vẫn bắt được)",
+      "mayLam": "TỰ ĐỘNG bước đầu, chạy TRƯỚC CAM-03: _trung-anh.mjs quét mọi phiếu mở → .exports/TRUNG-ANH-IMA00.md. Cặp cùng ô + cùng phút = 1 ảnh 2 lỗi (ghi chú, không nghi). Cặp KHÁC Ô hoặc KHÁC NGÀY → NGHI NGỜ ghi sheet: xử 2 phiếu như 1 / nghi ảnh cũ dùng lại.",
+      "macDinh": "hoi",
+      "chay": "_trung-anh.mjs (phiên new-folder-76) · 01/10",
+      "tu": "01/10/2026",
+      "anLe": [
+        {
+          "phieu": "13393074",
+          "ghiChu": "01/10: trùng byte với 13393072 (ô 5L3-04, cùng phút) → gợi ý dừng 13393074"
+        },
+        {
+          "phieu": "13914692",
+          "ghiChu": "01/10: trùng byte với 13186674 (30/07, ô 516-07) — ảnh cũ 2 tháng dùng lại, CHỜ bạn xem"
+        },
+        {
+          "phieu": "13889965",
+          "ghiChu": "01/10: gần trùng (lệch 3/256) với 13889960 — 2 bàn A8 khác nhau, CHỜ bạn xem"
+        }
+      ],
+      "moi": true,
+      "quyDinh": null
+    },
+    {
+      "ma": "CAM-01",
+      "nhom": "Camera",
+      "ten": "Cách cắt clip bằng chứng",
+      "dieuKien": "Phiếu cần camera (nghi ngờ hoặc bạn yêu cầu)",
+      "mayLam": "Clip quay tới ĐIỂM MẤU CHỐT (tới lúc người đó rời đi / lệnh WMS xong); đoạn chỉ đi lại tua ×2, thao tác chính tốc độ thật, không bỏ thao tác nào; thêm clip đúng lúc chụp ảnh vi phạm; thử góc camera kề, chỉ dùng khi rõ hơn. Máy KHÔNG nhận diện mặt — bạn xác nhận người ở cột Quyết định",
+      "macDinh": "tu-lam",
+      "chay": "người soi + _clip-chu-thich.mjs",
+      "tu": "01/10/2026",
+      "anLe": [
+        {
+          "phieu": "13393072",
+          "ghiChu": "clip tới lúc người châm hàng rời đi, tua ×2 đoạn đi lại, thêm clip lúc chụp; góc kênh 56 thử nhưng không rõ hơn"
+        }
+      ],
+      "quyDinh": null
+    },
+    {
+      "ma": "QC-01",
+      "nhom": "QC bằng chứng",
+      "ten": "Thay bằng chứng thì xoá bản cũ",
+      "dieuKien": "Thay clip/ảnh/bình luận bằng chứng của một phiếu",
+      "mayLam": "Xoá bình luận + clip/ảnh cũ, mỗi phiếu chỉ còn 1 bình luận bằng chứng mới nhất; đọc lại sau mỗi lần ghi",
+      "macDinh": "tu-lam",
+      "chay": "mọi công cụ ghi bằng chứng",
+      "tu": "01/10/2026",
+      "anLe": [
+        {
+          "phieu": "13393072",
+          "ghiChu": "01/10 bạn nhắc: thay bình luận bằng chứng mà không xoá bản cũ → đã xoá 2 bản cũ"
+        }
+      ],
+      "quyDinh": null
+    },
+    {
+      "ma": "CAM-02",
+      "nhom": "Camera",
+      "ten": "Khung đỏ bám theo người",
+      "dieuKien": "Clip có khoanh người cần xác minh",
+      "mayLam": "Khung chạy theo người (_clip-chu-thich.mjs bám mặc định; theo:false cho đoạn đồ vật/nhiều người → khung cố định). Dò 'người' COCO-SSD, KHÔNG nhận mặt: nét liền = đang thấy, nét đứt = tạm khuất. Dựng xong soi ≥8 khung; khung lạc thì sửa rồi mới gắn phiếu",
+      "macDinh": "tu-lam",
+      "chay": "_clip-chu-thich.mjs (phiên new-folder-76)",
+      "tu": "01/10/2026",
+      "anLe": [
+        {
+          "phieu": "13393072",
+          "ghiChu": "3 clip dựng lại hậu tố _KHUNG-THEO-NGUOI (new-folder-76, 01/10)"
+        }
+      ],
+      "quyDinh": null
+    },
+    {
+      "ma": "CAM-03",
+      "nhom": "Camera",
+      "ten": "Thứ tự xác minh: đồ vật → camera → người → trang phục",
+      "dieuKien": "Mọi phiếu cần xác minh bằng camera",
+      "mayLam": "① Từ ảnh vi phạm nhận ra ĐỒ VẬT, tìm nó trên camera ở ô đó (góc rõ nhất); ② lùi trước giờ ghi nhận tìm ai TÁC ĐỘNG đồ vật gần nhất — cả vật lý (camera) lẫn hệ thống (WMS châm hàng bin_in / soạn picking-group); ③ ảnh cổng bảo vệ hôm đó (wshr /hr/history-location, location 398, is_staff=1 → staff.code + images_in) để khớp TRANG PHỤC, không có thì lùi ngày trước; ④ khớp đủ mới đặt nghi ngờ + cắt clip (tua ×2 đoạn thừa, khung bám). Ảnh cổng bảo vệ CHỈ dùng nội bộ để đối chiếu — KHÔNG KÈM ẢNH BẢO VỆ lên phiếu/bình luận",
+      "macDinh": "tu-lam",
+      "chay": "người soi (phiên new-folder-76)",
+      "tu": "01/10/2026",
+      "moi": true,
+      "anLe": [
+        {
+          "phieu": "13389950",
+          "ghiChu": "đang soi: thùng rỗng mép trước cụm pallet cam 58; 10:00 người polo xanh lá kéo xe đỏ dỡ hàng sát thùng = Võ Văn Quang (261621) PUSH 70 cái 10:00:32–10:01:10, khớp áo ở ảnh cổng 05:51; soạn hàng (Kiều Oanh/Thu Hương) mặc đồng phục đen"
+        }
+      ],
+      "quyDinh": null
+    },
+    {
+      "ma": "RA-01",
+      "nhom": "QC bằng chứng",
+      "ten": "Rà việc cũ sau mỗi thay đổi",
+      "dieuKien": "Đổi cách làm (luật, khuôn bằng chứng, clip, bình luận…)",
+      "mayLam": "Rà mọi phiếu đã làm theo cách cũ: TASK đã hoàn thành → để nguyên; task chưa hoàn thành → ghi đè bản mới (xoá bản cũ theo QC-01), xét theo TASK không theo bước. Báo cáo: số phiếu rà · để nguyên · đã ghi đè",
+      "macDinh": "tu-lam",
+      "chay": "BO-CHUAN mục 0 bước 6 (phiên new-folder-76)",
+      "tu": "01/10/2026",
+      "quyDinh": null
+    },
+    {
+      "ma": "QD-01",
+      "nhom": "Quyết định của bạn",
+      "ten": "Máy làm theo cột Quyết định trên sheet",
+      "dieuKien": "Bạn chọn ở cột vàng tab PHIẾU B1 TREO",
+      "mayLam": "«Gán lỗi cho NV máy nghi» (đúng 1 mã NV, hoặc ghi mã ở cột Ghi chú) → B1.1; «Fail - …»/«Huỷ phiếu» → dừng phiếu + bình luận lý do; «Cắt thêm clip camera» → đưa vào hàng chờ soi; «Giữ» → không làm. Mỗi quyết định lưu thành án lệ",
+      "macDinh": "tu-lam",
+      "chay": "canh-b1",
+      "tu": "01/10/2026",
+      "quyDinh": null
+    },
+    {
+      "ma": "XE-01",
+      "nhom": "Soạn · đóng gói",
+      "ten": "Lấy xe soạn không theo thứ tự (ra thẳng khu đang soạn)",
+      "tuKhoa": [
+        "xe pick",
+        "tap ket xe",
+        "5l3-25",
+        "5l3-27",
+        "pick 2 xe"
+      ],
+      "dieuKien": "Chỉ xét xe NV ĐÓNG mà NGƯỜI KHÁC SOẠN (tự soạn rồi tự đóng xe của mình KHÔNG vi phạm). NV đóng gói BẮT ĐẦU ĐÓNG một xe trong vòng 5 phút sau lúc xe đó soạn xong (tức đứng chờ lấy ngay ở khu đang soạn), trong khi khu «đã soạn xong – chờ đóng gói» còn xe CÙNG đơn vị vận chuyển soạn xong sớm hơn ≥5 phút mà chưa ai đóng. Phụ: đóng 2 xe chồng giờ (xe sau bắt đầu trước khi xe trước đóng xong). Chỉ xác nhận phiếu ĐÃ có ảnh: giờ ảnh cách giờ soạn xong ≤5 phút",
+      "mayLam": "Tra danh sách picking group theo ngày (1–2 lượt: người soạn, picking_end_at, packing_by_name, packing_start_at, đơn vị vận chuyển) → liệt kê xe chờ trước + số phút → ghi sheet. KHÔNG tự lập phiếu hàng loạt (5,4% số xe trong kho thoả điều kiện, sau khi loại xe tự soạn tự đóng). Lời giải thích «bạn soạn xong rồi em mới lấy» không gỡ lỗi.",
+      "macDinh": "hoi",
+      "chay": "canh-b1 (chưa chạy — ĐỀ XUẤT)",
+      "tu": "02/10/2026",
+      "moi": true,
+      "deXuat": true,
+      "quyDinh": [
+        {
+          "muc": 28,
+          "cau": "Thao tác vật lý với hàng hóa (trưng bày, luân chuyển, hạn sử dụng) đúng theo yêu cầu của hệ thống và ngược lại",
+          "tru": "5%",
+          "xuLy": "Biên bản (lần 3: Ngưng hợp tác)"
+        }
+      ],
+      "giaiNghia": "Bạn giải nghĩa 02/10: NV đóng phải lấy xe ở khu đã soạn xong – chờ đóng theo thứ tự; ra thẳng khu đang soạn lấy xe → (1) xe soạn trước bị bỏ chờ → nguy cơ trễ đơn; (2) lựa xe nhẹ/ít SKU/dễ đóng → không công bằng.",
+      "khacCu": "02/10: LUẬT MỚI (trước đây gom chung mục 28/TB-03, không có cách máy kiểm). Bối cảnh: 18 phiếu B3 (07–09/07, 07–08/08), 10 NV chối đều bị bác. Chạy thử 19 cặp phiếu–NV: 11 khớp án lệ (giờ ảnh trùng gần như từng phút với lúc xe soạn xong); 7 không khớp vì giờ ảnh tròn (09:00, 18:00…) — ghi ước chừng. | Lượt 2 (02/10 chiều, bạn sửa): thêm điều kiện người đóng ≠ người soạn. Đếm lại 1.845 xe: 50% là tự soạn tự đóng; số xe nghi vi phạm 302 → 99 (5,4%). Án lệ cũ đều là đóng xe người khác soạn nên kết quả chạy thử không đổi.",
+      "anLe": [
+        {
+          "phieu": "12899623",
+          "ghiChu": "Bảo Thy: xe soạn xong 07:35:30, ảnh 07:35, 7 xe chờ trước — chối «bạn pick xong em mới lấy», vẫn ghi B3.2"
+        },
+        {
+          "phieu": "12899128",
+          "ghiChu": "Thanh Ngân: 12 xe chờ trước"
+        },
+        {
+          "phieu": "12897081",
+          "ghiChu": "Hoài Thảo: soạn xong 07:20:46, đóng 07:24, 1 xe chờ trước"
+        }
+      ]
+    },
+    {
+      "ma": "BX-01",
+      "nhom": "Ra vào · bãi xe",
+      "ten": "NV Hasaki gửi xe ở bãi của bảo vệ / nhà cung cấp – đối tác",
+      "tuKhoa": [
+        "bai xe",
+        "xe may",
+        "gui xe"
+      ],
+      "dieuKien": "NV chính thức hoặc part-time Hasaki gửi xe ở (1) bãi bên trái camera «AI Bao Ve» (đầu ghi 170 QL1A - 4 = 172.16.10.16, kênh 16) — bãi của bảo vệ/NCC; hoặc (2) cụm xe sát cột camera «Bai Xe May» (đầu ghi 170 QL1A - 3 = 172.16.10.12, kênh 32) — bãi NCC/đối tác. Người không phải NV Hasaki (bảo vệ, tạp vụ, tài xế NCC) → loại",
+      "mayLam": "MỖI NGÀY canh-bai-xe.mjs: mẫu 5 s mỗi 3 phút (05:30–10:00, 12:00–14:30) → vùng bãi đổi rồi đứng yên = 1 lượt xe vào/ra → cắt đoạn ≤6 phút trước đó, chụp khung có người + ảnh cổng + chấm công gần giờ → Videos/5S-bang-chung/bai-xe/<ngày>/BAO-CAO.html để BẠN quyết và nhận diện. Máy KHÔNG nhận mặt, KHÔNG lập phiếu. Ảnh cổng chỉ nội bộ.",
+      "macDinh": "hoi",
+      "chay": "canh-bai-xe.mjs (task 5S Canh bai xe 10:15 + 14:45)",
+      "tu": "02/10/2026",
+      "moi": true,
+      "deXuat": true,
+      "quyDinh": [
+        {
+          "muc": 25,
+          "cau": "Không trữ hay trưng bày hàng hóa, công cụ, văn phòng phẩm,... chắn lối đi hoặc tại khu vực không được phép",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Bạn chốt 02/10: tính mục 25 «khu vực không được phép» (2% → nhánh B3.1), KHÔNG dùng mục 17 như 4 phiếu bãi xe cũ.",
+      "khacCu": "02/10: LUẬT MỚI. Cũ: chỉ có án lệ 12016845 (người xác minh khoanh vùng xe PTCH vs bảo vệ/tạp vụ/OS trên ảnh). Mới: thêm 2 camera bạn chỉ định + cách định danh bằng giờ sổ cổng. | Lượt 2: mục 17 (5%) → mục 25 (2%) theo bạn chốt. Định danh: giờ chấm công gần như trùng lúc dựng xe (NV chấm bằng điện thoại, có khi TRƯỚC lúc dựng xe) → mỗi lượt gửi xe ra 2–4 người cùng phút; chỉ dùng kèm trang phục ở ảnh cổng.",
+      "anLe": [
+        {
+          "phieu": "12016845",
+          "ghiChu": "05/2026 bãi xe NCC — bắt 1 xe PTCH, 2 xe bên cạnh của NCC (QL hỏi «3 xe sao bắt 1»)"
+        }
+      ]
+    },
+    {
+      "ma": "CAM-04",
+      "nhom": "Camera",
+      "ten": "Lỗi hành vi tại chỗ → camera ở khu đó",
+      "tuKhoa": [
+        "an uong",
+        "nghi ngoi",
+        "ccdc",
+        "vpp",
+        "chan loi di",
+        "dua gion",
+        "ly nuoc"
+      ],
+      "dieuKien": "Hạng mục ăn uống/nghỉ ngơi (24), CCDC-VPP-vật dụng cá nhân (8), chắn lối đi (25), đùa giỡn/làm việc riêng (26), tập trung (19) — không có lệnh WMS để truy",
+      "mayLam": "Theo CAM-03: tìm đồ vật/người trên camera khu đó, lùi tới người đặt/bỏ lại đồ → ghi sheet giờ + clip. Cùng người lặp lại nhiều ngày → ghi làm tình tiết. Nhiều người trong ảnh → ghi đủ từng người (CH-02).",
+      "macDinh": "hoi",
+      "chay": "người soi",
+      "tu": "02/10/2026",
+      "moi": true,
+      "deXuat": true,
+      "quyDinh": null,
+      "khacCu": "02/10: LUẬT MỚI, gom cách làm của 27 phiếu B3 (CCDC 92% có clip, ăn uống 30%, 9/27 phiếu nhiều NV). Áp mục của phiếu.",
+      "anLe": [
+        {
+          "phieu": "12111702",
+          "ghiChu": "bình lọc nước cổng PO: «liên tục 2 ngày 2 ly nước đều là 1 nhân viên» (Minh Thám) — clip camera cổng"
+        }
+      ]
+    },
+    {
+      "ma": "CH-04",
+      "nhom": "Chung",
+      "ten": "Chối mà không có bằng chứng → không đổi kết quả",
+      "dieuKien": "B1.1 ghi «Không phải lỗi cá nhân» nhưng không đưa bằng chứng mới (ảnh/clip/chấm công) phản bác bằng chứng B1",
+      "mayLam": "Đi tiếp như lỗi cá nhân. Chỉ trả về B1 khi NV đưa được bằng chứng ngược. Với kiem-giai-trinh-ai: AI chỉ kết luận ĐÚNG khi có sự thật đối chiếu được, không dựa lời giải trình.",
+      "macDinh": "hoi",
+      "chay": "kiem-giai-trinh-ai (chưa chạy thật)",
+      "tu": "02/10/2026",
+      "moi": true,
+      "deXuat": true,
+      "quyDinh": null,
+      "khacCu": "02/10: LUẬT MỚI. Bối cảnh: 16/16 phiếu B3 NV chối không kèm bằng chứng đều vẫn bị ghi; 1 phiếu có bằng chứng ngược → trả B1 (11772738 «bạn Mỹ Trinh chứng minh được không làm việc riêng»). Khớp luật AI kiểm giải trình (01/10).",
+      "anLe": [
+        {
+          "phieu": "11772738",
+          "ghiChu": "trả về B1 vì NV chứng minh được không làm việc riêng"
+        }
+      ]
+    },
+    {
+      "ma": "CAM-05",
+      "nhom": "Camera / bằng chứng",
+      "ten": "Kiểm THÙNG GỐC + QUY CÁCH trước khi suy 'lấy hết thùng'",
+      "dieuKien": "Lỗi dính thùng (thùng rỗng/lấy dở): trước khi kết luận ai lấy hết, xác định thùng trong ảnh có phải thùng gốc của SKU không (logo/in, nhãn số lượng EA trên thùng gốc cùng pallet hoặc trong ảnh ghi nhận). Thùng gốc → số còn = quy cách − tổng soạn từ lúc mở; thùng trơn/thùng lẻ → KHÔNG suy từ số WMS, phải soi camera TỪNG lần có người thò tay vào thùng tới lúc chụp.",
+      "mayLam": "Ghi vào sheet: loại thùng (gốc/trơn), quy cách đọc được, danh sách người thò tay vào thùng theo giờ. Không đủ chắc → NGHI NGỜ.",
+      "macDinh": "hoi",
+      "chay": "thủ công / canh-b1 (ghi sheet)",
+      "tu": "02/10/2026",
+      "khacCu": "Mới. CAM-03 chỉ bảo tìm người tác động gần nhất — không nói phải kiểm thùng gốc/quy cách. Bối cảnh 13389950: 01/10 suy 'Như lấy 6 = hết thùng' ⇒ SAI (thùng trơn, còn chai; Oanh lấy nốt 09:51).",
+      "anLe": [
+        {
+          "phieu": "13389950",
+          "ghiChu": "[KẾT LUẬN NGƯỜI: Oanh (oanhdnk) — chờ máy đủ khả năng liệt kê ứng viên soạn hàng tại ô] thùng trơn ≠ thùng gốc 20 EA"
+        }
+      ]
+    },
+    {
+      "ma": "CAM-06",
+      "nhom": "Camera / bằng chứng",
+      "ten": "Clip NỐI 1 mạch: lần tác động nghi ngờ → lúc chụp ảnh ghi nhận",
+      "dieuKien": "Clip bằng chứng phải liền 1 mạch từ lần tác động của người nghi ngờ tới lúc chụp ảnh ghi nhận để chứng minh người đó tác động CUỐI và sau đó không ai tác động. Thao tác chính tốc độ thật; người đi ngang x2–x3; không ai tới gần x10 (có nhãn tốc độ). Mỗi người lại gần đồ vật = 1 mốc tốc độ thật, chú thích đúng việc họ làm (soi từng giây trước khi viết).",
+      "mayLam": "hasaki/_clip-noi.mjs (nhiều file nguồn, khung đỏ = đồ vật đứng yên, khung vàng bám người + nhãn tài khoản). Dựng xong soi ≥8 khung kiểm.",
+      "macDinh": "hoi",
+      "chay": "thủ công",
+      "tu": "02/10/2026",
+      "khacCu": "Thay CAM-01 phần 'thêm clip lúc chụp ảnh' (2 clip rời) bằng 1 clip nối. Bối cảnh 13389950 (user 02/10): 'cần nối cả 2 clip thành 1 … x2/x3 tua nhanh tới đoạn người chụp ảnh'. Lần dựng đầu suýt ghi '09:41 người đi ngang' trong khi NV đang lấy hàng → phải soi từng giây.",
+      "anLe": [
+        {
+          "phieu": "13389950",
+          "ghiChu": "clip 09:23→10:05 ~11 phút"
+        }
+      ]
+    },
+    {
+      "ma": "NV-01",
+      "nhom": "Định danh",
+      "ten": "Không có lệnh WMS → định danh bằng CA LÀM + ảnh cổng + hướng đi",
+      "dieuKien": "Lỗi hành vi không để lại dấu hệ thống (vứt rác, không phân loại, để CCDC sai chỗ): (1) chấm công ngày đó — chỉ giữ NV trong ca đúng phút vi phạm (bộ phận đúng màu đồng phục); (2) xem camera SAU vi phạm: người còn làm tiếp hay rời khu → ca sáng/chiều (khớp giờ chấm ra); (3) ảnh cổng gần nhất (lùi ≤10 ngày) so dáng, tóc, quần, dép — KHÔNG so mặt; (4) nếu có camera ở máy chấm công/cổng: giờ chấm ra đúng giây là bằng chứng mạnh nhất. Người THIẾU ảnh cổng KHÔNG bị loại (14010729: Thám không có ảnh cổng → bị loại → máy đoán sai Danh Hiếu). Bộ lọc mạnh nhất = giờ chấm RA khớp lúc người vi phạm rời khu. Còn ≥2 người → NGHI NGỜ, gửi user danh sách + ảnh so sánh.",
+      "mayLam": "Ghi sheet danh sách rút gọn + ảnh so sánh (nội bộ, không đính lên phiếu). Không tự gán.",
+      "macDinh": "hoi",
+      "chay": "thủ công",
+      "tu": "02/10/2026",
+      "khacCu": "Mới. CAM-03 bước ③ dùng ảnh cổng nhưng giả định đã có ứng viên từ WMS. Bối cảnh phiếu 14010729 (phòng cắt giấy 01/10): sổ cổng 01/10 trống (bảo vệ không chụp), 30 NV PTCH trong ca → lọc ca + ảnh cổng còn 3–8 người.",
+      "anLe": [
+        {
+          "phieu": "14010729",
+          "ghiChu": "02/10 user xác nhận Nguyễn Hoàng Minh Thám (260077): ca 07:00–17:14, không có ảnh cổng 10 ngày; máy đoán Danh Hiếu = SAI"
+        }
+      ]
+    },
+    {
+      "ma": "TU-01",
+      "nhom": "Thủ tục",
+      "ten": "Từ ngữ chuẩn trong chú thích/bình luận",
+      "dieuKien": "Dùng 'châm hàng' (không dùng 'cất'); 'không ai TÁC ĐỘNG thùng' (không dùng 'không ai lấy hàng ở thùng'); tên người trên clip = TÀI KHOẢN WMS khi có ('tk …'), không có thì 'NV áo …'.",
+      "mayLam": "Áp khi dựng chú thích clip + bình luận.",
+      "macDinh": "tu",
+      "chay": "mọi công cụ bằng chứng",
+      "tu": "02/10/2026",
+      "khacCu": "Mới — user 02/10: thay 'cất' → 'châm hàng', 'lấy' → 'tác động'.",
+      "anLe": []
+    },
+    {
+      "ma": "DL-03",
+      "nhom": "Dữ liệu phiếu",
+      "ten": "2 phiếu trùng hoàn toàn (cùng ảnh + cùng ô + cùng lỗi) → giữ phiếu tạo trước, dừng phiếu sau",
+      "dieuKien": "Ảnh IMA00 trùng NỘI DUNG (xám 16×16 lệch ≤6, như DL-02) VÀ cùng BIN00 VÀ cùng TYPE00. Khác lỗi = 1 ảnh 2 lỗi → DL-02 (giữ cả 2).",
+      "mayLam": "_dung-phieu-trung.mjs <giữ> <dừng> --lam: re-create-step −1 + note_failed + bình luận «Trùng phiếu <link>»; đọc lại cha status 2.",
+      "macDinh": "tu-lam",
+      "chay": "thủ công (_dung-phieu-trung.mjs) — chờ nối vào canh-b1",
+      "tu": "05/10/2026",
+      "khacCu": "Mới — DL-02 chỉ phủ 1 ảnh 2 lỗi khác nhau; CH-01 chỉ cấm gán đúp. User 05/10 chọn «Giữ sớm, dừng sau» (như VS-01).",
+      "anLe": [
+        {
+          "phieu": "14007570",
+          "ghiChu": "trùng 14007566 (08:42:22, 508-02-03-01, chắn lối đi) → dừng 05/10"
+        }
+      ]
+    },
+    {
+      "ma": "CH-05",
+      "nhom": "Chống trừ đúp",
+      "ten": "1 NV · cùng lỗi · cùng ngày · nhiều vị trí → trừ 1 lần ở phiếu ghi nhận đầu tiên",
+      "dieuKien": "Cùng mã NV (B1 staff) + cùng TYPE00 + cùng ngày DATE00, KHÁC BIN00",
+      "mayLam": "canh-trung-nv.mjs: giữ phiếu DATE00 sớm nhất; phiếu sau (còn bước treo) dừng (note «Gộp vào phiếu <link> (cùng nhân viên, cùng lỗi, cùng ngày) — chỉ ghi nhận 1 lần») + bình luận tag QLTT nhắc NV. Phiếu đã xong → để nguyên (RA-01).",
+      "macDinh": "tu-lam",
+      "chay": "canh-trung-nv.mjs",
+      "tu": "05/10/2026",
+      "khacCu": "Mới — CH-01 chỉ phủ CÙNG vị trí; án lệ cũ (23/06, 04/05) từng trừ mỗi vị trí 1 lượt. User 05/10: trừ 1 lần ở lượt đầu, từ lần 2 nhắc + tag QLTT.",
+      "anLe": [
+        {
+          "phieu": "14007582",
+          "ghiChu": "gộp vào 14007579 (Phi, 02/10, 5L2-18 vs 5L2-09)"
+        }
+      ]
+    },
+    {
+      "ma": "CH-06",
+      "nhom": "Tuân thủ",
+      "ten": "1 NV ≥3 lỗi/tháng → từ lỗi thứ 4 tag QLTT nhắc tính tuân thủ",
+      "dieuKien": "Đếm phiếu đã xác minh ra NV (B1 xong) theo THÁNG của DATE00, lỗi bất kỳ; phiếu bị CH-05 gộp không đếm",
+      "mayLam": "canh-trung-nv.mjs: từ phiếu thứ 4 (còn mở) bình luận tag QLTT «Nhờ anh/chị nhắc nhở <NV> về tính tuân thủ: đây là lỗi thứ N trong tháng MM/YYYY (links)». Không trừ thêm.",
+      "macDinh": "tu-lam",
+      "chay": "canh-trung-nv.mjs",
+      "tu": "05/10/2026",
+      "khacCu": "Mới — user 05/10.",
+      "anLe": [
+        {
+          "phieu": "13959229",
+          "ghiChu": "Huyền lỗi thứ 5 tháng 09/2026"
+        }
+      ]
+    },
+    {
+      "ma": "PL-01",
+      "nhom": "Khu giấy · rác",
+      "ten": "Khu phân loại rác + kho giấy tái chế: chủ khu xoay vòng theo ngày do QL phân công",
+      "tuKhoa": [
+        "phan loai rac",
+        "giay tai che",
+        "phong cat giay",
+        "kho giay"
+      ],
+      "dieuKien": "Vị trí F0-A4-506-01-01-01 (Khu phân loại rác đóng gói) và F0-A4-504-01-01-01 (Khu trữ giấy tái chế). Mỗi ngày 1 người phụ trách do QUẢN LÝ phân công xoay vòng. Người phụ trách đi làm mà không báo cáo ảnh cuối ca → lỗi như VS-02. Ngày đó QL không phân công ai → lỗi cho QLTT như VS-04.",
+      "mayLam": "CHƯA CHẠY: cần (1) lịch chụp ảnh vệ sinh hằng ngày cho 2 vị trí trên planogram (hiện 506 KHÔNG có lịch, 504 chỉ có lịch bảo dưỡng máy cắt xốp ở trạng thái Nháp — đọc .co-canh-moc.json 05/10 10:55) và (2) nơi QL ghi phân công theo ngày. Có đủ 2 thứ thì canh-b11 ⑤ áp y như VS-02/VS-04.",
+      "macDinh": "tu-lam",
+      "chay": "canh-b11 ⑤ (chờ lịch + bảng phân công)",
+      "tu": "05/10/2026",
+      "moi": true,
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        },
+        {
+          "muc": 8,
+          "cau": "CCDC, VPP (pallet, xe soạn hàng, các loại rổ, thùng đóng đơn, thùng giấy tái chế, thùng rác, rác phải phân loại...), vật dụng cá nhân (chai/ly nước uống, balo, túi ...) đặt đúng vị trí lưu trữ, trả về đúng nơi quy định sau khi sử dụng. Vệ sinh và dọn rác sạch sẽ sau khi sử dụng.",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Bạn chốt 05/10: «quản lý phân công xoay vòng theo ngày». Tài liệu HR COS-HD-201 «Hướng dẫn phân loại rác tại kho Tổng» (27/03/2024): rác phân loại NGAY tại nơi phát sinh (nhận PO, IT, đóng IT) rồi mới mang tới khu chứa; quản lý phân công + kiểm soát hằng ngày.",
+      "khacCu": "05/10: LUẬT MỚI. Cũ: khu này không có chủ, không có lịch báo cáo → không luật tự động nào bắt được; chỉ có cò camera lấy mẫu cả ngày (≈130 đoạn/khu) mà máy không phân biệt được đã/chưa phân loại. 11 phiếu cũ ở khu giấy/rác: 5 phiếu không xác định được người."
+    },
+    {
+      "ma": "PL-02",
+      "nhom": "Khu giấy · rác",
+      "ten": "Chống ảnh báo cáo cũ / chụp không có mặt",
+      "dieuKien": "Có báo cáo ảnh vệ sinh khu giấy/rác (PL-01) mà camera khu đó KHÔNG có cử động nào trong vùng ±5 phút quanh giờ gửi ảnh",
+      "mayLam": "So điểm ảnh vùng khu trên camera (PLR kênh 30, KGC kênh 31, đầu ghi .12) quanh giờ báo cáo; không cử động → ghi sheet «nghi báo cáo không có mặt» để bạn quyết. Không dùng AI nhìn ảnh.",
+      "macDinh": "hoi",
+      "chay": "CHƯA BẬT — đo 05/10 chưa đạt",
+      "tu": "05/10/2026",
+      "moi": true,
+      "quyDinh": [
+        {
+          "muc": 7,
+          "cau": "Bàn làm việc và khu vực phụ trách: phải được vệ sinh và báo cáo hằng ngày vào cuối mỗi ca",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Bạn chốt 05/10 cách B.",
+      "khacCu": "05/10: LUẬT MỚI, chưa có luật cũ tương ứng.",
+      "doKiem": "05/10 đo trên 215 đoạn 15 s (02–03/10) so với nhãn soi bằng mắt, đo «ô 8×8 đổi >30%» giữa 2 khung cách 1 s: PLR bắt 7/13 lần có người, báo nhầm 4/92 (ngưỡng 1 ô); KGC (camera mắt cá, cửa sổ sáng) bắt 5/17 nhầm 6/93 hoặc bắt 12/17 nhầm 60/93 — KHÔNG dùng được. Đo cũ (trung bình cả vùng) còn tệ hơn. Hướng gỡ: đoạn dài hơn quanh giờ báo cáo (vài đoạn ±2 phút) cho PLR; KGC cần vùng đo hẹp tránh cửa sổ."
+    },
+    {
+      "ma": "PL-03",
+      "nhom": "Khu giấy · rác",
+      "ten": "Mốc camera hiện trạng 12:00 + 18:30",
+      "dieuKien": "Mỗi ngày chụp 1 khung camera mỗi khu lúc 12:01 và 18:31 làm bằng chứng hiện trạng (đối chiếu với ảnh báo cáo, dùng khi có phiếu)",
+      "mayLam": "canh-bai-xe.mjs chụp 2 mốc → Videos/5S-bang-chung/bai-xe/<ngày>/<PLR|KGC>-moc1200.jpg, -moc1830.jpg + mocChup trong ket-qua.json. Không tự lập phiếu.",
+      "macDinh": "tu-lam",
+      "chay": "canh-bai-xe.mjs (10:15 · 14:45 · 18:45)",
+      "tu": "05/10/2026",
+      "moi": true,
+      "quyDinh": [
+        {
+          "muc": 8,
+          "cau": "CCDC, VPP (pallet, xe soạn hàng, các loại rổ, thùng đóng đơn, thùng giấy tái chế, thùng rác, rác phải phân loại...), vật dụng cá nhân (chai/ly nước uống, balo, túi ...) đặt đúng vị trí lưu trữ, trả về đúng nơi quy định sau khi sử dụng. Vệ sinh và dọn rác sạch sẽ sau khi sử dụng.",
+          "tru": "2%",
+          "xuLy": "Không"
+        }
+      ],
+      "giaiNghia": "Bạn chốt 05/10 cách D. Đo 05/10 (02–03/10, mẫu 15 s mỗi 15 phút, soi 215 mẫu): người làm rải 08:00–19:45, không có khung cố định; cụm dày nhất 15:30–18:00 cả 2 ngày ⇒ mốc 12:00 (sau buổi sáng) + 18:30 (sau cụm chiều).",
+      "khacCu": "05/10: THAY cách cũ. Cũ: lấy mẫu 5 phút/lần 07:00–18:00 (≈130 đoạn/khu/ngày) rồi tìm lượt có người → lượt «chỉ lưu vết». Mới: 2 đoạn/khu/ngày, chỉ làm bằng chứng hiện trạng."
+    },
+    {
+      "ma": "CAM-07",
+      "nhom": "Camera / bằng chứng",
+      "ten": "Khung clip theo LOẠI lỗi — không áp cứng 1 kiểu",
+      "dieuKien": "(a) Lỗi ĐỒ VẬT để lại (thùng rỗng, pallet ngoài ô, đồ sai chỗ): clip nối từ lần tác động cuối → lúc chụp ảnh (CAM-06), chứng minh không ai tác động sau. (b) Lỗi HÀNH VI TỨC THỜI (gửi xe sai bãi, đổ rác không phân loại, đùa giỡn): chỉ ôm lúc có người: vào khung −8 s → rời khung +8 s; KHÔNG dựng đoạn chờ trước/sau; chỉ tải đúng khoảng đó từ đầu ghi.",
+      "mayLam": "bai-xe-phieu.mjs đã áp (b): S = vào −8 s, E = rời +8 s; đoạn <12 s không tua. Chữ trên clip: tên NV + vị trí, không mã mục/chú giải kỹ thuật.",
+      "macDinh": "tu-lam",
+      "chay": "_clip-noi.mjs · bai-xe-phieu.mjs",
+      "tu": "05/10/2026",
+      "khacCu": "Mới — user 05/10 (14050115): clip bãi xe chờ 4,5′ tua ×3 trước khi Dỉ tới; «cần học phân biệt rõ ràng cho mỗi trường hợp, không áp dụng cứng nhắc». Đo: clip 160 s → 31 s, dựng 91 s.",
+      "anLe": [
+        {
+          "phieu": "14050115",
+          "ghiChu": "bãi xe, hành vi tức thời"
+        }
+      ]
+    }
+  ],
+  "quyDinhNguon": {
+    "sheet": "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM",
+    "tab": "QUY-DINH",
+    "cot": "1 câu quy định · 3/6/9 % trừ lần 1/2/3 · 5/8/11 Biên bản/Ngưng hợp tác",
+    "ghiChu": "32 mục; đọc bằng layPhanTramQD (canh-b11.mjs). Luật không trỏ mục = luật THỦ TỤC, áp theo mục của phiếu."
+  },
+  "nhatKy": [
+    "01/10/2026 18:4x (new-folder-76): thêm quyDinh (số mục + câu + % + xử lý) cho 21 luật, giaiNghia cho VS/TB-01/TB-03/SH-01; TB-03 VIẾT LẠI theo đính chính user (mục 28, không dừng phiếu); TB-01 thêm điều kiện camera xác nhận hàng còn ở ô; SH-01 đường CAM-03 nhanh; DL-02 tự động bằng _trung-anh.mjs; án lệ 13389950/13393074/13393784.",
+    "02/10/2026 (phiên an-le-b3): Gộp luật từ 151 án lệ B3 + trả lời user: VS-03 (giữ, rõ chữ), SH-01 (3 dạng ảnh), TB-01/TB-03 (bối cảnh, gộp TB-04/TB-05); thêm ĐỀ XUẤT XE-01, BX-01, CAM-04, CH-04; bỏ VS-06. Trường khacCu = khác luật cũ + bối cảnh.",
+    "02/10/2026 (new-folder-47): SH-01 án lệ 13389950 → Oanh (đính chính); thêm đề xuất CAM-05, CAM-06, NV-01, TU-01 (macDinh hoi, chờ user duyệt)",
+    "05/10/2026 (new-folder-47): TB-01 thêm nhánh b — người châm cỡ pallet gần nhất khi vật có sẵn (user chỉ đạo)",
+    "05/10/2026 (new-folder-47): thêm DL-03 (user duyệt tự làm)",
+    "05/10/2026 (new-folder-47): TB-01 bắt buộc xác nhận camera trước B1.1",
+    "05/10/2026 (new-folder-47): thêm CH-05 (gộp cùng NV cùng lỗi cùng ngày) + CH-06 (≥3 lỗi/tháng → tag QLTT từ lỗi thứ 4), user duyệt tự làm",
+    {
+      "luc": "2026-10-05",
+      "viec": "Thêm PL-01 (chủ khu giấy/rác xoay vòng theo ngày do QL phân công), PL-02 (chống ảnh cũ bằng camera), PL-03 (2 mốc camera 12:00/18:30) — user chốt A+B+D."
+    },
+    "05/10/2026 (new-folder-ad): thêm CAM-07 khung clip theo loại lỗi"
+  ]
+}

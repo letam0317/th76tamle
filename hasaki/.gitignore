@@ -101,3 +101,14 @@ kiemsoatkho/summary/
 .co-canh-bam
 .co-canh.lock
 co-canh-planogram.log
+.luat-3-ngay.json
+.cache-model/
+
+# Kho Lien Anh (05/10/2026): tep BO CUC mang mat bang kho moi - KHONG commit (repo public). Cong cu lienanh-3d.html van tracked.
+kiemsoatkho/lienanh-bocuc*.js
+
+# 05/10 gói agent dựng clip cho máy in (có .env rút gọn: khoá Apps Script + mật khẩu top-review) — KHÔNG commit
+_GOI-DUNG-CLIP/
+.dung-clip-viec/
+.dung-clip-agent.lock
+dung-clip-agent.log

@@ -24,6 +24,7 @@ const server = http.createServer((req, res) => {
   // CORS mở cho fetch từ service worker extension (origin chrome-extension://…)
   res.setHeader("access-control-allow-origin", "*");
   res.setHeader("access-control-allow-headers", "content-type");
+  res.setHeader("access-control-allow-private-network", "true");   // Edge PNA: cho phép gọi 127.0.0.1 từ extension
   if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
   if (req.method !== "POST") { res.writeHead(200); return res.end("bat-request-bridge OK"); }
   let body = "";

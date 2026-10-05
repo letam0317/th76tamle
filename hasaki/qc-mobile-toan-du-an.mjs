@@ -417,6 +417,36 @@ const TRANG = [
       /* Ô Ngày chỉ được dựng khi VESINH-YEUCAU về (bậc 1, live có lúc >5s) — bước `mo` gọi mở NGAY thì trả false và màn bị
          bỏ qua im lặng (iPhone SE live 08/09). Nên `mo` chỉ bấm tab; việc MỞ pop-up dồn vào `sanSangMan` (thử lại mỗi
          nhịp trong 40s cho tới khi ô Ngày có mặt), không dùng `cho` (waitForSelector chạy TRƯỚC sanSangMan nên không kịp mở). */
+      /* TAB XÁC MINH & CÒ CAMERA (hasaki-xacminh.js) — BỔ SUNG 02/10/2026 cùng lúc dựng tab: 3 mục con + pop-up lượt camera (clip +
+         bộ chọn theo ảnh) + pop-up nhân viên. Dữ liệu chỉ có trên máy quản lý (máy chủ nội bộ 127.0.0.1:8591) — máy đo khác ⇒ màn
+         báo "chỉ mở được trên máy quản lý" và bị bỏ qua có ghi lý do (không im lặng). */
+      { ten: "Xác minh › Theo nhân viên",
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('nv'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
+      { ten: "Xác minh › Cò camera",
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('cam'); return document.querySelectorAll('#pane-xacminh [data-l]').length > 0; }" },
+      { ten: "Xác minh › Phiếu treo",
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('treo'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
+      { ten: "Xác minh › Nhắc QLTT",   // 05/10 thêm cùng lúc dựng mục (cần nhắc · đã nhắc · ai · ở đâu · kết quả)
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('nhac'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
+      { ten: "Xác minh › Khu giấy · rác",   // 05/10 phân công khu giấy theo ngày (luật PL-01) + ảnh mốc camera (PL-03)
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('khu'); return document.querySelectorAll('#pane-xacminh .hx-khu .panel').length > 0; }" },
+      { ten: "Pop-up Quyết định phiếu B1 (Xác minh)",   // 05/10 thêm cùng lúc dựng pop-up
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show #qdLuu')){ HXACMINH.sub('treo'); var b=document.querySelector('#pane-xacminh [data-qd]'); if(b) b.click(); return false; } return true; }",
+        dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
+      { ten: "Pop-up Lượt camera (clip + bộ chọn theo ảnh)",
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show .hx-ev')){ HXACMINH.moLuotDau(); return false; } return !!document.querySelector('#modal.show .hx-ng'); }",
+        dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
+      { ten: "Pop-up Việc của 1 nhân viên (Xác minh)",
+        mo: "() => { setTab('xacminh'); return true; }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show .hx-viec')){ HXACMINH.moNVDau(); return false; } return true; }",
+        dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
       { ten: "Planogram › pop-up lịch Ngày",
         mo: "() => { setTab('planogram'); return true; }",
         sanSangMan: "() => { if(!window.HPLANOGRAM || typeof HPLANOGRAM.moLocNgay!=='function') return false; const p=document.querySelector('#hpWhBar .date-pop'); " +
@@ -772,10 +802,17 @@ const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 const b = await puppeteer.launch({ headless: "new", executablePath: EDGE_PATH,
   args: ["--no-sandbox", "--allow-file-access-from-files"] });
 
+async function urlNoiBo(file) {   // hasaki/kiemsoatkho/x.html → http://localhost:8123/kiemsoatkho/x.html ; factory/… → /factory/…
+  const r = path.relative(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), file).split(path.sep).join("/");
+  const m = /^(?:hasaki\/)?(kiemsoatkho|factory)\/(.+)$/.exec(r); if (!m) return null;
+  const u = "http://localhost:8123/" + m[1] + "/" + m[2];
+  try { const k = await fetch(u, { method: "HEAD", signal: AbortSignal.timeout(3000) }); return k.ok ? u : null; } catch { return null; }
+}
 for (const may of MAY) {
   console.log("\n════ " + may.ten + "  [" + may.he.toUpperCase() + "] ════");
   for (const trang of TRANG) {
-    const url = DUNG_FILE ? pathToFileURL(trang.file).href : trang.live;
+    // 05/10: bản trên đĩa đọc qua máy chủ nội bộ 8123 (cùng file, origin localhost) — máy chủ dữ liệu Xác minh 8591 KHÔNG còn nhận origin "null" của file://
+    const url = DUNG_FILE ? (await urlNoiBo(trang.file)) || pathToFileURL(trang.file).href : trang.live;
     const p = await b.newPage();
     await p.setUserAgent(may.ua);
     await p.setViewport({ width: may.w, height: may.h, deviceScaleFactor: may.dsf, isMobile: true, hasTouch: true });
