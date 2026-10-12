@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi" data-theme="hasaki">
+<html lang="vi" data-theme="antd">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -46,9 +46,8 @@
 (function(){
   try{
     var tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
-    if(!tb){ try{ tb=localStorage.getItem('currentTab:hasaki'); }catch(e){} }
     if(tb!=='planogram' || /khoa=/.test(location.hash||'')) return;
-    var V='20260917a';   // PHẢI khớp s.src trong moHasakiPlanogram()
+    var V='20261012tk';   // PHẢI khớp s.src trong moHasakiPlanogram()
     var l=document.createElement('link'); l.rel='preload'; l.as='script'; l.href='hasaki-planogram.js?v='+V; document.head.appendChild(l);
     var GAS='https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
     var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||''; }catch(e){}
@@ -137,11 +136,19 @@ html[data-embed="1"] .wrap{padding-top:14px;}
   --hover:#e8f4ec; --shadow:0 1px 2px rgba(20,50,36,.05),0 8px 24px rgba(20,50,36,.09); --skeleton:#e7efe9; --skeleton-hi:#f3f8f5;
   --good:#326e51; --info:#2f7d63; --warn:#c98a1e; --bad:#c0392b; --overlay:rgba(20,40,30,.5);
 }
+/* 12/10 theme "Ant Design" (mặc định) — bảng màu chuẩn antd v5; khuôn giao diện ở hasaki-giaodien-antd.js ăn theo MỌI theme */
+[data-theme="antd"]{
+  --bg:#f5f5f5; --surface:#ffffff; --surface2:#fafafa; --border:#d9d9d9;
+  --text:rgba(0,0,0,.88); --muted:rgba(0,0,0,.45); --accent:#1677ff; --accent-hover:#4096ff; --accent-text:#ffffff;
+  --hover:#fafafa; --shadow:none; --skeleton:#f0f0f0; --skeleton-hi:#fafafa;
+  --good:#52c41a; --info:#1677ff; --warn:#faad14; --bad:#ff4d4f; --overlay:rgba(0,0,0,.45);
+}
 
 /* ===== MÀU THƯƠNG HIỆU CHO TIÊU ĐỀ — luôn tương phản tốt trên MỌI theme ===== */
 /* theme SÁNG: dùng xanh lá thương hiệu Hasaki #326e51; theme TỐI: dùng tông xanh sáng hơn cùng hệ để luôn nổi bật */
 :root,[data-theme="tokyo"],[data-theme="dracula"],[data-theme="nord"],[data-theme="mocha"]{--brand:#5fcf95; --brand-on:#0e1116;}
 [data-theme="hasaki"],[data-theme="latte"],[data-theme="solar"]{--brand:#326e51; --brand-on:#ffffff;}
+[data-theme="antd"]{--brand:#1677ff; --brand-on:#ffffff;}
 
 /* ===== HASAKI: watermark logo bóng mờ + font Inter (CHỈ theme hasaki) ===== */
 #hskMark{position:fixed; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden;}
@@ -1063,6 +1070,61 @@ body.side-open #sideNav{transform:none;}
 /* Sub-tab: thụt vào + đường dẫn dọc */
 #sideNav .s-sub{display:flex;flex-direction:column;gap:1px;margin:1px 0 3px 13px;padding-left:8px;border-left:1.5px solid var(--border);}
 #sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}   /* 12/10 nút Xác minh đơn khi chưa đăng nhập */
+#sideNav .s-sub.s-dau{margin-top:0;}
+/* ===== 12/10 TRANG TỔNG QUAN (khuôn trang Tổng quan Audit Factory) — MỘT panel + MỘT lưới, tiêu đề nhóm trọn bề ngang.
+   Thẻ là <button> thật (focus ring, Enter); màu qua biến theme. Tiền tố ov- (hm- đã dùng cho tab Quy định). */
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:12px;align-items:start;padding:16px}
+.ov-h{grid-column:1/-1;display:flex;align-items:baseline;gap:9px;font-size:14px;font-weight:600;color:var(--text);padding:12px 2px 0}
+.ov-h:first-child{padding-top:0}
+.ov-h::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--accent);flex:none;align-self:center}
+.ov-h .muted{font-weight:400;font-size:12px}
+.ov-card{--cc:var(--accent);display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;font:inherit;color:var(--text);
+  background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--cc);border-radius:8px;padding:14px 16px;cursor:pointer;
+  animation:fadeUp .3s ease both;transition:box-shadow .2s ease,border-color .2s ease}
+.ov-card:hover{box-shadow:0 1px 2px -2px rgba(0,0,0,.16),0 3px 6px 0 rgba(0,0,0,.12),0 5px 12px 4px rgba(0,0,0,.09);background:var(--surface)}
+.ov-card:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.ov-t{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:600}
+.ov-t .k{margin-left:auto;flex:none;text-align:right;font-size:20px;font-weight:600;color:var(--cc);font-variant-numeric:tabular-nums;line-height:1.1}
+.ov-t .k small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:2px}
+.ov-t .k.trong{color:var(--muted);font-weight:400}
+.ov-t .k.nhan{font-size:12px;font-weight:600;color:var(--muted)}
+.ov-d{font-size:14px;color:var(--muted);line-height:1.57}
+.ov-c{display:flex;flex-wrap:wrap;gap:6px}
+.ov-c span{font-size:12px;line-height:20px;padding:0 8px;border-radius:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+@media(max-width:640px){ .ov-grid{grid-template-columns:1fr;padding:12px} .ov-card{min-height:44px} }
+
+/* ===== 12/10 VIÊN "CẬP NHẬT" DÙNG CHUNG (khuôn chân trang Audit Factory) — mọi tab module ghi mốc dữ liệu bằng hskCapNhat():
+   đốm sống · CẬP NHẬT · giờ đậm · ngày mờ; bấm vào = Làm mới (thay chip nguồn + đếm + nút Làm mới cũ). Cùng cỡ chữ cả dự án. */
+.cn{display:inline-flex;align-items:center;gap:9px;padding:7px 15px 7px 12px;min-height:36px;border:1px solid var(--border);border-radius:999px;
+  background:var(--surface2);color:var(--text);font:inherit;font-size:12px;box-shadow:0 1px 2px rgba(0,0,0,.05);cursor:pointer;
+  transition:border-color .2s ease,box-shadow .2s ease}
+.cn:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.08);background:var(--surface2)}
+.cn:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.cn:disabled{opacity:.6;cursor:progress}
+.cn-dot{width:8px;height:8px;border-radius:50%;background:currentColor;color:var(--accent);position:relative;flex:0 0 auto}
+.cn-dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:currentColor;animation:cnpulse 2.6s ease-out infinite}
+.cn:disabled .cn-dot::after{animation-duration:.9s}
+@keyframes cnpulse{0%{transform:scale(1);opacity:.5} 70%{transform:scale(2.8);opacity:0} 100%{transform:scale(2.8);opacity:0}}
+.cn-lb{text-transform:uppercase;letter-spacing:.07em;font-size:11px;font-weight:600;color:var(--muted)}
+.cn-gio{font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;color:var(--text);letter-spacing:.01em}
+.cn-ngay{font-variant-numeric:tabular-nums;color:var(--muted)}
+.cn-wrap{display:flex;justify-content:center;margin:22px 0 4px}
+@media(prefers-reduced-motion:reduce){ .cn-dot::after{animation:none;opacity:0} }
+
+/* ===== 12/10 LỊCH CHỌN NGÀY TRÊN ĐIỆN THOẠI (user: "quá to, không chọn được nút Áp dụng/Xoá") — thành tấm trượt từ đáy:
+   1 tháng (‹ Trước / Sau › đổi tháng), ô ngày 40px, cuộn trong tấm, chân Xoá/Áp dụng GHIM đáy luôn bấm được. */
+@media (max-width:768px){
+  .date-pop.dp-sheet{position:fixed;left:8px;right:8px;bottom:8px;top:auto;width:auto;max-width:none;max-height:calc(100dvh - 16px);overflow-y:auto;
+    overscroll-behavior:contain;z-index:75;padding:12px 12px 0;transform-origin:bottom center;animation:sheetIn .28s var(--ez-apple,ease);
+    box-shadow:0 0 0 100vmax rgba(0,0,0,.35),0 -8px 40px rgba(0,0,0,.25)}   /* bóng 100vmax = nền mờ sau tấm */
+  .dp-months .dp-month+.dp-month{display:none}
+  .dp-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+  .dp-day{height:40px;font-size:14px}
+  .dp-presets button{min-height:36px}
+  .dp-foot{position:sticky;bottom:0;background:var(--surface);margin:8px -12px 0;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+  .dp-foot button{min-height:44px;padding:0 18px}
+}
+
 #sideNav .s-item{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text);opacity:.72;cursor:pointer;border-left:3px solid transparent;margin-left:-2px;transition:background .16s ease,opacity .16s ease,color .16s ease;}
 #sideNav .s-item:hover{background:var(--hover);opacity:1;}
 #sideNav .s-item.on{background:var(--surface);opacity:1;color:var(--accent);font-weight:700;border-left-color:var(--accent);box-shadow:0 1px 3px rgba(20,50,36,.07);}
@@ -1306,7 +1368,7 @@ body.side-anim{overflow-x:clip;}
 </style>
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
-<script src="hasaki-giaodien-antd.js?v=20261012j"></script>
+<script src="hasaki-giaodien-antd.js?v=20261012k"></script>
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -1337,6 +1399,7 @@ body.side-anim{overflow-x:clip;}
             <div class="set-h">Cá nhân hoá</div>
             <label class="set-field"><span class="lbl">Giao diện (theme)</span>
               <select id="themeSel">
+                <option value="antd">Ant Design</option>
                 <option value="hasaki">Hasaki</option>
                 <option value="solar">Solarized Light</option>
                 <option value="tokyo">Tokyo Night</option>
@@ -1410,6 +1473,8 @@ body.side-anim{overflow-x:clip;}
   <section id="pane-xacminh" class="pane hidden"></section>
 
   <!-- ===== TAB TỔNG HỢP (thống kê) ===== -->
+  <!-- 12/10 TỔNG QUAN: bảng chọn hạng mục, dựng từ HOME_MUC (cùng danh sách thanh bên) -->
+  <section id="pane-home" class="pane hidden"></section>
   <section id="pane-tong" class="pane hidden">
     <!-- Luỹ kế KPI trừ trong tháng -->
     <div class="panel" id="kpiPanel" style="margin-bottom:0">
@@ -1457,7 +1522,7 @@ body.side-anim{overflow-x:clip;}
       </div>
       <label><span class="lbl">Trạng thái</span><select id="fStatus"><option value="">Tất cả</option></select></label>
       <label><span class="lbl">Lỗi vi phạm</span><select id="fLoi"><option value="">Tất cả</option></select></label>
-      <label><span class="lbl">Tìm (vị trí / mã)</span><input type="text" id="fTim" placeholder="F0-A1 / HSK-..."></label>
+      <label><span class="lbl">Tìm (vị trí / mã)</span><input type="search" id="fTim" autocomplete="off" placeholder="F0-A1 / HSK-..."></label>
     </div>
 
     <div class="panel">
@@ -1480,7 +1545,7 @@ body.side-anim{overflow-x:clip;}
   <!-- ===== TAB HẠNG MỤC 5S (đọc QUY-DINH trực tiếp, đồng bộ thời gian thực) ===== -->
   <section id="pane-hangmuc" class="pane hidden">
     <div class="hm-bar">
-      <input type="text" id="hmTim" placeholder="Tìm quy định / lỗi vi phạm / nghiệp vụ…">
+      <input type="search" id="hmTim" autocomplete="off" placeholder="Tìm quy định / lỗi vi phạm / nghiệp vụ…">
       <span id="hmDem" class="muted"></span>
     </div>
     <div class="panel">
@@ -1617,14 +1682,15 @@ body.side-anim{overflow-x:clip;}
    TUYỆT ĐỐI không gộp data 2 công ty vào 1 file — tách luồng ngay từ nguồn.
    Bổ sung công ty mới = thêm 1 entry ở đây (ten, thư mục summary, sheetId) — không sửa logic. */
 const CTY = {
-  hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM", tabs: ["tong","task","xacminh","planogram","hangmuc","kk","htonbat"] },
+  hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM", tabs: ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat"] },
   factory: { ten: "FACTORY", summary: "summary-factory", sheetId: "", tabs: ["fstock","fkiemke"] },   // 5S Factory chưa có nguồn; 2 tab chạy module riêng
 };
 /* Danh bạ TAB (Cấp 2 — Dynamic Contextual Tabs): khung tab render lại theo công ty đang chọn.
    fstock = module cô lập factory-stock.js, LAZY: chỉ nạp khi người dùng thật sự mở tab. */
 const TAB_DEFS = {
-  tong:   { ten: "Tổng quan" },
-  task:   { ten: "Task vi phạm" },
+  home:   { ten: "Tổng quan" },   // 12/10 bảng chọn hạng mục (khuôn trang Tổng quan Audit Factory) — màn hình đầu tiên
+  tong:   { ten: "Tổng kết" },    // 12/10 user đổi tên "Tổng quan" → "Tổng kết" (luỹ kế KPI + tổng kết nhanh)
+  task:   { ten: "Vi phạm" },
   xacminh:{ ten: "Xác minh & Cò camera", module: true },   // HASAKI · module hasaki-xacminh.js — dữ liệu CHỈ từ máy chủ nội bộ bang-591.mjs (127.0.0.1:8591), không qua GitHub/GAS (có mặt người)
   planogram:{ ten: "Planogram", module: true },   // HASAKI · module hasaki-planogram.js (tab PHU-TRACH-QUAY-KE) — phụ trách vệ sinh quầy kệ + không gian làm việc SHOP-170
   hangmuc:{ ten: "Hạng mục 5S" },
@@ -1638,7 +1704,7 @@ const DEV_MODE = /[?&]dev=1/.test(location.search);   // ?dev=1: bản nháp loc
    (Fix lỗi "Chưa có dữ liệu cho FACTORY": bản trước so sánh cứng !=='fstock' nên khi thêm fkiemke,
    Factory bị coi là "có 5S" -> host chạy pipeline 5S -> fail -> overlay trống đè lên cả 2 tab module.) */
 const co5S = () => CTY[CTY_ID].tabs.some(t => !TAB_DEFS[t].module);
-const tabMacDinh = () => CTY[CTY_ID].tabs.includes("task") ? "task" : CTY[CTY_ID].tabs[0];
+const tabMacDinh = () => CTY[CTY_ID].tabs.includes("home") ? "home" : CTY[CTY_ID].tabs.includes("task") ? "task" : CTY[CTY_ID].tabs[0];
 /* Hệ thống chỉ còn 1 công ty HASAKI -> khoá cứng, bỏ qua ?company= / localStorage (không còn Factory) */
 function docCtyBanDau(){
   return "hasaki";
@@ -2386,7 +2452,7 @@ function tinhThangKpi(ym){
   }).filter(q=>q.list.length);
   return {nv,ql};
 }
-function renderKpi(){
+function renderKpi(){ setTimeout(homeVeLai, 0);
   const ym=$('kpiThang').value;
   if(!ym){ $('kpiWrap').innerHTML='<div class="empty-row">Chưa có dữ liệu.</div>'; return; }
   const {nv,ql}=tinhThangKpi(ym);
@@ -2985,8 +3051,14 @@ function taoBoLocNgay(o){
     let dx=0; if(r0>W-le) dx=W-le-r0; if(l0+dx<le) dx=le-l0;
     if(dx) pop.style.left=dx+'px';
   }
-  function mo(){ const base=tu?parseISO(tu):new Date(); view={y:base.getFullYear(), m:base.getMonth()}; selA=tu; selB=den; veLich(); pop.classList.remove('hidden'); canhPop(); }
-  function dong(){ pop.classList.add('hidden'); pop.style.left=''; }
+  /* 12/10 ĐIỆN THOẠI (user: lịch "quá to, không chọn được Áp dụng/Xoá"): lịch thành TẤM TRƯỢT ĐÁY. Phải dời pop ra <body> lúc mở —
+     khung .pane có will-change:transform nên position:fixed bên trong bám theo khung tab chứ không theo màn hình (nút Áp dụng rơi
+     xuống y≈1.800px), thẻ Planogram còn cắt mất lịch. Đóng thì trả pop về chỗ cũ. */
+  const laDT=()=>window.matchMedia('(max-width:768px)').matches;
+  function mo(){ const base=tu?parseISO(tu):new Date(); view={y:base.getFullYear(), m:base.getMonth()}; selA=tu; selB=den; veLich();
+    if(laDT()){ pop.classList.add('dp-sheet'); document.body.appendChild(pop); pop.classList.remove('hidden'); pop.style.left=''; }
+    else { pop.classList.remove('hidden'); canhPop(); } }
+  function dong(){ pop.classList.add('hidden'); pop.style.left=''; if(pop.parentNode!==root){ pop.classList.remove('dp-sheet'); root.appendChild(pop); } }
   function chot(a,b){ tu=a||''; den=b||''; veNhan(); dong(); o.onApply(tu,den); }
   function xoa(){ selA=selB=''; if(o.khongRong){ const d=(o.macDinh&&o.macDinh())||[homNay(),homNay()]; chot(d[0],d[1]); } else chot('',''); }
   function tinhPreset(k){
@@ -3023,7 +3095,7 @@ function taoBoLocNgay(o){
     toSel();
   });
   // đóng pop-up khi bấm ra ngoài — bám chính root nên nhiều bản trên 1 trang không đóng nhầm nhau
-  document.addEventListener('click', e=>{ if(!pop.classList.contains('hidden') && !root.contains(e.target)) dong(); });
+  document.addEventListener('click', e=>{ if(!pop.classList.contains('hidden') && !root.contains(e.target) && !pop.contains(e.target)) dong(); });
   veNhan();
   return { el: root, dat(a,b){ tu=a||''; den=b||''; veNhan(); }, lay:()=>[tu,den], mo, dong, veNhan };
 }
@@ -3119,6 +3191,7 @@ function setTab(name){
     if(n===name){ el.classList.remove('hidden'); el.style.animation='none'; requestAnimationFrame(()=>el.style.animation=''); }
     else el.classList.add('hidden');
   });
+  if(name==='home'){ homeRender(); }       // 12/10 trang Tổng quan: số trên thẻ chỉ đọc dữ liệu đã có trong bộ nhớ
   if(name==='hangmuc'){ taiQuyDinh(); }   // đọc lại QUY-DINH mỗi lần mở tab (đồng bộ mới nhất)
   if(name==='fstock'){ moFactoryStock(); }   // LAZY: chỉ lúc này mới nạp module + fetch data Tồn kho
   if(name==='fkiemke'){ moFactoryKiemke(); } // LAZY: module Kiểm kê (tab kiemke-material riêng biệt)
@@ -3186,7 +3259,7 @@ function moHasakiTonbat(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _htNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-tonbatthuong.js?v=20260726b';
+      const s=document.createElement('script'); s.src='hasaki-tonbatthuong.js?v=20261012tk';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-tonbatthuong.js'));
       document.body.appendChild(s);
     });
@@ -3202,7 +3275,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20260917a';   // khớp V ở <head>
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20261012tk';   // khớp V ở <head>
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -3215,7 +3288,7 @@ function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261010qc4';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261012tk';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3231,7 +3304,7 @@ function moHasakiKiemke(){
       '<div class="sk sk-line" style="width:68%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _hkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20260726b';
+      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261012tk';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-kiemke.js'));
       document.body.appendChild(s);
     });
@@ -3240,6 +3313,74 @@ function moHasakiKiemke(){
     .catch(e=>{ _hkNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
 }
 
+
+/* ===== 12/10 TRANG TỔNG QUAN (user: "làm mục Tổng quan tương tự stocklocationfactory cho audit hasaki") =====
+ * Khuôn y trang Tổng quan Audit Factory: mỗi hạng mục 1 thẻ — tên · con số nổi bật · một câu tab để làm gì · chip mục con.
+ * LUẬT TẢI: so() CHỈ đọc thứ đã có trong bộ nhớ (ROWS 5S, QD quy định) — không tự đi tải; Kiểm kê / Bất thường / Planogram nặng
+ * nên thẻ hiện "—" tới khi mở tab (0 lượt gọi upstream thêm). Xác minh chỉ hiện ở máy có máy chủ 8591. */
+var HOME_MUC = [
+  { g: "Hạng mục 5S", mo: "Vi phạm 5S kho 170 · đồng bộ từ work.hasaki.vn", items: [
+    { t: "tong", ten: "Tổng kết", cc: "var(--accent)", mo: "Luỹ kế KPI trừ theo nhân viên trong tháng, so tháng trước, tổng kết nhanh việc còn treo.",
+      muc: ["Luỹ kế KPI", "So tháng trước", "Tổng kết nhanh"],
+      /* tháng = tháng bảng luỹ kế KPI đang xem (mặc định tháng mới nhất CÓ dữ liệu) — đầu tháng chưa có phiếu thì không hiện "0" */
+      so: function(){ if(!ROWS.length) return null; var sel=$('kpiThang'), ym=(sel&&sel.value)||"";
+        if(!ym){ var d=new Date(); ym=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+        return { k: nf0(ROWS.filter(function(r){ return ymOf(r)===ym && !daHuy(r); }).length), l: "vi phạm tháng "+ym.slice(5)+"/"+ym.slice(0,4) }; } },
+    { t: "task", ten: "Vi phạm", cc: "var(--bad)", mo: "Từng phiếu vi phạm: vị trí, lỗi, người vi phạm, quản lý, ảnh và bước workflow đang đứng.",
+      muc: ["Lọc ngày", "Trạng thái", "Lỗi vi phạm", "Ảnh · biên bản"],
+      so: function(){ if(!ROWS.length) return null; return { k: nf0(ROWS.filter(function(r){ return !daHuy(r) && !/finished/i.test(String(r[iStatus]||"")); }).length), l: "phiếu chưa đóng" }; } },
+    { t: "hangmuc", ten: "Quy định", cc: "var(--info,var(--accent))", mo: "32 hạng mục 5S kèm mức trừ KPI theo lần vi phạm, minh hoạ cách làm Đúng / Sai.",
+      muc: ["Mức trừ KPI", "Lần 1 · 2 · 3+", "Minh hoạ Đúng/Sai"],
+      so: function(){ return QD.length ? { k: nf0(QD.length), l: "hạng mục" } : null; } },
+    { t: "planogram", ten: "Planogram", cc: "var(--good)", mo: "Vệ sinh quầy kệ + bàn đóng gói theo sơ đồ: ai phụ trách, ô nào chưa báo cáo, ai đi làm mà chưa làm.",
+      muc: ["Tiến độ hôm nay", "Sơ đồ khu vực", "Cần xử lý", "Nhân viên"] }
+  ]},
+  { g: "Tồn kho", mo: "Số liệu kho đọc từ WMS mỗi ngày", items: [
+    { t: "kk", ten: "Kiểm kê", cc: "var(--info,var(--accent))", mo: "Phiếu kiểm kê thật (physical-count) theo SKU và theo mã vị trí: tiến độ từng kho, lệch âm/dương.",
+      muc: ["Theo SKU", "Theo vị trí", "Tiến độ theo kho", "Lệch âm/dương"] },
+    { t: "htonbat", ten: "Bất thường", cc: "var(--warn)", mo: "SKU vướng Conflict · UID Temp · Not Found · Unsuitable · Committed, tách theo kho và theo loại.",
+      muc: ["Conflict", "UID Temp", "Not Found", "Unsuitable", "Committed"] }
+  ]},
+  { g: "Xác minh", hx: 1, mo: "Chỉ máy quản lý · cần đăng nhập", items: [
+    { t: "xacminh", sub: "treo", ten: "Theo tác vụ", cc: "var(--accent)", mo: "Phiếu WF591 đang mở: bằng chứng camera, máy gợi ý là ai, việc tiếp theo.", muc: ["Bằng chứng", "Máy gợi ý", "Quyết định"] },
+    { t: "xacminh", sub: "cam", ten: "Theo máy", cc: "var(--warn)", mo: "Sự việc máy tự bắt từ camera (bãi xe, khu phân loại) chờ quyết định.", muc: ["Clip", "Bộ chọn theo ảnh", "Lập phiếu"] },
+    { t: "xacminh", sub: "tg", ten: "Nhật ký", cc: "var(--muted)", mo: "Phiếu, bình luận, ảnh máy đã ghi lên work.hasaki.vn — lọc theo bộ, việc, ngày.", muc: ["Bộ nào làm", "Làm gì", "Ngày"] }
+  ]}
+];
+function nf0(n){ return Number(n||0).toLocaleString("vi-VN"); }
+function homeVeLai(){ var p=$('pane-home'); if(p && !p.classList.contains('hidden')) homeRender(); }
+function homeRender(){
+  var el=$('pane-home'); if(!el) return;
+  var daDN=false; try{ daDN=!!localStorage.getItem("hx-phien"); }catch(e){}
+  var html='<section class="panel"><div class="ov-grid">';
+  HOME_MUC.forEach(function(grp){
+    if(grp.hx && !window.__HX_MAY_CHU) return;   // Xác minh chỉ hiện ở máy có máy chủ nội bộ 8591 (như thanh bên)
+    html+='<div class="ov-h">'+esc(grp.g)+(grp.mo?' <span class="muted">'+esc(grp.mo)+'</span>':'')+'</div>';
+    grp.items.forEach(function(it){
+      var s=null; try{ s=it.so?it.so():null; }catch(e){ s=null; }   // số chỉ là điểm cộng — hỏng thì thẻ vẫn hiện
+      var nhan = grp.hx ? (daDN ? "" : "Cần đăng nhập") : "";
+      var so = s ? '<span class="k">'+s.k+'<small>'+esc(s.l)+'</small></span>'
+               : nhan ? '<span class="k nhan">'+esc(nhan)+'</span>' : grp.hx ? '' : '<span class="k trong">—<small>mở để xem</small></span>';
+      html+='<button type="button" class="ov-card" style="--cc:'+it.cc+'" data-tab="'+it.t+'"'+(it.sub?' data-sub="'+it.sub+'"':'')+' title="Mở '+esc(it.ten)+'">'+
+        '<span class="ov-t">'+esc(it.ten)+so+'</span><span class="ov-d">'+esc(it.mo)+'</span>'+
+        '<span class="ov-c">'+(it.muc||[]).map(function(m){ return '<span>'+esc(m)+'</span>'; }).join('')+'</span></button>';
+    });
+  });
+  el.innerHTML=html+'</div></section>';
+  el.querySelectorAll('.ov-card').forEach(function(b){ b.onclick=function(){
+    var sub=b.getAttribute('data-sub'), t=b.getAttribute('data-tab');
+    var nut=document.querySelector('#sideNav .s-item[data-tab="'+t+'"]'+(sub?'[data-sub="'+sub+'"]':''));
+    if(nut) nut.click(); else setTab(t);   // đi qua thanh bên để mục con Xác minh + trạng thái sáng đúng
+    window.scrollTo({top:0});
+  }; });
+}
+/* 12/10 VIÊN "CẬP NHẬT" DÙNG CHUNG — module gọi hskCapNhat(ms, {id, onclick, tip}) lấy HTML; bấm = làm mới. */
+window.hskCapNhat=function(ms, o){ o=o||{};
+  var d=ms?new Date(ms):null, p=function(n){ return String(n).padStart(2,"0"); };
+  var gio=d?p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds()):"--:--:--", ngay=d?p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear():"";
+  return '<button type="button" class="cn"'+(o.id?' id="'+o.id+'"':'')+(o.onclick?' onclick="'+o.onclick+'"':'')+
+    ' title="'+esc((o.tip?o.tip+" · ":"")+"Bấm để làm mới")+'"><i class="cn-dot"></i><span class="cn-lb">Cập nhật</span> <b class="cn-gio">'+gio+'</b> <span class="cn-ngay">'+ngay+'</span></button>';
+};
 /* ===== TAB HẠNG MỤC 5S — đọc tab QUY-DINH trực tiếp (gviz), đồng bộ thời gian thực ===== */
 const TAB_QD="QUY-DINH"; let QD=[];
 function taiQuyDinh(){
@@ -3252,6 +3393,7 @@ function taiQuyDinh(){
     QD=rows.filter(r=>/^\d+$/.test(String(r[0]).trim()));   // chỉ giữ dòng có STT là số (bỏ header phụ)
     renderQuyDinh();
     if(ROWS.length){ render(); renderKpi(); }   // QD về sau dữ liệu task -> vẽ lại Tần suất + bảng luỹ kế KPI
+    homeVeLai();
   }catch(e){ $('hmWrap').innerHTML='<div class="empty-row">Lỗi đọc QUY-DINH: '+esc(e.message)+'</div>'; } delete window[cb]; };
   const s=document.createElement('script');
   s.src="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?sheet="+encodeURIComponent(TAB_QD)+"&headers=1&tqx=out:json;responseHandler:"+cb;
@@ -3271,12 +3413,15 @@ function lanTxt(kpi,haKN,xuLy){
   const x=String(xuLy).trim(); if(x && x!=="Không") parts.push(esc(x));
   return parts.length?parts.join('<span class="hm-sep"> · </span>'):"—";
 }
+function hmXoaTim(){ $("hmTim").value=""; renderQuyDinh(); }
 function renderQuyDinh(){
   const tim=($('hmTim').value||"").toLowerCase().trim();
   const d=QD.filter(r=> !tim || String(r[1]).toLowerCase().includes(tim));
   $('hmDem').textContent=d.length+" hạng mục";
   $('hmWrap').innerHTML='<table><thead><tr><th class="hm-stt">STT</th><th>Hạng mục 5S</th><th class="hm-lan">Vi phạm lần 1</th><th class="hm-lan">Vi phạm lần 2</th><th class="hm-lan">Vi phạm lần 3+</th></tr></thead><tbody>'+
-    (d.map(r=>`<tr data-hm="${QD.indexOf(r)}" title="Bấm xem minh hoạ Đúng/Sai"><td class="hm-stt">${esc(r[0])}</td><td class="hm-qd">${esc(r[1])}</td><td class="hm-lan">${lanTxt(r[3],r[4],r[5])}</td><td class="hm-lan">${lanTxt(r[6],r[7],r[8])}</td><td class="hm-lan">${lanTxt(r[9],r[10],r[11])}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty-row">Không có hạng mục khớp.</div></td></tr>')+
+    (d.map(r=>`<tr data-hm="${QD.indexOf(r)}" title="Bấm xem minh hoạ Đúng/Sai"><td class="hm-stt">${esc(r[0])}</td><td class="hm-qd">${esc(r[1])}</td><td class="hm-lan">${lanTxt(r[3],r[4],r[5])}</td><td class="hm-lan">${lanTxt(r[6],r[7],r[8])}</td><td class="hm-lan">${lanTxt(r[9],r[10],r[11])}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty-row">'+(QD.length
+      ? 'Không có hạng mục khớp «'+esc(tim)+'» — <button type="button" class="hm-xoatim" onclick="hmXoaTim()">Xoá ô tìm</button>'   /* 12/10: ô tìm bị trình duyệt tự điền → user chỉ thấy "không khớp" */
+      : 'Đang tải danh sách quy định…')+'</div></td></tr>')+
     '</tbody></table>';
   $('hmCards').innerHTML=d.map(r=>`<div class="cl-item" data-hm="${QD.indexOf(r)}" title="Bấm xem minh hoạ Đúng/Sai"><div class="cl-body"><div class="cl-top"><b>Hạng mục #${esc(r[0])}</b></div><div class="cl-kv" style="white-space:pre-wrap;margin-top:2px;color:var(--text)">${esc(r[1])}</div><div class="hm-c-lans" style="margin-top:8px"><div class="hm-c-lan"><span class="hm-c-k">Lần 1</span><span>${lanTxt(r[3],r[4],r[5])}</span></div><div class="hm-c-lan"><span class="hm-c-k">Lần 2</span><span>${lanTxt(r[6],r[7],r[8])}</span></div><div class="hm-c-lan"><span class="hm-c-k">Lần 3+</span><span>${lanTxt(r[9],r[10],r[11])}</span></div></div></div></div>`).join('')||'<div class="empty-row">Không có hạng mục khớp.</div>';
 }
@@ -3811,10 +3956,14 @@ document.addEventListener('click', ()=>csDongHet(null));
 (function init(){
   // EMBED MODE: khi nhúng trong shell QC (?embed=1) -> ẩn thanh tab ngang (CT1)
   try{ if(/[?&]embed=1/.test(location.search)) document.documentElement.setAttribute('data-embed','1'); }catch(e){}
-  let t='hasaki';
-  try{ t=localStorage.getItem('dash5s-theme')||'hasaki'; }catch(e){}
-  const valid=['tokyo','dracula','nord','mocha','latte','solar','hasaki'];
-  if(!valid.includes(t)) t='hasaki';
+  /* 12/10 theme mặc định = Ant Design. Máy đang để "hasaki" (giá trị mặc định cũ, phần lớn chưa từng tự chọn) chuyển sang antd
+     ĐÚNG 1 LẦN (cờ dash5s-theme-antd); ai đã tự chọn theme khác thì giữ nguyên, và sau đó chọn lại Hasaki vẫn được. */
+  let t='antd';
+  try{ t=localStorage.getItem('dash5s-theme')||'antd';
+       if(t==='hasaki' && !localStorage.getItem('dash5s-theme-antd')){ t='antd'; localStorage.setItem('dash5s-theme','antd'); }
+       localStorage.setItem('dash5s-theme-antd','1'); }catch(e){}
+  const valid=['antd','tokyo','dracula','nord','mocha','latte','solar','hasaki'];
+  if(!valid.includes(t)) t='antd';
   setTheme(t);
   // Kiểu tiêu đề đã lưu (mặc định 1 · Xếp chồng)
   let tt='1'; try{ tt=localStorage.getItem('dash5s-title')||'1'; }catch(e){}
@@ -3827,7 +3976,7 @@ document.addEventListener('click', ()=>csDongHet(null));
     b.title='Bản nháp (?dev=1) — nút sync production bị chặn'; $('ctySwitch').parentNode.insertBefore(b, $('ctySwitch')); }
   // DEEP LINK tab: ?tab= (hợp lệ với công ty) > tab đã lưu của công ty > mặc định
   let tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
-  if(!tb || !CTY[CTY_ID].tabs.includes(tb)){ try{ tb=localStorage.getItem('currentTab:'+CTY_ID); }catch(e){} }
+  /* 12/10: mở link trần → trang Tổng quan (màn hình đầu như Audit Factory); ?tab= (F5 / link chia sẻ) vẫn giữ đúng tab */
   setTab(tb || tabMacDinh());
   // Nâng cấp các <select> thành dropdown tuỳ biến animate được (sau khi theme/title đã set giá trị)
   ['themeSel','titleSel','kpiThang','fStatus','fLoi'].forEach(id=>{ const el=$(id); if(el) enhanceSelect(el); });
@@ -3855,7 +4004,8 @@ document.addEventListener('click', ()=>csDongHet(null));
 (function(){
   var HM = [
     /* 12/10 user chốt thứ tự + tên: 5S → Tồn kho → Xác minh; bỏ mục con Nhân viên + Nhắc QLTT (nhắc đã nằm trong Nhật ký, lọc ở đó) */
-    { g: "Hạng mục 5S",   items: [["tong","Tổng quan"],["task","Vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
+    { g: "", items: [["home","Tổng quan"]] },   // 12/10 trang Tổng quan đứng riêng trên đầu (không tiêu đề nhóm)
+    { g: "Hạng mục 5S",   items: [["tong","Tổng kết"],["task","Vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
     { g: "Tồn kho", items: [["kk","Kiểm kê"],["htonbat","Bất thường"]] },
     /* 05/10 user chọn kiểu A: mục con Xác minh nằm ở thanh bên (thay dải chip trong tab). Chỉ hiện trên máy có máy chủ 8591. */
     { g: "Xác minh", hx: 1, items: [["xacminh","Theo tác vụ","treo"],["xacminh","Theo máy","cam"],["xacminh","Nhật ký","tg"]] }
@@ -3868,11 +4018,11 @@ document.addEventListener('click', ()=>csDongHet(null));
       el.classList.toggle("on", el.getAttribute("data-tab") === cur && (!s || s === (sub || "treo"))); });
     var M = window.__HX_MUC; if (M) M.ds.forEach(function(x){ var b = nav.querySelector('.s-item[data-sub="' + x.k + '"] .sn'); if (b) b.textContent = x.n || ""; }); }
   window.addEventListener("hx-muc", function(){ sync(); });
-  window.addEventListener("hx-phien", function(){ build(); });   // đăng nhập / đăng xuất Xác minh → dựng lại thanh bên
+  window.addEventListener("hx-phien", function(){ build(); if (window.homeVeLai) homeVeLai(); });   // đăng nhập / đăng xuất Xác minh → dựng lại thanh bên + thẻ Tổng quan
   function build(){
     var tabs = [];
     try{ if (typeof CTY !== "undefined" && typeof CTY_ID !== "undefined" && CTY[CTY_ID]) tabs = CTY[CTY_ID].tabs || []; }catch(e){}
-    if (!tabs.length) tabs = ["tong","task","xacminh","planogram","hangmuc","kk","htonbat"];   // dự phòng
+    if (!tabs.length) tabs = ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat"];   // dự phòng
     var html = "";   /* KHÔNG lặp brand — header đã có tiêu đề AUDIT HASAKI */
     /* 12/10 user: chưa đăng nhập Xác minh thì CHỈ 1 nút "Xác minh"; đăng nhập xong mới hiện 5 mục con (hasaki-xacminh.js bắn "hx-phien") */
     var daDN = false; try { daDN = !!localStorage.getItem("hx-phien"); } catch(e){}
@@ -3880,6 +4030,7 @@ document.addEventListener('click', ()=>csDongHet(null));
       var its = grp.items.filter(function(x){ return tabs.indexOf(x[0]) >= 0 && (x[0] !== "xacminh" || window.__HX_MAY_CHU); });
       if (!its.length) return;
       if (grp.hx && !daDN) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
+      if (!grp.g) { html += '<div class="s-sub s-mot s-dau">' + its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"><span class="di"></span>' + x[1] + '</div>'; }).join("") + '</div>'; return; }
       html += '<div class="s-grp">' + grp.g + '</div><div class="s-sub">' +
         its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"' + (x[2] ? ' data-sub="' + x[2] + '"' : '') + '><span class="di"></span>' + x[1] + (x[2] ? '<span class="sn"></span>' : '') + '</div>'; }).join("") +
         '</div>';

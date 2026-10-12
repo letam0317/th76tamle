@@ -440,9 +440,9 @@ const TRANG = [
         dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
       { ten: "Planogram › pop-up lịch Ngày",
         mo: "() => { setTab('planogram'); return true; }",
-        sanSangMan: "() => { if(!window.HPLANOGRAM || typeof HPLANOGRAM.moLocNgay!=='function') return false; const p=document.querySelector('#hpWhBar .date-pop'); " +
+        sanSangMan: "() => { if(!window.HPLANOGRAM || typeof HPLANOGRAM.moLocNgay!=='function') return false; const p=document.querySelector('body > .date-pop.dp-sheet:not(.hidden), #hpWhBar .date-pop'); " +
           "if(!p || p.classList.contains('hidden')){ try { HPLANOGRAM.moLocNgay(); } catch(e) {} return false; } " +
-          "return p.querySelectorAll('.dp-day').length >= 84 && p.querySelectorAll('.dp-day.has').length > 0; }",
+          "return p.querySelectorAll('.dp-day').length >= 84 && p.querySelectorAll('.dp-day.has').length > 0 && (p.querySelector('.dp-apply').getBoundingClientRect().bottom <= innerHeight); }",
         dong: "() => { try { HPLANOGRAM.dongLocNgay(); } catch(e) {} }" },
       /* Pop-up CHI TIẾT TASK (stepper) của tab Task vi phạm — người dùng chỉ thẳng vào khối
          "Thông tin chung" của nó. Chưa từng được đo vì bộ đo chỉ bấm qua các tab. */

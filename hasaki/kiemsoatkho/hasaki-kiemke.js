@@ -147,10 +147,11 @@ var CSS = [
 "#pane-kk .hk-chip{background:color-mix(in srgb, var(--accent,#326e51) 14%, transparent);color:var(--accent,#326e51);border-radius:999px;padding:4px 13px;font-weight:650;font-size:12px;}",
 "#pane-kk .hk-srcbar a{color:var(--accent,#326e51);text-decoration:none;font-weight:600;} #pane-kk .hk-srcbar a:hover{text-decoration:underline;}",
 "#pane-kk .hk-hint,.hk-modal .hk-hint{color:var(--muted,#9ca3af);font-size:11.5px;font-weight:400;letter-spacing:0;text-transform:none;}",
-"#hkReload{background:var(--accent,#326e51);color:var(--accent-text,#fff);border:0;border-radius:9px;padding:8px 15px;font-size:12.5px;font-weight:650;cursor:pointer;min-height:36px;}",
-"#hkReload:disabled{background:color-mix(in srgb, var(--muted,#9ca3af) 42%, var(--surface,#fff));color:var(--muted,#9ca3af);cursor:not-allowed;}",
 /* chip lọc kho (cross-filter cấp tab) */
 "#pane-kk .hk-whbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px;}",
+"#pane-kk .hk-locbar{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,260px));gap:12px;margin:0 0 16px;}",
+"#pane-kk .hk-locbar label{display:flex;flex-direction:column;gap:4px;}",
+
 /* Tên kho dài ("WH - MATERIAL - GARMENT") nên trên màn 360px mỗi chip ăn trọn một hàng ⇒ thanh
    vỡ 4 hàng / 144px = 18% màn hình trước khi thấy số liệu (bộ đo bắt được 21/08/2026). Về MỘT
    hàng cuộn ngang — cùng khuôn `.toptabs` của dự án, và cũng là cách đã dùng cho dải chip trạng
@@ -320,7 +321,7 @@ var CSS = [
 ".hk-datepop .dp-foot .dpsel{font-size:12px;color:var(--muted,#9ca3af);} .hk-datepop .dp-foot button{margin-left:6px;}",
 "@media(max-width:640px){.hk-datepop .dp-months{flex-direction:column;gap:14px;}}",
 /* mobile: modal tràn màn hình, touch ≥44px */
-"@media(max-width:768px){.hk-modal{padding:0;align-items:stretch;justify-content:stretch;}.hk-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hk-mclose{font-size:30px;min-width:48px;min-height:48px;}.hk-mfilters input{min-height:44px;}#pane-kk .hk-whtab{min-height:44px;}#hkReload{min-height:44px;width:100%;}",
+"@media(max-width:768px){.hk-modal{padding:0;align-items:stretch;justify-content:stretch;}.hk-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hk-mclose{font-size:30px;min-width:48px;min-height:48px;}.hk-mfilters input{min-height:44px;}#pane-kk .hk-whtab{min-height:44px;}#hkReload{min-height:44px;}",
 /* Ba ô lọc xếp DỌC ăn 203px = 25% màn 800px trước khi thấy dòng dữ liệu đầu tiên (đo thật
    21/08/2026). Về GRID 2 CỘT + ô Tìm nhanh trọn hàng — khuôn đã chốt cho thanh lọc tab Kiểm kê
    bên Audit Factory: đừng để basis 190px/250px tự thương lượng, hai con số đánh nhau là ra
@@ -332,7 +333,7 @@ var CSS = [
 
 /* ===== KHUNG HTML ===== */
 var KHUNG =
-'<div class="hk-whbar" id="hkWhBar"></div>' +
+'<div class="hk-locbar" id="hkWhBar"></div>' +
 '<div class="hk-grid2" id="hkGrid" style="display:none">' +
 '  <section class="hk-panel">' +
 '    <h2>Kiểm kê theo SKU <span class="hk-hint">(type SKU)</span> <span class="hk-scope" id="hkScope-sku" hidden></span></h2>' +
@@ -352,12 +353,10 @@ var KHUNG =
 '</div>' +
 '<div id="hkState" class="hk-state"><div class="hk-spin"></div>Đang tải dữ liệu kiểm kê…</div>' +
 '<div class="hk-srcfoot">' +
-'  <div class="hk-srcbar">' +
-'    <span class="hk-chip">Kiểm kê (Physical Count) — Hasaki Vietnam · SHOP + WH 170 QL1A</span>' +
-(SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
-'    <span id="hkLoadinfo" class="hk-hint"></span>' +
-'    <button id="hkReload" onclick="HKIEMKE.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
-'  </div>' +
+/* 12/10 user: chip nguồn + đếm phiếu + "dữ liệu WMS lúc" + nút Làm mới → MỘT viên "Cập nhật HH:MM:SS dd/mm/yyyy" dùng chung
+   (hskCapNhat ở index.html); bấm viên = Làm mới, số phiếu nằm trong tooltip. */
+'  <div class="cn-wrap" id="hkLoadinfo"></div>' +
+(SHOW_SRC ? '  <div class="hk-srcbar"><a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a></div>' : '') +
 /* Khối giảng giải nguồn dữ liệu ĐÃ BỎ khỏi màn (21/08/2026) — cùng luật với 2 dashboard. */
 '</div>';
 
@@ -439,9 +438,10 @@ function loadMeta(){
 }
 function capNhatInfo(){
   var el = $id("hkLoadinfo"); if (!el) return;
-  var n = S.data.sku.length + S.data.loc.length;
-  el.textContent = (n ? nf(S.data.sku.length) + " phiếu SKU · " + nf(S.data.loc.length) + " phiếu vị trí" : "") +
-    (S.tsData ? (n ? " · " : "") + "dữ liệu WMS lúc " + fmtTime(S.tsData) : "");
+  var n = S.data.sku.length + S.data.loc.length, dang = !!($id("hkReload") && $id("hkReload").disabled);
+  var tip = "Kiểm kê (Physical Count) · SHOP + WH 170 QL1A" + (n ? " · " + nf(S.data.sku.length) + " phiếu SKU · " + nf(S.data.loc.length) + " phiếu vị trí" : "");
+  el.innerHTML = window.hskCapNhat ? window.hskCapNhat(S.tsData, { id: "hkReload", onclick: "HKIEMKE.reload()", tip: tip }) : "";
+  if (dang && $id("hkReload")) $id("hkReload").disabled = true;
 }
 
 /* ===== MÔ HÌNH DỮ LIỆU (cross-filter kho + khử trùng phiếu — port từ factory) ===== */
@@ -531,13 +531,18 @@ function render(){
 }
 /* Thanh chip lọc kho đầu tab: "Tất cả kho" + từng kho (chấm màu đồng bộ thẻ kho) */
 function renderWhBar(){
+  /* 12/10 user: bỏ dải chip "Trạng thái kiểm kê theo kho" — lọc kho chuyển sang Ô CHỌN kiểu bộ lọc chung (nhãn + combo như
+     Xác minh › Nhật ký). Số phiếu theo kho nằm ngay trong lựa chọn. */
   var el = $id("hkWhBar"); if (!el) return;
-  var set = {}; ["sku", "loc"].forEach(function(k){ S.data[k].forEach(function(r){ if (r.wh) set[r.wh] = 1; }); });
-  var ws = Object.keys(set).sort();
+  var dem = {}; ["sku", "loc"].forEach(function(k){ S.data[k].forEach(function(r){ if (r.wh) dem[r.wh] = (dem[r.wh] || 0) + 1; }); });
+  var ws = Object.keys(dem).sort();
   if (!ws.length){ el.innerHTML = ""; return; }
-  el.innerHTML = '<span class="hk-hint" style="font-weight:650">Trạng thái kiểm kê theo kho:</span>' +
-    '<button class="hk-whtab' + (S.wh ? "" : " active") + '" onclick="HKIEMKE.setWh(\'\')">Tất cả kho</button>' +
-    ws.map(function(w){ return '<button class="hk-whtab' + (S.wh === w ? " active" : "") + '" data-w="' + esc(w) + '" onclick="HKIEMKE.setWh(this.getAttribute(\'data-w\'))"><span class="hk-dot" style="background:' + whColor(w) + '"></span>' + esc(w) + "</button>"; }).join("");
+  var tong = ws.reduce(function(a, w){ return a + dem[w]; }, 0);
+  el.innerHTML = '<label><span class="lbl">Kho</span><select id="hkWhSel"><option value="">Tất cả kho (' + nf(tong) + ')</option>' +
+    ws.map(function(w){ return '<option value="' + esc(w) + '"' + (S.wh === w ? " selected" : "") + '>' + esc(w) + ' (' + nf(dem[w]) + ')</option>'; }).join("") + '</select></label>';
+  var sel = $id("hkWhSel");
+  sel.onchange = function(){ S.wh = sel.value; render(); };
+  if (typeof window.enhanceSelect === "function") window.enhanceSelect(sel);
 }
 function renderPanel(kind){
   var U = (kind === "loc") ? "vị trí" : "SKU";

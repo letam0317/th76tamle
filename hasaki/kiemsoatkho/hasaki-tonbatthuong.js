@@ -96,10 +96,10 @@ var CSS = [
 "#pane-htonbat .ht-chip{background:color-mix(in srgb, var(--accent,#326e51) 14%, transparent);color:var(--accent,#326e51);border-radius:999px;padding:4px 13px;font-weight:650;font-size:12px;}",
 "#pane-htonbat .ht-srcbar a{color:var(--accent,#326e51);text-decoration:none;font-weight:600;} #pane-htonbat .ht-srcbar a:hover{text-decoration:underline;}",
 "#pane-htonbat .ht-hint{color:var(--muted,#9ca3af);font-size:11.5px;font-weight:400;}",
-"#htReload{background:var(--accent,#326e51);color:var(--accent-text,#fff);border:0;border-radius:9px;padding:8px 15px;font-size:12.5px;font-weight:650;cursor:pointer;min-height:36px;}",
-"#htReload:disabled{background:color-mix(in srgb, var(--muted,#9ca3af) 42%, var(--surface,#fff));color:var(--muted,#9ca3af);cursor:not-allowed;}",
 /* chip lọc kho */
 "#pane-htonbat .ht-whbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px;}",
+"#pane-htonbat .ht-locbar{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,260px));gap:12px;margin:0 0 16px;}",
+"#pane-htonbat .ht-locbar label{display:flex;flex-direction:column;gap:4px;}",
 "#pane-htonbat .ht-whtab{border:1px solid var(--border,#e8ecf1);background:var(--surface,#fff);color:var(--text,#374151);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;min-height:32px;display:inline-flex;align-items:center;gap:7px;transition:background .16s ease,border-color .16s ease;}",
 "#pane-htonbat .ht-whtab:hover{background:color-mix(in srgb, var(--accent,#326e51) 8%, transparent);}",
 "#pane-htonbat .ht-whtab.active{background:var(--accent,#326e51);color:var(--accent-text,#fff);border-color:var(--accent,#326e51);}",
@@ -212,21 +212,18 @@ var CSS = [
 "  #pane-htonbat .ht-whbar>*{flex:0 0 auto;}",
 "}",
 /* mobile: modal tràn màn hình, touch ≥44px */
-"@media(max-width:768px){.ht-modal{padding:0;align-items:stretch;justify-content:stretch;}.ht-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.ht-mclose{font-size:30px;min-width:48px;min-height:48px;}.ht-mfilters input{min-height:44px;}#pane-htonbat .ht-whtab{min-height:44px;}#htReload{min-height:44px;width:100%;}}",
+"@media(max-width:768px){.ht-modal{padding:0;align-items:stretch;justify-content:stretch;}.ht-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.ht-mclose{font-size:30px;min-width:48px;min-height:48px;}.ht-mfilters input{min-height:44px;}#pane-htonbat .ht-whtab{min-height:44px;}#htReload{min-height:44px;}}",
 ].join("\n");
 
 /* ===== KHUNG HTML ===== */
 var KHUNG =
-'<div class="ht-whbar" id="htWhBar"></div>' +
+'<div class="ht-locbar" id="htWhBar"></div>' +
 '<div id="htContent"></div>' +
 '<div id="htState" class="ht-state"><div class="ht-spin"></div>Đang tải dữ liệu tồn kho bất thường…</div>' +
 '<div class="ht-srcfoot">' +
-'  <div class="ht-srcbar">' +
-'    <span class="ht-chip">Tồn kho bất thường — Hasaki Vietnam · SHOP + WH 170 QL1A</span>' +
-(SHOW_SRC ? '    <a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a>' : '') +
-'    <span id="htLoadinfo" class="ht-hint"></span>' +
-'    <button id="htReload" onclick="HTONBAT.reload()" title="Đọc lại dữ liệu mới nhất từ Google Sheet">Làm mới</button>' +
-'  </div>' +
+/* 12/10 user: chip nguồn + đếm + "dữ liệu WMS lúc" + Làm mới → MỘT viên "Cập nhật" dùng chung (hskCapNhat); bấm viên = Làm mới */
+'  <div class="cn-wrap" id="htLoadinfo"></div>' +
+(SHOW_SRC ? '  <div class="ht-srcbar"><a href="' + SHEET_URL + '" target="_blank" rel="noopener">Mở Google Sheet</a></div>' : '') +
 '</div>';
 /* Đoạn giảng giải "Chỉ số bất thường đọc từ báo cáo…" ĐÃ RỜI KHỎI ĐẦU TAB (20/08/2026, cùng luật với
    dashboard Audit Factory): nó chiếm 2-3 dòng đầu màn mỗi lần vào tab, mà đọc một lần là biết.
@@ -340,9 +337,9 @@ function loadMeta(){
 }
 function capNhatInfo(){
   var el = $id("htLoadinfo"); if (!el) return;
-  var _n = S.agg ? S.nTong : S.rows.length;
-  el.textContent = (_n ? nf(_n) + " SKU bất thường" : "") +
-    (S.tsData ? (_n ? " · " : "") + "dữ liệu WMS lúc " + fmtTime(S.tsData) : "");
+  var _n = S.agg ? S.nTong : S.rows.length, dang = !!($id("htReload") && $id("htReload").disabled);
+  el.innerHTML = window.hskCapNhat ? window.hskCapNhat(S.tsData, { id: "htReload", onclick: "HTONBAT.reload()", tip: "Tồn kho bất thường · SHOP + WH 170 QL1A" + (_n ? " · " + nf(_n) + " SKU bất thường" : "") }) : "";
+  if (dang && $id("htReload")) $id("htReload").disabled = true;
 }
 
 /* ===== LỌC + RENDER ===== */
@@ -391,18 +388,19 @@ function canDong(tiep){
 }
 function setWh(w){ if (S.wh === w) w = ""; S.wh = w; render(); }
 function renderWhBar(){
+  /* 12/10 user: bỏ dải chip "Lọc kho" — chuyển sang Ô CHỌN kiểu bộ lọc chung (nhãn + combo như Xác minh › Nhật ký) */
   var el = $id("htWhBar"); if (!el) return;
   var ws = {};
   if (S.agg) S.agg.forEach(function(o){ if (o.type === "__all__") ws[o.wh] = o.n; });
   else S.rows.forEach(function(r){ if (r.wh) ws[r.wh] = (ws[r.wh] || 0) + 1; });
   var keys = Object.keys(ws).sort();
   if (!keys.length){ el.innerHTML = ""; return; }
-  el.innerHTML = '<span class="ht-hint" style="font-weight:650">Lọc kho:</span>' +
-    '<button class="ht-whtab' + (S.wh ? "" : " active") + '" onclick="HTONBAT.setWh(\'\')">Tất cả</button>' +
-    keys.map(function(w){
-      return '<button class="ht-whtab' + (S.wh === w ? " active" : "") + '" data-w="' + esc(w) + '" title="' + esc(w) + '" ' +
-        'onclick="HTONBAT.setWh(this.getAttribute(\'data-w\'))"><span class="ht-dot" style="background:' + whColor(w) + '"></span>' + esc(w) + ' <b>' + nf(ws[w]) + '</b></button>';
-    }).join("");
+  var tong = keys.reduce(function(a, w){ return a + ws[w]; }, 0);
+  el.innerHTML = '<label><span class="lbl">Kho</span><select id="htWhSel"><option value="">Tất cả kho (' + nf(tong) + ')</option>' +
+    keys.map(function(w){ return '<option value="' + esc(w) + '"' + (S.wh === w ? " selected" : "") + '>' + esc(w) + ' (' + nf(ws[w]) + ')</option>'; }).join("") + '</select></label>';
+  var sel = $id("htWhSel");
+  sel.onchange = function(){ S.wh = sel.value; render(); };
+  if (typeof window.enhanceSelect === "function") window.enhanceSelect(sel);
 }
 function render(){
   var st = $id("htState"), cont = $id("htContent");
