@@ -109,6 +109,12 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
 - Tra cứu lặp lại theo khoá → dựng index map `O(1)` một lần, đừng quét tuyến tính mỗi lượt.
 - `setInterval` gọi hàm async → cờ chống chồng lượt (`if(_dangBan)return`).
 - Truy cập dữ liệu theo khoá từ ngoài vào (`WH_DATA[w]`) → guard mặc định (`||{shelf:[],pend:[]}`).
+- **Trang 3D three.js (07/10/2026, rút từ lienanh-3d "bị giật"):** ĐO trước bằng Edge nền GPU thật (`--use-angle=d3d11`, đếm
+  `renderer.info.render.calls` + thời gian khung), không đoán. Ngân sách: **≤ 900 lần vẽ/khung** cho cảnh đầy đủ. Cách đạt:
+  bóng `shadowMap.autoUpdate=false` + `needsUpdate` khi bố cục đổi (vật chuyển động thì `castShadow=false`); vật lặp (cột, xe, thùng,
+  lồng, chân ray…) = InstancedMesh / kho instance; đồ rời nhiều mesh → gộp theo vật liệu; `setPixelRatio ≤ 1,5`; không
+  `preserveDrawingBuffer`; ảnh phụ (bản đồ nhỏ) vẽ vào render target, **không** đổi cỡ canvas chính; huỷ geometry/texture +
+  bỏ sprite khỏi mảng nhãn khi dựng lại. Bộ đo phải có ca "mesh ≤ N · lần vẽ ≤ N".
 
 ---
 
@@ -126,6 +132,10 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
   (kênh thư đang TẮT — đừng dựa vào thư).
 - Đường ghi chính có URL dự phòng (`APPSCRIPT_URL_DUPHONG` — deployment thứ 2 cùng project).
 - Đừng tin doc lịch chạy — `LICH-VA-DU-PHONG.md` là nguồn duy nhất, sửa lịch thì sửa doc cùng commit.
+- **Edge/Chrome ngầm (puppeteer) KHÔNG được mở hồ sơ trống chưa vá** — Chromium thử đăng nhập Windows bằng mật khẩu rỗng
+  ở mỗi hồ sơ mới → 1 lần sai/lượt → khoá tài khoản lechitam (10 sai/10 phút). Đã vá tập trung ở puppeteer-core bằng
+  `va-puppeteer-ho-so.mjs` (tự chạy qua `postinstall`). Thêm thư viện trình duyệt mới (playwright, puppeteer bản khác,
+  thư mục node_modules mới) thì phải vá theo cùng cách rồi chạy `node va-puppeteer-ho-so.mjs --kiem` = 0 còn thiếu.
 
 ---
 
@@ -142,6 +152,10 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
 - Màu qua CSS variables theo theme, không hardcode (trừ palette chart đã định).
 - **CẤM icon emoji** — nút chỉ dùng CHỮ; được phép ✓ ✗ ✕ ⚠ → ↗ ↑↓ và nét vẽ trong SVG minh hoạ.
 - Trước khi thêm UI mới: grep tìm pattern tương đương đã có, tái dùng class — không viết bản sao.
+- **Tay nắm / điểm kéo trong cảnh 3D hoặc sơ đồ (07/10/2026):** cỡ phải tính theo PIXEL màn hình (≥ 8 px bán kính, co giãn theo
+  khoảng cách camera), bắt chọn theo khoảng cách pixel (≤ 16 px) chứ không bằng tia cắt hình; rê tới thì đổi con trỏ. Rút từ
+  lienanh-3d: chấm 0,28 m ≈ 5 px khi nhìn toàn kho → user "không phóng to thu nhỏ khu được" dù bộ đo (bấm đúng tâm) vẫn đạt.
+  Bộ đo phải có ca bấm LỆCH tâm.
 - Cùng 1 chức năng ở nhiều tab → cùng nhãn + cùng tooltip. Luật chỉ thi hành ở 1 dashboard thì
   dashboard kia lặng lẽ tái phát — áp CẢ HAI.
 - **Chống giật animation cho phần tử căn giữa `translateX(-50%)` (10/09/2026):**
@@ -184,6 +198,13 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
     - Chỉ gộp cột LẶP ĐƯỢC (kho, vị trí, trạng thái, nhóm…). KHÔNG gộp UID/SKU/số lượng — đó là thứ
       người đọc dò từng dòng, trùng nhau chỉ là tình cờ.
     - Mẫu cài đặt: `tvtmDonTri()` + `tvtmAnCot()` trong mục Tồn tại vị trí (factory/index.html).
+    - **12/10/2026 — user: "GHÉT NHẤT LÀ LẶP LẠI THÔNG TIN ĐÃ CÓ"** (pop-up "Bất thường tại kho WH - 170…" vẫn in cột Kho
+      598 lần): luật này áp cho MỌI bảng/pop-up/thẻ, không chỉ bảng chính — tiêu đề, phụ đề, đường dẫn đầu trang, nhãn bộ lọc
+      đã nói điều gì thì phần thân KHÔNG nhắc lại (cột, chip, câu mô tả, nhãn trong ô). Trước khi thêm chữ nào, tự hỏi: "chỗ
+      nào trên cùng màn đã nói điều này chưa?". Đã nói → bỏ.
+    - Audit Hasaki cài đặt TỰ ĐỘNG `anCotDonTri()` (kiemsoatkho/index.html) — theo dõi mọi bảng trong
+      pop-up đang mở (host + module), cột Kho/Warehouse đơn trị thì ẩn, ghi giá trị lên tiêu đề nếu tiêu đề chưa có. Module mới
+      không phải gọi gì; cột lặp được khác (vd Category khi lọc 1 ngành) thì thêm vào `COT_DON_TRI`.
 15. **Một con số mới thì vào DẢI THẺ SỐ, đừng dựng thêm thanh điều khiển (14/09/2026):**
     - Cần theo dõi thêm một nhóm/chỉ số → thêm THẺ trong `.abntiles` (bấm thẻ = mở danh sách đã lọc).
     - CẤM thêm một thanh chip/bộ lọc mới ở đầu mục chỉ để hiện con số đó: nó ăn 32-72px đầu màn,
@@ -325,6 +346,21 @@ Nguyên tắc:
   phải dùng fileURLToPath; camera ngoài trời cần ngưỡng riêng; schtasks qua Git Bash làm hỏng dấu ngoặc kép → tạo task bằng PowerShell.
   **Quyết định trên g-sheet (02/10):** sheet riêng BÃI XE NCC (`sheet-bai-xe.py`, ảnh nhúng 900 px + link ảnh gốc Drive riêng) → task 30' `bai-xe-phieu.mjs` lập phiếu + B1.1. Clip tự động: khung đỏ bám người CHỈ trong khoảng CÓ CHUYỂN ĐỘNG (so khung 3 s trước/sau — so với đầu/cuối đoạn làm nhiều xe nối tiếp thành 1 khoảng 5'), đệm −4/+10 s, nối khi cách <30 s, khúc còn lại tua ×3; soi 12 khung trước khi tin.
 
+- **Vệ sinh quầy kệ CÓ BÁO CÁO (VS-06 · VS-07, user 07/10/2026):** kho rất bụi → **cửa sổ 8 giờ** tính lùi từ giờ ghi nhận (09:17 06/10 → mốc 01:17 06/10).
+  Báo cáo gần nhất của phụ trách TRƯỚC mốc → **KHÔNG chuyển B1.1**, bình luận tag anh Tâm «Nhờ anh Tâm kiểm tra thực tế vị trí này» (1 lần/phiếu), phiếu ở lại B1.
+  Báo cáo TRONG 8 giờ → `camera-bao-cao.mjs` tra camera **đúng giờ nộp báo cáo** (đếm NGƯỜI trong vùng kệ bằng mô hình `_nguoi-trong-vung.mjs`, không nhận mặt; vùng kệ lấy từ `ban-do-camera-o.json` «<kệ>|ke», tự tìm bằng điểm ảnh chỉ để gợi ý — vùng tự tìm từng trúng pallet lối đi):
+  NV chỉ ghé ≤60 s = «chỉ chụp» → **bằng chứng B1 = ảnh 3 mốc (PIC02) + clip chuẩn (video02) từ camera, KHÔNG còn chép ảnh vi phạm** → đóng B1 → B1.1;
+  có mặt ≥180 s / không rõ / không có góc → nhờ anh Tâm (kèm số phút). **Tự đóng theo «chỉ chụp» đang TẮT** (`B11_CAM_TU_DONG=0`, bật khi ≥3 án lệ camera đúng VÀ vùng kệ đã người kiểm `daKiem`) — trước đó mọi kết luận đều nhờ anh Tâm. `push-5s` không tự đóng B1 ca có báo cáo nữa; ca KHÔNG báo cáo giữ VS-02.
+  Ngưỡng 60/180 s (v3 07/10, xét TỔNG giây có người; bản đầu 90/240) (ca 14079520: 226 s) — chỉnh theo án lệ. Bằng chứng gắn lên phiếu luôn là clip chuẩn `_clip-noi` (CAM-06), video gốc giữ tới B3.
+  **Đường KHÔNG AI (08/10/2026, user: «gán camera mà không thông qua AI»):** `camera-bao-cao.mjs --khong-ai --clip` — không mô hình, không so điểm ảnh, không kết luận.
+  Chỉ dùng 3 dữ liệu cố định: ô → kênh (bản đồ tên kênh) · giờ nộp báo cáo (planogram) · vùng MẶT KỆ đã người kiểm (`ban-do-camera-o.json` «<kệ>|ke» `daKiem`).
+  Ra: ảnh 3 mốc giờ cố định (−6′ · −3′ · lúc nộp, khung vàng vùng kệ) + clip `*_BAOCAO_CLIP-CAMERA.webm` ([đầu cửa sổ → nộp −90 s] tua ×5 + [nộp −90 s → +30 s] tốc độ thật; không khung đỏ, không dán tên lên người — chỉ ghi «tài khoản … nộp báo cáo»).
+  `canh-b11` với `B11_CAM_KHONG_AI=1` → thay PIC02/video02 của B1 bằng ảnh/clip này (Hình ảnh bằng chứng = camera, đúng yêu cầu 07/10), phiếu Ở LẠI B1, bình luận nhờ anh Tâm xem clip; máy KHÔNG đóng B1.
+  Phần máy KHÔNG làm được nếu không có mô hình/người: (1) khung đỏ bám đúng người + tên; (2) kết luận «chỉ chụp»/«có thao tác». Vùng kệ chưa `daKiem` → vẫn cắt clip nhưng không vẽ khung, chú thích nói rõ; soi lưới 80 px 1 lần/tủ để bổ sung bản đồ (việc người, không phải AI).
+  **Đường GEMINI (08/10/2026, user: «2 mục này dùng Gemini chạy được không — dạy cho Gemini chạy»):** `camera-bao-cao.mjs --gemini --clip` → `_gemini-nguoi-vung.mjs`: Gemini (khoá `GEMINI_API_KEY` bậc miễn phí, chuỗi model dự phòng như `sync-vesinh-ai`) đọc **lô 8 khung/5 s** có khung vàng → từng khung: bbox người (0–1000 → px), quần áo, trong/sát khung vàng, **hành động** `ve-sinh · sap-xep-hang · chup-anh · dung-yen · di-lai`; mã người nối giữa lô bằng tâm bbox ≤220 px + chữ quần áo (tất định). Không gửi tên NV, không nhận diện danh tính.
+  Người chính = nhiều khung tại kệ nhất (ưu tiên có mặt ±60 s quanh giờ nộp) → **kết luận theo giây hành động**: lau ≥30 s «co-ve-sinh» · không lau & có mặt ≤60 s «chi-chup» · xếp hàng ≥60 s «co-thao-tac» · còn lại «khong-ro» (ngưỡng `CAM_GM_VESINH_GIAY/SAPXEP_GIAY`). Khung đỏ clip = bbox Gemini nội suy (`chiNeo`), chỉ dựng khi bám nhất quán ≥0,85 (`CAM_GM_NHAT_QUAN`) và ≥6 khung; **nhãn tên NV chỉ khi định danh được** (người chính có mặt ±60 s quanh giờ nộp VÀ không ai khác tại kệ lúc đó), không thì «Người tại kệ».
+  `canh-b11` cổng `B11_CAM_AI=gemini` (`khong` = đường không AI; trống = mô hình COCO): gắn ảnh/clip vào B1 + nhờ anh Tâm như đường không AI; «chi-chup» + `B11_CAM_TU_DONG=1` mới đóng B1. Gemini hỏng (quota ngày/mạng) → tự rơi về đường không AI. Bẫy: hộp cát Claude Code chặn Google (curl google.com timeout) — thử Gemini phải chạy ngoài hộp cát; `gemini-3.5-flash` hết quota ngày vì `sync-vesinh-ai` → flash-lite ~9 s/lô.
+- **SỔ TAY CHI TIẾT (09/10): `hasaki/SO-TAY-XAC-MINH-CAMERA.md`** — góc cam, vùng, khung vật/khung người, định danh, clip, máy tự bắt, cách hỏi AI. Gemini agy đọc qua skill `.agents/skills/xac-minh-camera-5s`.
 - **Quy trình từng bước: `hasaki/SOP-XAC-MINH-CAMERA.md`** (3 nguyên tắc gốc + bảng tự kiểm 7 câu). Đọc TRƯỚC mỗi lần xác minh bằng camera.
 - **Bài học 13389950 + 14010729 (02/10/2026 — user đính chính 2 lần):**
   - **CAM-05 thùng gốc + quy cách:** trước khi kết luận "lấy hết thùng" phải xác định thùng có phải THÙNG GỐC của SKU
@@ -333,8 +369,8 @@ Nguyên tắc:
   - **Camera chỉ được XÁC NHẬN hoặc BÁC luật hệ thống bằng chứng thấy rõ, không được "đoán đè":** SH-01(a) "người soạn
     cuối SKU tại ô" vốn ra Oanh = đúng; lần xác minh camera 01/10 đổi sang Như mà không thấy được lòng thùng ⇒ sai.
     Camera không thấy rõ → giữ kết luận hệ thống + ghi "camera không bác được".
-  - **CAM-06 clip nối 1 mạch** từ lần tác động nghi ngờ → lúc chụp ảnh (`_clip-noi.mjs`): khung ĐỎ đứng yên = đồ vật,
-    khung VÀNG bám người + nhãn tài khoản; mỗi người lại gần đồ vật = 1 mốc tốc độ thật, chú thích phải soi TỪNG GIÂY
+  - **CAM-06 clip nối 1 mạch** từ lần tác động nghi ngờ → lúc chụp ảnh (`_clip-noi.mjs`): khung VÀNG đứng yên = đồ vật,
+    khung ĐỎ nét đứt bám người + nhãn tài khoản (đúng theo code `_clip-noi.mjs`; sửa 09/10); mỗi người lại gần đồ vật = 1 mốc tốc độ thật, chú thích phải soi TỪNG GIÂY
     (09:41 suýt ghi "đi ngang" khi NV đang lấy hàng; 09:50 ghi Hương lấy "trên nóc" — user bác: lấy trong thùng).
   - **Khung bám người trên camera mắt cá/nhìn từ trên:** mô hình chỉ dò ra 0–40 % khung → dự phòng bám vùng CHUYỂN ĐỘNG
     lọc theo MÀU ÁO (không lọc màu thì trôi sang xe pallet đang kéo) + **điểm neo** người soi tay mỗi 3–6 s ở đoạn khó.
@@ -350,8 +386,43 @@ Nguyên tắc:
 
 ## NHẬT KÝ RULE
 
+- **12/10/2026** — Mục 6 luật 14: mở rộng thành luật CHUNG "không lặp lại thông tin đã có" (user: "ghét nhất là lặp lại") + bộ tự động `anCotDonTri()` cho bảng trong pop-up.
+- **12/10/2026** — Mục 11 (xác minh B1): pop-up phiếu có khối «Ai tác động ô … trước giờ ghi nhận»: phụ trách kệ + MỌI lượt châm vào ô
+  (WMS, `.cache-canh-b1.json`, 0 lượt gọi thêm), GẦN GIỜ GHI NHẬN NHẤT TRƯỚC, mỗi lượt 1 clip (`tim-bang-chung-b1.mjs` → `lanKho`, ≤24 lượt/lần chạy).
+  MỐC CLIP = giờ TẠO lệnh (created_at), KHÔNG phải giờ hoàn tất: kiểm 13808708 kênh 31 — 15:10 tạo lệnh có 3 người đang châm ô 07,
+  15:27 hoàn tất thì dãy trống. Chiều «lấy ra» không có trong transfer-bins (bin_out trả 0) — phải qua API soạn hàng (47–54 lượt/phiếu), chưa làm.
+  QC: `qc-ls-kho-popup.mjs`.
+
+- **12/10/2026** — Mục 1/2: SỔ TÁC GIẢ. Mọi bộ ghi lên work.hasaki.vn dùng tài khoản user nên phiếu đều đứng tên user ⇒
+  `so-tac-gia.mjs` (nạp sẵn qua `token-store.js`) bọc `fetch`, mỗi lượt POST/PUT/DELETE tới wshr/work ghi 1 dòng vào
+  `.exports/so-tac-gia/<YYYY-MM>.jsonl` (bộ nào · gọi từ bộ nào · Claude/tay/lịch nền · máy · phiếu · nội dung · tên + mã băm ảnh).
+  KHÔNG ghi lên phiếu, KHÔNG lên git; xem ở tab Xác minh › «Máy đã làm gì» (chỉ máy có 8591) + dòng «Phiếu do … tạo» ở Theo phiếu.
+  Bộ MỚI ghi lên wshr phải nạp `token-store.js` (hoặc `import "./so-tac-gia.mjs"`) và thêm tên dễ đọc vào `TEN_BO`.
+  Gói mang sang máy khác có chép `token-store.js` thì phải chép kèm `so-tac-gia.mjs`. QC: `qc-so-tac-gia.mjs` (giả fetch) + `qc-so-tac-gia-ui.mjs` (3 máy, chặn ghi).
+  NGƯỜI GỬI FORM 5S (cùng ngày, GAS @106 + form.html 3bee107): form gửi kèm `tb` (mã máy OTP) + `hsk-nguoi-dung` nếu có;
+  GAS `ghiNguoiGui_` ghi vào FILE RIÊNG «5S-NGUOI-GUI (riêng tư — không chia sẻ)» (id ở Script Properties NGUOI_GUI_SHEET),
+  CẤM ghi vào WMS-5S-AUDIT (anyone:reader); mã máy chỉ lưu 10 ký tự. `pending` trả `nguoiGui` → push-5s đặt
+  `globalThis.__HSK_NGUOI_THAT` → sổ tác giả. QC: `qc-nguoi-gui-5s.mjs` (mã GAS thật + sân giả).
+
+- **10/10/2026** — Mục 5: Edge ngầm làm khoá tài khoản Windows (277 lần sai + 26 lần khoá ngày 09/10, nguồn = msedge.exe
+  do node mở, Security 4625 mật khẩu rỗng). Vá `va-puppeteer-ho-so.mjs` ghi sẵn `Local State` (os_password_blank) vào hồ sơ tạm;
+  đo: hồ sơ trống +1 lần sai, sau vá +0.
+
+- **07/10/2026** — Mục 4: ngân sách lần vẽ + cách tối ưu trang 3D (đo GPU thật trước, bóng theo nhu cầu, instance, gộp mesh,
+  render target); Mục 6: tay nắm/điểm kéo tính theo pixel + bắt lệch tâm + con trỏ — rút từ lienanh-3d "bị giật" (4 510 → 736
+  mesh, 15–19 → 60 khung/giây) và "không nới/thu khu được" (chấm 5 px).
+
+- **08/10/2026** — Mục 7 — LUẬT CỨNG (sự cố mất bố trí Liên Anh): BỘ ĐO / TRANG THỬ KHÔNG BAO GIỜ ĐƯỢC GHI VÀO DỮ LIỆU THẬT. Trang tự lưu 0,7 s sau khi tải; QC cũ chỉ chặn TẢI tệp bố cục còn lệnh GHI chỉ giả lập sau khi trang dựng xong ⇒ các lượt QC/thử ghi trạng thái GỐC đè lên bố trí user nhiều lần trong ngày. Bắt buộc: (1) chặn mọi POST/PUT tới API ghi ở TẦNG MẠNG (request interception) ngay khi mở trang, mọi trang, kể cả chế độ dùng dữ liệu thật; (2) ca QC cuối so vân tay (kích thước + giờ sửa) tệp dữ liệu thật trước/sau lượt chạy — đổi là LỖI; (3) máy chủ sao lưu tệp dữ liệu trước khi ghi đè (≥ 10' một bản + ngay khi lần ghi làm giảm dữ liệu), không bao giờ chỉ 1 bản. Kèm: `git restore`/`git checkout -- <tệp>` KHÔNG lấy lại dữ liệu gitignore mà chỉ xoá code chưa commit — đã làm mất 1 ngày code html Liên Anh 08/10 (khôi phục từ bản sao lưu nháp).
+- **08/10/2026** — Mục 6 (UI công cụ 3D trên máy tính): bảng điều khiển KHÔNG đặt thành cột dọc to bên phải; chuẩn là THANH TRÌNH ĐƠN 1 hàng trên cùng kiểu Excel/AutoCAD cổ điển (Tệp · Sửa · Chèn · Xem · Bố cục · Trợ giúp, mỗi mục thả xuống hàng dọc có phím tắt, ✓ cho mục đang bật; rê chuột đổi trình đơn; chọn mục thì đóng; Esc/bấm canvas đóng), chế độ (Bước 1/2) + dòng trạng thái nằm ngay trên thanh; danh sách dài = bảng thả xuống neo dưới nút; thuộc tính món = khung nhỏ bên phải chỉ hiện khi có chọn; thanh dưới + bản đồ nhỏ ẩn (user 08/10: "bỏ bản đồ nhỏ", "tạm ẩn dòng Kho Liên Anh…"). Bẫy kỹ thuật: (1) `#sua>*{flex:none}` (id) thắng mọi `.lop{flex:…}` ⇒ muốn 1 nhóm giãn phải viết `#sua>.lop`; (2) `backdrop-filter` trên thanh biến nó thành khối chứa của con `position:fixed` ⇒ bảng thả xuống bị kẹt trong thanh — bỏ backdrop-filter; (3) chiều cao thanh đổi theo bề rộng ⇒ ghi `--suaCao` bằng ResizeObserver cho mọi thứ neo dưới thanh và nới khung nhìn (nhinThang) theo nó.
+- **08/10/2026** — Mục 4 (3D): LUẬT kéo/dịch bản đồ (pan) và phóng theo con trỏ: điểm sàn dưới con trỏ phải đo bằng camera ở TRẠNG THÁI GỐC của thao tác (đặt target về t0 + apply + updateMatrixWorld rồi mới raycast), KHÔNG đo bằng camera đã dời — đo bằng camera đã dời là vòng hồi tiếp: mỗi khung bù ngược nửa quãng ⇒ mô hình giật liên tục (Liên Anh 08/10, user báo). Áp cho cả chuột lẫn chạm. Mục 6 (UI): thao tác kéo giãn/thu/dời món trong công cụ 3D phải có nhãn kích thước nổi ngay trên món (số đang đổi in đậm, tự ẩn 1,5 s) — dòng trạng thái ở bảng không đủ vì mắt đang nhìn vào món.
+- **08/10/2026** — Mục 7 (QC 3D Liên Anh, học từ 3 lượt rớt oan): (1) hoàn tác trong bộ đo theo ĐỘ SÂU (`window.__sua.luiSo` ghi trước khối, lùi tới khi bằng), không đếm cứng số bước — đếm sai 1 là kéo cả mặt bằng về khay, ca sau rớt dây chuyền; (2) `datBuoc(2)` bay camera vào khu nhưng `datBuoc(1)` KHÔNG bay về ⇒ sau mỗi khối phải trả `CAM.nhinThang` toàn kho + `choCam()`, nếu không điểm chiếu rơi ngoài canvas, kéo chuột trật hết; (3) tay nắm bắt trong 16 px mà tầm toàn kho chỉ ~12 px/m ⇒ thân món 3 m nằm trọn trong vùng chấm, muốn kéo thân phải phóng camera vào trước (người dùng cũng vậy); (4) bộ đo in kết quả tích luỹ khi dừng giữa chừng (`unhandledRejection`) + `QC_LUI=1` in dấu vết độ sâu lùi/số khu đặt ở các mốc — không có 2 thứ này thì 3 lượt chỉ thấy 1 dòng lỗi.
+- **09/10/2026** — Mục 11: sổ tay `SO-TAY-XAC-MINH-CAMERA.md` + skill/luật agy (`.agents/skills/xac-minh-camera-5s`, `.agents/rules/xac-minh-5s.md`, GEMINI.md mục 5) để Gemini agy xác minh đúng thứ tự như Claude. Sửa 3 chỗ lệch code: màu khung CAM-06 (vàng = vật, đỏ = người), ngưỡng VS-07 60/180 s, BX-01 mẫu 15 s/3 lượt. Đường Gemini trong script giữ TẮT (bài học 7 mã cho 1 người).
+- **08/10/2026** — Mục 11: đường GEMINI cho 2 việc còn thiếu của camera giờ báo cáo (khung đỏ bám đúng người + kết luận có vệ sinh thật không): `camera-bao-cao.mjs --gemini` + `_gemini-nguoi-vung.mjs`, cổng `B11_CAM_AI=gemini` (mặc định trống). Thăm dò 14079520: 8 khung 13:10–13:13 bám đúng 1 người áo xanh tại kệ, hành động xếp hàng/chụp ảnh.
+- **08/10/2026** — Mục 11: đường KHÔNG AI cho camera giờ báo cáo (`camera-bao-cao.mjs --khong-ai`, cổng `B11_CAM_KHONG_AI` mặc định 0): cắt đúng kênh + cửa sổ giờ nộp, khung vàng vùng kệ đã kiểm, không mô hình/không kết luận → gắn PIC02/video02 vào B1, không đóng B1, anh Tâm xem. Bản đồ thêm `daKiem` cho 505-08 (ch16) + 513-03 (ch38) từ clip tay 07/10 đã QC. Trả lời câu user «gán camera mà không thông qua AI được không?»: gán được; kết luận và khung bám người thì không.
+- **07/10/2026** — Mục 11: VS-06 cửa sổ bụi 8 giờ (có báo cáo nhưng quá 8h trước ghi nhận → không B1.1, nhờ anh Tâm kiểm tra thực tế) + VS-07 camera đúng giờ nộp báo cáo (`camera-bao-cao.mjs`; bằng chứng B1 = camera thay ảnh vi phạm) — user chốt từ phiếu 14079520 («kho rất bụi nên thời gian ghi nhận ép xuống 8h»; «bổ sung camera ở mục Hình ảnh bằng chứng thay cho hình ảnh lấy từ Hình ảnh vi phạm»). Hồi tố 3 phiếu lô 06/10 trả về B1.
+
 - **02/10/2026 (chiều)** — Mục 11: CAM-05 thùng gốc + quy cách, camera không được đoán đè luật hệ thống, CAM-06 clip nối
-  (`_clip-noi.mjs` khung vàng bám người + neo), NV-01 định danh không có WMS, TU-01 từ ngữ (user: "Hương lấy 1 chai trong
+  (`_clip-noi.mjs` khung đỏ bám người + neo), NV-01 định danh không có WMS, TU-01 từ ngữ (user: "Hương lấy 1 chai trong
   thùng đó", "thay cất → châm hàng", "lấy → tác động", "sao k thấy vòng khoanh vùng người di chuyển", "sao k đối chiếu ảnh ra vào").
 
 - **02/10/2026** — Mục 11: luật sửa/thêm phải có `khacCu` (khác luật cũ + bối cảnh) để user duyệt; sổ luật gộp án lệ 151 phiếu B3 (XE-01, BX-01, CAM-04, CH-04 đề xuất; VS-03 giữ; SH-01 tách 3 dạng ảnh).

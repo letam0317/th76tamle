@@ -202,13 +202,20 @@ function gom() {
   { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
     const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" };
-    for (const p of phieu) { const gy = goiY[p.id]; if (!gy || !gy.bin || !gy.ngay) continue;
-      const rec = (CW[gy.bin + "|" + gy.ngay] || {}).rec; if (!rec) continue;
-      const tGhi = t(gy.ngay), lan = (TU[p.id] || {}).lanKho || [];
+    /* 12/10 user: "bằng chứng WMS + camera người châm … không có ở bản live" — gợi ý của các lượt cò B1 CŨ không lưu bin/ngay
+       (64/100 phiếu mất mục này) ⇒ ghép theo giờ ghi nhận + mã vị trí ngắn (507-03-04-02 ↔ F0-A1-507-03-04-02) với khoá bộ đệm. */
+    const theoNgay = new Map(); for (const k of Object.keys(CW)) { const [b0, n0] = k.split("|"); if (!theoNgay.has(n0)) theoNgay.set(n0, []); theoNgay.get(n0).push(b0); }
+    for (const p of phieu) { const gy = goiY[p.id] || {};
+      const ngay = gy.ngay || String(p.ngayVP || ""), vt = String(p.viTri || "").trim();
+      const ngan = String(gy.bin || vt);   // gợi ý cũ còn ghi bin NGẮN "507-03-04-02" ⇒ ghép theo đuôi mã với khoá đầy đủ F0-A1-507-03-04-02
+      const bin = CW[ngan + "|" + ngay] ? ngan : (theoNgay.get(ngay) || []).find((b0) => b0 === ngan || b0.endsWith("-" + ngan) || b0 === vt || b0.endsWith("-" + vt));
+      if (!bin || !ngay) continue;
+      const rec = (CW[bin + "|" + ngay] || {}).rec; if (!rec) continue;
+      const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
       const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.at === r.at);
         return { at: r.at, ten: nv ? nv.ten : r.email, ma: nv ? nv.ma : "", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10,
           clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
-      p.lsKho = { bin: gy.bin, ghi: gy.ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
+      p.lsKho = { bin, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
 
   /* 07/10 luật VS-06 (cửa sổ bụi 8h) · VS-07 (camera đúng giờ nộp báo cáo): canh-b11 ⑤ ghi .exports/vesinh-xet.json mỗi lượt (0 lượt gọi thêm),

@@ -388,6 +388,8 @@ function canDong(tiep){
 }
 function setWh(w){ if (S.wh === w) w = ""; S.wh = w; render(); }
 function renderWhBar(){
+  /* 12/10 user bỏ hẳn bộ lọc Kho ("xấu quá" · không cần) — lọc kho vẫn bằng bấm thẻ/biểu đồ theo kho */
+  var el0 = $id("htWhBar"); if (el0) el0.innerHTML = ""; return;
   /* 12/10 user: bỏ dải chip "Lọc kho" — chuyển sang Ô CHỌN kiểu bộ lọc chung (nhãn + combo như Xác minh › Nhật ký) */
   var el = $id("htWhBar"); if (!el) return;
   var ws = {};

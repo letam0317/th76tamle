@@ -531,6 +531,8 @@ function render(){
 }
 /* Thanh chip lọc kho đầu tab: "Tất cả kho" + từng kho (chấm màu đồng bộ thẻ kho) */
 function renderWhBar(){
+  /* 12/10 user bỏ hẳn bộ lọc Kho ("xấu quá" · không cần) — lọc kho vẫn bằng bấm thẻ/biểu đồ theo kho */
+  var el0 = $id("hkWhBar"); if (el0) el0.innerHTML = ""; return;
   /* 12/10 user: bỏ dải chip "Trạng thái kiểm kê theo kho" — lọc kho chuyển sang Ô CHỌN kiểu bộ lọc chung (nhãn + combo như
      Xác minh › Nhật ký). Số phiếu theo kho nằm ngay trong lựa chọn. */
   var el = $id("hkWhBar"); if (!el) return;

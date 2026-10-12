@@ -975,7 +975,7 @@
   }
   // bộ đo qc-mobile-toan-du-an gọi các hàm này để mở đúng màn (mục 7 bộ chuẩn: phạm vi đo = phạm vi lời hứa)
   window.HXACMINH = { init: init, coDuLieu: function () { return !!D; },
-    sub: function (k) { if (!/^(treo|cam|tg)$/.test(k)) k = "treo"; SUB = k; TIM = ""; if (k === "cam") LOC.tt = "cho"; luu(); ve(); return true; },
+    sub: function (k) { if (!/^(treo|cam|tg)$/.test(k)) k = "treo"; if (typeof dongMoiPopup === "function") dongMoiPopup(); SUB = k; TIM = ""; if (k === "cam") LOC.tt = "cho"; luu(); ve(); return true; },
     moLuotDau: function () { var l = D && (D.luot.find(function (x) { return (x.buocAnh || []).some(function (b) { return (b.hop || []).length; }); }) || D.luot[0]); if (!l) return false; moLuot(l); return true; },
     moLuotId: function (id) { var l = D && D.luot.find(function (x) { return x.id === id; }); if (!l) return false; moLuot(l); return true; },
     moNVDau: function () { var x = D && D.nhanVien.find(function (y) { return y.viec.some(function (v) { return v.loai !== "dang-giu"; }); }); if (!x) return false; moNV(x, false); return true; } };

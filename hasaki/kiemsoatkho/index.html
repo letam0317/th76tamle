@@ -47,7 +47,7 @@
   try{
     var tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
     if(tb!=='planogram' || /khoa=/.test(location.hash||'')) return;
-    var V='20261012tk';   // PHẢI khớp s.src trong moHasakiPlanogram()
+    var V='20261012tk2';   // PHẢI khớp s.src trong moHasakiPlanogram()
     var l=document.createElement('link'); l.rel='preload'; l.as='script'; l.href='hasaki-planogram.js?v='+V; document.head.appendChild(l);
     var GAS='https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
     var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||''; }catch(e){}
@@ -1369,7 +1369,7 @@ body.side-anim{overflow-x:clip;}
 </style>
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
-<script src="hasaki-giaodien-antd.js?v=20261012n"></script>
+<script src="hasaki-giaodien-antd.js?v=20261012p"></script>
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -3184,7 +3184,37 @@ function renderTabs(){
   $('tabsNav').innerHTML = CTY[CTY_ID].tabs
     .map(t=>`<button class="tab" data-tab="${t}" role="tab">${TAB_DEFS[t].ten}</button>`).join('');
 }
+/* 12/10 user: "chọn sub-tab Theo máy mà pop-up ở Vi phạm vẫn còn hiển thị" — đổi tab/mục con thì ĐÓNG mọi pop-up đang mở
+   (host + module), dừng clip đang phát. */
+function dongMoiPopup(){
+  ['modal','statModal','hmModal','ghiModal','pinModal','lightbox'].forEach(id=>{ const m=$(id); if(m && m.classList.contains('show')){
+    m.querySelectorAll('video').forEach(v=>{ try{ v.pause(); }catch(e){} }); m.classList.remove('show'); } });
+  document.querySelectorAll('.hp-modal.show,.hk-modal.show,.ht-modal.show').forEach(m=>{ m.querySelectorAll('video').forEach(v=>{ try{ v.pause(); }catch(e){} }); m.classList.remove('show'); });
+  document.body.classList.remove('modal-open');
+}
+/* ===== 12/10 LUẬT 14 TỰ ĐỘNG — "GHÉT NHẤT LÀ LẶP LẠI THÔNG TIN ĐÃ CÓ" (user) =====
+   Bảng trong pop-up (host + module) mà cột LẶP ĐƯỢC (Kho/Warehouse) của MỌI dòng đang hiện cùng một giá trị ⇒ ẩn cột đó;
+   giá trị đã nằm ở tiêu đề pop-up thì thôi, chưa có thì ghi lên tiêu đề 1 lần (biến mất im lặng = mất dữ liệu).
+   Chạy tự động mỗi khi thân pop-up vẽ lại — module mới KHÔNG phải nhớ gọi. Không gộp SKU/UID/số lượng. */
+var COT_DON_TRI=/^(kho|warehouse)$/i;
+function anCotDonTri(tb){
+  if(!tb||!tb.tHead||!tb.tBodies[0]) return;
+  var ths=[].slice.call(tb.tHead.rows[0]?tb.tHead.rows[0].cells:[]), rows=[].slice.call(tb.tBodies[0].rows).filter(function(r){ return r.cells.length>1; });
+  ths.forEach(function(th,i){
+    if(!COT_DON_TRI.test(th.textContent.trim())) return;
+    var vals=rows.map(function(r){ return r.cells[i]?r.cells[i].textContent.trim():""; });
+    var don=rows.length>0 && vals[0] && vals.every(function(v){ return v===vals[0]; });
+    th.style.display=don?"none":""; rows.forEach(function(r){ if(r.cells[i]) r.cells[i].style.display=don?"none":""; });
+    if(!don) return;
+    var md=tb.closest('.hk-modal,.ht-modal,.hp-modal,#modal,#statModal'), tt=md&&md.querySelector('.mt,#mTitle,#statTitle,h2');
+    if(tt && tt.textContent.indexOf(vals[0])<0 && !tt.querySelector('.don-tri')) tt.insertAdjacentHTML('beforeend',' <span class="don-tri muted" style="font-weight:400">· '+esc(vals[0])+'</span>');
+  });
+}
+(function(){ var hen=null; try{ new MutationObserver(function(ms){ if(hen) return; hen=setTimeout(function(){ hen=null;
+    document.querySelectorAll('.hk-modal.show table,.ht-modal.show table,.hp-modal.show table,#modal.show table,#statModal.show table').forEach(anCotDonTri); },60); })
+  .observe(document.body,{childList:true,subtree:true}); }catch(e){} })();
 function setTab(name){
+  dongMoiPopup();
   if(!CTY[CTY_ID].tabs.includes(name)) name = tabMacDinh();   // tab không thuộc công ty -> về mặc định
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   Object.keys(TAB_DEFS).forEach(n=>{
@@ -3260,7 +3290,7 @@ function moHasakiTonbat(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _htNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-tonbatthuong.js?v=20261012tk';
+      const s=document.createElement('script'); s.src='hasaki-tonbatthuong.js?v=20261012tk2';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-tonbatthuong.js'));
       document.body.appendChild(s);
     });
@@ -3276,7 +3306,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20261012tk';   // khớp V ở <head>
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20261012tk2';   // khớp V ở <head>
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -3289,7 +3319,7 @@ function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261012tk';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261012tk2';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3305,7 +3335,7 @@ function moHasakiKiemke(){
       '<div class="sk sk-line" style="width:68%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _hkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261012tk';
+      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261012tk2';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-kiemke.js'));
       document.body.appendChild(s);
     });

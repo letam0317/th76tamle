@@ -76,6 +76,11 @@
     H + " .panel{border:1px solid var(--ad-chia);border-radius:8px;box-shadow:none}",
     H + " .panel-head{min-height:56px;padding:8px 24px;border-bottom:1px solid var(--ad-chia);font-size:16px;font-weight:600;line-height:24px}",
     H + " .panel-head #dem{font-size:14px;color:var(--muted)}",
+    /* 12/10 user: "đồng bộ kích thước giữa các nhãn hạng mục (Nhân viên ngày 11/10 · Sơ đồ · Cần xử lý…) cho toàn bộ dự án" —
+       MỌI tiêu đề thẻ (host .panel-head, module .hp/.hk/.ht-panel > h2, Factory .panel > h2) = Card title antd 16px/600/24px;
+       tiêu đề trang (Xác minh .hx-muc h2) = 20px/600. !important vì luật module viết theo #pane-… (id thắng lớp). */
+    H + " :is(.panel,.hp-panel,.hk-panel,.ht-panel) > h2," + H + " .panel-head{font-size:16px !important;font-weight:600 !important;line-height:24px !important;letter-spacing:0 !important}",
+    H + " .hx-muc h2{font-size:20px !important;font-weight:600 !important;line-height:28px}",
     H + " .card{border:1px solid var(--ad-chia);border-radius:8px;box-shadow:none;padding:16px 24px}",
     H + " .card .num{font-size:24px;font-weight:500;line-height:32px;font-variant-numeric:tabular-nums}",
     H + " .card .cap{font-size:12px;color:var(--muted);margin-top:4px}",
@@ -146,6 +151,8 @@
     H + " .settings-pop{border:0;border-radius:8px;box-shadow:" + BONG2 + ";padding:16px;gap:16px}",
     H + " .set-h{font-size:12px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--muted)}",
     H + " .modal-box{border:0;border-radius:8px;box-shadow:" + BONG2 + "}",
+    /* 12/10 user: pop-up bị thanh bên đè — mọi pop-up (host z 50, module z 1200) phải NẰM TRÊN thanh bên (60/61) */
+    H + " :is(#modal,#statModal,#hmModal,#ghiModal,#pinModal){z-index:90}" + H + " #lightbox{z-index:95}",   // ảnh phóng mở TỪ pop-up thì phải nằm trên pop-up
     H + " #btnSettings{border-color:transparent;box-shadow:none;width:32px;height:32px;padding:0}",
     H + " #btnSettings:hover{background:var(--ad-re);border-color:transparent}",
     H + " #btnSettings .bars," + H + " #btnSettings .bars::before," + H + " #btnSettings .bars::after{background:var(--text);width:16px}",
@@ -182,6 +189,19 @@
     "@media(min-width:769px){" +
       H + " body.side-open .wrap{padding-left:224px}" +
       H + " body.side-open #sideToggle{translate:200px 0}" +
+    "}",
+    /* ---- 12/10 user: "thanh bên khi thu gọn thì chuyển tên các sub-tab thành nhãn" — máy tính: thu gọn = DẢI 72px (Sider collapsed của antd),
+       mỗi mục là nhãn chữ nhỏ 2 dòng canh giữa, nhóm thành vạch ngăn, logo chỉ còn hình. Điện thoại giữ ngăn kéo (không đủ chỗ cho dải). ---- */
+    "@media(min-width:769px){" +
+      H + " body:not(.side-open) #sideNav{transform:none;width:72px;padding:64px 4px 16px;overflow-x:hidden}" +
+      H + " body:not(.side-open) #sideNav .s-grp{font-size:0;height:1px;padding:0;margin:8px 12px;background:var(--ad-chia)}" +
+      H + " body:not(.side-open) #sideNav .s-sub{gap:2px}" +
+      H + " body:not(.side-open) #sideNav .s-item{flex-direction:column;justify-content:center;gap:0;height:auto;min-height:48px;padding:6px 2px;margin:0 2px;" +
+        "font-size:11px;line-height:14px;text-align:center;white-space:normal;overflow-wrap:anywhere}" +
+      H + " body:not(.side-open) #sideNav .s-item .sn{display:none}" +
+      H + " body:not(.side-open) #adLogo{transform:none;visibility:visible;width:72px;padding:0;justify-content:center;font-size:0;gap:0}" +
+      H + " body:not(.side-open) .wrap{padding-left:96px}" +
+      H + " body:not(.side-open) #sideToggle{translate:72px 0}" +
     "}",
 
     /* ---- máy tính: kích thước control 32px + bảng cỡ vừa (antd size="middle") ---- */
