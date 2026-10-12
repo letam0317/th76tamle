@@ -1084,6 +1084,8 @@ body.side-open #sideNav{transform:none;}
 #sideToggle:hover{background:var(--accent-hover,var(--accent));box-shadow:0 4px 14px rgba(0,0,0,.2);}
 #sideToggle:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent),0 2px 8px rgba(0,0,0,.14);}
 body.side-open #sideToggle{translate:186px 0;}
+/* 10/10 QC tab Xác minh: nút mở thanh bên (z 61) đè góc MỌI pop-up (z 50) trên điện thoại → ẩn khi có pop-up/ảnh phóng mở */
+body:has(#modal.show,#statModal.show,#hmModal.show,#ghiModal.show,#pinModal.show,#lightbox.show) #sideToggle{opacity:0;pointer-events:none;}
 @supports not (translate:1px 0){   /* trình duyệt cũ: quay về `left` (có giật nhẹ nhưng không lệch chỗ) */
   #sideToggle{transition:left .32s var(--ez-apple),background-color .2s var(--ez-apple),box-shadow .2s var(--ez-apple);}
   body.side-open #sideToggle{left:193px;}
@@ -3204,12 +3206,12 @@ function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261005tu01';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261010qc4';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
   }
-  _hxNap.then(()=>window.HXACMINH && window.HXACMINH.init(pane))
+  _hxNap.then(()=>{ window.HXACMINH && window.HXACMINH.init(pane); })
     .catch(e=>{ _hxNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
 }
 let _hkNap=null;
@@ -3766,8 +3768,10 @@ $('btnFilter').addEventListener('click',()=>{
 });
 
 /* ===== CUSTOM DROPDOWN: nâng cấp <select> -> div/ul/li animate được ===== */
+/* 10/10 RÒ BỘ NHỚ (đo tab Xác minh: +6.500 nút DOM, +400 listener mỗi 3 lần đổi mục): mảng giữ CỨNG mọi ô chọn đã làm đẹp
+ * ⇒ ô chọn của bộ lọc đã bị vẽ lại vẫn kéo theo cả cây bảng cũ. Giữ YẾU (WeakRef): ô đã gỡ khỏi trang được dọn, hành vi đóng ô khác không đổi. */
 const CS_ALL=[];
-function csDongHet(tru){ CS_ALL.forEach(w=>{ if(w!==tru) w.classList.remove('show'); }); }
+function csDongHet(tru){ for(let i=CS_ALL.length-1;i>=0;i--){ const w=CS_ALL[i].deref?CS_ALL[i].deref():CS_ALL[i]; if(!w||!w.isConnected&&CS_ALL[i].deref){ CS_ALL.splice(i,1); continue; } if(w!==tru) w.classList.remove('show'); } }
 function enhanceSelect(sel){
   if(!sel || sel._csDone) return; sel._csDone=true;
   const wrap=document.createElement('div'); wrap.className='cs';
@@ -3788,7 +3792,7 @@ function enhanceSelect(sel){
   const dong=()=>{ wrap.classList.remove('show'); trig.setAttribute('aria-expanded','false'); };
   trig.addEventListener('click', e=>{ e.stopPropagation(); wrap.classList.contains('show') ? dong() : mo(); });
   sel.addEventListener('change', dongBo);
-  wrap._csDongBo=dongBo; wrap._csDong=dong; CS_ALL.push(wrap); dongBo();
+  wrap._csDongBo=dongBo; wrap._csDong=dong; CS_ALL.push(typeof WeakRef==='function'?new WeakRef(wrap):wrap); dongBo();
 }
 function csDongBo(id){ const s=$(id); if(s && s._csWrap) s._csWrap._csDongBo(); }
 // Click ra ngoài -> đóng mọi dropdown mượt
@@ -3843,7 +3847,7 @@ document.addEventListener('click', ()=>csDongHet(null));
   var HM = [
     { g: "Hạng mục 5S",   items: [["tong","Tổng quan"],["task","Task vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
     /* 05/10 user chọn kiểu A: mục con Xác minh nằm ở thanh bên (thay dải chip trong tab). Chỉ hiện trên máy có máy chủ 8591. */
-    { g: "Xác minh", hx: 1, items: [["xacminh","Theo phiếu","treo"],["xacminh","Máy tự bắt","cam"],["xacminh","Khu giấy · rác","khu"],["xacminh","Nhắc QLTT","nhac"],["xacminh","Nhân viên","nv"]] },
+    { g: "Xác minh", hx: 1, items: [["xacminh","Theo phiếu","treo"],["xacminh","Máy tự bắt","cam"],["xacminh","Nhắc QLTT","nhac"],["xacminh","Nhân viên","nv"],["xacminh","Máy đã làm gì","tg"]] },
     { g: "Hạng mục Tồn kho", items: [["kk","Kiểm kê"],["htonbat","Tồn kho bất thường"]] }
   ];
   var nav = document.getElementById("sideNav"), tg = document.getElementById("sideToggle"), bd = document.getElementById("sideBackdrop");
@@ -3950,6 +3954,10 @@ function tipMuc(txt, lop){
     '" aria-label="Chú thích: ' + tipEsc(String(txt).slice(0, 120)) +
     '" data-tip="' + tipEsc(txt) + '">' + TIP_KYHIEU + "</button>";
 }
+</script>
+<script>
+/* 12/10 giao diện thử theo Ant Design: CHỈ bản QC (localhost:8123) hoặc ?giaodien=antd — live không đổi */
+if(location.port==='8123'||/[?&]giaodien=antd/.test(location.search)){ var _ad=document.createElement('script'); _ad.src='hasaki-giaodien-antd.js?v=20261012h'; document.body.appendChild(_ad); }
 </script>
 </body>
 </html>

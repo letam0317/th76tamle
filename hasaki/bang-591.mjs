@@ -21,6 +21,8 @@
 import fs from "node:fs"; import path from "node:path"; import http from "node:http"; import os from "node:os"; import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { chuanTuSau } from "./tu-ngu.mjs";
+import { docSo, TEN_BO } from "./so-tac-gia.mjs";
+import { dangNhap, kiemPhien, dangXuat } from "./xacminh-dang-nhap.mjs";   // 12/10 user: phần Xác minh phải có tài khoản + mật khẩu   // 12/10 sổ tác giả: cò/script nào đã tạo phiếu · bình luận · ảnh (chỉ đọc tệp trên máy)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
@@ -83,7 +85,7 @@ function gom() {
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,
       giaiTrinh: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Giải trình:"), xacNhan: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Xác nhận lỗi:"),
-      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo } : null,
+      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", nv: (gy.nv || []).filter((n) => n && n.code).map((n) => ({ ten: n.ten, ma: n.code })) } : null,   // 10/10 QC giao diện cũ: nhãn độ chắc phải đúng (A1-01/TB-03 = VỪA, không phải «chắc chắn»)
       /* 05/10 user "kết quả đã ghi sheet → đưa lên dashboard": kết quả xác minh camera/WMS + quyết định B1 */
       xm: (() => { const v = XM[id]; if (!v) return null; const g = (k) => String(v[Object.keys(v).find((x) => x.includes(k)) || ""] || "");
         return { nghi: g("NV nghi"), goiY: g("Gợi ý"), camera: g("Camera"), daXuLy: g("Đã xử lý"), clip: g("Clip") }; })(),
@@ -186,12 +188,40 @@ function gom() {
         if (v.truy && v.truy.clip) { o.clipMay = "may/" + v.truy.clip; o.truy = v.truy; o.clipInfo = { batDau: lui(String(v.truy.tu).replace("T", " "), 20), suKien: [{ t: String(v.truy.tu).replace("T", " "), chu: "Mốc cuối CHƯA có đồ vật (bạn chọn trên dải)" }, { t: String(v.truy.den).replace("T", " "), chu: "Mốc đầu ĐÃ có đồ vật" }] }; o.chu = `Clip lúc đồ vật xuất hiện ${String(v.truy.tu).slice(5, 16).replace("T", " ")}–${String(v.truy.den).slice(11, 16)} (${v.truy.kenh})`; }   // 05/10: thu hẹp xong = BẰNG CHỨNG ai tác động
         continue; }   // lúc chụp ảnh: chỉ góc nhìn, KHÔNG phải bằng chứng người làm
       (v.anh || []).forEach((a) => o.anh.push("may/" + a)); if (v.chu) o.chu = v.chu; if (v.kenh) o.kenh = v.kenh; if (v.clip) o.clipMay = "may/" + v.clip;
-      if (v.clip && v.luc) o.clipInfo = { batDau: lui(v.luc, 20), suKien: [{ t: lui(v.luc, 0), chu: "Hệ thống kho ghi nhận: " + String(v.chu || "").replace(/^Khung camera đúng giờ hệ thống kho: /, "") }] }; }
+      if (v.clip && v.luc) o.clipInfo = { batDau: lui(v.luc, 20), suKien: [{ t: lui(v.luc, 0), chu: "Hệ thống kho ghi nhận: " + String(v.chuKho || v.chu || "").replace(/^Khung camera đúng giờ hệ thống kho: /, "") }] }; }
     for (const o of Object.values(m)) { o.clip.sort((a, b) => (/CHUAN|NOI/.test(b) - /CHUAN|NOI/.test(a)) || b.localeCompare(a)); o.clip = o.clip.slice(0, 1); o.anh = o.anh.slice(0, 4); }
     return m; })();
   for (const p of phieu) { const b = BC[p.id]; const enc = (f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/");
     if (b && b.chup) p.bcChup = { clipInfo: b.chup.clipInfo, anh: b.chup.anh.map(enc), clip: b.chup.clip ? enc(b.chup.clip) : "", chu: b.chup.chu, lui: b.chup.lui ? enc(b.chup.lui) : "", luiMoc: b.chup.luiMoc, luiCo: b.chup.luiCo, luc: b.chup.luc };
     if (b && (b.clip.length || b.anh.length || b.clipMay)) p.bc = { clip: (b.clip.length ? b.clip : b.clipMay ? [b.clipMay] : []).map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), clipTho: !b.clip.length && !!b.clipMay, truy: b.truy || null, clipInfo: !b.clip.length ? b.clipInfo || null : null, anh: b.anh.map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), chu: b.chu || "", kenh: b.kenh || "" }; }
+
+  /* 12/10 user: "bổ sung bằng chứng truy vấn được ở WMS — lịch sử chuyển vị trí … lỗi lộn xộn thì người phụ trách kệ có khả năng chịu
+     trách nhiệm, đồng thời người châm cũng có khả năng … hiển thị theo thứ tự gần thời gian ghi nhận nhất về trước".
+     Nguồn: .cache-canh-b1.json (cò B1 đã tra WMS transfer-bins, châm vào ô 72h trước ảnh — 0 lượt gọi thêm) + clip từng lượt
+     (bang-chung-b1.json lanKho, tim-bang-chung-b1.mjs cắt quanh giờ TẠO lệnh). */
+  { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
+    const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
+    const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" };
+    for (const p of phieu) { const gy = goiY[p.id]; if (!gy || !gy.bin || !gy.ngay) continue;
+      const rec = (CW[gy.bin + "|" + gy.ngay] || {}).rec; if (!rec) continue;
+      const tGhi = t(gy.ngay), lan = (TU[p.id] || {}).lanKho || [];
+      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.at === r.at);
+        return { at: r.at, ten: nv ? nv.ten : r.email, ma: nv ? nv.ma : "", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10,
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
+      p.lsKho = { bin: gy.bin, ghi: gy.ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
+        phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
+
+  /* 07/10 luật VS-06 (cửa sổ bụi 8h) · VS-07 (camera đúng giờ nộp báo cáo): canh-b11 ⑤ ghi .exports/vesinh-xet.json mỗi lượt (0 lượt gọi thêm),
+     camera-bao-cao.mjs ghi .exports/cam-baocao/<id>/ket-qua.json + ảnh soi nội bộ soi-*.jpg (KHÔNG phải bằng chứng gắn phiếu). */
+  const XET = docJ(path.join(EXP, "vesinh-xet.json"), { phieu: {} });
+  const gioVN = (ms) => (ms ? new Date(ms + 7 * 36e5).toISOString().slice(0, 16).replace("T", " ") : "");
+  for (const p of phieu) { const x = XET.phieu[p.id]; if (!x) continue;
+    const kq = docJ(path.join(EXP, "cam-baocao", String(p.id), "ket-qua.json"), null);
+    let soi = []; try { soi = fs.readdirSync(path.join(EXP, "cam-baocao", String(p.id))).filter((f) => /^soi-.*\.jpg$/i.test(f)).sort().reverse().slice(0, 1).map((f) => "/cs/" + p.id + "/" + f); } catch { /* chưa có */ }
+    p.vs = { ketLuan: x.ketLuan, hanhDong: x.hanhDong, phuTrach: x.phuTrach, bc: x.bc, cachGioBc: x.cachGioBc, trongCuaSoBui: x.trongCuaSoBui, cuaSoGio: x.cuaSoGio, ngayXet: x.ngayXet,
+      bui: !!x.bui, buiLuc: gioVN(x.bui), camSo: x.cam || null, camLuc: gioVN(x.cam && x.cam.luc),
+      cam: kq ? { ketLuan: kq.ketLuan, tong: kq.tongCoMatGiay || kq.coMatGiay || 0, tu: kq.coMatTu || kq.batDau || "", kenh: kq.tenKenh || kq.kenh || "", daKiem: !!kq.roiDaKiem, cachDo: kq.cachDo || "", luc: kq.luc || "", soi } : null, xetLuc: XET.luc || null };
+  }
 
   const phanCong = (() => {
     const pc = docJ(path.join(EXP, "phan-cong-khu-giay.json"), { ngay: {} }), ra = [];
@@ -210,9 +240,17 @@ function gom() {
     return { ds: ra, capNhat: pc.capNhat || null, viTri: pc.viTri || {} };
   })();
 
+  /* 12/10 sổ tác giả: phiếu do bộ nào tạo (60 ngày) + nhật ký 14 ngày cho mục «Máy đã làm gì» */
+  const tacGia = (() => {
+    const ai = (n) => (n ? [n.ten ? n.ten + (n.ma ? " (" + n.ma + ")" : "") : "", n.may && n.may !== n.ten ? "máy: " + n.may : ""].filter(Boolean).join(" · ") || "chưa rõ" : "");
+    const tao = new Map(); for (const d of docSo(60, 20000)) if (d.hd === "Tạo phiếu" && d.phieu && !tao.has(d.phieu)) tao.set(d.phieu, d);
+    for (const p of phieu) { const d = tao.get(String(p.id)); if (d) { p.mayTao = d.ten; if (d.nguoiThat) p.nguoiGui = ai(d.nguoiThat); } }
+    return { ds: docSo(14, 2000).map((d) => ({ t: d.t, ten: d.ten, chuoi: String(d.chuoi || "").split(" › ").map((x) => TEN_BO[x] || x).join(" › "), cach: d.cach, may: d.may, hd: d.hd, phieu: d.phieu || "", doan: !!d.doan,
+      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false })) };
+  })();
   const tuoi = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
   const data = { capNhat: new Date().toISOString(), nguon: { tasks: c.updatedAt || null, camera: ngays[0] || null, goiY: tuoi(path.join(EXP, "canh-b1-ketqua.json")) || null },
-    QD, QD_B1, phieu, luot, nhanVien, nhac, phanCong };
+    QD, QD_B1, phieu, luot, nhanVien, nhac, phanCong, tacGia };
   DEM = { at: Date.now(), data }; return data;
 }
 
@@ -250,12 +288,29 @@ const sv = http.createServer(async (q, s) => {
   const lai = (goc && !NGUON_OK.test(goc)) || (q.headers["sec-fetch-site"] === "cross-site" && !NGUON_OK.test(goc || gocRef));
   if (lai && q.url !== "/" ) { s.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" }); return s.end("chỉ trang Audit Hasaki của chủ máy được đọc"); }
   if (NGUON_OK.test(goc)) {
- s.setHeader("Access-Control-Allow-Origin", goc); s.setHeader("Vary", "Origin"); s.setHeader("Access-Control-Allow-Headers", "content-type,x-khoa"); s.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS"); }
+ s.setHeader("Access-Control-Allow-Origin", goc); s.setHeader("Vary", "Origin"); s.setHeader("Access-Control-Allow-Headers", "content-type,x-khoa,x-hx-phien"); s.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS"); }
   if (q.headers["access-control-request-private-network"]) s.setHeader("Access-Control-Allow-Private-Network", "true");
   if (q.method === "OPTIONS") { s.writeHead(204); return s.end(); }
   try {
     const u = new URL(q.url, "http://x"), p = decodeURIComponent(u.pathname);
     if (p.startsWith("/api/") || p.startsWith("/anh/") || p.startsWith("/video/") || p.startsWith("/bc/") || p === "/thu") { if (!hopLe(q)) return guiJ(s, 403, { loi: "thiết bị chưa được cấp quyền" }); }
+    /* 12/10 ĐĂNG NHẬP: mọi dữ liệu Xác minh (api, ảnh, clip, bằng chứng) cần phiên hợp lệ khi yêu cầu đến từ TRÌNH DUYỆT.
+       Script chạy trên chính máy này (node fetch: không Origin/Referer, không UA Mozilla) được miễn — tiến trình nội bộ vốn đọc
+       thẳng được .exports trên đĩa, chặn nó không thêm an toàn mà làm gãy tim-bang-chung-b1 (task theo lịch). Từ LAN luôn phải đăng nhập. */
+    const trinhDuyet = !!(q.headers.origin || q.headers.referer || /Mozilla/.test(q.headers["user-agent"] || ""));
+    const noiBo = q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.socket.remoteAddress === "::ffff:127.0.0.1";
+    const phien = String(q.headers["x-hx-phien"] || u.searchParams.get("phien") || "");
+    if (p === "/api/dang-nhap" && q.method === "POST") {
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
+      const kq = dangNhap(o.email, o.matKhau);
+      log(kq.phien ? "đăng nhập Xác minh: " + kq.email : "đăng nhập Xác minh SAI: " + String(o.email || "").slice(0, 60));
+      return kq.phien ? guiJ(s, 200, kq) : guiJ(s, kq.code, { loi: kq.loi });
+    }
+    if (p === "/api/dang-xuat" && q.method === "POST") { dangXuat(phien); return guiJ(s, 200, { ok: 1 }); }
+    const canPhien = (p.startsWith("/api/") && p !== "/api/ping") || p.startsWith("/anh/") || p.startsWith("/video/") || p.startsWith("/bc/") || p.startsWith("/cs/") || p === "/thu";
+    if (canPhien && (trinhDuyet || !noiBo) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
+    if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
     if (p === "/api/ping") return guiJ(s, 200, { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
@@ -339,10 +394,15 @@ const sv = http.createServer(async (q, s) => {
         if (/^https:\/\/hr-media\.hasaki\.vn\//.test(nguon)) { try { const r = await fetch(nguon, { signal: AbortSignal.timeout(20000) }); if (r.ok) buf = Buffer.from(await r.arrayBuffer()); } catch { /* */ } }
         else if (nguon.startsWith("/bc/")) { const g = path.resolve(GOC_BC, decodeURIComponent(nguon.slice(4))); if (g.startsWith(path.resolve(GOC_BC)) && fs.existsSync(g) && /\.jpg$/i.test(g)) buf = fs.readFileSync(g); }
         else if (nguon.startsWith("/anh/")) { const g = path.resolve(GOC, decodeURIComponent(nguon.slice(5))); if (g.startsWith(path.resolve(GOC)) && fs.existsSync(g)) buf = fs.readFileSync(g); }
+        else if (nguon.startsWith("/cs/")) { const CS = path.join(EXP, "cam-baocao"), g = path.resolve(CS, decodeURIComponent(nguon.slice(4))); if (g.startsWith(path.resolve(CS)) && fs.existsSync(g) && /\.jpg$/i.test(g)) buf = fs.readFileSync(g); }   // 07/10 ảnh soi camera giờ báo cáo
         if (!buf) { s.writeHead(404); return s.end(); }
         try { const sharp = (await import("sharp")).default; await sharp(buf).rotate().resize(320, 200, { fit: "cover" }).jpeg({ quality: 72 }).toFile(f); } catch { s.writeHead(415); return s.end(); }
       }
       s.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "max-age=86400" }); return fs.createReadStream(f).pipe(s);
+    }
+    if (p.startsWith("/cs/")) {   // 07/10: ảnh soi nội bộ của camera-bao-cao (.exports/cam-baocao/<id>/soi-*.jpg) — chỉ jpg, chỉ để xem trên dashboard
+      const CS = path.join(EXP, "cam-baocao"), f = path.resolve(CS, decodeURIComponent(p.slice(4))); if (!f.startsWith(path.resolve(CS)) || !fs.existsSync(f) || !/\.jpg$/i.test(f)) { s.writeHead(404); return s.end(); }
+      s.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": fs.statSync(f).size, "Cache-Control": "max-age=300" }); return fs.createReadStream(f).pipe(s);
     }
     if (p.startsWith("/bc/")) {   // bằng chứng phiếu trong Videos/5S-bang-chung (clip có tua · ảnh)
       const f = path.resolve(GOC_BC, p.slice(4)); if (!f.startsWith(path.resolve(GOC_BC)) || !fs.existsSync(f) || !/\.(webm|mp4|jpg)$/i.test(f)) { s.writeHead(404); return s.end(); }

@@ -35,6 +35,7 @@ import path from "node:path"; import fs from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import puppeteer from "puppeteer";
 import { EDGE_PATH } from "./token-store.js";
+import { phienQC } from "./xacminh-dang-nhap.mjs"; const PHIEN_QC = phienQC();   // 12/10 phần Xác minh cần đăng nhập — bộ đo tự cấp phiên 1 giờ
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(DIR, ".exports", "qc-mobile-toan-du-an");
@@ -432,9 +433,6 @@ const TRANG = [
       { ten: "Xác minh › Nhắc QLTT",   // 05/10 thêm cùng lúc dựng mục (cần nhắc · đã nhắc · ai · ở đâu · kết quả)
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('nhac'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
-      { ten: "Xác minh › Khu giấy · rác",   // 05/10 phân công khu giấy theo ngày (luật PL-01) + ảnh mốc camera (PL-03)
-        mo: "() => { setTab('xacminh'); return true; }",
-        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('khu'); return document.querySelectorAll('#pane-xacminh .hx-khu .panel').length > 0; }" },
       { ten: "Pop-up Quyết định phiếu B1 (Xác minh)",   // 05/10 thêm cùng lúc dựng pop-up
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show #qdLuu')){ HXACMINH.sub('treo'); var b=document.querySelector('#pane-xacminh [data-qd]'); if(b) b.click(); return false; } return true; }",
@@ -816,10 +814,11 @@ for (const may of MAY) {
     const p = await b.newPage();
     await p.setUserAgent(may.ua);
     await p.setViewport({ width: may.w, height: may.h, deviceScaleFactor: may.dsf, isMobile: true, hasTouch: true });
-    await p.evaluateOnNewDocument((plat) => {
+    await p.evaluateOnNewDocument((plat, hx) => {
       try { Object.defineProperty(navigator, "platform", { get: () => plat }); } catch (e) { /* bỏ qua */ }
       try { localStorage.setItem("pc-key", "qc-test-key"); } catch (e) {}
-    }, may.plat);
+      try { if (hx) localStorage.setItem("hx-phien", hx); } catch (e) {}
+    }, may.plat, PHIEN_QC);
     const conLoi = [];
     p.on("console", (m) => { if (m.type() === "error") conLoi.push(m.text().slice(0, 120)); });
     p.on("pageerror", (e) => conLoi.push("pageerror: " + e.message.slice(0, 120)));

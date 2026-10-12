@@ -34,7 +34,9 @@ const FILES = [
   ["kiemsoatkho/hasaki-tonbatthuong.js", "hasaki-tonbatthuong.js"], // module tab Tồn kho bất thường HASAKI (lazy-load)
   ["kiemsoatkho/hasaki-planogram.js", "hasaki-planogram.js"], // module tab Planogram HASAKI (lazy-load, đọc tab PHU-TRACH-QUAY-KE)
   ["kiemsoatkho/hasaki-kiemke.js", "hasaki-kiemke.js"],     // module tab Kiểm kê HASAKI (lazy-load, nhân bản từ Audit Factory)
-  ["kiemsoatkho/hasaki-pc.js", "hasaki-pc.js"],             // module DÙNG CHUNG: giỏ chọn SKU -> tạo lệnh kiểm kê .xlsx + Kế hoạch chờ push (lazy-load)
+  ["kiemsoatkho/hasaki-pc.js", "hasaki-pc.js"],
+  ["kiemsoatkho/hasaki-xacminh.js", "hasaki-xacminh.js"],   // tab Xác minh (12/10) — chỉ hiện ở máy có máy chủ 8591, phải đăng nhập; dữ liệu KHÔNG lên mạng
+  ["kiemsoatkho/hasaki-giaodien-antd.js", "hasaki-giaodien-antd.js"],   // lớp giao diện thử Ant Design — chỉ bật khi link có ?giaodien=antd             // module DÙNG CHUNG: giỏ chọn SKU -> tạo lệnh kiểm kê .xlsx + Kế hoạch chờ push (lazy-load)
   ["kiemsoatkho/kho170-sodo.js", "kho170-sodo.js"],         // dữ liệu SƠ ĐỒ MẶT BẰNG kho 170 (bê từ bản vẽ CAD) — hasaki-planogram.js nạp lười khi bấm "Mặt bằng thật"
   ["kiemsoatkho/kho170-3d.html", "kho170-3d.html"],         // mô phỏng 3D kho 170 — nút "Mô phỏng 3D" ở tiêu đề Sơ đồ khu vực (28/09)
   ["kiemsoatkho/kho170-thongso.js", "kho170-thongso.js"],   // số đo kho cho trang 3D
