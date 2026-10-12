@@ -1073,12 +1073,12 @@ body.side-open #sideNav{transform:none;}
 #sideNav .s-sub.s-dau{margin-top:0;}
 /* ===== 12/10 TRANG TỔNG QUAN (khuôn trang Tổng quan Audit Factory) — MỘT panel + MỘT lưới, tiêu đề nhóm trọn bề ngang.
    Thẻ là <button> thật (focus ring, Enter); màu qua biến theme. Tiền tố ov- (hm- đã dùng cho tab Quy định). */
-.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:12px;align-items:start;padding:16px}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:12px;align-items:stretch;padding:16px}   /* 12/10 user: các ô CÙNG cỡ — kéo giãn bằng ô cao nhất hàng */
 .ov-h{grid-column:1/-1;display:flex;align-items:baseline;gap:9px;font-size:14px;font-weight:600;color:var(--text);padding:12px 2px 0}
 .ov-h:first-child{padding-top:0}
 .ov-h::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--accent);flex:none;align-self:center}
 .ov-h .muted{font-weight:400;font-size:12px}
-.ov-card{--cc:var(--accent);display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;font:inherit;color:var(--text);
+.ov-card{--cc:var(--accent);display:flex;flex-direction:column;gap:8px;width:100%;height:100%;min-height:196px;text-align:left;font:inherit;color:var(--text);
   background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--cc);border-radius:8px;padding:14px 16px;cursor:pointer;
   animation:fadeUp .3s ease both;transition:box-shadow .2s ease,border-color .2s ease}
 .ov-card:hover{box-shadow:0 1px 2px -2px rgba(0,0,0,.16),0 3px 6px 0 rgba(0,0,0,.12),0 5px 12px 4px rgba(0,0,0,.09);background:var(--surface)}
@@ -1088,8 +1088,9 @@ body.side-open #sideNav{transform:none;}
 .ov-t .k small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:2px}
 .ov-t .k.trong{color:var(--muted);font-weight:400}
 .ov-t .k.nhan{font-size:12px;font-weight:600;color:var(--muted)}
-.ov-d{font-size:14px;color:var(--muted);line-height:1.57}
-.ov-c{display:flex;flex-wrap:wrap;gap:6px}
+.ov-d{font-size:14px;color:var(--muted);line-height:22px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:66px}
+.ov-c{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}   /* chip luôn ở đáy ô — ô cao bằng nhau thì chip thẳng hàng */
+.ov-t{min-height:48px}
 .ov-c span{font-size:12px;line-height:20px;padding:0 8px;border-radius:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
 @media(max-width:640px){ .ov-grid{grid-template-columns:1fr;padding:12px} .ov-card{min-height:44px} }
 
@@ -1368,7 +1369,7 @@ body.side-anim{overflow-x:clip;}
 </style>
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
-<script src="hasaki-giaodien-antd.js?v=20261012k"></script>
+<script src="hasaki-giaodien-antd.js?v=20261012n"></script>
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -3348,7 +3349,15 @@ var HOME_MUC = [
   ]}
 ];
 function nf0(n){ return Number(n||0).toLocaleString("vi-VN"); }
-function homeVeLai(){ var p=$('pane-home'); if(p && !p.classList.contains('hidden')) homeRender(); }
+function homeVeLai(){ var p=$('pane-home'); if(p && !p.classList.contains('hidden')) homeRender(); soThanhBen(); }
+/* 12/10 user: thanh bên "mục con có số" — số của mỗi mục = đúng số trên thẻ Tổng quan (HOME_MUC.so, chỉ đọc bộ nhớ). Mục con Xác minh
+   (data-sub) giữ số riêng do module Xác minh ghi. */
+function soThanhBen(){
+  HOME_MUC.forEach(function(g){ g.items.forEach(function(it){ if(it.sub) return;
+    var el=document.querySelector('#sideNav .s-item[data-tab="'+it.t+'"]:not([data-sub]) .sn'); if(!el) return;
+    var s=null; try{ s=it.so?it.so():null; }catch(e){}
+    el.textContent = s ? s.k : ""; el.title = s ? s.l : ""; }); });
+}
 function homeRender(){
   var el=$('pane-home'); if(!el) return;
   var daDN=false; try{ daDN=!!localStorage.getItem("hx-phien"); }catch(e){}
@@ -4030,9 +4039,9 @@ document.addEventListener('click', ()=>csDongHet(null));
       var its = grp.items.filter(function(x){ return tabs.indexOf(x[0]) >= 0 && (x[0] !== "xacminh" || window.__HX_MAY_CHU); });
       if (!its.length) return;
       if (grp.hx && !daDN) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
-      if (!grp.g) { html += '<div class="s-sub s-mot s-dau">' + its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"><span class="di"></span>' + x[1] + '</div>'; }).join("") + '</div>'; return; }
+      if (!grp.g) { html += '<div class="s-sub s-mot s-dau">' + its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"><span class="di"></span>' + x[1] + '<span class="sn"></span></div>'; }).join("") + '</div>'; return; }
       html += '<div class="s-grp">' + grp.g + '</div><div class="s-sub">' +
-        its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"' + (x[2] ? ' data-sub="' + x[2] + '"' : '') + '><span class="di"></span>' + x[1] + (x[2] ? '<span class="sn"></span>' : '') + '</div>'; }).join("") +
+        its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"' + (x[2] ? ' data-sub="' + x[2] + '"' : '') + '><span class="di"></span>' + x[1] + '<span class="sn"></span></div>'; }).join("") +
         '</div>';
     });
     nav.innerHTML = html;
@@ -4049,7 +4058,7 @@ document.addEventListener('click', ()=>csDongHet(null));
           sync(); return; }
         setTab(el.getAttribute("data-tab")); });
     });
-    sync();
+    sync(); if (window.soThanhBen) soThanhBen();
   }
   /* Nút là SVG (không còn ký tự ›/‹) -> KHÔNG ghi textContent nữa, chỉ đổi trạng thái + nhãn.
      Hướng mũi tên do CSS lo theo body.side-open; nhãn = HÀNH ĐỘNG sắp xảy ra (chuẩn Gemini). */

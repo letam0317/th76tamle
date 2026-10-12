@@ -19,6 +19,9 @@
   if (window.__AD_GD) return; window.__AD_GD = 1;
   try { localStorage.removeItem("ad-giaodien"); } catch (e) {}   // khoá bật/tắt cũ — giao diện cũ đã bỏ
 
+  /* Dùng CHUNG cho Audit Hasaki (kiemsoatkho) và Audit Factory (stocklocationfactory, bản chép giaodien-antd.js — SỬA Ở ĐÂY RỒI CHÉP SANG).
+     Trang đặt window.AD_TEN / window.AD_LOGO trước khi nạp để đổi tên + logo đầu thanh bên. */
+  var TEN = window.AD_TEN || "Audit Hasaki", LOGO = window.AD_LOGO || "hasaki-logo.png";
   var BONG1 = "0 1px 2px -2px rgba(0,0,0,.16),0 3px 6px 0 rgba(0,0,0,.12),0 5px 12px 4px rgba(0,0,0,.09)";
   var BONG2 = "0 6px 16px 0 rgba(0,0,0,.08),0 3px 6px -4px rgba(0,0,0,.12),0 9px 28px 8px rgba(0,0,0,.05)";
   var VONG = "0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)";   // quầng focus của antd, theo màu theme
@@ -36,11 +39,11 @@
     H + " #hskMark{display:none !important}",
     H + " .muted{color:var(--muted)}",
     /* bỏ hẳn giao diện cũ: kiểu tiêu đề thương hiệu (8 kiểu) không còn chỗ hiện ⇒ ẩn ô chọn trong Cài đặt */
-    H + " .set-field:has(#titleSel){display:none}",
+    H + " .set-field:has(#titleSel)," + H + " .set-field:has(#hstyleCombo){display:none}",
 
     /* ---- khung: đầu trang 56px dính đỉnh ---- */
     H + " .wrap{padding:0 24px 24px}",
-    H + " .wrap>header{margin:0 -24px 24px;padding:12px 24px 12px 56px;min-height:56px;background:var(--surface);" +
+    H + " .wrap>header{margin:0 -24px 24px;padding:12px 24px 12px 56px;min-height:56px;align-items:center;background:var(--surface);" +
       "backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:0 1px 4px rgba(0,21,41,.08)}",
     H + " #brandTitle{display:none}",
     "#adCrumb{display:none}",
@@ -114,6 +117,24 @@
     H + " .date-btn{padding-right:36px;background:var(--surface) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' " +
       "stroke='%23999' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E\") no-repeat right 11px center/16px}",
 
+    /* ---- Ô TRANG TỔNG QUAN — CHUNG 2 dự án (Hasaki .ov-* · Factory .hm-*), 12/10 user: "đồng bộ kích thước các ô, sửa cho cả Audit Factory".
+       MỌI ô cao cố định 218px (khác hàng cũng bằng nhau), mô tả kẹp 3 dòng, chip tối đa 2 hàng ở đáy ⇒ mọi ô cùng một khuôn. ---- */
+    H + " :is(.ov-grid,.hm-grid){display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:12px;align-items:stretch}",
+    H + " :is(.ov-card,.hm-card){display:flex;flex-direction:column;gap:8px;width:100%;height:218px;padding:14px 16px;text-align:left;overflow:hidden;" +
+      "border:1px solid var(--ad-chia);border-left:4px solid var(--cc);border-radius:8px;background:var(--surface);color:var(--text);box-shadow:none;transform:none}",
+    H + " :is(.ov-card,.hm-card):hover{transform:none;background:var(--surface);box-shadow:" + BONG1 + "}",
+    H + " :is(.ov-t,.hm-t){display:flex;align-items:baseline;gap:9px;min-height:48px;font-size:16px;font-weight:600;letter-spacing:0;color:var(--text)}",
+    H + " :is(.ov-t,.hm-t) .k{margin-left:auto;font-size:20px;font-weight:600;line-height:28px;color:var(--cc);font-variant-numeric:tabular-nums}",
+    H + " :is(.ov-t,.hm-t) .k small{display:block;font-size:12px;font-weight:400;line-height:20px;color:var(--muted);letter-spacing:0}",
+    H + " :is(.ov-t,.hm-t) .k.trong{color:var(--muted);font-weight:400}",
+    H + " :is(.ov-t,.hm-t) .k.nhan{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}",
+    H + " :is(.ov-d,.hm-d){font-size:14px;line-height:22px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:66px}",
+    H + " :is(.ov-c,.hm-c){display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;max-height:50px;overflow:hidden}",   // chip (22px) tối đa 2 hàng ⇒ MỌI ô cao đúng 218px (tiêu đề 48 + mô tả 3 dòng 66 + chip 50)
+    H + " .hm-c .pg-chip," + H + " .ov-c span{font-size:12px;line-height:20px;padding:0 8px;border-radius:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);font-weight:400}",
+    H + " .hm-c .pg-chip b{color:var(--cc);font-weight:600}",
+    H + " :is(.ov-h,.hm-h){font-size:14px;font-weight:600;color:var(--text)}",
+    H + " :is(.ov-h,.hm-h)::before{width:10px;height:10px;border-radius:3px}",
+
     /* ---- bảng ---- */
     H + " thead th{background:var(--ad-nen2);color:var(--text);font-weight:600;border-bottom:1px solid var(--ad-chia)}",
     H + " tbody td{border-color:var(--ad-chia)}",
@@ -138,12 +159,14 @@
     H + " #sideNav .s-sub{margin:0;padding:0;border-left:0;gap:4px}",
     H + " #sideNav .s-sub.s-mot{margin-top:8px}",
     H + " #sideNav .s-sub.s-dau{margin-top:0}",
+    H + " #sideNav .s-sub.s-mot{padding-left:0;border-left:0}",
     H + " #sideNav .s-item{height:40px;padding:0 16px 0 24px;margin:0 4px;border-radius:8px;border-left:0;font-size:14px;font-weight:400;" +
       "color:var(--text);opacity:1;box-shadow:none}",
     H + " #sideNav .s-item:hover{background:var(--ad-re)}",
     H + " #sideNav .s-item.on{background:var(--ad-chon);color:var(--accent);font-weight:400;box-shadow:none}",
     H + " #sideNav .s-item .di{display:none}",
-    H + " #sideNav .s-item .sn{font-size:12px;font-weight:400;color:var(--muted)}",
+    H + " #sideNav .s-item .sn{margin-left:auto;font-size:12px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}",
+    H + " #sideNav .s-item{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:0 12px 0 16px}",   // tên dài 1 dòng, số canh phải (Factory "Trạng thái lưu trữ 47,790")
     H + " #sideNav .s-item.on .sn{color:var(--accent)}",
     /* logo đầu thanh bên — trượt cùng thanh bên */
     "#adLogo{display:none}",
@@ -191,7 +214,7 @@
   function capNhatCrumb() {
     var c = document.getElementById("adCrumb"); if (!c) return;
     var on = document.querySelector("#sideNav .s-item.on");
-    if (!on) { c.innerHTML = "<b>Audit Hasaki</b>"; return; }
+    if (!on) { c.innerHTML = "<b>" + esc(TEN) + "</b>"; return; }
     var ten = on.cloneNode(true); ten.querySelectorAll(".sn,.di").forEach(function (x) { x.remove(); });
     var sub = on.closest(".s-sub"), grp = sub && sub.previousElementSibling;
     var g = grp && grp.classList.contains("s-grp") ? grp.textContent.trim() : "";
@@ -203,7 +226,7 @@
     if (bt && !document.getElementById("adCrumb")) { var c = document.createElement("div"); c.id = "adCrumb"; bt.after(c); }
     if (!document.getElementById("adLogo")) {
       var lg = document.createElement("div"); lg.id = "adLogo";
-      lg.innerHTML = '<img src="hasaki-logo.png" alt="" />Audit Hasaki';
+      lg.innerHTML = '<img src="' + esc(LOGO) + '" alt="" />' + esc(TEN);
       document.body.insertBefore(lg, document.body.firstChild);
     }
     capNhatCrumb();
