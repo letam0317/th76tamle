@@ -285,7 +285,10 @@ const sv = http.createServer(async (q, s) => {
      origin "null" bằng iframe sandbox ⇒ đọc lén được dữ liệu); bộ đo --file nay đọc qua localhost:8123.
      Chặn luôn yêu cầu từ trang khác gửi tới (kể cả loại không cần CORS như <img>, form POST) — trước đây POST lạ vẫn được xử lý. */
   let gocRef = ""; try { gocRef = q.headers.referer ? new URL(q.headers.referer).origin : ""; } catch { /* */ }   // <img>/<video> không gửi Origin, chỉ gửi Referer
-  const lai = (goc && !NGUON_OK.test(goc)) || (q.headers["sec-fetch-site"] === "cross-site" && !NGUON_OK.test(goc || gocRef));
+  /* 12/10: ảnh/clip trên trang https (github.io) gọi xuống http://127.0.0.1 thì trình duyệt BỎ Referer (hạ cấp https→http) ⇒ trước bị
+     coi là trang lạ, 403. Yêu cầu không Origin mà mang PHIÊN đăng nhập hợp lệ (?phien=) thì cho qua — phiên chính là giấy phép. */
+  let phienQ = ""; try { phienQ = new URL(q.url, "http://x").searchParams.get("phien") || ""; } catch { /* */ }
+  const lai = (goc && !NGUON_OK.test(goc)) || (q.headers["sec-fetch-site"] === "cross-site" && !NGUON_OK.test(goc || gocRef) && !(!goc && kiemPhien(phienQ)));
   if (lai && q.url !== "/" ) { s.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" }); return s.end("chỉ trang Audit Hasaki của chủ máy được đọc"); }
   if (NGUON_OK.test(goc)) {
  s.setHeader("Access-Control-Allow-Origin", goc); s.setHeader("Vary", "Origin"); s.setHeader("Access-Control-Allow-Headers", "content-type,x-khoa,x-hx-phien"); s.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS"); }
