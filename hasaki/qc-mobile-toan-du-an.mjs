@@ -421,18 +421,15 @@ const TRANG = [
       /* TAB XÁC MINH & CÒ CAMERA (hasaki-xacminh.js) — BỔ SUNG 02/10/2026 cùng lúc dựng tab: 3 mục con + pop-up lượt camera (clip +
          bộ chọn theo ảnh) + pop-up nhân viên. Dữ liệu chỉ có trên máy quản lý (máy chủ nội bộ 127.0.0.1:8591) — máy đo khác ⇒ màn
          báo "chỉ mở được trên máy quản lý" và bị bỏ qua có ghi lý do (không im lặng). */
-      { ten: "Xác minh › Theo nhân viên",
-        mo: "() => { setTab('xacminh'); return true; }",
-        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('nv'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
-      { ten: "Xác minh › Cò camera",
+      { ten: "Xác minh › Theo máy",
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('cam'); return document.querySelectorAll('#pane-xacminh [data-l]').length > 0; }" },
-      { ten: "Xác minh › Phiếu treo",
+      { ten: "Xác minh › Theo tác vụ",
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('treo'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
-      { ten: "Xác minh › Nhắc QLTT",   // 05/10 thêm cùng lúc dựng mục (cần nhắc · đã nhắc · ai · ở đâu · kết quả)
+      { ten: "Xác minh › Nhật ký",   // 12/10 mục Nhật ký (máy đã làm gì) + lọc Ngày — thay mục Nhắc QLTT/Nhân viên đã bỏ
         mo: "() => { setTab('xacminh'); return true; }",
-        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('nhac'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('tg'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
       { ten: "Pop-up Quyết định phiếu B1 (Xác minh)",   // 05/10 thêm cùng lúc dựng pop-up
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show #qdLuu')){ HXACMINH.sub('treo'); var b=document.querySelector('#pane-xacminh [data-qd]'); if(b) b.click(); return false; } return true; }",
@@ -440,10 +437,6 @@ const TRANG = [
       { ten: "Pop-up Lượt camera (clip + bộ chọn theo ảnh)",
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show .hx-ev')){ HXACMINH.moLuotDau(); return false; } return !!document.querySelector('#modal.show .hx-ng'); }",
-        dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
-      { ten: "Pop-up Việc của 1 nhân viên (Xác minh)",
-        mo: "() => { setTab('xacminh'); return true; }",
-        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show .hx-viec')){ HXACMINH.moNVDau(); return false; } return true; }",
         dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
       { ten: "Planogram › pop-up lịch Ngày",
         mo: "() => { setTab('planogram'); return true; }",

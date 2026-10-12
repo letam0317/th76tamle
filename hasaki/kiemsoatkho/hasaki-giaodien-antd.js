@@ -2,8 +2,8 @@
  * Nguồn số: github.com/ant-design/ant-design/tree/master/docs/spec (layout · font · colors · shadow · buttons · copywriting)
  * + token mặc định của thư viện antd v5 (bo góc 6, control cao 32, thanh bên 200, đầu trang 56).
  *
- * Chỉ là lớp ÁO: không đụng dữ liệu, không gọi mạng, không sửa logic tab. index.html chỉ nạp tệp này ở BẢN QC
- * (localhost:8123) hoặc khi URL có ?giaodien=antd ⇒ live không đổi gì. Tắt trong Cài đặt → tải lại trang (về y bản cũ).
+ * Chỉ là lớp ÁO: không đụng dữ liệu, không gọi mạng, không sửa logic tab. 12/10 LIVE mặc định (user "theo ant design chưa live").
+ * Tắt trong Cài đặt → tải lại trang (về y bản cũ, nhớ theo máy: localStorage ad-giaodien=cu).
  *
  * Bộ token đã chốt (đừng thêm số ngoài bộ này):
  *   · lưới 8: khoảng cách 8 / 16 / 24 · chữ 12 / 14 / 16 / 20 / 24, chữ gốc 14 dòng 22 · độ đậm 400 / 500 / 600
@@ -139,6 +139,7 @@
     H + " #sideNav .s-grp{font-size:12px;font-weight:400;color:rgba(0,0,0,.45);opacity:1;padding:16px 16px 8px;letter-spacing:0}",
     H + " #sideNav .s-grp::before{display:none}",
     H + " #sideNav .s-sub{margin:0;padding:0;border-left:0;gap:4px}",
+    H + " #sideNav .s-sub.s-mot{margin-top:8px}",
     H + " #sideNav .s-item{height:40px;padding:0 16px 0 24px;margin:0 4px;border-radius:8px;border-left:0;font-size:14px;font-weight:400;" +
       "color:rgba(0,0,0,.88);opacity:1;box-shadow:none}",
     H + " #sideNav .s-item:hover{background:rgba(0,0,0,.06)}",
@@ -220,20 +221,19 @@
   function nutCaiDat() {
     var pop = document.getElementById("settingsPop"); if (!pop || document.getElementById("adSet")) return;
     var sec = document.createElement("div"); sec.className = "set-sec"; sec.id = "adSet";
-    sec.innerHTML = '<div class="set-h">Giao diện Ant Design (bản thử)</div>' +
+    sec.innerHTML = '<div class="set-h">Giao diện Ant Design</div>' +
       '<button type="button" class="dropdown-action-btn" id="adSetBtn"><span class="act">' + (bat() ? "Đang bật — bấm để về giao diện cũ" : "Đang tắt — bấm để bật") + "</span></button>";
     pop.insertBefore(sec, pop.firstChild);
     document.getElementById("adSetBtn").addEventListener("click", function () { dat(!bat()); location.reload(); });
   }
 
-  function chay() {
-    /* link có ?giaodien=antd = luôn BẬT lại (kể cả máy đã từng chọn "cũ") */
-    if (/[?&]giaodien=antd/.test(location.search)) dat(true);
-    nutCaiDat();
-    if (!bat()) return;
-    var st = document.createElement("style"); st.id = "adCss"; st.textContent = css; document.head.appendChild(st);
+  /* 12/10 LIVE: tệp nạp ĐỒNG BỘ trong <head> ⇒ gắn CSS + lớp html.ad NGAY (khung hình đầu đã là Ant Design, không chớp giao diện cũ);
+     phần cần DOM (đường dẫn, logo, nút Cài đặt) chờ DOMContentLoaded. */
+  if (/[?&]giaodien=antd/.test(location.search)) dat(true);   // link có ?giaodien=antd = luôn BẬT lại
+  if (bat()) {
+    var st = document.createElement("style"); st.id = "adCss"; st.textContent = css; (document.head || document.documentElement).appendChild(st);
     document.documentElement.classList.add("ad");
-    dung();
   }
+  function chay() { nutCaiDat(); if (bat()) dung(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", chay); else chay();
 })();

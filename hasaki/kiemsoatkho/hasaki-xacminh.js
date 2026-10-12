@@ -16,7 +16,7 @@
   var API = (function () { try { return localStorage.getItem("hx-api") || "http://127.0.0.1:8591"; } catch (e) { return "http://127.0.0.1:8591"; } })();
   var D = null, QDL = null, PANE = null, SUB = "nv", TIM = "", LOC = { khu: "", tt: "cho", ngay: "", buoc: "", treo: "" }, EV = null;
   try { var l0 = JSON.parse(localStorage.getItem("hx-loc") || "null"); if (l0) { SUB = l0.SUB || SUB; Object.assign(LOC, l0.LOC || {}); } } catch (e) {}
-  if (SUB === "khu") SUB = "treo";   // 12/10 user xoá mục con Khu giấy · rác — máy còn nhớ mục này thì về Theo phiếu
+  if (!/^(treo|cam|tg)$/.test(SUB)) SUB = "treo";   // 12/10 user bỏ Khu giấy · rác, Nhắc QLTT, Nhân viên — máy còn nhớ mục cũ thì về Theo tác vụ
   function luu() { try { localStorage.setItem("hx-loc", JSON.stringify({ SUB: SUB, LOC: LOC })); } catch (e) {} }
   var $id = function (i) { return document.getElementById(i); };
   var e_ = function (s) { return (typeof esc === "function") ? esc(s) : String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
@@ -24,7 +24,7 @@
      (xacminh-dang-nhap.mjs). Gửi kèm MỌI yêu cầu: dữ liệu qua tiêu đề x-hx-phien, ảnh/clip qua tham số ?phien= (thẻ <img>/<video>
      không gửi được tiêu đề). Máy chủ trả 401 canDangNhap → về màn đăng nhập. */
   var PHIEN = (function () { try { return localStorage.getItem("hx-phien") || ""; } catch (e) { return ""; } })();
-  var datPhien = function (v) { PHIEN = v || ""; try { if (PHIEN) localStorage.setItem("hx-phien", PHIEN); else localStorage.removeItem("hx-phien"); } catch (e) {} };
+  var datPhien = function (v) { PHIEN = v || ""; try { if (PHIEN) localStorage.setItem("hx-phien", PHIEN); else localStorage.removeItem("hx-phien"); } catch (e) {} try { window.dispatchEvent(new CustomEvent("hx-phien")); } catch (e) {} };
   var u_ = function (p) { return p && p.charAt(0) === "/" ? API + p + (/^\/(anh|video|bc|cs)\//.test(p) ? (p.indexOf("?") < 0 ? "?" : "&") + "phien=" + PHIEN : "") : p; };
   var QD = ["Lập phiếu (NV Hasaki)", "Không phải NV Hasaki", "Xe ra / không vi phạm", "Không rõ – bỏ qua"];
   var tenLoai = function (l) { return l === "phan-loai" ? "Khu phân loại giấy" : "Bãi xe NCC"; };
@@ -214,11 +214,10 @@
     var h = "";
     /* 05/10 user chán dải chip → kiểu A: các mục con nằm ở THANH BÊN TRÁI của dashboard (nhóm "Xác minh", index.html đọc window.__HX_MUC).
        Trong trang chỉ còn tiêu đề mục; khi thanh bên đang đóng (hoặc điện thoại) có 1 ô chọn "Chuyển mục" theo khuôn bộ lọc host. */
-    var MUC = [["treo", "Theo phiếu", D.phieu.length, D.phieu.length + " phiếu WF591 đang mở, " + qua48 + " phiếu treo quá 48 giờ"],
-      ["cam", "Máy tự bắt", choCam, choCam + " sự việc chờ bạn quyết · đã lập " + daLap + " phiếu trong 14 ngày"],
-      ["nhac", "Nhắc QLTT", D.nhac ? D.nhac.tk.canNhac + D.nhac.tk.cho : 0, "Phiếu B1.1 treo quá 48 giờ — nhắc ai, kết quả sau nhắc"],
-      ["nv", "Nhân viên", nvCo.length, "Nhân viên đang có lỗi, chờ xác nhận hoặc bị nghi"],
-      ["tg", "Máy đã làm gì", tgHomNay(), "Phiếu, bình luận, ảnh do máy tạo bằng tài khoản của bạn trong 14 ngày: bộ nào làm, chạy từ đâu. Chỉ máy này xem được, không ghi lên phiếu"]];
+    /* 12/10 user: chỉ còn 3 mục — bỏ Nhắc QLTT (đã có trong Nhật ký, lọc ở đó) + Nhân viên */
+    var MUC = [["treo", "Theo tác vụ", D.phieu.length, D.phieu.length + " phiếu WF591 đang mở, " + qua48 + " phiếu treo quá 48 giờ"],
+      ["cam", "Theo máy", choCam, choCam + " sự việc chờ bạn quyết · đã lập " + daLap + " phiếu trong 14 ngày"],
+      ["tg", "Nhật ký", tgHomNay(), "Phiếu, bình luận, ảnh do máy tạo bằng tài khoản của bạn trong 14 ngày: bộ nào làm, chạy từ đâu. Chỉ máy này xem được, không ghi lên phiếu"]];
     window.__HX_MUC = { cur: SUB, ds: MUC.map(function (x) { return { k: x[0], ten: x[1], n: x[2] }; }) };
     try { window.dispatchEvent(new CustomEvent("hx-muc")); } catch (e) {}
     var m = MUC.find(function (x) { return x[0] === SUB; }) || MUC[0];
@@ -859,11 +858,15 @@
     var all = (D.tacGia || {}).ds || [], demB = {}, demH = {};
     all.forEach(function (x) { demB[x.ten] = (demB[x.ten] || 0) + 1; demH[x.hd] = (demH[x.hd] || 0) + 1; });
     var q = (TIM || "").toLowerCase();
-    var ds = all.filter(function (x) { return (!LOC.tgBo || x.ten === LOC.tgBo) && (!LOC.tgHd || x.hd === LOC.tgHd) &&
+    /* 12/10 user: bỏ mục Nhắc QLTT vì "ở Nhật ký có lưu rồi — chỉ cần thêm trường lọc" ⇒ thêm lọc Ngày (lượt nhắc = Bộ «Cò canh B1.1» · Làm gì «Bình luận») */
+    var homNay = new Date(), tuNgay = "";
+    if (LOC.tgNgay) { var d0 = new Date(homNay.getFullYear(), homNay.getMonth(), homNay.getDate() - Number(LOC.tgNgay)); tuNgay = d0.getFullYear() + "-" + ("0" + (d0.getMonth() + 1)).slice(-2) + "-" + ("0" + d0.getDate()).slice(-2); }
+    var ds = all.filter(function (x) { return (!LOC.tgBo || x.ten === LOC.tgBo) && (!LOC.tgHd || x.hd === LOC.tgHd) && (!tuNgay || String(x.t).slice(0, 10) >= tuNgay) &&
       (!q || (x.phieu + " " + x.ten + " " + x.chuoi + " " + (x.nguoi || "") + " " + x.nd + " " + x.tep.join(" ")).toLowerCase().indexOf(q) >= 0); });
     var SO = LOC.soHienTG || 60, dsHien = ds.slice(0, SO);
     var h = boLoc([{ k: "tgBo", lbl: "Bộ nào làm", v: LOC.tgBo || "", opt: [["", "Tất cả (" + all.length + ")"]].concat(Object.keys(demB).sort(function (a, b) { return demB[b] - demB[a]; }).map(function (k) { return [k, k + " (" + demB[k] + ")"]; })) },
       { k: "tgHd", lbl: "Làm gì", v: LOC.tgHd || "", opt: [["", "Tất cả"]].concat(Object.keys(demH).sort(function (a, b) { return demH[b] - demH[a]; }).map(function (k) { return [k, k + " (" + demH[k] + ")"]; })) },
+      { k: "tgNgay", lbl: "Ngày", v: LOC.tgNgay || "", opt: [["", "14 ngày"], ["0", "Hôm nay"], ["2", "3 ngày"], ["6", "7 ngày"]] },
       { k: "tim", lbl: "Tìm (mã phiếu / người gửi / tên ảnh)", input: 1, v: TIM, ph: "14082801 / Nguyễn… / bang-chung…" }]);
     var link = function (id) { return "https://work.hasaki.vn/tasks?task_id=" + id; };
     var oPhieu = function (x) { return x.phieu ? '<a class="status-link" href="' + e_(link(x.phieu)) + '" target="_blank" rel="noopener">' + e_(x.phieu) + '</a>' + (x.doan ? ' <span class="muted" title="Máy suy ra từ phiếu vừa đọc trước đó">(suy ra)</span>' : "") : '<span class="muted">—</span>'; };
@@ -972,7 +975,7 @@
   }
   // bộ đo qc-mobile-toan-du-an gọi các hàm này để mở đúng màn (mục 7 bộ chuẩn: phạm vi đo = phạm vi lời hứa)
   window.HXACMINH = { init: init, coDuLieu: function () { return !!D; },
-    sub: function (k) { if (k === "khu") k = "treo"; SUB = k; TIM = ""; if (k === "cam") LOC.tt = "cho"; luu(); ve(); return true; },
+    sub: function (k) { if (!/^(treo|cam|tg)$/.test(k)) k = "treo"; SUB = k; TIM = ""; if (k === "cam") LOC.tt = "cho"; luu(); ve(); return true; },
     moLuotDau: function () { var l = D && (D.luot.find(function (x) { return (x.buocAnh || []).some(function (b) { return (b.hop || []).length; }); }) || D.luot[0]); if (!l) return false; moLuot(l); return true; },
     moLuotId: function (id) { var l = D && D.luot.find(function (x) { return x.id === id; }); if (!l) return false; moLuot(l); return true; },
     moNVDau: function () { var x = D && D.nhanVien.find(function (y) { return y.viec.some(function (v) { return v.loai !== "dang-giu"; }); }); if (!x) return false; moNV(x, false); return true; } };

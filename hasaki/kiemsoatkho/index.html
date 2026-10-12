@@ -1062,6 +1062,7 @@ body.side-open #sideNav{transform:none;}
 #sideNav .s-grp::before{content:"";width:12px;height:12px;border-radius:3.5px;background:var(--accent);opacity:.9;flex:none;}
 /* Sub-tab: thụt vào + đường dẫn dọc */
 #sideNav .s-sub{display:flex;flex-direction:column;gap:1px;margin:1px 0 3px 13px;padding-left:8px;border-left:1.5px solid var(--border);}
+#sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}   /* 12/10 nút Xác minh đơn khi chưa đăng nhập */
 #sideNav .s-item{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text);opacity:.72;cursor:pointer;border-left:3px solid transparent;margin-left:-2px;transition:background .16s ease,opacity .16s ease,color .16s ease;}
 #sideNav .s-item:hover{background:var(--hover);opacity:1;}
 #sideNav .s-item.on{background:var(--surface);opacity:1;color:var(--accent);font-weight:700;border-left-color:var(--accent);box-shadow:0 1px 3px rgba(20,50,36,.07);}
@@ -1304,6 +1305,8 @@ body.side-anim{overflow-x:clip;}
 }
 </style>
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
+<!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
+<script src="hasaki-giaodien-antd.js?v=20261012j"></script>
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -1990,6 +1993,12 @@ function tsOf(v){
   return t;
 }
 const cmpNgayDesc = (a,b) => tsOf(b[iNgayVP]) - tsOf(a[iNgayVP]);
+/* 12/10 TẢI CHẬM: ô ảnh 44 px từng tải ẢNH GỐC hr-media (175 KB–1,5 MB, không cache) → ~15 MB cho tab mặc định.
+   Nay dùng ảnh nhỏ 88 px (~3 KB) do anh-nho-pages.mjs làm sẵn trên Pages: thu/<băm>.webp. Chưa có thì onerror quay về ảnh gốc.
+   Băm PHẢI giống hệt bamAnh() trong anh-nho-pages.mjs. */
+function anhNho(s){ s=String(s).trim(); let h1=0x811c9dc5, h2=0x1b873593;
+  for(let i=0;i<s.length;i++){ const c=s.charCodeAt(i); h1=Math.imul(h1^c,16777619); h2=Math.imul(h2^c,0x5bd1e995); h2^=h2>>>13; }
+  return (h1>>>0).toString(16).padStart(8,"0")+(h2>>>0).toString(16).padStart(8,"0"); }
 // Tách danh sách URL media từ 1 ô
 function mediaUrls(val){
   return String(val).split("\n").map(s=>s.trim()).filter(s=>s.indexOf("http")===0)
@@ -2006,7 +2015,7 @@ function thumbCell(r, gi, cls){
   const first = media[0];
   const thumb = first.type==='vid'
     ? `<span class="rm-thumb rm-vid"></span><span class="rm-play"></span>`   // ô CSS, KHÔNG tải video (mượt khi cuộn); bấm mới mở clip
-    : `<img class="rm-thumb" loading="lazy" decoding="async" src="${esc(safeUrl(first.url))}">`;
+    : `<img class="rm-thumb" loading="lazy" decoding="async" src="thu/${anhNho(first.url)}.webp" data-goc="${esc(safeUrl(first.url))}" onerror="this.onerror=null;this.src=this.dataset.goc">`;
   const badge = media.length>1 ? `<span class="media-badge">${media.length}</span>` : '';
   return `<span class="row-media rm-${cls}${media.length>1?' multi':''}" data-mg="${gi}" title="${media.length>1?'Có '+media.length+' ảnh/clip — bấm để xem':'Bấm để xem'}">${thumb}${badge}</span>`;
 }
@@ -3845,10 +3854,11 @@ document.addEventListener('click', ()=>csDongHet(null));
  * KHÔNG chạm setTab/pane/module → nội dung mỗi tab hiển thị y hệt bản gốc. */
 (function(){
   var HM = [
-    { g: "Hạng mục 5S",   items: [["tong","Tổng quan"],["task","Task vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
+    /* 12/10 user chốt thứ tự + tên: 5S → Tồn kho → Xác minh; bỏ mục con Nhân viên + Nhắc QLTT (nhắc đã nằm trong Nhật ký, lọc ở đó) */
+    { g: "Hạng mục 5S",   items: [["tong","Tổng quan"],["task","Vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
+    { g: "Tồn kho", items: [["kk","Kiểm kê"],["htonbat","Bất thường"]] },
     /* 05/10 user chọn kiểu A: mục con Xác minh nằm ở thanh bên (thay dải chip trong tab). Chỉ hiện trên máy có máy chủ 8591. */
-    { g: "Xác minh", hx: 1, items: [["xacminh","Theo phiếu","treo"],["xacminh","Máy tự bắt","cam"],["xacminh","Nhắc QLTT","nhac"],["xacminh","Nhân viên","nv"],["xacminh","Máy đã làm gì","tg"]] },
-    { g: "Hạng mục Tồn kho", items: [["kk","Kiểm kê"],["htonbat","Tồn kho bất thường"]] }
+    { g: "Xác minh", hx: 1, items: [["xacminh","Theo tác vụ","treo"],["xacminh","Theo máy","cam"],["xacminh","Nhật ký","tg"]] }
   ];
   var nav = document.getElementById("sideNav"), tg = document.getElementById("sideToggle"), bd = document.getElementById("sideBackdrop");
   function tabActive(){ var el = document.querySelector(".tab.active"); return el ? el.getAttribute("data-tab") : null; }
@@ -3858,14 +3868,18 @@ document.addEventListener('click', ()=>csDongHet(null));
       el.classList.toggle("on", el.getAttribute("data-tab") === cur && (!s || s === (sub || "treo"))); });
     var M = window.__HX_MUC; if (M) M.ds.forEach(function(x){ var b = nav.querySelector('.s-item[data-sub="' + x.k + '"] .sn'); if (b) b.textContent = x.n || ""; }); }
   window.addEventListener("hx-muc", function(){ sync(); });
+  window.addEventListener("hx-phien", function(){ build(); });   // đăng nhập / đăng xuất Xác minh → dựng lại thanh bên
   function build(){
     var tabs = [];
     try{ if (typeof CTY !== "undefined" && typeof CTY_ID !== "undefined" && CTY[CTY_ID]) tabs = CTY[CTY_ID].tabs || []; }catch(e){}
     if (!tabs.length) tabs = ["tong","task","xacminh","planogram","hangmuc","kk","htonbat"];   // dự phòng
     var html = "";   /* KHÔNG lặp brand — header đã có tiêu đề AUDIT HASAKI */
+    /* 12/10 user: chưa đăng nhập Xác minh thì CHỈ 1 nút "Xác minh"; đăng nhập xong mới hiện 5 mục con (hasaki-xacminh.js bắn "hx-phien") */
+    var daDN = false; try { daDN = !!localStorage.getItem("hx-phien"); } catch(e){}
     HM.forEach(function(grp){
       var its = grp.items.filter(function(x){ return tabs.indexOf(x[0]) >= 0 && (x[0] !== "xacminh" || window.__HX_MAY_CHU); });
       if (!its.length) return;
+      if (grp.hx && !daDN) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
       html += '<div class="s-grp">' + grp.g + '</div><div class="s-sub">' +
         its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"' + (x[2] ? ' data-sub="' + x[2] + '"' : '') + '><span class="di"></span>' + x[1] + (x[2] ? '<span class="sn"></span>' : '') + '</div>'; }).join("") +
         '</div>';
@@ -3954,10 +3968,6 @@ function tipMuc(txt, lop){
     '" aria-label="Chú thích: ' + tipEsc(String(txt).slice(0, 120)) +
     '" data-tip="' + tipEsc(txt) + '">' + TIP_KYHIEU + "</button>";
 }
-</script>
-<script>
-/* 12/10 giao diện thử theo Ant Design: CHỈ bản QC (localhost:8123) hoặc ?giaodien=antd — live không đổi */
-if(location.port==='8123'||/[?&]giaodien=antd/.test(location.search)){ var _ad=document.createElement('script'); _ad.src='hasaki-giaodien-antd.js?v=20261012h'; document.body.appendChild(_ad); }
 </script>
 </body>
 </html>

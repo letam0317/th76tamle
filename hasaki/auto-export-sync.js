@@ -613,6 +613,11 @@ const KHONG_LOGIN = String(process.env.KHONG_LOGIN || "") === "1";
     fs.writeFileSync(path.join(LOCAL_DIR, "index.json"), index);
     await dayLenPages(SUMMARY_DIR + "/index.json", index);
     log("  ✓ Chunk theo tháng → Pages: " + thangSap.length + " tháng, đẩy " + (dayLen + 1) + " file thay đổi (index + " + dayLen + " chunk).");
+    /* 12/10 ẢNH NHỎ cho bảng Task (dashboard tải chậm vì ô 44 px kéo ảnh gốc 0,2–1,5 MB): làm ngầm, không chờ — anh-nho-pages.mjs
+       chỉ tải từ hr-media ảnh CHƯA có (mỗi ảnh 1 lần trong đời), tự khoá chống chạy chồng, lỗi thì dashboard tự quay về ảnh gốc. */
+    try { const { spawn } = await import("node:child_process");
+      spawn(process.execPath, [path.join(DIR, "anh-nho-pages.mjs")], { cwd: DIR, detached: true, stdio: "ignore", windowsHide: true }).unref(); }
+    catch (e) { log("  (cảnh báo ảnh nhỏ: " + e.message + ")"); }
   } catch (e) { log("  (cảnh báo: không đẩy được chunk theo tháng: " + e.message + " — dashboard tự dùng gviz như cũ)"); }
   // giữ 3 file .xlsx gần nhất
   const all = fs.readdirSync(EXPORT_DIR).filter(f => /\.xlsx$/i.test(f)).map(f => ({ f, t: fs.statSync(path.join(EXPORT_DIR, f)).mtimeMs })).sort((a, b) => b.t - a.t);

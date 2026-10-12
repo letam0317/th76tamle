@@ -17,10 +17,9 @@ fs.mkdirSync(RA, { recursive: true });
 const MAY = { pc: { width: 1500, height: 900 }, dt: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
 const MAN = [
   { k: "treo", mo: "HXACMINH.sub('treo')" }, { k: "cam", mo: "HXACMINH.sub('cam')" },
-  { k: "nhac", mo: "HXACMINH.sub('nhac')" }, { k: "nv", mo: "HXACMINH.sub('nv')" },
+  { k: "tg", mo: "HXACMINH.sub('tg')" },
   { k: "popup-phieu", popup: 1, mo: "HXACMINH.sub('treo'); (document.querySelector('#hxBody tr[data-p], #hxBody .cl-item[data-p]')||{click(){}}).click()" },
   { k: "popup-luot", popup: 1, mo: "HXACMINH.sub('cam'); HXACMINH.moLuotDau()" },
-  { k: "popup-nv", popup: 1, mo: "HXACMINH.sub('nv'); HXACMINH.moNVDau()" },
 ].filter((m) => !A.man || A.man.split(",").includes(m.k));
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F000}-\u{1F2FF}]/u;
 const br = await puppeteer.launch({ executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: "new" });
