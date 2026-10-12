@@ -1,0 +1,52 @@
+BO CAI PC NOI BO (chia viec + tu dieu phoi) - DOC TRUOC KHI CAI
+================================================================
+
+NGUON DUY NHAT = dieu-phoi.json. No quyet dinh CA 2:
+  (1) CHIA VIEC - TU XEP HANG (KHONG CAN BAN DANH GIA MAY NAO MANH):
+      - Moi may TU DO suc manh (nhan CPU, GHz, RAM) = "diem" + suc khoe (RAM trong) + khoa dang co, day len GAS.
+      - Cong gac moi viec tu chon may DIEM CAO NHAT + DU KHOA + khoe de chay. It may -> 1 may gom nhieu;
+        nhieu may -> trai deu cho may manh; may yeu (RAM trong <30%) -> nhuong viec NANG; may tat/ngu -> gan thay.
+      - NANG LUC dieu khien bang .env: may NAO dien khoa top-review -> may do nhan viec CAMERA; may khong dien -> khong.
+  (2) BO SUNG/BOT VIEC TU DONG: them/bot muc trong dieu-phoi.json + push -> may tu them/bot task, KHONG cai lai.
+
+CAI (tren tung PC, quyen admin) - CHI 1 LAN:
+  1. Chep CA thu muc cai-pc sang PC.
+  2. Bam PHAI CAI-PC.bat -> Run as administrator. Doi chu XONG.
+     (KHONG hoi gi. May tu do cau hinh + cai HET viec, cong gac loc o runtime.)
+     No: clone repo (giu .git) -> npm install -> va Edge ngam -> dang ky TAT CA viec (moi task boc qua
+     _DP-CHAY.vbs) + task nhip tim 3' + task tu cap nhat -> ghi .env -> khoa quyen SYSTEM+Admin -> powercfg tat ngu.
+  3. Lam not: dien .env. MAY NAO LAM CAMERA thi dien TOPREVIEW_USER/PASS (+ GEMINI); may chi lam viec nhe
+     thi de TRONG -> tu dong khong nhan viec camera. APPSCRIPT_URL/KEY thi MOI may deu can.
+
+* KHONG phai dat hostname/xep hang tay nua. Chi can: cai tren tung may + dien .env dung nang luc may do.
+  (Van co the GHIM tay 1 viec cho 1 may bang "uuTien":["HOSTNAME"] trong dieu-phoi.json neu muon.)
+
+MAY NGU / DUNG WIFI (khong cam LAN duoc / khong tat ngu duoc):
+  - VAN CHAY. Task da bat "danh thuc may de chay" (WakeToRun) + "chay bu khi vua bat lai" (StartWhenAvailable)
+    + khong chan khi chay pin. Neu BIOS/chinh sach khong cho danh thuc -> may ngu = TAM NGHI:
+    nhip tim ngung -> dieu phoi coi la chet -> MAY KHAC GANH THAY. Bat lai -> nhip tim lai + chay bu.
+  - He qua: nen co IT NHAT 1 may bat 24/7 (ly tuong cam LAN) de khong co luc ca 3 cung ngu.
+
+XEM AI LAM GI (bo danh gia): tren may bat ky:  node xem-dieu-phoi.mjs
+  -> in: moi may (diem manh, RAM, khoe/yeu, khoa) + tung viec may nao dang chay + viec nao KHONG may nao nhan.
+
+TU CAP NHAT + TU THEM VIEC (khong cai lai lan 2):
+  Task SYSTEM 'Audit cap nhat PC' chay moi 2h + luc khoi dong: git pull -> npm install neu lock doi ->
+  va Edge -> DANG KY VIEC MOI / GO VIEC DA BO theo dieu-phoi.json vua keo ve -> bo sung khoa .env thieu.
+  So: hasaki\.cap-nhat-pc.log. KHONG xoa .env. CHI dung GitHub (0 luot goi work/wms/hr).
+  * May chi theo thu DA PUSH len nhanh backend. Sua tren laptop -> duyet -> commit + push -> PC tu theo.
+
+CHIA VIEC CHAY SAO (cong gac):
+  Moi task goi _DP-CHAY.vbs <viec> -> runner-dieu-phoi.mjs hoi GAS (nhip tim + khoa):
+    - may nay la may duoc chon (song-cao-nhat, khong yeu neu nang) VA giu duoc khoa -> CHAY co that.
+    - khong -> thoi (may khac lam). GAS chet -> chi may uu-tien-1 chay. So: hasaki\runner-dieu-phoi.log.
+
+RANG BUOC DA GIU (theo luat):
+  - PC KHONG tu dang nhap (CAM_TU_DANG_NHAP=1), token qua GAS -> khong da phien ai.
+  - .env PC khong chua mat khau Hasaki/Telegram; thu muc chi SYSTEM+Admin.
+  - Moi viec 1 may/thoi diem (khoa atomic) -> khong tang luot goi upstream, khong ghi doi.
+
+CAN BAT TRUOC KHI DIEU PHOI THAT SU HOAT DONG (cho user):
+  - DEPLOY GAS (them action pcNhip) -> nhip tim + khoa song. Chua deploy: runner chay che do local
+    (chi may uu-tien-1 chay) - van an toan, chi chua co gan-thay/can-bang.
+  - Dien hostname that vao dieu-phoi.json + push.

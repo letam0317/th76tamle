@@ -1,0 +1,171 @@
+{
+  "_doc": "NGUON DUY NHAT cho (1) CHIA VIEC va (2) BO SUNG/BOT viec tu dong. Moi viec = 1 task. KHONG can khai may nao manh: moi may cai HET viec, cong gac TU CHON may MANH NHAT + DU KHOA + khoe de chay (viec nang can khoa top-review -> chi may co khoa do nhan). Dieu khien NANG LUC = khoa ban dien trong .env tung may (may khong dien TOPREVIEW -> khong nhan viec camera). Muon GHIM tay 1 viec cho 1 may: them \"uuTien\":[\"HOSTNAME\"].",
+  "nhanh": "cai-tien/bo-sung-factory",
+  "hetHanPhut": 3,
+  "capNhat": {
+    "tenTask": "Audit cap nhat PC",
+    "nhip": "PT2H",
+    "nhipTim": "PT1M"
+  },
+  "envCung": {
+    "RUNNER_VAI": "pc",
+    "CAM_TU_DANG_NHAP": "1"
+  },
+  "viec": [
+    {
+      "ten": "canh-b11",
+      "xml": "5S_Canh_B11.xml",
+      "vbs": "canh-b11-hidden.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS"
+      ]
+    },
+    {
+      "ten": "canh-xac-minh-b1",
+      "xml": "5S_Canh_xac_minh_B1.xml",
+      "vbs": "canh-xac-minh-hidden.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS",
+        "GEMINI_API_KEY"
+      ]
+    },
+    {
+      "ten": "tim-bang-chung-b1",
+      "xml": "5S_Tim_bang_chung_B1.xml",
+      "vbs": "_TIM-BANG-CHUNG-B1.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS"
+      ]
+    },
+    {
+      "ten": "canh-bai-xe-sang",
+      "xml": "5S_Canh_bai_xe_sang.xml",
+      "vbs": "_CANH-BAI-XE.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS"
+      ]
+    },
+    {
+      "ten": "canh-bai-xe-chieu",
+      "xml": "5S_Canh_bai_xe_chieu.xml",
+      "vbs": "_CANH-BAI-XE.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS"
+      ]
+    },
+    {
+      "ten": "canh-bai-xe-toi",
+      "xml": "5S_Canh_bai_xe_toi.xml",
+      "vbs": "_CANH-BAI-XE.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS"
+      ]
+    },
+    {
+      "ten": "xac-minh-camera",
+      "xml": "5S_Xac_minh_camera_toi.xml",
+      "vbs": "_XAC-MINH-DEM.vbs",
+      "nang": true,
+      "giuTTL": 1800,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS",
+        "GEMINI_API_KEY"
+      ]
+    },
+    {
+      "ten": "co-canh-planogram",
+      "xml": "5S_Co_canh_planogram.xml",
+      "vbs": "co-canh-planogram-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
+    },
+    {
+      "ten": "dong-bo-dashboard",
+      "xml": "5S_Dong_bo_dashboard.xml",
+      "vbs": "auto-export-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
+    },
+    {
+      "ten": "packer-a8-sang",
+      "xml": "5S_Packer_A8_sang.xml",
+      "vbs": "_SYNC-PACKER-A8.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
+    },
+    {
+      "ten": "packer-a8-chieu",
+      "xml": "5S_Packer_A8_chieu.xml",
+      "vbs": "_SYNC-PACKER-A8.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
+    },
+    {
+      "ten": "cham-cong",
+      "xml": "5S_Cham_cong.xml",
+      "vbs": "cham-cong-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
+    },
+    {
+      "ten": "watchdog-ton-kho",
+      "xml": "Factory_watchdog_ton_kho.xml",
+      "vbs": "sync-guard-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
+    }
+  ],
+  "_motMay": "Viec CHI 1 may tuyet doi (doc Telegram/OTP = 409 neu 2 may): KHONG dua vao day, giu o laptop.",
+  "_ghiChu": "Viec DUNG CLIP cai bang goi rieng _GOI-DUNG-CLIP. Them viec moi: them 1 muc {ten,xml,vbs,nang,envKeys,uuTien} + dat XML vao cai-pc/tasks-xml + push -> may tu dang ky."
+}

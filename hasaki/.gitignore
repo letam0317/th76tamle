@@ -112,3 +112,14 @@ _GOI-DUNG-CLIP/
 .dung-clip-viec/
 .dung-clip-agent.lock
 dung-clip-agent.log
+
+# File may-local cua bo cai PC (cai-pc) - KHONG commit (moi may tu sinh)
+.vai-pc
+.nhip-pc.json
+.cap-nhat-pc.log
+.cap-nhat.lock
+.cai-pc-tasks.json
+runner-dieu-phoi.log
+.cap-nhat.lock
+.suc-khoe-yeu
+.nhip-bang-cache.json
