@@ -19,6 +19,23 @@ ma = sh.Run(node & " runner-dieu-phoi.mjs " & tenViec, 0, True)
 If ma = 0 Then
   ' 2) duoc chay -> goi co that (khong cho, de no chay nhu binh thuong)
   If fso.FileExists(duAn & "\" & vbsThat) Then
-    sh.Run "wscript //nologo """ & duAn & "\" & vbsThat & """", 0, False
+    ' 13/10: chay qua WMI de lay PID goc -> ghi .dang-chay\<viec>.pid ; nhip tim (nhip-pc.mjs) do cay tien trinh con
+    '   tu PID nay de biet viec CON CHAY khong, va de DUNG dung viec khi user bam Dung tren sub-tab May tram.
+    Dim cmd, pid, kq, dc
+    cmd = "wscript.exe //nologo """ & duAn & "\" & vbsThat & """"
+    pid = 0 : kq = 1
+    On Error Resume Next
+    kq = GetObject("winmgmts:\\.\root\cimv2").Get("Win32_Process").Create(cmd, duAn, Null, pid)
+    On Error GoTo 0
+    If kq = 0 And pid > 0 Then
+      dc = duAn & "\.dang-chay"
+      If Not fso.FolderExists(dc) Then fso.CreateFolder dc
+      With fso.CreateTextFile(dc & "\" & tenViec & ".pid", True)
+        .Write CStr(pid)
+        .Close
+      End With
+    Else
+      sh.Run cmd, 0, False   ' WMI hong -> chay kieu cu (khong theo doi duoc)
+    End If
   End If
 End If

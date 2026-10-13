@@ -32,8 +32,13 @@ export function maySong(board, now = Date.now(), hetHanPhut = 8) {
 //  (a) viec.uuTien co -> theo thu tu khai tay (ghim), lay may song dau tien (viec nang: bo may yeu).
 //  (b) KHONG uuTien (mac dinh) -> TU XEP HANG: may song + DU KHOA (coKhoa chua du envKeys) + (viec nang thi khong yeu),
 //      chon may DIEM cao nhat (manh nhat); hoa diem -> ten may nho hon. => user khong phai danh gia may nao manh.
+// 13/10: user bam «Dung» tren sub-tab May tram -> GAS gan dung/dungViec vao dong nhip cua may do -> may do khong duoc chon,
+//   viec tu roi sang may ke (cung luat xep hang). «Tiep tuc» = go co -> may quay lai hang cho.
+export const biDung = (hb, tenViec) => !!(hb && (hb.dung || (hb.dungViec || []).includes(tenViec)));
+
 export function mayChay(viec, board, now, cfg) {
   const song = maySong(board, now, cfg.hetHanPhut || 8);
+  for (const [m, hb] of song) if (biDung(hb, viec.ten)) song.delete(m);
   if (viec.uuTien && viec.uuTien.length) {
     for (const may of viec.uuTien) {
       const hb = song.get(may);
@@ -134,6 +139,15 @@ function test() {
   // 10) MOI may du khoa deu YEU -> viec nang KHONG treo, chay may con nhieu RAM nhat
   b = [hb2("PCx", 500, 12, true, ["APPSCRIPT_KEY", "TOPREVIEW_USER"]), hb2("PCz", 400, 25, true, ["APPSCRIPT_KEY", "TOPREVIEW_USER"])];
   eq(mayChay(cfg2.viec[0], b, now, cfg2), "PCz", "moi may yeu -> viec nang chay may RAM nhieu nhat (PCz 25%>PCx 12%)");
+  // 11) LENH DUNG tu sub-tab May tram: dung CA MAY -> moi viec sang may ke; dung RIENG 1 viec -> chi viec do roi
+  b = [{ ...hb2("PCx", 500, 60, false, ["APPSCRIPT_KEY", "TOPREVIEW_USER"]), dung: true }, hb2("PCz", 400, 60, false, ["APPSCRIPT_KEY", "TOPREVIEW_USER"])];
+  eq([mayChay(cfg2.viec[0], b, now, cfg2), mayChay(cfg2.viec[1], b, now, cfg2)], ["PCz", "PCz"], "dung ca may -> 2 viec sang PCz");
+  b = [{ ...hb2("PCx", 500, 60, false, ["APPSCRIPT_KEY", "TOPREVIEW_USER"]), dungViec: ["nang"] }, hb2("PCz", 400, 60, false, ["APPSCRIPT_KEY", "TOPREVIEW_USER"])];
+  eq([mayChay(cfg2.viec[0], b, now, cfg2), mayChay(cfg2.viec[1], b, now, cfg2)], ["PCz", "PCx"], "dung rieng viec nang -> chi viec nang sang PCz");
+  b = [{ ...hb2("PCz", 400, 60, false, ["APPSCRIPT_KEY", "TOPREVIEW_USER"]), dung: true }];
+  eq(mayChay(cfg2.viec[0], b, now, cfg2), null, "may duy nhat bi dung -> viec hoan (khong ai chay)");
+  b = [{ ...hb("PC1", 60, false), dung: true }, hb("PC2", 60, false)];
+  eq(mayChay(cfg.viec[0], b, now, cfg), "PC2", "ghim uuTien: PC1 bi dung -> PC2");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);

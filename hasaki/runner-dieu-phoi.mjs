@@ -33,7 +33,13 @@ if (process.env.DIEUPHOI_BANG) {
   thoat(chon === may, chon === may ? "duoc chon" : "may chay=" + (chon || "HOAN"), bang, "test");
 }
 
-const { layBang, layBangCache } = await import("./nhip-pc.mjs");
+const { layBang, layBangCache, LENH_F } = await import("./nhip-pc.mjs");
+
+// 0) LENH DUNG tu sub-tab May tram (ban luu cuc bo tu nhip tim) -> dung truoc moi thu, ke ca khi GAS cham/khong toi
+try {
+  const l = JSON.parse(fs.readFileSync(LENH_F, "utf8"));
+  if (l && (l.dung || (l.dungViec || []).includes(tenViec))) thoat(false, l.dung ? "may bi dung (lenh tu May tram)" : "viec bi dung tren may nay (lenh tu May tram)", [], "lenh");
+} catch { /* chua co lenh */ }
 
 // 1) BANG: uu tien BO NHO DEM (0 lan goi GAS). Dem cu/khong co -> lay live 1 lan (co tran).
 let r = layBangCache();
