@@ -135,6 +135,8 @@ function dayStr(ms){ var t = new Date(ms); return t.getUTCFullYear() + "-" + p2(
 function etaFrom(startMs, soNgayLam){ var d = startMs, lam = 0; for (var i = 0; i <= 800 && lam < soNgayLam; i++){ d = startMs + i * 86400000; if (new Date(d).getUTCDay() !== 0) lam++; } return d; }
 function fcFmt(ms){ var t = new Date(ms), nay = new Date(todayMsVN());
   return p2(t.getUTCDate()) + "/" + p2(t.getUTCMonth() + 1) + (t.getUTCFullYear() !== nay.getUTCFullYear() ? ("/" + t.getUTCFullYear()) : ""); }
+/* 13/10 user «6 ô sao không thẳng 1 hàng»: nhãn 1 dòng — phần sau « · » / trong ngoặc chuyển thành dòng phụ dưới số */
+function tachNhanKs(h){ return h.replace(/<div class="t">([^<]*)<\/div>/g, function(_, t){ var m = /^(.*?)\s*(?:·\s*(.+)|\((.+)\))$/.exec(t); return m ? '<div class="t">' + m[1] + '</div><div class="s">' + (m[2] || m[3]) + "</div>" : _; }); }
 function swap(el){ if (!el) return; el.classList.remove("hk-swap"); void el.offsetWidth; el.classList.add("hk-swap"); }
 
 /* ===== CSS — bơm 1 lần, neo #pane-kk / .hk-modal, token màu theo theme host ===== */
@@ -585,6 +587,8 @@ function renderPanel(kind){
     it("negative", "neg", neg, "Lệch âm") +
     it("positive", "pos", pos, "Lệch dương") +
     fcHtml;
+  strip.innerHTML = tachNhanKs(strip.innerHTML);
+  if (!S.wh && window.tqGhi) window.tqGhi("kk-" + kind, { dem: counted, tong: denom, eta: fc.eta || "" });   // 13/10 Tổng quan phương án B
   swap(strip);
   /* Tầng 2: thanh trạng thái 100% + chips đếm theo PHIẾU */
   var keys = ST_ORDER.filter(function(s){ return stc[s]; })

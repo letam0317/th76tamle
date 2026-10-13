@@ -2610,6 +2610,7 @@ function renderToday(){
     '<div class="hp-tiles hp-tilesdoc n' + nhom.length + '">' + tiles + '</div>' +
     '</div></section>';
   ganLocVaoThe(wb);
+  if (homNay && la1Ngay() && !S.area && window.tqGhi) window.tqGhi("plg", { da: cnt.da, tong: nTot });   // 13/10 Tổng quan phương án B: chỉ số «Vệ sinh hôm nay» (toàn khu)
   /* THẺ CẦN XỬ LÝ: vỏ ở đây, các dòng do renderMap đổ vào #hpNhacSlot (nó đã có sẵn mọi số liệu ô). */
   var todo = $id("hpTodo");
   if (todo && !$id("hpNhacSlot")) todo.innerHTML = '<section class="hp-panel hp-fade hp-todo"><h2>Cần xử lý</h2><div id="hpNhacSlot"></div></section>';

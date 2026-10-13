@@ -45,6 +45,8 @@ const FILES = [
   ["kiemsoatkho/kho170-topview.js", "kho170-topview.js"],   // mặt bằng tab Planogram = ảnh top-view 3D (xuat-topview-kho170.mjs, 28/09)
   ["kiemsoatkho/kho170-topview.webp", "kho170-topview.webp"],
   ["kiemsoatkho/kho170-bocuc.js", "kho170-bocuc.js"],
+  ["kiemsoatkho/dash-bocuc.js", "dash-bocuc.js"],           // 13/10 bố cục dashboard (bộ Chỉnh bố cục ở bản QC ghi, «Chốt phát hành» đẩy)
+  ["kiemsoatkho/dash-bocuc-ap.js", "dash-bocuc-ap.js"],     // 13/10 bộ áp bố cục — dash-bocuc-sua.js (bộ chỉnh) KHÔNG đẩy: chỉ bản QC dùng
   ["kiemsoatkho/taisan-vitri.js", "taisan-vitri.js"],       // sổ tài sản theo mã vị trí — pop-up ô Planogram nạp lười (29/09)     // bố cục đồ đạc dời được của trang 3D (chế độ Chỉnh sửa bố cục, 29/09)
 ];
 
@@ -94,4 +96,11 @@ async function day(localFile, repoPath) {
   const iC = process.argv.indexOf("--chi"), CHI = iC > 0 ? process.argv[iC + 1].split(",") : null;
   for (const [local, remote] of FILES) if (!CHI || CHI.includes(remote)) await day(local, remote);
   console.log("✓ Xong. GitHub Pages cập nhật sau ~30–60 giây.");
+  /* 13/10: GitHub là nguồn gốc, audit-dc.pages.dev là mặt tiền — đẩy GitHub xong thì đẩy Cloudflare luôn (không đổi thì nó tự bỏ qua).
+     Lỗi Cloudflare KHÔNG làm hỏng lượt đẩy GitHub; lịch «5S Day Cloudflare audit-dc» 2 giờ/lần bù lại. Tắt: --khong-cf */
+  if (!process.argv.includes("--khong-cf")) {
+    const { spawnSync } = await import("node:child_process");
+    const r = spawnSync(process.execPath, ["day-cloudflare.mjs"], { cwd: path.dirname(fileURLToPath(import.meta.url)), stdio: "inherit" });
+    if (r.status) console.log("  ⚠ Cloudflare chưa đẩy được (mã " + r.status + ") — lịch 2 giờ sẽ thử lại");
+  }
 })().catch((e) => { console.error("✗ " + e.message); process.exit(2); });

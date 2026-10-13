@@ -423,6 +423,7 @@ function render(){
   var _so = soLieu();
   var tot = _so.tot, cnt = _so.cnt, byWh = _so.byWh, nSku = _so.nSku, nWh = _so.nWh;
 
+  if (!S.wh && window.tqGhi) window.tqGhi("abn", { n: nSku });   // 13/10 Tổng quan phương án B đọc số này (không tự tải)
   var tiles = '<div class="ht-tile tot" onclick="HTONBAT.openAll()" title="Xem tất cả SKU bất thường">' +
       '<div class="k">' + nf(nSku) + '</div><div class="l">SKU bất thường' + (typeof tipMuc === "function" ? tipMuc(TIP_TONG) : "") + '</div><div class="s">Product Type = Normal · ' + nf(nWh) + ' kho</div></div>' +
     TYPES.map(function(t){

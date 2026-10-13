@@ -218,6 +218,18 @@ function gom() {
       p.lsKho = { bin, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
 
+  /* 13/10 user: "người có tác động mà KHÔNG thao tác ở hệ thống — khi có vi phạm cũng cần ghi lại, gắn nhãn highlight".
+     Sổ .exports/tac-dong-vat-ly.json { idPhieu: [{ at, ma, viec, clip, nguon:"tay"|"may", luc }] } — người xem clip ghi tay (POST /api/tac-dong-vat-ly),
+     cò camera sau này ghi cùng sổ với nguon:"may". Gộp vào lsKho như một lượt, cờ vatLy để giao diện tô nổi. */
+  { const VL = docJ(path.join(EXP, "tac-dong-vat-ly.json"), {});
+    for (const p of phieu) { const ds0 = VL[p.id]; if (!ds0 || !ds0.length) continue;
+      const tGhi = t(String(p.ngayVP || "").slice(0, 16));
+      const them = ds0.map((v) => { const nv = db.theoMa.get(String(v.ma || "")) || {};
+        return { at: v.at, ten: nv.ten || (v.ma ? "Mã " + v.ma : "Chưa rõ ai"), ma: v.ma || "", qty: "", loai: v.viec || "Tác động vật lý", vatLy: true, nguonVL: v.nguon || "tay",
+          truocGio: Math.round((tGhi - t(v.at)) / 36e5 * 10) / 10, clip: v.clip || "", tgClip: v.tgClip || null }; });
+      const L = (p.lsKho ||= { bin: p.viTri || "", ghi: p.ngayVP, gioCuaSo: 72, ds: [], nguoi: 0, phuTrach: [] });
+      L.ds = L.ds.concat(them).sort((a, b) => (a.at < b.at ? 1 : -1)); L.nguoi = new Set(L.ds.map((x) => x.ten)).size; L.vatLy = them.length; } }
+
   /* 07/10 luật VS-06 (cửa sổ bụi 8h) · VS-07 (camera đúng giờ nộp báo cáo): canh-b11 ⑤ ghi .exports/vesinh-xet.json mỗi lượt (0 lượt gọi thêm),
      camera-bao-cao.mjs ghi .exports/cam-baocao/<id>/ket-qua.json + ảnh soi nội bộ soi-*.jpg (KHÔNG phải bằng chứng gắn phiếu). */
   const XET = docJ(path.join(EXP, "vesinh-xet.json"), { phieu: {} });
@@ -253,7 +265,8 @@ function gom() {
     const tao = new Map(); for (const d of docSo(60, 20000)) if (d.hd === "Tạo phiếu" && d.phieu && !tao.has(d.phieu)) tao.set(d.phieu, d);
     for (const p of phieu) { const d = tao.get(String(p.id)); if (d) { p.mayTao = d.ten; if (d.nguoiThat) p.nguoiGui = ai(d.nguoiThat); } }
     return { ds: docSo(14, 2000).map((d) => ({ t: d.t, ten: d.ten, chuoi: String(d.chuoi || "").split(" › ").map((x) => TEN_BO[x] || x).join(" › "), cach: d.cach, may: d.may, hd: d.hd, phieu: d.phieu || "", doan: !!d.doan,
-      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false })) };
+      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false,
+      truong: d.truong || "", truoc: d.truoc == null ? null : d.truoc, sau: d.sau == null ? null : d.sau })) };   // 13/10: trước / sau khi điều chỉnh
   })();
   const tuoi = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
   const data = { capNhat: new Date().toISOString(), nguon: { tasks: c.updatedAt || null, camera: ngays[0] || null, goiY: tuoi(path.join(EXP, "canh-b1-ketqua.json")) || null },
@@ -280,12 +293,39 @@ async function quyDinh() {
   } catch { return QDC?.ds || []; }
 }
 
+/* 13/10 user: sub-tab «Máy trạm» — các PC + nhịp tim + sức khoẻ (RAM/CPU/ổ đĩa) + việc đang làm, bấm dừng/tiếp tục; dừng thì
+   điều phối tự chuyển việc sang PC khác. Nguồn: GAS pcBang (Script Properties, 0 lượt gọi work/wms/hr). Ai được giao việc nào
+   tính bằng CHÍNH dieu-phoi.mjs + cai-pc/dieu-phoi.json mà các PC dùng ⇒ màn hình nói đúng điều PC sẽ làm. */
+let MT = null, MT_DANG = null;
+function mayTram() {
+  if (MT && Date.now() - MT.at < 15e3) return Promise.resolve(MT.data);
+  if (MT_DANG) return MT_DANG;
+  MT_DANG = (async () => {
+    const { gasPost } = await import("./session-rules.js");
+    const { mayChay, maySong } = await import("./dieu-phoi.mjs");
+    const j = await gasPost({ action: "pcBang", key: process.env.APPSCRIPT_KEY }, () => {}, "pcBang");
+    if (!j || j.status !== "success") throw new Error((j && j.message) || "Apps Script không trả bảng máy trạm");
+    const cfg = docJ(path.join(DIR, "cai-pc", "dieu-phoi.json"), { viec: [] }), het = cfg.hetHanPhut || 8, now = j.srvNow || Date.now();
+    const song = maySong(j.may, now, het), bangSong = j.may.filter((m) => song.has(m.may));
+    const giao = {}; for (const v of cfg.viec) giao[v.ten] = mayChay(v, bangSong, now, cfg);
+    const data = {
+      srvNow: now, hetHanPhut: het,
+      may: j.may.map((m) => ({ ...m, song: song.has(m.may), tuoiGiay: Math.round((now - Date.parse(m.luc)) / 1000), viecGiao: cfg.viec.filter((v) => giao[v.ten] === m.may).map((v) => v.ten) }))
+        .sort((a, b) => (b.song - a.song) || (b.diem || 0) - (a.diem || 0)),
+      viec: cfg.viec.map((v) => ({ ten: v.ten, nang: !!v.nang, may: giao[v.ten] || null, giu: (j.khoa || {})[v.ten]?.may || null, canKhoa: v.envKeys || [] })),
+      chuyen: j.chuyen || [],
+    };
+    MT = { at: Date.now(), data }; return data;
+  })().finally(() => { MT_DANG = null; });
+  return MT_DANG;
+}
+
 // ---- máy chủ ----
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json" };
 const guiJ = (s, code, o) => { s.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); s.end(JSON.stringify(o)); };
 const hopLe = (q) => !LAN || !KHOA || q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.headers["x-khoa"] === KHOA ||
   new URL(q.url, "http://x").searchParams.get("khoa") === KHOA;
-const NGUON_OK = /^(https:\/\/letam0317\.github\.io|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;
+const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/([a-z0-9-]+\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + tên miền audit-dc.pages.dev (cả bản xem trước <nhánh>.audit-dc.pages.dev)
 const sv = http.createServer(async (q, s) => {
   const goc = q.headers.origin || "";
   /* 05/10 user: "trang chỉ mình t coi được" — chỉ nhận trang của chính dự án. BỎ origin "null"/file:// (trang web lạ dựng được
@@ -324,6 +364,36 @@ const sv = http.createServer(async (q, s) => {
     if (p === "/api/ping") return guiJ(s, 200, { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
+    if (p === "/api/bo-cai-pc") {   // 13/10 user: "cần có sẵn khoá trong .bat cài 1 lần". Dựng TẠI CHỖ từ .env laptop — không bao giờ lên GitHub/Pages (repo PUBLIC)
+      const cfg = docJ(path.join(DIR, "cai-pc", "dieu-phoi.json"), { viec: [] });
+      const ten = [...new Set(cfg.viec.flatMap((v) => v.envKeys || []).concat(["APPSCRIPT_URL_DUPHONG"]))];
+      const dong = ten.filter((k) => (process.env[k] || "").trim()).map((k) => k + "=" + process.env[k].trim());
+      const goc = fs.readFileSync(path.join(DIR, "cai-pc", "CAI-PC-1LAN.bat"), "utf8").replace(/\r?\n/g, "\r\n");
+      const b64 = Buffer.from(dong.join("\n"), "utf8").toString("base64");
+      const moc = 'set "REPO=';
+      if (!goc.includes(moc)) return guiJ(s, 500, { loi: "khuôn bộ cài đổi — không chèn được khoá" });
+      const bat = goc.replace(moc, 'rem --- KHOA NHUNG SAN (dung tu .env laptop luc tai) - FILE RIENG: KHONG gui qua chat/email, KHONG dua len mang ---\r\nset "HSK_KHOA_B64=' + b64 + '"\r\n' + moc);
+      log("tải bộ cài PC có khoá (" + dong.length + " khoá) — " + ((kiemPhien(phien) || {}).email || "nội bộ"));
+      s.writeHead(200, { "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="CAI-PC-1LAN.bat"', "Cache-Control": "no-store" });
+      return s.end(bat);
+    }
+    if (p === "/api/may-tram") {   // 13/10 sub-tab «Máy trạm»: nhịp tim + sức khoẻ + việc từng PC (GAS pcBang, đệm 15 s)
+      try { return guiJ(s, 200, await mayTram()); } catch (e) { return guiJ(s, 502, { loi: e.message }); }
+    }
+    if (p === "/api/may-tram/lenh" && q.method === "POST") {   // dừng / tiếp tục cả máy hoặc riêng 1 việc → GAS pcLenh
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
+      const cfg = docJ(path.join(DIR, "cai-pc", "dieu-phoi.json"), { viec: [] });
+      if (!/^[\w.-]{1,60}$/.test(String(o.may || ""))) return guiJ(s, 400, { loi: "tên máy lạ" });
+      if (o.viec && !cfg.viec.some((v) => v.ten === o.viec)) return guiJ(s, 400, { loi: "việc lạ" });
+      try {
+        const { gasPost } = await import("./session-rules.js");
+        const j = await gasPost({ action: "pcLenh", key: process.env.APPSCRIPT_KEY, may: o.may, viec: o.viec || "", dung: !!o.dung, xoa: !!o.xoa, boi: (kiemPhien(phien) || {}).email || "máy chủ 8591" }, () => {}, "pcLenh");
+        if (!j || j.status !== "success") return guiJ(s, 502, { loi: (j && j.message) || "Apps Script không nhận lệnh" });
+        log(`máy trạm: ${o.xoa ? "GỠ" : o.dung ? "DỪNG" : "TIẾP TỤC"} ${o.may}${o.viec ? " · " + o.viec : " (cả máy)"}${j.daChuyen?.length ? " → chuyển " + j.daChuyen.join(", ") : ""}`);
+        MT = null; return guiJ(s, 200, { ok: 1, lenh: j.lenh, daChuyen: j.daChuyen || [] });
+      } catch (e) { return guiJ(s, 502, { loi: e.message }); }
+    }
     if (p === "/api/nv") {
       const k = String(u.searchParams.get("q") || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const bo = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -361,6 +431,21 @@ const sv = http.createServer(async (q, s) => {
       if (!o.qd) delete so[o.id]; else so[o.id] = { qd: o.qd, gc: String(o.gc || "").slice(0, 300), luc: new Date().toISOString(), nguon: "web" };
       fs.writeFileSync(F, JSON.stringify(so, null, 1)); DEM = null;
       return guiJ(s, 200, { ok: true, qdB1: so[o.id] || null });
+    }
+    if (p === "/api/tac-dong-vat-ly" && q.method === "POST") {   // 13/10: ghi người tác động vật lý KHÔNG qua hệ thống kho (xem clip thấy) — xoa:true để gỡ
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 4e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      const o = JSON.parse(b || "{}");
+      if (!/^\d{6,10}$/.test(String(o.id || ""))) return guiJ(s, 400, { loi: "thiếu mã phiếu" });
+      if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(String(o.at || ""))) return guiJ(s, 400, { loi: "giờ không hợp lệ" });
+      if (!o.xoa && !/^\d{6}$/.test(String(o.ma || ""))) return guiJ(s, 400, { loi: "mã NV phải đủ 6 số" });
+      if (!o.xoa && !danhBa().theoMa.has(String(o.ma))) return guiJ(s, 400, { loi: "không thấy mã NV " + o.ma + " trong danh bạ kho 170" });
+      const F = path.join(EXP, "tac-dong-vat-ly.json"), so = docJ(F, {}), ds = (so[o.id] ||= []);
+      const i = ds.findIndex((v) => v.at === o.at && v.ma === String(o.ma || ""));
+      if (o.xoa) { if (i >= 0) ds.splice(i, 1); if (!ds.length) delete so[o.id]; }
+      else { const v = { at: o.at, ma: String(o.ma), viec: String(o.viec || "Tác động vật lý").slice(0, 80), clip: /^\/bc\//.test(String(o.clip || "")) ? String(o.clip).slice(0, 400) : "", tgClip: Number.isFinite(+o.tgClip) ? +o.tgClip : null, nguon: "tay", luc: new Date().toISOString() };
+        if (i >= 0) ds[i] = v; else ds.push(v); }
+      fs.writeFileSync(F, JSON.stringify(so, null, 1)); DEM = null;
+      return guiJ(s, 200, { ok: true, ds: so[o.id] || [] });
     }
     if (p === "/api/quyet-dinh" && q.method === "POST") {
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 1e5) return guiJ(s, 413, { loi: "quá lớn" }); }

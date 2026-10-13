@@ -112,7 +112,7 @@ const BIN_A0 = "F0-A0-00-00-00-00";                              // bin "chờ x
    20/08/2026 trên `created_by_user` của #13373859. Dùng làm khoá phụ để mục kho tổng trong SO_TAY
    chỉ ăn đúng task của người đó, không ăn lây một task trùng tên do người khác giao. */
 const NGUOI_GIAO_KHO_TONG = 17840;
-const DASH_5S = "https://letam0317.github.io/kiemsoatkho/?company=hasaki&tab=task";
+const DASH_5S = "https://audit-dc.pages.dev/retail/hangmuc5s/vipham/";   // 13/10 chuyển tên miền audit-dc (link cũ github.io ?tab=task vẫn chạy)
 const CHO_DUYET = 5;                                             // 5 = Chờ duyệt (nhân viên đã nộp)
 const GIO_THUC_TE = Number(process.env.TASK_GIO_THUC_TE || 1);   // mặc định khi KHÔNG có mốc nào (1 phút)
 /* ── THỜI GIAN THỰC TẾ — ô "Thời gian thực tế" của web (chốt 24/08/2026) ──────────────────────

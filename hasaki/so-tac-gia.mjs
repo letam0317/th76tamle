@@ -45,7 +45,9 @@ process.env.HSK_CHUOI_TAC_GIA = CHUOI;
 /* Ai bấm chạy: Claude Code đặt CLAUDECODE=1; có bàn phím (TTY) = chạy tay; còn lại = lịch nền / tiến trình con. */
 const CACH = process.env.CLAUDECODE ? "Claude (phiên AI)" : process.stdin && process.stdin.isTTY ? "Chạy tay" : "Lịch nền";
 
-let phieuGanNhat = "";   // phiếu vừa đọc trong tiến trình này — dùng cho lượt ghi chỉ có id bước (re-create-step)
+let phieuGanNhat = "";
+/* bản đọc gần nhất của từng phiếu (lượt GET task-input mà chính bộ chạy vốn đã gọi) → lấy GIÁ TRỊ TRƯỚC khi sửa — 0 lượt gọi thêm */
+const banDoc = new Map();   // phiếu vừa đọc trong tiến trình này — dùng cho lượt ghi chỉ có id bước (re-create-step)
 const vn = (ms) => new Date(ms + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ");
 
 function hanhDong(u, m, f) {
@@ -60,13 +62,16 @@ function hanhDong(u, m, f) {
 }
 
 async function docBody(body) {
-  const f = { phieu: "", buocDen: "", noiDung: "", tep: [] };
+  const f = { phieu: "", buocDen: "", noiDung: "", tep: [], truong: "", sau: undefined };
   if (!body) return f;
   const lay = (k, v) => {
     const s = typeof v === "string" ? v : "";
     if (!f.phieu && /^(obj_id|task_id|id|ids?\[\]?|task_ids?\[\]?)$/.test(k) && /^\d{5,}$/.test(s)) f.phieu = s;
     if (k === "workflow_step_id") f.buocDen = s;
     if (!f.noiDung && /^(comment|name|note|note_failed|reason)$/.test(k) && s) f.noiDung = s.replace(/\s+/g, " ").slice(0, 300);
+    /* 13/10 user «hiển thị TRƯỚC VÀ SAU KHI ĐIỀU CHỈNH»: lượt sửa trường (mass-update-field-task-input {id, field, value}) ghi tên trường + giá trị mới */
+    if (k === "field" && s) f.truong = s;
+    if (k === "value") f.sau = s.slice(0, 500);
   };
   if (typeof FormData !== "undefined" && body instanceof FormData) {
     for (const [k, v] of body.entries()) {
@@ -76,7 +81,7 @@ async function docBody(body) {
     }
   } else if (typeof body === "string" || body instanceof URLSearchParams) {
     const s = String(body);
-    try { const j = JSON.parse(s); for (const [k, v] of Object.entries(j)) lay(k, String(v)); }
+    try { const j = JSON.parse(s); for (const [k, v] of Object.entries(j)) lay(k, v != null && typeof v === "object" ? JSON.stringify(v) : String(v)); }
     catch { try { for (const [k, v] of new URLSearchParams(s)) lay(k, v); } catch { } }
   }
   return f;
@@ -96,8 +101,10 @@ if (typeof globalThis.fetch === "function" && !globalThis.fetch.__soTacGia) {
     try { u = new URL(typeof input === "string" || input instanceof URL ? String(input) : input.url); m = String((init && init.method) || (input && input.method) || "GET").toUpperCase(); } catch { }
     if (!u || !HOST.test(u.hostname)) return goc(input, init);
     if (m === "GET") {
-      try { const k = /task-input\/(\d{5,})/.exec(u.pathname) || /[?&](?:task_id|obj_id|id)=(\d{5,})/.exec(u.search); if (k) phieuGanNhat = k[1]; } catch { }
-      return goc(input, init);
+      let k = null; try { k = /task-input\/(\d{5,})/.exec(u.pathname) || /[?&](?:task_id|obj_id|id)=(\d{5,})/.exec(u.search); if (k) phieuGanNhat = k[1]; } catch { }
+      const rg = await goc(input, init);
+      if (k && /task-input\//.test(u.pathname)) { try { const j = JSON.parse(await rg.clone().text()); if (j && j.data && typeof j.data === "object") { banDoc.set(k[1], j.data); if (banDoc.size > 300) banDoc.delete(banDoc.keys().next().value); } } catch { } }
+      return rg;
     }
     let f = { phieu: "", buocDen: "", noiDung: "", tep: [] };
     try { f = await docBody(init && init.body); } catch { }
@@ -118,6 +125,8 @@ if (typeof globalThis.fetch === "function" && !globalThis.fetch.__soTacGia) {
         may: os.hostname(), hd, phieu, doan: doan || undefined, idMoi: idMoi && idMoi !== phieu ? idMoi : undefined,
         nguoiThat: globalThis.__HSK_NGUOI_THAT || undefined,   // người thật đứng sau (vd người gửi form 5S) — bộ gọi tự đặt
         noiDung: f.noiDung || undefined, tep: f.tep.length ? f.tep : undefined, http: r.status, ok: r.ok && !(j && j.status === 0),
+        truong: f.truong || undefined, truoc: f.truong && phieu && banDoc.has(phieu) && banDoc.get(phieu)[f.truong] != null ? String(typeof banDoc.get(phieu)[f.truong] === "object" ? JSON.stringify(banDoc.get(phieu)[f.truong]) : banDoc.get(phieu)[f.truong]).slice(0, 500) : undefined,
+        sau: f.truong ? f.sau : undefined,
         url: m + " " + u.pathname });
     } catch { }
     return r;

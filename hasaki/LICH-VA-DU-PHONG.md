@@ -35,9 +35,12 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 | ~~**5S Tra UID tren Sheet**~~ | **ĐÃ XOÁ 24/09/2026** (user gỡ task; trước đó mỗi 1', mỗi lượt ~51s) | `tra-uid-sheet.mjs` còn trên đĩa — chạy tay khi cần; tab TRA UID vẫn được **bước dự phòng đầu `watch-login-request.js`** điền mỗi 2' | `tra-uid.log` |
 | **5S Co canh planogram** | mỗi **15'**, tự bỏ lượt ngoài cửa **07:00–18:00 T2–T7** (cửa đặt ở ĐẦU main nên tick ngoài giờ tốn 0 lượt gọi) | `co-canh-planogram-hidden.vbs` → `co-canh-planogram.mjs` — canh lịch khai báo planogram: trạng thái · chu kỳ · bộ ảnh tiêu chuẩn · nội dung kiểm tra. G-sheet kế hoạch từ 26/09/2026: `MỤC LỤC` + `BAO-DUONG-170` là bản gốc của user (KHÔNG đụng); **`THEO-DOI-PLANOGRAM`** là trang cho NGƯỜI đọc — ô B4 câu TÌNH TRẠNG, bảng ① ĐIỂM LỆCH A10:G309, bảng ② NHẬT KÝ I10:O509, loại lệch đã dịch sang câu thường, cò ghi bằng GAS `vungLenh` (không clear tab); mốc gốc (bảng tiêu chuẩn 302×23) nằm ở tab **ẨN `DU-LIEU-MAY`**; nhắn Telegram khi có mục NẶNG. **3 lượt gọi upstream/lượt ⇒ ~130 lượt/ngày**; hash-skip nên không đổi thì không ghi Sheet | `co-canh-planogram.log` + `.co-canh-nhiptim.json` |
 | **Factory agent in tem** | mỗi **5'** (bổ sung vào bảng 23/08/2026 — task đã chạy từ trước mà A2 thiếu; agent CHÍNH nay ở `Desktop-JE75K38`, task này là lớp phụ trên laptop) | `_AGENT-IN-TEM-AN.vbs` → `in-tem-agent.mjs --dich-vu` | `in-tem-agent.log` |
-| **5S Canh B11** (thêm 24/09/2026) | mỗi **giờ** :35, cửa **07:00–18:00 T2–T7** đặt ở đầu main (tick ngoài giờ 0 lượt gọi) | `canh-b11.mjs` — 3 luật trên 1 GET board WF591/lượt: ① B1.1 treo >48h → bình luận TAG QLTT (ô QLBP02 của B1, mention `@[Tên](user_id:…)`) nhắc NV, CHỈ khi NV thuộc Phát triển cửa hàng/Đóng gói kho 170 (loc 398), mỗi task nhắc 1 lần (sổ `.canh-b11.json` + marker); ② B1 ≥2 NV → B1.1 gán đủ người + `sub_type=1` = "Mỗi thành viên" (số đo từ ví dụ thật 13818654 của user — KHÔNG phải type=3; push-5s cũng tự đặt lúc tạo); ③ B1.1 xong ĐỦ TỪNG thành viên VÀ ô `xacnhan11` = "Lỗi cá nhân" → điền `NVVP04` (Nhân viên vi phạm, mã phẩy) vào B3.1 rồi CHỈ LƯU, không đóng bước ("Không phải lỗi cá nhân" thì để người ghi nhận xử tay); ④ (25/09) lỗi "vệ sinh hằng ngày cuối ca" mọi vị trí + B1/B1.1 còn mở + Mô tả chưa có khối → ghép KHỐI TRUY VẾT (`truy-vet-vesinh.mjs`: phụ trách theo phân công · đi làm/báo cáo của NGÀY XÉT = ghi nhận −1, ghi nhận sau giờ RA thì chính ngày đó · 2 báo cáo gần nhất hyperlink "Yêu cầu <id>" · đánh giá AI) vào Mô tả bằng HTML; 4 tab GAS chỉ nạp khi có ứng viên; ca buộc được trách nhiệm (phụ trách CÓ đi làm ngày xét: KHÔNG BÁO CÁO hoặc VỆ SINH CHƯA ĐẠT — có báo cáo mà vẫn bẩn, user chốt 25/09 chiều) thì TỰ ĐÓNG B1 → B1.1 qua auto-complete-single-task (sổ dgB1). push-5s cũng ghép khối này cho PHIẾU MỚI ngay lúc tạo + tự suy NV vi phạm ca đó | `canh-b11.log` |
+| **5S Canh B11** (thêm 24/09/2026) | mỗi **giờ** :35, cửa **07:00–18:00 T2–T7** đặt ở đầu main (tick ngoài giờ 0 lượt gọi) | `canh-b11.mjs` — 3 luật trên 1 GET board WF591/lượt: ① B1.1 treo >48h → bình luận TAG QLTT (ô QLBP02 của B1, mention `@[Tên](user_id:…)`) nhắc NV, CHỈ khi NV thuộc Phát triển cửa hàng/Đóng gói kho 170 (loc 398), mỗi task nhắc 1 lần (sổ `.canh-b11.json` + marker); ② B1 ≥2 NV → B1.1 gán đủ người + `sub_type=1` = "Mỗi thành viên" (số đo từ ví dụ thật 13818654 của user — KHÔNG phải type=3; push-5s cũng tự đặt lúc tạo); ③ B1.1 xong ĐỦ TỪNG thành viên VÀ ô `xacnhan11` = "Lỗi cá nhân" → điền `NVVP04` (Nhân viên vi phạm, mã phẩy) vào B3.1 rồi CHỈ LƯU, không đóng bước ("Không phải lỗi cá nhân" thì để người ghi nhận xử tay); ④ (25/09) lỗi "vệ sinh hằng ngày cuối ca" mọi vị trí + B1/B1.1 còn mở + Mô tả chưa có khối → ghép KHỐI TRUY VẾT (`truy-vet-vesinh.mjs`: phụ trách theo phân công · đi làm/báo cáo của NGÀY XÉT = ghi nhận −1, ghi nhận sau giờ RA thì chính ngày đó · 2 báo cáo gần nhất hyperlink "Yêu cầu <id>" · đánh giá AI) vào Mô tả bằng HTML; 4 tab GAS chỉ nạp khi có ứng viên; ca buộc được trách nhiệm (phụ trách CÓ đi làm ngày xét: KHÔNG BÁO CÁO hoặc VỆ SINH CHƯA ĐẠT — có báo cáo mà vẫn bẩn, user chốt 25/09 chiều) thì TỰ ĐÓNG B1 → B1.1 qua auto-complete-single-task (sổ dgB1). push-5s cũng ghép khối này cho PHIẾU MỚI ngay lúc tạo + tự suy NV vi phạm ca đó. **07/10: ca CÓ BÁO CÁO không đóng ngay** — VS-06 báo cáo quá 8h trước ghi nhận → bình luận nhờ anh Tâm kiểm tra thực tế (sổ `bui`); VS-07 báo cáo trong 8h → `camera-bao-cao.mjs` (tải đầu ghi top-review ≤2 kênh × 13′, tối đa `B11_CAM_MAX`=2 phiếu/lượt) → hiện MỌI kết luận đều bình luận nhờ anh Tâm kèm số phút có mặt (sổ `cam`); tự đóng B1 theo «chỉ chụp» chỉ khi `B11_CAM_TU_DONG=1` + vùng kệ đã kiểm. Dò người bằng mô hình ≈ 6–7′/phiếu nên lượt canh có thể kéo dài 15′ (khoá .canh-b11.lock 20′ vẫn đủ). **08/10: `B11_CAM_KHONG_AI=1`** (mặc định 0, ưu tiên hơn `B11_CAM_TU_DONG`) → `camera-bao-cao --khong-ai --clip`: 1 kênh × 13′, không mô hình, không kết luận; gắn ảnh 3 mốc + clip `CLIP-CAMERA` vào PIC02/video02 của B1 rồi bình luận nhờ anh Tâm xem, KHÔNG đóng B1 (sổ `cam[id].ganB1`); ≈ 5′/phiếu (dựng clip 4′). **`B11_CAM_AI=gemini`** → `--gemini --clip`: Gemini đọc 20 lô × 8 khung (~4,5′, ~200k token flash-lite miễn phí) → khung đỏ bám bbox Gemini + kết luận theo giây hành động; gắn như không AI, «chi-chup» + `B11_CAM_TU_DONG=1` mới đóng; Gemini hỏng → rơi về không AI; ≈ 8–9′/phiếu | `canh-b11.log` |
 | **5S Packer A8 sang / chieu** (thêm 24/09/2026) | **09:20** (chốt hôm qua) + **15:30** (giữa chiều) — 2 mốc đều trong giờ máy thường bật; máy tắt lỡ mốc thì lượt sau tự chốt bù vì script luôn kéo lại "hôm qua nếu chưa chốt" | `_SYNC-PACKER-A8.vbs` → `sync-packer-a8.mjs` — ai ĐÓNG GÓI thật tại từng bàn/camera A8 theo ngày (WMS `packings/v2`, size 5000 ⇒ **3-8 lượt gọi/lần, ~6-16 lượt/ngày**) → tab PRIVATE `PACKER-A8-NGAY` (cửa sổ 30 ngày, hash-skip; có email NV nên probe servedTabs trước khi ghi); pop-up ô A8 dashboard đọc làm thẻ "Báo cáo đóng gói tại vị trí". Backfill: `node sync-packer-a8.mjs --backfill=30` | `packer-a8.log` + sổ cái `.packer-a8-ngay.json` |
+| **5S Day Cloudflare audit-dc** (thêm 13/10/2026) | mỗi **2 giờ** từ 20:05, chạy cả khi dùng pin | `_DAY-CLOUDFLARE.vbs` → `DAY-CLOUDFLARE.bat` → `day-cloudflare.mjs` — ráp 2 dashboard từ GitHub (repo `kiemsoatkho` → `/retail/`, `stocklocationfactory` → `/factory/`) rồi đẩy Cloudflare Pages dự án `audit-dc` → **https://audit-dc.pages.dev**. Băm cả cây: không đổi thì bỏ qua; tối đa 12 lượt/ngày (gói Free). `summary/` + `thu/` KHÔNG đẩy (trang đọc thẳng github.io qua `window.GOC_DL`). Ngoài lịch: `deploy-kiemsoatkho.mjs` và `day-bocuc-factory.mjs` tự gọi ngay sau khi đẩy GitHub (`--khong-cf` để tắt). 0 lượt gọi work/wms/hr. github.io vẫn chạy song song (link cũ không gãy) | `day-cloudflare.log` |
 | **5S Canh bai xe sang / chieu / toi** (thêm 02/10/2026, sửa 05/10) | **10:15 · 14:45 · 18:45** (tối dời 18:15 → 18:45 ngày 05/10 để kịp mốc 18:30) | `_CANH-BAI-XE.vbs` → `canh-bai-xe.mjs` — 2 camera bãi xe NCC (AIBV kênh 16 đầu ghi .16, BXM kênh 32 đầu ghi .12) lấy mẫu 15 s mỗi 3' trong 05:30–10:00, 12:00–14:30, gặp xe vào/ra đứng lại thì tải đoạn ≤6' + chấm công + sổ cổng → ảnh/clip chờ bạn quyết ở tab Xác minh. **Khu giấy/rác (PLR kênh 30, KGC kênh 31) từ 05/10 CHỈ chụp 2 mốc 12:01 + 18:31** (luật PL-03; trước đó ~130 đoạn/khu/ngày) → `<ngày>/PLR-moc1200.jpg`… + `mocChup` trong `ket-qua.json`. Chỉ tải đầu ghi top-review, 0 lượt gọi work/wms | `bai-xe.log` + `Videos/5S-bang-chung/bai-xe/<ngày>/` |
+| ~~**5S Canh ao xanh kho giay**~~ **ĐÃ GỠ 12/10/2026** (user: «bỏ canh» — mỗi lượt mở Edge ngầm ~1,4 GB RAM; XML sao lưu ở .exports/_sao-luu-task/; mã canh-ao-xanh.mjs giữ nguyên) (thêm 10/10/2026, user: «canh chỗ kho giấy rác: người áo xanh lá vô khung là ghi lại video 60s») | mỗi **15'**, cửa **06:00–22:15** mọi ngày đặt ở đầu script (tick ngoài giờ 0 lượt tải) | `_CANH-AO-XANH.vbs` → `canh-ao-xanh.mjs` — KGC kênh 31 (+ PLR kênh 30) đầu ghi .12: nối tiếp mốc đã quét, đoạn mẫu 15 s mỗi 60 s, COCO-SSD dò người + đo màu thân áo (G>R≥18) ≥0,35 ở ≥2 khung, hộp dáng đứng → cắt clip 60 s (từ 10 s trước) thẳng từ đầu ghi + ảnh khoanh. Không nhận mặt, không lập phiếu. Chỉ tải đầu ghi top-review, 0 lượt gọi work/wms/hr | `canh-ao-xanh.log` + `Videos/5S-bang-chung/ao-xanh/<ngày>/` (`nhat-ky.json`) |
+| **5S Xac minh camera toi** (thêm 10/10/2026, user: «chạy đi, liên tục cải tiến đến khi đạt mục đích») | **19:30**/ngày | `_XAC-MINH-DEM.vbs` → `xac-minh-dem.mjs` — ≤5 phiếu B1 treo TB-01/02/03, A1-01 (cho-camera trước) → `xac-minh-tu-dong.mjs` (Gemini API → agy Gemini → agy Claude ≤20/ngày) → bảng Việc 5S. Hậu kỳ: báo cáo «chắc» (camera thấy người đặt + lệnh WMS khớp ≤3′) mà người nằm trong ứng viên canh-b1 → ghi `.exports/xac-nhan-camera.json` (may:true) → canh-b1 ra «B1.1 · CAO»; tự chuyển hay chỉ ghi sheet vẫn theo cột Bạn duyệt. Vùng ô của ca «chắc» được học vào `ban-do-camera-o.json` roi[«ô|o»] → lần sau bỏ qua Gemini. Không ghi phiếu. ~3–8 lượt Gemini/phiếu; 0 lượt work/hr, WMS chỉ trong bước khớp lệnh | `xac-minh-dem.log` + `.exports/xm-tu-dong/<id>/BAO-CAO.md` |
 | **5S Bai xe lap phieu** (thêm 02/10/2026) | mỗi **30'** 07:00–19:00 | `_BAI-XE-PHIEU.vbs` → `bai-xe-phieu.mjs` — đọc quyết định (tab Xác minh + g-sheet bãi xe) → lập phiếu WF591 + chuyển B1.1 | `bai-xe-phieu.log` |
 | **5S Canh xac minh B1** (thêm 05/10/2026) | mỗi **2 giờ** 07:50→17:50 T2–T7 (IgnoreNew, giới hạn 50') | `canh-xac-minh-hidden.vbs` → `canh-b1.mjs --lam` (luật đã duyệt + cột Quyết định sheet; TB-01/02 1 người nay ra «cho-camera», chỉ B1.1 khi có `.exports/xac-nhan-camera.json`) → `canh-trung-nv.mjs --lam` (CH-05 gộp cùng NV·cùng lỗi·cùng ngày khác vị trí: dừng phiếu sau + tag QLTT; CH-06 ≥3 lỗi/tháng → tag QLTT từ lỗi thứ 4; cửa 07–18 T2–T7 + khoá `.canh-trung-nv.lock`) → `python sheet-b1-treo.py --lam` | `canh-xac-minh.log` |
 | **5S Tim bang chung B1** (thêm 05/10/2026) | **08:30** rồi mỗi **2 giờ** tới 18:30 (IgnoreNew, giới hạn 50') | `_TIM-BANG-CHUNG-B1.vbs` → `tim-bang-chung-b1.mjs --max=6` — phiếu B1 còn mở có giờ cất/châm từ cò B1 (`.exports/canh-b1-ketqua.json`) → `_kenh-luc-chup.mjs <id> --luc=<giờ kho>` chọn kênh theo mã ô, chụp khung đúng giờ → `Videos/5S-bang-chung/may/<id>_KHO-*.jpg` + `.exports/bang-chung-b1.json`; phiếu không có giờ kho thì chụp camera GIỜ NGƯỜI KIỂM CHỤP (không mở khoá Quyết định) rồi `dai-lui-thoi-gian-b1.mjs --max=6` dựng dải 9 khung T…−72h (`may/<id>_LUI-*.jpg`, log `dai-lui.log`); dashboard Xác minh đọc để hiện bằng chứng + mở khoá nút Quyết định. Không gắn lên phiếu. Chỉ tải đầu ghi top-review, 0 lượt work/wms/hr | `tim-bang-chung-b1.log` |
@@ -50,7 +53,7 @@ Tầng 3  từng script nguồn               — tự tuân session-rules (toke
 
 ### A2b. Lịch Windows NGOÀI thư mục hasaki + lịch đang chạy mà A2 chưa ghi (khảo sát 05/10/2026 khi dọn thư mục gốc)
 
-Thư mục gốc `New folder` từ 05/10/2026 chỉ còn: `hasaki/` · `factory/` · `viec-lam-ca-dem/` · `xiaomi-fix/` · `kenh-trinh-tham/` (dự án cá nhân) · `Chung/` (khoá + script máy) · `GEMINI.md` + `.agents/` (Antigravity, `GEMINI.bat` cd về gốc). Bản sao mọi thứ đã xoá/dời: `_backup-don-dep-2026-10-05/` (có MANIFEST SHA-256 + XML 2 task).
+Thư mục gốc `New folder` từ 05/10/2026 chỉ còn: `hasaki/` · `factory/` · `viec-lam-ca-dem/` · `xiaomi-fix/` · `kenh-trinh-tham/` (dự án cá nhân) · `Chung/` (khoá + script máy) · `GEMINI.md` + `.agents/` (Antigravity, `GEMINI.bat` cd về gốc). Bản sao mọi thứ đã xoá/dời từng nằm ở `_backup-don-dep-2026-10-05/` (MANIFEST SHA-256 + XML 2 task); **đã xoá 07/10/2026** sau khi đối chiếu: 20 tệp dời khớp hash tại đích (8 tệp chỉ khác do sửa đường dẫn/ghi log), 24 lịch Windows đều trỏ tới tệp còn tồn tại, 2 trang claude.ai vẫn còn trên mạng.
 
 | Task | Lịch | Chạy gì | Ghi chú |
 |---|---|---|---|
@@ -59,7 +62,7 @@ Thư mục gốc `New folder` từ 05/10/2026 chỉ còn: `hasaki/` · `factory/
 | **5S Ban noi bo (8123)** | logon | `_XEM-NOI-BO.vbs` | chưa từng chạy thành công (mã 267011) |
 | **5S Bang xac minh (8591)** | logon | `_BANG-591.vbs` | dashboard nội bộ Việc 5S |
 | **5S Nhac cai may in** | 1 lần 06/10/2026 07:50 | `node _NHAC-CAI-MAY-IN.mjs` | nhắc một lần |
-| **PC-login-agent-pilot** | mỗi 5' | `_PC-LOGIN-AGENT.vbs` | thí điểm theo dõi đăng nhập PC |
+| ~~**PC-login-agent-pilot**~~ **ĐÃ GỠ 12/10/2026** (user bỏ; XML ở .exports/_sao-luu-task/) | mỗi 5' | `_PC-LOGIN-AGENT.vbs` | thí điểm theo dõi đăng nhập PC |
 
 
 Vì sao 08:40 chứ không 07:00: máy hay bật muộn, task "chạy bù" dồn vào giữa giờ làm và đụng
@@ -1033,3 +1036,100 @@ Phát hiện cùng lúc: laptop lúc 16:30–17:15 ở mạng `192.168.1.x` (kh�
 
 **Còn chờ user:** tên/IP PC #2 · xác nhận máy in bật 24/7 (kiểm `_nhip-mayin.txt` khi laptop về mạng công ty) · chọn
 giờ diễn tập OTP (bước 1).
+
+### G7. BỘ CÀI SẴN cho 3 PC nội bộ (dựng 12/10/2026 — CHỜ máy + CHỜ user chốt 3 hướng)
+User (12/10): sẽ chuyển sang **3 PC nội bộ chia việc**; chưa có máy, 3 hướng mới chỉ là Ý TƯỞNG:
+(1) 3 PC chia việc; (2) 1–2 PC tắt thì máy còn lại **gánh thay**; (3) mỗi PC có thể có tài khoản WMS người
+khác đăng nhập → **bridge riêng từng PC** để tự làm tươi token khi laptop tắt/hết token. Yêu cầu: **dựng
+sẵn bộ cài để khi có máy thì cài thẳng, không sửa gì.**
+- **ĐÃ DỰNG `hasaki/cai-pc/`** (bộ cài theo VAI, máy-bất-kỳ): `vai-pc.json` (3 vai camera/dong-bo/in-tem →
+  nhóm tác vụ + khoá .env); `tasks-xml/` (13 XML **xuất thẳng từ laptop** → giữ y nguyên giờ/nhịp);
+  `CAI-PC.ps1` + `CAI-PC.bat` (admin: clone repo nếu thiếu → npm install → vá Edge ngầm → ghi .env theo vai
+  → khoá thư mục SYSTEM+Admin bằng SID → **đổi XML sang chủ SYSTEM `S-1-5-18`/ServiceAccount** rồi nạp đúng
+  nhóm của vai → ghi nhịp tim). Thêm/bớt việc = sửa `vai-pc.json` + chạy lại, **không đổi bước cài**.
+- **Khác G6 ở 1 điểm:** G6 định để task **Interactive**; nay chốt **SYSTEM** vì PC **không tự đăng nhập**
+  (`CAM_TU_DANG_NHAP=1`) + token lấy qua GAS ⇒ không cần Turnstile/desktop, chạy ngầm headless như agent dựng clip.
+- **QC 12/10:** `node --check`/PSParser CAI-PC.ps1 OK (thuần ASCII, tránh bẫy em-dash/`✓`); logic nạp XML +
+  đổi đường dẫn + tách tên chạy sạch cho cả 3 vai; định dạng chủ SYSTEM khớp task SYSTEM mẫu. **CHƯA** đăng ký
+  thật được (UAC trong phiên tự động bị chối) — nghiệm thu khi cài trên máy thật.
+- **TỰ CẬP NHẬT (thêm 12/10, user: "cập nhật/chỉnh sửa mới nhất mà không cần cài lại"):** bộ cài clone **NGUYÊN
+  repo** vào `C:\AuditFactory\hasaki-repo` (giữ `.git`; bản đầu chép tay chỉ thư mục con là MẤT .git — đã sửa),
+  cò chạy từ `hasaki-repo\hasaki`. Task SYSTEM **`Audit cap nhat PC`** (nhịp `capNhat.nhip`, mặc định 2h + lúc
+  khởi động) chạy `cai-pc/_CAP-NHAT-PC.ps1`: `git fetch+reset --hard origin/<nhanh>` → npm install **chỉ khi
+  package-lock đổi** → vá Edge ngầm → **`DongBo-Vai`** (hàm chung `dong-bo-task.ps1`, cả cài lẫn cập nhật dùng:
+  nạp lại tác vụ của vai, gỡ tác vụ đã bỏ khỏi `vai-pc.json`) → nhịp tim. Thêm/bớt việc = sửa `vai-pc.json` +
+  push, PC tự theo, **không cài lại tay**.
+- **NHÁNH BACKEND = `cai-tien/bo-sung-factory`** (KHÔNG phải `main` — main chỉ có frontend GitHub Pages, không có
+  `hasaki/`). Đo 12/10: nhánh này có trên origin; **laptop đi trước origin 19 commit + 62 file chưa commit** ⇒
+  PC chỉ đồng bộ thứ ĐÃ PUSH. Quy trình: laptop duyệt → commit+push → PC tự kéo. Không tự push (giữ cổng duyệt +
+  quét bí mật). `cai-pc/` phải nằm trong nhánh đã push thì `_CAP-NHAT-PC.ps1` mới có sau pull.
+- **QC 12/10 (bản sao tạm, nhánh backend):** clone có `hasaki/package.json`+`canh-b11.mjs`; `reset --hard` trả
+  file tracked về gốc **mà giữ nguyên `.env` + `.vai-pc`** (untracked/gitignore); 3 PS1 + `dong-bo-task.ps1` cú
+  pháp OK, thuần ASCII; `XmlConvert.ToTimeSpan("PT2H")` OK. File máy-local (`.vai-pc`/`.nhip-pc.json`/
+  `.cai-pc-tasks.json`/`.cap-nhat-*`) đã gitignore cả ở `cai-pc/` lẫn `hasaki/.gitignore`.
+- **CHƯA làm (chờ user chốt):** hướng (3) cần **kho token nhiều nguồn có nhãn chủ** + tách luồng ĐỌC (token bất kỳ)
+  / GHI (chỉ `tamlc` — đề xuất, chờ user duyệt vì token mượn mang danh tính người đăng nhập). Chưa push.
+
+### G8b. KHÉP MỘT NGUỒN (12/10 chiều) — `dieu-phoi.json` lo CẢ "chia việc" LẪN "bổ sung tự động"
+Trước đó còn 2 nguồn tách (vai-pc.json cài cố định + dieu-phoi.json điều phối). Đã **gộp về 1 nguồn** `cai-pc/dieu-phoi.json`:
+mỗi mục việc có `ten·xml·vbs·nang·giuTTL·envKeys·uuTien`. **Đã bỏ `vai-pc.json`.**
+- **Cài theo hostname (không hỏi vai):** `CAI-PC.ps1` đăng ký mọi việc mà `COMPUTERNAME ∈ uuTien`, mỗi task **bọc qua
+  `_DP-CHAY.vbs <việc> <vbsThật>`** (cổng gác → chạy cò thật nếu được chọn). `.env` = hợp các `envKeys` của việc máy nhận
+  + `envCung`. Máy lạ (hostname không khai) → 0 việc + cảnh báo.
+- **Bổ sung/bớt việc tự động (không cài lại):** thêm/sửa 1 mục trong `dieu-phoi.json` (+ đặt XML vào `cai-pc/tasks-xml`) →
+  push → `_CAP-NHAT-PC.ps1` (DongBo-DieuPhoi) **đăng ký việc mới / gỡ việc đã bỏ + bổ sung khoá .env thiếu** theo hostname.
+  Đổi `uuTien` (thêm/bớt máy) cũng tự theo. QC: phép đổi Action trong XML → **XML hợp lệ, chủ SYSTEM, trigger giữ nguyên**;
+  mô phỏng chia việc theo hostname đúng (máy trong uuTien nhận việc, máy lạ 0); 3 PS1 + VBS thuần ASCII; điều phối 9/9.
+- **Trần pre-deploy:** chưa deploy GAS thì runner ở chế độ local = chỉ máy ưu-tiên-1 chạy (an toàn, chưa có gánh-thay/cân-bằng).
+
+### G8c. TỰ XẾP HẠNG (user non-tech không đánh giá máy) + MÁY NGỦ/WIFI (12/10 tối)
+User: "máy nào mạnh bạn tự kiểm chứ t không biết đánh giá — cài xong cần bộ đánh giá gửi cho điều phối"; "t không
+cắm LAN / tắt ngủ hết được, sẽ có PC dùng WiFi + ngủ — tính luôn kịch bản này".
+- **Tự xếp hạng (bỏ khai PC1/PC2/PC3):** `suc-khoe.mjs` thêm `diem` = nhân×GHz×10 + RAM(GB); `nhip-pc.mjs` gửi kèm
+  `diem·nhan·ramTongGB·coKhoa` (tên khoá .env đang có, KHÔNG giá trị). `dieu-phoi.mjs` **chế độ auto** (việc không `uuTien`):
+  ứng viên = máy sống + `coKhoa ⊇ envKeys` + (việc nặng thì không yếu), **chọn điểm cao nhất** (hoà → hostname). ⇒ user
+  **không xếp hạng**; **năng lực điều khiển bằng .env** (máy dien TOPREVIEW mới nhận camera). `dieu-phoi.json` đã **bỏ uuTien**
+  (vẫn cho ghim tay nếu cần). Cài **HẾT việc trên mọi máy**, cổng gác lọc runtime. Test: **14/14** (thêm 5 ca auto-rank).
+- **Bộ đánh giá cho user:** `node xem-dieu-phoi.mjs` → in từng máy (điểm, RAM, khoẻ/yếu, khoá) + việc nào máy nào chạy +
+  việc không ai nhận. (Chạy thật local: máy này điểm 335, đủ khoá → gánh hết — đúng "ít máy gánh hết".)
+- **Độ trễ cổng gác (12/10, user hỏi "ép nhịp <2s"):** KHÔNG tăng nhịp (2s/lần = ~400k lượt GAS/ngày, vỡ quota + gãy
+  dashboard/token/5S; task Windows tối thiểu 1'). Thay vào đó: nhịp tim giữ **3'**, bảng được **đệm** (`.nhip-bang-cache.json`
+  TTL 180s) → cổng gác đọc đệm (0 lượt GAS), chỉ gọi GAS **1 lần** để giành khoá, có **trần 2s** (`NHIP_TRAN_MS`). Còn lại
+  ~2s là Node khởi động/nạp lib — nền, vô hại. Muốn gánh thay nhanh hơn thì hạ `hetHanPhut`, không phải tăng nhịp. GAS chết:
+  có đệm→chạy theo xếp hạng nhất quán; không đệm→việc nhẹ chạy, việc nặng thôi (tránh N×). Test 14/14.
+- **Máy ngủ/WiFi:** mỗi task chèn `WakeToRun`+`StartWhenAvailable`+`DisallowStartIfOnBatteries=false` (qua cmdlet Set-ScheduledTask,
+  tránh bẫy thứ tự schema), `powercfg` tắt ngủ (best-effort). Thêm task **`Audit nhip tim PC`** 3' (máy rảnh vẫn báo sống +
+  chạy bù khi bật lại). Ngủ/rớt WiFi = nhịp cũ → **gánh thay**; bật lại → chạy bù. ⇒ cần ≥1 máy 24/7.
+
+### G8. MẮT TRUNG TÂM + BỘ ĐIỀU PHỐI THEO SỨC KHOẺ (user chốt 12/10/2026; ĐÃ DỰNG + TEST, chờ máy + 1 deploy)
+User: "không có mắt trung tâm để nhìn các máy" + "cần 1 bộ luật điều phối: ít máy thì 1 máy gánh nhiều vai,
+nhiều máy thì băm nhỏ; theo sức khoẻ — RAM trống dưới 30% thì khoan chạy/treo".
+- **ĐÃ DỰNG + TEST (laptop):**
+  - `suc-khoe.mjs` — đo RAM trống %, CPU, cờ `yeu` (RAM trống < `RAM_TRONG_TOI_THIEU`, mặc định 30%). Test thật: 27,7% → yeu.
+  - `dieu-phoi.mjs` — bộ luật deterministic từ "bảng nhịp tim": mỗi việc có `uuTien`=danh sách máy; máy **song-cao-nhất**
+    (và **không yếu** nếu việc `nang`) chạy. Ít máy → 1 máy gánh nhiều (máy trên chết); nhiều máy → trải đều; việc nặng
+    + máy yếu → nhường máy kế; mọi máy yếu → việc nặng **hoãn**; nhịp cũ (>`hetHanPhut`, 8') = coi như chết → gánh thay.
+    **`node dieu-phoi.mjs --test` = 9/9 pass** (5 tình huống). Mỗi việc 1 máy ⇒ **0 tăng tải upstream, không ghi đôi**;
+    deterministic nên **KHÔNG cần khoá atomic** (bỏ `RUNNER_LEASE` phức tạp).
+  - `nhip-pc.mjs` — đẩy nhịp tim lên GAS (`action pcNhip`) + nhận về bảng; chưa có GAS thì **tự lùi về local** (1 máy).
+  - `runner-dieu-phoi.mjs <việc>` — cổng gác đặt ở đầu mỗi cò: exit 0=chạy / 75=đứng. Test offline (`DIEUPHOI_BANG`):
+    khoẻ+ưu-tiên-1 → chạy; yếu + việc nặng → hoãn; máy khác ưu tiên cao → đứng.
+  - `cai-pc/dieu-phoi.json` — bảng việc↔ưu-tiên (tạm PC1/PC2/PC3, thay hostname thật khi có máy).
+  - GAS `apiPcNhip_` (đã thêm vào `google-script-DEPLOY.gs`, cú pháp OK) — lưu `PCNHIP_<may>` trong ScriptProperties
+    dưới `LockService`, trả bảng máy còn tươi, tự dọn nhịp chết. **CHƯA DEPLOY** (theo cổng duyệt + bẫy mất khoá Gemini).
+- **QC KỊCH BẢN (12/10, tìm lỗi rồi VÁ trong mã, không chỉ ghi nhận):**
+  | # | Kịch bản | Lỗi nếu để nguyên | Đã vá thế nào |
+  |---|---|---|---|
+  | 1 | Nhịp PC1 ở ranh giới 8' (máy này thấy sống, máy kia thấy chết) | **chạy đôi** việc ghi | Ứng viên phải **giành khoá atomic `PCLEASE_<việc>`** trên GAS (LockService) mới chạy — mô phỏng: 2 máy giành → 1 thắng |
+  | 2 | GAS chết → mỗi máy chỉ thấy chính nó | **mọi máy chạy mọi việc = N× tải** | Bộ gác: nguồn=local + có máy khác trong ưu tiên → **chỉ máy ưu-tiên-1 chạy** |
+  | 3 | Đồng hồ 1 PC lệch vài phút | bị coi chết oan / sống oan | GAS **đóng dấu giờ máy chủ** + trả `srvNow`; mọi phán xét sống/chết dùng giờ máy chủ |
+  | 4 | RAM lơ lửng quanh 30% | **rung** yếu/khoẻ mỗi nhịp → việc nặng nhảy máy | **Độ trễ**: vào yếu <30%, chỉ thoát khi ≥40% (`.suc-khoe-yeu`) |
+  | 5 | Máy giữ khoá crash giữa chừng | việc kẹt vĩnh viễn | Khoá có **TTL** (mặc định 10'); hết hạn máy khác giành. Việc chạy lâu > TTL phải đặt `giuTTL` ≥ thời gian chạy |
+  | 6 | Việc 1-máy-tuyệt-đối (đọc Telegram=409) | 2 máy đọc → 409 | KHÔNG đưa việc OTP/Telegram vào `dieu-phoi.json`; giữ ở laptop |
+  | 7 | Push 1 commit hỏng → mọi PC pull về cùng lúc | **cả 3 PC chết đồng loạt** | Luật: push nhánh đã QC; (đề xuất) 1 PC canary pull trước — CHỜ user |
+  | 8 | PC chạy việc GHI bằng token người khác | ghi sai danh tính | **Hướng 3** (token ghi chỉ `tamlc`) — CHƯA làm, chờ user |
+- **3 việc KÍCH HOẠT (khi có máy + user duyệt):** (1) **deploy GAS** (deploy-gas.mjs chèn khoá+canary) để `pcNhip` sống;
+  (2) điền **hostname thật** vào `dieu-phoi.json` + push; (3) **nối cổng gác**: mỗi .vbs của cò chạy `runner-dieu-phoi
+  <việc>` trước, exit 75 thì thôi; thêm 1 task **nhịp tim** mỗi ~3' gọi `nhip-pc.mjs` để máy rảnh vẫn báo sống. Lúc đó
+  cai-pc đổi từ "mỗi máy 1 vai cố định" sang **mỗi máy cài mọi việc nó có trong `uuTien`, để bộ điều phối quyết**.
+- Chưa push.
