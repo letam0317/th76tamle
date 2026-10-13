@@ -45,6 +45,7 @@ const DC_DIR = path.join(DIR, ".dang-chay");
 const DC_TOM = path.join(DC_DIR, "_tom-tat.json");      // ten viec dang chay (lan do gan nhat) -> guiNhip cua cong gac dung lai, khong do lai
 export const LENH_F = path.join(DIR, ".lenh-may.json");  // lenh dung cua may nay (GAS tra ve) -> cong gac doc khi GAS cham
 const NHAN_F = path.join(DIR, ".da-nhan-chuyen.json");   // viec vua chay bu (bao GAS xoa o nhip ke)
+const GIAO_F = path.join(DIR, ".viec-giao.json");         // viec may nay duoc giao (tinh tu bang nhip vua nhan) -> gui o nhip ke
 
 async function dsTienTrinh() {
   const { execFile } = await import("node:child_process");
@@ -94,8 +95,11 @@ function banCode() {   // ma commit dang chay (doc thang .git, khong goi git)
 export async function guiNhip(log = () => {}, opts = {}) {
   const sk = await sucKhoe();
   let dangChay = opts.dangChay; if (!dangChay) { try { dangChay = JSON.parse(fs.readFileSync(DC_TOM, "utf8")); } catch { dangChay = []; } }
+  // 13/10: việc máy này được giao (tính ở nhịp trước bằng dieu-phoi.mjs) + mọi việc trong dieu-phoi.json → tab Máy trạm trên điện thoại
+  let viecGiao = []; try { viecGiao = JSON.parse(fs.readFileSync(GIAO_F, "utf8")); } catch { /* chưa tính */ }
+  let tatCaViec = []; try { tatCaViec = (JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).viec || []).map((v) => v.ten); } catch { /* */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
-    dangChay, ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
+    dangChay, viecGiao, tatCaViec, ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
   try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).
@@ -125,6 +129,10 @@ if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
   let daNhan = []; try { daNhan = JSON.parse(fs.readFileSync(NHAN_F, "utf8")); } catch { /* */ }
   const r = await guiNhip(nk, { timeoutMs: 20000, daNhan, ...(dc ? { dangChay: Object.keys(dc) } : {}) });
   if (r.nguon === "gas") { try { fs.unlinkSync(NHAN_F); } catch { /* */ } }
+  if (r.nguon === "gas") {   // việc được giao theo bảng vừa nhận (cùng luật cổng gác) → báo ở nhịp kế
+    try { const { viecCuaToi } = await import("./dieu-phoi.mjs"); const cfg = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8"));
+      fs.writeFileSync(GIAO_F, JSON.stringify(viecCuaToi(os.hostname(), r.bang, cfg, r.srvNow || Date.now()))); } catch { /* */ }
+  }
 
   // 1) LENH DUNG: viec dang chay ma may nay bi dung (ca may / rieng viec) -> dung ngay; nhip ke bao GAS "da dung" -> may khac chay bu
   const l = r.lenh || (() => { try { return JSON.parse(fs.readFileSync(LENH_F, "utf8")); } catch { return null; } })();
