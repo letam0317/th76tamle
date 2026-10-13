@@ -17,14 +17,22 @@ Write-Host "    Dieu khien nang luc = khoa .env: may dien TOPREVIEW -> duoc nhan
 
 # ---- Node + Git; clone CA repo (giu .git de tu cap nhat) ----
 function CoLenh($n){ $null -ne (Get-Command $n -ErrorAction SilentlyContinue) }
+# Lenh ngoai (git/npm/node) ghi tien do ra stderr -> PS 5.1 + "Stop" coi la loi. Tam ha "Continue", phan xu bang $LASTEXITCODE.
+function ChayNgoai([string]$ten, [scriptblock]$lenh){
+  $cu = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+  try { $ra = & $lenh 2>&1 | ForEach-Object { "$_" } } finally { $ErrorActionPreference = $cu }
+  if ($LASTEXITCODE -ne 0) { Write-Host "  [X] $ten loi (ma $LASTEXITCODE):" -ForegroundColor Red; $ra | Select-Object -Last 15 | ForEach-Object { Write-Host "      $_" }; exit 1 }
+}
 if (-not (CoLenh node)) { Write-Host "  [X] Chua co Node.js. Cai Node LTS (>=18) roi chay lai." -ForegroundColor Red; exit 1 }
 if (-not (CoLenh git))  { Write-Host "  [X] Chua co Git. Cai Git roi chay lai." -ForegroundColor Red; exit 1 }
 if (-not (Test-Path "$gitDir\.git")) {
   Write-Host "  - Clone repo (giu .git)..." ; New-Item -ItemType Directory -Force $caiVao | Out-Null
   if (Test-Path $gitDir) { Remove-Item $gitDir -Recurse -Force }
-  git clone --branch $cfg.nhanh $repo $gitDir 2>&1 | Out-Null
+  ChayNgoai "git clone" { git clone --branch $cfg.nhanh $repo $gitDir }
 } else {
-  Write-Host "  - Da co repo, dong bo ban moi..." ; git -C $gitDir fetch --depth 1 origin $cfg.nhanh 2>&1 | Out-Null; git -C $gitDir reset --hard "origin/$($cfg.nhanh)" 2>&1 | Out-Null
+  Write-Host "  - Da co repo, dong bo ban moi..."
+  ChayNgoai "git fetch" { git -C $gitDir fetch --depth 1 origin $cfg.nhanh }
+  ChayNgoai "git reset" { git -C $gitDir reset --hard "origin/$($cfg.nhanh)" }
 }
 # doc lai dieu-phoi.json tu repo vua keo (co the moi hon ban trong kit chep tay)
 $kit = "$duAn\cai-pc"; if (Test-Path "$kit\dieu-phoi.json") { $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json }
@@ -37,8 +45,12 @@ try { (Get-Command git).Source | Out-File "$duAn\.git-exe" -Encoding ascii -NoNe
 # ---- npm install (BO tai Chromium — co dung Edge, khong can) + va Edge ngam ----
 Push-Location $duAn
 $env:PUPPETEER_SKIP_DOWNLOAD = "true"; $env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
-Write-Host "  - npm install (bo tai Chromium; lan dau hoi lau)..." ; npm install --no-audit --no-fund --loglevel=error 2>&1 | Out-Null
-if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") { & "$duAn\node.exe" va-puppeteer-ho-so.mjs 2>&1 | Out-Null; Write-Host "    va Edge ngam: $(& "$duAn\node.exe" va-puppeteer-ho-so.mjs --kiem 2>&1)" }
+Write-Host "  - npm install (bo tai Chromium; lan dau hoi lau)..." ; ChayNgoai "npm install" { npm install --no-audit --no-fund --loglevel=error }
+if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") {
+  $ErrorActionPreference = "Continue"
+  & "$duAn\node.exe" va-puppeteer-ho-so.mjs 2>&1 | Out-Null; Write-Host "    va Edge ngam: $(& "$duAn\node.exe" va-puppeteer-ho-so.mjs --kiem 2>&1)"
+  $ErrorActionPreference = "Stop"
+}
 Pop-Location
 
 # ---- Dong bo task theo dieu-phoi.json (ham chung) ----
@@ -56,7 +68,7 @@ if ($trong) { Write-Host "  [!] .env CON TRONG: $($trong -join ', ') - dien gia 
 
 # ---- Khoa quyen thu muc chi SYSTEM + Administrators ----
 icacls $caiVao /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" | Out-Null
-icacls "$caiVao\*" /reset /T /C /Q 2>&1 | Out-Null
+$ErrorActionPreference = "Continue"; icacls "$caiVao\*" /reset /T /C /Q 2>&1 | Out-Null; $ErrorActionPreference = "Stop"
 try { Get-Content "$duAn\package.json" -TotalCount 1 | Out-Null } catch { Write-Host "  [X] Khoa quyen hong - tra lai ke thua." -ForegroundColor Red; icacls $caiVao /inheritance:e | Out-Null }
 
 # ---- Task TU CAP NHAT (SYSTEM, theo capNhat.nhip): git pull + dong bo lai, KHONG cai lai tay ----
