@@ -61,6 +61,14 @@ $kq = DongBo-DieuPhoi $kit $cfg $duAn "C:\Users\lechitam\New folder\hasaki"
 $envF = "$duAn\.env"; $dong = @{}
 if (Test-Path $envF) { foreach($l in Get-Content $envF){ if($l -match '^\s*([A-Z0-9_]+)\s*='){ $dong[$matches[1]] = $l } } }
 foreach($k in $kq.envKeys){ if(-not $dong.ContainsKey($k)){ $dong[$k] = "$k=" } }
+# Khoa NHUNG SAN trong bo cai tai tu laptop (may chu 8591 dung tu .env laptop, base64) -> dien thang, khong lam tay
+if ($env:HSK_KHOA_B64) {
+  try {
+    $txt = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:HSK_KHOA_B64)); $soKhoa = 0
+    foreach($l in ($txt -split "`n")){ $l = $l.TrimEnd("`r"); if($l -match '^([A-Z0-9_]+)=(.+)$'){ $dong[$matches[1]] = $l; $soKhoa++ } }
+    Write-Host "  - Da nap $soKhoa khoa co san trong bo cai vao .env" -ForegroundColor Green
+  } catch { Write-Host "  [!] Khoa trong bo cai hong: $_" -ForegroundColor Yellow }
+}
 foreach($p in $cfg.envCung.PSObject.Properties){ $dong[$p.Name] = "$($p.Name)=$($p.Value)" }
 ($dong.Values | Sort-Object) -join "`r`n" | Out-File $envF -Encoding utf8
 $trong = $kq.envKeys | Where-Object { $dong[$_] -match '=\s*$' }
@@ -95,7 +103,8 @@ $sha = (git -C $gitDir rev-parse --short HEAD 2>$null)
 Write-Host ""
 Write-Host "XONG: $($kq.nap) viec$(if($kq.xoa){", go $($kq.xoa) cu"}) (ban $sha). Tu cap nhat + nhip tim da bat." -ForegroundColor Green
 Write-Host "CON LAM TAY:" -ForegroundColor Yellow
-Write-Host "  1. Dien .env con trong (neu co canh bao o tren): $envF  (may KHONG lam camera thi de TOPREVIEW/GEMINI TRONG)"
+if ($trong) { Write-Host "  1. Dien .env con trong: $envF  (de khoi lam tay: tai bo cai bang nut tren dashboard o LAPTOP da dang nhap Xac minh)" }
+else { Write-Host "  1. .env da du khoa - khong can lam gi." }
 Write-Host "  2. Nen cam DAY LAN + tat ngu. May WiFi/ngu VAN CHAY: ngu = tam nghi, may khac ganh thay; bat lai la chay bu."
 Write-Host "  3. (Neu may lam bridge) mo Edge dang nhap WMS + cai extension wms-bridge."
 Write-Host ""
