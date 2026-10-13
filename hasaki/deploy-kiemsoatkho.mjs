@@ -29,6 +29,7 @@ const BRANCH = process.env.GH_BRANCH || "main";
 const FILES = [
   ["kiemsoatkho/index.html", "index.html"],
   ["kiemsoatkho/form.html", "form.html"],
+  ["cai-pc/CAI-PC-1LAN.bat", "CAI-PC-1LAN.bat"],   // 13/10: nut "Tai bo cai PC" tai file nay (cung goc -> tai thang)
   ["kiemsoatkho/factory-stock.js", "factory-stock.js"],     // module tab Trạng thái lưu trữ (lazy-load)
   ["kiemsoatkho/factory-kiemke.js", "factory-kiemke.js"],   // module tab Kiểm kê (lazy-load)
   ["kiemsoatkho/hasaki-tonbatthuong.js", "hasaki-tonbatthuong.js"], // module tab Tồn kho bất thường HASAKI (lazy-load)

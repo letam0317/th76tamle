@@ -1429,6 +1429,7 @@ body.side-anim{overflow-x:clip;}
             <button id="btnReload" class="dropdown-action-btn"><span class="act">Tải lại dữ liệu</span><small class="timestamp-hint" id="tsReload"></small></button>
             <button id="btnSync" class="dropdown-action-btn"><span class="act">Cập nhật ngay (cần PIN)</span><small class="timestamp-hint" id="tsSync"></small></button>
             <button id="btnSyncTS" class="dropdown-action-btn"><span class="act">Cập nhật chấm công (cần PIN)</span><small class="timestamp-hint" id="tsSyncTS"></small></button>
+            <a id="btnTaiBoCai" class="dropdown-action-btn" href="CAI-PC-1LAN.bat" download="CAI-PC-1LAN.bat" style="text-decoration:none"><span class="act">Tải bộ cài PC (chạy admin)</span><small class="timestamp-hint">cài 5S cho PC nội bộ · 1 lần</small></a>
           </div>
         </div>
       </div>
@@ -1663,7 +1664,7 @@ body.side-anim{overflow-x:clip;}
     <h3 id="pinTitle">Nhập PIN</h3>
     <p class="pin-desc" id="pinDesc"></p>
     <div class="pin-field">
-      <input id="pinInput" type="password" autocomplete="off" inputmode="text" placeholder="••••••" aria-label="Mã PIN">
+      <input id="pinInput" type="password" autocomplete="new-password" inputmode="text" placeholder="••••••" aria-label="Mã PIN">
       <button id="pinEye" type="button" title="Hiện/ẩn PIN" aria-label="Hiện hoặc ẩn PIN">Hiện</button>
     </div>
     <div class="pin-error-text" id="pinError"></div>
@@ -3319,7 +3320,7 @@ function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261012tk2';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261013qd4';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3928,6 +3929,18 @@ document.addEventListener('keydown', e=>{
   ['input','change'].forEach(ev=>el.addEventListener(ev,render));
 });
 $('hmTim').addEventListener('input',renderQuyDinh);
+/* 13/10 GỐC lỗi «Không có hạng mục khớp tamlc@hasaki.vn»: Edge lưu tài khoản đăng nhập Xác minh rồi tự điền email vào ô TÌM
+   (autocomplete="off" bị trình quản lý mật khẩu bỏ qua; trang có ô PIN type=password mà không có ô tên đăng nhập đi kèm).
+   Ô PIN nay "new-password" (không tự điền) + chặn mọi ô tìm/lọc nhận chữ do trình duyệt tự điền — chỉ chừa form đăng nhập. */
+(function chanTuDien(){
+  const laTuDien=el=>{ try{ return el.matches(':autofill'); }catch(e){ try{ return el.matches(':-webkit-autofill'); }catch(e2){ return false; } } };
+  const boQua=el=>!el||el.tagName!=='INPUT'||/^(email|password|hidden|checkbox|radio)$/.test(el.type)||el.closest('form[autocomplete="on"]')||/^(username|current-password|one-time-code)$/.test(el.autocomplete);
+  const xoa=el=>{ if(boQua(el)||!el.value) return; if(laTuDien(el)||(/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(el.value)&&!el.dataset.goTay)){ el.value=''; el.dispatchEvent(new Event('input',{bubbles:true})); } };
+  document.addEventListener('keydown',e=>{ if(e.target&&e.target.tagName==='INPUT') e.target.dataset.goTay='1'; },true);
+  document.addEventListener('input',e=>{ const el=e.target; if(!boQua(el)&&laTuDien(el)) setTimeout(()=>xoa(el),0); },true);
+  const quet=()=>document.querySelectorAll('input').forEach(xoa);
+  [0,800,2500].forEach(ms=>setTimeout(quet,ms)); window.addEventListener('pageshow',()=>setTimeout(quet,300));
+})();
 $('btnGhiNhan').addEventListener('click',moGhiNhan);
 $('gmClose').addEventListener('click',dongGhiNhan);
 $('ghiModal').addEventListener('click',e=>{ if(e.target.id==='ghiModal') dongGhiNhan(); });
