@@ -325,7 +325,7 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 const guiJ = (s, code, o) => { s.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); s.end(JSON.stringify(o)); };
 const hopLe = (q) => !LAN || !KHOA || q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.headers["x-khoa"] === KHOA ||
   new URL(q.url, "http://x").searchParams.get("khoa") === KHOA;
-const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/([a-z0-9-]+\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + tên miền audit-dc.pages.dev (cả bản xem trước <nhánh>.audit-dc.pages.dev)
+const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/(xemtruoc\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + audit-dc.pages.dev + bản xem trước xemtruoc. — QC bảo mật: KHÔNG nhận link phụ <mã>.audit-dc.pages.dev (bản cũ Cloudflare giữ vĩnh viễn)
 const sv = http.createServer(async (q, s) => {
   const goc = q.headers.origin || "";
   /* 05/10 user: "trang chỉ mình t coi được" — chỉ nhận trang của chính dự án. BỎ origin "null"/file:// (trang web lạ dựng được

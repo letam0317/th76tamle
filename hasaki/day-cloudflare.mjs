@@ -83,7 +83,10 @@ for (const app of ["retail", "factory"]) {
   log(app + ": dựng sẵn " + ds.length + " link tab · " + ds.join(" "));
 }
 fs.writeFileSync(path.join(DIST, "404.html"), '<!doctype html><meta charset="utf-8"><title>Audit</title><script>location.replace("/retail/")</script><a href="/retail/">Audit Retail</a>');
-fs.writeFileSync(path.join(DIST, "_headers"), "/*/index.html\n  Cache-Control: no-cache\n/retail/\n  Cache-Control: no-cache\n/factory/\n  Cache-Control: no-cache\n");
+/* 13/10 QC bảo mật: header chung cho MỌI tệp — chặn nhúng trang vào web lạ (form ghi nhận 5S chỉ được iframe cùng gốc), chặn đoán kiểu tệp,
+   không gửi đường dẫn sâu sang web khác, chặn máy tìm kiếm lập chỉ mục (dữ liệu nội bộ: tên NV, ảnh vi phạm), camera chỉ cho chính trang (quét mã). */
+fs.writeFileSync(path.join(DIST, "robots.txt"), "User-agent: *\nDisallow: /\n");
+fs.writeFileSync(path.join(DIST, "_headers"), "/*\n  X-Frame-Options: SAMEORIGIN\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Robots-Tag: noindex, nofollow\n  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()\n/*/index.html\n  Cache-Control: no-cache\n/retail/\n  Cache-Control: no-cache\n/factory/\n  Cache-Control: no-cache\n");
 
 /* ---- 2) không đổi thì bỏ qua · trần lượt/ngày ---- */
 const tep = []; (function di(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const ab = path.join(d, f.name); if (f.isDirectory()) di(ab); else tep.push(ab); } })(DIST);
@@ -103,3 +106,15 @@ if (kq.status !== 0) { log("✗ wrangler lỗi:\n" + ra.split(/\r?\n/).filter((l
 const url = (ra.match(/https:\/\/[a-z0-9.-]+\.pages\.dev/g) || []).pop() || "";
 nh.bam = bam; nh.dem++; nh.luc = new Date().toISOString(); nh.url = url; fs.mkdirSync(CF, { recursive: true }); fs.writeFileSync(SO, JSON.stringify(so, null, 1));
 log("✓ đã đẩy (" + nh.dem + " lượt hôm nay) · " + url + (NHANH === "main" ? " · tên miền chính https://" + DU_AN + ".pages.dev" : " · bản xem trước https://" + NHANH + "." + DU_AN + ".pages.dev"));
+
+/* 13/10 QC bảo mật: Cloudflare giữ VĨNH VIỄN mỗi lượt đẩy dưới link phụ <mã>.audit-dc.pages.dev (kể cả bản xem trước chưa duyệt).
+   Sau mỗi lượt: xoá mọi bản cũ, chỉ giữ bản đang chạy của tên miền chính + bản mới nhất của nhánh xemtruoc. Lỗi dọn KHÔNG làm hỏng lượt đẩy. */
+try {
+  const B = "https://api.cloudflare.com/client/v4/accounts/" + process.env.CF_ACCOUNT_ID + "/pages/projects/" + DU_AN, H = { Authorization: "Bearer " + process.env.CF_API_TOKEN };
+  const dang = ((await (await fetch(B, { headers: H })).json()).result || {}).canonical_deployment?.id;
+  const ds = (await (await fetch(B + "/deployments?per_page=25", { headers: H })).json()).result || [];
+  const giuXt = ds.filter((d) => d.environment === "preview").sort((a, b) => b.created_on.localeCompare(a.created_on))[0]?.id;
+  let xoa = 0;
+  for (const d of ds) if (d.id !== dang && d.id !== giuXt) { const x = await (await fetch(B + "/deployments/" + d.id + "?force=true", { method: "DELETE", headers: H })).json(); if (x.success) xoa++; }
+  if (xoa) log("  dọn " + xoa + " link phụ cũ");
+} catch (e) { log("  ⚠ dọn link phụ lỗi: " + String(e.message).slice(0, 120)); }
