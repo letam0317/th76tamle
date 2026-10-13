@@ -469,6 +469,38 @@ export async function layBridgeToken(log = () => {}) {
   } catch { return null; }
 }
 
+/* ============================================================================================
+ * KHOÁ GHI = CHỈ TOKEN `tamlc` (chốt 12/10/2026 — chống ghi nhầm danh tính khi dùng token mượn)
+ * --------------------------------------------------------------------------------------------
+ * Token mượn từ phiên người khác (hướng 3: bridge riêng từng PC) CHỈ được ĐỌC. Mọi việc GHI
+ * (tạo/nộp task, bình luận, đóng B1.1, thao tác UID) PHẢI bằng token `tamlc`, nếu không WMS/work
+ * sẽ ghi nhận do NGƯỜI KHÁC làm.
+ *
+ * Định danh tamlc theo hệ (đo thật 12/10 từ token sống): work/wms sub=18811 · hr sub=9665 ·
+ * mọi token đều có thể mang email/Email = tamlc@hasaki.vn. Giải mã payload JWT để nhận chủ.
+ *
+ * Fail-OPEN khi KHÔNG giải mã được (token lạ dạng không đọc nổi → cho qua + log) để KHÔNG làm
+ * gãy pipeline laptop; fail-CLOSED khi giải mã ĐƯỢC mà chủ RÕ RÀNG không phải tamlc (token người
+ * khác là JWT đọc được → chặn ghi). Hôm nay kho chỉ có token tamlc nên đây là NO-OP.
+ */
+export const SUB_TAMLC = new Set(["18811", "9665"]);   // work/wms=18811, hr=9665
+export const EMAIL_TAMLC = "tamlc@hasaki.vn";
+export function chuToken(token) {
+  try {
+    const t = String(token || "").replace(/^Bearer\s+/i, "");
+    const p = JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString("utf8"));
+    return { sub: p.sub != null ? String(p.sub) : null, email: String(p.email || p.Email || p.preferred_username || "").toLowerCase() };
+  } catch { return null; }   // không đọc được payload
+}
+/** true = token được phép GHI. Fail-open khi không giải mã được; chặn khi chủ rõ ràng ≠ tamlc. */
+export function laTokenGhiDuoc(token) {
+  const c = chuToken(token);
+  if (!c) return true;                                   // không đọc nổi -> cho qua (+caller nên log)
+  if (c.sub && SUB_TAMLC.has(c.sub)) return true;
+  if (c.email === EMAIL_TAMLC) return true;
+  return false;                                          // JWT đọc được, chủ KHÁC tamlc -> CHẶN GHI
+}
+
 /**
  * BỘ CHỌN TOKEN WMS DÙNG CHUNG — get-me là TRỌNG TÀI DUY NHẤT, không vứt token theo tuổi
  * (cải tiến 22/07/2026: luật tuổi 40' của kho + 30' của GAS từng vứt token còn sống cả ngày,
