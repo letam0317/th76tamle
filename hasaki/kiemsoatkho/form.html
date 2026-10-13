@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
+<meta name="robots" content="noindex, nofollow">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Form Audit - Kiểm soát kho 5S</title>
 
@@ -1148,6 +1149,12 @@
             hangMuc: this.form.hangMuc.trim(),
             nhanVienViPham: nvVal,
             thoiGianViPham: thoiGianViPham,
+            // 12/10/2026 — biết AI gửi: mã máy (đã cấp quyền OTP → GAS tra ra tên khai lúc xin mã) + tài khoản dashboard
+            // nếu có (hợp đồng hsk-nguoi-dung). GAS ghi vào sổ RIÊNG TƯ, không lên sheet công khai, không hiện cho người gửi.
+            tb: (() => { try { return localStorage.getItem('tb-khoa') || ''; } catch (e) { return ''; } })(),
+            nguoiGui: (() => { try { const u = window.HSK_NGUOI_DUNG || (window.parent && window.parent !== window && window.parent.HSK_NGUOI_DUNG) || JSON.parse(localStorage.getItem('hsk-nguoi-dung') || sessionStorage.getItem('hsk-nguoi-dung') || 'null');
+              return u ? { ten: u.ten || u.name || u.staff_name || '', code: u.code || u.ma || '' } : null; } catch (e) { return null; } })(),
+            ua: navigator.userAgent,
             // CHỈ gửi phần base64 THUẦN (cắt tiền tố data:...;base64,) — mime clip quay trực tiếp
             // có dấu phẩy (vd video/mp4;codecs=h264,aac) làm máy chủ split(',') giải mã sai chuỗi.
             hinhAnh: this.files.map(f => {
