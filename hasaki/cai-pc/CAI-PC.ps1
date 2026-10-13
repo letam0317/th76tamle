@@ -86,3 +86,7 @@ Write-Host "CON LAM TAY:" -ForegroundColor Yellow
 Write-Host "  1. Dien .env con trong (neu co canh bao o tren): $envF  (may KHONG lam camera thi de TOPREVIEW/GEMINI TRONG)"
 Write-Host "  2. Nen cam DAY LAN + tat ngu. May WiFi/ngu VAN CHAY: ngu = tam nghi, may khac ganh thay; bat lai la chay bu."
 Write-Host "  3. (Neu may lam bridge) mo Edge dang nhap WMS + cai extension wms-bridge."
+Write-Host ""
+Write-Host "  [BAO MAT] .env chua khoa GAS (lay duoc token tamlc) -> CHI cai may TIN CAY." -ForegroundColor Red
+Write-Host "            Thu muc da khoa chi SYSTEM+Admin; neu may mat kiem soat -> doi khoa GAS." -ForegroundColor Red
+if ($env:COMPUTERNAME -match '^(DESKTOP|PC|WIN|USER|LAPTOP)-') { Write-Host "  [!] Ten may kieu MAC DINH - dam bao 3 may KHAC TEN nhau (tranh dung nhip tim)." -ForegroundColor Yellow }

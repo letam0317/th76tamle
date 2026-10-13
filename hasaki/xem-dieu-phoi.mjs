@@ -17,7 +17,7 @@ console.log("\n== MAY ==");
 const song = maySong(bang, now, cfg.hetHanPhut || 8);
 for (const hb of [...bang].sort((a, b) => (b.diem || 0) - (a.diem || 0))) {
   const s = song.has(hb.may) ? "song" : "CHET(nhip cu)";
-  console.log(`  ${hb.may.padEnd(20)} diem=${String(hb.diem || "?").padStart(4)} RAM trong=${String(hb.ramTrongPct ?? "?").padStart(4)}% ${hb.yeu ? "YEU " : "khoe"} khoa=[${(hb.coKhoa || []).join(",")}] ${s}`);
+  console.log(`  ${hb.may.padEnd(20)} diem=${String(hb.diem || "?").padStart(4)} RAM=${String(hb.ramTrongPct ?? "?").padStart(4)}% dia=${String(hb.diaTrongGB ?? "?")}GB ${hb.yeu ? "YEU " : "khoe"} khoa=[${(hb.coKhoa || []).join(",")}] ${s}`);
 }
 console.log("\n== VIEC -> MAY CHAY ==");
 for (const v of cfg.viec) {

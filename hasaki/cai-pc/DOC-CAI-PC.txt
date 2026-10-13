@@ -50,3 +50,14 @@ CAN BAT TRUOC KHI DIEU PHOI THAT SU HOAT DONG (cho user):
   - DEPLOY GAS (them action pcNhip) -> nhip tim + khoa song. Chua deploy: runner chay che do local
     (chi may uu-tien-1 chay) - van an toan, chi chua co gan-thay/can-bang.
   - Dien hostname that vao dieu-phoi.json + push.
+
+AN TOAN DA CO SAN (QC doi khang 13/10):
+  - Cap nhat SO LE (canary): may MANH NHAT thu ban moi truoc; may khac cho commit du 2h (capNhat.canaryGio)
+    moi theo -> push hong chi dinh 1 may, co gio sua/revert. Dat canaryGio=0 de tat.
+  - npm install BO tai Chromium (co dung Edge) -> khong loi tai khi PC bi tuong lua.
+  - node.exe chep vao thu muc + luu duong git -> co chay SYSTEM khong phu thuoc PATH may.
+  - Dia trong < 3GB (DIA_TRONG_TOI_THIEU_GB) -> may coi nhu "yeu", khong nhan viec nang (khoi tai clip lam day dia).
+  - Viec nang: khoa giu 60' > thoi gian chay -> khong chay doi; moi may yeu -> chay may con nhieu RAM nhat (khong treo).
+  - Khoa GHI = chi token tamlc (laTokenGhiDuoc) -> token muon nguoi khac KHONG the ghi nham ten.
+  - [BAO MAT] .env chua khoa GAS (lay duoc token tamlc): CHI cai may TIN CAY; mat kiem soat -> doi khoa GAS.
+  - Dam bao 3 may KHAC TEN (hostname) nhau.

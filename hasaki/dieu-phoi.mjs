@@ -45,14 +45,20 @@ export function mayChay(viec, board, now, cfg) {
   }
   // Tu xep hang theo nang luc
   const can = viec.envKeys || [];
-  const ungVien = [...song.values()].filter((hb) => {
-    if (viec.nang && hb.yeu) return false;                         // viec nang + yeu -> loai
-    const co = hb.coKhoa || [];
-    return can.every((k) => co.includes(k));                       // phai du khoa nang luc
-  });
-  if (!ungVien.length) return null;
-  ungVien.sort((a, b) => (b.diem || 0) - (a.diem || 0) || String(a.may).localeCompare(String(b.may)));
-  return ungVien[0].may;
+  const duKhoa = [...song.values()].filter((hb) => can.every((k) => (hb.coKhoa || []).includes(k)));  // du khoa nang luc
+  if (!duKhoa.length) return null;
+  if (!viec.nang) {                                                 // viec nhe: khong gac suc khoe -> manh nhat
+    duKhoa.sort((a, b) => (b.diem || 0) - (a.diem || 0) || String(a.may).localeCompare(String(b.may)));
+    return duKhoa[0].may;
+  }
+  const khoe = duKhoa.filter((hb) => !hb.yeu);                      // viec nang: uu tien may KHONG yeu, manh nhat
+  if (khoe.length) {
+    khoe.sort((a, b) => (b.diem || 0) - (a.diem || 0) || String(a.may).localeCompare(String(b.may)));
+    return khoe[0].may;
+  }
+  // MOI may du khoa deu YEU -> KHONG treo vinh vien: chay tren may con NHIEU RAM nhat (it tai nhat)
+  duKhoa.sort((a, b) => (b.ramTrongPct || 0) - (a.ramTrongPct || 0) || String(a.may).localeCompare(String(b.may)));
+  return duKhoa[0].may;
 }
 
 export function nenChay(thisMay, tenViec, board, cfg, now = Date.now()) {
@@ -125,6 +131,9 @@ function test() {
   // 9) it may: chi 1 may song -> no gom het (du khoa)
   b = [hb2("PCz", 400, 60, false, ["APPSCRIPT_KEY", "TOPREVIEW_USER"])];
   eq(mayChay(cfg2.viec[0], b, now, cfg2), "PCz", "it may: 1 may du khoa gom viec nang");
+  // 10) MOI may du khoa deu YEU -> viec nang KHONG treo, chay may con nhieu RAM nhat
+  b = [hb2("PCx", 500, 12, true, ["APPSCRIPT_KEY", "TOPREVIEW_USER"]), hb2("PCz", 400, 25, true, ["APPSCRIPT_KEY", "TOPREVIEW_USER"])];
+  eq(mayChay(cfg2.viec[0], b, now, cfg2), "PCz", "moi may yeu -> viec nang chay may RAM nhieu nhat (PCz 25%>PCx 12%)");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);

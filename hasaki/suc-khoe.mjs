@@ -42,14 +42,26 @@ export function diemManh() {
   return Math.round(nhan * ghz * 10 + ramGB);
 }
 
+// Dia trong (GB) cua o chua thu muc nay — viec nang tai clip; dia sap day thi khoan nhan (tranh sap).
+function diaTrongGB() {
+  try {
+    const st = fs.statfsSync(path.dirname(fileURLToPath(import.meta.url)));
+    return Math.round((st.bavail * st.bsize) / 1073741824 * 10) / 10;
+  } catch { return null; }   // Node cu / khong ho tro -> bo qua kiem dia
+}
+
 export async function sucKhoe() {
   const tong = os.totalmem(), trong = os.freemem();
   const ramTrong = PCT(trong, tong);                     // % RAM con trong
   const nguong = Number(process.env.RAM_TRONG_TOI_THIEU || 30);
   const nguongRa = Number(process.env.RAM_TRONG_THOAT || 40);
+  const diaToiThieu = Number(process.env.DIA_TRONG_TOI_THIEU_GB || 3);
+  const dia = diaTrongGB();
   const cpu = await taiCpu();
-  const yeu = yeuCoTre(ramTrong, nguong, nguongRa);      // < 30% -> yeu; chi thoat khi >= 40% (chong rung)
+  const diaYeu = dia != null && dia < diaToiThieu;       // dia < 3 GB -> coi nhu yeu (khong nhan viec nang)
+  const yeu = yeuCoTre(ramTrong, nguong, nguongRa) || diaYeu;  // < 30% RAM hoac dia thap -> yeu
   return {
+    diaTrongGB: dia,
     may: os.hostname(),
     ramTrongPct: ramTrong,
     ramTrongGB: Math.round(trong / 1073741824 * 10) / 10,

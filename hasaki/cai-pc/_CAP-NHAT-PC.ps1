@@ -24,6 +24,23 @@ try {
   $lockTruoc = if (Test-Path "$duAn\package-lock.json") { (Get-FileHash "$duAn\package-lock.json").Hash } else { "" }
   & $GIT -C $gitDir fetch --depth 1 origin $nhanh 2>&1 | Out-Null
   if ($LASTEXITCODE -ne 0) { Ghi "fetch loi (mang?) - giu ban cu"; return }
+  # CANARY (chong push hong giet ca 3): may MANH NHAT (diem cao nhat trong bang) adopt NGAY;
+  #   may khac chi adopt khi commit da du 'canaryGio' tuoi -> push hong chi dính canary, co gio sua/revert.
+  $canaryGio = if ($cfg.capNhat.canaryGio) { [double]$cfg.capNhat.canaryGio } else { 2 }
+  $laCanary = $false
+  try {
+    $bangF = "$duAn\.nhip-bang-cache.json"
+    if (Test-Path $bangF) {
+      $bang = (Get-Content $bangF -Raw | ConvertFrom-Json).bang
+      $top = $bang | Sort-Object { [int]$_.diem } -Descending | Select-Object -First 1
+      if ($top -and $top.may -eq $env:COMPUTERNAME) { $laCanary = $true }
+    } else { $laCanary = $true }   # chua co bang (may don) -> tu lam canary
+  } catch { $laCanary = $true }
+  if (-not $laCanary -and $canaryGio -gt 0) {
+    $ct = 0; try { $ct = [int](& $GIT -C $gitDir show -s --format=%ct FETCH_HEAD 2>$null) } catch {}
+    $tuoiGio = if ($ct) { ((Get-Date).ToUniversalTime() - [DateTimeOffset]::FromUnixTimeSeconds($ct).UtcDateTime).TotalHours } else { 999 }
+    if ($tuoiGio -lt $canaryGio) { Ghi ("cho canary: commit moi " + [math]::Round($tuoiGio * 60) + "' (<" + $canaryGio + "h) - chua adopt"); return }
+  }
   & $GIT -C $gitDir reset --hard "origin/$nhanh" 2>&1 | Out-Null
   $sau = (& $GIT -C $gitDir rev-parse HEAD 2>$null)
   $sha = (& $GIT -C $gitDir rev-parse --short HEAD 2>$null)

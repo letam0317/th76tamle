@@ -5,7 +5,8 @@
   "capNhat": {
     "tenTask": "Audit cap nhat PC",
     "nhip": "PT2H",
-    "nhipTim": "PT1M"
+    "nhipTim": "PT1M",
+    "canaryGio": 2
   },
   "envCung": {
     "RUNNER_VAI": "pc",
