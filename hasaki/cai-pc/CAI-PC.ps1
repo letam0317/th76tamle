@@ -29,10 +29,16 @@ if (-not (Test-Path "$gitDir\.git")) {
 # doc lai dieu-phoi.json tu repo vua keo (co the moi hon ban trong kit chep tay)
 $kit = "$duAn\cai-pc"; if (Test-Path "$kit\dieu-phoi.json") { $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json }
 
-# ---- npm install + va Edge ngam ----
+# ---- node.exe + git cho SYSTEM (co chay ngam = SYSTEM; neu Node/Git cai per-user khong vao PATH may thi SYSTEM khong thay) ----
+#   Chep node.exe vao duAn -> _DP-CHAY/_NHIP tu dung (khong phu thuoc PATH). Luu duong git -> bo cap nhat dung.
+try { Copy-Item (Get-Command node).Source "$duAn\node.exe" -Force } catch { Write-Host "  [!] khong chep duoc node.exe (SYSTEM se dung 'node' tren PATH): $_" }
+try { (Get-Command git).Source | Out-File "$duAn\.git-exe" -Encoding ascii -NoNewline } catch {}
+
+# ---- npm install (BO tai Chromium — co dung Edge, khong can) + va Edge ngam ----
 Push-Location $duAn
-Write-Host "  - npm install (lan dau hoi lau)..." ; npm install --no-audit --no-fund --loglevel=error 2>&1 | Out-Null
-if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") { node va-puppeteer-ho-so.mjs 2>&1 | Out-Null; Write-Host "    va Edge ngam: $(node va-puppeteer-ho-so.mjs --kiem 2>&1)" }
+$env:PUPPETEER_SKIP_DOWNLOAD = "true"; $env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+Write-Host "  - npm install (bo tai Chromium; lan dau hoi lau)..." ; npm install --no-audit --no-fund --loglevel=error 2>&1 | Out-Null
+if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") { & "$duAn\node.exe" va-puppeteer-ho-so.mjs 2>&1 | Out-Null; Write-Host "    va Edge ngam: $(& "$duAn\node.exe" va-puppeteer-ho-so.mjs --kiem 2>&1)" }
 Pop-Location
 
 # ---- Dong bo task theo dieu-phoi.json (ham chung) ----

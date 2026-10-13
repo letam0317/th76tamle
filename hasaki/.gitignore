@@ -123,3 +123,6 @@ runner-dieu-phoi.log
 .cap-nhat.lock
 .suc-khoe-yeu
 .nhip-bang-cache.json
+node.exe
+.git-exe
+.cong-cu.json
