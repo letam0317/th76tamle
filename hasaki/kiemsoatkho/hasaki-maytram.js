@@ -44,6 +44,7 @@
       ".hx-mt-phu{padding:2px 16px 8px;font-size:12px;color:var(--muted)}",
       /* 14/10 hàng thẻ máy gọn */
       /* 14/10 chiều user «đổi hiển thị từ ngang sang dọc… máy k chạy thì làm mờ… chip việc từ trái sang phải, kê bên phải chip máy trạm» */
+      ".mt-hn{font-size:12.5px;padding:6px 10px;border-radius:8px;background:color-mix(in srgb,var(--good) 8%,transparent);color:var(--text)}.mt-hn b{font-weight:600}.mt-hn.trong{background:var(--surface2);color:var(--muted)}" +
       ".mt-dc{display:flex;flex-direction:column;gap:3px;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--good) 40%,transparent);background:color-mix(in srgb,var(--good) 7%,transparent)}.mt-dc-dau{display:flex;align-items:center;gap:7px;font-size:13px}.mt-dc-dau small{font-size:11px;color:var(--muted)}.mt-dc-bc{font-size:12px;overflow-wrap:anywhere}.mt-dc-bc a{color:var(--accent)}.mt-dc>small{font-size:11px;color:var(--muted)}.mt-dc-thanh{display:block;height:5px;border-radius:3px;background:var(--surface2);overflow:hidden}.mt-dc-thanh b{display:block;height:100%;background:var(--good);transition:width .4s}.mt-cham{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);animation:dfPulse 1.8s ease-out infinite}@media(prefers-reduced-motion:reduce){.mt-cham{animation:none}}.mt-chua{margin:4px 0 12px}.mt-hang{display:flex;flex-direction:column;gap:8px}",
       ".mt-o{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px;min-width:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);transition:opacity .2s}",
       ".mt-trai,.mt-phai{display:flex;flex-direction:column;gap:5px;min-width:0}.mt-phai{gap:6px}.mt-phai .ds{display:flex;flex-wrap:wrap;gap:4px;align-items:center}",
@@ -192,6 +193,14 @@
     /* 14/10 chiều user «thêm trạng thái đang chạy việc gì, chạy ra sao, của task nào vào từng máy pc trạm»: mỗi việc đang chạy của MÁY NÀY —
        tên việc · bước đang làm · phiếu đang soát (link work) · thanh i/n · từ mấy giờ, bao lâu · cập nhật cách đây. Tiến độ do tien-do.mjs
        (cò gửi GAS pcPhu ≥15 s/lần); PC bản cũ / cò chưa gắn tiến độ → chỉ tên việc + giờ bắt đầu. */
+    /* «Hôm nay đã làm N việc · gần nhất: X lúc HH:MM (… trước)» — từ chayLuc (lần chạy gần nhất mỗi việc). Chưa làm gì hôm nay → nói rõ. */
+    var homNay = function (m) {
+      if (!m.chayLuc) return "";
+      var dau = new Date(); dau.setHours(0, 0, 0, 0);
+      var ds = Object.keys(m.chayLuc).map(function (t) { return { t: t, x: Date.parse(m.chayLuc[t]) }; }).filter(function (o) { return o.x >= dau.getTime(); }).sort(function (a, b) { return b.x - a.x; });
+      if (!ds.length) return '<div class="mt-hn trong">Hôm nay chưa làm việc nào</div>';
+      return '<div class="mt-hn"><b>Hôm nay đã làm ' + ds.length + " việc</b> · gần nhất: " + e_(tenV(ds[0].t)) + " lúc " + gioPhut(ds[0].x) + " (" + tuoiChu(Math.round((Date.now() - ds[0].x) / 1000)) + ")</div>";
+    };
     var dangChayMay = function (m) {
       if (!m.song || !(m.dangChay || []).length) return "";
       return (m.dangChay || []).map(function (t) {
@@ -207,7 +216,10 @@
     var the = function (m) {
       /* 14/10 laptop = MÁY DỰ PHÒNG (bị «Dừng» trong điều phối nhưng vẫn chạy cò gốc khi PC chưa nhận — GAS PCPHU gộp vào dangChay/duPhong) */
       var lamThay = m.dung && m.duPhong && (m.dangChay || []).length > 0;
-      var tt = !m.song ? ["Mất nhịp", "bad"] : m.dung ? (m.duPhong ? ["Dự phòng", "info"] : ["Đã dừng", "warn"]) : m.yeu ? ["Yếu", "warn"] : ["Đang chạy", "good"];
+      /* 14/10 user «sao thấy cả 4 đều đứng im»: nhãn «Đang chạy» cũ chỉ nghĩa MÁY BẬT → hiểu nhầm là đang làm việc. Nay: đang có việc chạy → «Đang làm việc»;
+         bật mà không việc nào chạy (mỗi việc chỉ vài chục giây/lượt) → «Rảnh» + dòng «Hôm nay đã làm …» bên dưới chứng minh máy CÓ làm. */
+      var dangLam = m.song && (m.dangChay || []).length > 0;
+      var tt = !m.song ? ["Mất nhịp", "bad"] : dangLam ? ["Đang làm việc", "good"] : m.dung ? (m.duPhong ? ["Dự phòng", "info"] : ["Đã dừng", "warn"]) : m.yeu ? ["Yếu", "warn"] : ["Rảnh", "info"];
       var ramDung = Math.round(100 - (m.ramTrongPct || 0)), cpu = Math.round(m.cpuPct || 0), dia = m.diaTrongGB;
       var chiLap = m.duPhong ? (MTD.viec || []).filter(function (v) { return v.chiLaptop; }).map(function (v) { return v.ten; }) : [];   // laptop: việc chỉ chạy được ở đây
       var viec = []; (m.viecGiao || []).concat(chiLap, m.dangChay || [], m.dungViec || []).forEach(function (t) { if (viec.indexOf(t) < 0) viec.push(t); });
@@ -232,7 +244,7 @@
         '<div class="mt-phu" title="' + e_((m.nhan || "?") + " nhân · " + (m.ramTongGB || "?") + " GB RAM · điểm xếp hạng " + (m.diem || 0) + (m.ban ? " · bản " + m.ban : "") + (m.dung && m.lenhBoi ? " · dừng bởi " + tenBoi(m.lenhBoi) : "")) + '">' +
           e_(tuoiChu(m.tuoiGiay)) + ((m.coKhoa || []).indexOf("TOPREVIEW_USER") < 0 ? " · không khoá camera" : "") + "</div>" +
         (nutMay ? '<div class="mt-nut">' + nutMay + "</div>" : "") + "</div>" +
-        '<div class="mt-phai">' + dangChayMay(m) + (viec.length ? '<div class="mt-tom">' + tomTat(m, viec) + "</div>" : "") + chip + "</div></div>";
+        '<div class="mt-phai">' + dangChayMay(m) + homNay(m) + (viec.length ? '<div class="mt-tom">' + tomTat(m, viec) + "</div>" : "") + chip + "</div></div>";
     };
     var chuaCo = (MTD.viec || []).filter(function (v) { return !v.may && !v.chiLaptop; });   // 14/10: việc ghim laptop (cần dữ liệu .exports) không phải «chưa có máy»
     /* 14/10: PC cài bằng bộ cài không khoá xin khoá + MÃ XÁC NHẬN trên màn PC — chỉ máy quản lý duyệt (so mã trước khi bấm). */

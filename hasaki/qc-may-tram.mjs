@@ -133,9 +133,13 @@ try {
         && /tasks\?task_id=14180441$/.test(d.link) && Math.abs(d.thanh - 28) <= 1 && d.dauPhai, "thẻ laptop: đang chạy việc gì · bước · phiếu (link work) · 23/83 · từ giờ · cập nhật (" + (d ? d.t : "không có") + ")");
       const lt = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /tamlc/.test(e.querySelector(".mt-dau b").textContent));
         return { tag: t.querySelector(".mt-dau .hx-tag").textContent, mo: t.classList.contains("mo"), chip: [...t.querySelectorAll(".mt-c")].map((c) => c.className + ":" + c.textContent) }; });
-      ok(lt.tag === "Dự phòng" && !lt.mo && lt.chip.length === 4 && lt.chip.some((c) => /chay:Cò xác minh B1/.test(c)) && lt.chip.filter((c) => /mt-c cho:/.test(c)).length === 3, "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, 4 việc ghim laptop: 1 chạy (xanh) + 3 chờ (" + lt.tag + " · " + lt.chip.join(",") + ")");
+      ok(lt.tag === "Đang làm việc" && !lt.mo && lt.chip.length === 4 && lt.chip.some((c) => /chay:Cò xác minh B1/.test(c)) && lt.chip.filter((c) => /mt-c cho:/.test(c)).length === 3, "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, 4 việc ghim laptop: 1 chạy (xanh) + 3 chờ (" + lt.tag + " · " + lt.chip.join(",") + ")");
       ok(await p.evaluate(() => !/Cò canh B1.1|Cò xác minh B1|Tìm bằng chứng B1|Xác minh camera tối/.test((document.querySelector("#pane-maytram .mt-chua") || {}).innerText || "")), "việc ghim laptop KHÔNG nằm trong «Việc chưa có máy nhận»");
       ok((dcMay["HSK-KHO170-QLIT"] || []).length === 0, "QLIT không chạy gì → thẻ không có khối Đang chạy");
+      // 14/10 user «sao thấy cả 4 đều đứng im»: máy bật mà không việc nào đang chạy → «Rảnh» + «Hôm nay đã làm N việc · gần nhất …»
+      const hn = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /QLIT/.test(e.querySelector(".mt-dau b").textContent));
+        return { tag: t.querySelector(".mt-dau .hx-tag").textContent, hn: (t.querySelector(".mt-hn") || {}).textContent || "" }; });
+      ok(hn.tag === "Rảnh" && /^Hôm nay đã làm 1 việc · gần nhất: Cò canh planogram lúc \d\d:\d\d \(\d+ phút trước\)$/.test(hn.hn), "máy rảnh: nhãn «Rảnh» + dòng «Hôm nay đã làm …» (" + hn.tag + " · " + hn.hn + ")");
       await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
     if (m.data2) { const q = dcMay["HSK-KHO170-QLIT"] || [];
