@@ -220,6 +220,9 @@
         var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0, ten = "ổ " + x.o + (dung ? " đầy " + dung + "%" : "") + ", còn " + Math.round(x.trong) + " GB";
         if (x.trong < 3) kem.push(ten); else if (x.trong < 10 || dung >= 85) chuY.push(ten); });
       if (m.song && !m.duPhong && ("congLuc" in m) && (!m.congLuc || Date.now() - Date.parse(m.congLuc) > 3 * 3600e3)) kem.push("task việc không khởi chạy");
+      /* 14/10 21:52 tìm ra gốc QLIT: chỉ có 4/13 task «5S DP» (lần cài đầu đăng ký lỗi, bộ cập nhật không tạo lại) → hiện thẳng trên thẻ */
+      var soTask = (m.taskDP || []).filter(function (d) { return /^5S DP /.test(String(d)); }).length, canTask = (m.tatCaViec || []).length;
+      if (!m.duPhong && (m.taskDP || []).length && canTask && soTask < canTask) kem.push("thiếu " + (canTask - soTask) + "/" + canTask + " task việc");
       (m.taskDP || []).forEach(function (d) { var p = String(d).split("|"), ma = Number(p[3]);   // 267011 chưa chạy lần nào · 267009 đang chạy · 0 tốt
         if (p[0] && /^5S DP /.test(p[0]) && ma && ma !== 267011 && ma !== 267009) chuY.push(p[0].replace(/^5S DP /, "") + " lỗi mã " + ma); });
       if (m.song && !m.duPhong && !("chayLuc" in m)) chuY.push("bản mã cũ, chưa nhận cập nhật");

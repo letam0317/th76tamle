@@ -47,7 +47,7 @@ const API_PC13 = { srvNow: now, hetHanPhut: 3, chuyen: [], xin: [],
 CA.push({ ten: "pc13-pc", w: 1366, h: 900, mob: false, quanLy: true, data2: API_PC13 }, { ten: "pc13-ip14", w: 390, h: 844, mob: true, quanLy: true, data2: API_PC13 }, { ten: "pc13-and360", w: 360, h: 740, mob: true, quanLy: true, data2: API_PC13 });
 CA.push({ ten: "chi-laptop-dung", w: 1366, h: 900, mob: false, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-ip14", w: 390, h: 844, mob: true, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_LAPTOP });
 // 14/10 «đang chạy công việc gì cũng cần hiển thị»: laptop DỰ PHÒNG đang làm thay Cò xác minh B1 (GAS PCPHU gộp duPhong/dangChay/batDau)
-const API_DUPHONG = { ...API_PC13, may: [{ ...API_PC13.may[0], dangChay: [], dungViec: [], chayLuc: { "co-canh-planogram": iso(300) } },
+const API_DUPHONG = { ...API_PC13, may: [{ ...API_PC13.may[0], dangChay: [], dungViec: [], chayLuc: { "co-canh-planogram": iso(300) }, taskDP: ["5S DP canh-b11|Ready|30/11 00:00|267011|14/10 22:35", "5S DP canh-xac-minh-b1|Ready|30/11 00:00|267011|15/10 07:50", "5S DP tim-bang-chung-b1|Ready|30/11 00:00|267011|15/10 08:30", "5S DP xac-minh-camera|Ready|30/11 00:00|267011|15/10 19:30", "Audit nhip tim PC|Ready|14/10 21:51|0|14/10 21:52"] },   // 14/10 QLIT thật: chỉ 4/13 task
   { ...API_LAPTOP.may[0], duPhong: true, dangChay: ["canh-xac-minh-b1"], batDau: { "canh-xac-minh-b1": iso(12 * 60) }, chayLuc: { "canh-xac-minh-b1": iso(12 * 60) }, tienDo: { "canh-xac-minh-b1": { buoc: "Soát phiếu B1 theo luật", task: "14180441", i: 23, n: 83, chiTiet: "", luc: iso(9) } } }] };
 const GHIM4 = ["canh-b11", "canh-xac-minh-b1", "tim-bang-chung-b1", "xac-minh-camera"];   // 14/10 ghim laptop (cần .exports)
 API_DUPHONG.viec = API_PC13.viec.map((v) => GHIM4.includes(v.ten) ? { ...v, may: null, chiLaptop: true } : v);
@@ -140,7 +140,9 @@ try {
       // 14/10 user «sao thấy cả 4 đều đứng im»: máy bật mà không việc nào đang chạy → «Rảnh» + «Hôm nay đã làm N việc · gần nhất …»
       const hn = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /QLIT/.test(e.querySelector(".mt-dau b").textContent));
         return { tag: t.querySelector(".mt-dau .hx-tag").textContent, hn: (t.querySelector(".mt-hn") || {}).textContent || "" }; });
-      ok(hn.tag === "Rảnh" && /^Hôm nay đã làm 1 việc · gần nhất: Cò canh planogram lúc \d\d:\d\d \(\d+ phút trước\)$/.test(hn.hn), "máy rảnh: nhãn «Rảnh» + dòng «Hôm nay đã làm …» (" + hn.tag + " · " + hn.hn + ")");
+      const dgQ = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /QLIT/.test(e.querySelector(".mt-dau b").textContent)); return (t.querySelector(".mt-dg") || {}).textContent || ""; });
+      ok(/^Sức khoẻ: Kémthiếu 9\/13 task việc/.test(dgQ), "máy thiếu task (QLIT thật 14/10: 4/13) → Sức khoẻ Kém · thiếu 9/13 task việc (" + dgQ + ")");
+      ok(hn.tag === "Rảnh" &&/^Hôm nay đã làm 1 việc · gần nhất: Cò canh planogram lúc \d\d:\d\d \(\d+ phút trước\)$/.test(hn.hn), "máy rảnh: nhãn «Rảnh» + dòng «Hôm nay đã làm …» (" + hn.tag + " · " + hn.hn + ")");
       await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
     if (m.data2) { const q = dcMay["HSK-KHO170-QLIT"] || [];
