@@ -2,7 +2,7 @@
 // =====================================================================================
 // Nguyen tac (user 12/10/2026):
 //   - It may  -> 1 may GANH NHIEU viec (vi may uu tien cao hon da chet -> no la may song cao nhat cho nhieu viec).
-//   - Nhieu may -> BAM NHO: moi viec ve may uu tien cao nhat dang song -> viec trai deu.
+//   - Nhieu may -> BAM NHO: viec trai deu theo SUC tung may (chiaViec, 14/10) — khong de 1 may om het.
 //   - Theo SUC KHOE: viec NANG ma may dinh chay dang YEU (RAM trong < nguong) -> nhuong may ke; khong may nao
 //     khoe thi viec nang HOAN (khong chay tick nay). Viec NHE khong gac suc khoe.
 //   - Moi viec chi 1 may chay (deterministic theo thu tu uu tien) -> khong tang luot goi upstream, khong ghi doi.
@@ -15,6 +15,7 @@
 //
 // API:
 //   maySong(board, now, hetHanPhut)         -> Map<may, hb>  (nhip con tuoi)
+//   chiaViec(board, now, cfg)                -> { tenViec: tenMay|null } CHIA DEU theo suc (14/10)
 //   mayChay(viec, board, now, cfg)           -> ten may se chay viec nay (hoac null neu hoan)
 //   viecCuaToi(thisMay, board, cfg, now)     -> [ten viec] may nay nen chay ngay bay gio
 //   nenChay(thisMay, tenViec, board, cfg)    -> true/false cho 1 viec (dung o dau moi co)
@@ -30,40 +31,73 @@ export function maySong(board, now = Date.now(), hetHanPhut = 8) {
 
 // May se chay viec. HAI che do:
 //  (a) viec.uuTien co -> theo thu tu khai tay (ghim), lay may song dau tien (viec nang: bo may yeu).
-//  (b) KHONG uuTien (mac dinh) -> TU XEP HANG: may song + DU KHOA (coKhoa chua du envKeys) + (viec nang thi khong yeu),
-//      chon may DIEM cao nhat (manh nhat); hoa diem -> ten may nho hon. => user khong phai danh gia may nao manh.
+//  (b) KHONG uuTien (mac dinh) -> CHIA DEU THEO SUC (14/10 user «chia việc theo sức khoẻ chứ sao lại từ trái sang phải»):
+//      truoc day chon may DIEM cao nhat cho MOI viec -> may manh nhat om het 13 viec, may khac ngoi cho. Nay:
+//      - SUC CHUA may = diem suc manh (may YEU thi chi tinh 1/2) — dung diem (co dinh) + co yeu (co tre 30/40%) nen
+//        bang giao viec KHONG nhay qua lai moi nhip theo RAM.
+//      - TAI viec: nang = 3 phan, nhe = 1 phan. Xep viec: nang truoc, it may du dieu kien truoc, roi theo ten.
+//      - Lan luot tung viec giao cho may du dieu kien ma SAU KHI NHAN co (tai / suc chua) NHO NHAT
+//        (hoa -> diem cao hon -> ten may nho hon). Viec nang chi vao may KHOE; moi may du khoa deu yeu -> may nhieu RAM nhat.
+//      Moi PC doc cung bang nhip -> tinh ra CUNG bang giao viec -> khong can trao doi; khoa PCLEASE van chan chay trung.
 // 13/10: user bam «Dung» tren sub-tab May tram -> GAS gan dung/dungViec vao dong nhip cua may do -> may do khong duoc chon,
-//   viec tu roi sang may ke (cung luat xep hang). «Tiep tuc» = go co -> may quay lai hang cho.
+//   viec tu roi sang may ke (cung luat chia). «Tiep tuc» = go co -> may quay lai hang cho.
 export const biDung = (hb, tenViec) => !!(hb && (hb.dung || (hb.dungViec || []).includes(tenViec)));
+export const TAI_NANG = 3, TAI_NHE = 1;
 
-export function mayChay(viec, board, now, cfg) {
+function songConLai(viec, board, now, cfg) {
   const song = maySong(board, now, cfg.hetHanPhut || 8);
   for (const [m, hb] of song) if (biDung(hb, viec.ten)) song.delete(m);
-  if (viec.uuTien && viec.uuTien.length) {
-    for (const may of viec.uuTien) {
-      const hb = song.get(may);
-      if (!hb) continue;
-      if (viec.nang && hb.yeu) continue;
-      return may;
-    }
-    return null;
+  return song;
+}
+function chonGhim(viec, song) {
+  for (const may of viec.uuTien) {
+    const hb = song.get(may);
+    if (!hb) continue;
+    if (viec.nang && hb.yeu) continue;
+    return may;
   }
-  // Tu xep hang theo nang luc
+  return null;
+}
+// May du dieu kien cho 1 viec (khong ghim): du khoa; viec nang -> may khoe, khong co may khoe thi may nhieu RAM nhat
+function dungDuoc(viec, song) {
   const can = viec.envKeys || [];
-  const duKhoa = [...song.values()].filter((hb) => can.every((k) => (hb.coKhoa || []).includes(k)));  // du khoa nang luc
-  if (!duKhoa.length) return null;
-  if (!viec.nang) {                                                 // viec nhe: khong gac suc khoe -> manh nhat
-    duKhoa.sort((a, b) => (b.diem || 0) - (a.diem || 0) || String(a.may).localeCompare(String(b.may)));
-    return duKhoa[0].may;
-  }
-  const khoe = duKhoa.filter((hb) => !hb.yeu);                      // viec nang: uu tien may KHONG yeu, manh nhat
-  if (khoe.length) {
-    khoe.sort((a, b) => (b.diem || 0) - (a.diem || 0) || String(a.may).localeCompare(String(b.may)));
-    return khoe[0].may;
-  }
-  // MOI may du khoa deu YEU -> KHONG treo vinh vien: chay tren may con NHIEU RAM nhat (it tai nhat)
+  const duKhoa = [...song.values()].filter((hb) => can.every((k) => (hb.coKhoa || []).includes(k)));
+  if (!viec.nang || !duKhoa.length) return duKhoa;
+  const khoe = duKhoa.filter((hb) => !hb.yeu);
+  if (khoe.length) return khoe;
   duKhoa.sort((a, b) => (b.ramTrongPct || 0) - (a.ramTrongPct || 0) || String(a.may).localeCompare(String(b.may)));
-  return duKhoa[0].may;
+  return [duKhoa[0]];
+}
+const sucChua = (hb) => Math.max(1, Number(hb.diem) || 100) * (hb.yeu ? 0.5 : 1);
+
+// Bang giao viec cho TOAN BO cfg.viec -> { tenViec: tenMay | null }. Deterministic.
+export function chiaViec(board, now, cfg) {
+  const giao = {}, tai = new Map();
+  const ds = (cfg.viec || []).map((v) => ({ v, song: songConLai(v, board, now, cfg) }));
+  for (const { v, song } of ds) if (v.uuTien && v.uuTien.length) {     // ghim tay giao truoc, cung tinh vao tai
+    const m = chonGhim(v, song); giao[v.ten] = m;
+    if (m) tai.set(m, (tai.get(m) || 0) + (v.nang ? TAI_NANG : TAI_NHE));
+  }
+  const conLai = ds.filter(({ v }) => !(v.uuTien && v.uuTien.length)).map((x) => ({ ...x, du: dungDuoc(x.v, x.song) }));
+  conLai.sort((a, b) => (b.v.nang ? 1 : 0) - (a.v.nang ? 1 : 0) || a.du.length - b.du.length || String(a.v.ten).localeCompare(String(b.v.ten)));
+  for (const { v, du } of conLai) {
+    const w = v.nang ? TAI_NANG : TAI_NHE;
+    let tot = null, totTi = Infinity;
+    for (const hb of du) {
+      const ti = ((tai.get(hb.may) || 0) + w) / sucChua(hb);
+      if (ti < totTi - 1e-9 || (Math.abs(ti - totTi) <= 1e-9 && ((hb.diem || 0) > (tot.diem || 0) || ((hb.diem || 0) === (tot.diem || 0) && String(hb.may).localeCompare(String(tot.may)) < 0)))) { tot = hb; totTi = ti; }
+    }
+    giao[v.ten] = tot ? tot.may : null;
+    if (tot) tai.set(tot.may, (tai.get(tot.may) || 0) + w);
+  }
+  return giao;
+}
+
+export function mayChay(viec, board, now, cfg) {
+  if ((cfg.viec || []).some((v) => v.ten === viec.ten)) return chiaViec(board, now, cfg)[viec.ten] ?? null;
+  const song = songConLai(viec, board, now, cfg);                    // viec le ngoai cfg -> tinh rieng
+  if (viec.uuTien && viec.uuTien.length) return chonGhim(viec, song);
+  return chiaViec(board, now, { ...cfg, viec: [viec] })[viec.ten] ?? null;
 }
 
 export function nenChay(thisMay, tenViec, board, cfg, now = Date.now()) {
@@ -148,6 +182,29 @@ function test() {
   eq(mayChay(cfg2.viec[0], b, now, cfg2), null, "may duy nhat bi dung -> viec hoan (khong ai chay)");
   b = [{ ...hb("PC1", 60, false), dung: true }, hb("PC2", 60, false)];
   eq(mayChay(cfg.viec[0], b, now, cfg), "PC2", "ghim uuTien: PC1 bi dung -> PC2");
+
+  // ===== 14/10 CHIA DEU THEO SUC (khong con «may manh nhat om het») =====
+  const K = ["APPSCRIPT_KEY", "TOPREVIEW_USER"];
+  const cfg3 = { hetHanPhut: 8, viec: [
+    ...["n1", "n2", "n3", "n4", "n5", "n6", "n7"].map((t) => ({ ten: t, nang: true, envKeys: K })),
+    ...["l1", "l2", "l3", "l4", "l5", "l6"].map((t) => ({ ten: t, nang: false, envKeys: ["APPSCRIPT_KEY"] })),
+  ] };
+  const dem = (bd) => { const g = chiaViec(bd, now, cfg3), d = {}; for (const m of Object.values(g)) d[m] = (d[m] || 0) + 1; return d; };
+  b = [hb2("QLIT", 415, 60, false, K), hb2("LAP", 335, 60, false, K), hb2("JE", 296, 60, false, K)];
+  const d = dem(b);
+  eq(Object.keys(d).length, 3, "3 may khoe -> CA 3 may deu co viec (khong om het 1 may)");
+  eq((d.QLIT || 0) >= (d.JE || 0), true, "may manh hon nhan >= may yeu hon");
+  eq(Math.max(...Object.values(d)) <= 6, true, "khong may nao om qua 6/13 viec");
+  b = [hb2("QLIT", 415, 20, true, K), hb2("LAP", 335, 60, false, K), hb2("JE", 296, 60, false, K)];
+  let g = chiaViec(b, now, cfg3);
+  eq(cfg3.viec.filter((v) => v.nang && g[v.ten] === "QLIT").length, 0, "may yeu khong nhan viec nang");
+  b = [hb2("QLIT", 415, 60, false, ["APPSCRIPT_KEY"]), hb2("JE", 296, 60, false, K)];
+  g = chiaViec(b, now, cfg3);
+  eq(cfg3.viec.filter((v) => v.nang).every((v) => g[v.ten] === "JE"), true, "viec nang chi ve may co khoa");
+  eq(cfg3.viec.filter((v) => !v.nang).every((v) => g[v.ten] === "QLIT"), true, "viec nhe ve may thieu khoa (dang ranh)");
+  const b1 = [hb2("QLIT", 415, 55, false, K), hb2("JE", 296, 70, false, K)], b2 = [hb2("QLIT", 415, 48, false, K), hb2("JE", 296, 62, false, K)];
+  eq(chiaViec(b1, now, cfg3), chiaViec(b2, now, cfg3), "RAM nhich (khong doi co yeu) -> bang giao on dinh");
+  eq(chiaViec([...b1].reverse(), now, cfg3), chiaViec(b1, now, cfg3), "thu tu bang khac -> cung ket qua (moi PC tinh nhu nhau)");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);
