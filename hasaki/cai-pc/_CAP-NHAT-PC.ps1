@@ -36,12 +36,18 @@ try {
       if ($top -and $top.may -eq [System.Net.Dns]::GetHostName()) { $laCanary = $true }
     } else { $laCanary = $true }   # chua co bang (may don) -> tu lam canary
   } catch { $laCanary = $true }
+  $dich = "origin/$nhanh"
   if (-not $laCanary -and $canaryGio -gt 0) {
-    $ct = 0; try { $ct = [int](& $GIT -C $gitDir show -s --format=%ct FETCH_HEAD 2>$null) } catch {}
-    $tuoiGio = if ($ct) { ((Get-Date).ToUniversalTime() - [DateTimeOffset]::FromUnixTimeSeconds($ct).UtcDateTime).TotalHours } else { 999 }
-    if ($tuoiGio -lt $canaryGio) { Ghi ("cho canary: commit moi " + [math]::Round($tuoiGio * 60) + "' (<" + $canaryGio + "h) - chua adopt"); return }
+    # 14/10: truoc day doi CA NHANH im $canaryGio gio (HEAD du tuoi) - 3 phien day lien tuc => JE/FOQ khong bao gio nhan ban moi.
+    #   Nay: lay commit MOI NHAT da du $canaryGio gio tuoi (an toan y nhu cu: chi chay ma da on dinh tren canary), khong lui ban.
+    & $GIT -C $gitDir fetch --depth 80 origin $nhanh 2>&1 | Out-Null
+    $moc = (Get-Date).ToUniversalTime().AddHours(-$canaryGio).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $dich = (& $GIT -C $gitDir rev-list -1 "--before=$moc" FETCH_HEAD 2>$null)
+    if (-not $dich) { Ghi ("cho canary: chua co commit nao du " + $canaryGio + "h tuoi"); return }
+    & $GIT -C $gitDir merge-base --is-ancestor $dich HEAD 2>$null
+    if ($LASTEXITCODE -eq 0) { Ghi ("cho canary: ban dang chay da moi hon/bang ban du " + $canaryGio + "h (" + $dich.Substring(0,7) + ")"); return }
   }
-  & $GIT -C $gitDir reset --hard "origin/$nhanh" 2>&1 | Out-Null
+  & $GIT -C $gitDir reset --hard $dich 2>&1 | Out-Null
   $sau = (& $GIT -C $gitDir rev-parse HEAD 2>$null)
   $sha = (& $GIT -C $gitDir rev-parse --short HEAD 2>$null)
 
