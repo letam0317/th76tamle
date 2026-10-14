@@ -225,10 +225,13 @@ function gom() {
     for (const p of phieu) { const ds0 = VL[p.id]; if (!ds0 || !ds0.length) continue;
       const tGhi = t(String(p.ngayVP || "").slice(0, 16));
       const them = ds0.map((v) => { const nv = db.theoMa.get(String(v.ma || "")) || {};
-        return { at: v.at, ten: nv.ten || (v.ma ? "Mã " + v.ma : "Chưa rõ ai"), ma: v.ma || "", qty: "", loai: v.viec || "Tác động vật lý", vatLy: true, nguonVL: v.nguon || "tay",
+        return { at: v.at, ten: nv.ten || (v.ma ? "Mã " + v.ma : v.nguon === "may" ? "Chưa định danh" : "Chưa rõ ai"), ma: v.ma || "", qty: "", loai: v.viec || "Tác động vật lý", vatLy: true, nguonVL: v.nguon || "tay", moTa: v.moTa || "", kenhVL: v.kenh || "",
           truocGio: Math.round((tGhi - t(v.at)) / 36e5 * 10) / 10, clip: v.clip || "", tgClip: v.tgClip || null }; });
       const L = (p.lsKho ||= { bin: p.viTri || "", ghi: p.ngayVP, gioCuaSo: 72, ds: [], nguoi: 0, phuTrach: [] });
       L.ds = L.ds.concat(them).sort((a, b) => (a.at < b.at ? 1 : -1)); L.nguoi = new Set(L.ds.map((x) => x.ten)).size; L.vatLy = them.length; } }
+
+  /* 14/10: máy đã soi camera phiếu này chưa (xac-minh-tu-dong ra BAO-CAO.md) — pop-up ghi «Máy soi camera: …» cạnh thanh nguồn */
+  for (const p of phieu) { try { p.xmSoi = fs.statSync(path.join(EXP, "xm-tu-dong", String(p.id), "BAO-CAO.md")).mtime.toISOString(); } catch { /* chưa soi */ } }
 
   /* 07/10 luật VS-06 (cửa sổ bụi 8h) · VS-07 (camera đúng giờ nộp báo cáo): canh-b11 ⑤ ghi .exports/vesinh-xet.json mỗi lượt (0 lượt gọi thêm),
      camera-bao-cao.mjs ghi .exports/cam-baocao/<id>/ket-qua.json + ảnh soi nội bộ soi-*.jpg (KHÔNG phải bằng chứng gắn phiếu). */
