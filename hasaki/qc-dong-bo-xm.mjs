@@ -38,6 +38,12 @@ try {
   const ds = await goi({ action: "xm_ds" }, "ds");
   ok(ds.ds.some((x) => x.ten === T && x.luc === 2000) && ds.ds.every((x) => !("b64" in x)), "mục lục có tệp, không kèm nội dung");
 
+  // 14/10 lỗi đã gặp: tệp RỖNG (stream.jsonl 0 byte) — kho trả b64 "" → bộ kéo từng bỏ qua, kéo mãi «0/1» mỗi 5 phút
+  const T3 = ".exports/qc-dbxm/rong.jsonl";
+  await goi({ action: "xm_gui", ten: T3, b64: "", luc: 3000, h: "rong", may: "QC" }, "g3");
+  const t3 = (await goi({ action: "xm_tai", ten: [T3] }, "tai3")).tep[0];
+  ok(t3 && !t3.thieu && t3.b64 === "", "tệp rỗng: kho lưu được và trả b64 rỗng (bộ kéo phải tạo tệp 0 byte, không bỏ qua)");
+  await goi({ action: "xm_xoa", ten: [T3] }, "xoa3");
   // 3) DỌN
   const x = await goi({ action: "xm_xoa", ten: [T, T2] }, "xoa");
   const ds2 = await goi({ action: "xm_ds" }, "ds2");

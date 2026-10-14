@@ -74,7 +74,7 @@ export async function keo(nhom, { xoaSauKeo = false } = {}) {
     while (i < can.length && (!lo.length || (co + (can[i].co || 0) < 8e6 && lo.length < 25))) { co += can[i].co || 0; lo.push(can[i++].ten); }
     const j = await goi({ action: "xm_tai", ten: lo }, "xm_tai");
     for (const t of j.tep) {
-      if (t.thieu || !t.b64) continue;
+      if (t.thieu || t.b64 == null) continue;   // 14/10: tệp RỖNG (b64 "") vẫn phải tạo — trước bỏ qua → kéo mãi «0/1» mỗi 5 phút
       const abs = tuyetDoi(t.ten); fs.mkdirSync(path.dirname(abs), { recursive: true });
       const tam = abs + ".dbxm-tam"; fs.writeFileSync(tam, Buffer.from(t.b64, "base64")); fs.renameSync(tam, abs);
       fs.utimesSync(abs, new Date(), new Date(t.luc)); n++; daKeo.push(t.ten);
