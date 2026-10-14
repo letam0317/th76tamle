@@ -1,0 +1,42 @@
+{
+  "_doc": "14/10: dữ liệu 4 cò xác minh đồng bộ qua kho Drive (dong-bo-xm.mjs). vao = laptop sinh, PC chỉ kéo · chung = cò đọc+ghi, máy vừa chạy đẩy, máy kia kéo (trong khoá chung xm_khoa) · ra = kết quả nặng: máy chạy chỉ đẩy tệp MỚI TẠO trong lượt, laptop kéo về rồi xoá khỏi kho. «@BC/» = thư mục bằng chứng (thư mục cha của BAIXE_DIR; laptop mặc định C:/Users/lechitam/Videos/5S-bang-chung).",
+  "vao": [
+    ".exports/tasks-cache.json",
+    ".exports/quy-tac-duyet.json",
+    ".exports/b1-quyet-dinh.json",
+    ".exports/b1-quyet-dinh-web.json",
+    ".exports/b1-treo-raw.json",
+    ".cache-danhba.json",
+    ".cache-nv170.json"
+  ],
+  "chung": [
+    ".exports/canh-b1-ketqua.json",
+    ".exports/b1-treo-cap-nhat.json",
+    ".exports/an-le-b1.json",
+    ".exports/b1-cho-camera.json",
+    ".exports/.nguon-phancong-cache.json",
+    ".exports/xac-nhan-camera.json",
+    ".exports/bang-chung-b1.json",
+    ".exports/tac-dong-vat-ly.json",
+    ".exports/xm-dem-goi.json",
+    ".exports/b11-anh-chup.json",
+    ".exports/vesinh-xet.json",
+    ".exports/kenh-luc-chup/*.json",
+    ".exports/xm-tu-dong/*/BAO-CAO.md",
+    ".exports/cam-baocao/*/ket-qua.json",
+    ".cache-canh-b1.json",
+    ".cache-qltt-*.json",
+    ".cache-gioi-tinh.json",
+    ".canh-b1.json",
+    ".canh-b11.json",
+    ".canh-trung-nv.json"
+  ],
+  "ra": [
+    ".exports/xm-tu-dong/**",
+    ".exports/agy-xm/**",
+    ".exports/cam-baocao/**",
+    ".exports/kenh-luc-chup/**",
+    "@BC/may/**",
+    "@BC/*.mp4"
+  ]
+}

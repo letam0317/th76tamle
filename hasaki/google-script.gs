@@ -432,6 +432,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pr_xong') return keyBodyOK_(duLieu) ? apiPrXong(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_hoan') return keyBodyOK_(duLieu) ? apiPrHoan(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_trangthai') return apiPrTrangThai(duLieu);
+    if (duLieu && /^xm_(ds|tai|gui|khoa|xoa)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? apiXm(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 14/10 kho dữ liệu xác minh
     if (duLieu && /^dc_(them|lay|xong|trangthai|tai)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? apiDc(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 05/10 dựng clip từ xa
     if (duLieu && duLieu.action === 'pr_hangdoi') return apiPrHangDoi(duLieu);
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ
@@ -2397,6 +2398,7 @@ function apiPcNhip_(duLieu) {
       nhan: Number(nhip.nhan) || 0, ramTongGB: Number(nhip.ramTongGB) || 0, diaTrongGB: (nhip.diaTrongGB == null ? null : Number(nhip.diaTrongGB)),
       coKhoa: pcMang_(nhip.coKhoa, 20), dangChay: pcMang_(nhip.dangChay, 30), ban: String(nhip.ban || '').slice(0, 12),
       viecGiao: pcMang_(nhip.viecGiao, 30), tatCaViec: pcMang_(nhip.tatCaViec, 40), viecNang: pcMang_(nhip.viecNang, 40),
+      congGan: nhip.congGan instanceof Array ? nhip.congGan.slice(-8).map(function (s) { return String(s).slice(0, 180); }) : undefined,   // 14/10 nhật ký cổng gác (xem từ xa)
       chayLuc: nhip.chayLuc ? pcChayLuc_(nhip.chayLuc) : undefined,   // PC bản cũ không gửi → bỏ trường (đừng báo sai «chưa chạy»). 14/10 { viec: ISO } lần chạy gần nhất (cổng gác cho CHẠY) → «chạy lúc …» trên Máy trạm
       oDia: (nhip.oDia instanceof Array ? nhip.oDia.slice(0, 8).map(function (x) { return { o: String(x && x.o || '').slice(0, 1).toUpperCase(), trong: Number(x && x.trong) || 0, tong: Number(x && x.tong) || 0 }; }).filter(function (x) { return /^[A-Z]$/.test(x.o); }) : []),   // 14/10 mọi ổ đĩa
       luc: new Date().toISOString() };   // 13/10: PC tự tính việc được giao (dieu-phoi.mjs) → điện thoại xem không cần máy chủ 8591
@@ -3187,6 +3189,89 @@ function dcThuMuc_() {
   if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* bị xoá → tạo lại */ } }
   var f = DriveApp.createFolder('AuditHasaki-clip-tam (không chia sẻ)'); sp.setProperty(DC_P_THU, f.getId()); return f;
 }
+/* ===== KHO DỮ LIỆU XÁC MINH (14/10/2026, user «làm, qc, cải tiến — lặp đến khi đạt»: máy trạm chạy được 4 cò xác minh) =====
+ * 4 cò (canh-b11, canh-b1, tìm bằng chứng, camera tối) cần .exports/* chỉ có trên laptop (gitignore). Kho = thư mục Drive riêng
+ * (không chia sẻ), MỖI TỆP 1 file Drive, mục lục ở Script Properties XMF_<băm tên> = {ten, id, luc, h, co, may}.
+ *   xm_ds                          → mục lục (không nội dung)
+ *   xm_tai  {ten:[...]}             → nội dung base64 (≤ 25 MB/lượt — client chia lượt)
+ *   xm_gui  {ten, b64, luc, h}      → ghi nếu luc MỚI HƠN bản kho (hoặc ep) — bản cũ hơn bị từ chối (trả 'cu')
+ *   xm_khoa {may, giu|tra, ttl}     → KHOÁ CHUNG «chỉ 1 máy chạy cò xác minh 1 lúc» (atomic, hết hạn tự nhả)
+ * Tên tệp = đường dẫn tương đối từ thư mục hasaki, chỉ nhận .exports/… hoặc .canh-*.json/.cache-*.json ở gốc (không cho ghi bừa). */
+var XM_P_THU = 'XM_THU_MUC';
+function xmThuMuc_() {
+  var sp = PropertiesService.getScriptProperties(), id = sp.getProperty(XM_P_THU);
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* bị xoá → tạo lại */ } }
+  var f = DriveApp.createFolder('AuditHasaki-xac-minh-du-lieu (không chia sẻ)'); sp.setProperty(XM_P_THU, f.getId()); return f;
+}
+function xmKhoaTen_(ten) { return 'XMF_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, ten)).replace(/=+$/, ''); }
+function xmTenHopLe_(ten) { return /^(\.exports\/[\w.\-\/]+|@BC\/[\w.\-\/]+|\.(canh|cache)-[\w.\-]+\.json)$/.test(ten) && ten.indexOf('..') < 0 && ten.length <= 200; }   // @BC = thư mục bằng chứng
+function apiXm(d) {
+  var a = String(d.action), sp = PropertiesService.getScriptProperties(), now = new Date().getTime();
+  if (a === 'xm_ds') {
+    var all = sp.getProperties(), ds = [];
+    for (var k in all) if (k.indexOf('XMF_') === 0) { try { var m = JSON.parse(all[k]); ds.push({ ten: m.ten, luc: m.luc, h: m.h, co: m.co, may: m.may }); } catch (e) {} }
+    return phanHoiJson({ status: 'success', ds: ds, srvNow: now });
+  }
+  if (a === 'xm_tai') {
+    var ten = (d.ten instanceof Array ? d.ten : [d.ten]).slice(0, 200), ra = [], tong = 0;
+    for (var i = 0; i < ten.length; i++) {
+      var mm = null; try { mm = JSON.parse(sp.getProperty(xmKhoaTen_(String(ten[i]))) || 'null'); } catch (e) {}
+      if (!mm) { ra.push({ ten: ten[i], thieu: true }); continue; }
+      if (tong + (mm.co || 0) > 25e6 && ra.length) break;                      // phần còn lại: client gọi lượt sau
+      var b = DriveApp.getFileById(mm.id).getBlob().getBytes(); tong += b.length;
+      ra.push({ ten: mm.ten, luc: mm.luc, h: mm.h, b64: Utilities.base64Encode(b) });
+    }
+    return phanHoiJson({ status: 'success', tep: ra });
+  }
+  if (a === 'xm_gui' && d.tep instanceof Array) {   // 14/10 GỬI NHIỀU TỆP 1 LƯỢT (1 lượt/tệp quá chậm: 150 tệp > 10')
+    var kqs = [];
+    for (var ig = 0; ig < d.tep.length && ig < 200; ig++) {
+      var r1 = JSON.parse(apiXm({ action: 'xm_gui', ten: d.tep[ig].ten, b64: d.tep[ig].b64, luc: d.tep[ig].luc, h: d.tep[ig].h, may: d.may, ep: d.ep }).getContent());
+      kqs.push({ ten: d.tep[ig].ten, kq: r1.kq || 'loi', loi: r1.status === 'success' ? '' : r1.message });
+    }
+    return phanHoiJson({ status: 'success', kqs: kqs });
+  }
+  if (a === 'xm_gui') {
+    /* 14/10 «thời gian chờ khoá»: ghi Drive (~1 s/tệp) TRONG khoá chung làm nghẽn nhịp tim PC (chờ 5 s) ⇒ ghi Drive NGOÀI khoá,
+       khoá chỉ giữ tích tắc để so phiên bản + ghi mục lục; thua cuộc đua (kho vừa có bản mới hơn) → bỏ tệp vừa ghi. */
+    var t = String(d.ten || ''), luc = Number(d.luc) || now, h = String(d.h || '').slice(0, 64);
+    if (!xmTenHopLe_(t)) return phanHoiJson({ status: 'error', message: 'Tên tệp không hợp lệ: ' + t });
+    var k2 = xmKhoaTen_(t), cu = null; try { cu = JSON.parse(sp.getProperty(k2) || 'null'); } catch (e) {}
+    if (cu && cu.h === h) return phanHoiJson({ status: 'success', kq: 'giong' });
+    if (cu && Number(cu.luc) > luc && !d.ep) return phanHoiJson({ status: 'success', kq: 'cu', luc: cu.luc, may: cu.may });   // kho có bản MỚI hơn → không đè
+    var blob = Utilities.newBlob(Utilities.base64Decode(String(d.b64 || '')), 'application/octet-stream', t.replace(/\//g, '__'));
+    var fileId = xmThuMuc_().createFile(blob).getId(), boId = '', kqGui = 'ghi';
+    var lk = LockService.getScriptLock(); lk.waitLock(20000);
+    try {
+      var cu2 = null; try { cu2 = JSON.parse(sp.getProperty(k2) || 'null'); } catch (e) {}
+      if (cu2 && Number(cu2.luc) > luc && !d.ep) { boId = fileId; kqGui = 'cu'; }
+      else { boId = cu2 && cu2.id ? cu2.id : ''; sp.setProperty(k2, JSON.stringify({ ten: t, id: fileId, luc: luc, h: h, co: blob.getBytes().length, may: String(d.may || '').slice(0, 60) })); }
+    } finally { lk.releaseLock(); }
+    if (boId) { try { DriveApp.getFileById(boId).setTrashed(true); } catch (e) {} }
+    return phanHoiJson({ status: 'success', kq: kqGui });
+  }
+  if (a === 'xm_xoa') {   // laptop đã kéo «ra» về → xoá khỏi kho (Drive + mục lục)
+    var dsx = (d.ten instanceof Array ? d.ten : [d.ten]).slice(0, 200), nx = 0;
+    for (var ix = 0; ix < dsx.length; ix++) {
+      var kx = xmKhoaTen_(String(dsx[ix])), mx = null; try { mx = JSON.parse(sp.getProperty(kx) || 'null'); } catch (e) {}
+      if (!mx) continue; try { DriveApp.getFileById(mx.id).setTrashed(true); } catch (e) {} sp.deleteProperty(kx); nx++;
+    }
+    return phanHoiJson({ status: 'success', xoa: nx });
+  }
+  if (a === 'xm_khoa') {
+    var lk2 = LockService.getScriptLock(); lk2.waitLock(20000);
+    try {
+      var may = String(d.may || '').slice(0, 60), cur = null; try { cur = JSON.parse(sp.getProperty('XM_KHOA') || 'null'); } catch (e) {}
+      if (d.tra) { if (cur && cur.may === may && (!d.viec || cur.viec === d.viec)) sp.deleteProperty('XM_KHOA'); return phanHoiJson({ status: 'success', kq: 'tra' }); }
+      if (cur && cur.may !== may && now < Number(cur.hetHan || 0)) return phanHoiJson({ status: 'success', kq: 'ban', may: cur.may, viec: cur.viec, hetHan: cur.hetHan });
+      var ttl = Math.min(Number(d.ttl) || 3600, 5 * 3600) * 1000;
+      sp.setProperty('XM_KHOA', JSON.stringify({ may: may, viec: String(d.viec || '').slice(0, 60), hetHan: now + ttl, luc: now }));
+      return phanHoiJson({ status: 'success', kq: 'giu' });
+    } finally { lk2.releaseLock(); }
+  }
+  return phanHoiJson({ status: 'error', message: 'Lệnh xm lạ' });
+}
+
 function apiDc(duLieu) {
   var a = String(duLieu.action), now = new Date().getTime(), lock = LockService.getScriptLock();
   if (a === 'dc_them') {

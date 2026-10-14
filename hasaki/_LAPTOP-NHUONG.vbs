@@ -11,6 +11,11 @@ dir = fso.GetParentFolderName(WScript.ScriptFullName)
 sh.CurrentDirectory = dir
 ma = sh.Run("node nhuong-pc.mjs " & args(0), 0, True)
 If ma = 75 Then WScript.Quit 0
-sh.Run "wscript.exe //nologo """ & dir & "\" & args(1) & """", 0, True
+' 14/10: qua bo chay chay-xm.mjs (viec xac minh: khoa chung + keo/day du lieu kho Drive voi may tram; viec khac: chay vbs nhu cu)
+If fso.FileExists(dir & "\chay-xm.mjs") Then
+  sh.Run "node chay-xm.mjs " & args(0) & " " & args(1), 0, True
+Else
+  sh.Run "wscript.exe //nologo """ & dir & "\" & args(1) & """", 0, True
+End If
 ' 14/10: bao GAS viec da xong -> tab May tram bo khoi «Dang chay»
 sh.Run "node nhuong-pc.mjs " & args(0) & " --xong", 0, True

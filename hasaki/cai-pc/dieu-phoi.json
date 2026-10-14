@@ -35,7 +35,8 @@
         "HSK-KHO170-tamlc-1"
       ],
       "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC."
+      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
+      "dongBoXm": true
     },
     {
       "ten": "canh-xac-minh-b1",
@@ -54,7 +55,8 @@
         "HSK-KHO170-tamlc-1"
       ],
       "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC."
+      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
+      "dongBoXm": true
     },
     {
       "ten": "tim-bang-chung-b1",
@@ -72,7 +74,8 @@
         "HSK-KHO170-tamlc-1"
       ],
       "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC."
+      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
+      "dongBoXm": true
     },
     {
       "ten": "canh-bai-xe-sang",
@@ -130,7 +133,8 @@
         "HSK-KHO170-tamlc-1"
       ],
       "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC."
+      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
+      "dongBoXm": true
     },
     {
       "ten": "co-canh-planogram",

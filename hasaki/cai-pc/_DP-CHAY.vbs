@@ -23,6 +23,8 @@ If ma = 0 Then
     '   tu PID nay de biet viec CON CHAY khong, va de DUNG dung viec khi user bam Dung tren sub-tab May tram.
     Dim cmd, pid, kq, dc
     cmd = "wscript.exe //nologo """ & duAn & "\" & vbsThat & """"
+    ' 14/10: qua bo chay chay-xm.mjs (viec xac minh: khoa chung + keo/day du lieu kho Drive; viec khac: chay vbs nhu cu)
+    If fso.FileExists(duAn & "\chay-xm.mjs") Then cmd = node & " """ & duAn & "\chay-xm.mjs"" " & tenViec & " " & vbsThat
     pid = 0 : kq = 1
     On Error Resume Next
     kq = GetObject("winmgmts:\\.\root\cimv2").Get("Win32_Process").Create(cmd, duAn, Null, pid)
