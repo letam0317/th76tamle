@@ -3,6 +3,10 @@
   "nhanh": "cai-tien/bo-sung-factory",
   "gasUrl": "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec",
   "hetHanPhut": 3,
+  "_mayViecNang": "14/10 user: viec NANG uu tien may nay (con song + du khoa + khoe + khong Dung); khong thi chia deu theo suc.",
+  "mayViecNang": [
+    "DESKTOP-JE75K38"
+  ],
   "capNhat": {
     "tenTask": "Audit cap nhat PC",
     "nhip": "PT2H",

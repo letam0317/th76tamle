@@ -38,6 +38,7 @@ export function maySong(board, now = Date.now(), hetHanPhut = 8) {
 //      - TAI viec: nang = 3 phan, nhe = 1 phan. Xep viec: nang truoc, it may du dieu kien truoc, roi theo ten.
 //      - Lan luot tung viec giao cho may du dieu kien ma SAU KHI NHAN co (tai / suc chua) NHO NHAT
 //        (hoa -> diem cao hon -> ten may nho hon). Viec nang chi vao may KHOE; moi may du khoa deu yeu -> may nhieu RAM nhat.
+//      cfg.mayViecNang = ["HOST"...]: viec nang uu tien may nay (con song + du khoa + khoe) — may khac thi chia deu.
 //      Moi PC doc cung bang nhip -> tinh ra CUNG bang giao viec -> khong can trao doi; khoa PCLEASE van chan chay trung.
 // 13/10: user bam «Dung» tren sub-tab May tram -> GAS gan dung/dungViec vao dong nhip cua may do -> may do khong duoc chon,
 //   viec tu roi sang may ke (cung luat chia). «Tiep tuc» = go co -> may quay lai hang cho.
@@ -80,8 +81,11 @@ export function chiaViec(board, now, cfg) {
   }
   const conLai = ds.filter(({ v }) => !(v.uuTien && v.uuTien.length)).map((x) => ({ ...x, du: dungDuoc(x.v, x.song) }));
   conLai.sort((a, b) => (b.v.nang ? 1 : 0) - (a.v.nang ? 1 : 0) || a.du.length - b.du.length || String(a.v.ten).localeCompare(String(b.v.ten)));
+  const nhaNang = cfg.mayViecNang || [];                              // 14/10 user «việc nặng nên đưa cho je75k38»: máy nhà của việc nặng
   for (const { v, du } of conLai) {
     const w = v.nang ? TAI_NANG : TAI_NHE;
+    const nha = v.nang && nhaNang.find((m) => du.some((hb) => hb.may === m && !hb.yeu));   // còn sống + đủ khoá + khoẻ + không Dừng
+    if (nha) { giao[v.ten] = nha; tai.set(nha, (tai.get(nha) || 0) + w); continue; }     // không thì chia đều như thường
     let tot = null, totTi = Infinity;
     for (const hb of du) {
       const ti = ((tai.get(hb.may) || 0) + w) / sucChua(hb);
@@ -205,6 +209,16 @@ function test() {
   const b1 = [hb2("QLIT", 415, 55, false, K), hb2("JE", 296, 70, false, K)], b2 = [hb2("QLIT", 415, 48, false, K), hb2("JE", 296, 62, false, K)];
   eq(chiaViec(b1, now, cfg3), chiaViec(b2, now, cfg3), "RAM nhich (khong doi co yeu) -> bang giao on dinh");
   eq(chiaViec([...b1].reverse(), now, cfg3), chiaViec(b1, now, cfg3), "thu tu bang khac -> cung ket qua (moi PC tinh nhu nhau)");
+
+  // 14/10 mayViecNang: viec nang ve JE (khoe); JE yeu/bi Dung -> chia deu; viec nhe don sang may khac
+  const cfg4 = { ...cfg3, mayViecNang: ["JE"] };
+  g = chiaViec([hb2("QLIT", 415, 60, false, K), hb2("JE", 296, 60, false, K)], now, cfg4);
+  eq(cfg4.viec.filter((v) => v.nang).every((v) => g[v.ten] === "JE"), true, "mayViecNang: 7 viec nang ve JE");
+  eq(cfg4.viec.filter((v) => !v.nang).every((v) => g[v.ten] === "QLIT"), true, "mayViecNang: viec nhe don sang QLIT");
+  g = chiaViec([hb2("QLIT", 415, 60, false, K), hb2("JE", 296, 20, true, K)], now, cfg4);
+  eq(cfg4.viec.filter((v) => v.nang).every((v) => g[v.ten] === "QLIT"), true, "JE yeu -> viec nang sang may khoe");
+  g = chiaViec([hb2("QLIT", 415, 60, false, K), { ...hb2("JE", 296, 60, false, K), dung: true }], now, cfg4);
+  eq(Object.values(g).every((m) => m === "QLIT"), true, "JE bi Dung -> QLIT lam het");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);

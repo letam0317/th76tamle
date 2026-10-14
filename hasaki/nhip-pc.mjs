@@ -45,6 +45,7 @@ const DC_DIR = path.join(DIR, ".dang-chay");
 const DC_TOM = path.join(DC_DIR, "_tom-tat.json");      // ten viec dang chay (lan do gan nhat) -> guiNhip cua cong gac dung lai, khong do lai
 export const LENH_F = path.join(DIR, ".lenh-may.json");  // lenh dung cua may nay (GAS tra ve) -> cong gac doc khi GAS cham
 const NHAN_F = path.join(DIR, ".da-nhan-chuyen.json");   // viec vua chay bu (bao GAS xoa o nhip ke)
+export const CHAY_F = path.join(DIR, ".chay-luc.json");  // 14/10 { viec: ISO } lần cổng gác cho CHẠY gần nhất -> tab Máy trạm hiện «chạy lúc …» (chứng minh có chạy)
 const GIAO_F = path.join(DIR, ".viec-giao.json");         // viec may nay duoc giao (tinh tu bang nhip vua nhan) -> gui o nhip ke
 
 async function dsTienTrinh() {
@@ -98,8 +99,9 @@ export async function guiNhip(log = () => {}, opts = {}) {
   // 13/10: việc máy này được giao (tính ở nhịp trước bằng dieu-phoi.mjs) + mọi việc trong dieu-phoi.json → tab Máy trạm trên điện thoại
   let viecGiao = []; try { viecGiao = JSON.parse(fs.readFileSync(GIAO_F, "utf8")); } catch { /* chưa tính */ }
   let tatCaViec = [], viecNang = []; try { const vs = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).viec || []; tatCaViec = vs.map((v) => v.ten); viecNang = vs.filter((v) => v.nang).map((v) => v.ten); } catch { /* */ }   // 14/10 nhãn nặng/nhẹ
+  let chayLuc = {}; try { chayLuc = JSON.parse(fs.readFileSync(CHAY_F, "utf8")); } catch { /* chưa chạy việc nào */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
-    dangChay, viecGiao, tatCaViec, viecNang, oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
+    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
   try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).

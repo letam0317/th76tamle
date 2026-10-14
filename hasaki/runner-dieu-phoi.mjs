@@ -1,7 +1,7 @@
 // runner-dieu-phoi.mjs — CONG GAC dat o DAU moi co: may nay co chay viec <tenViec> ngay bay gio khong?
 //   node runner-dieu-phoi.mjs <tenViec>   ->  exit 0 CHAY / 75 DUNG  (ghi 1 dong runner-dieu-phoi.log)
 // NHANH: bang nhip lay tu BO NHO DEM (nhip tim 3' da ghi) -> KHONG goi GAS de doc bang; chi goi GAS 1 LAN
-//   de GIU KHOA (khi minh la ung vien). Co tran thoi gian -> cong gac phan hoi duoi ~2s.
+//   de GIU KHOA (khi minh la ung vien, doi toi 8s — 14/10: 2s hay hut, khoa khong ghi duoc). Co tran thoi gian.
 // Chong 3 bay: lech dong ho (gio may chu), chay doi (khoa atomic), GAS chet (theo bang dem; thieu bang -> viec nhe chay, nang thoi).
 // Test offline: DIEUPHOI_BANG=<file.json>.
 import os from "node:os";
@@ -23,6 +23,8 @@ const may = os.hostname();
 function thoat(ok, ly, bang, nguon) {
   const dong = `${new Date().toTimeString().slice(0, 8)} ${tenViec} ${may} [${nguon}] -> ${ok ? "CHAY" : "DUNG"} (${ly}; song=${(bang || []).map((b) => b.may + (b.yeu ? "!" : "")).join(",")})`;
   try { fs.appendFileSync(path.join(DIR, "runner-dieu-phoi.log"), dong + "\n"); } catch { /* */ }
+  if (ok && nguon !== "test") { const f = path.join(DIR, ".chay-luc.json"); let c = {}; try { c = JSON.parse(fs.readFileSync(f, "utf8")); } catch { /* */ }
+    c[tenViec] = new Date().toISOString(); try { fs.writeFileSync(f, JSON.stringify(c)); } catch { /* */ } }   // 14/10 «chạy lúc» lên tab Máy trạm
   process.exit(ok ? 0 : 75);
 }
 
@@ -54,7 +56,7 @@ if (chon !== may) thoat(false, "may chay=" + (chon || "HOAN"), bang, nguon);
 if (viec.khongKhoa) thoat(true, "duoc chon (khong khoa)", bang, nguon);
 
 // Giu khoa atomic (1 lan goi GAS, co tran) -> chong chay doi.
-const r2 = await layBang(() => {}, { giuViec: tenViec, giuTTL: viec.giuTTL || 600, timeoutMs: 2000 });
+const r2 = await layBang(() => {}, { giuViec: tenViec, giuTTL: viec.giuTTL || 600, timeoutMs: 8000 });   // 14/10: 2s quá ngắn (GAS thường ~2s) → khoá không ghi được, việc chạy «không khoá»; việc nền nên đợi 8s không sao
 if (r2.giuOK === true) thoat(true, "duoc chon + giu khoa", bang, nguon);
 if (r2.giuOK === false) thoat(false, "may khac dang giu khoa", bang, nguon);
 // giuOK === null: GAS khong toi (het tran). Du phong theo BANG (xep hang nhat quan giua cac may):
