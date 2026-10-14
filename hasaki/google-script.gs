@@ -3369,6 +3369,11 @@ function ntKy_(fileId) {
   return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(String(fileId), 'nt|' + SECRET)).slice(0, 16);
 }
 function ntDocBan_(raw) { try { var o = JSON.parse(raw || '{}'); return { muc: o.muc || [], dung: o.dung || '' }; } catch (e) { return { muc: [], dung: '' }; } }
+/* Chú thích riêng 1 tệp: chỉ giữ ô có chữ, cắt độ dài (ghi chú 500, mã 300). */
+function ntMetaTep_(t) {
+  var o = {}, g = String(t.ghiChu || '').replace(/\s+/g, ' ').trim().slice(0, 500), v = String(t.viTri || '').trim().slice(0, 300), m = String(t.ma || '').trim().slice(0, 300);
+  if (g) o.ghiChu = g; if (v) o.viTri = v; if (m) o.ma = m; return o;
+}
 function ntLink_(t) { return 'https://drive.google.com/file/d/' + t.id + '/view'; }
 /* Phần chữ form dựng cho ô G (nhãn Ảnh n / Clip n mang link). */
 function ntDung_(muc) {
@@ -3381,6 +3386,8 @@ function ntDung_(muc) {
       txt += j === 0 ? '\n' : ' · ';
       var nhan = t.loai === 'video' ? 'Clip ' + (++c) : 'Ảnh ' + (++a);
       link.push([txt.length, txt.length + nhan.length, ntLink_(t)]); txt += nhan;
+      var cu = [t.viTri ? 'Vị trí ' + t.viTri : '', t.ma ? 'UIDgr ' + t.ma : '', t.ghiChu || ''].filter(String).join(' · ');
+      if (cu) txt += ' (' + cu + ')';
     });
   });
   return { txt: txt, link: link };
@@ -3447,10 +3454,11 @@ function ntGhi_(d, id) {
       var ghiChu = String(mu.ghiChu || '').trim().slice(0, 2000), tep = [];
       (mu.tep || []).slice(0, 30).forEach(function (t) {
         var fid = String(t.id || '');
-        if (tepCu[fid]) { tep.push(tepCu[fid]); delete tepCu[fid]; return; }
+        var meta = ntMetaTep_(t);   // 14/10: ghi chú + mã vị trí + UIDgr RIÊNG từng ảnh/clip
+        if (tepCu[fid]) { var gi = { id: tepCu[fid].id, loai: tepCu[fid].loai }; for (var kk in meta) gi[kk] = meta[kk]; tep.push(gi); delete tepCu[fid]; return; }
         /* Tệp MỚI phải mang chữ ký do nt_tai cấp — không cho mượn form gắn link Drive bất kỳ vào sheet. */
         if (!fid || String(t.ky || '') !== ntKy_(fid)) throw new Error('Tệp không do form tải lên');
-        tep.push({ id: fid, loai: t.loai === 'video' ? 'video' : 'image' });
+        var moi = { id: fid, loai: t.loai === 'video' ? 'video' : 'image' }; for (var km in meta) moi[km] = meta[km]; tep.push(moi);
       });
       if (!ghiChu && !tep.length) return { status: 'error', message: 'Chưa có ghi chú hay ảnh/clip nào' };
       boTep = Object.keys(tepCu);

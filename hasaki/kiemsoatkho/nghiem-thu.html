@@ -155,9 +155,13 @@
                     <span x-show="t.loai === 'video'" class="absolute inset-0 flex items-center justify-center">
                       <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     </span>
+                    <span x-show="nhanTep(t)" class="absolute bottom-0.5 left-0.5 text-[11px] font-semibold text-white bg-black/55 rounded px-1" x-text="j + 1"></span>
                   </button>
                 </template>
               </div>
+              <template x-for="(t, j) in (m.tep || [])" :key="'n' + (t.id || t.tam)">
+                <p x-show="nhanTep(t)" class="mt-1 text-xs text-slate-600 break-words"><b x-text="'#' + (j + 1) + ' '"></b><span x-text="nhanTep(t)"></span></p>
+              </template>
             </div>
           </template>
         </section>
@@ -180,19 +184,14 @@
             <div class="grid grid-cols-2 gap-2">
               <button type="button" @click="moQuet('viTri')" :class="quetLoai === 'viTri' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'"
                 class="flex items-center justify-center gap-1.5 rounded-2xl border-2 px-3 min-h-[44px] text-sm font-semibold active:scale-[0.98] transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h2v14H3V5zm4 0h1v14H7V5zm3 0h2v14h-2V5zm4 0h1v14h-1V5zm3 0h2v14h-2V5z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M4 6v12M7.5 6v12M11 6v9M14 6v12M17 6v9M20 6v12"/></svg>
                 <span>Mã vị trí</span>
               </button>
               <button type="button" @click="moQuet('ma')" :class="quetLoai === 'ma' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'"
                 class="flex items-center justify-center gap-1.5 rounded-2xl border-2 px-3 min-h-[44px] text-sm font-semibold active:scale-[0.98] transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h2v14H3V5zm4 0h1v14H7V5zm3 0h2v14h-2V5zm4 0h1v14h-1V5zm3 0h2v14h-2V5z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M4 6v12M7.5 6v12M11 6v9M14 6v12M17 6v9M20 6v12"/></svg>
                 <span>SKU / UIDgr</span>
               </button>
-            </div>
-            <div x-show="quetLoai" x-cloak class="mt-2 rounded-2xl overflow-hidden border border-slate-200 bg-black">
-              <p class="px-3 py-1.5 text-xs font-semibold text-white bg-slate-800" x-text="quetLoai === 'viTri' ? 'Đang quét: mã vị trí' : 'Đang quét: SKU / UIDgr'"></p>
-              <div id="ntReader" class="w-full"></div>
-              <button type="button" @click="dongQuet()" class="w-full min-h-[44px] bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition">Đóng camera</button>
             </div>
             <p x-show="tbQuet" x-cloak class="mt-1.5 text-xs font-semibold text-green-700" x-text="tbQuet"></p>
           </div>
@@ -224,25 +223,40 @@
             </div>
 
             <!-- Ảnh/clip ĐÃ lưu của mục đang sửa: chạm ✕ để bỏ (tệp vào Thùng rác Drive khi lưu) -->
-            <div x-show="tepCu.length" x-cloak class="mt-3 grid grid-cols-3 gap-2">
+            <!-- 14/10 user: mỗi ảnh/clip có ô ghi chú + mã vị trí + UIDgr riêng (quét được) — lưu kèm tệp, sheet ghi sau nhãn «Ảnh n» -->
+            <div x-show="tepCu.length" x-cloak class="mt-3 space-y-2">
               <template x-for="(t, i) in tepCu" :key="t.id">
-                <div class="relative">
-                  <button type="button" @click="xemTep(t)" class="block w-full h-24 rounded-xl border border-slate-200 overflow-hidden bg-slate-700 relative">
+                <div class="the-tep flex gap-3 rounded-2xl border border-slate-200 p-2">
+                <div class="relative shrink-0">
+                  <button type="button" @click="xemTep(t)" class="block w-20 h-20 rounded-xl overflow-hidden bg-slate-700 relative">
                     <img x-show="anhNho(t)" :src="anhNho(t)" class="w-full h-full object-cover" @error="$el.style.display = 'none'" />
                     <span x-show="t.loai === 'video'" class="absolute inset-0 flex items-center justify-center">
                       <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     </span>
+                    <span class="absolute bottom-1 left-1 text-[11px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5" x-text="i + 1"></span>
                   </button>
                   <button type="button" @click="tepCu.splice(i, 1)" title="Bỏ ảnh/clip này"
-                    class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow">✕</button>
+                    class="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow">✕</button>
+                </div>
+                <div class="flex-1 min-w-0 space-y-1.5">
+                  <input type="text" x-model="t.ghiChu" maxlength="500" placeholder="Ghi chú ảnh này" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+                  <div class="flex gap-1.5">
+                    <input type="text" x-model="t.viTri" maxlength="300" placeholder="Mã vị trí" class="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+                    <button type="button" @click="moQuet('viTri', t)" title="Quét mã vị trí" class="shrink-0 w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 transition"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M4 6v12M7.5 6v12M11 6v9M14 6v12M17 6v9M20 6v12"/></svg></button>
+                  </div>
+                  <div class="flex gap-1.5">
+                    <input type="text" x-model="t.ma" maxlength="300" placeholder="UIDgr / SKU" class="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+                    <button type="button" @click="moQuet('ma', t)" title="Quét UIDgr / SKU" class="shrink-0 w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 transition"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M4 6v12M7.5 6v12M11 6v9M14 6v12M17 6v9M20 6v12"/></svg></button>
+                  </div>
+                </div>
                 </div>
               </template>
             </div>
-            <div x-show="files.length" x-cloak class="mt-3 grid grid-cols-3 gap-2">
+            <div x-show="files.length" x-cloak class="mt-3 space-y-2">
               <template x-for="(f, i) in files" :key="f.tam">
-                <div class="relative">
-                  <button type="button" @click="xemMedia = f"
-                    class="block w-full h-24 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 relative">
+                <div class="the-tep flex gap-3 rounded-2xl border border-slate-200 p-2">
+                <div class="relative shrink-0">
+                  <button type="button" @click="xemMedia = f" class="block w-20 h-20 rounded-xl overflow-hidden bg-slate-100 relative">
                     <template x-if="f.loai === 'image'"><img :src="f.preview" class="w-full h-full object-cover" /></template>
                     <template x-if="f.loai === 'video'">
                       <span class="block w-full h-full bg-slate-800 relative">
@@ -252,11 +266,22 @@
                         </span>
                       </span>
                     </template>
-                    <span class="absolute bottom-1 left-1 text-[11px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5"
-                          x-text="tepCu.length + i + 1"></span>
+                    <span class="absolute bottom-1 left-1 text-[11px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5" x-text="tepCu.length + i + 1"></span>
                   </button>
-                  <button type="button" @click="xoaFile(i)"
-                    class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow">✕</button>
+                  <button type="button" @click="xoaFile(i)" title="Bỏ ảnh/clip này"
+                    class="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow">✕</button>
+                </div>
+                <div class="flex-1 min-w-0 space-y-1.5">
+                  <input type="text" x-model="f.ghiChu" maxlength="500" placeholder="Ghi chú ảnh này" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+                  <div class="flex gap-1.5">
+                    <input type="text" x-model="f.viTri" maxlength="300" placeholder="Mã vị trí" class="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+                    <button type="button" @click="moQuet('viTri', f)" title="Quét mã vị trí" class="shrink-0 w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 transition"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M4 6v12M7.5 6v12M11 6v9M14 6v12M17 6v9M20 6v12"/></svg></button>
+                  </div>
+                  <div class="flex gap-1.5">
+                    <input type="text" x-model="f.ma" maxlength="300" placeholder="UIDgr / SKU" class="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+                    <button type="button" @click="moQuet('ma', f)" title="Quét UIDgr / SKU" class="shrink-0 w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center active:scale-95 transition"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M4 6v12M7.5 6v12M11 6v9M14 6v12M17 6v9M20 6v12"/></svg></button>
+                  </div>
+                </div>
                 </div>
               </template>
             </div>
@@ -330,6 +355,16 @@
   </div>
 
   <!-- Xem lại ảnh/clip -->
+  <!-- Lớp quét mã (vị trí / UIDgr) — chỉ hiện khi bấm nút quét; dùng chung cho cả phản hồi và từng ảnh -->
+  <div x-show="quetLoai" x-cloak class="lop-quet fixed inset-0 z-[65] bg-black/90 flex flex-col justify-center p-4"
+       style="padding-top:calc(env(safe-area-inset-top,0px) + 16px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)">
+    <div class="w-full max-w-md mx-auto rounded-2xl overflow-hidden bg-black border border-white/10">
+      <p class="px-3 py-2 text-sm font-semibold text-white bg-slate-800" x-text="quetLoai === 'viTri' ? 'Đang quét: mã vị trí' : 'Đang quét: UIDgr / SKU'"></p>
+      <div id="ntReader" class="w-full"></div>
+      <button type="button" @click="dongQuet()" class="w-full min-h-[48px] bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition">Đóng camera</button>
+    </div>
+  </div>
+
   <div x-show="xemMedia" x-cloak @click="xemMedia = null" class="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4">
     <button type="button" @click="xemMedia = null" class="absolute top-3 right-3 w-11 h-11 rounded-full bg-white/15 text-white text-xl flex items-center justify-center">✕</button>
     <template x-if="xemMedia && xemMedia.loai === 'image'"><img :src="xemMedia && xemMedia.preview" @click.stop class="max-w-full max-h-full rounded-xl object-contain" /></template>
@@ -531,7 +566,8 @@
         if (t.id) window.open('https://drive.google.com/file/d/' + encodeURIComponent(t.id) + '/view', '_blank', 'noopener');
       },
 
-      _coNhap() { return !!(this.files.length || this.ghiChu.trim() || (this.sua && this._suaGoc !== JSON.stringify([this.ghiChu, this.tepCu.map(t => t.id)]))); },
+      _coNhap() { return !!(this.files.length || this.ghiChu.trim() || (this.sua && this._suaGoc !== this._dauSua())); },
+      _dauSua() { return JSON.stringify([this.ghiChu, this.tepCu.map(t => [t.id, this._metaTep(t)])]); },
       mo(d) {
         if (this.dang && this.dang.dong !== d.dong && this._coNhap() && !confirm('Mục đang soạn còn ảnh/ghi chú chưa gửi. Bỏ để mở mục khác?')) return;
         if (!this.dang || this.dang.dong !== d.dong) { this._xoaNhap(); }
@@ -550,8 +586,8 @@
       batSua(m) {
         if (this._coNhap() && !confirm('Bỏ phần đang soạn để sửa phản hồi này?')) return;
         this._xoaNhap();
-        this.sua = m.id; this.ghiChu = m.ghiChu || ''; this.tepCu = (m.tep || []).map(t => Object.assign({}, t));
-        this._suaGoc = JSON.stringify([this.ghiChu, this.tepCu.map(t => t.id)]);
+        this.sua = m.id; this.ghiChu = m.ghiChu || ''; this.tepCu = (m.tep || []).map(t => Object.assign({ ghiChu: '', viTri: '', ma: '' }, t));
+        this._suaGoc = this._dauSua();
         this.thongBao = { loai: '', noiDung: '' };
       },
       huySua() { this._xoaNhap(); },
@@ -565,7 +601,7 @@
           this.thongBao = { loai: 'err', noiDung: this.sua ? 'Phản hồi trống — muốn bỏ hẳn thì bấm Xoá.' : 'Thêm ít nhất 1 ảnh/clip hoặc ghi chú.' }; return;
         }
         const ng = this._nguoiDung() || {};
-        const tep = this.tepCu.map(t => Object.assign({}, t)).concat(this.files.map(f => ({ tam: f.tam, loai: f.loai, preview: f.preview, _f: f })));
+        const tep = this.tepCu.map(t => Object.assign({}, t, this._metaTep(t))).concat(this.files.map(f => Object.assign({ tam: f.tam, loai: f.loai, preview: f.preview, _f: f }, this._metaTep(f))));
         let m;
         if (this.sua) {
           m = d.muc.find(x => x.id === this.sua);
@@ -598,7 +634,7 @@
           await Promise.all(Array.from({ length: Math.min(this.TOI_DA_SONG_SONG, can.length) }, tho));
           const ng = this._nguoiDung() || {};
           const j = await this.goi({ action: 'nt_ghi', dong: d.dong, checklist: d.checklist, nguoiGui: { ten: m.ai, code: ng.code || '' },
-            muc: { id: m.id, ghiChu: m.ghiChu, tep: m.tep.map(t => ({ id: t.id, ky: t.ky, loai: t.loai })) } });
+            muc: { id: m.id, ghiChu: m.ghiChu, tep: m.tep.map(t => Object.assign({ id: t.id, ky: t.ky, loai: t.loai }, this._metaTep(t))) } });
           if (j.status !== 'success') throw new Error(j.message || 'Lỗi máy chủ');
           this._hopNhat(d, j, m);
         } catch (e) { if (m._cu && !m.tep.some(t => t.id)) { /* giữ bản sửa để thử lại */ } m.cho = 'loi'; m.loi = e.message; this.thongBao = { loai: 'err', noiDung: '✗ Chưa lưu được lên sheet: ' + e.message + ' — bấm "thử lại" ở phản hồi đó.' }; }
@@ -644,9 +680,9 @@
           s.onload = ok; s.onerror = () => { this._hqTai = null; loi(new Error('không tải được bộ quét mã')); }; document.head.appendChild(s);
         }));
       },
-      async moQuet(loai) {
-        if (this.quetLoai === loai) return this.dongQuet();   // bấm lại nút đang bật = tắt
-        await this.dongQuet(); this.tbQuet = '';
+      /* dich = ảnh/clip đang ghi mã (mã vào ô của tệp đó); không có dich = mã vào ô ghi chú chung của phản hồi. */
+      async moQuet(loai, dich) {
+        await this.dongQuet(); if (!dich) this.tbQuet = '';
         const luot = this._luotQuet;
         this.quetLoai = loai; await this.$nextTick();
         try {
@@ -655,7 +691,7 @@
           // so bằng SỐ LƯỢT, không so object: this._scanner đọc ra là bản Alpine bọc nên === với bản gốc luôn sai
           const sc = new Html5Qrcode('ntReader'); this._scanner = sc;
           await sc.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 160 } },
-            (ma) => { if (this._luotQuet !== luot) return; this.ghiMaQuet(loai, ma); this.dongQuet(); }, () => {});
+            (ma) => { if (this._luotQuet !== luot) return; if (dich) this.ghiMaTep(dich, loai, ma); else this.ghiMaQuet(loai, ma); this.dongQuet(); }, () => {});
           if (this._luotQuet !== luot) { try { await sc.stop(); sc.clear(); } catch (e) {} }   // đã bấm đóng trong lúc camera đang mở
         } catch (err) {
           await this.dongQuet();
@@ -667,6 +703,17 @@
         if (sc) { try { await sc.stop(); sc.clear(); } catch (e) {} }
       },
       /* Mã quét được → dòng "Vị trí: …" / "SKU/UIDgr: …" ở đầu ô ghi chú (đã có thì nối thêm, trùng thì bỏ qua) — sửa tay được như chữ thường. */
+      /* Mã quét cho 1 ảnh: ô trống thì điền, đã có thì nối «, » (trùng bỏ qua). */
+      ghiMaTep(t, loai, ma) {
+        ma = String(ma || '').trim(); if (!ma) return;
+        const k = loai === 'viTri' ? 'viTri' : 'ma', ds = String(t[k] || '').split(',').map(x => x.trim()).filter(Boolean);
+        if (!ds.includes(ma)) t[k] = ds.concat(ma).join(', ');
+        try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+      },
+      nhanTep(t) {
+        return [t.viTri ? 'Vị trí ' + t.viTri : '', t.ma ? 'UIDgr ' + t.ma : '', t.ghiChu || ''].filter(Boolean).join(' · ');
+      },
+      _metaTep(t) { return { ghiChu: String(t.ghiChu || '').trim(), viTri: String(t.viTri || '').trim(), ma: String(t.ma || '').trim() }; },
       ghiMaQuet(loai, ma) {
         ma = String(ma || '').trim(); if (!ma) return;
         const nhan = loai === 'viTri' ? 'Vị trí' : 'SKU/UIDgr', dau = nhan + ': ';
@@ -724,7 +771,7 @@
       },
       async doiCamera() { if (this.dangQuay) return; this.cameraSau = !this.cameraSau; await this._batCamera(); },
       async datCheDo(video) { if (this.dangQuay || this.cheDoVideo === video) return; this.cheDoVideo = video; await this._batCamera(); },
-      _themTep(o) { o.tam = maMoi('t'); this.files.push(o); },
+      _themTep(o) { o.tam = maMoi('t'); o.ghiChu = ''; o.viTri = ''; o.ma = ''; this.files.push(o); },
       chupAnh() {
         const v = this.$refs.video; if (!v || !v.videoWidth) return;
         let w = v.videoWidth, h = v.videoHeight;

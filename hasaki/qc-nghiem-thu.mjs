@@ -111,6 +111,10 @@ try {
         const h = await pg.evaluateHandle((t, r, c) => eval("(" + t + ")")(r, c), tim.toString(), re, chu || ""); await h.click(); };
       const nhan = "QC tự động " + new Date().toISOString().slice(11, 19);
       await pg.type(".sheet-in textarea", nhan);
+      // ô riêng của ảnh #1: ghi chú + mã vị trí + UIDgr (14/10)
+      await pg.type('.the-tep input[placeholder="Ghi chú ảnh này"]', "anh QC");
+      await pg.type('.the-tep input[placeholder="Mã vị trí"]', "F0-QC-01");
+      await pg.type('.the-tep input[placeholder="UIDgr / SKU"]', "UIDGRQC");
       const t0 = Date.now();
       await bam("GỬI PHẢN HỒI");
       await pg.waitForFunction((n) => [...document.querySelectorAll(".sheet-in .rounded-2xl")].some((e) => e.innerText.includes(n)), { timeout: 5000 }, nhan);
@@ -120,6 +124,11 @@ try {
       const msNen = Date.now() - t0, sau = await the();
       ca("chạy nền: 2 ảnh + ghi chú lên sheet nháp xong", /Sửa/.test(sau) && !/Chưa lưu/.test(sau), "xong sau " + (msNen / 1000).toFixed(1) + " s (không bắt người dùng chờ)");
       await pg.screenshot({ path: path.join(os.tmpdir(), "qc-nt-gui.png") });
+      await pg.evaluate(() => document.querySelector("[x-data]")._x_dataStack[0].taiDs());
+      await new Promise((r) => setTimeout(r, 300));
+      await coTran(pg.waitForFunction("!document.querySelector('[x-data]')._x_dataStack[0].dangTai", { timeout: 120000 }), 125000, "tải lại sau gửi");
+      const chuThich = (await the()).includes("Vị trí F0-QC-01 · UIDgr UIDGRQC · anh QC");
+      ca("ô riêng từng ảnh lưu lên máy chủ + hiện lại sau tải lại", chuThich);
 
       // SỬA: đổi ghi chú + bỏ 1 ảnh cũ
       await bam("^Sửa$", nhan);
@@ -160,7 +169,7 @@ try {
     await coTran(pq.waitForFunction("document.querySelectorAll('button.the').length > 0", { timeout: 120000 }), 125000, "tải danh sách");
     await pq.click("button.the");
     await pq.waitForFunction("!!document.querySelector('textarea') && !!document.querySelector('textarea').offsetParent", { timeout: 10000 });
-    const hop = () => pq.evaluate(() => !!document.getElementById("ntReader").closest("[x-show]").offsetParent);
+    const hop = () => pq.evaluate(() => document.querySelector(".lop-quet").getClientRects().length > 0);
     const nut = (chu) => pq.evaluateHandle((c) => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === c && b.offsetParent), chu);
     const o = () => pq.$eval("textarea", (t) => t.value);
     ca("mở mục: chưa bấm thì camera quét ẩn", !(await hop()));
@@ -171,19 +180,33 @@ try {
     await (await nut("Mã vị trí")).click();
     await new Promise((r) => setTimeout(r, 60));
     ca("bấm Mã vị trí: hiện camera quét", await hop());
-    await pq.waitForFunction("!document.getElementById('ntReader').closest('[x-show]').offsetParent", { timeout: 5000 });
+    await pq.waitForFunction("document.querySelector('.lop-quet').getClientRects().length === 0", { timeout: 5000 });
     ca("quét xong: camera tự ẩn + ghi dòng Vị trí đầu ghi chú", (await o()) === "Vị trí: F0-A1-01\nĐã kiểm xong", JSON.stringify(await o()));
     for (const m of ["8936012345678", "UIDGR123", "UIDGR123"]) {
       await pq.evaluate((x) => window.__ma.push(x), m);
       await (await nut("SKU / UIDgr")).click();
-      await pq.waitForFunction("!!document.getElementById('ntReader').closest('[x-show]').offsetParent", { timeout: 5000 });
-      await pq.waitForFunction("!document.getElementById('ntReader').closest('[x-show]').offsetParent", { timeout: 5000 });
+      await pq.waitForFunction("document.querySelector('.lop-quet').getClientRects().length > 0", { timeout: 5000 });
+      await pq.waitForFunction("document.querySelector('.lop-quet').getClientRects().length === 0", { timeout: 5000 });
       await new Promise((r) => setTimeout(r, 50));
     }
     ca("SKU/UIDgr nối 1 dòng sau Vị trí, mã trùng bỏ qua", (await o()) === "Vị trí: F0-A1-01\nSKU/UIDgr: 8936012345678, UIDGR123\nĐã kiểm xong", JSON.stringify(await o()));
     await (await nut("Mã vị trí")).click(); await new Promise((r) => setTimeout(r, 30));
-    await (await nut("Mã vị trí")).click(); await new Promise((r) => setTimeout(r, 100));
-    ca("bấm lại nút đang bật: tắt camera", !(await hop()));
+    await (await nut("Đóng camera")).click(); await new Promise((r) => setTimeout(r, 100));
+    ca("bấm Đóng camera: tắt camera", !(await hop()));
+    // ô riêng từng ảnh: đính ảnh → quét mã vị trí + UIDgr vào đúng ô của ảnh đó, không đụng ô ghi chú chung
+    await (await pq.$(".sheet-in input[type=file]")).uploadFile(ANH);
+    await pq.waitForFunction("document.querySelectorAll('.the-tep').length === 1", { timeout: 8000 });
+    const ghiTruoc = await o();
+    for (const [nutTep, m] of [["Quét mã vị trí", "F0-B2-03"], ["Quét UIDgr / SKU", "UIDGR9"], ["Quét UIDgr / SKU", "UIDGR10"]]) {
+      await pq.evaluate((x) => window.__ma.push(x), m);
+      await pq.click('.the-tep button[title="' + nutTep + '"]');
+      await pq.waitForFunction("document.querySelector('.lop-quet').getClientRects().length > 0", { timeout: 5000 });
+      await pq.waitForFunction("document.querySelector('.lop-quet').getClientRects().length === 0", { timeout: 5000 });
+    }
+    const oTep = await pq.evaluate(() => [...document.querySelectorAll(".the-tep input")].map((i) => i.value));
+    ca("quét cho từng ảnh: mã vào đúng ô của ảnh, nhiều UIDgr nối «, »", JSON.stringify(oTep) === JSON.stringify(["", "F0-B2-03", "UIDGR9, UIDGR10"]) && (await o()) === ghiTruoc, JSON.stringify(oTep));
+    const hangTep = await pq.evaluate(() => { const r = document.querySelector(".the-tep").getBoundingClientRect(); return [Math.round(r.right), innerWidth]; });
+    ca("hàng ảnh + 3 ô vừa bề ngang", hangTep[0] <= hangTep[1], hangTep.join("/"));
     const ngang = await pq.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     ca("khối quét không gây cuộn ngang", ngang <= 0, ngang + "px");
     await pq.close();
