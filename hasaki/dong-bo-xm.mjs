@@ -70,7 +70,8 @@ export async function keo(nhom, { xoaSauKeo = false } = {}) {
   let n = 0; const daKeo = [];
   for (let i = 0; i < can.length;) {
     const lo = []; let co = 0;
-    while (i < can.length && (!lo.length || co + (can[i].co || 0) < 20e6)) { co += can[i].co || 0; lo.push(can[i++].ten); }
+    // 14/10: ≤ 25 tệp và ≤ 8 MB/lượt — lượt 20 MB (~150 tệp, GAS đọc Drive từng tệp) quá giờ chờ 6 phút
+    while (i < can.length && (!lo.length || (co + (can[i].co || 0) < 8e6 && lo.length < 25))) { co += can[i].co || 0; lo.push(can[i++].ten); }
     const j = await goi({ action: "xm_tai", ten: lo }, "xm_tai");
     for (const t of j.tep) {
       if (t.thieu || !t.b64) continue;
