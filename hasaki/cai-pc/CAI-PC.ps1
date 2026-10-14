@@ -15,6 +15,14 @@ Write-Host "=== Cai PC '$may' ($nhan nhan CPU, $ramGB GB RAM) -> $duAn ===" -For
 Write-Host "    Cai HET viec; cong gac tu chon may MANH NHAT + DU KHOA + khoe de chay. Khong can xep hang tay."
 Write-Host "    Dieu khien nang luc = khoa .env: may dien TOPREVIEW -> duoc nhan viec camera; khong dien -> khong."
 
+# ---- CHOT: KHONG cai tren may QUAN LY (laptop). 14/10 user chay thu tren laptop: laptop dang chay cac co GOC; neu thanh "PC" no
+#      du khoa + diem cao nhat -> gianh het viec va chay TRUNG voi co goc (ghi doi len work/WMS). Dau hieu laptop = co task may chu 8591.
+if (Get-ScheduledTask -TaskName "5S Bang xac minh (8591)" -ErrorAction SilentlyContinue) {
+  Write-Host "  [X] Day la MAY QUAN LY (laptop co may chu Xac minh 8591) - KHONG cai co PC o day (se chay trung voi co goc)." -ForegroundColor Red
+  Write-Host "      Chep file nay sang PC noi bo roi chay o do." -ForegroundColor Red
+  exit 1
+}
+
 # ---- Node + Git; clone CA repo (giu .git de tu cap nhat) ----
 function CoLenh($n){ $null -ne (Get-Command $n -ErrorAction SilentlyContinue) }
 # Lenh ngoai (git/npm/node) ghi tien do ra stderr -> PS 5.1 + "Stop" coi la loi. Tam ha "Continue", phan xu bang $LASTEXITCODE.

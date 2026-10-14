@@ -10,7 +10,10 @@ function Nap-ViecDP($viec, $kit, $duAn, $duongCu) {
   $raw = Get-Content $xmlF -Raw -Encoding UTF8
   # chu -> SYSTEM
   $raw = [regex]::Replace($raw, '<UserId>.*?</UserId>', '<UserId>S-1-5-18</UserId>')
-  $raw = $raw.Replace('<LogonType>InteractiveToken</LogonType>', '<LogonType>ServiceAccount</LogonType>')
+  # 14/10: BO HAN LogonType. "ServiceAccount" trong XML bi Windows tu choi (0x80041318, "(11,35):LogonType") - lan cai that dau tien
+  # tren laptop vap dung cho nay. Windows tu xuat task SYSTEM chi co UserId S-1-5-18 (tu hieu LogonType=ServiceAccount).
+  # Da kiem 13/13 XML bang bo doc XML cua Task Scheduler (Schedule.Service NewTask.XmlText). KHONG them RunLevel (XML 1.3 tu choi).
+  $raw = [regex]::Replace($raw, '\s*<LogonType>[^<]*</LogonType>', '')
   # Action -> cong gac. WorkingDirectory = cai-pc (noi _DP-CHAY.vbs); no tu cd sang duAn.
   $dpVbs = Join-Path $kit "_DP-CHAY.vbs"
   $argMoi = ('"' + $dpVbs + '" ' + $viec.ten + ' ' + $viec.vbs)
