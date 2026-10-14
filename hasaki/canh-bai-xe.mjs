@@ -38,14 +38,14 @@ const log = (...a) => console.log(new Date().toTimeString().slice(0, 8), ...a);
 
 // Vùng bãi NCC/bảo vệ trên từng camera (tỉ lệ khung 0–1: x0,y0,x1,y1) — xác minh trên hình 02/10/2026.
 const CAM = [
-  { ma: "AIBV", ten: "AI Bao Ve", dauGhi: "170 QL1A - 4", host: "172.16.10.16", kenh: 16, roi: [0, 0.10, 0.27, 0.32], nguong: 0.045, vung: "dãy xe góc trên trái (bãi bảo vệ/NCC)" },
+  { ma: "AIBV", tamDung: "14/10/2026 user: tạm dừng bộ canh bãi xe bảo vệ", ten: "AI Bao Ve", dauGhi: "170 QL1A - 4", host: "172.16.10.16", kenh: 16, roi: [0, 0.10, 0.27, 0.32], nguong: 0.045, vung: "dãy xe góc trên trái (bãi bảo vệ/NCC)" },
   { ma: "BXM", ten: "Bai Xe May", dauGhi: "170 QL1A - 3", host: "172.16.10.12", kenh: 32, roi: [0.04, 0.60, 0.38, 1.0], nguong: 0.07, vung:   // ngoài trời: nắng/bóng đổi liên tục → ngưỡng cao hơn
     "cụm xe sát cột cạnh xe tải (bãi NCC/đối tác)" },
   { ma: "PLR", ten: "Khu phân loại rác", dauGhi: "170 QL1A - 3", host: "172.16.10.12", kenh: 30, loai: "phan-loai", roi: [0.469, 0.028, 0.797, 0.486], nguong: 0.06,
     moc: ["12:00", "18:30"], vung: "vách + bao phân loại MÀNG CO · GIẤY IN NHIỆT · BÓNG VỤN · LÕI BĂNG KEO" },
   { ma: "KGC", ten: "Kho giấy carton", dauGhi: "170 QL1A - 3", host: "172.16.10.12", kenh: 31, loai: "phan-loai", roi: [0.727, 0.167, 1.0, 0.75], nguong: 0.06,
     moc: ["12:00", "18:30"], vung: "đống giấy carton — không được lẫn màng co / bọc trắng" },
-].map((c) => ({ loai: "bai-xe", ...c })).filter((c) => !A.cam || A.cam.split(",").includes(c.ma));
+].map((c) => ({ loai: "bai-xe", ...c })).filter((c) => A.cam ? A.cam.split(",").includes(c.ma) : !c.tamDung);   // tamDung: bỏ khỏi lượt tự chạy, gọi --cam=AIBV vẫn chạy tay được
 
 if (!mayDuocChay(log) ) process.exit(0);
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(TAM, { recursive: true });
@@ -247,7 +247,8 @@ const LUOT = [], MOC = []; let loiDoc = 0;
 for (const cam of CAM) {
   /* 05/10 user chốt A+B+D cho khu giấy/rác: BỎ lấy mẫu cả ngày (≈130 đoạn/khu/ngày; máy không phân biệt được đã/chưa phân loại —
      đo 05/10: ca đúng −3,0 vs ca vi phạm −2,6) → chỉ chụp 2 MỐC 12:00 · 18:30 làm bằng chứng hiện trạng (luật PL-03). */
-  if (cam.moc) { cam.khungChay = [];
+  /* 09/10 user «chạy bắt khu phân loại rác»: --bat → bật lại lấy mẫu + bắt lượt cho khu giấy/rác; phần phán «bỏ đúng/sai loại» do Gemini (bat-khu-rac.mjs) — thứ máy không làm được (05/10) */
+  if (cam.moc && !A.bat) { cam.khungChay = [];
     for (const m of cam.moc) { const t = ms(m + ":00") + 60e3; if (t > Date.now() - 60e3) continue;   // +1 phút: đoạn bắt đầu sát giờ chẵn bị máy chủ cắt báo EOF (05/10: 12:00 hỏng, 18:30 được)
       const f = `${cam.ma}-moc${m.replace(":", "")}.jpg`; if (fs.existsSync(path.join(OUT, f))) { MOC.push({ ma: cam.ma, camera: cam.ten, gio: m, anh: f }); continue; }
       const d = await taiDoan(cam, t, t + 15000, "moc");

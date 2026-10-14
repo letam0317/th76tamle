@@ -200,7 +200,10 @@
       ".hx-nut[disabled]{opacity:.55;cursor:not-allowed;background:var(--surface2);border-color:var(--border);color:var(--muted)}",
       ".hx-nut{min-height:40px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-text,#fff);font-weight:650;padding:0 14px;cursor:pointer}",
       /* 14/10 nút Ghi chú dưới tiêu đề pop-up + khung ghi chú đầu thân */
-      "#mTitle .hx-gc-nut{display:inline-flex;align-items:center;margin-top:2px;min-height:28px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--muted);font:inherit;font-size:12px;font-weight:500;cursor:pointer}#mTitle .hx-gc-nut:hover,#mTitle .hx-gc-nut[aria-expanded=true]{color:var(--accent);border-color:var(--accent)}@media(max-width:560px){#mTitle .hx-gc-nut{min-height:36px}}",
+      /* 14/10 user: ngày giờ NGANG HÀNG bên phải tên chỗ · Ghi chú cạnh trái nút Đóng · 3 nút phụ 1 hàng dưới nút Lưu */
+      "#mTitle{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px}#mTitle .hx-mt1,#mTitle .hx-mt2{display:inline-block!important}#mTitle .hx-mt1{min-width:0;max-width:100%}@media(max-width:560px){#mTitle .hx-mt1{white-space:normal!important;overflow-wrap:anywhere;line-height:20px}}",
+      ".hx-gc-nut{flex:none;display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}.hx-gc-nut:hover,.hx-gc-nut[aria-expanded=true]{color:var(--accent);border-color:var(--accent)}.hx-gc-nut+.hx-motask{margin-left:0}@media(max-width:560px){.hx-gc-nut{min-height:44px;padding:0 10px}}",
+      "#modal .hx-qd .hx-act{grid-template-columns:repeat(3,minmax(0,1fr))}#modal .hx-qd .hx-act button{padding:4px 6px;line-height:1.25}#modal .hx-qd .hx-act button[data-qd='-1']{grid-column:1/-1}",
       ".hx-gc[hidden],#lvAnh[hidden],#lvClip[hidden]{display:none!important}.hx-gc{margin:12px 24px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);display:flex;flex-direction:column;gap:8px}@media(max-width:560px){.hx-gc{margin:12px 16px 0}}.hx-gc textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;resize:vertical}.hx-gc-hang{display:flex;gap:10px;align-items:center}.hx-gc-dong{font-size:13px;padding:6px 0;border-top:1px solid var(--border)}.hx-gc-dong>div{white-space:pre-wrap;overflow-wrap:anywhere}",
       "@media(max-width:560px){.hx-ng{grid-template-columns:74px minmax(0,1fr)}.hx-crop{width:74px;height:100px}.hx-buoc figure{flex-basis:128px}.hx-buoc img{width:128px;height:72px}}"
     ].join("\n");
@@ -845,7 +848,11 @@
   /* 14/10 user: nút «Ghi chú» nhỏ dưới tiêu đề pop-up (Theo tác vụ + Theo máy) — ghi điều cần cải tiến; máy chủ lưu .exports/ghi-chu-cai-tien.json,
      Claude đọc sổ đó để sửa cho lần sau. Khung ghi chú mở ngay đầu thân pop-up, không chồng pop-up. */
   function ganGhiChu(loai, id, tieuDe) {
-    $id("mTitle").insertAdjacentHTML("beforeend", '<button type="button" class="hx-gc-nut" id="gcNut" aria-expanded="false">Ghi chú</button>');
+    var gc0 = $id("gcNut"); if (gc0) gc0.remove();
+    var gcN = document.createElement("button"); gcN.type = "button"; gcN.className = "hx-gc-nut"; gcN.id = "gcNut"; gcN.setAttribute("aria-expanded", "false"); gcN.textContent = "Ghi chú";
+    $id("mClose").parentNode.insertBefore(gcN, $id("hxMoTask") || $id("mClose"));   // 14/10 user: Ghi chú bên trái, ngang hàng nút Đóng
+    var md0 = $id("modal"); if (md0 && !md0.__hxGc) { md0.__hxGc = 1;
+      new MutationObserver(function () { if (!md0.classList.contains("show")) { var z = $id("gcNut"); if (z) z.remove(); } }).observe(md0, { attributes: true, attributeFilter: ["class"] }); }
     $id("mBody").insertAdjacentHTML("afterbegin", '<div class="hx-gc" id="gcKhung" hidden><textarea id="gcChu" rows="3" placeholder="Điều cần cải tiến ở pop-up / cách máy xác minh việc này…" aria-label="Ghi chú cải tiến"></textarea>' +
       '<div class="hx-gc-hang"><button type="button" class="hx-nut nho" id="gcLuu">Lưu ghi chú</button><span id="gcMsg" class="muted"></span></div><div id="gcDs"></div></div>');
     var veDs = function (ds) { $id("gcDs").innerHTML = (ds || []).slice().reverse().map(function (g) { var d = new Date(g.at);
