@@ -2398,6 +2398,7 @@ function apiPcNhip_(duLieu) {
       nhan: Number(nhip.nhan) || 0, ramTongGB: Number(nhip.ramTongGB) || 0, diaTrongGB: (nhip.diaTrongGB == null ? null : Number(nhip.diaTrongGB)),
       coKhoa: pcMang_(nhip.coKhoa, 20), dangChay: pcMang_(nhip.dangChay, 30), ban: String(nhip.ban || '').slice(0, 12),
       viecGiao: pcMang_(nhip.viecGiao, 30), tatCaViec: pcMang_(nhip.tatCaViec, 40), viecNang: pcMang_(nhip.viecNang, 40),
+      taskDP: nhip.taskDP instanceof Array ? nhip.taskDP.slice(0, 20).map(function (s) { return String(s).slice(0, 120); }) : undefined,   // 14/10 trạng thái task việc (xem từ xa)
       congGan: nhip.congGan instanceof Array ? nhip.congGan.slice(-8).map(function (s) { return String(s).slice(0, 180); }) : undefined,   // 14/10 nhật ký cổng gác (xem từ xa)
       chayLuc: nhip.chayLuc ? pcChayLuc_(nhip.chayLuc) : undefined,   // PC bản cũ không gửi → bỏ trường (đừng báo sai «chưa chạy»). 14/10 { viec: ISO } lần chạy gần nhất (cổng gác cho CHẠY) → «chạy lúc …» trên Máy trạm
       oDia: (nhip.oDia instanceof Array ? nhip.oDia.slice(0, 8).map(function (x) { return { o: String(x && x.o || '').slice(0, 1).toUpperCase(), trong: Number(x && x.trong) || 0, tong: Number(x && x.tong) || 0 }; }).filter(function (x) { return /^[A-Z]$/.test(x.o); }) : []),   // 14/10 mọi ổ đĩa
