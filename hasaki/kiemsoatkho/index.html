@@ -1179,7 +1179,7 @@ body{--pop-tren:0px}
 #modal,#statModal,#hmModal,#ghiModal,#pinModal,#lightbox,.hk-modal,.hp-modal,.ht-modal,.hpc-modal,.fk-modal,.fk-scope .fk-scrim,.fs-modal{left:var(--pop-trai,0px)!important;top:var(--pop-tren)!important;transition:left .32s var(--ez-apple)}
 body:has(#modal.show,#statModal.show,#hmModal.show,#ghiModal.show,#pinModal.show,#lightbox.show) #sideToggle{opacity:1;pointer-events:auto;}
 #sideToggle{z-index:1301}   /* nút ‹ nằm trong vùng nội dung → phải nổi trên mọi pop-up; KHÔNG nâng #sideNav trên máy tính (đè #adLogo/#adChuyen z 61 — mất logo, Đăng nhập, Audit Factory) */
-@media(max-width:768px){ body.side-open #sideBackdrop{z-index:1299} body.side-open #sideNav{z-index:1300} body.side-open #adLogo,body.side-open #adChuyen{z-index:1302} }
+@media(max-width:768px){ body.side-open #sideBackdrop{z-index:1299} body.side-open #sideNav{z-index:1300} body.side-open #adLogo,body.side-open #adChuyen{z-index:1302!important} }
 @media(max-width:768px){ body{--pop-tren:52px} }
 @supports not (translate:1px 0){   /* trình duyệt cũ: quay về `left` (có giật nhẹ nhưng không lệch chỗ) */
   #sideToggle{transition:left .32s var(--ez-apple),background-color .2s var(--ez-apple),box-shadow .2s var(--ez-apple);}
@@ -1414,9 +1414,12 @@ body.side-anim{overflow-x:clip;}
 <div id="sideBackdrop" aria-hidden="true"></div>
 <script>/* 14/10: pop-up không che thanh bên — --pop-trai = mép phải thật của #sideNav (máy tính); điện thoại = 0 (ngăn kéo nổi trên pop-up) */
 (function(){var nav=document.getElementById("sideNav");if(!nav)return;var h=0;
-  function cap(){h=0;var x=0;if(innerWidth>768){var r=nav.getBoundingClientRect();x=r.right>1?Math.round(r.right):0;}document.body.style.setProperty("--pop-trai",x+"px");}
+  var tg=document.getElementById("sideToggle");
+  function cap(){h=0;var x=0;if(innerWidth>768){var r=nav.getBoundingClientRect();x=r.right>1?Math.round(r.right):0;
+    if(tg){var t=tg.getBoundingClientRect();if(t.left<x+2&&t.right>x)x=Math.round(t.right);}}   /* nút ‹ gắn mép (lòi 2/3 ra ngoài) → pop-up bắt đầu sau nút */
+    document.body.style.setProperty("--pop-trai",x+"px");}
   function hen(){if(!h)h=requestAnimationFrame(cap);}
-  cap();addEventListener("resize",hen);nav.addEventListener("transitionend",cap);
+  cap();addEventListener("resize",hen);nav.addEventListener("transitionend",cap);if(tg)tg.addEventListener("transitionend",cap);
   new MutationObserver(function(){hen();setTimeout(cap,360);}).observe(document.body,{attributes:true,attributeFilter:["class"]});
   if(window.ResizeObserver)new ResizeObserver(hen).observe(nav);})();</script>
 <div id="hskMark" aria-hidden="true"><img src="hasaki-logo.png" alt="" loading="lazy" /></div>

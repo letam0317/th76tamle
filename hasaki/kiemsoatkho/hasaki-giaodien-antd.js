@@ -207,6 +207,13 @@
       H + " body.side-open .wrap{padding-left:240px}" +
       H + " body.side-open #sideToggle{translate:216px 0}" +
     "}",
+    /* 14/10 user: «nút thu gọn/mở rộng thanh bên dính liền với thanh bên — lòi ra 2/3 kích thước nút, 1/3 còn lại dính vào thanh bên» (máy tính).
+       Nút 32px: left 0 + translate = mép thanh bên − 11px (mở 216 → 205 · thu gọn 72 → 61); có nền + viền để thấy rõ gắn vào mép. */
+    "@media(min-width:769px){" +
+      H + " #sideToggle{left:0;top:16px;border-radius:999px;background:var(--surface);border:1px solid var(--ad-chia,var(--border));box-shadow:0 2px 6px rgba(0,0,0,.08)}" +
+      H + " #sideToggle:hover{background:var(--surface);border-color:var(--accent);color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.12)}" +
+      H + " body.side-open #sideToggle{translate:205px 0!important}" + H + " body:not(.side-open) #sideToggle{translate:61px 0!important}" +
+    "}",
     /* ---- 12/10 user: "thanh bên khi thu gọn thì chuyển tên các sub-tab thành nhãn" — máy tính: thu gọn = DẢI 72px (Sider collapsed của antd),
        mỗi mục là nhãn chữ nhỏ 2 dòng canh giữa, nhóm thành vạch ngăn, logo chỉ còn hình. Điện thoại giữ ngăn kéo (không đủ chỗ cho dải). ---- */
     "@media(min-width:769px){" +
