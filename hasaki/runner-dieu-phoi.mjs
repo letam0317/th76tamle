@@ -23,6 +23,7 @@ const may = os.hostname();
 function thoat(ok, ly, bang, nguon) {
   const dong = `${new Date().toTimeString().slice(0, 8)} ${tenViec} ${may} [${nguon}] -> ${ok ? "CHAY" : "DUNG"} (${ly}; song=${(bang || []).map((b) => b.may + (b.yeu ? "!" : "")).join(",")})`;
   try { fs.appendFileSync(path.join(DIR, "runner-dieu-phoi.log"), dong + "\n"); } catch { /* */ }
+  if (nguon !== "test") try { fs.writeFileSync(path.join(DIR, ".cong-luc"), new Date().toISOString()); } catch { /* */ }   // 14/10 cổng gác còn sống (congLuc)
   if (ok && nguon !== "test") { const f = path.join(DIR, ".chay-luc.json"); let c = {}; try { c = JSON.parse(fs.readFileSync(f, "utf8")); } catch { /* */ }
     c[tenViec] = new Date().toISOString(); try { fs.writeFileSync(f, JSON.stringify(c)); } catch { /* */ } }   // 14/10 «chạy lúc» lên tab Máy trạm
   process.exit(ok ? 0 : 75);

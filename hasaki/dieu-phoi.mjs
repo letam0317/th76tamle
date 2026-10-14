@@ -47,9 +47,13 @@ export const TAI_NANG = 3, TAI_NHE = 1;
 
 function songConLai(viec, board, now, cfg) {
   const song = maySong(board, now, cfg.hetHanPhut || 8);
-  for (const [m, hb] of song) if (biDung(hb, viec.ten)) song.delete(m);
+  for (const [m, hb] of song) if (biDung(hb, viec.ten) || congChet(hb, now)) song.delete(m);
   return song;
 }
+/* 14/10: QLIT gửi nhịp tim đều nhưng task việc KHÔNG HỀ gọi cổng gác (nhật ký cổng trống) → nhận 6 việc mà không làm. Cổng gác ghi giờ quyết
+   định gần nhất (congLuc) → nhịp tim gửi. Máy CÓ báo congLuc mà trống/im quá 3 giờ = cổng gác chết → không giao việc. Máy bản cũ (không có
+   khoá congLuc) giữ như cũ. Mọi task (kể cả việc không giao) đều gọi cổng gác theo lịch ⇒ máy khoẻ luôn có congLuc mới trong ≤ 15'. */
+export const congChet = (hb, now = Date.now()) => !!hb && ("congLuc" in hb) && (!hb.congLuc || now - Date.parse(hb.congLuc) > 3 * 3600e3);
 function chonGhim(viec, song) {
   for (const may of viec.uuTien) {
     const hb = song.get(may);
@@ -84,7 +88,8 @@ export function chiaViec(board, now, cfg) {
   const nhaNang = cfg.mayViecNang || [];                              // 14/10 user «việc nặng nên đưa cho je75k38»: máy nhà của việc nặng
   for (const { v, du } of conLai) {
     const w = v.nang ? TAI_NANG : TAI_NHE;
-    const nha = v.nang && nhaNang.find((m) => du.some((hb) => hb.may === m && !hb.yeu));   // còn sống + đủ khoá + khoẻ + không Dừng
+    // còn sống + đủ khoá + khoẻ + không Dừng + BẢN MỚI (có chayLuc — bản cũ không chạy được cò xác minh qua kho) — không thì chia đều
+    const nha = v.nang && nhaNang.find((m) => du.some((hb) => hb.may === m && !hb.yeu && ("chayLuc" in hb)));
     if (nha) { giao[v.ten] = nha; tai.set(nha, (tai.get(nha) || 0) + w); continue; }     // không thì chia đều như thường
     let tot = null, totTi = Infinity;
     for (const hb of du) {
@@ -212,13 +217,23 @@ function test() {
 
   // 14/10 mayViecNang: viec nang ve JE (khoe); JE yeu/bi Dung -> chia deu; viec nhe don sang may khac
   const cfg4 = { ...cfg3, mayViecNang: ["JE"] };
-  g = chiaViec([hb2("QLIT", 415, 60, false, K), hb2("JE", 296, 60, false, K)], now, cfg4);
+  const moi = (hb) => ({ ...hb, chayLuc: {} });   // bản mới (có khoá chayLuc)
+  g = chiaViec([hb2("QLIT", 415, 60, false, K), moi(hb2("JE", 296, 60, false, K))], now, cfg4);
   eq(cfg4.viec.filter((v) => v.nang).every((v) => g[v.ten] === "JE"), true, "mayViecNang: 7 viec nang ve JE");
   eq(cfg4.viec.filter((v) => !v.nang).every((v) => g[v.ten] === "QLIT"), true, "mayViecNang: viec nhe don sang QLIT");
   g = chiaViec([hb2("QLIT", 415, 60, false, K), hb2("JE", 296, 20, true, K)], now, cfg4);
   eq(cfg4.viec.filter((v) => v.nang).every((v) => g[v.ten] === "QLIT"), true, "JE yeu -> viec nang sang may khoe");
   g = chiaViec([hb2("QLIT", 415, 60, false, K), { ...hb2("JE", 296, 60, false, K), dung: true }], now, cfg4);
   eq(Object.values(g).every((m) => m === "QLIT"), true, "JE bi Dung -> QLIT lam het");
+  // 14/10 JE BẢN CŨ (không chayLuc) → không ép việc nặng về JE, chia đều (máy mạnh nhận phần lớn)
+  g = chiaViec([hb2("QLIT", 415, 60, false, K), hb2("JE", 296, 60, false, K)], now, cfg4);
+  eq(cfg4.viec.filter((v) => v.nang && g[v.ten] === "QLIT").length > 0, true, "JE ban cu -> viec nang KHONG ep ve JE");
+  // 14/10 CỔNG GÁC CHẾT: có khoá congLuc mà trống / im > 3 giờ → không giao; không có khoá (bản cũ) → giữ
+  const chet = { ...hb2("QLIT", 415, 60, false, K), congLuc: null }, cu3h = { ...hb2("QLIT", 415, 60, false, K), congLuc: tuoi(200) };
+  const song = { ...hb2("FOQ", 415, 60, false, K), congLuc: tuoi(10) };
+  eq(Object.values(chiaViec([chet, song], now, cfg3)).every((m) => m === "FOQ"), true, "cong gac chet (congLuc trong) -> khong giao viec");
+  eq(Object.values(chiaViec([cu3h, song], now, cfg3)).every((m) => m === "FOQ"), true, "cong gac im > 3 gio -> khong giao viec");
+  eq(Object.values(chiaViec([hb2("QLIT", 415, 60, false, K), song], now, cfg3)).includes("QLIT"), true, "ban cu (khong congLuc) -> van giao nhu cu");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);
