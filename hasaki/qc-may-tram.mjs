@@ -83,6 +83,7 @@ try {
         if (o.action === "pcDangNhap") { goiDN++; return tra(o.mk === MK_DUNG ? { status: "success", ph: "a".repeat(64), het: Date.now() + 36e5, email: o.email } : { status: "error", code: 401, message: "Sai email hoặc mật khẩu" }); }
         if (o.action === "pcBangPh") { goiBang++; return tra(o.ph === TKPH ? GAS_TB : { status: "error", code: 401, message: "Phiên đăng nhập đã hết" }); }
         if (o.action === "pcDangXuat") return tra({ status: "success" });
+        if (o.action === "pcLenhPh") { post.push({ url: "gas:pcLenhPh", body: r.postData() }); return tra(o.ph === TKPH ? { status: "success", lenh: { dung: !!o.dung }, daChuyen: [] } : { status: "error", code: 403, message: "chưa có quyền" }); }   // 14/10 lệnh qua GAS
       }
       if (r.method() === "POST" && !/\/api\/dang-nhap$/.test(u)) { post.push({ url: u, body: r.postData() }); return r.respond({ status: 200, contentType: "application/json", headers: cors(r), body: JSON.stringify({ ok: 1, daChuyen: [] }) }); }
       if (/\/api\/may-tram$/.test(u)) return r.respond({ status: 200, contentType: "application/json", headers: cors(r), body: JSON.stringify(m.data || m.data2 || API591) });
@@ -116,7 +117,7 @@ try {
       const r = the.map((x) => x.getBoundingClientRect()), pr = pn.getBoundingClientRect();
       return { so: the.length, doc: r.every((x, i) => !i || x.top >= r[i - 1].bottom - 1), deuNhau: r.every((x) => Math.abs(x.width - r[0].width) < 2), vua: r.every((x) => x.right <= pr.right + 1),
         chuaTruoc: !!(ch && hg && (ch.compareDocumentPosition(hg) & Node.DOCUMENT_POSITION_FOLLOWING)), ngang: document.documentElement.scrollWidth - innerWidth,
-        chu: the.map((t) => t.innerText.replace(/\s+/g, " ")), tipPhu: the.map((t) => (t.querySelector(".mt-phu") || {}).title || ""),
+        chu: the.map((t) => t.innerText.replace(/\s+/g, " ")), tipPhu: the.map((t) => (t.querySelector(".mt-dau b") || {}).title || ""),
         chip: the.map((t) => [...t.querySelectorAll(".mt-c")].map((c) => c.className.replace("mt-c ", "") + ":" + c.textContent)),
         nut: [...pn.querySelectorAll("button[data-may]")].map((n) => ({ t: n.textContent, h: Math.round(n.getBoundingClientRect().height) })) }; });
     ok(bc.chuaTruoc, "«Việc chưa có máy nhận» nằm TRÊN hàng máy trạm");
@@ -165,9 +166,13 @@ try {
       const od = await p.evaluate(() => [...document.querySelector("#pane-maytram .mt-o").querySelectorAll(".mt-sk .r")].map((r) => r.innerText.replace(/\s+/g, " ").trim()));
       ok(od.includes("C: 12 GB") && od.includes("D: 813 GB") && !od.some((x) => /^Ổ C/.test(x)), "liệt kê MỌI ổ đĩa: " + od.slice(2).join(" | "));
       ok(await p.evaluate(() => { const b = document.querySelector("#pane-maytram .mt-o .mt-sk .r[title*='Ổ C'] i b"); return !!b && Math.abs(parseFloat(b.style.width) - 95) <= 1; }), "thanh ổ C = phần ĐÃ DÙNG (95%), đổi màu khi sắp đầy");
-      ok(/13 việc · .*2 chạy · .*1 dừng · .*10 chờ/.test(g.tom), "việc tóm 1 dòng: " + g.tom.replace(/\s+/g, " "));
-      const gan = await p.evaluate(() => (document.querySelector("#pane-maytram .mt-gan") || {}).textContent || "");
-      ok(/^7 nặng · 6 nhẹ · chạy gần nhất \d\d:\d\d$/.test(gan), "dòng 2: nặng/nhẹ + giờ chạy gần nhất (" + gan + ")");
+      // 14/10 user «thông tin ở nút máy trạm lộn xộn, lặp lại»: bỏ dòng tóm «13 việc · 2 chạy · 10 chờ» (trùng màu chip + khối Đang chạy) — thay bằng SỨC KHOẺ + «Hôm nay đã làm»
+      const sk = await p.evaluate(() => { const o = document.querySelector("#pane-maytram .mt-o"); return { tom: !!document.querySelector("#pane-maytram .mt-tom, #pane-maytram .mt-gan"), dg: (o.querySelector(".mt-dg") || {}).textContent || "", lop: (o.querySelector(".mt-dg") || {}).className || "", hn: (o.querySelector(".mt-hn") || {}).textContent || "" }; });
+      ok(!sk.tom, "không còn dòng tóm tắt lặp (13 việc · 2 chạy · …)");
+      // máy mẫu: ổ C đã dùng 95% (thanh ĐỎ) dù còn 12 GB → sức khoẻ phải «Cần chú ý» + lý do — thanh đỏ mà ghi «Tốt» là lệch (lỗi đã gặp 14/10)
+      ok(/^Sức khoẻ: Cần chú ýổ C đầy 95%, còn 12 GB$/.test(sk.dg) && /\bchu-y\b/.test(sk.lop), "đánh giá sức khoẻ khớp màu thanh ổ đĩa: «Cần chú ý · ổ C đầy 95%» (" + sk.dg + ")");
+      ok(await p.evaluate(() => { const t = document.querySelector("#pane-maytram .mt-o .mt-dau b"); return t.scrollHeight <= 20; }), "tên máy 1 dòng, không ngắt giữa tên");
+      ok(/^Hôm nay đã làm 2 việc · gần nhất: Cò canh planogram lúc \d\d:\d\d \(\d+ phút trước\)$/.test(sk.hn), "dòng «Hôm nay đã làm» (" + sk.hn + ")");
       const nn = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-o .mt-phai .ds");
       ok(nn["Nặng:"] === 7 && nn["Nhẹ:"] === 6, "chip việc chia hàng Nặng/Nhẹ, nhãn ghi 1 lần, hiện sẵn không cần bấm (" + JSON.stringify(nn) + ")");
       hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="tim-bang-chung-b1"]'); await new Promise((r) => setTimeout(r, 1200));
@@ -190,10 +195,10 @@ try {
     }
     ok(bc.so === 2, "2 thẻ máy (" + bc.so + ")");
     ok(/PC-KHO-01/.test(bc.chu[0]) && /Đang chạy/.test(bc.chu[0]) && /RAM 62%/.test(bc.chu[0]) && /CPU 72%/.test(bc.chu[0]) && /Ổ C 8 GB/.test(bc.chu[0]), "thẻ 1: trạng thái + RAM 62% + CPU 72% + ổ C 8 GB");
-    ok(/2\d giây trước/.test(bc.chu[0]) && /bản 5be3da2/.test(bc.tipPhu[0]), "thẻ 1: nhịp tim (bản code trong chú thích)");
+    ok(/nhịp tim 2\d giây trước/.test(bc.tipPhu[0]) && /bản 5be3da2/.test(bc.tipPhu[0]) && !/giây trước/.test(bc.chu[0]), "thẻ 1: nhịp tim + bản code CHỈ trong chú thích tên máy (thẻ gọn)");
     const c1 = bc.chip[0].join("|");
     ok(/chay:Cò canh B1\.1/.test(c1) && /cho:Tìm bằng chứng B1/.test(c1) && /dung:Canh bãi xe sáng/.test(c1), "thẻ 1: chip việc đúng màu (chạy / chờ lịch / dừng)");
-    ok(/PC-KHO-02/.test(bc.chu[1]) && /Mất nhịp/.test(bc.chu[1]) && /2 giờ trước|90 phút trước/.test(bc.chu[1]) && /không khoá camera/.test(bc.chu[1]), "thẻ 2: mất nhịp + không khoá camera");
+    ok(/PC-KHO-02/.test(bc.chu[1]) && /Mất nhịp/.test(bc.chu[1]) && /Sức khoẻ: Kém mất nhịp (2 giờ trước|90 phút trước)/.test(bc.chu[1]) && /không có khoá camera/.test(bc.tipPhu[1]), "thẻ 2: mất nhịp → Sức khoẻ Kém + lý do; «không khoá camera» trong chú thích");
     const nb = await nhom();
     ok(nb[nb.length - 1] === "Máy trạm" && (m.quanLy || nb.length === 1), "thanh bên: Máy trạm DƯỚI CÙNG nhóm Xác minh (" + nb.join(" | ") + ")");
     await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true });
@@ -212,9 +217,11 @@ try {
     } else {
       ok(goiDN === 2 && goiBang > 0, "điện thoại: đăng nhập 1 lần ở hệ tài khoản → dữ liệu qua Apps Script, không hỏi lần 2 (đăng nhập " + goiDN + " · bảng " + goiBang + ")");
       ok(!(await p.$("#mtDnForm")) && !(await p.$("#mtDangXuat")), "không còn ô đăng nhập / nút đăng xuất riêng của Máy trạm");
-      ok(bc.nut.length === 0 && !(await p.$("#pane-maytram .mt-x")) && !(await p.$("#pane-maytram .hx-mt-xin")), "điện thoại: chip/nút chỉ xem, KHÔNG điều khiển, KHÔNG khối duyệt khoá");
-      const lenhMT = post.filter((x) => /may-tram\/(lenh|duyet-khoa)|"action":"pc(Lenh|DuyetKhoa)"/.test(x.url + " " + (x.body || "")));   // chỉ lệnh ĐIỀU KHIỂN máy trạm (module khác gọi GAS không tính)
-      ok(!lenhMT.length, "điện thoại: không gửi lệnh điều khiển máy trạm nào" + (lenhMT.length ? " — CÓ: " + post.map((x) => x.url.replace(/\?.*/, "").slice(-40) + " " + String(x.body || "").slice(0, 60)).join(" ; ") : ""));
+      /* 14/10 user «nút dừng chạy của máy trạm đâu»: tài khoản quyền «làm» Xác minh → CÓ nút ở mọi nơi (lệnh qua GAS pcLenhPh, không cần 8591); vẫn KHÔNG khối duyệt khoá */
+      ok(bc.nut.some((n) => n.t === "Dừng máy") && !!(await p.$("#pane-maytram .mt-x")) && !(await p.$("#pane-maytram .hx-mt-xin")), "điện thoại (quyền làm): CÓ nút Dừng máy + × chip, KHÔNG khối duyệt khoá");
+      hoi.length = 0; await p.click('#pane-maytram button.hx-nut[data-may="PC-KHO-01"][data-dung="1"]'); await new Promise((r) => setTimeout(r, 1500));
+      const lg = post.filter((x) => x.url === "gas:pcLenhPh").map((x) => JSON.parse(x.body)), l8591 = post.filter((x) => /may-tram\/lenh/.test(x.url));
+      ok(hoi.length === 1 && lg.length === 1 && lg[0].may === "PC-KHO-01" && lg[0].dung === true && lg[0].ph && !l8591.length, "điện thoại: bấm Dừng máy → hỏi lại → lệnh qua GAS pcLenhPh kèm phiên tài khoản (không gọi 8591)");
       await p.evaluate(() => { window.TK.nguoi = null; window.TK.phien = ""; document.dispatchEvent(new CustomEvent("tk-doi")); }); await new Promise((r) => setTimeout(r, 800));
       ok(!!(await p.$("#mtMoTk")) && !(await p.$("#pane-maytram .mt-o")), "đăng xuất hệ tài khoản → Máy trạm khoá lại ngay");
     }

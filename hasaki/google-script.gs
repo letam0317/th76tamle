@@ -406,6 +406,13 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pcDangNhap') return apiPcDangNhap_(duLieu);
     if (duLieu && duLieu.action === 'pcDangXuat') return apiPcDangXuat_(duLieu);
     if (duLieu && duLieu.action === 'pcBangPh') return apiPcBangPh_(duLieu);
+    /* 14/10 user «nút dừng chạy của máy trạm đâu»: nút cũ chỉ hiện khi trình duyệt gọi được 8591 trên laptop (trình duyệt mới chặn trang web gọi
+       máy nội bộ) ⇒ điều khiển qua GAS bằng PHIÊN HỆ TÀI KHOẢN có quyền «làm» ở Xác minh; ghi tên người bấm. */
+    if (duLieu && duLieu.action === 'pcLenhPh') {
+      var nTk2 = (typeof tkPhien_ === 'function') ? tkPhien_(duLieu.ph) : null;
+      if (!(nTk2 && nTk2.quyen && nTk2.quyen['r.xacminh'] === 'lam')) return phanHoiJson({ status: 'error', code: 403, message: 'Tài khoản chưa có quyền «làm» ở Xác minh — không điều khiển được máy trạm.' });
+      return apiPcLenh_({ may: duLieu.may, viec: duLieu.viec, dung: duLieu.dung, xoa: duLieu.xoa, boi: 'TK ' + String(nTk2.ten || nTk2.id || '').slice(0, 60) });
+    }
     // 14/10: PC không khoá xin khoá — xin/lấy công khai (gác bằng mã PC tự sinh), duyệt cần SECRET (8591)
     if (duLieu && duLieu.action === 'pcXinKhoa') return apiPcXinKhoa_(duLieu);
     if (duLieu && duLieu.action === 'pcLayKhoa') return apiPcLayKhoa_(duLieu);
@@ -2538,7 +2545,7 @@ function apiPcBangPh_(d) {
     if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') {
       var v = pcJson_(all[k]); if (!v || !v.may) continue; var l = pcLenhCua_(all, v.may);
       may.push(pcPhuGop_(all, { may: v.may, luc: v.luc, ramTrongPct: v.ramTrongPct, cpuPct: v.cpuPct, diaTrongGB: v.diaTrongGB, yeu: v.yeu, diem: v.diem, nhan: v.nhan, ramTongGB: v.ramTongGB, ban: v.ban,
-        coCamera: (v.coKhoa || []).indexOf('TOPREVIEW_USER') >= 0, dangChay: v.dangChay || [], viecGiao: v.viecGiao || [], tatCaViec: v.tatCaViec || [], viecNang: v.viecNang || [], chayLuc: v.chayLuc, oDia: v.oDia || [], dung: l.dung, dungViec: l.dungViec, lenhBoi: l.dung ? l.boi : '' }, now));
+        coCamera: (v.coKhoa || []).indexOf('TOPREVIEW_USER') >= 0, dangChay: v.dangChay || [], viecGiao: v.viecGiao || [], tatCaViec: v.tatCaViec || [], viecNang: v.viecNang || [], chayLuc: v.chayLuc, congLuc: v.congLuc, taskDP: v.taskDP, coKhoa: v.coKhoa || [], oDia: v.oDia || [], dung: l.dung, dungViec: l.dungViec, lenhBoi: l.dung ? l.boi : '' }, now));
     } else if (k.indexOf('PCCHUYEN_') === 0) { var c = pcJson_(all[k]); if (c) chuyen.push({ viec: k.slice(9), tu: c.tu, luc: c.luc, sanSang: !!c.sanSang }); }
   }
   return phanHoiJson({ status: 'success', may: may, chuyen: chuyen, srvNow: now });
