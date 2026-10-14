@@ -17,5 +17,5 @@ if (!doi) { console.log("✓ bố cục Factory không đổi so với bản đ�
 git("commit", "-q", "-m", "Chốt bố cục dashboard Audit Factory (" + new Date().toISOString().slice(0, 16) + ")", "--", ...TEP);
 try { git("push", "-q", "origin", "HEAD:main"); } catch (e) { console.log("✗ push lỗi: " + String(e.stderr || e.message).slice(0, 300)); process.exit(1); }
 console.log("✓ đã đẩy " + doi.split(/\n/).join(", ") + " lên stocklocationfactory@main");
-/* 13/10: đẩy tiếp mặt tiền audit-dc.pages.dev (không đổi thì tự bỏ qua; lỗi thì lịch «5S Day Cloudflare audit-dc» 2 giờ bù) */
-try { execFileSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), "day-cloudflare.mjs")], { stdio: "inherit", windowsHide: true }); } catch (e) { console.log("  ⚠ Cloudflare chưa đẩy được — lịch 2 giờ sẽ thử lại"); }
+/* 13/10: đẩy tiếp mặt tiền audit-dc.pages.dev (không đổi thì tự bỏ qua; lỗi thì lịch «5S Day Cloudflare audit-dc» 10 phút bù; 14/10: gọi = hẹn đẩy sau 2 phút) */
+try { execFileSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), "day-cloudflare.mjs")], { stdio: "inherit", windowsHide: true }); } catch (e) { console.log("  ⚠ Cloudflare chưa đẩy được — lịch 10 phút sẽ thử lại"); }
