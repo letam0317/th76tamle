@@ -98,6 +98,16 @@ Register-ScheduledTask -TaskName "Audit nhip tim PC" -Action $aHb -Trigger @($tH
 # ---- powercfg BEST-EFFORT (may WiFi/ngu): cam ngu khi cam dien + cho phep danh thuc theo lich (khong ep duoc may pin) ----
 try { powercfg /change standby-timeout-ac 0 2>$null; powercfg /change hibernate-timeout-ac 0 2>$null } catch {}
 
+# ---- TU KIEM: gui thu 1 nhip tim -> biet ngay PC da bao ve may chu chua (hien tren muc May tram) ----
+$ErrorActionPreference = "Continue"
+Push-Location $duAn
+$nh = (& "$duAn\node.exe" nhip-pc.mjs 2>&1 | Out-String)
+Pop-Location
+$ErrorActionPreference = "Stop"
+$daBao = $nh -match 'nguon: gas'
+if ($daBao) { Write-Host "  [OK] DA BAO VE MAY CHU - may nay hien tren muc May tram (dashboard > Xac minh)." -ForegroundColor Green }
+else { Write-Host "  [X] CHUA bao ve duoc may chu. Kiem .env co APPSCRIPT_URL/APPSCRIPT_KEY (tai bo cai tu LAPTOP da dang nhap Xac minh). Chi tiet:" -ForegroundColor Red; ($nh -split "`n" | Select-Object -Last 6) | ForEach-Object { Write-Host "      $_" } }
+
 $sha = (git -C $gitDir rev-parse --short HEAD 2>$null)
 @{ may = $may; nhan = $nhan; ramGB = $ramGB; luc = (Get-Date).ToString("s"); soTask = $kq.nap; ban = $sha } | ConvertTo-Json | Out-File "$duAn\.nhip-pc.json" -Encoding utf8
 Write-Host ""
