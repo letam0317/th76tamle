@@ -7,7 +7,7 @@ $kit = $PSScriptRoot
 $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 $repo = "https://github.com/letam0317/th76tamle.git"
 $caiVao = "C:\AuditFactory"; $gitDir = "$caiVao\hasaki-repo"; $duAn = "$gitDir\hasaki"
-$may = $env:COMPUTERNAME
+$may = [System.Net.Dns]::GetHostName()   # 14/10: TEN DAY DU = os.hostname() cua nhip tim/dieu phoi (COMPUTERNAME bi cat 15 ky tu, VIET HOA)
 $nhan = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
 $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
 Write-Host ""
@@ -51,7 +51,7 @@ try { (Get-Command npm).Source | Out-File "$duAn\.npm-exe" -Encoding ascii -NoNe
 # ---- npm install (BO tai Chromium — co dung Edge, khong can) + va Edge ngam ----
 Push-Location $duAn
 $env:PUPPETEER_SKIP_DOWNLOAD = "true"; $env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
-Write-Host "  - npm install (bo tai Chromium; lan dau hoi lau)..." ; ChayNgoai "npm install" { npm install --no-audit --no-fund --loglevel=error }
+Write-Host "  - npm install (bo tai Chromium; lan dau hoi lau)..." ; ChayNgoai "npm install" { npm install --omit=dev --no-audit --no-fund --loglevel=error }
 if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") {
   $ErrorActionPreference = "Continue"
   & "$duAn\node.exe" va-puppeteer-ho-so.mjs 2>&1 | Out-Null; Write-Host "    va Edge ngam: $(& "$duAn\node.exe" va-puppeteer-ho-so.mjs --kiem 2>&1)"
@@ -127,4 +127,4 @@ Write-Host "  3. (Neu may lam bridge) mo Edge dang nhap WMS + cai extension wms-
 Write-Host ""
 Write-Host "  [BAO MAT] .env chua khoa GAS (lay duoc token tamlc) -> CHI cai may TIN CAY." -ForegroundColor Red
 Write-Host "            Thu muc da khoa chi SYSTEM+Admin; neu may mat kiem soat -> doi khoa GAS." -ForegroundColor Red
-if ($env:COMPUTERNAME -match '^(DESKTOP|PC|WIN|USER|LAPTOP)-') { Write-Host "  [!] Ten may kieu MAC DINH - dam bao 3 may KHAC TEN nhau (tranh dung nhip tim)." -ForegroundColor Yellow }
+if ($may -match '^(DESKTOP|PC|WIN|USER|LAPTOP)-') { Write-Host "  [!] Ten may kieu MAC DINH - dam bao 3 may KHAC TEN nhau (tranh dung nhip tim)." -ForegroundColor Yellow }

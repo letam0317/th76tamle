@@ -33,7 +33,7 @@ try {
     if (Test-Path $bangF) {
       $bang = (Get-Content $bangF -Raw | ConvertFrom-Json).bang
       $top = $bang | Sort-Object { [int]$_.diem } -Descending | Select-Object -First 1
-      if ($top -and $top.may -eq $env:COMPUTERNAME) { $laCanary = $true }
+      if ($top -and $top.may -eq [System.Net.Dns]::GetHostName()) { $laCanary = $true }
     } else { $laCanary = $true }   # chua co bang (may don) -> tu lam canary
   } catch { $laCanary = $true }
   if (-not $laCanary -and $canaryGio -gt 0) {
@@ -51,7 +51,7 @@ try {
     $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json   # doc lai ban moi
     $lockSau = if (Test-Path "$duAn\package-lock.json") { (Get-FileHash "$duAn\package-lock.json").Hash } else { "" }
     $NPM = if (Test-Path "$duAn\.npm-exe") { (Get-Content "$duAn\.npm-exe" -Raw).Trim() } else { "npm" }   # 14/10: SYSTEM co the khong thay npm tren PATH
-    if ($lockSau -ne $lockTruoc) { Ghi "lock doi -> npm install"; Push-Location $duAn; $env:PUPPETEER_SKIP_DOWNLOAD="true"; $env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"; & $NPM install --no-audit --no-fund --loglevel=error 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { Ghi "[X] npm install loi (ma $LASTEXITCODE)" }; Pop-Location }
+    if ($lockSau -ne $lockTruoc) { Ghi "lock doi -> npm install"; Push-Location $duAn; $env:PUPPETEER_SKIP_DOWNLOAD="true"; $env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"; & $NPM install --omit=dev --no-audit --no-fund --loglevel=error 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { Ghi "[X] npm install loi (ma $LASTEXITCODE)" }; Pop-Location }
     if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") { Push-Location $duAn; & $NODE va-puppeteer-ho-so.mjs 2>&1 | Out-Null; Pop-Location }
     # TU THEM/BOT VIEC theo dieu-phoi.json moi (khong cai lai tay)
     . "$kit\dong-bo-task.ps1"
@@ -67,6 +67,6 @@ try {
   }
   # VAN DON DIA dinh ky (PC xoa-ngay raw da dinh phieu + van dia thap; laptop no-op). Khong de dia day lam may tu "yeu".
   if (Test-Path "$duAn\don-clip.mjs") { Push-Location $duAn; try { & $NODE don-clip.mjs --im 2>&1 | Out-Null } catch {}; Pop-Location }
-  @{ may = $env:COMPUTERNAME; luc = (Get-Date).ToString("s"); ban = $sha } | ConvertTo-Json | Out-File "$duAn\.nhip-pc.json" -Encoding utf8
+  @{ may = [System.Net.Dns]::GetHostName(); luc = (Get-Date).ToString("s"); ban = $sha } | ConvertTo-Json | Out-File "$duAn\.nhip-pc.json" -Encoding utf8
 } catch { Ghi "[X] loi: $_" }
 finally { Remove-Item $lock -Force -ErrorAction SilentlyContinue }

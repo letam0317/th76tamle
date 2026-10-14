@@ -35,7 +35,7 @@ function Nap-ViecDP($viec, $kit, $duAn, $duongCu) {
 
 # Dong bo TOAN BO theo dieu-phoi.json cho may nay. Tra @{ nap; xoa; envKeys=@(...) }
 function DongBo-DieuPhoi($kit, $cfg, $duAn, $duongCu) {
-  $may = $env:COMPUTERNAME
+  $may = [System.Net.Dns]::GetHostName()   # 14/10: khop ten trong uuTien / bang nhip (os.hostname)
   $soFile = "$duAn\.cai-pc-tasks.json"
   $daQuanLy = @(); if (Test-Path $soFile) { try { $daQuanLy = @(Get-Content $soFile -Raw | ConvertFrom-Json) } catch {} }
   # Cai HET viec (cong gac + khoa + suc manh tu loc o runtime); may nao co khoa top-review moi nhan viec camera.

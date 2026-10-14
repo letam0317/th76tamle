@@ -10,6 +10,8 @@
 param([string]$KhoaB64 = "")
 $ErrorActionPreference = "Stop"
 $svc = New-Object -ComObject Schedule.Service; $svc.Connect()
+# Register-/Get-ScheduledTask la HAM cua module ScheduledTasks: module tu nap SAU se DE ham gia -> nap TRUOC roi moi dat ham gia (bay 14/10)
+Import-Module ScheduledTasks
 $global:QC = [ordered]@{ taskXml = @(); taskCmdlet = @(); loi = @(); lenhAdmin = @() }
 
 function global:Register-ScheduledTask {
@@ -34,11 +36,19 @@ function global:icacls { $global:QC.lenhAdmin += "icacls $($args -join ' ')" }
 function global:powercfg { $global:QC.lenhAdmin += "powercfg $($args -join ' ')" }
 
 if ($KhoaB64) { $env:HSK_KHOA_B64 = $KhoaB64 }
+# giong CAI-PC-1LAN.bat: keo ban moi TRUOC roi moi chay CAI-PC.ps1 (khong thi chay ban cu da nam tren dia)
+if (Test-Path "C:\AuditFactory\hasaki-repo\.git") {
+  $ErrorActionPreference = "Continue"
+  git -C "C:\AuditFactory\hasaki-repo" fetch --depth 1 origin cai-tien/bo-sung-factory 2>&1 | Out-Null
+  git -C "C:\AuditFactory\hasaki-repo" reset --hard origin/cai-tien/bo-sung-factory 2>&1 | Out-Null
+  $ErrorActionPreference = "Stop"
+  Write-Host "Da keo ban moi: $(git -C 'C:\AuditFactory\hasaki-repo' log --oneline -1)"
+}
 $caiPs = "C:\AuditFactory\hasaki-repo\hasaki\cai-pc\CAI-PC.ps1"
 if (-not (Test-Path $caiPs)) { $caiPs = Join-Path $PSScriptRoot "CAI-PC.ps1" }   # chua clone: chay ban trong kit (no tu clone)
 Write-Host "=== QC bo cai: $caiPs ===" -ForegroundColor Cyan
 $ketThuc = "het file"
-try { & $caiPs } catch { $ketThuc = "VO: $($_.Exception.Message)" }
+try { & $caiPs } catch { $ketThuc = "VO: $($_.Exception.Message)`n" + $_.InvocationInfo.PositionMessage + "`n" + $_.ScriptStackTrace }
 
 Write-Host ""
 Write-Host "=== KET QUA QC ===" -ForegroundColor Cyan
