@@ -93,6 +93,7 @@
       ".hx-ng .ten{font-weight:800;color:var(--bad);font-size:13px;margin-bottom:6px}",
       ".hx-f{display:block;margin-bottom:8px}",
       ".hx-f .lbl{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}",
+      ".hx-f textarea{width:100%;box-sizing:border-box;min-height:40px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px;line-height:1.4;resize:none;overflow:hidden}",
       ".hx-f input[type=text]{width:100%;min-height:40px;border:1px solid var(--border);border-radius:8px;padding:0 10px;background:var(--surface);color:var(--text)}",
       ".hx-cau{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.35}",
       ".hx-chk{display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;gap:10px;min-height:40px;font-size:13px;cursor:pointer;text-align:left;margin:0}",
@@ -204,7 +205,13 @@
       "#mTitle{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px}#mTitle .hx-mt1,#mTitle .hx-mt2{display:inline-block!important}#mTitle .hx-mt1{min-width:0;max-width:100%}@media(max-width:560px){#mTitle .hx-mt1{white-space:normal!important;overflow-wrap:anywhere;line-height:20px}}",
       ".hx-gc-nut{flex:none;display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}.hx-gc-nut:hover,.hx-gc-nut[aria-expanded=true]{color:var(--accent);border-color:var(--accent)}.hx-gc-nut+.hx-motask{margin-left:0}@media(max-width:560px){.hx-gc-nut{min-height:44px;padding:0 10px}}",
       "#modal .hx-qd .hx-act{grid-template-columns:repeat(3,minmax(0,1fr))}#modal .hx-qd .hx-act button{padding:4px 6px;line-height:1.25}#modal .hx-qd .hx-act button[data-qd='-1']{grid-column:1/-1}",
-      ".hx-gc[hidden],#lvAnh[hidden],#lvClip[hidden]{display:none!important}.hx-gc{margin:12px 24px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);display:flex;flex-direction:column;gap:8px}@media(max-width:560px){.hx-gc{margin:12px 16px 0}}.hx-gc textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;resize:vertical}.hx-gc-hang{display:flex;gap:10px;align-items:center}.hx-gc-dong{font-size:13px;padding:6px 0;border-top:1px solid var(--border)}.hx-gc-dong>div{white-space:pre-wrap;overflow-wrap:anywhere}",
+      "#lvAnh[hidden],#lvClip[hidden]{display:none!important}.hx-gc-nut.cho{border-color:var(--warn);color:var(--warn)}" +
+        ".hx-gcp{position:fixed;inset:0;z-index:55;background:var(--overlay,rgba(0,0,0,.45));display:flex;align-items:center;justify-content:center;padding:16px}" +
+        ".hx-gcp-hop{width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--surface);border-radius:12px;box-shadow:0 24px 60px rgba(16,24,40,.3);animation:popIn .18s var(--ez-spring,ease)}" +
+        ".hx-gcp-dau{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}.hx-gcp-dau .hx-mt1{font-size:16px;font-weight:600;line-height:24px}.hx-gcp-dau .hx-mt2{font-size:12px;color:var(--muted);overflow-wrap:anywhere}" +
+        ".hx-gcp-than{padding:16px 18px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}.hx-gcp-than textarea{width:100%;box-sizing:border-box;min-height:96px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;resize:vertical}" +
+        ".hx-gc-hang{display:flex;gap:10px;align-items:center}.hx-gcp-quy{font-size:12px;line-height:1.45}.hx-gc-dong{font-size:13px;padding:8px 0;border-top:1px solid var(--border)}.hx-gc-dong .nd{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}.hx-gc-dong .xong{margin-top:4px;color:var(--good);font-size:12.5px}" +
+        "@media(max-width:560px){.hx-gcp{padding:12px;align-items:flex-end}.hx-gcp .hx-nut.nho,.hx-gcp .hx-gc-nut{min-height:44px}}",
       ".hx-xdau{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}.hx-xdau .hx-vbar{margin:0;gap:6px;flex-wrap:nowrap}.hx-xdau .hx-qd-nguon{margin:0!important;flex-wrap:nowrap}" +
         ".hx-xdau .hx-vbar button,.hx-xdau .hx-qd-nguon button{min-height:32px;padding:0 10px;font-size:13px}#hxPlay{min-width:40px;font-size:14px}.hx-xdau .gio{min-width:0;font-size:13px;white-space:nowrap}.hx-xdau button{white-space:nowrap}" +
         ".hx-toc{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}.hx-toc button{border:0!important;border-radius:0!important;min-height:30px!important;padding:0 8px!important}.hx-toc button+button{border-left:1px solid var(--border)!important}" +
@@ -429,11 +436,6 @@
       '<div class="hx-vwrap"><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div></div>' +
       '<div id="lvAnh" class="hx-qd-khung" hidden><img src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" style="cursor:zoom-in"></div>' +
       '</div><div class="hx-qd-ben">' +
-      '<div class="hx-qd-o"><span class="lbl">Quyết định</span><div class="hx-act"><button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button>' +
-      '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
-      '<button data-qd="3"' + (khoa ? " disabled" : "") + '>Không rõ – bỏ qua</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") + '</div>' +
-      stLuot(l) + '</div>' +
-      '<div class="hx-chot" id="hxChot"></div>' +
       '<div class="hx-qd-o"><span class="lbl">Lỗi</span><div>' + e_(loiCam(l)) + '</div></div>' +
       '<div class="hx-qd-o"><span class="lbl">Máy gợi ý</span><div>' + goiYChu + '</div></div>' +
       '<div class="hx-qd-o"><span class="lbl">Người trong khung đỏ · ' + (soNg ? soNg + " người nghi" : "có cử động") + '</span>' +
@@ -442,13 +444,19 @@
         '<div class="hx-crop" style="' + cropStyle(n.anh, n.hop) + '" data-zoom="' + n.so + '" title="Bấm xem ảnh to"></div><div style="min-width:0">' +
         '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span></div>' +
         '<label class="hx-f"><span class="lbl">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="Chọn ứng viên hoặc gõ tên / mã NV" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '><div class="menu"></div></div></label>' +
-        '<label class="hx-f"><span class="lbl">Vi phạm gì (QUY-ĐỊNH)</span><select data-muc="' + n.so + '"' + (khoa ? " disabled" : "") + '><option value="' + n.muc + '">Mục ' + n.muc + '</option></select><div class="hx-cau" data-cau="' + n.so + '"></div></label>' +
+        '<label class="hx-f"><span class="lbl">Vi phạm gì (QUY-ĐỊNH)</span><div class="hx-cb"><textarea rows="2" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Gõ để tìm hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea><div class="menu"></div></div></label>' +
         /* 14/10 user «ẩn»: ô «Ở đâu» lặp tiêu đề → bỏ (máy vẫn ghi chỗ theo camera lên phiếu) · ô tích chỉ khi ≥2 người (1 người thì trùng nút «Không phải NV Hasaki») */
         (EV.ng.length >= 2 ? '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label>' : "") +
-        '</div></div>'; }).join("") +
-      '</div></div></div>';
+        '</div></div>'; }).join("") + '</div>' +
+      /* 14/10 user: khối Quyết định xuống DƯỚI thẻ người (chọn Là ai / Vi phạm gì xong mới bấm) */
+      '<div class="hx-chot" id="hxChot"></div>' +
+      '<div class="hx-qd-o"><span class="lbl">Quyết định</span><div class="hx-act"><button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button>' +
+      '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
+      '<button data-qd="3"' + (khoa ? " disabled" : "") + '>Không rõ – bỏ qua</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") + '</div>' +
+      stLuot(l) + '</div>' +
+      '</div></div>';
     $id("mBody").innerHTML = h;
-    ganGhiChu("luot", String(l.id), tenLoai(l.loai) + " · " + l.camera + " · " + l.ngay + " " + gioL);
+    ganGhiChu("luot", String(l.id), tenLoai(l.loai) + " · " + l.camera + " · " + (nd.length === 3 ? nd[2] + "/" + nd[1] + "/" + nd[0] : l.ngay) + " " + gioL);
     var lvXem = function (k) { $id("lvAnh").hidden = k !== "anh"; $id("lvClip").hidden = k === "anh"; $id("lvCtl").style.visibility = k === "anh" ? "hidden" : "";
       $id("mBody").querySelectorAll("[data-lng]").forEach(function (b) { b.classList.toggle("on", b.dataset.lng === k); });
       if (k === "anh") { var v0 = $id("hxV"); if (v0) v0.pause(); } };
@@ -458,12 +466,8 @@
     var huy = function () { var v = $id("hxV"); if (v) { v.pause(); v.removeAttribute("src"); v.load(); } };
     $id("mClose").addEventListener("click", huy, { once: true });
     ganVideo(l, dn);
-    taiQD().then(function (ds) { $id("mBody").querySelectorAll("select[data-muc]").forEach(function (s) {
-      // ô chọn chỉ ghi NGẮN "Mục N · trừ x%" (câu dài bị cắt trên điện thoại — bộ đo bắt 02/10); câu QUY-ĐỊNH đầy đủ hiện ngay dưới
-      var cur = Number(s.value); s.innerHTML = ds.map(function (x) { return '<option value="' + x.muc + '"' + (x.muc === cur ? " selected" : "") + '>Mục ' + x.muc + (x.tru ? " · trừ " + e_(x.tru) + "%" : "") + '</option>'; }).join("") || s.innerHTML;
-      var cau = function () { var x = ds.find(function (y) { return y.muc === Number(s.value); }); var o = $id("mBody").querySelector('[data-cau="' + s.dataset.muc + '"]'); if (o) o.textContent = x ? x.cau : ""; };
-      if (typeof enhanceSelect === "function") enhanceSelect(s); cau();
-      s.addEventListener("change", function () { EV.ng.find(function (n) { return n.so === Number(s.dataset.muc); }).muc = Number(s.value); cau(); veChot(); }); }); veChot(); });
+    /* 14/10 user: ô Vi phạm gì ghi RÕ hạng mục (câu QUY-ĐỊNH), gõ để tìm, mục máy gợi ý đánh ★ — như ô «Là ai» */
+    taiQD().then(function (ds) { $id("mBody").querySelectorAll("[data-mcb]").forEach(function (t) { ganMucCombo(t, ds, l); }); veChot(); });
     $id("mBody").querySelectorAll("[data-vt]").forEach(function (i) { i.addEventListener("input", function () { EV.ng.find(function (n) { return n.so === Number(i.dataset.vt); }).viTri = i.value; veChot(); }); });
     $id("mBody").querySelectorAll("[data-kh]").forEach(function (c) { c.addEventListener("change", function () { var n = EV.ng.find(function (x) { return x.so === Number(c.dataset.kh); }); n.khong = c.checked; c.closest(".hx-ng").classList.toggle("khong", c.checked); veChot(); }); });
     $id("mBody").querySelectorAll("[data-cb]").forEach(function (i) { ganCombo(i, l); });
@@ -507,6 +511,22 @@
     inp.addEventListener("blur", function () { setTimeout(function () { box.classList.remove("show"); }, 150);
       var m = inp.value.match(/(?:^|[^\d:])(\d{5,7})(?![\d:])/); if (m && m[1] !== n.ma) { n.ma = m[1]; n.ten = ""; veChot(); } if (!inp.value.trim()) { n.ma = ""; n.ten = ""; veChot(); } });
     inp.addEventListener("input", function () { ve2(); clearTimeout(hT); var k = inp.value.trim(); if (k.length >= 2) hT = setTimeout(function () { goi("/api/nv?q=" + encodeURIComponent(k)).then(ve2).catch(function () {}); }, 220); });
+  }
+  function ganMucCombo(inp, ds, l) {
+    var n = EV.ng.find(function (x) { return x.so === Number(inp.dataset.mcb); }), box = inp.parentNode, menu = box.querySelector(".menu"), gy = mucMacDinh(l);
+    var bo = function (t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d"); };
+    var cauCua = function (m) { var x = ds.find(function (y) { return y.muc === m; }); return x ? x.cau : "Mục " + m; };
+    var dat = function () { inp.value = cauCua(n.muc); inp.title = "Mục " + n.muc; inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight + 2, 120) + "px"; };
+    var item = function (x) { return '<div class="hx-it" data-m="' + x.muc + '"><div style="min-width:0"><div class="t">' + (x.muc === gy ? '<span class="star">★ </span>' : "") + e_(x.cau) + '</div>' +
+      '<div class="s">Mục ' + x.muc + (x.tru ? " · trừ " + e_(x.tru) + "%" : "") + (x.muc === gy ? " · máy gợi ý" : "") + '</div></div></div>'; };
+    var ve = function (k) { k = bo(k); var hop = ds.filter(function (x) { return !k || bo(x.cau + " muc " + x.muc).indexOf(k) >= 0; }), g = hop.filter(function (x) { return x.muc === gy; }), con = hop.filter(function (x) { return x.muc !== gy; });
+      menu.innerHTML = (g.length ? '<div class="hx-it h">Máy gợi ý</div>' + g.map(item).join("") : "") + (con.length ? '<div class="hx-it h">' + (k ? "Khớp" : "Mọi hạng mục") + '</div>' + con.map(item).join("") : "") || '<div class="hx-it h">Không thấy hạng mục khớp</div>';
+      menu.querySelectorAll("[data-m]").forEach(function (it) { it.onmousedown = function (ev) { ev.preventDefault(); n.muc = Number(it.dataset.m); dat(); box.classList.remove("show"); inp.blur(); veChot(); }; }); };
+    dat();
+    inp.addEventListener("focus", function () { box.classList.add("show"); inp.select(); ve(""); });
+    inp.addEventListener("input", function () { ve(inp.value); });
+    inp.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); var a = menu.querySelector("[data-m]"); if (a) a.dispatchEvent(new MouseEvent("mousedown")); } });
+    inp.addEventListener("blur", function () { setTimeout(function () { box.classList.remove("show"); dat(); }, 150); });
   }
   function luuQD(l, k) {
     var body;
@@ -853,27 +873,41 @@
     var md = $id("modal"); if (md && !md.__hxMoTask) { md.__hxMoTask = 1;
       new MutationObserver(function () { if (!md.classList.contains("show")) { var z = $id("hxMoTask"); if (z) z.remove(); } }).observe(md, { attributes: true, attributeFilter: ["class"] }); }
   }
-  /* 14/10 user: nút «Ghi chú» nhỏ dưới tiêu đề pop-up (Theo tác vụ + Theo máy) — ghi điều cần cải tiến; máy chủ lưu .exports/ghi-chu-cai-tien.json,
-     Claude đọc sổ đó để sửa cho lần sau. Khung ghi chú mở ngay đầu thân pop-up, không chồng pop-up. */
+  /* 14/10 user: nút «Ghi chú» cạnh nút Đóng (Theo tác vụ + Theo máy) mở POP-UP ghi chú — ghi điều cần cải tiến; máy chủ lưu .exports/ghi-chu-cai-tien.json.
+     Mỗi ghi chú có trạng thái: «Chờ Claude đọc» → (Claude đọc đầu phiên, sửa, QC, ghi lại `xong`) → «Đã cải tiến» + dòng «đã sửa gì». */
   function ganGhiChu(loai, id, tieuDe) {
     var gc0 = $id("gcNut"); if (gc0) gc0.remove();
-    var gcN = document.createElement("button"); gcN.type = "button"; gcN.className = "hx-gc-nut"; gcN.id = "gcNut"; gcN.setAttribute("aria-expanded", "false"); gcN.textContent = "Ghi chú";
+    var gcN = document.createElement("button"); gcN.type = "button"; gcN.className = "hx-gc-nut"; gcN.id = "gcNut"; gcN.setAttribute("aria-haspopup", "dialog"); gcN.textContent = "Ghi chú";
     $id("mClose").parentNode.insertBefore(gcN, $id("hxMoTask") || $id("mClose"));   // 14/10 user: Ghi chú bên trái, ngang hàng nút Đóng
     var md0 = $id("modal"); if (md0 && !md0.__hxGc) { md0.__hxGc = 1;
-      new MutationObserver(function () { if (!md0.classList.contains("show")) { var z = $id("gcNut"); if (z) z.remove(); } }).observe(md0, { attributes: true, attributeFilter: ["class"] }); }
-    $id("mBody").insertAdjacentHTML("afterbegin", '<div class="hx-gc" id="gcKhung" hidden><textarea id="gcChu" rows="3" placeholder="Điều cần cải tiến ở pop-up / cách máy xác minh việc này…" aria-label="Ghi chú cải tiến"></textarea>' +
-      '<div class="hx-gc-hang"><button type="button" class="hx-nut nho" id="gcLuu">Lưu ghi chú</button><span id="gcMsg" class="muted"></span></div><div id="gcDs"></div></div>');
-    var veDs = function (ds) { $id("gcDs").innerHTML = (ds || []).slice().reverse().map(function (g) { var d = new Date(g.at);
-      return '<div class="hx-gc-dong"><span class="muted">' + ("0" + d.getDate()).slice(-2) + "/" + ("0" + (d.getMonth() + 1)).slice(-2) + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + (g.xong ? ' · <span class="hx-tag good">Đã cải tiến</span>' : "") + '</span><div>' + e_(g.noiDung) + '</div></div>'; }).join("");
-      $id("gcNut").textContent = ds && ds.length ? "Ghi chú (" + ds.length + ")" : "Ghi chú"; };
-    goi("/api/ghi-chu?id=" + encodeURIComponent(id)).then(veDs).catch(function () {});
-    $id("gcNut").onclick = function () { var k = $id("gcKhung"); k.hidden = !k.hidden; this.setAttribute("aria-expanded", String(!k.hidden)); if (!k.hidden) $id("gcChu").focus(); };
-    $id("gcLuu").onclick = function () { var nd = $id("gcChu").value.trim(), b = this; if (!nd) { $id("gcMsg").textContent = "Chưa gõ nội dung"; return; }
-      b.disabled = true; $id("gcMsg").textContent = "Đang lưu…";
-      goi("/api/ghi-chu", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ loai: loai, id: id, tieuDe: tieuDe, noiDung: nd }) })
-        .then(function (j) { $id("gcChu").value = ""; $id("gcMsg").textContent = ""; veDs(j.ds); baoOk("Đã lưu ghi chú — lần cải tiến sau sẽ đọc"); })
-        .catch(function (e) { $id("gcMsg").textContent = "Lỗi: " + e.message; }).then(function () { b.disabled = false; }); };
+      new MutationObserver(function () { if (!md0.classList.contains("show")) { var z = $id("gcNut"); if (z) z.remove(); dongGC(); } }).observe(md0, { attributes: true, attributeFilter: ["class"] }); }
+    var DS = [];
+    var dem = function () { var cho = DS.filter(function (g) { return !g.xong; }).length; gcN.textContent = DS.length ? "Ghi chú (" + DS.length + ")" : "Ghi chú"; gcN.classList.toggle("cho", cho > 0); };
+    goi("/api/ghi-chu?id=" + encodeURIComponent(id)).then(function (ds) { DS = ds || []; dem(); }).catch(function () {});
+    gcN.onclick = function () {
+      dongGC();
+      var o = document.createElement("div"); o.id = "hxGcPop"; o.className = "hx-gcp"; o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true"); o.setAttribute("aria-labelledby", "gcTieuDe");
+      o.innerHTML = '<div class="hx-gcp-hop"><div class="hx-gcp-dau"><div style="min-width:0"><div class="hx-mt1" id="gcTieuDe">Ghi chú cải tiến</div><div class="hx-mt2">' + e_(tieuDe) + '</div></div><button type="button" class="hx-gc-nut" id="gcDong">Đóng</button></div>' +
+        '<div class="hx-gcp-than"><textarea id="gcChu" rows="4" placeholder="Điều cần cải tiến ở pop-up này / cách máy xác minh việc này…" aria-label="Ghi chú cải tiến"></textarea>' +
+        '<div class="hx-gc-hang"><button type="button" class="hx-nut nho" id="gcLuu">Lưu ghi chú</button><span id="gcMsg" class="muted"></span></div>' +
+        '<div class="hx-gcp-quy muted">Sau khi lưu: Claude đọc ghi chú ở phiên làm việc kế tiếp → sửa → chạy QC → ghi lại «đã sửa gì» ngay dưới ghi chú này.</div><div id="gcDs"></div></div></div>';
+      ($id("modal") || document.body).appendChild(o);   // #modal nằm ở lớp trên cùng (showModal) — gắn vào trong mới nổi lên trên
+      var veDs = function () { $id("gcDs").innerHTML = DS.slice().reverse().map(function (g) { var d = new Date(g.at);
+        return '<div class="hx-gc-dong"><div class="muted">' + ("0" + d.getDate()).slice(-2) + "/" + ("0" + (d.getMonth() + 1)).slice(-2) + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) +
+          (g.xong ? ' · <span class="hx-tag good">Đã cải tiến</span>' : ' · <span class="hx-tag warn">Chờ Claude đọc</span>') + '</div><div class="nd">' + e_(g.noiDung) + '</div>' +
+          (g.xong && g.xong !== true ? '<div class="xong">↳ ' + e_(g.xong) + '</div>' : "") + '</div>'; }).join(""); };
+      veDs();
+      o.onclick = function (ev) { if (ev.target === o) dongGC(); };
+      o.onkeydown = function (ev) { if (ev.key === "Escape") { ev.stopPropagation(); dongGC(); } };
+      $id("gcDong").onclick = dongGC; $id("gcChu").focus();
+      $id("gcLuu").onclick = function () { var nd = $id("gcChu").value.trim(), b = this; if (!nd) { $id("gcMsg").textContent = "Chưa gõ nội dung"; return; }
+        b.disabled = true; $id("gcMsg").textContent = "Đang lưu…";
+        goi("/api/ghi-chu", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ loai: loai, id: id, tieuDe: tieuDe, noiDung: nd }) })
+          .then(function (j) { DS = j.ds || []; dem(); $id("gcChu").value = ""; $id("gcMsg").textContent = ""; veDs(); baoOk("Đã lưu ghi chú"); })
+          .catch(function (e) { $id("gcMsg").textContent = "Lỗi: " + e.message; }).then(function () { b.disabled = false; }); };
+    };
   }
+  function dongGC() { var o = $id("hxGcPop"); if (o) { o.remove(); var n = $id("gcNut"); if (n) n.focus(); } }
   function moQD(p) {
     var x = p.xm || {}, q = p.qdB1 || {}, ds = D.QD_B1 || [], bc = bcPhieu(p), co = coBC(p), ai = aiPhieu(p);
     var LS = p.lsKho || null, lui20 = function (s0) { return new Date(Date.parse(String(s0).replace(" ", "T") + "+07:00") - 20e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " "); };
@@ -917,7 +951,7 @@
         /* 13/10 user: đã có dữ liệu camera thì KHÔNG hiện đoạn «Vì sao» — ai/lúc nào/làm gì đã chạy thành phụ đề dưới clip từng người */
         (!coCam && p.goiY && p.goiY.lyDo ? '<div class="hx-qd-o"><span class="lbl">Vì sao · luật ' + e_(p.goiY.luat || "") + '</span><div class="hx-visao" title="Bấm để xem hết">' + e_(ngayChu(p.goiY.lyDo)) + '</div></div>' : "") +
       '</div></div>';
-    ganGhiChu("phieu", String(p.id), ((LS && LS.bin) || p.viTri || "") + " · " + nvp);
+    ganGhiChu("phieu", String(p.id), ((LS && LS.bin) || p.viTri || "") + " · " + (nvp.length >= 16 ? nvp.slice(8, 10) + "/" + nvp.slice(5, 7) + "/" + nvp.slice(0, 4) + " " + nvp.slice(11, 16) : nvp));
     var vs0 = $id("mBody").querySelector(".hx-visao"); if (vs0) vs0.onclick = function () { vs0.classList.toggle("mo"); };
     var dangXem = null;
     function xem(i) {
