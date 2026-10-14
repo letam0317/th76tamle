@@ -189,6 +189,29 @@ try {
     await pq.close();
   }
 
+  // Chuyển sang Video khi mic bị chặn (Permissions-Policy cũ microphone=()) → vẫn quay được, không báo lỗi
+  {
+    console.log("\n[video — mic bị chặn]");
+    const pv = await br.newPage(); const loi = []; pv.on("dialog", (d) => { loi.push(d.message()); d.accept(); });
+    await pv.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+    await pv.evaluateOnNewDocument(() => {
+      const goc = () => { const c = document.createElement("canvas"); c.width = 320; c.height = 240; const x = c.getContext("2d"); setInterval(() => { x.fillStyle = "#" + Math.floor(Math.random() * 4096).toString(16); x.fillRect(0, 0, 320, 240); }, 100); return c.captureStream(10); };
+      Object.defineProperty(navigator, "mediaDevices", { value: { enumerateDevices: async () => [], getUserMedia: async (o) => { if (o.audio) throw new DOMException("Permission denied", "NotAllowedError"); return goc(); } } });
+    });
+    await pv.goto(URL, { waitUntil: "domcontentloaded" });
+    await coTran(pv.waitForFunction("document.querySelectorAll('button.the').length > 0", { timeout: 120000 }), 125000, "tải danh sách");
+    await pv.click("button.the");
+    await pv.waitForFunction(() => [...document.querySelectorAll("button")].some((b) => /Chụp \/ quay/.test(b.textContent) && b.offsetParent), { timeout: 10000 });
+    await (await pv.evaluateHandle(() => [...document.querySelectorAll("button")].find((b) => /Chụp \/ quay/.test(b.textContent) && b.offsetParent))).click();
+    await new Promise((r) => setTimeout(r, 500));
+    await (await pv.evaluateHandle(() => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Video" && b.offsetParent))).click();
+    await new Promise((r) => setTimeout(r, 800));
+    const tt = await pv.evaluate(() => ({ mo: !!document.querySelector("video") && [...document.querySelectorAll("video")].some((v) => v.srcObject && v.offsetParent), chu: document.body.innerText.includes("clip không tiếng") }));
+    ca("bấm Video khi mic bị chặn: không báo lỗi, camera vẫn mở", !loi.length && tt.mo, loi.join(" | "));
+    ca("báo rõ clip không tiếng", tt.chu);
+    await pv.close();
+  }
+
   // Khung xin quyền OTP: giả lập GAS trả canKhoa (máy chưa cấp quyền) → xin mã → gõ 4 số → vào được
   console.log("\n[khoá máy — giả lập]");
   const pg = await br.newPage(); pg.on("dialog", (d) => d.accept());

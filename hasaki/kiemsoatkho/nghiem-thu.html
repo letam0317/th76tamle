@@ -300,7 +300,7 @@
         <span x-text="'Đang quay ' + Math.floor(giayQuay/60) + ':' + String(giayQuay%60).padStart(2,'0') + ' / tối đa ' + Math.floor(MAX_GIAY_QUAY/60) + ':' + String(MAX_GIAY_QUAY%60).padStart(2,'0')"></span>
       </p>
       <p x-show="!dangQuay" class="text-white/70 text-xs mb-1 text-center"
-         x-text="soAnhChup > 0 ? ('Đã ghi ' + soAnhChup + ' mục — bấm Xong khi đủ') : (cheDoVideo ? 'Bấm nút đỏ để bắt đầu quay' : 'Đưa camera vào đối tượng rồi bấm Chụp')"></p>
+         x-text="soAnhChup > 0 ? ('Đã ghi ' + soAnhChup + ' mục — bấm Xong khi đủ') : (cheDoVideo ? 'Bấm nút đỏ để bắt đầu quay' + (khongTieng ? ' · clip không tiếng (mic bị chặn)' : '') : 'Đưa camera vào đối tượng rồi bấm Chụp')"></p>
       <div class="flex items-center justify-center gap-4 mt-2">
         <button type="button" @click="dongChupAnh()" x-show="!dangQuay" class="rounded-2xl bg-white/20 text-white font-medium px-5 py-3 text-sm hover:bg-white/30 transition">Xong</button>
         <template x-if="!cheDoVideo">
@@ -369,7 +369,7 @@
       canQuyen: false, tbBuoc: 'xin', tbTen: '', tbOtp: '', tbTb: '', tbLoi: false, tbDang: false,
       xemMedia: null, keoVao: false,
       quetLoai: '', _scanner: null, _luotQuet: 0, tbQuet: '',
-      dangChupAnh: false, _cameraStream: null, soAnhChup: 0, cameraSau: true, cheDoVideo: false, dangQuay: false,
+      dangChupAnh: false, _cameraStream: null, khongTieng: false, soAnhChup: 0, cameraSau: true, cheDoVideo: false, dangQuay: false,
       _recorder: null, _videoChunks: [], _quayTimer: null, giayQuay: 0,
       dangNen: false, tienTrinhNen: '',
       MAX_VIDEO_MB: 100,   // > 100MB: chặn
@@ -694,18 +694,23 @@
         const KT = { width: { ideal: 1920 }, height: { ideal: 1080 } };
         const huong = this.cameraSau ? 'environment' : 'user';
         const cacRangBuoc = [{ facingMode: { exact: huong }, ...KT }, { facingMode: { ideal: huong }, ...KT }, KT];
-        let stream = null, loiCuoi = null;
-        for (const video of cacRangBuoc) {
-          try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: this.cheDoVideo }); break; }
-          catch (err) { loiCuoi = err; }
+        // Video xin cả mic; mic bị chặn/từ chối thì vẫn quay được clip KHÔNG TIẾNG thay vì báo lỗi (14/10)
+        let stream = null, loiCuoi = null, am = this.cheDoVideo;
+        for (const coAm of (this.cheDoVideo ? [true, false] : [false])) {
+          for (const video of cacRangBuoc) {
+            try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: coAm }); am = coAm; break; }
+            catch (err) { loiCuoi = err; }
+          }
+          if (stream) break;
         }
+        this.khongTieng = this.cheDoVideo && !am;
         if (stream && this.cameraSau) {
           try {
             const track = stream.getVideoTracks()[0], st = track.getSettings ? track.getSettings() : {};
             if (st.facingMode === 'user' || /front|user|trước|truoc/i.test(track.label || '')) {
               const camSau = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').find(d => /back|rear|environment|sau/i.test(d.label || ''));
               if (camSau) {
-                const s2 = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: camSau.deviceId }, ...KT }, audio: this.cheDoVideo });
+                const s2 = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: camSau.deviceId }, ...KT }, audio: am });
                 stream.getTracks().forEach(t => t.stop()); stream = s2;
               }
             }

@@ -770,10 +770,14 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
             { facingMode: { ideal: huong }, ...KT },
             KT,
           ];
-          let stream = null, loiCuoi = null;
-          for (const video of cacRangBuoc) {
-            try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: this.cheDoVideo }); break; }
-            catch (err) { loiCuoi = err; }
+          // Video xin cả mic; mic bị chặn/từ chối thì vẫn quay được clip KHÔNG TIẾNG thay vì báo lỗi (14/10)
+          let stream = null, loiCuoi = null, am = this.cheDoVideo;
+          for (const coAm of (this.cheDoVideo ? [true, false] : [false])) {
+            for (const video of cacRangBuoc) {
+              try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: coAm }); am = coAm; break; }
+              catch (err) { loiCuoi = err; }
+            }
+            if (stream) break;
           }
           // Muốn cam sau nhưng vẫn bị trả về cam trước -> chọn ĐÍCH DANH deviceId cam sau
           // (enumerateDevices chỉ có nhãn sau khi đã được cấp quyền ở stream trên).
@@ -788,7 +792,7 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
                 if (camSau) {
                   const s2 = await navigator.mediaDevices.getUserMedia({
                     video: { deviceId: { exact: camSau.deviceId }, ...KT },
-                    audio: this.cheDoVideo
+                    audio: am
                   });
                   stream.getTracks().forEach(t => t.stop());
                   stream = s2;

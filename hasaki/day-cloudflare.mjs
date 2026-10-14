@@ -86,7 +86,7 @@ fs.writeFileSync(path.join(DIST, "404.html"), '<!doctype html><meta charset="utf
 /* 13/10 QC bảo mật: header chung cho MỌI tệp — chặn nhúng trang vào web lạ (form ghi nhận 5S chỉ được iframe cùng gốc), chặn đoán kiểu tệp,
    không gửi đường dẫn sâu sang web khác, chặn máy tìm kiếm lập chỉ mục (dữ liệu nội bộ: tên NV, ảnh vi phạm), camera chỉ cho chính trang (quét mã). */
 fs.writeFileSync(path.join(DIST, "robots.txt"), "User-agent: *\nDisallow: /\n");
-fs.writeFileSync(path.join(DIST, "_headers"), "/*\n  X-Frame-Options: SAMEORIGIN\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Robots-Tag: noindex, nofollow\n  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()\n/*/index.html\n  Cache-Control: no-cache\n/retail/\n  Cache-Control: no-cache\n/factory/\n  Cache-Control: no-cache\n");
+fs.writeFileSync(path.join(DIST, "_headers"), "/*\n  X-Frame-Options: SAMEORIGIN\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Robots-Tag: noindex, nofollow\n  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()\n/*/index.html\n  Cache-Control: no-cache\n/retail/\n  Cache-Control: no-cache\n/factory/\n  Cache-Control: no-cache\n");
 
 /* ---- 2) không đổi thì bỏ qua · trần lượt/ngày ---- */
 const tep = []; (function di(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const ab = path.join(d, f.name); if (f.isDirectory()) di(ab); else tep.push(ab); } })(DIST);
