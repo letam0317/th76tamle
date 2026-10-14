@@ -4,20 +4,26 @@ import fs from "node:fs";
 import path from "node:path";
 import { goi, tepMay, DS, nhomCua } from "./dong-bo-xm.mjs";
 
+const A = "HSK-KHO170-tamlc-1";   // máy giữ khoá CÒN SỐNG phải có nhịp tim thật (14/10: khoá của máy mất nhịp > 5' bị tiếp quản)
 let loi = 0; const ok = (dk, ten) => { console.log((dk ? "  OK   " : "  FAIL ") + ten); if (!dk) loi++; };
 const T = ".exports/qc-dbxm/thu.json", T2 = "@BC/qc-dbxm/anh.jpg";
 try {
   // 1) KHOÁ CHUNG
-  const k1 = await goi({ action: "xm_khoa", may: "QC-MAY-A", viec: "qc-dbxm", ttl: 120 }, "k1");
+  const k1 = await goi({ action: "xm_khoa", may: A, viec: "qc-dbxm", ttl: 120 }, "k1");
   const k2 = await goi({ action: "xm_khoa", may: "QC-MAY-B", viec: "qc-dbxm", ttl: 120 }, "k2");
-  ok(k1.kq === "giu" && k2.kq === "ban" && k2.may === "QC-MAY-A", "khoá chung: A giữ được, B bị từ chối (" + k1.kq + "/" + k2.kq + ")");
+  ok(k1.kq === "giu" && k2.kq === "ban" && k2.may === A, "khoá chung: A giữ được, B bị từ chối (" + k1.kq + "/" + k2.kq + ")");
   await goi({ action: "xm_khoa", may: "QC-MAY-B", viec: "qc-dbxm", tra: true }, "tra sai");
   const k3 = await goi({ action: "xm_khoa", may: "QC-MAY-B", viec: "qc-dbxm", ttl: 120 }, "k3");
   ok(k3.kq === "ban", "máy khác KHÔNG nhả hộ được khoá của A");
-  await goi({ action: "xm_khoa", may: "QC-MAY-A", viec: "qc-dbxm", tra: true }, "tra");
+  await goi({ action: "xm_khoa", may: A, viec: "qc-dbxm", tra: true }, "tra");
   const k4 = await goi({ action: "xm_khoa", may: "QC-MAY-B", viec: "qc-dbxm", ttl: 120 }, "k4");
   ok(k4.kq === "giu", "A nhả → B giữ được");
   await goi({ action: "xm_khoa", may: "QC-MAY-B", viec: "qc-dbxm", tra: true }, "tra B");
+  // 14/10: máy giữ khoá TẮT MÁY giữa chừng (không nhịp tim) → máy khác TIẾP QUẢN, không kẹt 1,5 giờ
+  await goi({ action: "xm_khoa", may: "QC-MAY-CHET", viec: "qc-dbxm", ttl: 3600 }, "k5");
+  const k6 = await goi({ action: "xm_khoa", may: A, viec: "qc-dbxm", ttl: 120 }, "k6");
+  ok(k6.kq === "giu" && k6.tiepQuan === "QC-MAY-CHET", "máy giữ khoá mất nhịp → máy khác tiếp quản (" + k6.kq + " · tiếp quản " + k6.tiepQuan + ")");
+  await goi({ action: "xm_khoa", may: A, viec: "qc-dbxm", tra: true }, "tra k6");
 
   // 2) GỬI / BẢN CŨ HƠN BỊ TỪ CHỐI / TẢI / TÊN BẤT HỢP LỆ
   const b1 = Buffer.from(JSON.stringify({ v: 1, chu: "Tiếng Việt có dấu" })), b0 = Buffer.from('{"v":0}');

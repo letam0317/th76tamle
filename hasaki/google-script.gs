@@ -2406,6 +2406,7 @@ function apiPcNhip_(duLieu) {
       coKhoa: pcMang_(nhip.coKhoa, 20), dangChay: pcMang_(nhip.dangChay, 30), ban: String(nhip.ban || '').slice(0, 12),
       viecGiao: pcMang_(nhip.viecGiao, 30), tatCaViec: pcMang_(nhip.tatCaViec, 40), viecNang: pcMang_(nhip.viecNang, 40),
       congLuc: ('congLuc' in nhip) ? (isNaN(Date.parse(nhip.congLuc)) ? null : new Date(Date.parse(nhip.congLuc)).toISOString()) : undefined,   // 14/10 cổng gác còn sống (null = chưa từng chạy) → điều phối bỏ máy cổng chết
+      capGan: nhip.capGan instanceof Array ? nhip.capGan.slice(-6).map(function (s) { return String(s).slice(0, 160); }) : undefined,   // 14/10 nhật ký bộ cập nhật PC (xem từ xa: đã nhận bản chưa, tự chữa task)
       taskDP: nhip.taskDP instanceof Array ? nhip.taskDP.slice(0, 20).map(function (s) { return String(s).slice(0, 120); }) : undefined,   // 14/10 trạng thái task việc (xem từ xa)
       congGan: nhip.congGan instanceof Array ? nhip.congGan.slice(-8).map(function (s) { return String(s).slice(0, 180); }) : undefined,   // 14/10 nhật ký cổng gác (xem từ xa)
       chayLuc: nhip.chayLuc ? pcChayLuc_(nhip.chayLuc) : undefined,   // PC bản cũ không gửi → bỏ trường (đừng báo sai «chưa chạy»). 14/10 { viec: ISO } lần chạy gần nhất (cổng gác cho CHẠY) → «chạy lúc …» trên Máy trạm
@@ -3272,10 +3273,16 @@ function apiXm(d) {
     try {
       var may = String(d.may || '').slice(0, 60), cur = null; try { cur = JSON.parse(sp.getProperty('XM_KHOA') || 'null'); } catch (e) {}
       if (d.tra) { if (cur && cur.may === may && (!d.viec || cur.viec === d.viec)) sp.deleteProperty('XM_KHOA'); return phanHoiJson({ status: 'success', kq: 'tra' }); }
-      if (cur && cur.may !== may && now < Number(cur.hetHan || 0)) return phanHoiJson({ status: 'success', kq: 'ban', may: cur.may, viec: cur.viec, hetHan: cur.hetHan });
+      if (cur && cur.may !== may && now < Number(cur.hetHan || 0)) {
+        /* 14/10: PC tắt máy theo ca GIỮA LÚC chạy cò xác minh → khoá chung kẹt tới 1,5 giờ, laptop không làm thay được.
+           Máy giữ khoá mất nhịp tim > 5 phút = khoá chết → cho máy khác tiếp quản (ghi lại ai bị tiếp quản). */
+        var hbGiu = pcJson_(sp.getProperty('PCNHIP_' + cur.may)), chetGiu = !hbGiu || !hbGiu.luc || now - new Date(hbGiu.luc).getTime() > 5 * 60000;
+        if (!chetGiu) return phanHoiJson({ status: 'success', kq: 'ban', may: cur.may, viec: cur.viec, hetHan: cur.hetHan });
+        d.tiepQuan = cur.may;
+      }
       var ttl = Math.min(Number(d.ttl) || 3600, 5 * 3600) * 1000;
       sp.setProperty('XM_KHOA', JSON.stringify({ may: may, viec: String(d.viec || '').slice(0, 60), hetHan: now + ttl, luc: now }));
-      return phanHoiJson({ status: 'success', kq: 'giu' });
+      return phanHoiJson({ status: 'success', kq: 'giu', tiepQuan: d.tiepQuan || '' });   // tiepQuan: máy giữ khoá cũ đã mất nhịp
     } finally { lk2.releaseLock(); }
   }
   return phanHoiJson({ status: 'error', message: 'Lệnh xm lạ' });

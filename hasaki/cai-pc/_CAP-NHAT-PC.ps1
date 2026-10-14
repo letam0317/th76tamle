@@ -20,6 +20,23 @@ try {
   $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json
   $nhanh = $cfg.nhanh
 
+  # 14/10 TU CHUA TASK (moi luot, ke ca khi chua duoc nhan ban moi): QLIT gui nhip tim deu nhung task «5S DP …» KHONG HE goi cong gac
+  #   -> kiem du task theo dieu-phoi.json: thieu -> dang ky lai (DongBo-DieuPhoi), bi tat -> bat lai. Ghi ro de xem tu xa (capGan).
+  try {
+    $thieu = @(); $tat = @()
+    foreach ($v in $cfg.viec) {
+      $t = Get-ScheduledTask -TaskName ("5S DP " + $v.ten) -ErrorAction SilentlyContinue
+      if (-not $t) { $thieu += $v.ten } elseif ($t.State -eq "Disabled") { Enable-ScheduledTask -TaskName $t.TaskName -ErrorAction SilentlyContinue | Out-Null; $tat += $v.ten }
+    }
+    if ($tat.Count) { Ghi ("tu chua: bat lai task bi tat: " + ($tat -join ",")) }
+    if ($thieu.Count) {
+      Ghi ("tu chua: THIEU task " + ($thieu -join ",") + " -> dang ky lai")
+      . "$kit\dong-bo-task.ps1"; $kq0 = DongBo-DieuPhoi $kit $cfg $duAn "C:\Users\lechitam\New folder\hasaki"
+      $con = @($cfg.viec | Where-Object { -not (Get-ScheduledTask -TaskName ("5S DP " + $_.ten) -ErrorAction SilentlyContinue) } | ForEach-Object { $_.ten })
+      Ghi ("tu chua: nap " + $kq0.nap + $(if ($con.Count) { " · VAN THIEU: " + ($con -join ",") } else { " · du task" }))
+    }
+  } catch { Ghi "[X] tu chua task loi: $_" }
+
   $truoc = (& $GIT -C $gitDir rev-parse HEAD 2>$null)
   $lockTruoc = if (Test-Path "$duAn\package-lock.json") { (Get-FileHash "$duAn\package-lock.json").Hash } else { "" }
   & $GIT -C $gitDir fetch --depth 1 origin $nhanh 2>&1 | Out-Null
@@ -32,7 +49,11 @@ try {
     $bangF = "$duAn\.nhip-bang-cache.json"
     if (Test-Path $bangF) {
       $bang = (Get-Content $bangF -Raw | ConvertFrom-Json).bang
-      $top = $bang | Sort-Object { [int]$_.diem } -Descending | Select-Object -First 1
+      # 14/10: QLIT va FOQ5T89 cung 415 diem -> moi may tuong may kia la canary (khong ai nhan ban moi ngay). Nay: bo may DUNG / mat nhip,
+      #   hoa diem -> ten may nho hon. Moi may tinh cung 1 ket qua.
+      $bangSong = @($bang | Where-Object { -not $_.dung -and $_.luc -and ((Get-Date).ToUniversalTime() - ([datetime]$_.luc).ToUniversalTime()).TotalMinutes -lt 15 })
+      if (-not $bangSong.Count) { $bangSong = @($bang) }
+      $top = $bangSong | Sort-Object @{ Expression = { [int]$_.diem }; Descending = $true }, @{ Expression = { [string]$_.may }; Descending = $false } | Select-Object -First 1
       if ($top -and $top.may -eq [System.Net.Dns]::GetHostName()) { $laCanary = $true }
     } else { $laCanary = $true }   # chua co bang (may don) -> tu lam canary
   } catch { $laCanary = $true }
