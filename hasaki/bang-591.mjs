@@ -499,6 +499,20 @@ const sv = http.createServer(async (q, s) => {
       fs.writeFileSync(F, JSON.stringify(so, null, 1)); DEM = null;
       return guiJ(s, 200, { ok: true, ds: so[o.id] || [] });
     }
+    /* 14/10 user: nút «Ghi chú» ở pop-up Theo tác vụ / Theo máy — ghi điều cần cải tiến; Claude đọc sổ này mỗi phiên để sửa cho lần sau.
+       Sổ .exports/ghi-chu-cai-tien.json [{ at, loai:"phieu"|"luot", id, tieuDe, noiDung, boi, xong }] — GET ?id= lấy ghi chú của 1 việc */
+    if (p === "/api/ghi-chu") {
+      const F = path.join(EXP, "ghi-chu-cai-tien.json"), so = docJ(F, []);
+      if (q.method !== "POST") { const id = String(u.searchParams.get("id") || ""); return guiJ(s, 200, so.filter((x) => !id || x.id === id)); }
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 8e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      const o = JSON.parse(b || "{}");
+      if (!/^[\w-]{1,60}$/.test(String(o.id || ""))) return guiJ(s, 400, { loi: "thiếu mã việc" });
+      if (o.xoa) { const i = so.findIndex((x) => x.id === o.id && x.at === o.xoa); if (i >= 0) so.splice(i, 1); }
+      else { const nd = String(o.noiDung || "").trim().slice(0, 2000); if (!nd) return guiJ(s, 400, { loi: "chưa gõ nội dung" });
+        so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", xong: null }); }
+      fs.writeFileSync(F, JSON.stringify(so, null, 1));
+      return guiJ(s, 200, { ok: true, ds: so.filter((x) => x.id === o.id) });
+    }
     if (p === "/api/quyet-dinh" && q.method === "POST") {
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 1e5) return guiJ(s, 413, { loi: "quá lớn" }); }
       const o = JSON.parse(b || "{}");

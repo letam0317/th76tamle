@@ -430,13 +430,16 @@ const TRANG = [
       { ten: "Xác minh › Nhật ký",   // 12/10 mục Nhật ký (máy đã làm gì) + lọc Ngày — thay mục Nhắc QLTT/Nhân viên đã bỏ
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('tg'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
+      { ten: "Tab Máy trạm",   // 13/10 tối: tách khỏi Xác minh thành tab riêng (điện thoại xem qua GAS pcBangTb; máy quản lý có nút qua 8591)
+        mo: "() => { setTab('maytram'); return true; }",
+        sanSangMan: "() => { if(!window.HMAYTRAM||!HMAYTRAM.coDuLieu()) return false; return document.querySelectorAll('#pane-maytram .hx-mt-v, #pane-maytram .hx-mt .hx-trong').length > 0; }" },
       { ten: "Pop-up Quyết định phiếu B1 (Xác minh)",   // 05/10 thêm cùng lúc dựng pop-up
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show #qdLuu')){ HXACMINH.sub('treo'); var b=document.querySelector('#pane-xacminh [data-qd]'); if(b) b.click(); return false; } return true; }",
         dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
       { ten: "Pop-up Lượt camera (clip + bộ chọn theo ảnh)",
         mo: "() => { setTab('xacminh'); return true; }",
-        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show .hx-ev')){ HXACMINH.moLuotDau(); return false; } return !!document.querySelector('#modal.show .hx-ng'); }",
+        sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show #lvClip')){ HXACMINH.moLuotDau(); return false; } return !!document.querySelector('#modal.show .hx-ng'); }",
         dong: "() => { try{ document.getElementById('mClose').click(); }catch(e){} }" },
       { ten: "Planogram › pop-up lịch Ngày",
         mo: "() => { setTab('planogram'); return true; }",
@@ -742,8 +745,9 @@ function raSoat() {
       const topPane = pane.getBoundingClientRect().top;
       /* 28/09/2026: tab Vệ sinh mở đầu bằng #hpTop (thẻ Tiến độ = DẢI THẺ SỐ theo luật ⑮ + thẻ Cần xử lý = danh sách
          việc) — đó là NỘI DUNG CHÍNH user đã duyệt đặt trước sơ đồ, không phải control/chú giải/dải cảnh báo mà luật ⑬
-         canh. querySelector lấy phần tử đứng TRƯỚC trong trang nên #hpTop thắng #hpMap. */
-      const core = pane.querySelector('#hpTop, #hpMap, #plgMap, .pg-main, table, .cards, .hp-chart, .hp-cctbl, .tbl-wrap');
+         canh. querySelector lấy phần tử đứng TRƯỚC trong trang nên #hpTop thắng #hpMap.
+         13/10/2026: Factory #plgTop.pg-top3 (Bộ lọc · Tiến độ · Cần xử lý) dựng THEO ĐÚNG khuôn #hpTop theo yêu cầu user → cùng miễn. */
+      const core = pane.querySelector('#hpTop, #plgTop.pg-top3, #hpMap, #plgMap, .pg-main, table, .cards, .hp-chart, .hp-cctbl, .tbl-wrap');
       if (core && thay(core)) {
         const topCore = core.getBoundingClientRect().top;
         const khoangCach = Math.round(topCore - topPane);
@@ -813,7 +817,9 @@ for (const may of MAY) {
       try { if (hx) localStorage.setItem("hx-phien", hx); } catch (e) {}
     }, may.plat, PHIEN_QC);
     const conLoi = [];
-    p.on("console", (m) => { if (m.type() === "error") conLoi.push(m.text().slice(0, 120)); });
+    /* 13/10: "Failed to load resource: 404" không kèm địa chỉ ⇒ ba lượt liền không biết tệp nào — ghi thẳng URL hỏng */
+    const urlHong = []; p.on("response", (r) => { if (r.status() >= 400) urlHong.push(r.status() + " " + r.url().replace(/[?&]phien=[0-9a-f]+/, "").slice(0, 110)); });
+    p.on("console", (m) => { if (m.type() === "error") conLoi.push(/Failed to load resource/.test(m.text()) && urlHong.length ? "tải hỏng: " + urlHong.shift() : m.text().slice(0, 120)); });
     p.on("pageerror", (e) => conLoi.push("pageerror: " + e.message.slice(0, 120)));
     /* DIALOG (alert/confirm/prompt) — vá 07/09/2026: một hộp thoại trình duyệt nở ra là mọi page.evaluate sau đó
        treo vô hạn (không CPU, không timeout) — lần đo 07/09 máy 1 đứng 15 phút sau màn "Kế hoạch chờ push".
