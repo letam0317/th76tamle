@@ -24,6 +24,9 @@ function chayVbs() {   // → { pid, xong: Promise<code> }
   return { pid: c.pid, xong: new Promise((r) => { c.on("exit", (code) => r(code)); c.on("error", () => r(-1)); }) };
 }
 
+// 14/10: PC cài bằng bộ cài không có mô hình dò người (.cache-model, ngoài git) → bãi xe / camera hỏng ở bước dò người. Thiếu thì tải (có rồi: 0 lượt mạng).
+try { await (await import("./dam-bao-mo-hinh.mjs")).damBaoMoHinh(); } catch (e) { console.error("mô hình dò người: " + e.message); }
+
 if (!viec.dongBoXm) { const c = chayVbs(); process.exit(await c.xong); }
 
 // ---- việc xác minh: khoá · kéo · chạy · đẩy · nhả ----
