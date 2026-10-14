@@ -399,6 +399,7 @@ function doPostGoc_(e) {
     // 13/10/2026 — MÁY TRẠM (điều phối N PC): nhịp tim · bảng xem · lệnh dừng/tiếp tục (sub-tab «Máy trạm» qua máy chủ 8591)
     if (duLieu && duLieu.action === 'pcNhip') return keyBodyOK_(duLieu) ? apiPcNhip_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pcBang') return keyBodyOK_(duLieu) ? apiPcBang_() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcPhu') return keyBodyOK_(duLieu) ? apiPcPhu_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 14/10 việc laptop làm thay (cò gốc)
     if (duLieu && duLieu.action === 'pcLenh') return keyBodyOK_(duLieu) ? apiPcLenh_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     // 13/10 tối: Máy trạm phải có mật khẩu (= mật khẩu Xác minh). pcDatMk chỉ bang-591 (SECRET); 3 action còn lại công khai nhưng tự gác bằng phiên.
     if (duLieu && duLieu.action === 'pcDatMk') return keyBodyOK_(duLieu) ? apiPcDatMk_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -2431,12 +2432,34 @@ function apiPcNhip_(duLieu) {
   } finally { lock.releaseLock(); }
 }
 
+/* 14/10 user «đang chạy công việc gì cũng cần hiển thị»: laptop (máy dự phòng) chạy cò gốc qua _LAPTOP-NHUONG.vbs — nhịp tim của nó
+   gửi từ bản cài C:/AuditFactory nên không thấy các việc này. Cổng nhường báo thẳng: PCPHU_<máy> = { dangChay: {việc: ISO bắt đầu}, chayLuc: {việc: ISO} }.
+   Chỉ dùng cho HIỂN THỊ (pcBang/pcBangPh) — không vào bảng điều phối. Việc «đang chạy» quá 3 giờ coi như đã chết (máy tắt giữa chừng). */
+function apiPcPhu_(d) {
+  var may = String(d.may || '').slice(0, 60), viec = String(d.viec || '').slice(0, 60);
+  if (!may || !viec) return phanHoiJson({ status: 'error', message: 'Thieu may/viec' });
+  var lock = LockService.getScriptLock(); try { lock.waitLock(5000); } catch (e) { return phanHoiJson({ status: 'error', message: 'Ban (lock)' }); }
+  try {
+    var props = PropertiesService.getScriptProperties(), k = 'PCPHU_' + may, p = pcJson_(props.getProperty(k)) || {}, nay = new Date().toISOString();
+    p.dangChay = p.dangChay || {}; p.chayLuc = p.chayLuc || {};
+    if (d.xong) delete p.dangChay[viec]; else { p.dangChay[viec] = nay; p.chayLuc[viec] = nay; }
+    props.setProperty(k, JSON.stringify(p));
+    return phanHoiJson({ status: 'success' });
+  } finally { lock.releaseLock(); }
+}
+function pcPhuGop_(all, v, now) {   // gộp việc làm thay vào dòng máy (chỉ hiển thị)
+  var p = pcJson_(all['PCPHU_' + v.may]); if (!p) return v;
+  v.duPhong = true; v.dangChay = (v.dangChay || []).slice(); v.chayLuc = v.chayLuc || {}; v.batDau = v.batDau || {};
+  for (var t in (p.dangChay || {})) { var bd = Date.parse(p.dangChay[t]); if (!isNaN(bd) && now - bd < 3 * 36e5) { if (v.dangChay.indexOf(t) < 0) v.dangChay.push(t); v.batDau[t] = p.dangChay[t]; } }
+  for (var t2 in (p.chayLuc || {})) if (!v.chayLuc[t2] || Date.parse(p.chayLuc[t2]) > Date.parse(v.chayLuc[t2])) v.chayLuc[t2] = p.chayLuc[t2];
+  return v;
+}
 // Bảng cho dashboard — CHỈ ĐỌC: mọi máy (kể cả đã im), lệnh, khoá giữ việc, việc đang chờ chuyển.
 function apiPcBang_() {
   var props = PropertiesService.getScriptProperties(), all = props.getProperties(), now = new Date().getTime();
   var may = [], khoa = {}, chuyen = [], xin = [];
   for (var k in all) {
-    if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') { var v = pcJson_(all[k]); if (v && v.may) { var l = pcLenhCua_(all, v.may); v.dung = l.dung; v.dungViec = l.dungViec; v.lenhLuc = l.luc; v.lenhBoi = l.boi; may.push(v); } }
+    if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') { var v = pcJson_(all[k]); if (v && v.may) { var l = pcLenhCua_(all, v.may); v.dung = l.dung; v.dungViec = l.dungViec; v.lenhLuc = l.luc; v.lenhBoi = l.boi; may.push(pcPhuGop_(all, v, now)); } }
     else if (k.indexOf('PCLEASE_') === 0) { var c = pcJson_(all[k]); if (c && Number(c.hetHan) > now) khoa[k.slice(8)] = c; }
     else if (k.indexOf('PCCHUYEN_') === 0) { var c3 = pcJson_(all[k]); if (c3) chuyen.push({ viec: k.slice(9), tu: c3.tu, luc: c3.luc, sanSang: !!c3.sanSang }); }
     else if (k.indexOf('PCXIN_') === 0) { var x5 = pcJson_(all[k]); if (x5 && now - Number(x5.luc || 0) <= 30 * 60000) xin.push({ may: k.slice(6), maXN: x5.maXN, luc: x5.luc, daDuyet: !!x5.goi }); }   // 14/10 PC xin khoá (không trả gói)
@@ -2497,8 +2520,8 @@ function apiPcBangPh_(d) {
   for (var k in all) {
     if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') {
       var v = pcJson_(all[k]); if (!v || !v.may) continue; var l = pcLenhCua_(all, v.may);
-      may.push({ may: v.may, luc: v.luc, ramTrongPct: v.ramTrongPct, cpuPct: v.cpuPct, diaTrongGB: v.diaTrongGB, yeu: v.yeu, diem: v.diem, nhan: v.nhan, ramTongGB: v.ramTongGB, ban: v.ban,
-        coCamera: (v.coKhoa || []).indexOf('TOPREVIEW_USER') >= 0, dangChay: v.dangChay || [], viecGiao: v.viecGiao || [], tatCaViec: v.tatCaViec || [], viecNang: v.viecNang || [], chayLuc: v.chayLuc, oDia: v.oDia || [], dung: l.dung, dungViec: l.dungViec, lenhBoi: l.dung ? l.boi : '' });
+      may.push(pcPhuGop_(all, { may: v.may, luc: v.luc, ramTrongPct: v.ramTrongPct, cpuPct: v.cpuPct, diaTrongGB: v.diaTrongGB, yeu: v.yeu, diem: v.diem, nhan: v.nhan, ramTongGB: v.ramTongGB, ban: v.ban,
+        coCamera: (v.coKhoa || []).indexOf('TOPREVIEW_USER') >= 0, dangChay: v.dangChay || [], viecGiao: v.viecGiao || [], tatCaViec: v.tatCaViec || [], viecNang: v.viecNang || [], chayLuc: v.chayLuc, oDia: v.oDia || [], dung: l.dung, dungViec: l.dungViec, lenhBoi: l.dung ? l.boi : '' }, now));
     } else if (k.indexOf('PCCHUYEN_') === 0) { var c = pcJson_(all[k]); if (c) chuyen.push({ viec: k.slice(9), tu: c.tu, luc: c.luc, sanSang: !!c.sanSang }); }
   }
   return phanHoiJson({ status: 'success', may: may, chuyen: chuyen, srvNow: now });

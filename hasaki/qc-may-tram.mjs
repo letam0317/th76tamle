@@ -46,6 +46,10 @@ const API_PC13 = { srvNow: now, hetHanPhut: 3, chuyen: [], xin: [],
   viec: TEN13.map((t, i) => ({ ten: t, nang: i < 7, may: t === "cham-cong" ? null : "HSK-KHO170-QLIT", canKhoa: [] })) };
 CA.push({ ten: "pc13-pc", w: 1366, h: 900, mob: false, quanLy: true, data2: API_PC13 }, { ten: "pc13-ip14", w: 390, h: 844, mob: true, quanLy: true, data2: API_PC13 }, { ten: "pc13-and360", w: 360, h: 740, mob: true, quanLy: true, data2: API_PC13 });
 CA.push({ ten: "chi-laptop-dung", w: 1366, h: 900, mob: false, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-ip14", w: 390, h: 844, mob: true, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_LAPTOP });
+// 14/10 «đang chạy công việc gì cũng cần hiển thị»: laptop DỰ PHÒNG đang làm thay Cò xác minh B1 (GAS PCPHU gộp duPhong/dangChay/batDau)
+const API_DUPHONG = { ...API_PC13, may: [{ ...API_PC13.may[0], dangChay: [], dungViec: [], chayLuc: { "co-canh-planogram": iso(300) } },
+  { ...API_LAPTOP.may[0], duPhong: true, dangChay: ["canh-xac-minh-b1"], batDau: { "canh-xac-minh-b1": iso(12 * 60) }, chayLuc: { "canh-xac-minh-b1": iso(12 * 60) } }] };
+CA.push({ ten: "duphong-pc", w: 1366, h: 900, mob: false, quanLy: true, data: API_DUPHONG, duPhong: true }, { ten: "duphong-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_DUPHONG, duPhong: true });
 let loi = 0; const ok = (dk, ten) => { console.log((dk ? "  OK   " : "  FAIL ") + ten); if (!dk) loi++; };
 const cors = (r) => ({ "Access-Control-Allow-Origin": r.headers().origin || "*", "Access-Control-Allow-Headers": "content-type,x-hx-phien" });
 
@@ -116,6 +120,20 @@ try {
     ok(bc.chuaTruoc, "«Việc chưa có máy nhận» nằm TRÊN hàng máy trạm");
     ok(bc.doc && bc.deuNhau && bc.vua, "máy trạm xếp DỌC từ trên xuống, rộng đều, vừa bề ngang (" + bc.so + " máy)");
     ok(bc.ngang <= 0, "không kéo ngang trang (" + bc.ngang + ")");
+    const dangChayKhoi = await p.evaluate(() => { const k = document.querySelector("#pane-maytram .mt-dang"), ch = document.querySelector("#pane-maytram .mt-chua"), hg = document.querySelector("#pane-maytram .mt-hang");
+      return k ? { dong: [...k.querySelectorAll(".hx-mt-v")].map((x) => x.innerText.replace(/\s+/g, " ").trim()), trong: (k.querySelector(".hx-trong") || {}).textContent || "",
+        tren: !!(hg && (k.compareDocumentPosition(hg) & Node.DOCUMENT_POSITION_FOLLOWING)) && (!ch || !!(k.compareDocumentPosition(ch) & Node.DOCUMENT_POSITION_FOLLOWING)) } : null; });
+    ok(dangChayKhoi && dangChayKhoi.tren, "khối «Đang chạy» nằm trên cùng");
+    if (m.duPhong) {   // laptop dự phòng đang làm thay
+      ok(dangChayKhoi.dong.length === 1 && /Cò xác minh B1 HSK-KHO170-tamlc-1 \(dự phòng, làm thay\) · từ \d\d:\d\d · 1\d phút/.test(dangChayKhoi.dong[0]) && /Nặng/.test(dangChayKhoi.dong[0]),
+        "Đang chạy: việc · máy (dự phòng) · từ giờ · bao lâu (" + dangChayKhoi.dong.join(" | ") + ")");
+      const lt = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /tamlc/.test(e.querySelector(".mt-dau b").textContent));
+        return { tag: t.querySelector(".mt-dau .hx-tag").textContent, mo: t.classList.contains("mo"), chip: [...t.querySelectorAll(".mt-c")].map((c) => c.className + ":" + c.textContent) }; });
+      ok(lt.tag === "Dự phòng" && !lt.mo && lt.chip.length === 1 && /chay:Cò xác minh B1/.test(lt.chip[0]), "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, chip xanh việc đang làm (" + lt.tag + " · " + lt.chip.join(",") + ")");
+      await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
+    }
+    if (m.data2) ok(dangChayKhoi.dong.length === 2 && dangChayKhoi.dong.every((d) => /HSK-KHO170-QLIT · từ \d\d:\d\d/.test(d)), "Đang chạy: 2 việc trên QLIT (" + dangChayKhoi.dong.join(" | ") + ")");
+    if (m.data) ok(/^Lúc này không máy nào đang chạy việc/.test(dangChayKhoi.trong), "không việc nào chạy → 1 dòng báo (" + dangChayKhoi.trong + ")");
     if (m.data2) {   // 14/10 chiều: chip việc TRÁI→PHẢI kê BÊN PHẢI thẻ máy (máy tính); máy dừng MỜ, máy chạy sáng; mỗi chip có ×
       const g = await p.evaluate(() => { const the = [...document.querySelectorAll("#pane-maytram .mt-o")];
         const o = the[0], tr = o.querySelector(".mt-trai").getBoundingClientRect(), ph = o.querySelector(".mt-phai").getBoundingClientRect();
