@@ -100,10 +100,10 @@ async function day(localFile, repoPath) {
   for (const [local, remote] of FILES) if (!CHI || CHI.includes(remote)) await day(local, remote);
   console.log("✓ Xong. GitHub Pages cập nhật sau ~30–60 giây.");
   /* 13/10: GitHub là nguồn gốc, audit-dc.pages.dev là mặt tiền — đẩy GitHub xong thì đẩy Cloudflare luôn (không đổi thì nó tự bỏ qua).
-     Lỗi Cloudflare KHÔNG làm hỏng lượt đẩy GitHub; lịch «5S Day Cloudflare audit-dc» 2 giờ/lần bù lại. Tắt: --khong-cf */
+     Lỗi Cloudflare KHÔNG làm hỏng lượt đẩy GitHub; lịch «5S Day Cloudflare audit-dc» MỖI 60 PHÚT mới đẩy nhánh main (14/10 user) — gọi ở đây chỉ ráp + báo chờ. Tắt: --khong-cf */
   if (!process.argv.includes("--khong-cf")) {
     const { spawnSync } = await import("node:child_process");
     const r = spawnSync(process.execPath, ["day-cloudflare.mjs"], { cwd: path.dirname(fileURLToPath(import.meta.url)), stdio: "inherit" });
-    if (r.status) console.log("  ⚠ Cloudflare chưa đẩy được (mã " + r.status + ") — lịch 2 giờ sẽ thử lại");
+    if (r.status) console.log("  ⚠ Cloudflare chưa đẩy được (mã " + r.status + ") — lịch mỗi giờ sẽ thử lại");
   }
 })().catch((e) => { console.error("✗ " + e.message); process.exit(2); });

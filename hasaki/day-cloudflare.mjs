@@ -6,7 +6,7 @@
  *   thêm --ep  để đẩy kể cả khi không đổi · --kho  chỉ ráp thư mục, không đẩy
  * KHÔNG đẩy: summary/ + thu/ (đổi liên tục — trang đọc thẳng từ github.io qua window.GOC_DL), .git, bộ chỉnh dash-bocuc-sua.js (chỉ bản QC),
  *   thư mục tiện ích wms-bridge* / backend, tệp khoá *.pem. Retail lấy theo DANH SÁCH cho phép của deploy-kiemsoatkho.mjs (không chép bừa thư mục máy).
- * Hạn mức gói Free: không đổi thì BỎ QUA (băm SHA-256 cả cây) · nhánh main tối đa 12 lượt/ngày. Khoá CF_API_TOKEN / CF_ACCOUNT_ID ở .env.
+ * Hạn mức gói Free: không đổi thì BỎ QUA (băm SHA-256 cả cây) · nhánh main CHỈ lịch mỗi 60 phút (--lich) đẩy, tối đa 24 lượt/ngày. Khoá CF_API_TOKEN / CF_ACCOUNT_ID ở .env.
  */
 import "dotenv/config";
 import fs from "node:fs";
@@ -96,7 +96,10 @@ const nh = so[NHANH] || (so[NHANH] = { bam: "", ngay: hn, dem: 0 }); if (nh.ngay
 log("ráp xong " + tep.length + " tệp · " + (NGUON === "local" ? "bản nội bộ" : "bản GitHub") + " → nhánh " + NHANH);
 if ("kho" in A) { log("(--kho) chỉ ráp, không đẩy: " + DIST); process.exit(0); }
 if (nh.bam === bam && !("ep" in A)) { log("✓ không đổi so với lần đẩy trước — bỏ qua (giữ hạn mức)"); process.exit(0); }
-if (NHANH === "main" && nh.dem >= 12) { log("✗ đã đẩy " + nh.dem + " lượt hôm nay (trần 12) — chờ ngày mai / lượt sau"); process.exit(1); }
+/* 14/10 user: «chia ra đúng 60p đẩy 1 lần (có thay đổi mới đẩy), còn lại t xem/chỉnh ở bản xem trước» — nhánh main CHỈ do lịch mỗi giờ (--lich) đẩy;
+   phiên sửa / deploy-kiemsoatkho / day-bocuc-factory gọi tay thì dừng ở đây (bản GitHub đã lên, lượt giờ kế tiếp tự mang lên audit-dc). Trần 24 = 1 lượt/giờ. */
+if (NHANH === "main" && !("lich" in A) && !("ep" in A)) { log("· có thay đổi — chờ lượt đẩy mỗi 60 phút (task «5S Day Cloudflare audit-dc», phút :05)"); process.exit(0); }
+if (NHANH === "main" && nh.dem >= 24) { log("✗ đã đẩy " + nh.dem + " lượt hôm nay (trần 24) — chờ ngày mai / lượt sau"); process.exit(1); }
 
 /* ---- 3) đẩy ---- */
 const kq = spawnSync(process.execPath, [path.join(DIR, "node_modules", "wrangler", "bin", "wrangler.js"), "pages", "deploy", DIST, "--project-name", DU_AN, "--branch", NHANH, "--commit-dirty=true"],

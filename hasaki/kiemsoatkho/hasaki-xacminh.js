@@ -205,6 +205,11 @@
       ".hx-gc-nut{flex:none;display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}.hx-gc-nut:hover,.hx-gc-nut[aria-expanded=true]{color:var(--accent);border-color:var(--accent)}.hx-gc-nut+.hx-motask{margin-left:0}@media(max-width:560px){.hx-gc-nut{min-height:44px;padding:0 10px}}",
       "#modal .hx-qd .hx-act{grid-template-columns:repeat(3,minmax(0,1fr))}#modal .hx-qd .hx-act button{padding:4px 6px;line-height:1.25}#modal .hx-qd .hx-act button[data-qd='-1']{grid-column:1/-1}",
       ".hx-gc[hidden],#lvAnh[hidden],#lvClip[hidden]{display:none!important}.hx-gc{margin:12px 24px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);display:flex;flex-direction:column;gap:8px}@media(max-width:560px){.hx-gc{margin:12px 16px 0}}.hx-gc textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;resize:vertical}.hx-gc-hang{display:flex;gap:10px;align-items:center}.hx-gc-dong{font-size:13px;padding:6px 0;border-top:1px solid var(--border)}.hx-gc-dong>div{white-space:pre-wrap;overflow-wrap:anywhere}",
+      ".hx-xdau{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}.hx-xdau .hx-vbar{margin:0;gap:6px;flex-wrap:nowrap}.hx-xdau .hx-qd-nguon{margin:0!important;flex-wrap:nowrap}" +
+        ".hx-xdau .hx-vbar button,.hx-xdau .hx-qd-nguon button{min-height:32px;padding:0 10px;font-size:13px}#hxPlay{min-width:40px;font-size:14px}.hx-xdau .gio{min-width:0;font-size:13px;white-space:nowrap}.hx-xdau button{white-space:nowrap}" +
+        ".hx-toc{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}.hx-toc button{border:0!important;border-radius:0!important;min-height:30px!important;padding:0 8px!important}.hx-toc button+button{border-left:1px solid var(--border)!important}" +
+        ".hx-mocs{display:flex;gap:6px;overflow-x:auto;margin-bottom:6px;padding-bottom:2px}.hx-mocs button{flex:none;min-height:28px;padding:0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--muted);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}.hx-mocs button b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}.hx-mocs button.ng{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}.hx-mocs button.ng b{color:var(--bad)}.hx-mocs button:hover{border-color:var(--accent)}" +
+        "#modal .hx-qd .hx-tl{height:14px;margin:0 0 6px}@media(max-width:560px){.hx-xdau .hx-vbar button,.hx-xdau .hx-qd-nguon button,.hx-mocs button{min-height:44px}.hx-toc button{min-height:42px!important}.hx-xdau{gap:6px}.hx-xdau .hx-qd-nguon{width:100%;justify-content:flex-start}}",
       "@media(max-width:560px){.hx-ng{grid-template-columns:74px minmax(0,1fr)}.hx-crop{width:74px;height:100px}.hx-buoc figure{flex-basis:128px}.hx-buoc img{width:128px;height:72px}}"
     ].join("\n");
     var st = document.createElement("style"); st.id = "hx-css"; st.textContent = c; document.head.appendChild(st);
@@ -412,14 +417,17 @@
       : '<b>' + ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") : "Chưa có ứng viên") + '</b>';
     var dn = (l.doanNguoi || []).map(function (d) { return [giay(d[0]), giay(d[1])]; });
     var h = '<div class="hx-qd"><div class="hx-qd-xem">' +
-      '<div class="hx-qd-nguon"><button data-lng="clip" class="on">Clip camera</button><button data-lng="anh">Ảnh ghi nhận</button></div>' +
-      '<div id="lvAnh" class="hx-qd-khung" hidden><img src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" style="cursor:zoom-in"></div><div id="lvClip">' +
-      '<div class="hx-vwrap"><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div>' +
-      '<div class="hx-vbar"><button id="hxPlay">▶ Phát</button><span class="gio" id="hxGio">--:--:--</span>' +
-      '<button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></div>' +
+      /* 14/10 user «thông tin cần làm gọn lại và đưa lên trên clip»: 1 hàng điều khiển (phát · giờ · tốc độ | nguồn) + 1 hàng mốc chữ nhỏ (bỏ ảnh nhỏ từng bước)
+         + dải thời gian mảnh, rồi mới tới clip. Bỏ nút «Có người mm:ss» — trùng mốc «Lúc gửi xe» và vệt đỏ trên dải thời gian (bấm vệt đỏ để tua). */
+      '<div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
+        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span>' +
+        '<span class="hx-qd-nguon"><button data-lng="clip" class="on">Clip camera</button><button data-lng="anh">Ảnh ghi nhận</button></span></div>' +
+      '<div id="lvClip">' +
+      ((l.buocAnh || []).length ? '<div class="hx-mocs">' + l.buocAnh.map(function (b, i) { var p2 = String(b.nhan || "").split(" · "), nh = p2[0].charAt(0) + p2[0].slice(1).toLowerCase();
+        return '<button class="' + (b.doNguoi ? "ng" : "") + '" data-b="' + i + '" title="' + e_(b.nhan) + '">' + e_(nh) + (p2[1] ? ' <b>' + e_(p2[1]) + '</b>' : "") + '</button>'; }).join("") + '</div>' : "") +
       '<div class="hx-tl" id="hxTl"></div>' +
-      (dn.length ? '<div class="hx-tlg">' + dn.slice(0, 8).map(function (d) { return '<button data-tua="' + d[0] + '">Có người ' + hms(d[0]).slice(3) + '</button>'; }).join("") + '</div>' : "") + '</div>' +
-      '<div class="hx-buoc">' + (l.buocAnh || []).map(function (b, i) { return '<figure class="' + (b.doNguoi ? "ng" : "") + '" data-b="' + i + '"><img loading="lazy" src="' + e_(u_(b.anh)) + '" alt=""><figcaption>' + e_(b.nhan) + '</figcaption></figure>'; }).join("") + '</div>' +
+      '<div class="hx-vwrap"><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div></div>' +
+      '<div id="lvAnh" class="hx-qd-khung" hidden><img src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" style="cursor:zoom-in"></div>' +
       '</div><div class="hx-qd-ben">' +
       '<div class="hx-qd-o"><span class="lbl">Quyết định</span><div class="hx-act"><button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button>' +
       '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
@@ -441,7 +449,7 @@
       '</div></div></div>';
     $id("mBody").innerHTML = h;
     ganGhiChu("luot", String(l.id), tenLoai(l.loai) + " · " + l.camera + " · " + l.ngay + " " + gioL);
-    var lvXem = function (k) { $id("lvAnh").hidden = k !== "anh"; $id("lvClip").hidden = k === "anh";
+    var lvXem = function (k) { $id("lvAnh").hidden = k !== "anh"; $id("lvClip").hidden = k === "anh"; $id("lvCtl").style.visibility = k === "anh" ? "hidden" : "";
       $id("mBody").querySelectorAll("[data-lng]").forEach(function (b) { b.classList.toggle("on", b.dataset.lng === k); });
       if (k === "anh") { var v0 = $id("hxV"); if (v0) v0.pause(); } };
     $id("mBody").querySelectorAll("[data-lng]").forEach(function (b) { b.onclick = function () { lvXem(b.dataset.lng); }; });
@@ -460,7 +468,7 @@
     $id("mBody").querySelectorAll("[data-kh]").forEach(function (c) { c.addEventListener("change", function () { var n = EV.ng.find(function (x) { return x.so === Number(c.dataset.kh); }); n.khong = c.checked; c.closest(".hx-ng").classList.toggle("khong", c.checked); veChot(); }); });
     $id("mBody").querySelectorAll("[data-cb]").forEach(function (i) { ganCombo(i, l); });
     $id("mBody").querySelectorAll("[data-zoom]").forEach(function (z) { z.onclick = function () { var n = EV.ng[Number(z.dataset.zoom) - 1]; openLB([{ url: n.anh, title: (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so), sub: l.camera + " · " + n.luc }], 0); }; });
-    $id("mBody").querySelectorAll(".hx-buoc figure").forEach(function (f) { f.onclick = function () { var b = l.buocAnh[Number(f.dataset.b)]; lvXem("clip"); tuaToi(giay(b.luc)); }; });
+    $id("mBody").querySelectorAll(".hx-mocs [data-b]").forEach(function (f) { f.onclick = function () { var b = l.buocAnh[Number(f.dataset.b)]; lvXem("clip"); tuaToi(giay(b.luc)); }; });
     $id("mBody").querySelectorAll("[data-qd]").forEach(function (b) { b.onclick = function () { luuQD(l, Number(b.dataset.qd)); }; });
     veChot();
   }
@@ -641,7 +649,7 @@
     (function vong() { if (!document.body.contains(v)) return;   // 10/10 GIẬT LAG: dò 2,5 lần/giây (trước 5), video dừng thì KHÔNG vẽ lại lớp khung mỗi khung hình
       if (!v.paused) { if (performance.now() - lanCuoi > 400) { lanCuoi = performance.now(); doTim(); } veOv(); } requestAnimationFrame(vong); })();
     v.addEventListener("seeked", function () { prevXam = null; doTim(); });
-    v.addEventListener("play", function () { $id("hxPlay").textContent = "⏸ Dừng"; }); v.addEventListener("pause", function () { $id("hxPlay").textContent = "▶ Phát"; veOv(); });
+    v.addEventListener("play", function () { $id("hxPlay").textContent = "⏸"; }); v.addEventListener("pause", function () { $id("hxPlay").textContent = "▶"; veOv(); });
     v.addEventListener("ended", function () { if (idx + 1 < src.length) nap(idx + 1, giay(src[idx + 1].bd)); });
     $id("hxPlay").onclick = function () { if (!v.src) nap(0, dn.length ? Math.max(S, dn[0][0] - 6) : S); else if (v.paused) v.play(); else v.pause(); };
     document.querySelectorAll(".hx-vbar [data-toc]").forEach(function (b) { b.onclick = function () { toc = b.dataset.toc; document.querySelectorAll(".hx-vbar [data-toc]").forEach(function (x) { x.classList.toggle("on", x === b); }); if (toc !== "auto") v.playbackRate = Number(toc); veOv(); }; });
