@@ -26,6 +26,7 @@
  *  Tải: chỉ đầu ghi top-review (≤ 2 kênh × 13′), 0 lượt work/wms/hr. Thẻ top-review hết hạn → tự chạy camera-a8.mjs 1 lần.
  * ============================================================================
  */
+import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs"; import path from "node:path"; import { execFileSync } from "node:child_process"; import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 

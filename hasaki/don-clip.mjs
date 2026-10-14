@@ -15,6 +15,7 @@
 //   CLIP_RAW_GIU_PHUT=120     -> clip GOC (.mp4) qua 2h chac da dinh phieu/xong -> xoa (du chua thay dau "da cat").
 //   CLIP_FINAL_GIU_GIO=48     -> clip bang chung *_BAOCAO_CLIP-*.webm qua 48h -> xoa (da o tren phieu).
 //   CLIP_DIRS=D:\a;E:\b       -> them kho clip ngoai (ngan cach bang ;).
+import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

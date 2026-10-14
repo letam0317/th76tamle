@@ -6,6 +6,7 @@
  *
  *  node ghi-tac-dong-may.mjs --quet      quét lại mọi .exports/xm-tu-dong/<id>/BAO-CAO.md đã có (bù cho các lượt chạy trước 14/10)
  */
+import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

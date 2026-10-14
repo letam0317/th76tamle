@@ -7,6 +7,7 @@
  *  Ra: Videos/5S-bang-chung/may/<id>_LUI-<MMDDHHmm>.jpg + thêm vào .exports/bang-chung-b1.json (mục chup.anhLui).
  *  node dai-lui-thoi-gian-b1.mjs [--id=…] [--max=5]      Tải: 9 đoạn 15 s/phiếu, chỉ top-review.
  */
+import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs"; import path from "node:path"; import { execFileSync } from "node:child_process"; import { fileURLToPath } from "node:url"; import sharp from "sharp";
 const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 const A = Object.fromEntries(process.argv.slice(2).map((x) => { const [k, v] = x.replace(/^--/, "").split("="); return [k, v ?? true]; }));

@@ -11,6 +11,7 @@
  *  node tim-bang-chung-b1.mjs [--max=3] [--id=13393784] [--thu]
  *  Tải: chỉ đầu ghi top-review (≤16 kênh × 40 s / phiếu, tuần tự, nghỉ 2 s giữa kênh) — 0 lượt gọi work/wms/hr.
  */
+import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs"; import path from "node:path"; import { execFileSync } from "node:child_process"; import { fileURLToPath } from "node:url";
 const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 const A = Object.fromEntries(process.argv.slice(2).map((x) => { const [k, v] = x.replace(/^--/, "").split("="); return [k, v ?? true]; }));

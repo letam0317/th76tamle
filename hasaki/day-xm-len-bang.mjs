@@ -2,6 +2,7 @@
  *  User 09/10: «sao ở đây vẫn trống, các phiếu xác minh chưa cập nhật lên» — bảng đọc .exports/bang-chung-b1.json + ảnh trong Videos/5S-bang-chung/may/.
  *  node day-xm-len-bang.mjs [thư mục kết quả …]  (mặc định mọi .exports/xm-tu-dong*; lấy bản MỚI NHẤT của mỗi phiếu)
  *  Mỗi phiếu: chép ảnh MỐC (trước/sau), ẢNH GHÉP CÁC GÓC lúc đặt đồ vật, ẢNH KHOANH VÙNG → may/<id>_XM-*.jpg; ghi bang-chung-b1.json[id] = {anh, chu, kenh, luc, nguon:"xac-minh-tu-dong"}. */
+import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
 const DIR = path.dirname(fileURLToPath(import.meta.url)); const EXP = path.join(DIR, ".exports"), XM = path.join(EXP, "agy-xm");
 const MAY = path.join(process.env.BAIXE_DIR ? path.dirname(process.env.BAIXE_DIR) : "C:/Users/lechitam/Videos/5S-bang-chung", "may");   // 14/10 máy trạm: theo BAIXE_DIR như các script khác fs.mkdirSync(MAY, { recursive: true });
