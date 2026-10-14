@@ -174,6 +174,29 @@
               class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none transition"></textarea>
           </div>
 
+          <!-- 14/10 user: quét mã vị trí + SKU/UIDgr ở từng mục — camera chỉ hiện khi bấm, mã quét được ghi thành dòng đầu ô ghi chú -->
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Quét mã</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" @click="moQuet('viTri')" :class="quetLoai === 'viTri' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'"
+                class="flex items-center justify-center gap-1.5 rounded-2xl border-2 px-3 min-h-[44px] text-sm font-semibold active:scale-[0.98] transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h2v14H3V5zm4 0h1v14H7V5zm3 0h2v14h-2V5zm4 0h1v14h-1V5zm3 0h2v14h-2V5z"/></svg>
+                <span>Mã vị trí</span>
+              </button>
+              <button type="button" @click="moQuet('ma')" :class="quetLoai === 'ma' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'"
+                class="flex items-center justify-center gap-1.5 rounded-2xl border-2 px-3 min-h-[44px] text-sm font-semibold active:scale-[0.98] transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h2v14H3V5zm4 0h1v14H7V5zm3 0h2v14h-2V5zm4 0h1v14h-1V5zm3 0h2v14h-2V5z"/></svg>
+                <span>SKU / UIDgr</span>
+              </button>
+            </div>
+            <div x-show="quetLoai" x-cloak class="mt-2 rounded-2xl overflow-hidden border border-slate-200 bg-black">
+              <p class="px-3 py-1.5 text-xs font-semibold text-white bg-slate-800" x-text="quetLoai === 'viTri' ? 'Đang quét: mã vị trí' : 'Đang quét: SKU / UIDgr'"></p>
+              <div id="ntReader" class="w-full"></div>
+              <button type="button" @click="dongQuet()" class="w-full min-h-[44px] bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition">Đóng camera</button>
+            </div>
+            <p x-show="tbQuet" x-cloak class="mt-1.5 text-xs font-semibold text-green-700" x-text="tbQuet"></p>
+          </div>
+
           <div>
             <label class="block text-sm font-semibold text-slate-700 mb-1.5">Hình ảnh / clip</label>
             <div class="grid grid-cols-2 gap-2">
@@ -345,6 +368,7 @@
       thongBao: { loai: '', noiDung: '' },
       canQuyen: false, tbBuoc: 'xin', tbTen: '', tbOtp: '', tbTb: '', tbLoi: false, tbDang: false,
       xemMedia: null, keoVao: false,
+      quetLoai: '', _scanner: null, _luotQuet: 0, tbQuet: '',
       dangChupAnh: false, _cameraStream: null, soAnhChup: 0, cameraSau: true, cheDoVideo: false, dangQuay: false,
       _recorder: null, _videoChunks: [], _quayTimer: null, giayQuay: 0,
       dangNen: false, tienTrinhNen: '',
@@ -511,16 +535,17 @@
       mo(d) {
         if (this.dang && this.dang.dong !== d.dong && this._coNhap() && !confirm('Mục đang soạn còn ảnh/ghi chú chưa gửi. Bỏ để mở mục khác?')) return;
         if (!this.dang || this.dang.dong !== d.dong) { this._xoaNhap(); }
+        if (!this.dang || this.dang.dong !== d.dong) this.dongQuet();
         this.dang = d; this.thongBao = { loai: '', noiDung: '' };
       },
       dong() {
         if (this._coNhap() && !confirm('Còn ảnh/ghi chú chưa gửi. Đóng và bỏ?')) return;
-        this._xoaNhap(); this.dang = null;
+        this.dongQuet(); this._xoaNhap(); this.dang = null;
       },
       /* boGiu: true khi ảnh đã chuyển sang mục đang đẩy — đừng huỷ link xem trước của chúng. */
       _xoaNhap(boGiu) {
         if (!boGiu) this.files.forEach(f => { if (/^blob:/.test(String(f.preview))) { try { URL.revokeObjectURL(f.preview); } catch (e) {} } });
-        this.files = []; this.ghiChu = ''; this.tepCu = []; this.sua = null; this._suaGoc = '';
+        this.files = []; this.ghiChu = ''; this.tepCu = []; this.sua = null; this._suaGoc = ''; this.tbQuet = '';
       },
       batSua(m) {
         if (this._coNhap() && !confirm('Bỏ phần đang soạn để sửa phản hồi này?')) return;
@@ -611,7 +636,56 @@
       },
 
       /* ---- Camera / ảnh / clip (khuôn form.html) — NGHIỆM THU KHÔNG in nhãn giờ + cụm AUDIT HASAKI (user 14/10) ---- */
+      /* ---- Quét mã vị trí / SKU-UIDgr: thư viện chỉ tải khi bấm lần đầu (trang không nặng thêm) ---- */
+      _taiThuVienQuet() {
+        if (window.Html5Qrcode) return Promise.resolve();
+        return this._hqTai || (this._hqTai = new Promise((ok, loi) => {
+          const s = document.createElement('script'); s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+          s.onload = ok; s.onerror = () => { this._hqTai = null; loi(new Error('không tải được bộ quét mã')); }; document.head.appendChild(s);
+        }));
+      },
+      async moQuet(loai) {
+        if (this.quetLoai === loai) return this.dongQuet();   // bấm lại nút đang bật = tắt
+        await this.dongQuet(); this.tbQuet = '';
+        const luot = this._luotQuet;
+        this.quetLoai = loai; await this.$nextTick();
+        try {
+          await this._taiThuVienQuet();
+          if (this._luotQuet !== luot) return;   // đã đóng/đổi nút trong lúc tải bộ quét
+          // so bằng SỐ LƯỢT, không so object: this._scanner đọc ra là bản Alpine bọc nên === với bản gốc luôn sai
+          const sc = new Html5Qrcode('ntReader'); this._scanner = sc;
+          await sc.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 160 } },
+            (ma) => { if (this._luotQuet !== luot) return; this.ghiMaQuet(loai, ma); this.dongQuet(); }, () => {});
+          if (this._luotQuet !== luot) { try { await sc.stop(); sc.clear(); } catch (e) {} }   // đã bấm đóng trong lúc camera đang mở
+        } catch (err) {
+          await this.dongQuet();
+          this.thongBao = { loai: 'err', noiDung: 'Không mở được camera quét mã — cho phép quyền camera rồi thử lại. (' + (err && err.message || err) + ')' };
+        }
+      },
+      async dongQuet() {
+        const sc = this._scanner; this._scanner = null; this.quetLoai = ''; this._luotQuet++;
+        if (sc) { try { await sc.stop(); sc.clear(); } catch (e) {} }
+      },
+      /* Mã quét được → dòng "Vị trí: …" / "SKU/UIDgr: …" ở đầu ô ghi chú (đã có thì nối thêm, trùng thì bỏ qua) — sửa tay được như chữ thường. */
+      ghiMaQuet(loai, ma) {
+        ma = String(ma || '').trim(); if (!ma) return;
+        const nhan = loai === 'viTri' ? 'Vị trí' : 'SKU/UIDgr', dau = nhan + ': ';
+        const dong = this.ghiChu ? this.ghiChu.split('\n') : [];
+        const k = dong.findIndex(x => x.startsWith(dau));
+        if (k >= 0) {
+          const ds = dong[k].slice(dau.length).split(',').map(x => x.trim()).filter(Boolean);
+          if (ds.includes(ma)) { this.tbQuet = 'Mã ' + ma + ' đã có trong ghi chú.'; return; }
+          dong[k] = dau + ds.concat(ma).join(', ');
+        } else {
+          const viTriO = dong.findIndex(x => x.startsWith('Vị trí: '));   // thứ tự: Vị trí → SKU/UIDgr → chữ gõ tay
+          dong.splice(loai === 'viTri' ? 0 : viTriO + 1, 0, dau + ma);
+        }
+        this.ghiChu = dong.join('\n');
+        this.tbQuet = '✓ ' + nhan + ': ' + ma;
+        try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+      },
       async moChupAnh() {
+        await this.dongQuet();   // nhả camera quét mã — iOS chỉ cho 1 luồng camera
         this.dangChupAnh = true; this.soAnhChup = 0;
         await this.$nextTick(); await this._batCamera();
       },
