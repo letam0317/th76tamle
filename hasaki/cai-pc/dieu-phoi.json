@@ -10,7 +10,8 @@
   },
   "envCung": {
     "RUNNER_VAI": "pc",
-    "CAM_TU_DANG_NHAP": "1"
+    "CAM_TU_DANG_NHAP": "1",
+    "BAIXE_DIR": "C:/AuditFactory/bang-chung/bai-xe"
   },
   "viec": [
     {

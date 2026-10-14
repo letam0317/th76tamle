@@ -15,13 +15,10 @@ Write-Host "=== Cai PC '$may' ($nhan nhan CPU, $ramGB GB RAM) -> $duAn ===" -For
 Write-Host "    Cai HET viec; cong gac tu chon may MANH NHAT + DU KHOA + khoe de chay. Khong can xep hang tay."
 Write-Host "    Dieu khien nang luc = khoa .env: may dien TOPREVIEW -> duoc nhan viec camera; khong dien -> khong."
 
-# ---- CHOT: KHONG cai tren may QUAN LY (laptop). 14/10 user chay thu tren laptop: laptop dang chay cac co GOC; neu thanh "PC" no
-#      du khoa + diem cao nhat -> gianh het viec va chay TRUNG voi co goc (ghi doi len work/WMS). Dau hieu laptop = co task may chu 8591.
-if (Get-ScheduledTask -TaskName "5S Bang xac minh (8591)" -ErrorAction SilentlyContinue) {
-  Write-Host "  [X] Day la MAY QUAN LY (laptop co may chu Xac minh 8591) - KHONG cai co PC o day (se chay trung voi co goc)." -ForegroundColor Red
-  Write-Host "      Chep file nay sang PC noi bo roi chay o do." -ForegroundColor Red
-  exit 1
-}
+# ---- MAY QUAN LY (laptop co may chu Xac minh 8591): VAN cai (user 14/10: "chay thu xem lam an ra sao, May tram co nut xoa"),
+#      nhung tu bam DUNG MAY sau khi cai -> hien tren May tram de xem, KHONG nhan viec (laptop dang chay co goc -> nhan la chay trung).
+$laMayQuanLy = [bool](Get-ScheduledTask -TaskName "5S Bang xac minh (8591)" -ErrorAction SilentlyContinue)
+if ($laMayQuanLy) { Write-Host "  [!] Day la MAY QUAN LY (laptop): cai xong se tu DUNG may nay tren muc May tram (khong nhan viec, khong chay trung co goc)." -ForegroundColor Yellow }
 
 # ---- Node + Git; clone CA repo (giu .git de tu cap nhat) ----
 function CoLenh($n){ $null -ne (Get-Command $n -ErrorAction SilentlyContinue) }
@@ -49,6 +46,7 @@ $kit = "$duAn\cai-pc"; if (Test-Path "$kit\dieu-phoi.json") { $cfg = Get-Content
 #   Chep node.exe vao duAn -> _DP-CHAY/_NHIP tu dung (khong phu thuoc PATH). Luu duong git -> bo cap nhat dung.
 try { Copy-Item (Get-Command node).Source "$duAn\node.exe" -Force } catch { Write-Host "  [!] khong chep duoc node.exe (SYSTEM se dung 'node' tren PATH): $_" }
 try { (Get-Command git).Source | Out-File "$duAn\.git-exe" -Encoding ascii -NoNewline } catch {}
+try { (Get-Command npm).Source | Out-File "$duAn\.npm-exe" -Encoding ascii -NoNewline } catch {}   # 14/10: task tu cap nhat (SYSTEM) co the khong thay npm tren PATH
 
 # ---- npm install (BO tai Chromium — co dung Edge, khong can) + va Edge ngam ----
 Push-Location $duAn
@@ -109,6 +107,7 @@ try { powercfg /change standby-timeout-ac 0 2>$null; powercfg /change hibernate-
 # ---- TU KIEM: gui thu 1 nhip tim -> biet ngay PC da bao ve may chu chua (hien tren muc May tram) ----
 $ErrorActionPreference = "Continue"
 Push-Location $duAn
+if ($laMayQuanLy) { $kqDung = (& "$duAn\node.exe" cai-pc\dung-may-nay.mjs 2>&1 | Out-String).Trim(); Write-Host "  - $kqDung" -ForegroundColor Yellow }   # DUNG truoc nhip tim dau
 $nh = (& "$duAn\node.exe" nhip-pc.mjs 2>&1 | Out-String)
 Pop-Location
 $ErrorActionPreference = "Stop"

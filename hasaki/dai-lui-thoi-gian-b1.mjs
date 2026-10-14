@@ -10,7 +10,7 @@
 import fs from "node:fs"; import path from "node:path"; import { execFileSync } from "node:child_process"; import { fileURLToPath } from "node:url"; import sharp from "sharp";
 const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 const A = Object.fromEntries(process.argv.slice(2).map((x) => { const [k, v] = x.replace(/^--/, "").split("="); return [k, v ?? true]; }));
-const MAX = Number(A.max || 5), TAM = path.join(DIR, ".exports", ".lui-tam"), GOC = "C:/Users/lechitam/Videos/5S-bang-chung/may", F = path.join(DIR, ".exports", "bang-chung-b1.json");
+const MAX = Number(A.max || 5), TAM = path.join(DIR, ".exports", ".lui-tam"), GOC = path.join(process.env.BAIXE_DIR ? path.dirname(process.env.BAIXE_DIR) : "C:/Users/lechitam/Videos/5S-bang-chung", "may"),   /* 14/10: PC nội bộ đặt BAIXE_DIR (dieu-phoi.json envCung) — không ghi vào hồ sơ lechitam giả */ F = path.join(DIR, ".exports", "bang-chung-b1.json");
 fs.mkdirSync(TAM, { recursive: true });
 const log = (...a) => console.log(new Date(Date.now() + 7 * 36e5).toISOString().slice(11, 19), ...a);
 const doc = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return d; } };
