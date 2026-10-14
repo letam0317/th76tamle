@@ -66,6 +66,10 @@ src = src.replace(
 );
 fs.writeFileSync(DICH, src);
 console.log("✓ Sinh " + path.relative(DIR, DICH) + " (" + (src.length / 1024).toFixed(0) + " KB) — đã chèn " + BIMAT.length + " hằng bí mật từ .env");
+/* 14/10: tệp Apps Script phụ không chứa bí mật — chép nguồn git-safe sang thư mục clasp (TaiKhoan = tài khoản + phân quyền audit-dc) */
+for (const [nguon, dich] of [["google-script-TaiKhoan.gs", "TaiKhoan.js"]]) {
+  const ab = path.join(DIR, nguon); if (fs.existsSync(ab)) { fs.copyFileSync(ab, path.join(path.dirname(DICH), dich)); console.log("✓ Chép " + nguon + " → " + dich); }
+}
 
 /* shell:false + mô tả KHÔNG có khoảng trắng: với shell:true trên Windows, chuỗi mô tả nhiều từ bị
    cắt thành nhiều tham số và clasp báo "too many arguments" (đã cắn 20/08/2026). */

@@ -29,12 +29,14 @@ const BRANCH = process.env.GH_BRANCH || "main";
 const FILES = [
   ["kiemsoatkho/index.html", "index.html"],
   ["kiemsoatkho/form.html", "form.html"],
+  ["kiemsoatkho/nghiem-thu.html", "nghiem-thu.html"],   // 14/10 form nghiệm thu checklist kiểm kê (user duyệt 14/10)
   ["cai-pc/CAI-PC-1LAN.bat", "CAI-PC-1LAN.bat"],   // 13/10: nut "Tai bo cai PC" tai file nay (cung goc -> tai thang)
   ["kiemsoatkho/factory-stock.js", "factory-stock.js"],     // module tab Trạng thái lưu trữ (lazy-load)
   ["kiemsoatkho/factory-kiemke.js", "factory-kiemke.js"],   // module tab Kiểm kê (lazy-load)
   ["kiemsoatkho/hasaki-tonbatthuong.js", "hasaki-tonbatthuong.js"], // module tab Tồn kho bất thường HASAKI (lazy-load)
   ["kiemsoatkho/hasaki-planogram.js", "hasaki-planogram.js"], // module tab Planogram HASAKI (lazy-load, đọc tab PHU-TRACH-QUAY-KE)
-  ["kiemsoatkho/hasaki-kiemke.js", "hasaki-kiemke.js"],     // module tab Kiểm kê HASAKI (lazy-load, nhân bản từ Audit Factory)
+  ["kiemsoatkho/hasaki-kiemke.js", "hasaki-kiemke.js"],
+  ["kiemsoatkho/hasaki-maytram.js", "hasaki-maytram.js"],   // 13/10 tab Máy trạm (lazy-load)     // module tab Kiểm kê HASAKI (lazy-load, nhân bản từ Audit Factory)
   ["kiemsoatkho/hasaki-pc.js", "hasaki-pc.js"],
   ["kiemsoatkho/hasaki-xacminh.js", "hasaki-xacminh.js"],   // tab Xác minh (12/10) — chỉ hiện ở máy có máy chủ 8591, phải đăng nhập; dữ liệu KHÔNG lên mạng
   ["kiemsoatkho/hasaki-giaodien-antd.js", "hasaki-giaodien-antd.js"],   // lớp giao diện thử Ant Design — chỉ bật khi link có ?giaodien=antd             // module DÙNG CHUNG: giỏ chọn SKU -> tạo lệnh kiểm kê .xlsx + Kế hoạch chờ push (lazy-load)
@@ -45,6 +47,7 @@ const FILES = [
   ["kiemsoatkho/kho170-topview.js", "kho170-topview.js"],   // mặt bằng tab Planogram = ảnh top-view 3D (xuat-topview-kho170.mjs, 28/09)
   ["kiemsoatkho/kho170-topview.webp", "kho170-topview.webp"],
   ["kiemsoatkho/kho170-bocuc.js", "kho170-bocuc.js"],
+  ["kiemsoatkho/tai-khoan.js", "tai-khoan.js"],             // 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory, Apps Script tk_*)
   ["kiemsoatkho/dash-bocuc.js", "dash-bocuc.js"],           // 13/10 bố cục dashboard (bộ Chỉnh bố cục ở bản QC ghi, «Chốt phát hành» đẩy)
   ["kiemsoatkho/dash-bocuc-ap.js", "dash-bocuc-ap.js"],     // 13/10 bộ áp bố cục — dash-bocuc-sua.js (bộ chỉnh) KHÔNG đẩy: chỉ bản QC dùng
   ["kiemsoatkho/taisan-vitri.js", "taisan-vitri.js"],       // sổ tài sản theo mã vị trí — pop-up ô Planogram nạp lười (29/09)     // bố cục đồ đạc dời được của trang 3D (chế độ Chỉnh sửa bố cục, 29/09)

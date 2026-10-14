@@ -371,6 +371,7 @@ function doPost(e) {
 function doPostGoc_(e) {
   try {
     var duLieu = JSON.parse(e.postData.contents);
+    if (duLieu && /^tk_/.test(String(duLieu.action || ''))) return tkApi_(duLieu);   // 14/10 tài khoản + phân quyền audit-dc (google-script-TaiKhoan.gs)
     // Endpoint máy-gọi-máy dạng POST (SECRET trong body, KHÔNG qua query)
     if (duLieu && duLieu.action === 'syncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearSync') return keyBodyOK_(duLieu) ? xoaCo_('SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
@@ -395,6 +396,21 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'ghiCot') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiGhiCot(duLieu); }
     if (duLieu && duLieu.action === 'docSheet') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiDocSheet(duLieu); }
     if (duLieu && duLieu.action === 'vungLenh') { if (!keyBodyOK_(duLieu)) return phanHoiJson({ status: 'error', message: 'Sai key' }); return apiVungLenh(duLieu); }
+    // 13/10/2026 — MÁY TRẠM (điều phối N PC): nhịp tim · bảng xem · lệnh dừng/tiếp tục (sub-tab «Máy trạm» qua máy chủ 8591)
+    if (duLieu && duLieu.action === 'pcNhip') return keyBodyOK_(duLieu) ? apiPcNhip_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcBang') return keyBodyOK_(duLieu) ? apiPcBang_() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcLenh') return keyBodyOK_(duLieu) ? apiPcLenh_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    // 13/10 tối: Máy trạm phải có mật khẩu (= mật khẩu Xác minh). pcDatMk chỉ bang-591 (SECRET); 3 action còn lại công khai nhưng tự gác bằng phiên.
+    if (duLieu && duLieu.action === 'pcDatMk') return keyBodyOK_(duLieu) ? apiPcDatMk_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcDangNhap') return apiPcDangNhap_(duLieu);
+    if (duLieu && duLieu.action === 'pcDangXuat') return apiPcDangXuat_(duLieu);
+    if (duLieu && duLieu.action === 'pcBangPh') return apiPcBangPh_(duLieu);
+    // 14/10: PC không khoá xin khoá — xin/lấy công khai (gác bằng mã PC tự sinh), duyệt cần SECRET (8591)
+    if (duLieu && duLieu.action === 'pcXinKhoa') return apiPcXinKhoa_(duLieu);
+    if (duLieu && duLieu.action === 'pcLayKhoa') return apiPcLayKhoa_(duLieu);
+    if (duLieu && duLieu.action === 'pcDuyetKhoa') return keyBodyOK_(duLieu) ? apiPcDuyetKhoa_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcDatGoi') return keyBodyOK_(duLieu) ? apiPcDatGoi_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcBoCai') return apiPcBoCai_(duLieu);   // 14/10 tải bộ cài có khoá trên máy bất kỳ (phải có phiên)
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
     // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu. BẮT BUỘC SECRET (trước đây public →
     // khách vô danh kích được GAS gọi WMS, "cho mượn" token nội bộ). Frontend hiện KHÔNG gọi (nút "Tải
@@ -458,6 +474,8 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pc_uidgr_edit') return tbOK_(duLieu) ? pcJson_(pcUidgrEdit_(duLieu)) : tbTuChoi_();   // khoá thiết bị + email @hasaki.vn (kiểm server-side trong PhysicalCountImport)
     if (duLieu && duLieu.action === 'sku_vision') return tbOK_(duLieu) ? phanHoiJson(skuVision_(duLieu)) : tbTuChoi_();   // khoá thiết bị + hạn mức ngày (email tự khai chỉ còn là nhãn, hết đường đốt quota ẩn danh)
     if (duLieu && duLieu.action === 'sku_ocr') return tbOK_(duLieu) ? phanHoiJson(skuOcr_(duLieu)) : tbTuChoi_();      // khoá thiết bị; OCR Drive miễn phí nhưng vẫn không cho người lạ mượn
+    // 14/10 form nghiệm thu checklist kiểm kê — chưa duyệt: CHỈ nhận khi kèm khoá quản trị (bản nội bộ). User duyệt → NT_MO = true.
+    if (duLieu && /^nt_(lay|tai|ghi)$/.test(String(duLieu.action || ''))) return (NT_MO ? tbOK_(duLieu) : keyBodyOK_(duLieu)) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -482,8 +500,9 @@ function doPostGoc_(e) {
     if (duLieu.hinhAnh && duLieu.hinhAnh.length > 0) {
       chuoiHinhAnh = luuHinhAnhLenDrive(duLieu.hinhAnh, duLieu.viTri).join('\n');
     }
+    var lucGhi = new Date();   // 12/10: cùng mốc này làm khoá nối sang sổ người gửi riêng tư
     sheet.appendRow([
-      new Date(),
+      lucGhi,
       duLieu.hienTrang || '',
       duLieu.viTri || '',
       duLieu.hangMuc || '',
@@ -497,6 +516,7 @@ function doPostGoc_(e) {
       // bước B1 rồi chuyển sang B1.1. Rỗng = giữ nguyên ở B1 cho người xác minh.
       duLieu.nhanVienViPham || ''
     ]);
+    try { ghiNguoiGui_(lucGhi, duLieu); } catch (eNG) { console.error('ghiNguoiGui_: ' + eNG); }   // hỏng sổ riêng không được làm hỏng biên bản
     return phanHoiJson({ status: 'success', message: 'Đã lưu dữ liệu thành công.' });
   } catch (err) {
     return phanHoiJson({ status: 'error', message: String(err) });
@@ -571,12 +591,54 @@ function xoaCo_(prop) {
   PropertiesService.getScriptProperties().deleteProperty(prop);
   return phanHoiJson({ status: 'success', cleared: true });
 }
+/* ===== SỔ NGƯỜI GỬI FORM 5S — RIÊNG TƯ (12/10/2026) ==========================================
+ * User: "mục đích chính là biết được ai gửi". Form gửi kèm mã máy (tb — máy đã cấp quyền OTP, GAS biết TÊN người tự
+ * khai lúc xin mã ở TB_DUYET) + tài khoản dashboard nếu có (hợp đồng hsk-nguoi-dung).
+ * TUYỆT ĐỐI KHÔNG ghi vào sheet WMS-5S-AUDIT (anyone:reader) — kể cả tab ẩn. Ghi vào MỘT FILE RIÊNG do script tự tạo
+ * (chủ = tài khoản deploy, không chia sẻ ai), id giữ ở Script Properties NGUOI_GUI_SHEET. Mã máy chỉ lưu 10 ký tự đầu
+ * (mã máy đủ dài là chìa khoá vào dashboard). Nối sang dòng biên bản bằng mốc giây "Ngày giờ ghi nhận" + vị trí. */
+function soNguoiGui_() {
+  var pp = PropertiesService.getScriptProperties(), id = pp.getProperty('NGUOI_GUI_SHEET'), ss = null;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create('5S-NGUOI-GUI (riêng tư — không chia sẻ)');
+    var sh0 = ss.getSheets()[0]; sh0.setName('NGUOI-GUI');
+    sh0.appendRow(['Lúc ghi (khoá nối)', 'Vị trí', 'Hạng mục', 'Người gửi (tên)', 'Mã NV', 'Tên máy (khai lúc xin OTP)', 'Mã máy (10 ký tự)', 'Thiết bị']);
+    sh0.setFrozenRows(1);
+    pp.setProperty('NGUOI_GUI_SHEET', ss.getId());
+  }
+  return ss.getSheets()[0];
+}
+function khoaNguoiGui_(luc, viTri) { var t = luc instanceof Date ? luc.getTime() : new Date(luc).getTime(); return Math.floor(t / 1000) + '|' + String(viTri || '').trim(); }
+function ghiNguoiGui_(luc, duLieu) {
+  var tb = String(duLieu.tb || ''), all = propsMemo_(), tenMay = '';
+  if (tb) {
+    if (tb === String(all.DEVICE_KEY || '')) tenMay = '(khoá chung quản trị)';
+    else { try { var dd = JSON.parse(all.TB_DUYET || '{}') || {}; tenMay = dd[tb] ? (dd[tb].ten || '(không tên)') : '(máy chưa duyệt)'; } catch (e) { } }
+  }
+  var ng = duLieu.nguoiGui || {};
+  soNguoiGui_().appendRow([luc, String(duLieu.viTri || '').trim(), String(duLieu.hangMuc || '').slice(0, 80),
+    String(ng.ten || '').slice(0, 60), String(ng.code || ng.ma || '').slice(0, 20), tenMay, tb ? tb.slice(0, 10) : '', String(duLieu.ua || '').slice(0, 120)]);
+}
+function timNguoiGui_(m, luc, viTri) {   // ±1 giây: phòng Sheets làm tròn mốc giờ khi đọc lại
+  var t = (luc instanceof Date ? luc.getTime() : new Date(luc).getTime());
+  for (var d = 0; d <= 1000; d += 1000) { var a = m[khoaNguoiGui_(t - d, viTri)] || m[khoaNguoiGui_(t + d, viTri)]; if (a) return a; }
+  return null;
+}
+/** Bảng tra khoá → người gửi (đọc 1 lần mỗi lượt pending, chỉ khi có dòng chờ; sổ chưa có → {}). */
+function bangNguoiGui_() {
+  var id = PropertiesService.getScriptProperties().getProperty('NGUOI_GUI_SHEET'); if (!id) return {};
+  var sh = SpreadsheetApp.openById(id).getSheets()[0], n = sh.getLastRow(); if (n < 2) return {};
+  var v = sh.getRange(Math.max(2, n - 2999), 1, Math.min(3000, n - 1), 7).getValues(), m = {};
+  for (var i = 0; i < v.length; i++) m[khoaNguoiGui_(v[i][0], v[i][1])] = { ten: String(v[i][3] || ''), ma: String(v[i][4] || ''), may: String(v[i][5] || ''), maMay: String(v[i][6] || '') };
+  return m;
+}
 function apiPendingData_() {
   var sheet = layHoacTaoSheet();
   var last = sheet.getLastRow();
   if (last < 2) return phanHoiJson({ status: 'success', rows: [] });
   var values = sheet.getRange(2, 1, last - 1, SO_COT).getValues();
-  var rows = [];
+  var rows = [], ngGui = null;   // 12/10 sổ người gửi riêng tư — chỉ đọc khi có dòng chờ
   for (var i = 0; i < values.length && rows.length < MAX_PENDING; i++) {
     var r = values[i], rowIndex = i + 2;
     var maTask = String(r[COL_MA_TASK - 1] || '').trim();
@@ -588,7 +650,8 @@ function apiPendingData_() {
        9 dòng tồn (7 dòng 03/09 + 2 dòng 13/08) → phản hồi quá nặng → chặng 2 googleusercontent 404
        rồi rơi về trang doGet mặc định → bộ đẩy tưởng "0 báo cáo" → tồn càng dày càng chết hẳn.
        Nay pending chỉ trả METADATA + anhIds; bộ đẩy lấy ảnh TỪNG FILE qua action 'anh' bên dưới. */
-    rows.push({ row: rowIndex, ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), maSanPham: String(r[COL_MA_SP - 1] || '').trim(), nhanVienViPham: String(r[COL_NV_VP - 1] || '').trim(), anhIds: layIdAnh_(String(r[4] || '')) });
+    if (ngGui === null) { try { ngGui = bangNguoiGui_(); } catch (eG) { ngGui = {}; } }
+    rows.push({ row: rowIndex, nguoiGui: timNguoiGui_(ngGui, r[0], r[2]), ngay: formatNgay(r[0]), hienTrang: String(r[1] || ''), viTri: String(r[2] || ''), hangMuc: hangMuc, thoiGianViPham: formatNgay(r[COL_TG_VI_PHAM - 1]), maSanPham: String(r[COL_MA_SP - 1] || '').trim(), nhanVienViPham: String(r[COL_NV_VP - 1] || '').trim(), anhIds: layIdAnh_(String(r[4] || '')) });
   }
   return phanHoiJson({ status: 'success', rows: rows });
 }
@@ -2300,6 +2363,217 @@ function prDon_(sh) {
 
 function phanHoiJson(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ===== MÁY TRẠM — ĐIỀU PHỐI N PC (12/10/2026 dựng, 13/10/2026 thêm lệnh dừng/tiếp tục + chuyển việc) =====
+ * Lưu trong Script Properties (không dùng Sheet → rẻ, không thêm tab), mọi ghi trong LockService:
+ *   PCNHIP_<máy>  = nhịp tim mới nhất (sức khoẻ + việc đang chạy + bản code). Giữ 7 ngày để dashboard thấy máy đã tắt.
+ *   PCLENH_<máy>  = { dung:bool, dungViec:[tên việc], luc, boi } — user bấm trên sub-tab «Máy trạm».
+ *   PCLEASE_<việc>= { may, hetHan } — khoá giữ việc (chống 2 máy chạy cùng một việc).
+ *   PCCHUYEN_<việc> = { tu, luc, sanSang } — việc bị dừng GIỮA CHỪNG trên máy <tu>; khi máy đó báo đã dừng hẳn
+ *                   (sanSang) thì máy được điều phối chọn chạy bù ngay, không chờ lịch kế.
+ * Bảng trả về cho điều phối chỉ gồm máy có nhịp ≤ PCNHIP_HET_HAN_PHUT (mặc định 30'), mỗi dòng mang lệnh dừng của máy đó. */
+function pcJson_(s) { try { return JSON.parse(s || 'null'); } catch (e) { return null; } }
+function pcLenhCua_(all, may) { var l = pcJson_(all['PCLENH_' + may]) || {}; return { dung: !!l.dung, dungViec: (l.dungViec instanceof Array ? l.dungViec : []), luc: l.luc || '', boi: l.boi || '' }; }
+function pcMang_(a, n) { return (a instanceof Array ? a.slice(0, n || 30).map(function (x) { return String(x).slice(0, 60); }) : []); }
+
+function apiPcNhip_(duLieu) {
+  var nhip = duLieu && duLieu.nhip;
+  if (!nhip || !nhip.may) return phanHoiJson({ status: 'error', message: 'Thieu nhip.may' });
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(5000); } catch (e) { return phanHoiJson({ status: 'error', message: 'Ban (lock)' }); }
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var hetHan = Number(props.getProperty('PCNHIP_HET_HAN_PHUT') || 30) * 60000;
+    var now = new Date().getTime();
+    // lúc đóng dấu bằng GIỜ MÁY CHỦ (không tin đồng hồ máy trạm)
+    var g = { may: String(nhip.may).slice(0, 60), ramTrongPct: Number(nhip.ramTrongPct) || 0, cpuPct: Number(nhip.cpuPct) || 0, yeu: !!nhip.yeu, diem: Number(nhip.diem) || 0,
+      nhan: Number(nhip.nhan) || 0, ramTongGB: Number(nhip.ramTongGB) || 0, diaTrongGB: (nhip.diaTrongGB == null ? null : Number(nhip.diaTrongGB)),
+      coKhoa: pcMang_(nhip.coKhoa, 20), dangChay: pcMang_(nhip.dangChay, 30), ban: String(nhip.ban || '').slice(0, 12),
+      viecGiao: pcMang_(nhip.viecGiao, 30), tatCaViec: pcMang_(nhip.tatCaViec, 40), luc: new Date().toISOString() };   // 13/10: PC tự tính việc được giao (dieu-phoi.mjs) → điện thoại xem không cần máy chủ 8591
+    props.setProperty('PCNHIP_' + g.may, JSON.stringify(g));
+    var all = props.getProperties(), bang = [], chuyen = [];
+    for (var k in all) {
+      if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') {
+        var v = pcJson_(all[k]); if (!v || !v.luc) { props.deleteProperty(k); continue; }
+        var tuoi = now - new Date(v.luc).getTime();
+        if (tuoi > 7 * 864e5) { props.deleteProperty(k); continue; }       // máy im 7 ngày → bỏ khỏi danh sách
+        if (tuoi <= hetHan) { var l = pcLenhCua_(all, v.may); v.dung = l.dung; v.dungViec = l.dungViec; bang.push(v); }
+      } else if (k.indexOf('PCCHUYEN_') === 0) {
+        var c = pcJson_(all[k]), viec = k.slice(9);
+        if (!c || now - Number(c.luc || 0) > 3 * 36e5) { props.deleteProperty(k); continue; }   // quá 3 giờ không ai nhận → bỏ (lịch kế lo)
+        // máy nguồn báo nhịp mới không còn việc đó (đã dừng hẳn) hoặc im > 3' → mới cho máy khác chạy bù (chống chạy đôi)
+        if (!c.sanSang) { var src = pcJson_(all['PCNHIP_' + c.tu]); if (!src || (src.dangChay || []).indexOf(viec) < 0 || now - new Date(src.luc).getTime() > 3 * 60000) { c.sanSang = true; props.setProperty(k, JSON.stringify(c)); } }
+        if (c.sanSang) chuyen.push({ viec: viec, tu: c.tu, luc: c.luc });
+      }
+    }
+    (nhip.daNhan instanceof Array ? nhip.daNhan : []).forEach(function (vc) { props.deleteProperty('PCCHUYEN_' + String(vc)); });   // máy nhận đã chạy bù → xoá
+    var lenhToi = pcLenhCua_(all, g.may);
+    // KHOÁ GIỮ VIỆC (atomic): máy đang bị dừng (cả máy hoặc riêng việc) thì không được giữ
+    var giuOK = null;
+    if (nhip.giuViec) {
+      var tv = String(nhip.giuViec), lk = 'PCLEASE_' + tv, ttl = Number(nhip.giuTTL || 600) * 1000;
+      var cur = pcJson_(props.getProperty(lk));
+      if (lenhToi.dung || lenhToi.dungViec.indexOf(tv) >= 0) giuOK = false;
+      else if (!cur || cur.may === g.may || now >= Number(cur.hetHan || 0)) { props.setProperty(lk, JSON.stringify({ may: g.may, hetHan: now + ttl })); giuOK = true; }
+      else giuOK = false;
+    }
+    if (nhip.traViec) { var tk = 'PCLEASE_' + String(nhip.traViec); var c2 = pcJson_(props.getProperty(tk)); if (c2 && c2.may === g.may) props.deleteProperty(tk); }
+    return phanHoiJson({ status: 'success', bang: bang, giuOK: giuOK, srvNow: now, lenh: lenhToi, chuyen: chuyen });
+  } finally { lock.releaseLock(); }
+}
+
+// Bảng cho dashboard — CHỈ ĐỌC: mọi máy (kể cả đã im), lệnh, khoá giữ việc, việc đang chờ chuyển.
+function apiPcBang_() {
+  var props = PropertiesService.getScriptProperties(), all = props.getProperties(), now = new Date().getTime();
+  var may = [], khoa = {}, chuyen = [], xin = [];
+  for (var k in all) {
+    if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') { var v = pcJson_(all[k]); if (v && v.may) { var l = pcLenhCua_(all, v.may); v.dung = l.dung; v.dungViec = l.dungViec; v.lenhLuc = l.luc; v.lenhBoi = l.boi; may.push(v); } }
+    else if (k.indexOf('PCLEASE_') === 0) { var c = pcJson_(all[k]); if (c && Number(c.hetHan) > now) khoa[k.slice(8)] = c; }
+    else if (k.indexOf('PCCHUYEN_') === 0) { var c3 = pcJson_(all[k]); if (c3) chuyen.push({ viec: k.slice(9), tu: c3.tu, luc: c3.luc, sanSang: !!c3.sanSang }); }
+    else if (k.indexOf('PCXIN_') === 0) { var x5 = pcJson_(all[k]); if (x5 && now - Number(x5.luc || 0) <= 30 * 60000) xin.push({ may: k.slice(6), maXN: x5.maXN, luc: x5.luc, daDuyet: !!x5.goi }); }   // 14/10 PC xin khoá (không trả gói)
+  }
+  return phanHoiJson({ status: 'success', may: may, khoa: khoa, chuyen: chuyen, xin: xin, srvNow: now, hetHanPhut: Number(props.getProperty('PCNHIP_HET_HAN_PHUT') || 30) });
+}
+
+/* 13/10 tối user: «Máy trạm ở mục Xác minh, dưới cùng — BUỘC PHẢI CÓ MẬT KHẨU mới xem được» (cả điện thoại, nơi không có máy chủ 8591).
+ * Mật khẩu = mật khẩu Xác minh. GAS KHÔNG giữ mật khẩu: mỗi lần đăng nhập Xác minh thành công trên laptop, bang-591 gửi
+ * {email, muối, băm SHA-256 lặp PC_VONG lần} qua pcDatMk (cần SECRET). Điện thoại đăng nhập → pcDangNhap kiểm băm → phiên 12 giờ
+ * (Script Properties chỉ giữ BĂM của phiên). Sai 5 lần / 10 phút / email → khoá 10 phút. Bảng chỉ trả qua pcBangPh (phải có phiên). */
+function pcBamMk_(mk, muoi, vong) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, muoi + ':' + mk, Utilities.Charset.UTF_8);
+  var sb = Utilities.newBlob(muoi).getBytes();
+  for (var i = 0; i < vong; i++) b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, b.concat(sb));
+  return b.map(function (x) { return ('0' + (x & 255).toString(16)).slice(-2); }).join('');
+}
+function pcHex_(s) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s, Utilities.Charset.UTF_8).map(function (x) { return ('0' + (x & 255).toString(16)).slice(-2); }).join(''); }
+function apiPcDatMk_(d) {   // SECRET (chỉ bang-591)
+  var email = String(d.email || '').trim().toLowerCase(), vong = Number(d.vong) || 0;
+  if (d.xoa) { var p0 = PropertiesService.getScriptProperties(), d0 = pcJson_(p0.getProperty('PCMK_DS')) || {}; delete d0[email]; p0.setProperty('PCMK_DS', JSON.stringify(d0)); return phanHoiJson({ status: 'success', daXoa: email }); }
+  if (!/^[^@\s]+@[^@\s]+$/.test(email) || !/^[0-9a-f]{32}$/.test(String(d.muoi || '')) || !/^[0-9a-f]{64}$/.test(String(d.bam || '')) || vong < 1000 || vong > 20000)
+    return phanHoiJson({ status: 'error', message: 'Thiếu/sai dữ liệu băm' });
+  var props = PropertiesService.getScriptProperties(), ds = pcJson_(props.getProperty('PCMK_DS')) || {};
+  ds[email] = { muoi: String(d.muoi), bam: String(d.bam), vong: vong, luc: new Date().toISOString() };
+  props.setProperty('PCMK_DS', JSON.stringify(ds));
+  return phanHoiJson({ status: 'success' });
+}
+function apiPcDangNhap_(d) {
+  var email = String(d.email || '').trim().toLowerCase(), mk = String(d.mk || '');
+  var cache = CacheService.getScriptCache(), kSai = 'pcmk_sai_' + pcHex_(email).slice(0, 16), sai = Number(cache.get(kSai) || 0);
+  if (sai >= 5) return phanHoiJson({ status: 'error', code: 429, message: 'Sai quá 5 lần — thử lại sau 10 phút' });
+  var props = PropertiesService.getScriptProperties(), tk = (pcJson_(props.getProperty('PCMK_DS')) || {})[email];
+  if (!tk) { cache.put(kSai, String(sai + 1), 600); return phanHoiJson({ status: 'error', code: 401, message: 'Sai email hoặc mật khẩu' + (Object.keys(pcJson_(props.getProperty('PCMK_DS')) || {}).length ? '' : ' (chưa đồng bộ: đăng nhập Xác minh trên laptop 1 lần)') }); }
+  if (pcBamMk_(mk, tk.muoi, tk.vong) !== tk.bam) { cache.put(kSai, String(sai + 1), 600); return phanHoiJson({ status: 'error', code: 401, message: 'Sai email hoặc mật khẩu' }); }
+  cache.remove(kSai);
+  var ph = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''), now = new Date().getTime(), het = now + 12 * 36e5, all = props.getProperties();
+  for (var k in all) if (k.indexOf('PCPHIEN_') === 0) { var p = pcJson_(all[k]); if (!p || Number(p.het) < now) props.deleteProperty(k); }   // dọn phiên hết hạn
+  props.setProperty('PCPHIEN_' + pcHex_(ph), JSON.stringify({ email: email, het: het }));
+  return phanHoiJson({ status: 'success', ph: ph, het: het, email: email });
+}
+function pcPhienOK_(ph) {
+  if (!/^[0-9a-f]{64}$/.test(String(ph || ''))) return null;
+  var p = pcJson_(PropertiesService.getScriptProperties().getProperty('PCPHIEN_' + pcHex_(String(ph))));
+  return p && Number(p.het) > new Date().getTime() ? p : null;
+}
+function apiPcDangXuat_(d) { if (/^[0-9a-f]{64}$/.test(String(d.ph || ''))) PropertiesService.getScriptProperties().deleteProperty('PCPHIEN_' + pcHex_(String(d.ph))); return phanHoiJson({ status: 'success' }); }
+
+// Bảng máy trạm cho dashboard — PHẢI có phiên (pcDangNhap). Không trả tên khoá .env (coKhoa) — chỉ cờ coCamera.
+// Dừng/tiếp tục KHÔNG có ở đây (vẫn chỉ qua máy chủ 8591 + đăng nhập Xác minh).
+function apiPcBangPh_(d) {
+  if (!pcPhienOK_(d.ph)) return phanHoiJson({ status: 'error', code: 401, message: 'Phiên đăng nhập đã hết — đăng nhập lại.' });
+  var all = PropertiesService.getScriptProperties().getProperties(), now = new Date().getTime(), may = [], chuyen = [];
+  for (var k in all) {
+    if (k.indexOf('PCNHIP_') === 0 && k !== 'PCNHIP_HET_HAN_PHUT') {
+      var v = pcJson_(all[k]); if (!v || !v.may) continue; var l = pcLenhCua_(all, v.may);
+      may.push({ may: v.may, luc: v.luc, ramTrongPct: v.ramTrongPct, cpuPct: v.cpuPct, diaTrongGB: v.diaTrongGB, yeu: v.yeu, diem: v.diem, nhan: v.nhan, ramTongGB: v.ramTongGB, ban: v.ban,
+        coCamera: (v.coKhoa || []).indexOf('TOPREVIEW_USER') >= 0, dangChay: v.dangChay || [], viecGiao: v.viecGiao || [], tatCaViec: v.tatCaViec || [], dung: l.dung, dungViec: l.dungViec, lenhBoi: l.dung ? l.boi : '' });
+    } else if (k.indexOf('PCCHUYEN_') === 0) { var c = pcJson_(all[k]); if (c) chuyen.push({ viec: k.slice(9), tu: c.tu, luc: c.luc, sanSang: !!c.sanSang }); }
+  }
+  return phanHoiJson({ status: 'success', may: may, chuyen: chuyen, srvNow: now });
+}
+
+/* 14/10 user cài thử trên PC bằng bộ cài tải NGAY TRÊN PC (bản công khai, không khoá) → «.env CON TRONG». Luồng XIN KHOÁ – DUYỆT:
+ *  PC (không khoá) → pcXinKhoa {may, ma(32 hex ngẫu nhiên PC tự sinh)} → lưu PCXIN_<máy> = {bamMa, luc}; màn PC hiện MÃ XÁC NHẬN = 4 ký tự
+ *  đầu của sha256(ma). Laptop (mục Máy trạm, qua 8591 + SECRET) thấy yêu cầu + cùng mã → bấm Duyệt → pcDuyetKhoa {may, goi(base64 .env)}.
+ *  PC hỏi pcLayKhoa {may, ma} mỗi 10 s: sha256(ma) khớp mới trả gói rồi XOÁ ngay. Hết hạn 30' tự bỏ. Không ai lấy được gói nếu không có ma. */
+/* 14/10 user: «tôi tải ngay trên nút ở audit-dc về cài — tóm gọn trong 1 lần cài». Nút trên máy KHÔNG phải laptop: đăng nhập
+ * (pcDangNhap, cùng mật khẩu Xác minh) → pcBoCai {ph} trả gói khoá → trang chèn vào CAI-PC-1LAN.bat → tải về, chạy 1 lần là xong.
+ * Gói do bang-591 (laptop) gửi lên qua pcDatGoi (SECRET) lúc khởi động + mỗi lần đăng nhập Xác minh — luôn theo .env laptop. */
+function apiPcDatGoi_(d) {   // SECRET
+  if (!/^[A-Za-z0-9+\/=]{20,4000}$/.test(String(d.goi || ''))) return phanHoiJson({ status: 'error', message: 'Gói khoá hỏng' });
+  PropertiesService.getScriptProperties().setProperty('PCGOI', JSON.stringify({ goi: String(d.goi), luc: new Date().toISOString() }));
+  return phanHoiJson({ status: 'success' });
+}
+function apiPcBoCai_(d) {
+  /* 14/10 user CHỌN «bỏ hẳn đăng nhập cho mọi máy» (đã được nêu rủi ro: lộ link audit-dc = lộ khoá GAS + mật khẩu top-review → khi đó
+     phải đổi khoá GAS + mật khẩu top-review). Không còn gác phiên ở đây. */
+  var g = pcJson_(PropertiesService.getScriptProperties().getProperty('PCGOI'));
+  if (!g || !g.goi) return phanHoiJson({ status: 'error', code: 404, message: 'Chưa có gói khoá — mở máy chủ Xác minh trên laptop 1 lần.' });
+  return phanHoiJson({ status: 'success', goi: g.goi });
+}
+function apiPcXinKhoa_(d) {
+  var may = String(d.may || '').slice(0, 60), ma = String(d.ma || '');
+  if (!/^[\w.-]{1,60}$/.test(may) || !/^[0-9a-f]{32}$/.test(ma)) return phanHoiJson({ status: 'error', message: 'Thiếu tên máy / mã' });
+  var props = PropertiesService.getScriptProperties(), all = props.getProperties(), now = new Date().getTime(), dem = 0;
+  for (var k in all) if (k.indexOf('PCXIN_') === 0) { var x = pcJson_(all[k]); if (!x || now - Number(x.luc || 0) > 30 * 60000) props.deleteProperty(k); else dem++; }
+  if (dem >= 10 && !all['PCXIN_' + may]) return phanHoiJson({ status: 'error', message: 'Quá nhiều yêu cầu đang chờ' });
+  var bam = pcHex_(ma);
+  props.setProperty('PCXIN_' + may, JSON.stringify({ bamMa: bam, maXN: bam.slice(0, 4).toUpperCase(), luc: now }));
+  return phanHoiJson({ status: 'success', maXN: bam.slice(0, 4).toUpperCase() });
+}
+function apiPcDuyetKhoa_(d) {   // SECRET (8591, người bấm Duyệt / Từ chối trên Máy trạm)
+  var may = String(d.may || ''), props = PropertiesService.getScriptProperties(), x = pcJson_(props.getProperty('PCXIN_' + may));
+  if (!x) return phanHoiJson({ status: 'error', message: 'Không còn yêu cầu của máy này (hết hạn 30 phút?)' });
+  if (!d.dongY) { props.deleteProperty('PCXIN_' + may); return phanHoiJson({ status: 'success', tuChoi: true }); }
+  if (!/^[A-Za-z0-9+\/=]{20,4000}$/.test(String(d.goi || ''))) return phanHoiJson({ status: 'error', message: 'Gói khoá hỏng' });
+  x.goi = String(d.goi); x.duyetLuc = new Date().getTime(); props.setProperty('PCXIN_' + may, JSON.stringify(x));
+  return phanHoiJson({ status: 'success' });
+}
+function apiPcLayKhoa_(d) {
+  var may = String(d.may || ''), props = PropertiesService.getScriptProperties(), x = pcJson_(props.getProperty('PCXIN_' + may));
+  if (!x || !/^[0-9a-f]{32}$/.test(String(d.ma || '')) || pcHex_(String(d.ma)) !== x.bamMa) return phanHoiJson({ status: 'error', code: 404, message: 'Không có yêu cầu khớp' });
+  if (new Date().getTime() - Number(x.luc || 0) > 30 * 60000) { props.deleteProperty('PCXIN_' + may); return phanHoiJson({ status: 'error', code: 410, message: 'Yêu cầu hết hạn 30 phút' }); }
+  if (!x.goi) return phanHoiJson({ status: 'success', cho: true });
+  props.deleteProperty('PCXIN_' + may);   // lấy 1 lần rồi xoá
+  return phanHoiJson({ status: 'success', goi: x.goi });
+}
+
+// Lệnh từ dashboard: { may, viec?(bỏ trống = cả máy), dung:true|false, boi }
+// Dừng → nhả khoá giữ việc của máy đó (máy khác nhận ngay) + đánh dấu chuyển các việc nó ĐANG chạy.
+function apiPcLenh_(duLieu) {
+  var may = String(duLieu.may || '').slice(0, 60), viec = String(duLieu.viec || '').slice(0, 60), dung = !!duLieu.dung;
+  if (!may) return phanHoiJson({ status: 'error', message: 'Thieu may' });
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(5000); } catch (e) { return phanHoiJson({ status: 'error', message: 'Ban (lock)' }); }
+  try {
+    var props = PropertiesService.getScriptProperties(), all = props.getProperties(), now = new Date().getTime();
+    if (duLieu.xoa) {   // gỡ máy đã ngừng hẳn khỏi danh sách (máy còn sống gửi nhịp kế là tự hiện lại)
+      props.deleteProperty('PCNHIP_' + may); props.deleteProperty('PCLENH_' + may);
+      return phanHoiJson({ status: 'success', daXoa: may });
+    }
+    var l = pcLenhCua_(all, may);
+    if (viec) { var i = l.dungViec.indexOf(viec); if (dung && i < 0) l.dungViec.push(viec); if (!dung && i >= 0) l.dungViec.splice(i, 1); }
+    else l.dung = dung;
+    l.luc = new Date().toISOString(); l.boi = String(duLieu.boi || '').slice(0, 80);
+    if (!l.dung && !l.dungViec.length) props.deleteProperty('PCLENH_' + may); else props.setProperty('PCLENH_' + may, JSON.stringify(l));
+    var daChuyen = [];
+    if (dung) {
+      var hb = pcJson_(all['PCNHIP_' + may]) || {};
+      for (var k in all) {
+        if (k.indexOf('PCLEASE_') !== 0) continue;
+        var tv = k.slice(8), c = pcJson_(all[k]);
+        if (c && c.may === may && (!viec || viec === tv)) props.deleteProperty(k);
+      }
+      (hb.dangChay || []).forEach(function (tv) {
+        if (viec && viec !== tv) return;
+        props.setProperty('PCCHUYEN_' + tv, JSON.stringify({ tu: may, luc: now, sanSang: false })); daChuyen.push(tv);
+      });
+    } else {
+      // tiếp tục: huỷ việc chờ chuyển từ máy này (nếu chưa ai nhận) — để lịch tự nhiên quyết
+      for (var k2 in all) { if (k2.indexOf('PCCHUYEN_') !== 0) continue; var c4 = pcJson_(all[k2]); if (c4 && c4.tu === may && (!viec || k2.slice(9) === viec)) props.deleteProperty(k2); }
+    }
+    return phanHoiJson({ status: 'success', lenh: l, daChuyen: daChuyen });
+  } finally { lock.releaseLock(); }
 }function testQuyenFetch() {
   var r = UrlFetchApp.fetch('https://www.google.com');
   Logger.log('HTTP ' + r.getResponseCode());
@@ -2910,3 +3184,174 @@ function apiDc(duLieu) {
   }
   return phanHoiJson({ status: 'error', message: 'Lệnh dc lạ' });
 }
+
+/* ===== NGHIỆM THU CHECKLIST CHUẨN BỊ KIỂM KÊ (14/10/2026) ============================================
+ * Form kiemsoatkho/nghiem-thu.html ghi ảnh/clip/ghi chú vào cột "Phản hồi kết quả nghiệm thu checklist"
+ * của sheet NT_SHEET_ID (letam0317 sửa được — GAS chạy dưới tài khoản đó).
+ *
+ * MỖI LẦN PHẢN HỒI = 1 MỤC {id, luc, ai, ghiChu, tep:[{id,loai}], sua?} lưu ở Script Properties
+ * (khoá NT2|<md5 sheetId+nội dung Checklist>) → xem lại / sửa / bổ sung / xoá được từng mục.
+ * Ô cột G được DỰNG LẠI từ danh sách mục sau mỗi lần ghi; chữ người khác gõ TAY vào ô (không do form ghi)
+ * được giữ nguyên ở đầu ô ("tay") — nhận ra nhờ lưu kèm đoạn chữ form đã dựng lần trước ("dung").
+ *   nt_lay : danh sách dòng + mục của từng dòng (1 lượt getProperties — không gọi Drive)
+ *   nt_tai : MỘT tệp/lượt lên thư mục NT_THU_MUC → {id, ky}; ky = HMAC(id) để nt_ghi tin tệp mà KHÔNG
+ *            phải hỏi Drive (bản cũ getFileById+getParents mỗi tệp ~0,3–0,5 s)
+ *   nt_ghi : {dong, checklist, muc:{id, ghiChu, tep}} thêm/sửa theo muc.id · {…, xoa:1} xoá mục; tệp bị bỏ ra
+ *            khỏi mục thì chuyển vào Thùng rác Drive (còn khôi phục được 30 ngày).
+ * Gác: chưa duyệt (NT_MO=false) chỉ nhận khoá quản trị; duyệt → khoá thiết bị tbOK_ như các lệnh khác. */
+var NT_MO = true;   // 14/10 user DUYỆT — form nghiệm thu mở cho máy được cấp quyền (tbOK_)
+var NT_SHEET_ID = '1MtXq8zOTZ610BWna-7m1yVY7cDIdlNtCKn9R6gqh9o4';
+var NT_GID = 0;
+var NT_THU_MUC = 'NGHIEM-THU-CHECKLIST-KIEMKE';
+var NT_TRAN_TEP = 38 * 1024 * 1024;   // ~38MB thật ≈ 51MB base64 — sát trần payload doPost
+
+function apiNghiemThu_(d) {
+  try {
+    /* sheetId khác chỉ cho KHOÁ QUẢN TRỊ — để QC ghi thử vào sheet nháp, không đụng sheet thật. */
+    var id = (d.sheetId && keyBodyOK_(d)) ? String(d.sheetId) : NT_SHEET_ID;
+    if (d.action === 'nt_lay') return ntLay_(id);
+    if (d.action === 'nt_tai') return ntTai_(d);
+    return ntGhi_(d, id);
+  } catch (e) { return { status: 'error', message: String((e && e.message) || e) }; }
+}
+function ntTab_(id) {
+  var ss = SpreadsheetApp.openById(id), ds = ss.getSheets();
+  if (id === NT_SHEET_ID) for (var i = 0; i < ds.length; i++) if (ds[i].getSheetId() === NT_GID) return ds[i];
+  return ds[0];
+}
+/* Tìm cột theo TIÊU ĐỀ (dòng 1) — người dùng thêm/đổi thứ tự cột thì form vẫn ghi đúng chỗ. */
+function ntCot_(tieuDe) {
+  var tim = function (re, mac) { for (var i = 0; i < tieuDe.length; i++) if (re.test(String(tieuDe[i]))) return i + 1; return mac; };
+  return {
+    stt: tim(/^\s*STT\s*$/i, 1), cv: tim(/^\s*Công việc/i, 2), ck: tim(/^\s*Checklist/i, 4),
+    td: tim(/phản hồi tiến độ/i, 5), yc: tim(/bốc mẫu/i, 6), ph: tim(/Phản hồi kết quả nghiệm thu/i, 7)
+  };
+}
+function ntKhoa_(id, ck) {
+  return 'NT2|' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, id + '|' + String(ck).trim(), Utilities.Charset.UTF_8)).slice(0, 22);
+}
+function ntKy_(fileId) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(String(fileId), 'nt|' + SECRET)).slice(0, 16);
+}
+function ntDocBan_(raw) { try { var o = JSON.parse(raw || '{}'); return { muc: o.muc || [], dung: o.dung || '' }; } catch (e) { return { muc: [], dung: '' }; } }
+function ntLink_(t) { return 'https://drive.google.com/file/d/' + t.id + '/view'; }
+/* Phần chữ form dựng cho ô G (nhãn Ảnh n / Clip n mang link). */
+function ntDung_(muc) {
+  var txt = '', link = [];
+  muc.forEach(function (m, i) {
+    if (i) txt += '\n';
+    txt += '[' + m.luc + ' · ' + m.ai + (m.sua ? ' · sửa ' + m.sua : '') + ']' + (m.ghiChu ? ' ' + m.ghiChu : '');
+    var a = 0, c = 0;
+    (m.tep || []).forEach(function (t, j) {
+      txt += j === 0 ? '\n' : ' · ';
+      var nhan = t.loai === 'video' ? 'Clip ' + (++c) : 'Ảnh ' + (++a);
+      link.push([txt.length, txt.length + nhan.length, ntLink_(t)]); txt += nhan;
+    });
+  });
+  return { txt: txt, link: link };
+}
+/* Chữ gõ tay trong ô = ô hiện tại bỏ đi đoạn form dựng lần trước. */
+function ntTachTay_(cuText, dung) {
+  if (!dung) return { tay: cuText, dau: true };
+  if (cuText === dung) return { tay: '', dau: true };
+  var k = cuText.lastIndexOf(dung);
+  if (k >= 0 && k + dung.length === cuText.length) return { tay: cuText.slice(0, k).replace(/\n+$/, ''), dau: true };
+  if (k >= 0) return { tay: (cuText.slice(0, k) + cuText.slice(k + dung.length)).replace(/^\n+|\n+$/g, ''), dau: false };
+  return { tay: cuText, dau: true };   // ai đó sửa tay cả đoạn form → giữ nguyên làm chữ tay, không mất gì
+}
+function ntLay_(id) {
+  var sh = ntTab_(id), n = sh.getLastRow(), m = sh.getLastColumn();
+  if (n < 2) return { status: 'success', ten: sh.getParent().getName(), dong: [] };
+  var v = sh.getRange(1, 1, n, m).getDisplayValues(), c = ntCot_(v[0]), out = [], stt = '', cv = '';
+  var all = PropertiesService.getScriptProperties().getProperties();
+  for (var r = 1; r < n; r++) {
+    var row = v[r], ck = String(row[c.ck - 1] || '').trim(), cvDong = String(row[c.cv - 1] || '').trim();
+    if (String(row[c.stt - 1] || '').trim()) { stt = String(row[c.stt - 1]).trim(); cv = cvDong; }
+    else if (cvDong) cv = cvDong;
+    if (!ck) continue;   // dòng không có nội dung checklist thì không có gì để nghiệm thu (và nội dung là khoá)
+    var b = ntDocBan_(all[ntKhoa_(id, ck)]), ph = String(row[c.ph - 1] || '').trim();
+    out.push({ dong: r + 1, stt: stt, congViec: cv, checklist: ck, tienDo: String(row[c.td - 1] || '').trim(),
+      yeuCau: String(row[c.yc - 1] || '').trim(), muc: b.muc, tay: ntTachTay_(ph, b.dung).tay });
+  }
+  return { status: 'success', ten: sh.getParent().getName(), dong: out };
+}
+function ntThuMuc_() {
+  var sp = PropertiesService.getScriptProperties(), id = sp.getProperty('NT_THU_MUC_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* bị xoá → tìm/tạo lại */ } }
+  var it = DriveApp.getFoldersByName(NT_THU_MUC), f = it.hasNext() ? it.next() : DriveApp.createFolder(NT_THU_MUC);
+  sp.setProperty('NT_THU_MUC_ID', f.getId()); return f;
+}
+function ntTai_(d) {
+  var mime = String(d.mime || '').split(';')[0];
+  if (!/^(image|video)\//.test(mime)) return { status: 'error', message: 'Chỉ nhận ảnh hoặc clip (' + mime + ')' };
+  var b64 = String(d.base64 || ''), k = b64.indexOf('base64,');
+  if (k >= 0) b64 = b64.slice(k + 7);
+  if (!b64) return { status: 'error', message: 'Tệp rỗng' };
+  if (b64.length * 3 / 4 > NT_TRAN_TEP) return { status: 'error', message: 'Tệp vượt ' + Math.round(NT_TRAN_TEP / 1048576) + 'MB' };
+  var dong = Math.max(0, parseInt(d.dong, 10) || 0);
+  var ten = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss') + '_dong' + dong + '_' + String(d.ten || 'tep').replace(/[^\w.\-]+/g, '_').slice(-60);
+  var f = ntThuMuc_().createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, ten));
+  /* Cùng khuôn bằng chứng 5S: ai có link mới xem được — người đọc sheet không có quyền Drive của letam0317. */
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) { }
+  return { status: 'success', id: f.getId(), ky: ntKy_(f.getId()), loai: /^video/.test(mime) ? 'video' : 'image' };
+}
+function ntGhi_(d, id) {
+  var ckGui = String(d.checklist || '').trim(), mu = d.muc || {}, mid = String(mu.id || '').slice(0, 40);
+  if (!ckGui) return { status: 'error', message: 'Thiếu nội dung checklist' };
+  if (!/^[\w-]{6,40}$/.test(mid)) return { status: 'error', message: 'Thiếu mã mục' };
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var sp = PropertiesService.getScriptProperties(), khoa = ntKhoa_(id, ckGui), ban = ntDocBan_(sp.getProperty(khoa));
+    var vt = -1; for (var i = 0; i < ban.muc.length; i++) if (ban.muc[i].id === mid) vt = i;
+    var cu = vt >= 0 ? ban.muc[vt] : null, tepCu = {}, boTep = [];
+    (cu ? cu.tep : []).forEach(function (t) { tepCu[t.id] = t; });
+    if (d.xoa) {
+      if (!cu) return ntTraVe_(d, id, ckGui, ban);   // đã xoá rồi (thử lại) → coi như xong
+      boTep = cu.tep.map(function (t) { return t.id; }); ban.muc.splice(vt, 1);
+    } else {
+      var ghiChu = String(mu.ghiChu || '').trim().slice(0, 2000), tep = [];
+      (mu.tep || []).slice(0, 30).forEach(function (t) {
+        var fid = String(t.id || '');
+        if (tepCu[fid]) { tep.push(tepCu[fid]); delete tepCu[fid]; return; }
+        /* Tệp MỚI phải mang chữ ký do nt_tai cấp — không cho mượn form gắn link Drive bất kỳ vào sheet. */
+        if (!fid || String(t.ky || '') !== ntKy_(fid)) throw new Error('Tệp không do form tải lên');
+        tep.push({ id: fid, loai: t.loai === 'video' ? 'video' : 'image' });
+      });
+      if (!ghiChu && !tep.length) return { status: 'error', message: 'Chưa có ghi chú hay ảnh/clip nào' };
+      boTep = Object.keys(tepCu);
+      var gio = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM HH:mm');
+      if (cu) { cu.ghiChu = ghiChu; cu.tep = tep; if (cu.luc !== gio) cu.sua = gio; }
+      else {
+        var tenMay = '';
+        try { var dd = JSON.parse(propsMemo_().TB_DUYET || '{}') || {}; tenMay = dd[String(d.tb || '')] ? String(dd[String(d.tb)].ten || '') : ''; } catch (e) { }
+        var ng = d.nguoiGui || {};
+        ban.muc.push({ id: mid, luc: gio, ai: String(ng.ten || '').trim().slice(0, 60) || tenMay || 'không rõ', ghiChu: ghiChu, tep: tep });
+      }
+    }
+    /* Ô G: chữ gõ tay (nếu có) + đoạn dựng từ các mục. Chỉ đọc/ghi ĐÚNG 1 ô cần đổi. */
+    var sh = ntTab_(id), n = sh.getLastRow(), c = ntCot_(sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]);
+    var ck = sh.getRange(1, c.ck, n, 1).getDisplayValues(), dong = parseInt(d.dong, 10) || 0;
+    if (!(dong >= 2 && dong <= n && String(ck[dong - 1][0]).trim() === ckGui)) {
+      dong = 0;
+      for (var r = 1; r < n; r++) if (String(ck[r][0]).trim() === ckGui) { dong = r + 1; break; }
+    }
+    if (!dong) return { status: 'error', message: 'Không còn thấy dòng checklist này trên sheet (đã bị sửa/xoá?) — tải lại danh sách.' };
+    var o = sh.getRange(dong, c.ph), rt = o.getRichTextValue(), cuText = rt ? rt.getText() : String(o.getDisplayValue() || '');
+    var tach = ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), lech = tach.tay ? tach.tay.length + (dung.txt ? 1 : 0) : 0;
+    var b = SpreadsheetApp.newRichTextValue().setText(tach.tay + (tach.tay && dung.txt ? '\n' : '') + dung.txt);
+    if (rt && tach.tay && tach.dau) rt.getRuns().forEach(function (run) {   // giữ định dạng + link phần gõ tay
+      var s = run.getStartIndex(), e = Math.min(run.getEndIndex(), tach.tay.length);
+      if (e <= s) return;
+      b.setTextStyle(s, e, run.getTextStyle()); if (run.getLinkUrl()) b.setLinkUrl(s, e, run.getLinkUrl());
+    });
+    dung.link.forEach(function (l) { b.setLinkUrl(lech + l[0], lech + l[1], l[2]); });
+    o.setRichTextValue(b.build());
+    ban.dung = dung.txt;
+    if (ban.muc.length) sp.setProperty(khoa, JSON.stringify(ban)); else sp.deleteProperty(khoa);
+    SpreadsheetApp.flush();
+    lock.releaseLock(); lock = null;
+    boTep.forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) { } });   // ngoài khoá — chậm nhưng không chặn ai
+    return { status: 'success', dong: dong, muc: ban.muc, tay: tach.tay };
+  } finally { if (lock) lock.releaseLock(); }
+}
+function ntTraVe_(d, id, ck, ban) { return { status: 'success', dong: parseInt(d.dong, 10) || 0, muc: ban.muc, tay: null }; }

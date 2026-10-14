@@ -24,14 +24,16 @@ const SAI_TOI_DA = 5, CUA_SAI = 10 * 60e3;
 const doc = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return d; } };
 const ghi = (f, o) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f + ".tmp", JSON.stringify(o, null, 1)); fs.renameSync(f + ".tmp", f); };
 const bam = (t) => crypto.createHash("sha256").update(t).digest("hex");
-const chuan = (e) => String(e || "").trim().toLowerCase();
+/* 14/10 user: «không cần @hasaki.vn — theo dạng "tamlc" là được» ⇒ ID = phần trước @, chữ thường. Tệp cũ khoá theo email → tự đổi khoá 1 lần. */
+const chuan = (e) => String(e || "").trim().toLowerCase().replace(/@.*$/, "");
+{ const ds = doc(TK, null); if (ds && Object.keys(ds).some((k) => k.includes("@"))) { const moi = {}; for (const [k, v] of Object.entries(ds)) moi[chuan(k)] = moi[chuan(k)] || v; ghi(TK, moi); } }
 
 function bamMatKhau(mk, muoi) { return crypto.scryptSync(String(mk), Buffer.from(muoi, "hex"), 64, { N: 16384, r: 8, p: 1 }).toString("hex"); }
 
 export function taoTaiKhoan(email, mk) {
   email = chuan(email);
-  if (!/^[^@\s]+@[^@\s]+$/.test(email)) throw new Error("email không hợp lệ");
-  if (String(mk || "").length < 8) throw new Error("mật khẩu cần ít nhất 8 ký tự");
+  if (!/^[a-z0-9._-]+$/.test(email)) throw new Error("ID không hợp lệ (chữ thường, số, . _ -)");
+  if (String(mk || "").length < 4) throw new Error("mật khẩu cần ít nhất 4 ký tự");   // 14/10 khớp tài khoản chung (Apps Script) — user tự chọn mật khẩu
   const ds = doc(TK, {}); const muoi = crypto.randomBytes(16).toString("hex");
   ds[email] = { muoi, bam: bamMatKhau(mk, muoi), luc: new Date().toISOString() };
   ghi(TK, ds);
@@ -46,7 +48,7 @@ export function dangNhap(email, mk) {
   if (sai.length >= SAI_TOI_DA) return { loi: "Sai quá " + SAI_TOI_DA + " lần — thử lại sau " + Math.ceil((CUA_SAI - (now - sai[0])) / 60e3) + " phút", code: 429 };
   const tk = doc(TK, {})[email];
   const dung = tk && crypto.timingSafeEqual(Buffer.from(bamMatKhau(mk, tk.muoi), "hex"), Buffer.from(tk.bam, "hex"));
-  if (!dung) { sai.push(now); SAI.set(email, sai); return { loi: "Sai email hoặc mật khẩu", code: 401 }; }
+  if (!dung) { sai.push(now); SAI.set(email, sai); return { loi: "Sai tài khoản hoặc mật khẩu", code: 401 }; }
   SAI.delete(email);
   const phien = crypto.randomBytes(32).toString("hex");
   const p = doc(PH, {}); for (const k of Object.keys(p)) if (p[k].het < now) delete p[k];
@@ -70,6 +72,15 @@ export function phienQC() {
   const p = doc(PH, {}); for (const k of Object.keys(p)) if (p[k].het < now) delete p[k];
   p[bam(phien)] = { email, het: now + 3600e3, qc: 1 }; ghi(PH, p); DEM = null;
   return phien;
+}
+
+/* 14/10 tài khoản chung audit-dc (Apps Script tk_*): bang-591 hỏi tk_toi xong thì cấp phiên máy chủ cho ID đó.
+   chiXem = quyền Xác minh «chỉ xem» → bang-591 chặn mọi lệnh ghi (POST) của phiên này. */
+export function taoPhienTk(id, chiXem) {
+  const phien = crypto.randomBytes(32).toString("hex"), now = Date.now();
+  const p = doc(PH, {}); for (const k of Object.keys(p)) if (p[k].het < now) delete p[k];
+  p[bam(phien)] = { email: chuan(id), het: now + HAN_PHIEN, tk: 1, chiXem: !!chiXem }; ghi(PH, p); DEM = null;
+  return { phien, email: chuan(id), het: now + HAN_PHIEN };
 }
 
 export function dangXuat(phien) {

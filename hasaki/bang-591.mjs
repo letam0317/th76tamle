@@ -22,7 +22,7 @@ import fs from "node:fs"; import path from "node:path"; import http from "node:h
 import "dotenv/config";
 import { chuanTuSau } from "./tu-ngu.mjs";
 import { docSo, TEN_BO } from "./so-tac-gia.mjs";
-import { dangNhap, kiemPhien, dangXuat } from "./xacminh-dang-nhap.mjs";   // 12/10 user: phần Xác minh phải có tài khoản + mật khẩu   // 12/10 sổ tác giả: cò/script nào đã tạo phiếu · bình luận · ảnh (chỉ đọc tệp trên máy)
+import { dangNhap, kiemPhien, dangXuat, taoPhienTk } from "./xacminh-dang-nhap.mjs";   // 12/10 user: phần Xác minh phải có tài khoản + mật khẩu   // 12/10 sổ tác giả: cò/script nào đã tạo phiếu · bình luận · ảnh (chỉ đọc tệp trên máy)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
@@ -296,6 +296,34 @@ async function quyDinh() {
 /* 13/10 user: sub-tab «Máy trạm» — các PC + nhịp tim + sức khoẻ (RAM/CPU/ổ đĩa) + việc đang làm, bấm dừng/tiếp tục; dừng thì
    điều phối tự chuyển việc sang PC khác. Nguồn: GAS pcBang (Script Properties, 0 lượt gọi work/wms/hr). Ai được giao việc nào
    tính bằng CHÍNH dieu-phoi.mjs + cai-pc/dieu-phoi.json mà các PC dùng ⇒ màn hình nói đúng điều PC sẽ làm. */
+/* 13/10 tối user: «Máy trạm … buộc phải có mật khẩu mới xem được» (cả điện thoại). Mật khẩu = mật khẩu Xác minh; đăng nhập đúng ở đây
+   thì gửi lên GAS BĂM (muối mới + SHA-256 lặp 3000 lần — khớp pcBamMk_ trong google-script.gs), không bao giờ gửi mật khẩu. */
+function dongBoMkGas(email, mk) {
+  (async () => {
+    const crypto = await import("node:crypto"), VONG = 3000, muoi = crypto.randomBytes(16).toString("hex"), sb = Buffer.from(muoi, "utf8");
+    let b = crypto.createHash("sha256").update(muoi + ":" + mk, "utf8").digest();
+    for (let i = 0; i < VONG; i++) b = crypto.createHash("sha256").update(Buffer.concat([b, sb])).digest();
+    const { gasPost } = await import("./session-rules.js");
+    const j = await gasPost({ action: "pcDatMk", key: process.env.APPSCRIPT_KEY, email, muoi, bam: b.toString("hex"), vong: VONG }, () => {}, "pcDatMk");
+    log(j && j.status === "success" ? "đã đồng bộ mật khẩu Máy trạm (băm) lên GAS: " + email : "đồng bộ mật khẩu Máy trạm LỖI: " + JSON.stringify(j).slice(0, 120));
+    dayGoiGas();
+  })().catch((e) => log("đồng bộ mật khẩu Máy trạm LỖI: " + e.message));
+}
+function dayGoiGas() {
+  (async () => {
+    const { b64, so } = goiKhoaB64(); if (!so) return;
+    const { gasPost } = await import("./session-rules.js");
+    const j = await gasPost({ action: "pcDatGoi", key: process.env.APPSCRIPT_KEY, goi: b64 }, () => {}, "pcDatGoi");
+    log(j && j.status === "success" ? "đã gửi gói " + so + " khoá cho bộ cài PC lên GAS" : "gửi gói khoá LỖI: " + JSON.stringify(j).slice(0, 120));
+  })().catch((e) => log("gửi gói khoá LỖI: " + e.message));
+}
+// gói khoá cho PC (base64 "KEY=VALUE" mỗi dòng) — các khoá việc trong dieu-phoi.json cần, lấy từ .env laptop. Dùng chung: tải bộ cài + duyệt PC xin khoá
+function goiKhoaB64() {
+  const cfg = docJ(path.join(DIR, "cai-pc", "dieu-phoi.json"), { viec: [] });
+  const ten = [...new Set(cfg.viec.flatMap((v) => v.envKeys || []).concat(["APPSCRIPT_URL_DUPHONG"]))];
+  const dong = ten.filter((k) => (process.env[k] || "").trim()).map((k) => k + "=" + process.env[k].trim());
+  return { b64: Buffer.from(dong.join("\n"), "utf8").toString("base64"), so: dong.length };
+}
 let MT = null, MT_DANG = null;
 function mayTram() {
   if (MT && Date.now() - MT.at < 15e3) return Promise.resolve(MT.data);
@@ -314,6 +342,7 @@ function mayTram() {
         .sort((a, b) => (b.song - a.song) || (b.diem || 0) - (a.diem || 0)),
       viec: cfg.viec.map((v) => ({ ten: v.ten, nang: !!v.nang, may: giao[v.ten] || null, giu: (j.khoa || {})[v.ten]?.may || null, canKhoa: v.envKeys || [] })),
       chuyen: j.chuyen || [],
+      xin: j.xin || [],   // 14/10 PC đang xin khoá (chờ Duyệt)
     };
     MT = { at: Date.now(), data }; return data;
   })().finally(() => { MT_DANG = null; });
@@ -355,21 +384,44 @@ const sv = http.createServer(async (q, s) => {
       let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
       const kq = dangNhap(o.email, o.matKhau);
       log(kq.phien ? "đăng nhập Xác minh: " + kq.email : "đăng nhập Xác minh SAI: " + String(o.email || "").slice(0, 60));
+      if (kq.phien) dongBoMkGas(kq.email, String(o.matKhau || ""));   // 13/10: cùng mật khẩu mở tab Máy trạm trên điện thoại (GAS chỉ giữ băm)
       return kq.phien ? guiJ(s, 200, kq) : guiJ(s, kq.code, { loi: kq.loi });
     }
     if (p === "/api/dang-xuat" && q.method === "POST") { dangXuat(phien); return guiJ(s, 200, { ok: 1 }); }
+    /* 14/10 tài khoản chung audit-dc: trang gửi phiên Apps Script → hỏi tk_toi → có quyền Xác minh thì cấp phiên máy chủ (1 lần đăng nhập) */
+    if (p === "/api/dang-nhap-tk" && q.method === "POST") {
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
+      let j = null; try { const { gasPost } = await import("./session-rules.js"); j = await gasPost({ action: "tk_toi", phien: String(o.phienTk || "") }, () => {}); } catch (e) { return guiJ(s, 502, { loi: "Không hỏi được máy chủ tài khoản: " + String(e.message || e).slice(0, 120) }); }
+      const ng = j && j.status === "success" && j.nguoi, qx = ng && ng.quyen && ng.quyen["r.xacminh"];
+      if (!ng) return guiJ(s, 401, { loi: (j && j.message) || "Phiên tài khoản không hợp lệ" });
+      if (qx !== "xem" && qx !== "lam") return guiJ(s, 403, { loi: "Tài khoản " + ng.id + " chưa được cấp quyền Xác minh" });
+      const kq = taoPhienTk(ng.id, qx === "xem"); log("đăng nhập Xác minh (tài khoản chung): " + ng.id + (qx === "xem" ? " · chỉ xem" : ""));
+      return guiJ(s, 200, kq);
+    }
     const canPhien = (p.startsWith("/api/") && p !== "/api/ping") || p.startsWith("/anh/") || p.startsWith("/video/") || p.startsWith("/bc/") || p.startsWith("/cs/") || p === "/thu";
     if (canPhien && (trinhDuyet || !noiBo) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
+    /* 14/10: phiên «chỉ xem» (quyền Xác minh = xem) không được gọi lệnh ghi */
+    if (canPhien && q.method === "POST" && (kiemPhien(phien) || {}).chiXem) return guiJ(s, 403, { loi: "Tài khoản chỉ có quyền xem phần Xác minh" });
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
     if (p === "/api/ping") return guiJ(s, 200, { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
+    if (p === "/api/may-tram/duyet-khoa" && q.method === "POST") {   // 14/10: duyệt / từ chối PC xin khoá (bộ cài tải trên PC, không khoá) → GAS pcDuyetKhoa
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
+      if (!/^[\w.-]{1,60}$/.test(String(o.may || ""))) return guiJ(s, 400, { loi: "tên máy lạ" });
+      try {
+        const { gasPost } = await import("./session-rules.js"), kq = goiKhoaB64();
+        const j = await gasPost({ action: "pcDuyetKhoa", key: process.env.APPSCRIPT_KEY, may: o.may, dongY: !!o.dongY, goi: o.dongY ? kq.b64 : "" }, () => {}, "pcDuyetKhoa");
+        if (!j || j.status !== "success") return guiJ(s, 502, { loi: (j && j.message) || "Apps Script không nhận" });
+        log(`máy trạm: ${o.dongY ? "DUYỆT cấp " + kq.so + " khoá cho" : "TỪ CHỐI xin khoá của"} ${o.may} — ${(kiemPhien(phien) || {}).email || "nội bộ"}`);
+        MT = null; return guiJ(s, 200, { ok: 1 });
+      } catch (e) { return guiJ(s, 502, { loi: e.message }); }
+    }
     if (p === "/api/bo-cai-pc") {   // 13/10 user: "cần có sẵn khoá trong .bat cài 1 lần". Dựng TẠI CHỖ từ .env laptop — không bao giờ lên GitHub/Pages (repo PUBLIC)
-      const cfg = docJ(path.join(DIR, "cai-pc", "dieu-phoi.json"), { viec: [] });
-      const ten = [...new Set(cfg.viec.flatMap((v) => v.envKeys || []).concat(["APPSCRIPT_URL_DUPHONG"]))];
-      const dong = ten.filter((k) => (process.env[k] || "").trim()).map((k) => k + "=" + process.env[k].trim());
+      const { b64, so } = goiKhoaB64(), dong = { length: so };
       const goc = fs.readFileSync(path.join(DIR, "cai-pc", "CAI-PC-1LAN.bat"), "utf8").replace(/\r?\n/g, "\r\n");
-      const b64 = Buffer.from(dong.join("\n"), "utf8").toString("base64");
       const moc = 'set "REPO=';
       if (!goc.includes(moc)) return guiJ(s, 500, { loi: "khuôn bộ cài đổi — không chèn được khoá" });
       const bat = goc.replace(moc, 'rem --- KHOA NHUNG SAN (dung tu .env laptop luc tai) - FILE RIENG: KHONG gui qua chat/email, KHONG dua len mang ---\r\nset "HSK_KHOA_B64=' + b64 + '"\r\n' + moc);
@@ -518,5 +570,6 @@ const sv = http.createServer(async (q, s) => {
 });
 sv.listen(PORT, LAN ? "0.0.0.0" : "127.0.0.1", () => {
   log(`Bảng WF591: http://127.0.0.1:${PORT}/`);
+  setTimeout(dayGoiGas, 5000);   // 14/10: gói khoá cho nút «Tải bộ cài PC» trên máy bất kỳ (sau đăng nhập) — luôn theo .env laptop
   if (LAN) for (const a of Object.values(os.networkInterfaces()).flat()) if (a.family === "IPv4" && !a.internal) log(`  LAN: http://${a.address}:${PORT}/${KHOA ? "#khoa=" + KHOA : ""}`);
 });

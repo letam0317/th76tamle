@@ -223,9 +223,47 @@ async function api3d(req, res, u) {
   return traJson(res, 404, { ok: false, loi: "không có đường này" });
 }
 
+/* 14/10: form Nghiệm thu checklist (kiemsoatkho/nghiem-thu.html) — bản nội bộ gọi lệnh nt_* qua đây:
+ * chuyển tới bản GAS HEAD (code vừa clasp push, CHƯA deploy) bằng token chủ của clasp, kèm khoá quản trị
+ * + sheetId của SHEET NHÁP (bản sao nội dung thật) → duyệt thử thoải mái, sheet thật không bị ghi. */
+const NT_GAS_HEAD = "https://script.google.com/macros/s/AKfycbwRdzYMDJ_UPjWSZ6AdpmOiuAagwEk8x36pdH4Nl_lA/exec";
+const NT_SHEET_NHAP = "1-BiLmA2uJx9XTbgVf9NcqUgxTtRCR7lFbmPNO4wXWt4";
+let ntTk = { v: "", het: 0 };
+async function ntTokenChu() {
+  if (ntTk.v && Date.now() < ntTk.het) return ntTk.v;
+  const rc = JSON.parse(fs.readFileSync(path.join(os.homedir(), ".clasprc.json"), "utf8")), t = rc.tokens ? rc.tokens.default : rc.token;
+  const j = await (await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: t.client_id, client_secret: t.client_secret, refresh_token: t.refresh_token, grant_type: "refresh_token" }) })).json();
+  if (!j.access_token) throw new Error("không làm tươi được token clasp");
+  ntTk = { v: j.access_token, het: Date.now() + 45 * 60e3 }; return ntTk.v;
+}
+function ntKhoa() {
+  try { const m = fs.readFileSync(path.join(DIR, ".env"), "utf8").match(/^APPSCRIPT_KEY\s*=\s*"?([^"\r\n]+)"?/m); return m ? m[1].trim() : ""; } catch (e) { return ""; }
+}
+async function apiNtThu(req, res) {
+  if (!laMayNay(req) || req.method !== "POST") return traJson(res, 403, { status: "error", message: "chỉ máy chạy bản QC" });
+  const d = JSON.parse(await docThan(req, 60e6));
+  if (!/^nt_(lay|tai|ghi)$/.test(String(d.action || ""))) return traJson(res, 400, { status: "error", message: "lệnh lạ" });
+  d.key = ntKhoa(); d.sheetId = NT_SHEET_NHAP;
+  const r = await fetch(NT_GAS_HEAD, { method: "POST", headers: { "Content-Type": "text/plain", Authorization: "Bearer " + await ntTokenChu() }, body: JSON.stringify(d) });
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); res.end(await r.text());
+}
+
+/* 14/10 tài khoản + phân quyền: bản QC (8123) gọi lệnh tk_* qua HEAD (bản thật chưa deploy) — chỉ máy này, chỉ lệnh tk_*, KHÔNG chèn SECRET
+   (tk_khoitao cần SECRET nên không đi đường này). Kho tài khoản (Script Properties) là kho THẬT dùng chung HEAD/bản thật. */
+async function apiTkThu(req, res) {
+  if (!laMayNay(req) || req.method !== "POST") return traJson(res, 403, { status: "error", message: "chỉ máy chạy bản QC" });
+  const d = JSON.parse(await docThan(req, 1e5));
+  if (!/^tk_(khach|dangnhap|toi|dangxuat|doimk|ds|luu|xoa|luukhach)$/.test(String(d.action || ""))) return traJson(res, 400, { status: "error", message: "lệnh lạ" });
+  const r = await fetch(NT_GAS_HEAD, { method: "POST", headers: { "Content-Type": "text/plain", Authorization: "Bearer " + await ntTokenChu() }, body: JSON.stringify(d) });
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); res.end(await r.text());
+}
+
 const server = http.createServer((req, res) => {
   try {
     const u = decodeURIComponent((req.url || "/").split("?")[0]);
+    if (u === "/api/tk-thu") return void apiTkThu(req, res).catch((e) => traJson(res, 500, { status: "error", message: e.message }));
+    if (u === "/api/nt-thu") return void apiNtThu(req, res).catch((e) => traJson(res, 500, { status: "error", message: e.message }));
     if (u.startsWith("/api/3d/")) return void api3d(req, res, u).catch((e) => traJson(res, 500, { ok: false, loi: e.message }));
     if (u.startsWith("/api/dash/")) return void apiDash(req, res, u).catch((e) => traJson(res, 500, { ok: false, loi: e.message }));
     const m = u.match(/^\/(factory|kiemsoatkho|retail|form-5s|public)(\/.*)?$/);

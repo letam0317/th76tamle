@@ -2,6 +2,7 @@
 <html lang="vi" data-theme="antd">
 <head>
 <meta charset="UTF-8" />
+<meta name="robots" content="noindex, nofollow">
 <script>/* 13/10 link theo tab (t4): mở thẳng link sâu /retail/tonkho/batthuong → mọi tệp tương đối phải tính từ GỐC app, không từ /tonkho/ */
 (function(){var m=/^\/(retail|kiemsoatkho|factory|stocklocationfactory)\//.exec(location.pathname);if(m)document.write('<base href="/'+m[1]+'/">');
 /* 13/10 tên miền audit-dc.pages.dev: số liệu summary/ + ảnh nhỏ thu/ đổi liên tục nên KHÔNG đẩy sang Cloudflare — đọc thẳng từ GitHub Pages (cho phép đọc chéo) */
@@ -83,7 +84,7 @@ html[data-embed="1"] nav.tabs{display:none !important;}
 html[data-embed="1"] .cty-switch{display:none !important;}
 html[data-embed="1"] .brand-title{display:none !important;}
 html[data-embed="1"] #dataFresh{display:none !important;}
-html[data-embed="1"] #btnGhiNhan{display:none !important;}
+html[data-embed="1"] #btnGhiNhan,html[data-embed="1"] #btnNghiemThu{display:none !important;}   /* #btnNghiemThu: NÚT TẠM 14/10 */
 html[data-embed="1"] header{min-height:0 !important;}
 html[data-embed="1"] .wrap{padding-top:14px;}
 /* ĐẠI PHẪU UI Factory: nền xám nhạt sạch (xoá nền vàng kem theo theme) + tab tầng-1 tối giản */
@@ -341,7 +342,7 @@ label{display:flex; flex-direction:column; gap:4px;}
   header>div:first-child{flex:1 1 auto; min-width:0; overflow:hidden;}
   .head-right{flex:0 0 auto; gap:6px;}                      /* nhóm nút KHÔNG co, không biến dạng */
   .head-right>*{flex-shrink:0;}
-  #btnGhiNhan{padding:8px 10px; font-size:12px; white-space:nowrap;}
+  #btnGhiNhan,#btnNghiemThu{padding:8px 10px; font-size:12px; white-space:nowrap;}   /* #btnNghiemThu: NÚT TẠM 14/10 */
   #btnSettings{padding:8px 9px;}
   /* Tiêu đề thương hiệu: thu nhỏ, mỗi dòng dàn NGANG trọn vẹn — hết cảnh rơi từng chữ theo chiều dọc */
   .tt-wrap{gap:6px;}
@@ -1376,7 +1377,8 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261013vk1"></script>
+<script src="hasaki-giaodien-antd.js?v=20261014tq4"></script>
+<script src="tai-khoan.js?v=20261014tq4"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -1399,6 +1401,7 @@ body.side-anim{overflow-x:clip;}
         <button class="cty-opt" data-cty="hasaki" role="tab"><span class="dot"></span>Hasaki</button>
       </div>
       <!-- (đã bỏ pill "Dữ liệu HH:MM": trùng lặp với timestamp trong menu Dữ liệu — Chỉ thị 1) -->
+      <button id="btnNghiemThu" class="an-hdr" type="button" title="Mở form nghiệm thu checklist kiểm kê (tab mới)">Nghiệm thu</button><!-- NÚT TẠM 14/10 nghiệm thu checklist — user yêu cầu thì xoá -->
       <button id="btnGhiNhan" title="Ghi nhận vi phạm 5S (cần PIN)">+ Ghi nhận 5S</button>
       <button id="hdrDangXuat" class="an-hdr" type="button" title="Đăng xuất phần Xác minh trên máy này">Đăng xuất</button>
       <div class="settings" id="settingsWrap">
@@ -1477,6 +1480,7 @@ body.side-anim{overflow-x:clip;}
   <section id="pane-fkiemke" class="pane hidden"></section>
   <!-- ===== TAB TỒN KHO BẤT THƯỜNG (Hasaki) — hasaki-tonbatthuong.js, LAZY; data tab stock-inventory-hasaki ===== -->
   <section id="pane-htonbat" class="pane hidden"></section>
+  <section id="pane-maytram" class="pane hidden"></section>
   <!-- ===== TAB PLANOGRAM (Hasaki) — hasaki-planogram.js, LAZY; data 6 tab: VESINH-YEUCAU (yêu cầu hôm nay + ảnh) / VESINH-NHATKY (NV theo ngày) / PHU-TRACH-QUAY-KE / CHAMCONG-VESINH / VESINH-PHANCONG (chủ vị trí) / VESINH-LICHSU (lịch sử báo cáo 60 ngày) / VESINH-CHAMCONG-NGAY (chấm công theo ngày 60 ngày — 2 tab này nạp khi mở pop-up ô) ===== -->
   <section id="pane-planogram" class="pane hidden"></section>
   <!-- ===== TAB XÁC MINH & CÒ CAMERA (Hasaki) — hasaki-xacminh.js, LAZY; dữ liệu từ máy chủ nội bộ bang-591.mjs trên máy quản lý ===== -->
@@ -1691,7 +1695,7 @@ body.side-anim{overflow-x:clip;}
    TUYỆT ĐỐI không gộp data 2 công ty vào 1 file — tách luồng ngay từ nguồn.
    Bổ sung công ty mới = thêm 1 entry ở đây (ten, thư mục summary, sheetId) — không sửa logic. */
 const CTY = {
-  hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM", tabs: ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat"] },
+  hasaki:  { ten: "HASAKI",  summary: "summary",         sheetId: "1FWffWi75aATbokfqIcqjByEPzkJLQBngTXp5aPOIbLM", tabs: ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat","maytram"] },
   factory: { ten: "FACTORY", summary: "summary-factory", sheetId: "", tabs: ["fstock","fkiemke"] },   // 5S Factory chưa có nguồn; 2 tab chạy module riêng
 };
 /* Danh bạ TAB (Cấp 2 — Dynamic Contextual Tabs): khung tab render lại theo công ty đang chọn.
@@ -1707,6 +1711,7 @@ const TAB_DEFS = {
   fstock: { ten: "Trạng thái lưu trữ", module: true },   // module:true = tab TỰ LO dữ liệu (JSONP riêng),
   fkiemke:{ ten: "Kiểm kê",            module: true },   // KHÔNG đi qua pipeline 5S (summary/gviz 5S-TASKS) của host
   htonbat:{ ten: "Tồn kho bất thường", module: true },   // HASAKI · module hasaki-tonbatthuong.js (tab stock-inventory-hasaki)
+  maytram:{ ten: "Máy trạm", module: true },   // 13/10 HASAKI · module hasaki-maytram.js — PC chạy cò: nhịp tim, sức khoẻ, việc; xem ở MỌI máy (GAS pcBangTb), dừng/tiếp tục chỉ máy quản lý (8591)
 };
 const DEV_MODE = /[?&]dev=1/.test(location.search);   // ?dev=1: bản nháp local — CHỈ chặn sync ghi production, KHÔNG chặn init/read
 /* Công ty có dùng dữ liệu 5S không = có ít nhất 1 tab KHÔNG phải tab module.
@@ -3225,6 +3230,7 @@ function nutDauTrang(name){
   name=name||(document.querySelector('.tab.active')||{dataset:{}}).dataset.tab;
   const g=$('btnGhiNhan'), d=$('hdrDangXuat');
   if(g) g.classList.toggle('an-hdr', name!=='home');
+  const nt=$('btnNghiemThu'); if(nt) nt.classList.toggle('an-hdr', name!=='home');   // NÚT TẠM 14/10 nghiệm thu checklist (user duyệt 14/10)
   if(d) d.classList.toggle('an-hdr', !(name==='xacminh' && document.body.dataset.hxPhien==='1'));
 }
 window.nutDauTrang=nutDauTrang;
@@ -3243,6 +3249,7 @@ function setTab(name){
   if(name==='fstock'){ moFactoryStock(); }   // LAZY: chỉ lúc này mới nạp module + fetch data Tồn kho
   if(name==='fkiemke'){ moFactoryKiemke(); } // LAZY: module Kiểm kê (tab kiemke-material riêng biệt)
   if(name==='htonbat'){ moHasakiTonbat(); }  // LAZY: module Tồn kho bất thường HASAKI (tab stock-inventory-hasaki)
+  if(name==='maytram'){ moHasakiMayTram(); } // LAZY: module Máy trạm
   if(name==='planogram'){ moHasakiPlanogram(); } // LAZY: module Planogram HASAKI (tab PHU-TRACH-QUAY-KE)
   if(name==='xacminh'){ moHasakiXacMinh(); }  // LAZY: module Xác minh & Cò camera (máy chủ nội bộ bang-591)
   if(name==='kk'){ moHasakiKiemke(); }       // LAZY: module Kiểm kê HASAKI (tab kiemke-sku-hasaki / kiemke-location-hasaki)
@@ -3314,6 +3321,19 @@ function moHasakiTonbat(){
   Promise.all([napHasakiPC(),_htNap]).then(()=>window.HTONBAT && window.HTONBAT.init(pane))
     .catch(e=>{ _htNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
 }
+let _mtNap=null;
+function moHasakiMayTram(){
+  const pane=$('pane-maytram');
+  if(!_mtNap){
+    _mtNap=new Promise((res,rej)=>{
+      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261014mt5';
+      s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-maytram.js'));
+      document.body.appendChild(s);
+    });
+  }
+  _mtNap.then(()=>window.HMAYTRAM && window.HMAYTRAM.init(pane))
+    .catch(e=>{ _mtNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
+}
 let _hpNap=null;
 function moHasakiPlanogram(){
   const pane=$('pane-planogram');
@@ -3335,7 +3355,7 @@ function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261013pc1';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261013mt2';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3392,7 +3412,8 @@ var HOME_MUC = [
     { t: "xacminh", sub: "treo", ten: "Theo tác vụ", cc: "var(--accent)", mo: "Phiếu WF591 đang mở: bằng chứng camera, máy gợi ý là ai, việc tiếp theo.", muc: ["Bằng chứng", "Máy gợi ý", "Quyết định"] },
     { t: "xacminh", sub: "cam", ten: "Theo máy", cc: "var(--warn)", mo: "Sự việc máy tự bắt từ camera (bãi xe, khu phân loại) chờ quyết định.", muc: ["Clip", "Bộ chọn theo ảnh", "Lập phiếu"] },
     { t: "xacminh", sub: "tg", ten: "Nhật ký", cc: "var(--muted)", mo: "Phiếu, bình luận, ảnh máy đã ghi lên work.hasaki.vn — lọc theo bộ, việc, ngày.", muc: ["Bộ nào làm", "Làm gì", "Ngày"] },
-    { t: "xacminh", sub: "pc", ten: "Máy trạm", cc: "var(--good)", mo: "Các PC chạy cò: nhịp tim, RAM · CPU · ổ C, việc đang làm; dừng hoặc cho chạy lại.", muc: ["Nhịp tim", "Sức khoẻ", "Dừng · tiếp tục"] }
+    { t: "maytram", ten: "Máy trạm", cc: "var(--good)", mo: "Các PC chạy cò: nhịp tim, RAM · CPU · ổ C, việc đang làm; dừng hoặc cho chạy lại trên máy quản lý.", muc: ["Nhịp tim", "Sức khoẻ", "Việc"],
+      so: function(){ var d=window.tqDoc&&tqDoc("mt"); return d&&d.tong?{ k: d.song+"/"+d.tong, l: "máy đang chạy" }:null; } }
   ]}
 ];
 function nf0(n){ return Number(n||0).toLocaleString("vi-VN"); }
@@ -3415,14 +3436,16 @@ function homeRender(){
   var tim=function(t,sub){ var r=null; HOME_MUC.forEach(function(g){ g.items.forEach(function(it){ if(it.t===t&&(it.sub||"")===(sub||"")) r=it; }); }); return r; };
   var sTong=so(tim("tong")), sTask=so(tim("task")), plg=window.tqDoc&&tqDoc("plg"), kk=window.tqDoc&&tqDoc("kk-loc"), abn=window.tqDoc&&tqDoc("abn");
   var chiSo=[
-    sTong&&{ nhan: sTong.l.charAt(0).toUpperCase()+sTong.l.slice(1), so: sTong.k, phu: "KPI trừ theo nhân viên", mau: "var(--bad)" },
-    sTask&&{ nhan: "Phiếu vi phạm chưa đóng", so: sTask.k, phu: "đang chờ xử lý trên workflow", mau: "var(--warn)" },
-    plg&&plg.tong&&{ nhan: "Vệ sinh hôm nay", so: pctVN(plg.da,plg.tong)+"%", tien: plg.da/plg.tong*100, mau: "var(--good)", phu: nf0(plg.da)+" / "+nf0(plg.tong)+" vị trí" },
-    kk&&kk.tong&&{ nhan: "Kiểm kê theo vị trí", so: pctVN(kk.dem,kk.tong)+"%", tien: kk.dem/kk.tong*100, mau: "var(--accent)", phu: nf0(kk.dem)+" / "+nf0(kk.tong)+(kk.eta?" · xong ≈ "+kk.eta:"") }
+    sTong&&{ tab: "tong", nhan: sTong.l.charAt(0).toUpperCase()+sTong.l.slice(1), so: sTong.k, phu: "KPI trừ theo nhân viên", mau: "var(--bad)" },
+    sTask&&{ tab: "task", nhan: "Phiếu vi phạm chưa đóng", so: sTask.k, phu: "đang chờ xử lý trên workflow", mau: "var(--warn)" },
+    plg&&plg.tong&&{ tab: "planogram", nhan: "Vệ sinh hôm nay", so: pctVN(plg.da,plg.tong)+"%", tien: plg.da/plg.tong*100, mau: "var(--good)", phu: nf0(plg.da)+" / "+nf0(plg.tong)+" vị trí" },
+    kk&&kk.tong&&{ tab: "kk", nhan: "Kiểm kê theo vị trí", so: pctVN(kk.dem,kk.tong)+"%", tien: kk.dem/kk.tong*100, mau: "var(--accent)", phu: nf0(kk.dem)+" / "+nf0(kk.tong)+(kk.eta?" · xong ≈ "+kk.eta:"") }
   ];
   var MAU={ task:"var(--warn)", htonbat:"var(--bad)" };
-  var nhom=HOME_MUC.filter(function(g){ return !g.hx||window.__HX_MAY_CHU; }).map(function(g){
-    return { ten: g.g, khoa: g.hx&&!daDN, muc: g.items.map(function(it){
+  var mtDN=false; try{ var mp=JSON.parse(localStorage.getItem("mt-phien")||"null"); mtDN=!!(mp&&mp.het>Date.now()); }catch(e){}
+  /* 13/10: máy không có 8591 (điện thoại) vẫn thấy nhóm Xác minh nhưng CHỈ thẻ Máy trạm (đăng nhập qua GAS) */
+  var nhom=HOME_MUC.map(function(g){ return (!g.hx||window.__HX_MAY_CHU)?g:{ g:g.g, hx:1, mo:g.mo, items:g.items.filter(function(it){ return it.t!=="xacminh"; }) }; }).filter(function(g){ return g.items.length; }).map(function(g){
+    return { ten: g.g, khoa: g.hx&&!(window.__HX_MAY_CHU?daDN:mtDN), muc: g.items.map(function(it){
       var s=so(it), m={ k: it.t+(it.sub?":"+it.sub:""), ten: it.ten, mo: it.mo, mauSo: MAU[it.t] };
       if(s){ m.so=s.k; m.dv=s.l.replace(/ tháng \d\d\/\d{4}$/,""); }
       else if(it.t==="planogram"&&plg&&plg.tong){ m.so=pctVN(plg.da,plg.tong)+"%"; m.dv="đã vệ sinh hôm nay"; m.tien=plg.da/plg.tong*100; }
@@ -3963,6 +3986,7 @@ $('hmTim').addEventListener('input',renderQuyDinh);
   [0,800,2500].forEach(ms=>setTimeout(quet,ms)); window.addEventListener('pageshow',()=>setTimeout(quet,300));
 })();
 $('btnGhiNhan').addEventListener('click',moGhiNhan);
+$('btnNghiemThu').addEventListener('click',function(){ window.open('nghiem-thu.html','_blank','noopener'); });   // NÚT TẠM 14/10 nghiệm thu checklist
 $('gmClose').addEventListener('click',dongGhiNhan);
 $('ghiModal').addEventListener('click',e=>{ if(e.target.id==='ghiModal') dongGhiNhan(); });
 $('hmmClose').addEventListener('click',dongHinhHangMuc);
@@ -4076,19 +4100,28 @@ document.addEventListener('click', ()=>csDongHet(null));
    dựng tại chỗ có sẵn khoá; máy khác → bản công khai không khoá như cũ. */
 (function(){
   var a=document.getElementById("btnTaiBoCai"); if(!a) return;
+  /* 14/10 user: «tôi tải ngay trên nút ở audit-dc về cài — tóm gọn trong 1 lần cài». Máy BẤT KỲ: đăng nhập (cùng mật khẩu Xác minh,
+     qua Apps Script — phiên 12 giờ «mt-phien») → lấy gói khoá (pcBoCai) → chèn vào CAI-PC-1LAN.bat công khai → tải về: chạy 1 lần là xong.
+     Laptop (có 8591 + phiên Xác minh) vẫn lấy thẳng từ 8591; 8591 hỏng / bị Edge chặn thì rơi xuống đường Apps Script. */
+  var gasPost=function(o){ return fetch(APPSCRIPT_URL,{ method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(o), signal:AbortSignal.timeout(45000) })
+    .then(function(r){ return r.text(); }).then(function(t){ if(t.trim()[0]!=="{") throw new Error("Apps Script trả lỗi — thử lại"); return JSON.parse(t); }); };
+  var taiVe=function(txt){ var u=URL.createObjectURL(new Blob([txt],{type:"application/octet-stream"})), t=document.createElement("a"); t.href=u; t.download="CAI-PC-1LAN.bat"; document.body.appendChild(t); t.click(); t.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },5000);
+    if(typeof toast==="function") toast("Đã tải bộ cài CÓ SẴN KHOÁ — chuột phải → Run as administrator, chạy 1 lần là xong. Không gửi file này qua chat/email.","ok"); };
+  /* 14/10 user CHỌN «bỏ hẳn đăng nhập cho mọi máy» (đã nêu rủi ro: lộ link = lộ khoá) — lấy gói khoá thẳng, không hỏi gì. */
+  var quaGas=function(){   // gói khoá → chèn vào .bat công khai
+    return gasPost({ action:"pcBoCai" }).then(function(j){
+      if(j.status!=="success") throw new Error(j.message||"Apps Script trả lỗi");
+      return fetch(a.getAttribute("href")+"?t="+Date.now()).then(function(r){ if(!r.ok) throw new Error("Không tải được bộ cài gốc"); return r.text(); }).then(function(bat){
+        bat=bat.replace(/\r?\n/g,"\r\n"); var moc='set "REPO='; if(bat.indexOf(moc)<0) throw new Error("Bộ cài gốc đổi khuôn — báo quản trị");
+        return bat.replace(moc,'rem --- KHOA NHUNG SAN (tai qua dang nhap) - KHONG gui qua chat/email ---\r\nset "HSK_KHOA_B64='+j.goi+'"\r\n'+moc); }); }); };
   a.addEventListener("click",function(ev){
-    var ph=""; try{ ph=localStorage.getItem("hx-phien")||""; }catch(e){}
-    if(!window.__HX_MAY_CHU||!ph) return;   // không phải máy quản lý → tải bản công khai (href mặc định)
     ev.preventDefault(); var lb=a.querySelector(".act"), cu=lb?lb.textContent:"";
-    if(lb) lb.textContent="Đang dựng bộ cài có khoá…";
-    var ctl=new AbortController(), h=setTimeout(function(){ ctl.abort(); },15000);
-    fetch("http://127.0.0.1:8591/api/bo-cai-pc",{ headers:{ "x-hx-phien": ph }, signal: ctl.signal })
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.blob(); })
-      .then(function(b){ var u=URL.createObjectURL(b), t=document.createElement("a"); t.href=u; t.download="CAI-PC-1LAN.bat"; document.body.appendChild(t); t.click(); t.remove();
-        setTimeout(function(){ URL.revokeObjectURL(u); },5000);
-        if(typeof toast==="function") toast("Đã tải bộ cài CÓ SẴN KHOÁ — chép sang PC bằng USB/thư mục mạng, không gửi qua chat/email","ok"); })
-      .catch(function(e){ if(typeof toast==="function") toast("Không dựng được bản có khoá ("+e.message+") — tải bản thường","loi"); location.href=a.getAttribute("href"); })
-      .finally(function(){ clearTimeout(h); if(lb) lb.textContent=cu; });
+    var ph=""; try{ ph=localStorage.getItem("hx-phien")||""; }catch(e){}
+    var dat=function(t){ if(lb) lb.textContent=t; };
+    var gas=function(){ dat("Đang dựng bộ cài có khoá…"); return quaGas(); };
+    var p = ph ? fetch("http://127.0.0.1:8591/api/bo-cai-pc",{ headers:{ "x-hx-phien": ph }, signal: AbortSignal.timeout(8000) }).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); }).catch(gas) : gas();
+    dat("Đang dựng bộ cài có khoá…");
+    p.then(taiVe).catch(function(e){ if(e.message!=="đã đóng" && typeof toast==="function") toast("Không tải được bộ cài có khoá: "+e.message,"loi"); }).finally(function(){ dat(cu); });
   });
 })();
 </script>
@@ -4103,7 +4136,7 @@ document.addEventListener('click', ()=>csDongHet(null));
     { g: "Hạng mục 5S",   items: [["tong","Tổng kết"],["task","Vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
     { g: "Tồn kho", items: [["kk","Kiểm kê"],["htonbat","Bất thường"]] },
     /* 05/10 user chọn kiểu A: mục con Xác minh nằm ở thanh bên (thay dải chip trong tab). Chỉ hiện trên máy có máy chủ 8591. */
-    { g: "Xác minh", hx: 1, items: [["xacminh","Theo tác vụ","treo"],["xacminh","Theo máy","cam"],["xacminh","Nhật ký","tg"],["xacminh","Máy trạm","pc"]] }   // 13/10 + Máy trạm (PC chạy cò)
+    { g: "Xác minh", hx: 1, items: [["xacminh","Theo tác vụ","treo"],["xacminh","Theo máy","cam"],["xacminh","Nhật ký","tg"],["maytram","Máy trạm"]] }   // 13/10 tối user: Máy trạm ở Xác minh, DƯỚI CÙNG, phải đăng nhập mới xem (điện thoại: nhóm chỉ còn mục này)
   ];
   var nav = document.getElementById("sideNav"), tg = document.getElementById("sideToggle"), bd = document.getElementById("sideBackdrop");
   function tabActive(){ var el = document.querySelector(".tab.active"); return el ? el.getAttribute("data-tab") : null; }
@@ -4117,16 +4150,20 @@ document.addEventListener('click', ()=>csDongHet(null));
   function build(){
     var tabs = [];
     try{ if (typeof CTY !== "undefined" && typeof CTY_ID !== "undefined" && CTY[CTY_ID]) tabs = CTY[CTY_ID].tabs || []; }catch(e){}
-    if (!tabs.length) tabs = ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat"];   // dự phòng
+    if (!tabs.length) tabs = ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat","maytram"];   // dự phòng
     var html = "";   /* KHÔNG lặp brand — header đã có tiêu đề AUDIT HASAKI */
     /* 12/10 user: chưa đăng nhập Xác minh thì CHỈ 1 nút "Xác minh"; đăng nhập xong mới hiện 5 mục con (hasaki-xacminh.js bắn "hx-phien") */
     var daDN = false; try { daDN = !!localStorage.getItem("hx-phien"); } catch(e){}
     HM.forEach(function(grp){
       var its = grp.items.filter(function(x){ return tabs.indexOf(x[0]) >= 0 && (x[0] !== "xacminh" || window.__HX_MAY_CHU); });
       if (!its.length) return;
-      if (grp.hx && !daDN) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
+      if (grp.hx && !daDN && window.__HX_MAY_CHU) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
       if (!grp.g) { html += '<div class="s-sub s-mot s-dau">' + its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"><span class="di"></span>' + x[1] + '<span class="sn"></span></div>'; }).join("") + '</div>'; return; }
-      html += '<div class="s-grp">' + grp.g + '</div><div class="s-sub">' +
+      /* 14/10 user «ô Xác minh không thấy Theo tác vụ, Theo máy, Nhật ký»: Edge chặn trang gọi 127.0.0.1 (quyền «mạng cục bộ») ⇒ laptop bị coi
+         như điện thoại. Máy đã từng đăng nhập Xác minh (chỉ laptop) mà dò 8591 hỏng → thêm mục «Kết nối máy chủ Xác minh»: bấm = dò lại
+         bằng cú bấm của người dùng ⇒ Edge hiện hộp hỏi quyền. */
+      var ketNoi = grp.hx && window.__HX_CHAN && !window.__HX_MAY_CHU ? '<div class="s-item s-ketnoi" data-ketnoi="1" title="Edge đang chặn trang gọi máy chủ Xác minh trên máy này — bấm để cho phép"><span class="di"></span>Kết nối máy chủ Xác minh</div>' : '';
+      html += '<div class="s-grp">' + grp.g + '</div><div class="s-sub">' + ketNoi +
         its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"' + (x[2] ? ' data-sub="' + x[2] + '"' : '') + '><span class="di"></span>' + x[1] + '<span class="sn"></span></div>'; }).join("") +
         '</div>';
     });
@@ -4135,9 +4172,14 @@ document.addEventListener('click', ()=>csDongHet(null));
        máy người khác không thấy cả nút tab. Dữ liệu vốn chỉ nằm trên máy quản lý, đây chỉ là giấu lối vào. */
     if (!window.__HX_MAY_CHU && !build._do) { build._do = 1;
       var ctl = new AbortController(); setTimeout(function(){ ctl.abort(); }, 1500);
-      fetch("http://127.0.0.1:8591/api/ping", { signal: ctl.signal }).then(function(r){ if (r.ok) { window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); build(); } }).catch(function(){}); }
+      fetch("http://127.0.0.1:8591/api/ping", { signal: ctl.signal }).then(function(r){ if (r.ok) { window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); build(); } })
+        .catch(function(){ var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_CHAN) { window.__HX_CHAN = 1; build(); } }); }
     nav.querySelectorAll(".s-item").forEach(function(el){
       /* Chọn tab KHÔNG tự đóng sidebar — sidebar ghim cố định tới khi bấm ‹ hoặc nền mờ (mobile) */
+      if (el.dataset.ketnoi) { el.addEventListener("click", function(){
+          fetch("http://127.0.0.1:8591/api/ping").then(function(r){ if (!r.ok) throw 0; window.__HX_MAY_CHU = 1; window.__HX_CHAN = 0; document.body.classList.remove("hx-an"); build(); if (typeof toast === "function") toast("Đã kết nối máy chủ Xác minh", "ok"); })
+            .catch(function(){ if (typeof toast === "function") toast("Edge vẫn chặn: bấm biểu tượng bên trái ô địa chỉ → Quyền cho trang web → «Truy cập mạng cục bộ» = Cho phép, rồi tải lại trang. (Máy chủ Xác minh phải đang chạy trên máy này.)", "loi"); });
+        }); return; }
       el.addEventListener("click", function(){ var s = el.getAttribute("data-sub");
         if (s) { if (window.HXACMINH) { setTab("xacminh"); window.HXACMINH.sub(s); }
           else { try { var o = JSON.parse(localStorage.getItem("hx-loc") || "null") || {}; o.SUB = s; localStorage.setItem("hx-loc", JSON.stringify(o)); } catch(e){} setTab("xacminh"); }
