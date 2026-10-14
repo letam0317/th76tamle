@@ -343,7 +343,7 @@ function mayTram() {
       srvNow: now, hetHanPhut: het,
       may: j.may.map((m) => ({ ...m, song: song.has(m.may), tuoiGiay: Math.round((now - Date.parse(m.luc)) / 1000), viecGiao: cfg.viec.filter((v) => giao[v.ten] === m.may).map((v) => v.ten) }))
         .sort((a, b) => (b.song - a.song) || (b.diem || 0) - (a.diem || 0)),
-      viec: cfg.viec.map((v) => ({ ten: v.ten, nang: !!v.nang, may: giao[v.ten] || null, giu: (j.khoa || {})[v.ten]?.may || null, canKhoa: v.envKeys || [] })),
+      viec: cfg.viec.map((v) => ({ ten: v.ten, nang: !!v.nang, chiLaptop: !!v.chiLaptop, may: giao[v.ten] || null, giu: (j.khoa || {})[v.ten]?.may || null, canKhoa: v.envKeys || [] })),
       chuyen: j.chuyen || [],
       xin: j.xin || [],   // 14/10 PC đang xin khoá (chờ Duyệt)
     };

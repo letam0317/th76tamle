@@ -49,6 +49,8 @@ CA.push({ ten: "chi-laptop-dung", w: 1366, h: 900, mob: false, quanLy: true, dat
 // 14/10 «đang chạy công việc gì cũng cần hiển thị»: laptop DỰ PHÒNG đang làm thay Cò xác minh B1 (GAS PCPHU gộp duPhong/dangChay/batDau)
 const API_DUPHONG = { ...API_PC13, may: [{ ...API_PC13.may[0], dangChay: [], dungViec: [], chayLuc: { "co-canh-planogram": iso(300) } },
   { ...API_LAPTOP.may[0], duPhong: true, dangChay: ["canh-xac-minh-b1"], batDau: { "canh-xac-minh-b1": iso(12 * 60) }, chayLuc: { "canh-xac-minh-b1": iso(12 * 60) }, tienDo: { "canh-xac-minh-b1": { buoc: "Soát phiếu B1 theo luật", task: "14180441", i: 23, n: 83, chiTiet: "", luc: iso(9) } } }] };
+const GHIM4 = ["canh-b11", "canh-xac-minh-b1", "tim-bang-chung-b1", "xac-minh-camera"];   // 14/10 ghim laptop (cần .exports)
+API_DUPHONG.viec = API_PC13.viec.map((v) => GHIM4.includes(v.ten) ? { ...v, may: null, chiLaptop: true } : v);
 CA.push({ ten: "duphong-pc", w: 1366, h: 900, mob: false, quanLy: true, data: API_DUPHONG, duPhong: true }, { ten: "duphong-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_DUPHONG, duPhong: true });
 let loi = 0; const ok = (dk, ten) => { console.log((dk ? "  OK   " : "  FAIL ") + ten); if (!dk) loi++; };
 const cors = (r) => ({ "Access-Control-Allow-Origin": r.headers().origin || "*", "Access-Control-Allow-Headers": "content-type,x-hx-phien" });
@@ -131,7 +133,8 @@ try {
         && /tasks\?task_id=14180441$/.test(d.link) && Math.abs(d.thanh - 28) <= 1 && d.dauPhai, "thẻ laptop: đang chạy việc gì · bước · phiếu (link work) · 23/83 · từ giờ · cập nhật (" + (d ? d.t : "không có") + ")");
       const lt = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /tamlc/.test(e.querySelector(".mt-dau b").textContent));
         return { tag: t.querySelector(".mt-dau .hx-tag").textContent, mo: t.classList.contains("mo"), chip: [...t.querySelectorAll(".mt-c")].map((c) => c.className + ":" + c.textContent) }; });
-      ok(lt.tag === "Dự phòng" && !lt.mo && lt.chip.length === 1 && /chay:Cò xác minh B1/.test(lt.chip[0]), "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, chip xanh việc đang làm (" + lt.tag + " · " + lt.chip.join(",") + ")");
+      ok(lt.tag === "Dự phòng" && !lt.mo && lt.chip.length === 4 && lt.chip.some((c) => /chay:Cò xác minh B1/.test(c)) && lt.chip.filter((c) => /mt-c cho:/.test(c)).length === 3, "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, 4 việc ghim laptop: 1 chạy (xanh) + 3 chờ (" + lt.tag + " · " + lt.chip.join(",") + ")");
+      ok(await p.evaluate(() => !/Cò canh B1.1|Cò xác minh B1|Tìm bằng chứng B1|Xác minh camera tối/.test((document.querySelector("#pane-maytram .mt-chua") || {}).innerText || "")), "việc ghim laptop KHÔNG nằm trong «Việc chưa có máy nhận»");
       ok((dcMay["HSK-KHO170-QLIT"] || []).length === 0, "QLIT không chạy gì → thẻ không có khối Đang chạy");
       await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }

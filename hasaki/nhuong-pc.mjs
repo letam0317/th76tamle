@@ -42,6 +42,7 @@ const viec = (cfg.viec || []).find((v) => v.ten === tenViec);
 if (!viec) await ghi(true, "việc không có trong bộ điều phối");
 
 async function quyet(bang, now) {
+  if (viec.chiLaptop) await ghi(true, "việc chỉ chạy trên laptop (cần dữ liệu .exports)");   // 14/10 ghim laptop
   const chon = mayChay(viec, bang, now, cfg);
   if (!chon) await ghi(true, "không PC nào đủ điều kiện");
   if (chon === os.hostname()) await ghi(true, "điều phối chọn chính laptop");
