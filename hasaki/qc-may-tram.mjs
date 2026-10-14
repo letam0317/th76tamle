@@ -41,14 +41,14 @@ const API_LAPTOP = { srvNow: now, hetHanPhut: 3,
 const API_PC13 = { srvNow: now, hetHanPhut: 3, chuyen: [], xin: [],
   may: [{ may: "HSK-KHO170-QLIT", luc: iso(15), song: true, tuoiGiay: 15, ramTrongPct: 45, cpuPct: 30, diaTrongGB: 120, nhan: 16, ramTongGB: 16, diem: 340, ban: "9360a35", dung: false,
       dungViec: ["cham-cong"], dangChay: ["canh-b11", "co-canh-planogram"], viecGiao: TEN13.filter((t) => t !== "cham-cong"), coKhoa: ["APPSCRIPT_KEY", "TOPREVIEW_USER", "GEMINI_API_KEY"],
-      oDia: [{ o: "C", trong: 12.4, tong: 237.9 }, { o: "D", trong: 812.5, tong: 931.5 }], viecNang: TEN13.slice(0, 7), tatCaViec: TEN13, chayLuc: { "canh-b11": iso(900), "co-canh-planogram": iso(120) } },   // 14/10 nhiều ổ + nhãn nặng/nhẹ
+      oDia: [{ o: "C", trong: 12.4, tong: 237.9 }, { o: "D", trong: 812.5, tong: 931.5 }], viecNang: TEN13.slice(0, 7), tatCaViec: TEN13, chayLuc: { "canh-b11": iso(900), "co-canh-planogram": iso(120) }, tienDo: { "canh-b11": { buoc: "Soát phiếu 5S (B1.1 · B3 · vệ sinh)", task: "14180438", i: 40, n: 120, chiTiet: "", luc: iso(8) } } },   // 14/10 nhiều ổ + nhãn nặng/nhẹ
     { ...API_LAPTOP.may[0] }],
   viec: TEN13.map((t, i) => ({ ten: t, nang: i < 7, may: t === "cham-cong" ? null : "HSK-KHO170-QLIT", canKhoa: [] })) };
 CA.push({ ten: "pc13-pc", w: 1366, h: 900, mob: false, quanLy: true, data2: API_PC13 }, { ten: "pc13-ip14", w: 390, h: 844, mob: true, quanLy: true, data2: API_PC13 }, { ten: "pc13-and360", w: 360, h: 740, mob: true, quanLy: true, data2: API_PC13 });
 CA.push({ ten: "chi-laptop-dung", w: 1366, h: 900, mob: false, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-ip14", w: 390, h: 844, mob: true, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_LAPTOP });
 // 14/10 «đang chạy công việc gì cũng cần hiển thị»: laptop DỰ PHÒNG đang làm thay Cò xác minh B1 (GAS PCPHU gộp duPhong/dangChay/batDau)
 const API_DUPHONG = { ...API_PC13, may: [{ ...API_PC13.may[0], dangChay: [], dungViec: [], chayLuc: { "co-canh-planogram": iso(300) } },
-  { ...API_LAPTOP.may[0], duPhong: true, dangChay: ["canh-xac-minh-b1"], batDau: { "canh-xac-minh-b1": iso(12 * 60) }, chayLuc: { "canh-xac-minh-b1": iso(12 * 60) } }] };
+  { ...API_LAPTOP.may[0], duPhong: true, dangChay: ["canh-xac-minh-b1"], batDau: { "canh-xac-minh-b1": iso(12 * 60) }, chayLuc: { "canh-xac-minh-b1": iso(12 * 60) }, tienDo: { "canh-xac-minh-b1": { buoc: "Soát phiếu B1 theo luật", task: "14180441", i: 23, n: 83, chiTiet: "", luc: iso(9) } } }] };
 CA.push({ ten: "duphong-pc", w: 1366, h: 900, mob: false, quanLy: true, data: API_DUPHONG, duPhong: true }, { ten: "duphong-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_DUPHONG, duPhong: true });
 let loi = 0; const ok = (dk, ten) => { console.log((dk ? "  OK   " : "  FAIL ") + ten); if (!dk) loi++; };
 const cors = (r) => ({ "Access-Control-Allow-Origin": r.headers().origin || "*", "Access-Control-Allow-Headers": "content-type,x-hx-phien" });
@@ -120,20 +120,25 @@ try {
     ok(bc.chuaTruoc, "«Việc chưa có máy nhận» nằm TRÊN hàng máy trạm");
     ok(bc.doc && bc.deuNhau && bc.vua, "máy trạm xếp DỌC từ trên xuống, rộng đều, vừa bề ngang (" + bc.so + " máy)");
     ok(bc.ngang <= 0, "không kéo ngang trang (" + bc.ngang + ")");
-    const dangChayKhoi = await p.evaluate(() => { const k = document.querySelector("#pane-maytram .mt-dang"), ch = document.querySelector("#pane-maytram .mt-chua"), hg = document.querySelector("#pane-maytram .mt-hang");
-      return k ? { dong: [...k.querySelectorAll(".hx-mt-v")].map((x) => x.innerText.replace(/\s+/g, " ").trim()), trong: (k.querySelector(".hx-trong") || {}).textContent || "",
-        tren: !!(hg && (k.compareDocumentPosition(hg) & Node.DOCUMENT_POSITION_FOLLOWING)) && (!ch || !!(k.compareDocumentPosition(ch) & Node.DOCUMENT_POSITION_FOLLOWING)) } : null; });
-    ok(dangChayKhoi && dangChayKhoi.tren, "khối «Đang chạy» nằm trên cùng");
+    // 14/10 chiều: «Đang chạy» nằm TRONG TỪNG THẺ MÁY (không còn khối chung) — việc · bước · phiếu (link) · i/n · từ giờ · cập nhật
+    const dcMay = await p.evaluate(() => Object.fromEntries([...document.querySelectorAll("#pane-maytram .mt-o")].map((o) => [o.querySelector(".mt-dau b").textContent,
+      [...o.querySelectorAll(".mt-phai .mt-dc")].map((d) => ({ t: d.innerText.replace(/\s+/g, " ").trim(), link: (d.querySelector(".mt-dc-bc a") || {}).href || "",
+        thanh: d.querySelector(".mt-dc-thanh b") ? parseFloat(d.querySelector(".mt-dc-thanh b").style.width) : -1, dauPhai: d.parentElement.firstElementChild === d }))])));
+    ok(!(await p.$("#pane-maytram .mt-dang")), "không còn khối «Đang chạy» chung (tránh lặp)");
     if (m.duPhong) {   // laptop dự phòng đang làm thay
-      ok(dangChayKhoi.dong.length === 1 && /Cò xác minh B1 HSK-KHO170-tamlc-1 \(dự phòng, làm thay\) · từ \d\d:\d\d · 1\d phút/.test(dangChayKhoi.dong[0]) && /Nặng/.test(dangChayKhoi.dong[0]),
-        "Đang chạy: việc · máy (dự phòng) · từ giờ · bao lâu (" + dangChayKhoi.dong.join(" | ") + ")");
+      const d = (dcMay["HSK-KHO170-tamlc-1"] || [])[0];
+      ok(d && /^Cò xác minh B1 làm thay Soát phiếu B1 theo luật · phiếu 14180441 \(23\/83\)/.test(d.t) && /từ \d\d:\d\d · 1\d phút · cập nhật \d+ giây trước/.test(d.t)
+        && /tasks\?task_id=14180441$/.test(d.link) && Math.abs(d.thanh - 28) <= 1 && d.dauPhai, "thẻ laptop: đang chạy việc gì · bước · phiếu (link work) · 23/83 · từ giờ · cập nhật (" + (d ? d.t : "không có") + ")");
       const lt = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /tamlc/.test(e.querySelector(".mt-dau b").textContent));
         return { tag: t.querySelector(".mt-dau .hx-tag").textContent, mo: t.classList.contains("mo"), chip: [...t.querySelectorAll(".mt-c")].map((c) => c.className + ":" + c.textContent) }; });
       ok(lt.tag === "Dự phòng" && !lt.mo && lt.chip.length === 1 && /chay:Cò xác minh B1/.test(lt.chip[0]), "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, chip xanh việc đang làm (" + lt.tag + " · " + lt.chip.join(",") + ")");
+      ok((dcMay["HSK-KHO170-QLIT"] || []).length === 0, "QLIT không chạy gì → thẻ không có khối Đang chạy");
       await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
-    if (m.data2) ok(dangChayKhoi.dong.length === 2 && dangChayKhoi.dong.every((d) => /HSK-KHO170-QLIT · từ \d\d:\d\d/.test(d)), "Đang chạy: 2 việc trên QLIT (" + dangChayKhoi.dong.join(" | ") + ")");
-    if (m.data) ok(/^Lúc này không máy nào đang chạy việc/.test(dangChayKhoi.trong), "không việc nào chạy → 1 dòng báo (" + dangChayKhoi.trong + ")");
+    if (m.data2) { const q = dcMay["HSK-KHO170-QLIT"] || [];
+      ok(q.length === 2 && /^Cò canh B1\.1 Soát phiếu 5S \(B1\.1 · B3 · vệ sinh\) · phiếu 14180438 \(40\/120\)/.test(q[0].t) && Math.abs(q[0].thanh - 33) <= 1 && /^Cò canh planogram Đang chạy từ \d\d:\d\d/.test(q[1].t),
+        "thẻ QLIT: 2 việc đang chạy — có tiến độ thì bước/phiếu/thanh, chưa có thì «Đang chạy» + giờ (" + q.map((x) => x.t).join(" | ") + ")"); }
+    if (m.data) ok(!Object.values(dcMay).some((x) => x.length), "không máy nào chạy → không thẻ nào có khối Đang chạy");
     if (m.data2) {   // 14/10 chiều: chip việc TRÁI→PHẢI kê BÊN PHẢI thẻ máy (máy tính); máy dừng MỜ, máy chạy sáng; mỗi chip có ×
       const g = await p.evaluate(() => { const the = [...document.querySelectorAll("#pane-maytram .mt-o")];
         const o = the[0], tr = o.querySelector(".mt-trai").getBoundingClientRect(), ph = o.querySelector(".mt-phai").getBoundingClientRect();

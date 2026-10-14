@@ -44,7 +44,7 @@
       ".hx-mt-phu{padding:2px 16px 8px;font-size:12px;color:var(--muted)}",
       /* 14/10 hàng thẻ máy gọn */
       /* 14/10 chiều user «đổi hiển thị từ ngang sang dọc… máy k chạy thì làm mờ… chip việc từ trái sang phải, kê bên phải chip máy trạm» */
-      ".mt-dang{margin:4px 0 12px}.mt-dang .hx-trong{padding:12px 16px;text-align:left;font-size:13px}.mt-cham{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);animation:dfPulse 1.8s ease-out infinite}@media(prefers-reduced-motion:reduce){.mt-cham{animation:none}}.mt-chua{margin:4px 0 12px}.mt-hang{display:flex;flex-direction:column;gap:8px}",
+      ".mt-dc{display:flex;flex-direction:column;gap:3px;padding:7px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--good) 40%,transparent);background:color-mix(in srgb,var(--good) 7%,transparent)}.mt-dc-dau{display:flex;align-items:center;gap:7px;font-size:13px}.mt-dc-dau small{font-size:11px;color:var(--muted)}.mt-dc-bc{font-size:12px;overflow-wrap:anywhere}.mt-dc-bc a{color:var(--accent)}.mt-dc>small{font-size:11px;color:var(--muted)}.mt-dc-thanh{display:block;height:5px;border-radius:3px;background:var(--surface2);overflow:hidden}.mt-dc-thanh b{display:block;height:100%;background:var(--good);transition:width .4s}.mt-cham{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);animation:dfPulse 1.8s ease-out infinite}@media(prefers-reduced-motion:reduce){.mt-cham{animation:none}}.mt-chua{margin:4px 0 12px}.mt-hang{display:flex;flex-direction:column;gap:8px}",
       ".mt-o{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px;min-width:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);transition:opacity .2s}",
       ".mt-trai,.mt-phai{display:flex;flex-direction:column;gap:5px;min-width:0}.mt-phai{gap:6px}.mt-phai .ds{display:flex;flex-wrap:wrap;gap:4px;align-items:center}",
       ".mt-o.mo{background:var(--surface2)}.mt-o.mo .mt-dau,.mt-o.mo .mt-sk,.mt-o.mo .mt-phu,.mt-o.mo .mt-phai{opacity:.45}",   // máy dừng/mất nhịp: mờ — riêng nút «Cho chạy lại» vẫn sáng
@@ -189,6 +189,21 @@
         '<span class="mt-gan">' + [nNang ? nNang + " nặng" : "", nNhe ? nNhe + " nhẹ" : "", gan ? "chạy gần nhất " + gioPhut(gan) : m.chayLuc ? "chưa chạy việc nào" : ""].filter(Boolean).join(" · ") + "</span>";
     };
     var gioPhut = function (ms) { var d = new Date(ms); return (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes() + (Date.now() - ms > 864e5 ? " " + d.getDate() + "/" + (d.getMonth() + 1) : ""); };
+    /* 14/10 chiều user «thêm trạng thái đang chạy việc gì, chạy ra sao, của task nào vào từng máy pc trạm»: mỗi việc đang chạy của MÁY NÀY —
+       tên việc · bước đang làm · phiếu đang soát (link work) · thanh i/n · từ mấy giờ, bao lâu · cập nhật cách đây. Tiến độ do tien-do.mjs
+       (cò gửi GAS pcPhu ≥15 s/lần); PC bản cũ / cò chưa gắn tiến độ → chỉ tên việc + giờ bắt đầu. */
+    var dangChayMay = function (m) {
+      if (!m.song || !(m.dangChay || []).length) return "";
+      return (m.dangChay || []).map(function (t) {
+        var td = (m.tienDo || {})[t] || null, bd = Date.parse((m.batDau || {})[t] || (m.chayLuc || {})[t] || ""), pct = td && td.n ? Math.min(100, Math.round(td.i / td.n * 100)) : -1;
+        var dong2 = td ? e_(td.buoc || "Đang chạy") + (td.task ? ' · phiếu <a href="https://work.hasaki.vn/tasks?task_id=' + encodeURIComponent(td.task) + '" target="_blank" rel="noopener">' + e_(td.task) + "</a>" : "") +
+            (td.n ? " (" + td.i + "/" + td.n + ")" : "") + (td.chiTiet ? " · " + e_(td.chiTiet) : "") : "Đang chạy";
+        var cn = td && td.luc ? Math.max(0, Math.round((Date.now() - Date.parse(td.luc)) / 1000)) : null;
+        return '<div class="mt-dc"><div class="mt-dc-dau"><i class="mt-cham"></i><b>' + e_(tenV(t)) + "</b>" + (m.dung && m.duPhong ? "<small>làm thay</small>" : "") + "</div>" +
+          '<div class="mt-dc-bc">' + dong2 + "</div>" + (pct >= 0 ? '<i class="mt-dc-thanh"><b style="width:' + pct + '%"></b></i>' : "") +
+          "<small>" + (bd ? "từ " + gioPhut(bd) + " · " + lau(bd) : "") + (cn != null ? (bd ? " · " : "") + "cập nhật " + tuoiChu(cn) : "") + "</small></div>";
+      }).join("");
+    };
     var the = function (m) {
       /* 14/10 laptop = MÁY DỰ PHÒNG (bị «Dừng» trong điều phối nhưng vẫn chạy cò gốc khi PC chưa nhận — GAS PCPHU gộp vào dangChay/duPhong) */
       var lamThay = m.dung && m.duPhong && (m.dangChay || []).length > 0;
@@ -216,7 +231,7 @@
         '<div class="mt-phu" title="' + e_((m.nhan || "?") + " nhân · " + (m.ramTongGB || "?") + " GB RAM · điểm xếp hạng " + (m.diem || 0) + (m.ban ? " · bản " + m.ban : "") + (m.dung && m.lenhBoi ? " · dừng bởi " + tenBoi(m.lenhBoi) : "")) + '">' +
           e_(tuoiChu(m.tuoiGiay)) + ((m.coKhoa || []).indexOf("TOPREVIEW_USER") < 0 ? " · không khoá camera" : "") + "</div>" +
         (nutMay ? '<div class="mt-nut">' + nutMay + "</div>" : "") + "</div>" +
-        '<div class="mt-phai">' + (viec.length ? '<div class="mt-tom">' + tomTat(m, viec) + "</div>" : "") + chip + "</div></div>";
+        '<div class="mt-phai">' + dangChayMay(m) + (viec.length ? '<div class="mt-tom">' + tomTat(m, viec) + "</div>" : "") + chip + "</div></div>";
     };
     var chuaCo = (MTD.viec || []).filter(function (v) { return !v.may; });
     /* 14/10: PC cài bằng bộ cài không khoá xin khoá + MÃ XÁC NHẬN trên màn PC — chỉ máy quản lý duyệt (so mã trước khi bấm). */
@@ -224,19 +239,8 @@
     var h = DIEU_KHIEN && xin.length ? '<div class="panel hx-mt-xin"><div class="panel-head"><span>PC xin khoá</span><span>' + xin.length + "</span></div>" +
       xin.map(function (x) { return '<div class="hx-mt-v"><div class="ten"><b>' + e_(x.may) + "</b><small>Mã xác nhận <b class=\"ma\">" + e_(x.maXN) + "</b> · xin " + e_(tuoiChu(Math.round((Date.now() - x.luc) / 1000))) + " · so với mã trên màn hình PC</small></div>" +
         '<button class="hx-nut phu" data-xin="' + e_(x.may) + '" data-dongy="0">Từ chối</button><button class="hx-nut" data-xin="' + e_(x.may) + '" data-dongy="1">Duyệt</button></div>'; }).join("") + "</div>" : "";
-    /* 14/10 user «rồi chạy chưa, đang chạy công việc gì cũng cần hiển thị t xem»: khối ĐANG CHẠY trên cùng — việc · máy · từ mấy giờ · bao lâu.
-       Không việc nào chạy → 1 dòng: việc chạy gần nhất ở đâu, lúc nào (để biết máy CÓ làm). */
-    var dangCh = [], ganNhat = null;
-    MTD.may.forEach(function (m) {
-      if (m.song) (m.dangChay || []).forEach(function (t) { dangCh.push({ t: t, may: m.may, thay: m.dung && m.duPhong, bd: Date.parse((m.batDau || {})[t] || (m.chayLuc || {})[t] || "") }); });
-      for (var t in (m.chayLuc || {})) { var x = Date.parse(m.chayLuc[t]); if (x && (!ganNhat || x > ganNhat.bd)) ganNhat = { t: t, may: m.may, bd: x }; }
-    });
-    dangCh.sort(function (a, b) { return (a.bd || 0) - (b.bd || 0); });
+    /* 14/10 chiều user «khối Đang chạy … vào từng máy pc trạm»: khối chung trên cùng đã bỏ — mỗi thẻ máy tự hiện việc đang chạy (the() → dangChayMay) */
     var lau = function (bd) { var p = Math.max(0, Math.round((Date.now() - bd) / 60000)); return p < 1 ? "vừa bắt đầu" : p < 60 ? p + " phút" : Math.floor(p / 60) + " giờ " + (p % 60) + " phút"; };
-    h += '<div class="panel mt-dang"><div class="panel-head"><span>Đang chạy</span><span>' + dangCh.length + "</span></div>" +
-      (dangCh.length ? dangCh.map(function (d) { return '<div class="hx-mt-v"><i class="mt-cham"></i><div class="ten"><b>' + e_(tenV(d.t)) + "</b><small>" + e_(d.may) + (d.thay ? " (dự phòng, làm thay)" : "") +
-          (d.bd ? " · từ " + gioPhut(d.bd) + " · " + lau(d.bd) : "") + "</small></div>" + (nangCua[d.t] ? '<span class="hx-tag warn">Nặng</span>' : "") + "</div>"; }).join("")
-        : '<div class="hx-trong">Lúc này không máy nào đang chạy việc' + (ganNhat ? " · gần nhất: " + e_(tenV(ganNhat.t)) + " trên " + e_(ganNhat.may) + " lúc " + gioPhut(ganNhat.bd) : "") + ".</div>") + "</div>";
     /* gom theo lý do (luật không lặp thông tin) — LÊN TRÊN CÙNG (14/10) */
     if (chuaCo.length) {
       var conMay = MTD.may.some(function (m) { return m.song && !m.dung; }), nhom = [], theo = {};

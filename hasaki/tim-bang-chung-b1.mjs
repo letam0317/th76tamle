@@ -55,7 +55,11 @@ for (const p of PH) { const id = String(p.id);
 log(`${viec.length} phiếu cần tìm khung camera (chạy tối đa ${MAX})`);
 fs.mkdirSync(GOC_BC, { recursive: true });
 let lam = 0;
+// 14/10 «chạy ra sao, của task nào» → tab Máy trạm (lượt thật)
+const TD = THU ? null : await import("./tien-do.mjs");
+const dsTD = viec.slice(0, MAX); TD?.batDau("tim-bang-chung-b1", "Tìm khung camera cho phiếu B1");
 for (const w of viec.slice(0, MAX)) {
+  TD?.tienDo({ buoc: "Tìm khung camera cho phiếu B1", task: w.id, i: dsTD.indexOf(w) + 1, n: dsTD.length, chiTiet: String(w.x && w.x.bin || "") });
   log(w.loai === "kho" ? `▶ ${w.id} · ${w.x.bin} · ${w.v.ten} (${w.v.code}) châm ${w.v.qty ?? "?"} lúc ${w.luc}` : `▶ ${w.id} · ${w.x.bin} · lúc chụp ảnh ${w.luc}`);
   if (THU) continue;
   let out = ""; const batDau = Date.now();
@@ -140,3 +144,4 @@ for (const [id, x] of Object.entries(kq)) {
   }
 }
 log(`xong: ${lam} phiếu có khung mới · ${clipMoi} clip mới · ${clipLan} clip lượt châm → ${F_RA}`);
+await TD?.xong();

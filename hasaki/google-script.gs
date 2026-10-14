@@ -2441,8 +2441,15 @@ function apiPcPhu_(d) {
   var lock = LockService.getScriptLock(); try { lock.waitLock(5000); } catch (e) { return phanHoiJson({ status: 'error', message: 'Ban (lock)' }); }
   try {
     var props = PropertiesService.getScriptProperties(), k = 'PCPHU_' + may, p = pcJson_(props.getProperty(k)) || {}, nay = new Date().toISOString();
-    p.dangChay = p.dangChay || {}; p.chayLuc = p.chayLuc || {};
-    if (d.xong) delete p.dangChay[viec]; else { p.dangChay[viec] = nay; p.chayLuc[viec] = nay; }
+    p.dangChay = p.dangChay || {}; p.chayLuc = p.chayLuc || {}; p.tienDo = p.tienDo || {};
+    if (d.xong) { delete p.dangChay[viec]; delete p.tienDo[viec]; }
+    else if (d.tienDo && typeof d.tienDo === 'object') {   // tien-do.mjs: bước · phiếu đang soát · i/n — làm mới mỗi ≥15 s, nhắc lại mỗi 60 s
+      var t = d.tienDo;
+      if (!p.dangChay[viec]) { p.dangChay[viec] = nay; p.chayLuc[viec] = nay; }
+      p.tienDo[viec] = { buoc: String(t.buoc || '').slice(0, 80), task: String(t.task || '').replace(/[^0-9]/g, '').slice(0, 20),
+        i: Number(t.i) || 0, n: Number(t.n) || 0, chiTiet: String(t.chiTiet || '').slice(0, 140), luc: nay };
+    }
+    else { p.dangChay[viec] = nay; p.chayLuc[viec] = nay; }
     props.setProperty(k, JSON.stringify(p));
     return phanHoiJson({ status: 'success' });
   } finally { lock.releaseLock(); }
@@ -2450,7 +2457,13 @@ function apiPcPhu_(d) {
 function pcPhuGop_(all, v, now) {   // gộp việc làm thay vào dòng máy (chỉ hiển thị)
   var p = pcJson_(all['PCPHU_' + v.may]); if (!p) return v;
   v.duPhong = true; v.dangChay = (v.dangChay || []).slice(); v.chayLuc = v.chayLuc || {}; v.batDau = v.batDau || {};
-  for (var t in (p.dangChay || {})) { var bd = Date.parse(p.dangChay[t]); if (!isNaN(bd) && now - bd < 3 * 36e5) { if (v.dangChay.indexOf(t) < 0) v.dangChay.push(t); v.batDau[t] = p.dangChay[t]; } }
+  v.tienDo = {};
+  for (var t in (p.dangChay || {})) {
+    var bd = Date.parse(p.dangChay[t]), td = (p.tienDo || {})[t], tdLuc = td ? Date.parse(td.luc) : NaN;
+    if (isNaN(bd) || now - bd >= 3 * 36e5) continue;                    // quá 3 giờ: máy tắt giữa chừng
+    if (td && !isNaN(tdLuc) && now - tdLuc > 5 * 60000) continue;       // có báo tiến độ mà im > 5' (nhắc mỗi 60 s): cò đã chết
+    if (v.dangChay.indexOf(t) < 0) v.dangChay.push(t); v.batDau[t] = p.dangChay[t]; if (td) v.tienDo[t] = td;
+  }
   for (var t2 in (p.chayLuc || {})) if (!v.chayLuc[t2] || Date.parse(p.chayLuc[t2]) > Date.parse(v.chayLuc[t2])) v.chayLuc[t2] = p.chayLuc[t2];
   return v;
 }
