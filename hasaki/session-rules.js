@@ -354,6 +354,10 @@ export function mayDuocChay(log = () => {}, d = new Date()) {
   const vai = String(process.env.RUNNER_VAI || "").trim().toLowerCase();
   if (!vai) return true;
   if (String(process.env.EP_RUNNER || "") === "1" || process.argv.includes("--force")) return true;
+  /* 14/10 user «cho máy trạm chạy xác minh các task còn treo»: PC có BỘ ĐIỀU PHỐI (cai-pc/dieu-phoi.json) thì cổng gác
+     runner-dieu-phoi đã chọn máy này + giữ khoá rồi mới gọi cò ⇒ chạy MỌI GIỜ. Chia vai theo đồng hồ chỉ còn cho PC cũ chưa có
+     điều phối. Laptop nhường việc bằng _LAPTOP-NHUONG.vbs (nhuong-pc.mjs) khi đã có PC bản mới nhận việc đó — không chạy trùng. */
+  if (vai === "pc" && fs.existsSync(new URL("./cai-pc/dieu-phoi.json", import.meta.url))) return true;
   const lap = laptopDuocChay(d);
   const ok = vai === "pc" ? !lap : lap;
   if (!ok) log("⏸ ngoài giờ của máy này (RUNNER_VAI=" + vai + ", laptop " + (process.env.LAPTOP_GIO || "09:00-17:55") + " T2–T7" +

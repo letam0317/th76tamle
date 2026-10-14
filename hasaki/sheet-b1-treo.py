@@ -219,7 +219,7 @@ for i, v in RAW.items():
         if k.get("canBan"): goi_luat += "\n⚠ Cần bạn: " + k["canBan"]; nghi = True
         goiy = goi_luat + ("\n— Ghi chú soi tay 29/09: " + str(goiy) if goiy else "")
         if not tim and k.get("nv"):
-            tim.append("WMS người cất vào ô 72h trước ảnh: " + "; ".join("%s%s %s cái" % (n["ten"], " (%s)" % n["code"] if n["code"] else "", n["qty"]) for n in k["nv"][:6]))
+            tim.append("WMS người châm hàng vào ô 72h trước ảnh: " + "; ".join("%s%s%s" % (n.get("ten") or "?", " (%s)" % n["code"] if n.get("code") else "", " %s cái" % n["qty"] if n.get("qty") is not None else "") for n in k["nv"][:6]))   # 14/10: nv không có qty → KeyError văng cả bước ghi sheet
         if not tim and k.get("camera"): tim.append("Camera: " + k["camera"] + " (đầu ghi .19)")
     dong.append(dict(
         id=i, ngay=ngay_vn(ngay_ghi), ngay_sx=str(ngay_ghi)[:10],
