@@ -435,8 +435,8 @@
         '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span></div>' +
         '<label class="hx-f"><span class="lbl">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="Chọn ứng viên hoặc gõ tên / mã NV" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '><div class="menu"></div></div></label>' +
         '<label class="hx-f"><span class="lbl">Vi phạm gì (QUY-ĐỊNH)</span><select data-muc="' + n.so + '"' + (khoa ? " disabled" : "") + '><option value="' + n.muc + '">Mục ' + n.muc + '</option></select><div class="hx-cau" data-cau="' + n.so + '"></div></label>' +
-        '<label class="hx-f"><span class="lbl">Ở đâu</span><input type="text" data-vt="' + n.so + '" value="' + e_(n.viTri) + '"' + (khoa ? " disabled" : "") + '></label>' +
-        '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label>' +
+        /* 14/10 user «ẩn»: ô «Ở đâu» lặp tiêu đề → bỏ (máy vẫn ghi chỗ theo camera lên phiếu) · ô tích chỉ khi ≥2 người (1 người thì trùng nút «Không phải NV Hasaki») */
+        (EV.ng.length >= 2 ? '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label>' : "") +
         '</div></div>'; }).join("") +
       '</div></div></div>';
     $id("mBody").innerHTML = h;
