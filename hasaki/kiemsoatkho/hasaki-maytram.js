@@ -43,23 +43,26 @@
       ".hx-mt-thanh{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;margin-top:4px}.hx-mt-thanh i{display:block;height:100%;background:var(--good)}.hx-mt-thanh i.warn{background:var(--warn)}.hx-mt-thanh i.bad{background:var(--bad,#dc2626)}",
       ".hx-mt-phu{padding:2px 16px 8px;font-size:12px;color:var(--muted)}",
       /* 14/10 hàng thẻ máy gọn */
-      ".mt-chua{margin:4px 0 12px}.mt-hang{display:grid;gap:8px;align-items:start}",   // mỗi chip cao đúng nội dung (không kéo theo chip bên cạnh)
-      ".mt-o{display:flex;flex-direction:column;gap:5px;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}.mt-o.cu .mt-sk{opacity:.45}",
+      /* 14/10 chiều user «đổi hiển thị từ ngang sang dọc… máy k chạy thì làm mờ… chip việc từ trái sang phải, kê bên phải chip máy trạm» */
+      ".mt-chua{margin:4px 0 12px}.mt-hang{display:flex;flex-direction:column;gap:8px}",
+      ".mt-o{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px;min-width:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);transition:opacity .2s}",
+      ".mt-trai,.mt-phai{display:flex;flex-direction:column;gap:5px;min-width:0}.mt-phai{gap:6px}.mt-phai .ds{display:flex;flex-wrap:wrap;gap:4px;align-items:center}",
+      ".mt-o.mo{background:var(--surface2)}.mt-o.mo .mt-dau,.mt-o.mo .mt-sk,.mt-o.mo .mt-phu,.mt-o.mo .mt-phai{opacity:.45}",   // máy dừng/mất nhịp: mờ — riêng nút «Cho chạy lại» vẫn sáng
       ".mt-dau{display:flex;align-items:flex-start;gap:6px;justify-content:space-between}.mt-dau b{font-size:13px;line-height:17px;min-width:0;overflow-wrap:anywhere}.mt-dau .hx-tag{flex:none;margin:0}",
       ".mt-sk{display:flex;flex-direction:column;gap:3px}.mt-sk .r{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;color:var(--muted)}",
       ".mt-sk .r i{height:5px;border-radius:3px;background:var(--surface2);overflow:hidden}.mt-sk .r i b{display:block;height:100%;background:var(--good)}.mt-sk .r i b.warn{background:var(--warn)}.mt-sk .r i b.bad{background:var(--bad,#dc2626)}",
       ".mt-sk .r em{font-style:normal;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}",
       ".mt-phu{font-size:11px;color:var(--muted)}.mt-trong{font-size:12px;color:var(--muted)}",
-      ".mt-viec{display:flex;flex-wrap:wrap;gap:4px}.mt-c{font:inherit;font-size:11px;line-height:16px;padding:2px 7px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);max-width:100%;overflow-wrap:anywhere;text-align:left}",
+      ".mt-viec{display:flex;flex-wrap:wrap;gap:4px}.mt-c{font:inherit;font-size:11px;line-height:16px;padding:2px 7px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);max-width:100%;overflow-wrap:anywhere;text-align:left;display:inline-flex;align-items:center}",
+      ".mt-x{font:inherit;font-size:14px;line-height:16px;border:0;background:none;color:var(--muted);cursor:pointer;padding:0 0 0 5px;margin-right:-3px}.mt-x:hover{color:var(--bad,#dc2626)}.mt-x:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:4px}",
       ".mt-c.chay{border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 12%,transparent)}.mt-c.cho{border-color:color-mix(in srgb,var(--info,var(--accent)) 40%,transparent);background:color-mix(in srgb,var(--info,var(--accent)) 9%,transparent)}",
-      ".mt-c.dung{border-color:color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent);text-decoration:line-through}button.mt-c{cursor:pointer}button.mt-c:hover{border-color:var(--accent)}",
-      ".mt-nh{font-size:11px;font-weight:600;color:var(--muted);align-self:center;min-width:34px}.mt-nh.nang{color:var(--bad,#dc2626)}.hx-mt-ly .ds+.ds,.mt-viec .ds+.ds{margin-top:4px}",
+      ".mt-c.dung{border-color:color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent);}.mt-c.dung .ten{text-decoration:line-through}",
+      ".mt-nh{font-size:11px;font-weight:600;color:var(--muted);align-self:center;min-width:34px}.mt-nh.nang{color:var(--bad,#dc2626)}.hx-mt-ly .ds+.ds{margin-top:4px}",
       ".mt-nut{margin-top:auto}.mt-nut .hx-nut{width:100%;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
-      ".mt-viec summary{cursor:pointer;list-style:none;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:3px;flex-wrap:wrap}.mt-viec summary::-webkit-details-marker{display:none}.mt-viec summary b{color:var(--text)}",
-      ".mt-viec summary::after{content:'▾';margin-left:auto;color:var(--muted)}.mt-viec[open] summary::after{content:'▴'}.mt-viec .ds{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
+      ".mt-tom{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:3px;flex-wrap:wrap}.mt-tom b{color:var(--text)}",
       ".mt-gan{order:2;flex-basis:100%;font-size:11px;color:var(--muted)}" +
-      ".mt-viec i.d{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:2px}.mt-viec i.d.chay{background:var(--good)}.mt-viec i.d.dung{background:var(--warn)}.mt-viec i.d.cho{background:var(--info,var(--accent))}",
-      "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{padding:7px 6px}.mt-dau{flex-direction:column;gap:3px}.mt-dau b{overflow-wrap:normal;word-break:break-word}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}button.mt-c{min-height:40px}.mt-nut .hx-nut,.mt-viec summary{min-height:40px}}",
+      ".mt-tom i.d{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:2px}.mt-tom i.d.chay{background:var(--good)}.mt-tom i.d.dung{background:var(--warn)}.mt-tom i.d.cho{background:var(--info,var(--accent))}",
+      "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}.mt-c{min-height:40px}.mt-x{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;align-items:center;padding:0;margin:-2px -7px -2px 0}.mt-nut .hx-nut{min-height:40px}}",
       ".hx-mt-xin{margin:4px 0 14px;border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}.hx-mt-xin .ma{font-family:ui-monospace,Consolas,monospace;font-size:14px;letter-spacing:2px;color:var(--text)}",
       ".hx-mt-ly{padding:10px 16px;border-top:1px solid var(--border)}.hx-mt-ly .ly{font-size:13px;color:var(--muted);margin-bottom:6px}.hx-mt-ly .ds{display:flex;flex-wrap:wrap;gap:6px}.hx-mt-ly .hx-tag{margin:0;font-weight:600;font-size:12px;color:var(--text)}",
       ".hx-mt-v{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 16px;border-top:1px solid var(--border)}.hx-mt-v .ten{flex:1;min-width:0;font-size:13.5px}.hx-mt-v .ten small{display:block;color:var(--muted);font-size:12px}",
@@ -194,15 +197,15 @@
         var dung = (m.dungViec || []).indexOf(t) >= 0, chay = (m.dangChay || []).indexOf(t) >= 0, sang = mayCua[t];
         var lop = dung ? "dung" : chay ? "chay" : (m.viecGiao || []).indexOf(t) >= 0 ? "cho" : "do";
         var nghia = dung ? "Đã dừng ở máy này" + (sang && sang !== m.may ? " → " + sang + " làm thay" : "") : chay ? "Đang chạy" : lop === "cho" ? "Được giao · chờ tới giờ" + ((m.chayLuc || {})[t] ? " · chạy gần nhất " + gioPhut(Date.parse(m.chayLuc[t])) : " · chưa chạy lần nào trên máy này") : "Đang chạy dở (đã giao máy khác)";
-        var tip = nghia + (DIEU_KHIEN && !m.dung ? (dung ? " — bấm để cho chạy lại" : " — bấm để dừng việc này") : "");
-        return DIEU_KHIEN && !m.dung ? '<button class="mt-c ' + lop + '" title="' + e_(tip) + '" data-may="' + e_(m.may) + '" data-viec="' + e_(t) + '" data-dung="' + (dung ? "0" : "1") + '">' + e_(tenV(t)) + "</button>"
-          : '<span class="mt-c ' + lop + '" title="' + e_(tip) + '">' + e_(tenV(t)) + "</span>";
+        /* 14/10 «chip việc có dấu x bên phải — máy nặng quá thì tắt, bộ điều phối chuyển việc sang máy khác»; việc đã tắt → ↺ bật lại */
+        var x = DIEU_KHIEN && !m.dung ? '<button class="mt-x" data-may="' + e_(m.may) + '" data-viec="' + e_(t) + '" data-dung="' + (dung ? "0" : "1") + '" title="' + e_(dung ? "Bật lại việc này trên máy này" : "Tắt việc này trên máy này — chuyển sang máy khác") + '" aria-label="' + e_((dung ? "Bật lại " : "Tắt ") + tenV(t)) + '">' + (dung ? "↺" : "×") + "</button>" : "";
+        return '<span class="mt-c ' + lop + '" title="' + e_(nghia) + '"><span class="ten">' + e_(tenV(t)) + "</span>" + x + "</span>";
       };
       var chip = (viec.length ? chiaNang(viec, veChip) : "") || '<div class="mt-trong">' + (m.dung ? (coMayKhac(m) ? "Đang dừng — việc do máy khác làm." : "Đang dừng — không nhận việc.")
         : m.song ? "Chưa được giao việc." : (coMayKhac(m) ? "Mất nhịp — việc đã sang máy khác." : "Mất nhịp.")) + "</div>";
       var nutMay = !DIEU_KHIEN ? "" : !m.song && !m.dung ? '<button class="hx-nut phu" data-may="' + e_(m.may) + '" data-xoa="1">Gỡ</button>'   // máy im: chỉ còn gỡ
         : '<button class="hx-nut' + (m.dung ? "" : " phu") + '" data-may="' + e_(m.may) + '" data-dung="' + (m.dung ? "0" : "1") + '">' + (m.dung ? "Cho chạy lại" : "Dừng máy") + "</button>";
-      return '<div class="mt-o' + (m.song ? "" : " cu") + '"><div class="mt-dau"><b title="' + e_(m.may) + '">' + e_(m.may) + '</b><span class="hx-tag ' + tt[1] + '">' + tt[0] + "</span></div>" +
+      return '<div class="mt-o' + (m.song ? "" : " cu") + (m.dung || !m.song ? " mo" : "") + '"><div class="mt-trai"><div class="mt-dau"><b title="' + e_(m.may) + '">' + e_(m.may) + '</b><span class="hx-tag ' + tt[1] + '">' + tt[0] + "</span></div>" +
         '<div class="mt-sk">' + dong("RAM", ramDung + "%", ramDung, mucDo(ramDung, 70, 85)) + dong("CPU", cpu + "%", cpu, mucDo(cpu, 70, 90)) +
         /* 14/10 user «ổ C ít quá, cần liệt kê thêm ổ mà máy trạm có»: mỗi ổ 1 dòng — thanh = phần ĐÃ DÙNG, số = còn trống. PC bản cũ (chưa gửi oDia) → ổ C như trước */
         ((m.oDia && m.oDia.length) ? m.oDia.map(function (x) { var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0;
@@ -210,8 +213,8 @@
           : dong("Ổ C", dia == null ? "—" : Math.round(dia) + " GB", dia == null ? 0 : Math.min(100, dia / 0.5), dia == null ? "" : dia < 3 ? "bad" : dia < 10 ? "warn" : "")) + "</div>" +
         '<div class="mt-phu" title="' + e_((m.nhan || "?") + " nhân · " + (m.ramTongGB || "?") + " GB RAM · điểm xếp hạng " + (m.diem || 0) + (m.ban ? " · bản " + m.ban : "") + (m.dung && m.lenhBoi ? " · dừng bởi " + tenBoi(m.lenhBoi) : "")) + '">' +
           e_(tuoiChu(m.tuoiGiay)) + ((m.coKhoa || []).indexOf("TOPREVIEW_USER") < 0 ? " · không khoá camera" : "") + "</div>" +
-        (viec.length ? '<details class="mt-viec"><summary>' + tomTat(m, viec) + "</summary>" + chip + "</details>" : '<div class="mt-viec">' + chip + "</div>") +   // 14/10 «chip máy gọn»: việc thu 1 dòng, bấm mới bung
-        (nutMay ? '<div class="mt-nut">' + nutMay + "</div>" : "") + "</div>";
+        (nutMay ? '<div class="mt-nut">' + nutMay + "</div>" : "") + "</div>" +
+        '<div class="mt-phai">' + (viec.length ? '<div class="mt-tom">' + tomTat(m, viec) + "</div>" : "") + chip + "</div></div>";
     };
     var chuaCo = (MTD.viec || []).filter(function (v) { return !v.may; });
     /* 14/10: PC cài bằng bộ cài không khoá xin khoá + MÃ XÁC NHẬN trên màn PC — chỉ máy quản lý duyệt (so mã trước khi bấm). */
@@ -229,7 +232,7 @@
       h += '<div class="panel mt-chua"><div class="panel-head"><span>Việc chưa có máy nhận</span><span>' + chuaCo.length + "</span></div>" +
         nhom.map(function (ly) { return '<div class="hx-mt-ly"><div class="ly">' + e_(ly) + "</div>" + chiaNang(theo[ly], function (t) { return '<span class="hx-tag">' + e_(tenV(t)) + "</span>"; }) + "</div>"; }).join("") + "</div>";
     }
-    h += MTD.may.length ? '<div class="mt-hang" style="grid-template-columns:repeat(' + MTD.may.length + ',minmax(0,240px))">' + MTD.may.map(the).join("") + "</div>"
+    h += MTD.may.length ? '<div class="mt-hang">' + MTD.may.map(the).join("") + "</div>"
       : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';    if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
     PANE.innerHTML = h;
     var dx = document.getElementById("mtDangXuat");
@@ -248,11 +251,11 @@
     PANE.querySelectorAll("button[data-may]").forEach(function (n) {
       n.onclick = function () {
         var dung = n.dataset.dung === "1", xoa = n.dataset.xoa === "1", viec = n.dataset.viec || "", cu = n.textContent;
-        if (dung && !window.confirm("Dừng " + (viec ? "«" + tenV(viec) + "» trên " : "cả máy ") + n.dataset.may + "?" + (viec ? "" : " Mọi việc của máy này sẽ chuyển sang máy khác."))) return;
-        n.disabled = true; n.textContent = "Đang gửi…";
+        if (dung && !window.confirm((viec ? "Tắt «" + tenV(viec) + "» trên " : "Dừng cả máy ") + n.dataset.may + "?" + (viec ? " Bộ điều phối sẽ chuyển việc này sang máy khác." : " Mọi việc của máy này sẽ chuyển sang máy khác."))) return;
+        n.disabled = true; n.textContent = n.classList.contains("mt-x") ? "…" : "Đang gửi…";
         goi591("/api/may-tram/lenh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ may: n.dataset.may, viec: viec, dung: dung, xoa: xoa }) })
           .then(function (j) {
-            if (typeof toast === "function") toast(xoa ? "Đã gỡ " + n.dataset.may + " khỏi danh sách" : (dung ? "Đã dừng " : "Đã cho chạy lại ") + (viec ? tenV(viec) + " trên " : "") + n.dataset.may + (j.daChuyen && j.daChuyen.length ? " — đang chuyển " + j.daChuyen.map(tenV).join(", ") + " sang máy khác" : ""), "ok");
+            if (typeof toast === "function") toast(xoa ? "Đã gỡ " + n.dataset.may + " khỏi danh sách" : (dung ? (viec ? "Đã tắt " : "Đã dừng ") : (viec ? "Đã bật lại " : "Đã cho chạy lại ")) + (viec ? tenV(viec) + " trên " : "") + n.dataset.may + (j.daChuyen && j.daChuyen.length ? " — đang chuyển " + j.daChuyen.map(tenV).join(", ") + " sang máy khác" : ""), "ok");
             return tai().then(ve);
           })
           .catch(function (e) { if (typeof toast === "function") toast("Không gửi được lệnh: " + e.message, "loi"); })

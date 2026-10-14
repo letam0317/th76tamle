@@ -105,34 +105,44 @@ try {
     }
     await p.waitForFunction(() => document.querySelectorAll("#pane-maytram .mt-o").length > 0, { timeout: 60000 });
     await new Promise((r) => setTimeout(r, 800));
-    // 14/10 bố cục: «Việc chưa có máy nhận» TRÊN CÙNG; máy trạm 1 HÀNG ngang, đều nhau, vừa bề ngang
+    // 14/10 chiều bố cục DỌC: «Việc chưa có máy nhận» TRÊN CÙNG; mỗi máy 1 hàng, xếp từ trên xuống, rộng đều, vừa bề ngang
     const bc = await p.evaluate(() => { const pn = document.querySelector("#pane-maytram"), the = [...pn.querySelectorAll(".mt-hang > .mt-o")], ch = pn.querySelector(".mt-chua"), hg = pn.querySelector(".mt-hang");
       const r = the.map((x) => x.getBoundingClientRect()), pr = pn.getBoundingClientRect();
-      return { so: the.length, cungHang: r.every((x) => Math.abs(x.top - r[0].top) < 2), deuNhau: r.every((x) => Math.abs(x.width - r[0].width) < 2), vua: r.length ? r[r.length - 1].right <= pr.right + 1 : false,
+      return { so: the.length, doc: r.every((x, i) => !i || x.top >= r[i - 1].bottom - 1), deuNhau: r.every((x) => Math.abs(x.width - r[0].width) < 2), vua: r.every((x) => x.right <= pr.right + 1),
         chuaTruoc: !!(ch && hg && (ch.compareDocumentPosition(hg) & Node.DOCUMENT_POSITION_FOLLOWING)), ngang: document.documentElement.scrollWidth - innerWidth,
         chu: the.map((t) => t.innerText.replace(/\s+/g, " ")), tipPhu: the.map((t) => (t.querySelector(".mt-phu") || {}).title || ""),
         chip: the.map((t) => [...t.querySelectorAll(".mt-c")].map((c) => c.className.replace("mt-c ", "") + ":" + c.textContent)),
         nut: [...pn.querySelectorAll("button[data-may]")].map((n) => ({ t: n.textContent, h: Math.round(n.getBoundingClientRect().height) })) }; });
     ok(bc.chuaTruoc, "«Việc chưa có máy nhận» nằm TRÊN hàng máy trạm");
-    ok(bc.cungHang && bc.deuNhau && bc.vua, "máy trạm 1 hàng ngang, rộng đều, vừa bề ngang (" + bc.so + " máy)");
+    ok(bc.doc && bc.deuNhau && bc.vua, "máy trạm xếp DỌC từ trên xuống, rộng đều, vừa bề ngang (" + bc.so + " máy)");
     ok(bc.ngang <= 0, "không kéo ngang trang (" + bc.ngang + ")");
-    if (m.data2) {   // chip máy gọn: rộng ≤245px (máy tính), cao ≤200px khi thu gọn, việc tóm 1 dòng, không tràn
-      const g = await p.evaluate(() => { const the = [...document.querySelectorAll("#pane-maytram .mt-o")]; return { r: the.map((t) => { const b = t.getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height) }; }),
-        tom: (document.querySelector("#pane-maytram .mt-viec summary") || {}).textContent || "", dong: [...document.querySelectorAll("#pane-maytram details.mt-viec")].every((d) => !d.open) }; });
-      if (!m.mob) ok(g.r.every((x) => x.w <= 245), "chip máy rộng ≤245px, không giãn hết màn (" + g.r.map((x) => x.w).join(",") + ")");
-      const tranCao = (m.mob ? 260 : 200) + 15 + 20;   // +16px dòng «7 nặng · 6 nhẹ · chạy gần nhất» (14/10)   // +15px cho mỗi ổ đĩa thêm (máy mẫu có C + D)   // điện thoại: dòng tóm tắt + nút Dừng phải ≥40px (luật vùng chạm)
-      ok(g.r.every((x) => x.h <= tranCao) && g.dong, "chip máy thu gọn cao ≤" + tranCao + "px dù 13 việc (" + g.r.map((x) => x.h).join(",") + ")");
+    if (m.data2) {   // 14/10 chiều: chip việc TRÁI→PHẢI kê BÊN PHẢI thẻ máy (máy tính); máy dừng MỜ, máy chạy sáng; mỗi chip có ×
+      const g = await p.evaluate(() => { const the = [...document.querySelectorAll("#pane-maytram .mt-o")];
+        const o = the[0], tr = o.querySelector(".mt-trai").getBoundingClientRect(), ph = o.querySelector(".mt-phai").getBoundingClientRect();
+        const chip = [...o.querySelectorAll(".mt-phai .ds")[0].querySelectorAll(".mt-c")].map((c) => c.getBoundingClientRect());
+        const x = [...o.querySelectorAll(".mt-c")].map((c) => { const b = c.querySelector(".mt-x"); if (!b) return null; const r = b.getBoundingClientRect(), rc = c.getBoundingClientRect(); return { phai: r.right >= rc.right - 8, w: r.width, h: r.height, k: b.textContent }; });
+        const mo = (sel) => { const t = the.find((e) => e.querySelector(".mt-dau b").textContent === sel); return t ? +getComputedStyle(t.querySelector(".mt-phai")).opacity : -1; };
+        return { benPhai: ph.left >= tr.right - 1 && Math.abs(ph.top - tr.top) < 2, duoi: ph.top >= tr.bottom - 1, traiPhai: chip.length > 1 && chip[1].left > chip[0].left && Math.abs(chip[1].top - chip[0].top) < 2,
+          x, moDung: mo("HSK-KHO170-tamlc-1"), moChay: mo("HSK-KHO170-QLIT"), nutDungSang: +getComputedStyle(the[1].querySelector(".mt-nut")).opacity,
+          tom: (document.querySelector("#pane-maytram .mt-tom") || {}).textContent || "" }; });
+      if (!m.mob) ok(g.benPhai, "chip việc kê BÊN PHẢI thẻ máy");
+      else ok(g.duoi, "điện thoại: chip việc xuống dưới thẻ máy (không bóp hẹp)");
+      ok(g.traiPhai, "chip việc chạy từ trái sang phải");
+      ok(g.moDung < 0.6 && g.moChay === 1 && g.nutDungSang === 1, "máy dừng MỜ (" + g.moDung + "), máy chạy sáng, nút «Cho chạy lại» vẫn sáng");
+      ok(g.x.length === 13 && g.x.every((v) => v && v.phai), "13 chip đều có nút tắt nằm bên phải");
+      ok(g.x.filter((v) => v.k === "↺").length === 1 && g.x.filter((v) => v.k === "×").length === 12, "việc đã tắt hiện ↺ (bật lại), còn lại ×");
+      if (m.mob) ok(g.x.every((v) => v.w >= 40 && v.h >= 40), "điện thoại: nút × vùng chạm ≥40px (" + g.x.map((v) => Math.round(v.w) + "×" + Math.round(v.h)).slice(0, 3).join(",") + "…)");
       const od = await p.evaluate(() => [...document.querySelector("#pane-maytram .mt-o").querySelectorAll(".mt-sk .r")].map((r) => r.innerText.replace(/\s+/g, " ").trim()));
       ok(od.includes("C: 12 GB") && od.includes("D: 813 GB") && !od.some((x) => /^Ổ C/.test(x)), "liệt kê MỌI ổ đĩa: " + od.slice(2).join(" | "));
       ok(await p.evaluate(() => { const b = document.querySelector("#pane-maytram .mt-o .mt-sk .r[title*='Ổ C'] i b"); return !!b && Math.abs(parseFloat(b.style.width) - 95) <= 1; }), "thanh ổ C = phần ĐÃ DÙNG (95%), đổi màu khi sắp đầy");
       ok(/13 việc · .*2 chạy · .*1 dừng · .*10 chờ/.test(g.tom), "việc tóm 1 dòng: " + g.tom.replace(/\s+/g, " "));
       const gan = await p.evaluate(() => (document.querySelector("#pane-maytram .mt-gan") || {}).textContent || "");
       ok(/^7 nặng · 6 nhẹ · chạy gần nhất \d\d:\d\d$/.test(gan), "dòng 2: nặng/nhẹ + giờ chạy gần nhất (" + gan + ")");
-      await p.click("#pane-maytram .mt-viec summary"); await new Promise((r) => setTimeout(r, 300));
-      ok(await p.evaluate(() => document.querySelectorAll("#pane-maytram details.mt-viec[open] .mt-c").length === 13), "bấm dòng tóm tắt → bung 13 chip việc");
-      const nn = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram details.mt-viec[open] .ds");
-      ok(nn["Nặng:"] === 7 && nn["Nhẹ:"] === 6, "chip việc chia hàng Nặng/Nhẹ, nhãn ghi 1 lần (" + JSON.stringify(nn) + ")");
-      ok((await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 0, "bung ra vẫn không tràn ngang");
+      const nn = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-o .mt-phai .ds");
+      ok(nn["Nặng:"] === 7 && nn["Nhẹ:"] === 6, "chip việc chia hàng Nặng/Nhẹ, nhãn ghi 1 lần, hiện sẵn không cần bấm (" + JSON.stringify(nn) + ")");
+      hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="tim-bang-chung-b1"]'); await new Promise((r) => setTimeout(r, 1200));
+      const bx = post.filter((x) => /may-tram\/lenh/.test(x.url)).pop(), ox = bx ? JSON.parse(bx.body) : {};
+      ok(hoi.length === 1 && /chuyển việc này sang máy khác/.test(hoi[0]) && ox.viec === "tim-bang-chung-b1" && ox.dung === true, "bấm × → hỏi lại rồi gửi lệnh tắt việc trên máy (" + (hoi[0] || "không hỏi") + ")");
       await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
     if (m.data) {   // ca hiển thị: chỉ laptop đang dừng, 13 việc chưa có máy
@@ -165,15 +175,14 @@ try {
       await p.click('#pane-maytram button[data-xin="PC-MOI-03"][data-dongy="1"]'); await new Promise((r) => setTimeout(r, 1200));
       const dk = post.find((x) => /duyet-khoa/.test(x.url)), od = dk ? JSON.parse(dk.body) : {};
       ok(od.may === "PC-MOI-03" && od.dongY === true, "bấm Duyệt → lệnh {PC-MOI-03, đồng ý}");
-      await p.evaluate(() => document.querySelectorAll("#pane-maytram details.mt-viec").forEach((d) => { d.open = true; }));   // chip nằm trong phần thu gọn
-      hoi.length = 0; await p.click('#pane-maytram button.mt-c[data-viec="canh-b11"]'); await new Promise((r) => setTimeout(r, 1200));
+      hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="canh-b11"]'); await new Promise((r) => setTimeout(r, 1200));
       const bd = post.find((x) => /may-tram\/lenh/.test(x.url)), o = bd ? JSON.parse(bd.body) : {};
-      ok(hoi.length === 1 && /Dừng «Cò canh B1\.1» trên PC-KHO-01/.test(hoi[0]), "bấm chip việc → hỏi lại trước khi dừng (" + (hoi[0] || "không hỏi") + ")");
+      ok(hoi.length === 1 && /Tắt «Cò canh B1\.1» trên PC-KHO-01/.test(hoi[0]), "bấm × trên chip việc → hỏi lại trước khi tắt (" + (hoi[0] || "không hỏi") + ")");
       ok(o.may === "PC-KHO-01" && o.viec === "canh-b11" && o.dung === true, "đồng ý → lệnh {PC-KHO-01, canh-b11, dừng}");
     } else {
       ok(goiDN === 2 && goiBang > 0, "điện thoại: đăng nhập 1 lần ở hệ tài khoản → dữ liệu qua Apps Script, không hỏi lần 2 (đăng nhập " + goiDN + " · bảng " + goiBang + ")");
       ok(!(await p.$("#mtDnForm")) && !(await p.$("#mtDangXuat")), "không còn ô đăng nhập / nút đăng xuất riêng của Máy trạm");
-      ok(bc.nut.length === 0 && !(await p.$("#pane-maytram button.mt-c")) && !(await p.$("#pane-maytram .hx-mt-xin")), "điện thoại: chip/nút chỉ xem, KHÔNG điều khiển, KHÔNG khối duyệt khoá");
+      ok(bc.nut.length === 0 && !(await p.$("#pane-maytram .mt-x")) && !(await p.$("#pane-maytram .hx-mt-xin")), "điện thoại: chip/nút chỉ xem, KHÔNG điều khiển, KHÔNG khối duyệt khoá");
       const lenhMT = post.filter((x) => /may-tram\/(lenh|duyet-khoa)|"action":"pc(Lenh|DuyetKhoa)"/.test(x.url + " " + (x.body || "")));   // chỉ lệnh ĐIỀU KHIỂN máy trạm (module khác gọi GAS không tính)
       ok(!lenhMT.length, "điện thoại: không gửi lệnh điều khiển máy trạm nào" + (lenhMT.length ? " — CÓ: " + post.map((x) => x.url.replace(/\?.*/, "").slice(-40) + " " + String(x.body || "").slice(0, 60)).join(" ; ") : ""));
       await p.evaluate(() => { window.TK.nguoi = null; window.TK.phien = ""; document.dispatchEvent(new CustomEvent("tk-doi")); }); await new Promise((r) => setTimeout(r, 800));
