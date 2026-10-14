@@ -3,6 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="robots" content="noindex, nofollow">
+<script>/* 14/10 user «vô letam0317 (github.io) vẫn vô được mà không trỏ sang audit-dc» — CHUYỂN NHÀ: github.io/kiemsoatkho/… → audit-dc.pages.dev/retail/…,
+   github.io/stocklocationfactory/… → audit-dc.pages.dev/factory/… (giữ ?tab= / tệp con / #). localStorage là theo TỪNG tên miền ⇒ mang theo các khoá
+   của máy (khoá thiết bị tb-khoa, phiên tài khoản tk-phien, phiên Xác minh hx-phien, theme…) qua #mang=… ; bên audit-dc chỉ GHI KHOÁ CHƯA CÓ (không đè).
+   Ở lại github.io để soát lỗi: thêm ?o-lai=1. Khối này của phiên chuyển tên miền — phiên khác đừng sửa. */
+(function(){var BAT=true;try{var H=location.hostname,ls=window.localStorage;
+if(H==='letam0317.github.io'){if(!BAT||/[?&]o-lai=1/.test(location.search))return;
+var ap=/^\/stocklocationfactory/.test(location.pathname)?'factory':'retail',tep=location.pathname.replace(/^\/(kiemsoatkho|stocklocationfactory)\/?/,'').replace(/^index\.html$/,'');
+var m={},n=0;for(var i=0;i<ls.length;i++){var k=ls.key(i),v=ls.getItem(k);if(v!=null&&v.length<4000&&n<30000){m[k]=v;n+=v.length+k.length;}}
+var h=location.hash.replace(/^#/,''),g=Object.keys(m).length?'mang='+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(m))))):'';
+location.replace('https://audit-dc.pages.dev/'+ap+'/'+tep+location.search+((g||h)?'#'+[g,h].filter(Boolean).join('&'):''));return;}
+var mm=/(?:^#|&)mang=([^&]+)/.exec(location.hash);if(mm&&/audit-dc\.pages\.dev$/.test(H)){var o=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(mm[1])))));
+for(var k2 in o)if(ls.getItem(k2)==null)ls.setItem(k2,o[k2]);var con=location.hash.replace(/(^#|&)mang=[^&]+/,'$1').replace(/^#&/,'#').replace(/^#$/,'');
+history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}})();</script>
 <script>/* 13/10 link theo tab (t4): mở thẳng link sâu /retail/tonkho/batthuong → mọi tệp tương đối phải tính từ GỐC app, không từ /tonkho/ */
 (function(){var m=/^\/(retail|kiemsoatkho|factory|stocklocationfactory)\//.exec(location.pathname);if(m)document.write('<base href="/'+m[1]+'/">');
 /* 13/10 tên miền audit-dc.pages.dev: số liệu summary/ + ảnh nhỏ thu/ đổi liên tục nên KHÔNG đẩy sang Cloudflare — đọc thẳng từ GitHub Pages (cho phép đọc chéo) */
@@ -3326,7 +3339,7 @@ function moHasakiMayTram(){
   const pane=$('pane-maytram');
   if(!_mtNap){
     _mtNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261014mt5';
+      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261014mt7';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-maytram.js'));
       document.body.appendChild(s);
     });
@@ -3413,7 +3426,7 @@ var HOME_MUC = [
     { t: "xacminh", sub: "cam", ten: "Theo máy", cc: "var(--warn)", mo: "Sự việc máy tự bắt từ camera (bãi xe, khu phân loại) chờ quyết định.", muc: ["Clip", "Bộ chọn theo ảnh", "Lập phiếu"] },
     { t: "xacminh", sub: "tg", ten: "Nhật ký", cc: "var(--muted)", mo: "Phiếu, bình luận, ảnh máy đã ghi lên work.hasaki.vn — lọc theo bộ, việc, ngày.", muc: ["Bộ nào làm", "Làm gì", "Ngày"] },
     { t: "maytram", ten: "Máy trạm", cc: "var(--good)", mo: "Các PC chạy cò: nhịp tim, RAM · CPU · ổ C, việc đang làm; dừng hoặc cho chạy lại trên máy quản lý.", muc: ["Nhịp tim", "Sức khoẻ", "Việc"],
-      so: function(){ var d=window.tqDoc&&tqDoc("mt"); return d&&d.tong?{ k: d.song+"/"+d.tong, l: "máy đang chạy" }:null; } }
+      so: function(){ var d=window.tqDoc&&tqDoc("mt"); return d&&d.tong?{ k: d.tong, l: d.song+" đang chạy / "+d.tong+" máy" }:null; } }   // 14/10 user: «máy trạm là 2 mà thanh bên 0/1» → số = tổng máy
   ]}
 ];
 function nf0(n){ return Number(n||0).toLocaleString("vi-VN"); }
@@ -4146,18 +4159,21 @@ document.addEventListener('click', ()=>csDongHet(null));
       el.classList.toggle("on", el.getAttribute("data-tab") === cur && (!s || s === (sub || "treo"))); });
     var M = window.__HX_MUC; if (M) M.ds.forEach(function(x){ var b = nav.querySelector('.s-item[data-sub="' + x.k + '"] .sn'); if (b) b.textContent = x.n || ""; }); }
   window.addEventListener("hx-muc", function(){ sync(); });
-  window.addEventListener("hx-phien", function(){ build(); if (window.homeVeLai) homeVeLai(); });   // đăng nhập / đăng xuất Xác minh → dựng lại thanh bên + thẻ Tổng quan
+  window.addEventListener("hx-phien", function(){ build(); if (window.homeVeLai) homeVeLai(); });
+  document.addEventListener("tk-doi", function(){ build(); if (window.homeVeLai) homeVeLai(); });   // đăng nhập / đăng xuất hệ tài khoản   // đăng nhập / đăng xuất Xác minh → dựng lại thanh bên + thẻ Tổng quan
   function build(){
     var tabs = [];
     try{ if (typeof CTY !== "undefined" && typeof CTY_ID !== "undefined" && CTY[CTY_ID]) tabs = CTY[CTY_ID].tabs || []; }catch(e){}
     if (!tabs.length) tabs = ["home","tong","task","xacminh","planogram","hangmuc","kk","htonbat","maytram"];   // dự phòng
     var html = "";   /* KHÔNG lặp brand — header đã có tiêu đề AUDIT HASAKI */
     /* 12/10 user: chưa đăng nhập Xác minh thì CHỈ 1 nút "Xác minh"; đăng nhập xong mới hiện 5 mục con (hasaki-xacminh.js bắn "hx-phien") */
-    var daDN = false; try { daDN = !!localStorage.getItem("hx-phien"); } catch(e){}
+    /* 14/10 user: «chưa đăng nhập (nút Đăng nhập còn) mà vẫn xem được mục con Xác minh» — trước đây xét phiên Xác minh CŨ (hx-phien) còn
+       sót trên laptop. Nay có hệ tài khoản (tai-khoan.js) thì theo nó: đã đăng nhập + có quyền Xác minh mới hiện mục con (kể cả Máy trạm). */
+    var daDN = false; try { daDN = window.TK ? !!(window.TK.nguoi && (typeof window.tkCo !== "function" || window.tkCo("r.xacminh"))) : !!localStorage.getItem("hx-phien"); } catch(e){}
     HM.forEach(function(grp){
       var its = grp.items.filter(function(x){ return tabs.indexOf(x[0]) >= 0 && (x[0] !== "xacminh" || window.__HX_MAY_CHU); });
       if (!its.length) return;
-      if (grp.hx && !daDN && window.__HX_MAY_CHU) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
+      if (grp.hx && !daDN) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
       if (!grp.g) { html += '<div class="s-sub s-mot s-dau">' + its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"><span class="di"></span>' + x[1] + '<span class="sn"></span></div>'; }).join("") + '</div>'; return; }
       /* 14/10 user «ô Xác minh không thấy Theo tác vụ, Theo máy, Nhật ký»: Edge chặn trang gọi 127.0.0.1 (quyền «mạng cục bộ») ⇒ laptop bị coi
          như điện thoại. Máy đã từng đăng nhập Xác minh (chỉ laptop) mà dò 8591 hỏng → thêm mục «Kết nối máy chủ Xác minh»: bấm = dò lại

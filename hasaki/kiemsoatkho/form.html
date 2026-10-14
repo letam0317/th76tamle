@@ -3,6 +3,19 @@
 <head>
   <meta charset="UTF-8" />
 <meta name="robots" content="noindex, nofollow">
+<script>/* 14/10 user «vô letam0317 (github.io) vẫn vô được mà không trỏ sang audit-dc» — CHUYỂN NHÀ: github.io/kiemsoatkho/… → audit-dc.pages.dev/retail/…,
+   github.io/stocklocationfactory/… → audit-dc.pages.dev/factory/… (giữ ?tab= / tệp con / #). localStorage là theo TỪNG tên miền ⇒ mang theo các khoá
+   của máy (khoá thiết bị tb-khoa, phiên tài khoản tk-phien, phiên Xác minh hx-phien, theme…) qua #mang=… ; bên audit-dc chỉ GHI KHOÁ CHƯA CÓ (không đè).
+   Ở lại github.io để soát lỗi: thêm ?o-lai=1. Khối này của phiên chuyển tên miền — phiên khác đừng sửa. */
+(function(){var BAT=true;try{var H=location.hostname,ls=window.localStorage;
+if(H==='letam0317.github.io'){if(!BAT||/[?&]o-lai=1/.test(location.search))return;
+var ap=/^\/stocklocationfactory/.test(location.pathname)?'factory':'retail',tep=location.pathname.replace(/^\/(kiemsoatkho|stocklocationfactory)\/?/,'').replace(/^index\.html$/,'');
+var m={},n=0;for(var i=0;i<ls.length;i++){var k=ls.key(i),v=ls.getItem(k);if(v!=null&&v.length<4000&&n<30000){m[k]=v;n+=v.length+k.length;}}
+var h=location.hash.replace(/^#/,''),g=Object.keys(m).length?'mang='+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(m))))):'';
+location.replace('https://audit-dc.pages.dev/'+ap+'/'+tep+location.search+((g||h)?'#'+[g,h].filter(Boolean).join('&'):''));return;}
+var mm=/(?:^#|&)mang=([^&]+)/.exec(location.hash);if(mm&&/audit-dc\.pages\.dev$/.test(H)){var o=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(mm[1])))));
+for(var k2 in o)if(ls.getItem(k2)==null)ls.setItem(k2,o[k2]);var con=location.hash.replace(/(^#|&)mang=[^&]+/,'$1').replace(/^#&/,'#').replace(/^#$/,'');
+history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Form Audit - Kiểm soát kho 5S</title>
 
