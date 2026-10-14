@@ -50,6 +50,16 @@ function diaTrongGB() {
   } catch { return null; }   // Node cu / khong ho tro -> bo qua kiem dia
 }
 
+// 14/10 user «ổ C ít quá, cần liệt kê thêm ổ mà máy trạm có»: mọi ổ đĩa C..Z đang gắn → [{o:"C", trong, tong}] (GB, 1 số lẻ)
+function oDia() {
+  const ds = [];
+  for (const o of "CDEFGHIJKLMNOPQRSTUVWXYZ") {
+    try { const st = fs.statfsSync(o + ":\\"); const tong = (st.blocks * st.bsize) / 1073741824;
+      if (tong >= 1) ds.push({ o, trong: Math.round((st.bavail * st.bsize) / 1073741824 * 10) / 10, tong: Math.round(tong * 10) / 10 }); } catch { /* không có ổ này */ }
+  }
+  return ds;
+}
+
 export async function sucKhoe() {
   const tong = os.totalmem(), trong = os.freemem();
   const ramTrong = PCT(trong, tong);                     // % RAM con trong
@@ -62,6 +72,7 @@ export async function sucKhoe() {
   const yeu = yeuCoTre(ramTrong, nguong, nguongRa) || diaYeu;  // < 30% RAM hoac dia thap -> yeu
   return {
     diaTrongGB: dia,
+    oDia: oDia(),
     may: os.hostname(),
     ramTrongPct: ramTrong,
     ramTrongGB: Math.round(trong / 1073741824 * 10) / 10,
@@ -83,6 +94,6 @@ export function duSucNhanNang(sk, dangChay = 0, tranViecNang = Number(process.en
   return true;
 }
 
-if (import.meta.url === `file://${process.argv[1].split("\\").join("/")}` || process.argv[1]?.endsWith("suc-khoe.mjs")) {
+if (import.meta.url === `file://${(process.argv[1] || "").split("\\").join("/")}` || process.argv[1]?.endsWith("suc-khoe.mjs")) {
   sucKhoe().then((s) => console.log(JSON.stringify(s, null, 1)));
 }

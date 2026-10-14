@@ -97,9 +97,9 @@ export async function guiNhip(log = () => {}, opts = {}) {
   let dangChay = opts.dangChay; if (!dangChay) { try { dangChay = JSON.parse(fs.readFileSync(DC_TOM, "utf8")); } catch { dangChay = []; } }
   // 13/10: việc máy này được giao (tính ở nhịp trước bằng dieu-phoi.mjs) + mọi việc trong dieu-phoi.json → tab Máy trạm trên điện thoại
   let viecGiao = []; try { viecGiao = JSON.parse(fs.readFileSync(GIAO_F, "utf8")); } catch { /* chưa tính */ }
-  let tatCaViec = []; try { tatCaViec = (JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).viec || []).map((v) => v.ten); } catch { /* */ }
+  let tatCaViec = [], viecNang = []; try { const vs = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).viec || []; tatCaViec = vs.map((v) => v.ten); viecNang = vs.filter((v) => v.nang).map((v) => v.ten); } catch { /* */ }   // 14/10 nhãn nặng/nhẹ
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
-    dangChay, viecGiao, tatCaViec, ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
+    dangChay, viecGiao, tatCaViec, viecNang, oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
   try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).
