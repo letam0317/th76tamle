@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Nghiệm thu checklist kiểm kê</title>
+  <!-- Cùng bộ khung với form.html (Ghi nhận 5S): Tailwind CDN + Alpine -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    :root { --ez-apple: cubic-bezier(.25,.1,.25,1); --ez-spring: cubic-bezier(.34,1.56,.64,1); }
+    .kep2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .kep3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    @keyframes sheetIn { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes fadeUp { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .sheet-in { animation: sheetIn .28s var(--ez-apple) both; }
+    .fade-up { animation: fadeUp .22s var(--ez-apple) both; }
+    .the:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible {
+      outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 35%, transparent);
+    }
+    .skel { background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 37%,#e2e8f0 63%); background-size: 400% 100%; animation: skel 1.3s ease infinite; }
+    @keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  </style>
+</head>
+
+<body class="bg-slate-100 min-h-screen">
+<div x-data="ntForm()" x-init="init()" class="max-w-xl mx-auto px-4 pt-4 pb-10"
+     style="padding-top:calc(env(safe-area-inset-top,0px) + 16px)">
+
+  <div x-show="noiBo" x-cloak class="mb-3 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-xs px-3 py-1.5">
+    BẢN NỘI BỘ — mọi lần gửi ghi vào sheet NHÁP, sheet thật không đổi.
+  </div>
+
+  <!-- Máy chưa được cấp quyền (khoá thiết bị GAS): xin mã OTP 4 số ngay tại đây — cùng luồng tb_xin/tb_otp của dashboard -->
+  <div x-show="canQuyen" x-cloak class="mb-3 rounded-2xl bg-white border border-amber-300 shadow-sm p-4 space-y-3">
+    <p class="text-sm font-semibold text-slate-800">Máy này chưa được cấp quyền dùng form</p>
+    <p class="text-xs text-slate-500" x-text="tbBuoc === 'otp' ? 'Quản trị đã nhận yêu cầu — xin họ mã 4 số rồi gõ vào đây. Chỉ làm 1 lần cho máy này.' : 'Ghi tên + bộ phận rồi bấm Xin mã OTP. Chỉ làm 1 lần cho máy này.'"></p>
+    <div x-show="tbBuoc !== 'otp'" class="flex gap-2">
+      <input type="text" x-model="tbTen" placeholder="Họ tên · bộ phận" class="flex-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 min-h-[44px] text-sm focus:border-blue-400 focus:outline-none" />
+      <button type="button" @click="xinMa()" :class="tbDang ? 'opacity-60' : ''" class="shrink-0 rounded-2xl bg-blue-600 text-white font-semibold px-4 min-h-[44px] text-sm">Xin mã OTP</button>
+    </div>
+    <div x-show="tbBuoc === 'otp'" x-cloak class="flex gap-2">
+      <input type="text" inputmode="numeric" maxlength="4" x-model="tbOtp" placeholder="Mã 4 số" class="flex-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 min-h-[44px] text-base tracking-[0.4em] focus:border-blue-400 focus:outline-none" />
+      <button type="button" @click="guiOtp()" :class="tbDang ? 'opacity-60' : ''" class="shrink-0 rounded-2xl bg-blue-600 text-white font-semibold px-4 min-h-[44px] text-sm">Xác nhận</button>
+      <button type="button" @click="tbBuoc = 'xin'" class="shrink-0 rounded-2xl border border-slate-200 text-slate-600 px-3 min-h-[44px] text-[13px]">Xin lại</button>
+    </div>
+    <p x-show="tbTb" x-cloak class="text-xs" :class="tbLoi ? 'text-red-600' : 'text-green-700'" x-text="tbTb"></p>
+  </div>
+
+  <!-- Không dựng dòng tiêu đề: tên trang ở <title>; 2 nút nhóm kiểm đã nói rõ trang làm gì (luật 13: ≤130px đầu màn) -->
+  <!-- Chia 2 nhóm kiểm: số đếm = số mục khớp ô tìm kiếm đang gõ (thấy ngay kết quả nằm ở nhóm nào) -->
+  <div class="flex gap-1 bg-white rounded-2xl p-1 shadow-sm mb-2" role="tablist">
+    <template x-for="b in [['vl', 'Kiểm vật lý'], ['ht', 'Kiểm hệ thống']]" :key="b[0]">
+      <button type="button" @click="chonLoai(b[0])" :class="loai === b[0] ? 'bg-blue-600 text-white' : 'text-slate-600'"
+        class="flex-1 rounded-xl px-1 text-[13px] font-semibold whitespace-nowrap transition min-h-[40px]">
+        <span x-text="b[1]"></span>
+        <span class="ml-0.5 text-[11px] font-bold rounded-full px-1.5" :class="loai === b[0] ? 'bg-white/25' : 'bg-slate-100'" x-text="dsCua(b[0]).length"></span>
+      </button>
+    </template>
+  </div>
+
+  <!-- Tìm kiếm + chỉ hiện mục chưa làm -->
+  <div class="flex gap-2 mb-2">
+    <div class="relative flex-1">
+      <input type="search" x-model="tim" placeholder="Tìm: SKU, công việc, nội dung…" enterkeyhint="search"
+        class="w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-10 min-h-[40px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+      <button type="button" x-show="tim" x-cloak @click="tim = ''" title="Xoá tìm kiếm"
+        class="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full text-slate-400 hover:bg-slate-100">✕</button>
+    </div>
+    <button type="button" @click="chiChua = !chiChua" :class="chiChua ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200'"
+      class="shrink-0 rounded-2xl border px-3 min-h-[40px] text-[13px] font-semibold whitespace-nowrap transition"
+      x-text="'Chưa làm ' + dsCua(loai, true).filter(d => !daPh(d)).length"></button>
+  </div>
+
+  <!-- Đang tải lần đầu -->
+  <div x-show="dangTai && !ds.length" class="space-y-2">
+    <template x-for="i in 5" :key="i"><div class="skel h-24 rounded-2xl"></div></template>
+  </div>
+  <div x-show="loiTai" x-cloak class="rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 mb-3 flex items-center gap-3">
+    <span class="flex-1" x-text="loiTai"></span>
+    <button type="button" @click="taiDs()" class="shrink-0 rounded-xl bg-red-600 text-white px-3 min-h-[40px] text-sm font-semibold">Tải lại</button>
+  </div>
+
+  <!-- Danh sách checklist -->
+  <div class="space-y-2">
+    <template x-for="d in dsHien()" :key="d.dong">
+      <button type="button" @click="mo(d)"
+        class="the fade-up w-full text-left bg-white rounded-2xl shadow-sm border border-slate-200 px-4 py-3 active:scale-[0.99] transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide truncate flex-1"
+                x-text="(d.stt ? d.stt + ' · ' : '') + d.congViec"></span>
+          <span x-show="loaiCua(d) === 'ca'" class="shrink-0 text-[11px] font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">Vật lý + hệ thống</span>
+          <span x-show="dongBoCua(d) === 'loi'" class="shrink-0 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">✗ Chưa lưu</span>
+          <span x-show="dongBoCua(d) === 'dang'" class="shrink-0 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Đang lưu…</span>
+          <span x-show="!dongBoCua(d) && daPh(d)" class="shrink-0 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">✓ Đã phản hồi</span>
+        </div>
+        <p class="text-sm text-slate-800 kep3 whitespace-pre-line" x-text="d.checklist"></p>
+        <p x-show="d.yeuCau" class="mt-1.5 text-xs text-blue-700 kep2 whitespace-pre-line" x-text="'Ghi chú: ' + yeuCauGon(d)"></p>
+      </button>
+    </template>
+    <button type="button" x-show="dsPhu().length && !moRong" x-cloak @click="moRong = true"
+      class="w-full rounded-2xl border border-dashed border-slate-300 text-slate-500 text-sm min-h-[44px]"
+      x-text="'Hiện thêm ' + dsPhu().length + ' mục không yêu cầu ảnh/clip'"></button>
+    <p x-show="!dangTai && ds.length && !dsHien().length && !dsPhu().length" x-cloak class="text-center text-sm text-slate-400 py-8"
+       x-text="tim.trim() ? 'Không có mục nào khớp “' + tim.trim() + '” trong nhóm này.' : 'Không còn mục nào trong nhóm này.'"></p>
+  </div>
+
+  <!-- ===== Bảng cập nhật 1 mục (trượt từ dưới lên) ===== -->
+  <div x-show="dang" x-cloak class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center"
+       @keydown.escape.window="dong()">
+    <div x-show="dang" class="sheet-in bg-white w-full max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh]"
+         style="padding-bottom:env(safe-area-inset-bottom,0px)" @click.stop>
+      <div class="flex items-center gap-2 pl-5 pr-2 pt-2 pb-1 border-b border-slate-100 shrink-0">
+        <p class="flex-1 text-sm font-bold text-slate-800 truncate" x-text="dang ? ((dang.stt ? dang.stt + ' · ' : '') + dang.congViec) : ''"></p>
+        <button type="button" @click="dong()" class="w-11 h-11 rounded-full text-slate-500 hover:bg-slate-100 text-lg" title="Đóng">✕</button>
+      </div>
+
+      <div class="overflow-y-auto px-5 py-4 space-y-4" x-show="dang">
+        <section>
+          <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Checklist</p>
+          <p class="text-sm text-slate-800 whitespace-pre-line" x-text="dang && dang.checklist"></p>
+        </section>
+        <section x-show="dang && dang.tienDo">
+          <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Kho phản hồi tiến độ</p>
+          <p class="text-sm text-slate-700 whitespace-pre-line" x-text="dang && dang.tienDo"></p>
+        </section>
+        <section x-show="dang && dang.yeuCau" class="rounded-2xl bg-blue-50 border border-blue-100 px-3 py-2">
+          <p class="text-[11px] font-semibold text-blue-700 uppercase tracking-wide mb-1">Ghi chú</p>
+          <p class="text-sm text-blue-900 whitespace-pre-line" x-text="dang && yeuCauGon(dang)"></p>
+        </section>
+        <!-- Các lần phản hồi đã ghi: xem lại · sửa · xoá từng lần -->
+        <section x-show="dang && daPh(dang)" class="space-y-2">
+          <p class="text-[11px] font-semibold text-green-700 uppercase tracking-wide">Đã phản hồi</p>
+          <div x-show="dang && dang.tay" class="rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2">
+            <p class="text-[11px] text-slate-500 mb-0.5">Gõ trực tiếp trên sheet</p>
+            <p class="text-sm text-slate-700 whitespace-pre-line" x-text="dang && dang.tay"></p>
+          </div>
+          <template x-for="m in (dang ? dang.muc : [])" :key="m.id">
+            <div class="rounded-2xl border px-3 py-2" :class="sua === m.id ? 'border-blue-400 bg-blue-50' : m.cho === 'loi' ? 'border-red-200 bg-red-50' : 'border-green-100 bg-green-50'">
+              <div class="flex items-center gap-1">
+                <span class="flex-1 min-w-0 text-[11px] text-slate-500 truncate" x-text="m.luc + ' · ' + m.ai + (m.sua ? ' · sửa ' + m.sua : '')"></span>
+                <span x-show="m.cho === 'dang'" class="shrink-0 text-[11px] font-semibold text-blue-600">Đang lưu lên sheet…</span>
+                <button type="button" x-show="m.cho === 'loi'" @click="thuLai(m)" class="shrink-0 rounded-xl text-[12px] font-semibold text-red-600 px-2 min-h-[40px]">✗ Chưa lưu — thử lại</button>
+                <button type="button" x-show="!m.cho && sua !== m.id" @click="batSua(m)" class="shrink-0 rounded-xl text-[13px] font-semibold text-blue-700 hover:bg-white px-3 min-h-[40px]">Sửa</button>
+                <button type="button" x-show="!m.cho && sua !== m.id" @click="xoaMuc(m)" class="shrink-0 rounded-xl text-[13px] font-semibold text-red-600 hover:bg-white px-3 min-h-[40px]">Xoá</button>
+                <span x-show="sua === m.id" class="shrink-0 text-[11px] font-semibold text-blue-700 px-2">Đang sửa bên dưới</span>
+              </div>
+              <p x-show="m.ghiChu" class="text-sm text-slate-800 whitespace-pre-line" x-text="m.ghiChu"></p>
+              <div x-show="(m.tep || []).length" class="mt-1.5 grid grid-cols-4 gap-1.5">
+                <template x-for="(t, j) in (m.tep || [])" :key="t.id || t.tam">
+                  <button type="button" @click="xemTep(t)" class="block h-16 rounded-lg overflow-hidden bg-slate-700 relative">
+                    <img x-show="anhNho(t)" :src="anhNho(t)" loading="lazy" class="w-full h-full object-cover" @error="$el.style.display = 'none'" />
+                    <span x-show="t.loai === 'video'" class="absolute inset-0 flex items-center justify-center">
+                      <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
+        </section>
+
+        <!-- Phần cập nhật mới -->
+        <section class="space-y-3 pt-1 border-t border-slate-100">
+          <div x-show="sua" x-cloak class="pt-3 flex items-center gap-2">
+            <p class="flex-1 text-sm font-semibold text-blue-700">Sửa phản hồi đã ghi</p>
+            <button type="button" @click="huySua()" class="rounded-xl border border-slate-200 text-slate-600 text-[13px] font-semibold px-3 min-h-[40px]">Huỷ sửa</button>
+          </div>
+          <div :class="sua ? '' : 'pt-3'">
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5" x-text="sua ? 'Ý kiến / ghi chú' : (dang && daPh(dang) ? 'Bổ sung phản hồi — ý kiến / ghi chú' : 'Ý kiến / ghi chú')"></label>
+            <textarea x-model="ghiChu" rows="3" placeholder="Kết quả nghiệm thu, vướng mắc..."
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none transition"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Hình ảnh / clip</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" @click="moChupAnh()"
+                class="flex flex-col items-center justify-center rounded-2xl border-2 border-blue-300 bg-blue-50 px-3 py-4 hover:bg-blue-100 active:scale-[0.98] transition text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-blue-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>
+                </svg>
+                <span class="text-sm text-blue-700 font-semibold">Chụp / quay</span>
+                <span class="text-[11px] text-blue-400">mở camera</span>
+              </button>
+              <label
+                @dragover.prevent="keoVao = true" @dragleave.prevent="keoVao = false"
+                @drop.prevent="keoVao = false; xuLyFile($event.dataTransfer.files)"
+                :class="keoVao ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-slate-50'"
+                class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 py-4 cursor-pointer hover:bg-slate-100 transition text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-slate-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5"/>
+                </svg>
+                <span class="text-sm text-slate-600 font-medium">Chọn từ thư viện</span>
+                <span class="text-[11px] text-slate-400">hoặc kéo thả</span>
+                <input type="file" accept="image/*,video/*" multiple class="hidden" @change="xuLyFile($event.target.files); $event.target.value = ''" />
+              </label>
+            </div>
+
+            <!-- Ảnh/clip ĐÃ lưu của mục đang sửa: chạm ✕ để bỏ (tệp vào Thùng rác Drive khi lưu) -->
+            <div x-show="tepCu.length" x-cloak class="mt-3 grid grid-cols-3 gap-2">
+              <template x-for="(t, i) in tepCu" :key="t.id">
+                <div class="relative">
+                  <button type="button" @click="xemTep(t)" class="block w-full h-24 rounded-xl border border-slate-200 overflow-hidden bg-slate-700 relative">
+                    <img x-show="anhNho(t)" :src="anhNho(t)" class="w-full h-full object-cover" @error="$el.style.display = 'none'" />
+                    <span x-show="t.loai === 'video'" class="absolute inset-0 flex items-center justify-center">
+                      <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </span>
+                  </button>
+                  <button type="button" @click="tepCu.splice(i, 1)" title="Bỏ ảnh/clip này"
+                    class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow">✕</button>
+                </div>
+              </template>
+            </div>
+            <div x-show="files.length" x-cloak class="mt-3 grid grid-cols-3 gap-2">
+              <template x-for="(f, i) in files" :key="f.tam">
+                <div class="relative">
+                  <button type="button" @click="xemMedia = f"
+                    class="block w-full h-24 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 relative">
+                    <template x-if="f.loai === 'image'"><img :src="f.preview" class="w-full h-full object-cover" /></template>
+                    <template x-if="f.loai === 'video'">
+                      <span class="block w-full h-full bg-slate-800 relative">
+                        <video :src="f.preview" playsinline webkit-playsinline muted preload="metadata" class="absolute inset-0 w-full h-full object-cover opacity-70"></video>
+                        <span class="absolute inset-0 flex items-center justify-center">
+                          <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        </span>
+                      </span>
+                    </template>
+                    <span class="absolute bottom-1 left-1 text-[11px] font-semibold text-white bg-black/55 rounded px-1.5 py-0.5"
+                          x-text="tepCu.length + i + 1"></span>
+                  </button>
+                  <button type="button" @click="xoaFile(i)"
+                    class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow">✕</button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Người nghiệm thu</label>
+            <input type="text" x-model="ten" @change="nhoTen()" placeholder="Họ tên (để trống: lấy tên máy đã cấp quyền)"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 min-h-[44px] text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none" />
+          </div>
+
+          <button type="button" @click="gui()"
+            :class="dangNen ? 'opacity-60' : ''"
+            class="w-full rounded-2xl bg-blue-600 text-white font-semibold py-3.5 text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-[0.99] transition"
+            x-text="dangNen ? 'Đang xử lý video...' : sua ? 'LƯU SỬA' : 'GỬI PHẢN HỒI'"></button>
+
+          <div x-show="thongBao.noiDung" x-cloak
+            :class="thongBao.loai === 'ok' ? 'bg-green-50 text-green-700 border-green-200' : thongBao.loai === 'info' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'"
+            class="rounded-2xl border px-4 py-3 text-sm text-center" x-text="thongBao.noiDung"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Camera: chụp ảnh / quay video trực tiếp (cùng khuôn form.html) ===== -->
+  <div x-show="dangChupAnh" x-cloak class="fixed inset-0 z-50 bg-black/90 flex flex-col p-3"
+       style="padding-top:calc(env(safe-area-inset-top,0px) + 12px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px)">
+    <div class="shrink-0 flex justify-center">
+      <div class="flex gap-1 mb-2 bg-white/10 rounded-full p-1" :class="dangQuay ? 'opacity-40 pointer-events-none' : ''">
+        <button type="button" @click="datCheDo(false)" :class="!cheDoVideo ? 'bg-white text-slate-800' : 'text-white'" class="rounded-full px-4 py-1.5 text-sm font-medium transition">Ảnh</button>
+        <button type="button" @click="datCheDo(true)" :class="cheDoVideo ? 'bg-white text-slate-800' : 'text-white'" class="rounded-full px-4 py-1.5 text-sm font-medium transition">Video</button>
+      </div>
+    </div>
+    <div class="flex-1 min-h-0 flex items-center justify-center overflow-hidden my-1">
+      <video x-ref="video" playsinline webkit-playsinline autoplay muted class="max-w-full max-h-full rounded-2xl bg-black object-contain"></video>
+      <canvas x-ref="canvas" class="hidden"></canvas>
+    </div>
+    <div class="shrink-0">
+      <p x-show="dangQuay" x-cloak class="mb-1 text-red-400 text-sm font-semibold flex items-center justify-center gap-2">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+        <span x-text="'Đang quay ' + Math.floor(giayQuay/60) + ':' + String(giayQuay%60).padStart(2,'0') + ' / tối đa ' + Math.floor(MAX_GIAY_QUAY/60) + ':' + String(MAX_GIAY_QUAY%60).padStart(2,'0')"></span>
+      </p>
+      <p x-show="!dangQuay" class="text-white/70 text-xs mb-1 text-center"
+         x-text="soAnhChup > 0 ? ('Đã ghi ' + soAnhChup + ' mục — bấm Xong khi đủ') : (cheDoVideo ? 'Bấm nút đỏ để bắt đầu quay' : 'Đưa camera vào đối tượng rồi bấm Chụp')"></p>
+      <div class="flex items-center justify-center gap-4 mt-2">
+        <button type="button" @click="dongChupAnh()" x-show="!dangQuay" class="rounded-2xl bg-white/20 text-white font-medium px-5 py-3 text-sm hover:bg-white/30 transition">Xong</button>
+        <template x-if="!cheDoVideo">
+          <button type="button" @click="chupAnh()" class="rounded-full bg-white w-16 h-16 flex items-center justify-center shadow-lg ring-4 ring-white/40 active:scale-95 transition">
+            <span class="block w-12 h-12 rounded-full bg-blue-600"></span>
+          </button>
+        </template>
+        <template x-if="cheDoVideo">
+          <button type="button" @click="dangQuay ? dungQuay() : batDauQuay()" class="rounded-full bg-white w-16 h-16 flex items-center justify-center shadow-lg ring-4 ring-white/40 active:scale-95 transition">
+            <span x-show="!dangQuay" class="block w-12 h-12 rounded-full bg-red-600"></span>
+            <span x-show="dangQuay" x-cloak class="block w-7 h-7 rounded bg-red-600"></span>
+          </button>
+        </template>
+        <button type="button" @click="doiCamera()" x-show="!dangQuay" class="rounded-2xl bg-white/20 text-white font-medium px-4 py-3 text-sm hover:bg-white/30 transition" title="Đổi camera trước/sau">⇄</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nén clip lớn -->
+  <div x-show="dangNen" x-cloak class="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-6 text-center">
+    <svg class="w-10 h-10 text-white animate-spin mb-3" viewBox="0 0 24 24" fill="none">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+    </svg>
+    <p class="text-white text-sm" x-text="tienTrinhNen || 'Đang xử lý video...'"></p>
+    <p class="text-white/50 text-xs mt-1">Clip lớn đang được nén về ≤720p cho nhẹ đường truyền — mất khoảng bằng thời lượng clip.</p>
+  </div>
+
+  <!-- Xem lại ảnh/clip -->
+  <div x-show="xemMedia" x-cloak @click="xemMedia = null" class="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4">
+    <button type="button" @click="xemMedia = null" class="absolute top-3 right-3 w-11 h-11 rounded-full bg-white/15 text-white text-xl flex items-center justify-center">✕</button>
+    <template x-if="xemMedia && xemMedia.loai === 'image'"><img :src="xemMedia && xemMedia.preview" @click.stop class="max-w-full max-h-full rounded-xl object-contain" /></template>
+    <template x-if="xemMedia && xemMedia.loai === 'video'"><video :src="xemMedia && xemMedia.preview" @click.stop controls autoplay playsinline webkit-playsinline class="max-w-full max-h-full rounded-xl bg-black"></video></template>
+  </div>
+</div>
+
+<script>
+  /* Bản nội bộ (xem-noi-bo.mjs trên chính máy này) đi qua /api/nt-thu → GAS HEAD + sheet NHÁP.
+     Trang thật gọi đúng web app production như form.html. */
+  const NOI_BO = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  const GAS_URL = NOI_BO ? '/api/nt-thu'
+    : 'https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
+  const KHO_DS = NOI_BO ? 'nt-ds2-noibo' : 'nt-ds2';   // ds2: mỗi dòng mang muc[] + tay (bản ds cũ chỉ có chuỗi phanHoi)
+
+  /* LUẬT CHIA NHÓM KIỂM (user 14/10): vật lý ↔ hệ thống (phần mềm, tool). Xét theo thứ tự:
+     1. Ô Checklist mở đầu "Hệ thống:" / "Vật lý:" → theo đúng chữ đó.
+     2. Ô Checklist nói "hệ thống và vật lý" → CẢ HAI (hiện ở cả 2 nhóm, gắn nhãn "Vật lý + hệ thống").
+     3. Theo Công việc (cột B) — bảng dưới; sheet thêm nhóm mới thì bổ sung 1 dòng ở đây.
+     4. Không khớp gì: nội dung nhắc hệ thống/WMS/app/phần mềm/data → hệ thống, còn lại → vật lý. */
+  const LOAI_NHOM = [
+    [/^po\b/i, 'ht'], [/phiếu chuyển kho/i, 'ht'], [/adj/i, 'ca'], [/^hệ thống/i, 'ht'], [/data hệ thống|vấn đề data/i, 'ht'],
+    [/uid temp/i, 'ht'], [/biện pháp khắc phục/i, 'ht'],
+    [/picked/i, 'vl'], [/location/i, 'vl'], [/hàng vật lý/i, 'vl'], [/phương tiện|công cụ/i, 'vl'], [/phân loại sku/i, 'vl'],
+    [/bốc mẫu/i, 'vl'], [/giải trình/i, 'vl']
+  ];
+  /* Bỏ dấu + chữ thường: gõ "xa vai" vẫn ra "xả vải". */
+  const boDau = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  const maMoi = (dau) => dau + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  function ntForm() {
+    return {
+      noiBo: NOI_BO,
+      ds: [], loai: 'vl', tim: '', chiChua: false, moRong: false, dangTai: false, loiTai: '', luc: '',
+      dang: null, ghiChu: '', ten: '', files: [], tepCu: [], sua: null,
+      thongBao: { loai: '', noiDung: '' },
+      canQuyen: false, tbBuoc: 'xin', tbTen: '', tbOtp: '', tbTb: '', tbLoi: false, tbDang: false,
+      xemMedia: null, keoVao: false,
+      dangChupAnh: false, _cameraStream: null, soAnhChup: 0, cameraSau: true, cheDoVideo: false, dangQuay: false,
+      _recorder: null, _videoChunks: [], _quayTimer: null, giayQuay: 0,
+      dangNen: false, tienTrinhNen: '',
+      MAX_VIDEO_MB: 100,   // > 100MB: chặn
+      NGUONG_NEN_MB: 30,   // > 30MB: hạ 720p — mỗi tệp gửi 1 lượt, trần máy chủ ~38MB
+      MAX_GUI_MB: 37,
+      MAX_GIAY_QUAY: 90,   // quay thẳng từ camera ~2,5 Mbps ≈ 0,3MB/giây → 90 giây vẫn dưới trần
+      MAX_ANH_PX: 1600,
+      TOI_DA_SONG_SONG: 3, // tải ảnh/clip song song — mỗi lượt Apps Script mất vài giây, nối đuôi nhau thì cộng dồn
+
+      init() {
+        try { this.ten = localStorage.getItem('nt-ten') || ''; this.loai = localStorage.getItem('nt-loai') === 'ht' ? 'ht' : 'vl'; } catch (e) {}
+        if (!this.ten) { const u = this._nguoiDung(); if (u && u.ten) this.ten = u.ten; }
+        try { const c = JSON.parse(localStorage.getItem(KHO_DS) || 'null'); if (c && Array.isArray(c.dong)) { this.ds = c.dong.map(this._chuan); this.luc = c.luc || ''; } } catch (e) {}
+        /* Còn phản hồi đang đẩy lên sheet mà đóng trang thì mất — hỏi lại trước khi rời. */
+        window.addEventListener('beforeunload', (e) => { if (this.ds.some(d => this.dongBoCua(d))) { e.preventDefault(); e.returnValue = ''; } });
+        this.taiDs();
+      },
+      _chuan(d) { d.muc = Array.isArray(d.muc) ? d.muc : []; d.tay = d.tay || ''; return d; },
+      _nguoiDung() {
+        try { const u = window.HSK_NGUOI_DUNG || JSON.parse(localStorage.getItem('hsk-nguoi-dung') || sessionStorage.getItem('hsk-nguoi-dung') || 'null');
+          return u ? { ten: u.ten || u.name || u.staff_name || '', code: u.code || u.ma || '' } : null; } catch (e) { return null; }
+      },
+      nhoTen() { try { localStorage.setItem('nt-ten', this.ten.trim()); } catch (e) {} },
+      _gio() { const d = new Date(), p = (n) => String(n).padStart(2, '0'); return p(d.getHours()) + ':' + p(d.getMinutes()); },
+      _ngayGio() { const d = new Date(), p = (n) => String(n).padStart(2, '0'); return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' + this._gio(); },
+      /* Bộ nhớ máy chỉ giữ phần ĐÃ lên sheet (không giữ ảnh tạm / mục đang đẩy). */
+      _luuMay() {
+        try {
+          const sach = this.ds.map(d => Object.assign({}, d, { muc: d.muc.filter(m => !m.cho).map(m => Object.assign({}, m, { tep: (m.tep || []).filter(t => t.id).map(t => ({ id: t.id, loai: t.loai })) })) }));
+          localStorage.setItem(KHO_DS, JSON.stringify({ dong: sach, luc: this.luc }));
+        } catch (e) {}
+      },
+
+      /* Gọi GAS: trả HTML (chập chờn 404 — bẫy 12/08) hoặc rớt mạng thì thử lại CÙNG nonce → máy chủ không ghi 2 lần. */
+      async goi(body, lan = 4) {
+        const nonce = body.nonce || ('nt' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+        let tb = ''; try { tb = localStorage.getItem('tb-khoa') || ''; } catch (e) {}
+        const goi = JSON.stringify(Object.assign({}, body, { nonce, tb }));
+        let loi = '';
+        for (let i = 0; i < lan; i++) {
+          if (i) await new Promise(r => setTimeout(r, 1500 * i));
+          try {
+            const r = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: goi,
+              signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(150000) : undefined });
+            const t = String(await r.text() || '').trim();
+            if (t.charAt(0) !== '{') { loi = 'Apps Script trả trang lỗi (chập chờn)'; continue; }
+            const j = JSON.parse(t);
+            if (j.canKhoa) { this.canQuyen = true; throw Object.assign(new Error('Máy này chưa được cấp quyền — xin mã OTP ở khung phía trên'), { dung: 1 }); }
+            return j;
+          } catch (e) { if (e.dung) throw e; loi = (e && e.message) || String(e); }
+        }
+        throw new Error(loi || 'Không gửi được');
+      },
+
+      /* ---- Xin quyền bằng OTP 4 số (khuôn hasaki-planogram.js: tbMayId / tbLayIp_ / tb_xin / tb_otp) ---- */
+      _tbMay() {
+        try { let id = localStorage.getItem('tb-may');
+          if (!id || !/^m[a-z0-9]{7,19}$/.test(id)) { id = 'm' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-4); localStorage.setItem('tb-may', id); }
+          return id; } catch (e) { return ''; }
+      },
+      async _tbIp() {
+        try { const nho = sessionStorage.getItem('tb-ip'); if (nho) return nho; } catch (e) {}
+        const het = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined;
+        let ip = '';
+        try { const m = (await (await fetch('https://www.cloudflare.com/cdn-cgi/trace', { signal: het() })).text()).match(/^ip=(.+)$/m); ip = m ? m[1].trim() : ''; } catch (e) {}
+        if (!ip) { try { ip = ((await (await fetch('https://api.ipify.org?format=json', { signal: het() })).json()) || {}).ip || ''; } catch (e) {} }
+        try { if (ip) sessionStorage.setItem('tb-ip', ip); } catch (e) {}
+        return ip;
+      },
+      async _tbGoi(body) {
+        const r = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+        const t = String(await r.text() || '').trim();
+        return t.charAt(0) === '{' ? JSON.parse(t) : { status: 'error', message: 'Apps Script trả trang lỗi (chập chờn) — bấm lại.' };
+      },
+      _tbXong() {
+        try { localStorage.setItem('tb-khoa', this._tbMay()); } catch (e) {}
+        this.canQuyen = false; this.tbTb = ''; this.loiTai = ''; this.taiDs();
+      },
+      async xinMa() {
+        if (this.tbDang) return;
+        const id = this._tbMay(); if (!id) { this.tbLoi = true; this.tbTb = 'Trình duyệt đang chặn lưu trữ (cửa sổ riêng tư?) — mở cửa sổ thường rồi thử lại.'; return; }
+        if (this.tbTen.trim().length < 2) { this.tbLoi = true; this.tbTb = 'Ghi tên + bộ phận để quản trị biết bạn là ai.'; return; }
+        this.tbDang = true; this.tbTb = 'Đang gửi yêu cầu…'; this.tbLoi = false;
+        try {
+          const j = await this._tbGoi({ action: 'tb_xin', tb: id, ten: this.tbTen.trim(), ip: await this._tbIp(), trang: 'nghiem-thu', ua: (navigator.userAgent || '').slice(0, 160) });
+          if (j.duyet) return this._tbXong();
+          if (j.status !== 'success') throw new Error(j.message || 'Không xin được mã');
+          this.tbBuoc = 'otp'; this.tbLoi = false; this.tbTb = 'Đã gửi yêu cầu tới quản trị.';
+        } catch (e) { this.tbLoi = true; this.tbTb = e.message; } finally { this.tbDang = false; }
+      },
+      async guiOtp() {
+        if (this.tbDang) return;
+        const otp = String(this.tbOtp || '').replace(/\D/g, '');
+        if (otp.length !== 4) { this.tbLoi = true; this.tbTb = 'Mã OTP gồm 4 số.'; return; }
+        this.tbDang = true; this.tbTb = 'Đang kiểm mã…'; this.tbLoi = false;
+        try {
+          const j = await this._tbGoi({ action: 'tb_otp', tb: this._tbMay(), otp });
+          if (j.status === 'success') return this._tbXong();
+          if (j.hetHan || j.huy) this.tbBuoc = 'xin';
+          throw new Error(j.message || 'Mã không đúng');
+        } catch (e) { this.tbLoi = true; this.tbTb = e.message; } finally { this.tbDang = false; }
+      },
+
+      async taiDs() {
+        this.dangTai = true; this.loiTai = '';
+        try {
+          const j = await this.goi({ action: 'nt_lay' });
+          if (j.status !== 'success') throw new Error(j.message || 'Lỗi máy chủ');
+          /* Mục đang đẩy dở trên máy này (chưa có trên máy chủ) phải giữ lại, không để bản tải về đè mất. */
+          const choCu = {}; this.ds.forEach(d => { const c = d.muc.filter(m => m.cho); if (c.length) choCu[d.checklist] = c; });
+          this.ds = (j.dong || []).map(d => { this._chuan(d); (choCu[d.checklist] || []).forEach(m => { const k = d.muc.findIndex(x => x.id === m.id); if (k >= 0) d.muc[k] = m; else d.muc.push(m); }); return d; });
+          if (this.dang) this.dang = this.ds.find(d => d.checklist === this.dang.checklist) || null;
+          this.luc = this._gio(); this._luuMay();
+        } catch (e) {
+          this.loiTai = (this.ds.length ? 'Đang xem bản lưu lúc ' + this.luc + ' — ' : '') + 'Không tải được danh sách: ' + e.message;
+        } finally { this.dangTai = false; }
+      },
+      canAnh(d) { return !!String(d.yeuCau || '').trim(); },
+      daPh(d) { return !!(d && (d.tay || (d.muc || []).length)); },
+      dongBoCua(d) { const m = d.muc || []; return m.some(x => x.cho === 'loi') ? 'loi' : m.some(x => x.cho === 'dang') ? 'dang' : ''; },
+      chonLoai(l) { this.loai = l; this.moRong = false; try { localStorage.setItem('nt-loai', l); } catch (e) {} },
+      loaiCua(d) {
+        const ck = String(d.checklist || '');
+        if (/^\s*hệ thống\s*:/i.test(ck)) return 'ht';
+        if (/^\s*vật lý\s*:/i.test(ck)) return 'vl';
+        if (/hệ thống và vật lý|vật lý và hệ thống/i.test(ck)) return 'ca';
+        for (const [re, l] of LOAI_NHOM) if (re.test(d.congViec || '')) return l;
+        return /hệ thống|wms|\bapp\b|phần mềm|data/i.test(ck) ? 'ht' : 'vl';
+      },
+      khop(d) {
+        const tu = boDau(this.tim).split(/\s+/).filter(Boolean); if (!tu.length) return true;
+        const h = boDau([d.stt, d.congViec, d.checklist, d.tienDo, d.yeuCau, d.tay].concat((d.muc || []).map(m => m.ghiChu + ' ' + m.ai)).join(' '));
+        return tu.every(t => h.includes(t));
+      },
+      /* Mục của 1 nhóm khớp tìm kiếm (+ lọc Chưa làm). Đang tìm thì gồm cả mục không yêu cầu ảnh/clip. */
+      dsCua(l, boChua) {
+        const tim = !!this.tim.trim();
+        return this.ds.filter(d => { const x = this.loaiCua(d);
+          return (x === 'ca' || x === l) && this.khop(d) && (tim || this.canAnh(d)) && (boChua || !this.chiChua || !this.daPh(d)); });
+      },
+      dsPhu() {
+        if (this.tim.trim()) return [];
+        return this.ds.filter(d => { const x = this.loaiCua(d); return (x === 'ca' || x === this.loai) && !this.canAnh(d) && (!this.chiChua || !this.daPh(d)); });
+      },
+      dsHien() { return this.dsCua(this.loai).concat(this.moRong ? this.dsPhu() : []); },
+      /* Cột yêu cầu chỉ toàn mã SKU (số) → gộp 1 dòng cho gọn; còn lại giữ nguyên lời dặn. */
+      yeuCauGon(d) {
+        const s = String(d.yeuCau || '').trim(), dong = s.split(/\s*[\r\n]+\s*/).filter(Boolean);
+        const sku = dong.filter(x => /^\d{6,}$/.test(x)), con = dong.filter(x => !/^\d{6,}$/.test(x));
+        return (sku.length ? 'SKU bốc mẫu ' + sku.join(', ') + (con.length ? '\n' : '') : '') + con.join('\n');
+      },
+      /* Ảnh thu nhỏ: tệp vừa chụp dùng bản trên máy; tệp đã lên Drive dùng ảnh thu nhỏ của Drive (link công khai). */
+      anhNho(t) {
+        if (t.preview && t.loai === 'image') return t.preview;
+        return t.id ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(t.id) + '&sz=w320' : '';
+      },
+      xemTep(t) {
+        if (t.preview) { this.xemMedia = { loai: t.loai, preview: t.preview }; return; }
+        if (t.id) window.open('https://drive.google.com/file/d/' + encodeURIComponent(t.id) + '/view', '_blank', 'noopener');
+      },
+
+      _coNhap() { return !!(this.files.length || this.ghiChu.trim() || (this.sua && this._suaGoc !== JSON.stringify([this.ghiChu, this.tepCu.map(t => t.id)]))); },
+      mo(d) {
+        if (this.dang && this.dang.dong !== d.dong && this._coNhap() && !confirm('Mục đang soạn còn ảnh/ghi chú chưa gửi. Bỏ để mở mục khác?')) return;
+        if (!this.dang || this.dang.dong !== d.dong) { this._xoaNhap(); }
+        this.dang = d; this.thongBao = { loai: '', noiDung: '' };
+      },
+      dong() {
+        if (this._coNhap() && !confirm('Còn ảnh/ghi chú chưa gửi. Đóng và bỏ?')) return;
+        this._xoaNhap(); this.dang = null;
+      },
+      /* boGiu: true khi ảnh đã chuyển sang mục đang đẩy — đừng huỷ link xem trước của chúng. */
+      _xoaNhap(boGiu) {
+        if (!boGiu) this.files.forEach(f => { if (/^blob:/.test(String(f.preview))) { try { URL.revokeObjectURL(f.preview); } catch (e) {} } });
+        this.files = []; this.ghiChu = ''; this.tepCu = []; this.sua = null; this._suaGoc = '';
+      },
+      batSua(m) {
+        if (this._coNhap() && !confirm('Bỏ phần đang soạn để sửa phản hồi này?')) return;
+        this._xoaNhap();
+        this.sua = m.id; this.ghiChu = m.ghiChu || ''; this.tepCu = (m.tep || []).map(t => Object.assign({}, t));
+        this._suaGoc = JSON.stringify([this.ghiChu, this.tepCu.map(t => t.id)]);
+        this.thongBao = { loai: '', noiDung: '' };
+      },
+      huySua() { this._xoaNhap(); },
+
+      /* GỬI = phản hồi hiện NGAY trên máy (dưới 0,1 giây); tải ảnh/clip + ghi sheet chạy nền.
+         Apps Script mất 2–4 giây/lượt (đo 14/10) nên không bắt người dùng đứng chờ. */
+      gui() {
+        if (this.dangNen) { this.thongBao = { loai: 'err', noiDung: 'Đang xử lý video, đợi giây lát rồi gửi.' }; return; }
+        const d = this.dang, ghiChu = this.ghiChu.trim();
+        if (!this.files.length && !this.tepCu.length && !ghiChu) {
+          this.thongBao = { loai: 'err', noiDung: this.sua ? 'Phản hồi trống — muốn bỏ hẳn thì bấm Xoá.' : 'Thêm ít nhất 1 ảnh/clip hoặc ghi chú.' }; return;
+        }
+        const ng = this._nguoiDung() || {};
+        const tep = this.tepCu.map(t => Object.assign({}, t)).concat(this.files.map(f => ({ tam: f.tam, loai: f.loai, preview: f.preview, _f: f })));
+        let m;
+        if (this.sua) {
+          m = d.muc.find(x => x.id === this.sua);
+          if (!m) { this.thongBao = { loai: 'err', noiDung: 'Phản hồi này không còn (đã bị xoá?).' }; this._xoaNhap(); return; }
+          m._cu = { ghiChu: m.ghiChu, tep: m.tep, sua: m.sua };   // lỡ hỏng thì trả lại như cũ
+          m.ghiChu = ghiChu; m.tep = tep; m.sua = this._ngayGio();
+        } else {
+          m = { id: maMoi('m'), luc: this._ngayGio(), ai: this.ten.trim() || ng.ten || 'máy này', ghiChu, tep };
+          d.muc.push(m);
+          m = d.muc[d.muc.length - 1];   // lấy lại bản Alpine đã bọc — sửa trên bản gốc thì màn hình không cập nhật
+        }
+        m.cho = 'dang';
+        const daSua = !!this.sua;
+        this._xoaNhap(true);
+        this.thongBao = { loai: 'ok', noiDung: daSua ? '✓ Đã sửa — đang lưu lên sheet ở nền.' : '✓ Đã ghi — đang lưu lên sheet ở nền, bạn làm tiếp được.' };
+        this.dongBo(d, m);
+      },
+      async dongBo(d, m) {
+        m.cho = 'dang'; m.loi = '';
+        try {
+          const can = m.tep.filter(t => !t.id), hang = can.slice();
+          const tho = async () => {
+            while (hang.length) {
+              const t = hang.shift(), f = t._f, b64 = String(f.base64 || ''), k = b64.indexOf('base64,');
+              const j = await this.goi({ action: 'nt_tai', dong: d.dong, ten: f.ten, mime: f.mime, base64: k >= 0 ? b64.slice(k + 7) : b64 });
+              if (j.status !== 'success') throw new Error(j.message || 'Không tải được ảnh/clip');
+              t.id = j.id; t.ky = j.ky; delete t._f;   // xong thì nhả base64 cho nhẹ máy
+            }
+          };
+          await Promise.all(Array.from({ length: Math.min(this.TOI_DA_SONG_SONG, can.length) }, tho));
+          const ng = this._nguoiDung() || {};
+          const j = await this.goi({ action: 'nt_ghi', dong: d.dong, checklist: d.checklist, nguoiGui: { ten: m.ai, code: ng.code || '' },
+            muc: { id: m.id, ghiChu: m.ghiChu, tep: m.tep.map(t => ({ id: t.id, ky: t.ky, loai: t.loai })) } });
+          if (j.status !== 'success') throw new Error(j.message || 'Lỗi máy chủ');
+          this._hopNhat(d, j, m);
+        } catch (e) { if (m._cu && !m.tep.some(t => t.id)) { /* giữ bản sửa để thử lại */ } m.cho = 'loi'; m.loi = e.message; this.thongBao = { loai: 'err', noiDung: '✗ Chưa lưu được lên sheet: ' + e.message + ' — bấm "thử lại" ở phản hồi đó.' }; }
+      },
+      /* Lấy danh sách mục máy chủ trả về làm gốc; mục khác đang đẩy dở trên máy thì giữ bản máy; giữ ảnh xem trước cho mượt. */
+      _hopNhat(d, j, m) {
+        /* Danh sách có thể đã được TẢI LẠI trong lúc lượt này chạy (taiDs thay toàn bộ dòng) → ghép vào DÒNG HIỆN TẠI, không vào bản cũ. */
+        d = this._dongNay(d);
+        const cu = {}; d.muc.forEach(x => { cu[x.id] = x; });
+        const moi = (j.muc || []).map(sm => {
+          const lm = cu[sm.id]; delete cu[sm.id];
+          if (lm && lm.cho && (!m || lm.id !== m.id)) return lm;   // mục KHÁC đang sửa/đẩy dở trên máy: giữ bản máy, lượt của nó tự hợp nhất sau
+          if (lm) sm.tep.forEach(t => { const lt = (lm.tep || []).find(x => x.id === t.id); if (lt && lt.preview) t.preview = lt.preview; });
+          return sm;
+        });
+        Object.values(cu).forEach(x => { if (x.cho) moi.push(x); });   // mục đang đẩy dở khác (chưa có trên máy chủ)
+        d.muc = moi; if (j.tay != null) d.tay = j.tay; if (j.dong) d.dong = j.dong;
+        this._luuMay();
+      },
+      _dongNay(d) { return this.ds.find(x => x.checklist === d.checklist) || d; },
+      thuLai(m) { const d = this.ds.find(x => x.muc.some(y => y.id === m.id)); if (d) this.dongBo(d, d.muc.find(y => y.id === m.id)); },
+      async xoaMuc(m) {
+        if (!confirm('Xoá phản hồi này (cả ghi chú và ảnh/clip) khỏi sheet?')) return;
+        const d = this.dang, vt = d.muc.findIndex(x => x.id === m.id); if (vt < 0) return;
+        d.muc.splice(vt, 1);
+        this.thongBao = { loai: 'ok', noiDung: '✓ Đã xoá — đang cập nhật sheet ở nền.' };
+        try {
+          const j = await this.goi({ action: 'nt_ghi', dong: d.dong, checklist: d.checklist, xoa: 1, muc: { id: m.id } });
+          if (j.status !== 'success') throw new Error(j.message || 'Lỗi máy chủ');
+          this._hopNhat(d, j);
+        } catch (e) {
+          const dn = this._dongNay(d); dn.muc.splice(Math.min(vt, dn.muc.length), 0, m);
+          this.thongBao = { loai: 'err', noiDung: '✗ Chưa xoá được trên sheet: ' + e.message + ' — phản hồi đã hiện lại, thử xoá lần nữa.' };
+        }
+      },
+
+      /* ---- Camera / ảnh / clip (khuôn form.html) — NGHIỆM THU KHÔNG in nhãn giờ + cụm AUDIT HASAKI (user 14/10) ---- */
+      async moChupAnh() {
+        this.dangChupAnh = true; this.soAnhChup = 0;
+        await this.$nextTick(); await this._batCamera();
+      },
+      async _batCamera() {
+        if (this._cameraStream) { this._cameraStream.getTracks().forEach(t => t.stop()); this._cameraStream = null; }
+        const KT = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+        const huong = this.cameraSau ? 'environment' : 'user';
+        const cacRangBuoc = [{ facingMode: { exact: huong }, ...KT }, { facingMode: { ideal: huong }, ...KT }, KT];
+        let stream = null, loiCuoi = null;
+        for (const video of cacRangBuoc) {
+          try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: this.cheDoVideo }); break; }
+          catch (err) { loiCuoi = err; }
+        }
+        if (stream && this.cameraSau) {
+          try {
+            const track = stream.getVideoTracks()[0], st = track.getSettings ? track.getSettings() : {};
+            if (st.facingMode === 'user' || /front|user|trước|truoc/i.test(track.label || '')) {
+              const camSau = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').find(d => /back|rear|environment|sau/i.test(d.label || ''));
+              if (camSau) {
+                const s2 = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: camSau.deviceId }, ...KT }, audio: this.cheDoVideo });
+                stream.getTracks().forEach(t => t.stop()); stream = s2;
+              }
+            }
+          } catch { /* giữ stream đang có */ }
+        }
+        if (!stream) { this.dangChupAnh = false; alert('Không mở được camera. Hãy cho phép quyền camera/mic và mở trang qua HTTPS.\n' + loiCuoi); return; }
+        this._cameraStream = stream;
+        const v = this.$refs.video;
+        v.muted = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+        v.srcObject = stream; await v.play().catch(() => {});
+      },
+      async doiCamera() { if (this.dangQuay) return; this.cameraSau = !this.cameraSau; await this._batCamera(); },
+      async datCheDo(video) { if (this.dangQuay || this.cheDoVideo === video) return; this.cheDoVideo = video; await this._batCamera(); },
+      _themTep(o) { o.tam = maMoi('t'); this.files.push(o); },
+      chupAnh() {
+        const v = this.$refs.video; if (!v || !v.videoWidth) return;
+        let w = v.videoWidth, h = v.videoHeight;
+        if (Math.max(w, h) > this.MAX_ANH_PX) { const s = this.MAX_ANH_PX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+        const c = this.$refs.canvas; c.width = w; c.height = h;
+        c.getContext('2d').drawImage(v, 0, 0, w, h);
+        const dataUrl = c.toDataURL('image/jpeg', 0.8);
+        this._themTep({ ten: 'chup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.jpg', loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl });
+        this.soAnhChup++;
+      },
+      /* Không vẽ nhãn nữa → thu THẲNG luồng camera (nhẹ máy hơn vẽ lại từng khung lên canvas). */
+      batDauQuay() {
+        if (!this._cameraStream) return;
+        const mime = ['video/mp4;codecs=h264,aac', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+        try { this._recorder = new MediaRecorder(this._cameraStream, mime ? { mimeType: mime, videoBitsPerSecond: 2500000 } : undefined); }
+        catch (e) { alert('Trình duyệt không hỗ trợ quay video: ' + e); return; }
+        this._videoChunks = [];
+        this._recorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) this._videoChunks.push(ev.data); };
+        this._recorder.onstop = () => {
+          const type = (this._recorder && this._recorder.mimeType) || 'video/webm';
+          const blob = new Blob(this._videoChunks, { type }), ext = /mp4/.test(type) ? 'mp4' : 'webm';
+          this._dayVideo(blob, 'quay_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.' + ext);
+          this.soAnhChup++;
+        };
+        this._recorder.start(); this.dangQuay = true; this.giayQuay = 0;
+        this._quayTimer = setInterval(() => { this.giayQuay++; if (this.giayQuay >= this.MAX_GIAY_QUAY) this.dungQuay(); }, 1000);
+      },
+      dungQuay() {
+        if (this._recorder && this.dangQuay) { try { this._recorder.stop(); } catch (e) {} }
+        this.dangQuay = false;
+        if (this._quayTimer) { clearInterval(this._quayTimer); this._quayTimer = null; }
+      },
+      dongChupAnh() {
+        if (this.dangQuay) this.dungQuay();
+        if (this._cameraStream) { this._cameraStream.getTracks().forEach(t => t.stop()); this._cameraStream = null; }
+        if (this.$refs.video) this.$refs.video.srcObject = null;
+        this.dangChupAnh = false;
+      },
+      xuLyFile(fileList) {
+        for (const file of Array.from(fileList || [])) {
+          if ((file.type || '').startsWith('video')) this._themVideo(file); else if ((file.type || '').startsWith('image')) this._themAnh(file);
+        }
+      },
+      /* Ảnh thư viện: chỉ thu nhỏ ≤1600px + nén JPEG cho nhẹ đường truyền — không in gì lên ảnh. */
+      _themAnh(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+            if (Math.max(w, h) > this.MAX_ANH_PX) { const s = this.MAX_ANH_PX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            const dataUrl = c.toDataURL('image/jpeg', 0.78);
+            this._themTep({ ten: (file.name || 'anh').replace(/\.[^.]+$/, '') + '.jpg', loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      },
+      _themVideo(file) {
+        const mb = file.size / 1048576;
+        if (mb > this.MAX_VIDEO_MB) { alert('Video nặng ' + mb.toFixed(0) + 'MB, vượt giới hạn ' + this.MAX_VIDEO_MB + 'MB.\nVui lòng quay clip ngắn hơn.'); return; }
+        this._dayVideo(file, file.name || 'video.mp4');
+      },
+      async _dayVideo(blob, ten) {
+        if (blob.size / 1048576 > this.NGUONG_NEN_MB) {
+          try { this.dangNen = true; blob = await this._nenVideo720(blob); }
+          catch (err) { alert('Không nén được video (' + err + ').'); }
+          finally { this.dangNen = false; this.tienTrinhNen = ''; }
+        }
+        const mb = blob.size / 1048576;
+        if (mb > this.MAX_GUI_MB) { alert('Clip vẫn nặng ' + mb.toFixed(0) + 'MB sau khi nén (tối đa ' + this.MAX_GUI_MB + 'MB).\nHãy quay clip ngắn hơn (khoảng 1 phút) hoặc chia làm nhiều clip.'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this._themTep({ ten, loai: 'video', mime: (blob.type || 'video/mp4').split(';')[0], preview: URL.createObjectURL(blob), base64: e.target.result });
+        };
+        reader.readAsDataURL(blob);
+      },
+      _nenVideo720(file) {
+        return new Promise((resolve, reject) => {
+          const v = document.createElement('video');
+          v.muted = true; v.playsInline = true; v.src = URL.createObjectURL(file);
+          v.onloadedmetadata = () => {
+            const scale = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+            const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            const ctx = c.getContext('2d'), cs = c.captureStream(30);
+            try { const vs = v.captureStream ? v.captureStream() : null; if (vs) vs.getAudioTracks().forEach(t => cs.addTrack(t)); } catch (e) {}
+            const mime = ['video/mp4;codecs=h264', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+            const rec = new MediaRecorder(cs, mime ? { mimeType: mime, videoBitsPerSecond: 2000000 } : undefined);
+            const chunks = [];
+            rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+            rec.onstop = () => { URL.revokeObjectURL(v.src); resolve(new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] })); };
+            let raf;
+            const draw = () => { if (!v.paused && !v.ended) { ctx.drawImage(v, 0, 0, w, h);
+              this.tienTrinhNen = 'Đang nén video... ' + Math.round((v.currentTime / (v.duration || 1)) * 100) + '%'; raf = requestAnimationFrame(draw); } };
+            rec.start(); v.play().then(() => draw()).catch(reject);
+            v.onended = () => { cancelAnimationFrame(raf); setTimeout(() => { try { rec.stop(); } catch (e) {} }, 200); };
+          };
+          v.onerror = () => reject('không mở được video');
+        });
+      },
+      xoaFile(i) {
+        const f = this.files[i];
+        if (f && /^blob:/.test(String(f.preview))) { try { URL.revokeObjectURL(f.preview); } catch (e) {} }
+        this.files.splice(i, 1);
+      }
+    };
+  }
+</script>
+</body>
+</html>
