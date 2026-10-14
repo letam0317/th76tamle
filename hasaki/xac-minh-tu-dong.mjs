@@ -17,7 +17,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 try { spawnSync(process.execPath, ["don-clip.mjs", "--im"], { cwd: DIR, windowsHide: true, timeout: 120000 }); } catch { }  /* 13/10: van don dia (PC xoa-ngay, laptop no-op) */
 const A = process.argv.slice(2); const IDS = A.filter((x) => /^\d{6,}$/.test(x));
 const opt = (k, d) => (A.find((x) => x.startsWith("--" + k + "=")) || "").split("=").slice(1).join("=") || d;
-const RA = opt("ra", path.join(DIR, ".exports", "xm-tu-dong")); const CONG = "C:\\Users\\lechitam\\agy-xm.mjs"; const XM = path.join(DIR, ".exports", "agy-xm");
+const RA = opt("ra", path.join(DIR, ".exports", "xm-tu-dong")); const CONG = fs.existsSync("C:\\Users\\lechitam\\agy-xm.mjs") ? "C:\\Users\\lechitam\\agy-xm.mjs" : path.join(DIR, "agy-xm.mjs");   // 14/10 máy trạm: không có bản gốc → dùng bản trong dự án const XM = path.join(DIR, ".exports", "agy-xm");
 const CHUOI = [...new Set([opt("model", "gemini-3.1-flash-lite"), "gemini-3.5-flash-lite"])];   // câu dễ: Flash Lite 500 lượt/ngày (3.5 lite đã bị chấm ảnh vệ sinh dùng 350)   // 09/10: 2.5 đã ngừng cho người dùng mới (404)
 const KEY = process.env.GEMINI_API_KEY;
 /* 13/10 (user: «gọi API cho cả, mà không phải cài»): tầng Claude dự phòng gọi THẲNG API Anthropic (KHÔNG cần cài agy) —
@@ -91,7 +91,7 @@ async function hoiGemini(cauHoi, anh, schema, chuoi = CHUOI, agyThuTu = ["gemini
   /* 09/10 (user: «cho phép Claude tham gia CÓ GIỚI HẠN sau khi Gemini hết lượt») — DỰ PHÒNG QUA agy (gói Pro, KHÔNG phải khoá API):
      ① agy Gemini 3.8/3.7/3.6 Flash (hạn mức tuần gói Pro) → ② agy Claude Sonnet 5.5, trần AGY_CLAUDE_TOI_DA lượt/ngày (mặc định 20).
      Câu hỏi hẹp, ảnh chép vào C:/Users/lechitam/agy-hoi/anh (thư mục trống: không nạp skill/luật) — thử tay: đúng, ~10–26k token/lần. */
-  const AGY = path.join(process.env.LOCALAPPDATA || "C:/Users/lechitam/AppData/Local", "agy", "bin", "agy.exe"), WSH = "C:/Users/lechitam/agy-hoi";
+  const AGY = path.join(process.env.LOCALAPPDATA || "C:/Users/lechitam/AppData/Local", "agy", "bin", "agy.exe"), WSH = path.join(process.env.USERPROFILE || "C:/Users/lechitam", "agy-hoi");   // 14/10 theo người dùng máy
   const fSo = path.join(DIR, ".exports", "xm-dem-goi.json"); const so = docJ(fSo, {}); const ngay = vn(Date.now()).slice(0, 10); so[ngay] = so[ngay] || {};
   const TRAN_CLAUDE = Number(process.env.AGY_CLAUDE_TOI_DA || 20);
   const duongAnh = []; fs.mkdirSync(path.join(WSH, "anh"), { recursive: true });

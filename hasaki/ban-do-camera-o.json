@@ -112,6 +112,28 @@
     "F0-A9-501-* (dãy bàn QL PO nhìn từ phía cửa, bàn 1→5)"
    ],
    "nguon": "14046434 · ảnh đánh số .exports/ban-po-danh-so.jpg"
+  },
+  "172.16.10.19/12": {
+   "nhan": "504_8-10",
+   "o": [
+    "F0-A1-504-08..10"
+   ],
+   "nguon": "14079520 (07/10 13:10–13:19 NV báo cáo vệ sinh thấy ở tủ 09–10 bên trái khung)",
+   "luuY": "tủ 08 ở xa giữa khung; tủ 06–07 nhìn rõ hơn ở kênh 11 (504_6-8)"
+  },
+  "172.16.10.19/16": {
+   "nhan": "505_8-10",
+   "o": [
+    "F0-A1-505-08"
+   ],
+   "nguon": "14079503 (camera-bao-cao 2026-10-05 12:57:00)"
+  },
+  "172.16.10.19/38": {
+   "nhan": "513_3-5",
+   "o": [
+    "F0-A1-513-03"
+   ],
+   "nguon": "14082801 (camera-bao-cao 2026-10-05 14:38:00)"
   }
  },
  "roi": {
@@ -297,6 +319,55 @@
    ],
    "moTa": "mặt bàn số 1 dãy bàn quản lý PO (đầu trong, cạnh xe đẩy đỏ) = F0-A9-501-01-01-01",
    "nguon": "14046434 (user xác nhận bàn của user 05/10)"
+  },
+  "F0-A1-504-10|ke": {
+   "kenh": "172.16.10.19/12",
+   "khung": [
+    200,
+    360,
+    220,
+    170
+   ],
+   "daKiem": true,
+   "moTa": "MẶT KỆ tủ 09–10 dãy 504 (tầng 2–3) phía trái khung — chỉ mặt kệ, KHÔNG lấy mặt trước pallet lối đi (y>530) vì người đi ngang/đứng pallet bị đếm",
+   "nguon": "14079520 (07/10 soi lưới 80 px; v1 [400,400,320,240] tự tìm trúng pallet; v2 [200,360,260,220] còn dính lối đi → thu về mặt kệ)"
+  },
+  "F0-A1-505-08|ke": {
+   "kenh": "172.16.10.19/16",
+   "khung": [
+    420,
+    260,
+    280,
+    260
+   ],
+   "daKiem": true,
+   "moTa": "MẶT KỆ tủ 08/09 dãy 505 (giữa khung) — vùng người đứng khi vệ sinh; nhãn tủ trên beam",
+   "nguon": "14079503 clip tay 07/10 QC 12/12 khung (cau-hinh-clip-tay.json); 08/10 ghi daKiem"
+  },
+  "F0-A1-513-03|ke": {
+   "kenh": "172.16.10.19/38",
+   "khung": [
+    380,
+    300,
+    400,
+    300
+   ],
+   "daKiem": true,
+   "moTa": "MẶT KỆ tủ 03 dãy 513 (giữa khung; nhãn tủ 02/03 trên beam x≈180–260, y≈420)",
+   "nguon": "14082801 clip tay 07/10 QC 12/12 khung (cau-hinh-clip-tay.json); 08/10 ghi daKiem"
+  },
+  "F0-A1-503-10-01-02|o": {
+   "kenh": "172.16.10.19/8",
+   "khung": [
+    516,
+    180,
+    80,
+    80
+   ],
+   "moTa": "máy học (chắc): thùng Clear/Nivea Body Serum tầng 01 cuối dãy (đã soi khung 10/10)",
+   "nguon": "14115619",
+   "may": true,
+   "luc": "2026-10-10 12:10"
   }
  },
  "tenKenh": {

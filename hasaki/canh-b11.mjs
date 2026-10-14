@@ -47,8 +47,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenSongWork, phutVN, mayDuocChay } from "./session-rules.js";
-import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET } from "./truy-vet-vesinh.mjs";
+import { layTokenSongWork, phutVN, mayDuocChay, laTokenGhiDuoc } from "./session-rules.js";
+import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET, cauNhacBui, DAU_NHAC_BUI, CUA_SO_BUI_GIO } from "./truy-vet-vesinh.mjs";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -209,15 +209,20 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
 }
 
 (async () => {
+  // 14/10 «chạy ra sao, của task nào» → tab Máy trạm (lượt thật)
+  const TD = THU ? null : await import("./tien-do.mjs");
+  TD?.batDau("canh-b11", "Đọc board phiếu 5S");
   const token = await layTokenSongWork(DIR, log);
   if (!token) { log("✗ Không có token work sống — dừng."); process.exitCode = 1; return; }
+  // KHOÁ GHI: cò này ĐÓNG B1.1 (ghi) → chỉ chạy khi token là tamlc; token mượn người khác → dừng (không ghi nhầm tên).
+  if (!laTokenGhiDuoc(token)) { log("⛔ Token KHÔNG phải tamlc (mượn phiên người khác) — DỪNG để không ghi nhầm danh tính."); process.exitCode = 75; return; }
   const db = await layDanhBa(token);
   const byCode = new Map(), byTen = new Map();
   for (const x of db) { if (x.code) byCode.set(String(x.code), x); if (x.staff_name) byTen.set(boDau(x.staff_name), x); }
 
   let so = { nhac: {}, nhom: {}, b31: {}, b32: {}, tv: {}, dgB1: {}, fail: {}, qltt: {}, b3huy: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
-  for (const k of ["tv", "dgB1", "b32", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho"]) if (!so[k]) so[k] = {};
+  for (const k of ["tv", "dgB1", "b32", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho", "bui", "cam"]) if (!so[k]) so[k] = {};
   let nguonTV = null;   // 4 tab GAS — chỉ nạp khi thật sự có task cần truy vết
 
   const iso = (d) => d.toISOString().slice(0, 10);
@@ -303,7 +308,9 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   let nNhac = 0, nNhom = 0, nB31 = 0, nTV = 0, nFail = 0, nQLTT = 0, nDongB1 = 0, nHuyB3 = 0, nLeo = 0;
   const dsVeSinh = [];   // mọi phiếu "vệ sinh hằng ngày cuối ca" chưa Canceled/Failed — nguyên liệu luật ⑤
 
+  let iTD = 0;
   for (const t of rows) {
+    TD?.tienDo({ buoc: "Soát phiếu 5S (B1.1 · B3 · vệ sinh)", task: t.id, i: ++iTD, n: rows.length, chiTiet: String(t.code || "") });
     const b1 = sub(t, 7379), b11 = sub(t, 7826), b31 = sub(t, 7381);
 
     /* ═══ ④ TRUY VẾT VỆ SINH cho task CŨ còn mở (user duyệt 25/09 — xem truy-vet-vesinh.mjs) ═══
@@ -619,6 +626,43 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     } catch (e) { log("   ⚠ đóng B1 trượt: " + String(e.message).slice(0, 120) + " — thử lượt sau."); return false; }
   };
 
+  /* 07/10 — VS-07: gọi camera-bao-cao.mjs (tải đầu ghi top-review, không AI) cho phiếu có báo cáo trong 8h; tối đa CAM_MAX phiếu/lượt. */
+  const CAM_MAX = Number(process.env.B11_CAM_MAX || 2);
+  let nCam = 0, nBui = 0;
+  const camBaoCao = async (t, kq) => {
+    try {
+      const { execFileSync } = await import("node:child_process");
+      const bc = kq.bcPtGanNhat;
+      const args = [path.join(DIR, "camera-bao-cao.mjs"), "--task=" + t.id, "--luc=" + bc.ngay + " " + bc.gio + ":00", "--req=" + bc.req, "--nv=" + kq.phuTrach.ten];
+      /* 08/10 (user: «gán camera mà không thông qua AI»): B11_CAM_KHONG_AI=1 → camera-bao-cao --khong-ai --clip: cắt đúng kênh + cửa sổ giờ nộp,
+         không mô hình, không kết luận → gắn PIC02/video02 vào B1 (KHÔNG đóng B1), anh Tâm xem clip rồi quyết. Ưu tiên hơn B11_CAM_TU_DONG. */
+      /* 08/10 B11_CAM_AI = khong | gemini | (trống = mô hình COCO như 07/10). B11_CAM_KHONG_AI=1 là tên cũ của "khong".
+         gemini: Gemini đọc lô khung → khung đỏ bám bbox Gemini + kết luận theo giây hành động; gắn ảnh/clip vào B1 (không đóng) trừ khi «chỉ chụp» + B11_CAM_TU_DONG=1. */
+      const CAM_AI = String(process.env.B11_CAM_AI || (Number(process.env.B11_CAM_KHONG_AI || 0) === 1 ? "khong" : "")).toLowerCase();
+      if (CAM_AI === "khong") args.push("--khong-ai", "--clip");
+      else if (CAM_AI === "gemini") args.push("--gemini", "--clip");
+      else if (Number(process.env.B11_CAM_TU_DONG || 0) === 1) args.push("--clip");   // 07/10: clip chỉ dựng khi máy được phép gắn (QC 14079520: khung đỏ dán nhầm người đi ngang)
+      const out = execFileSync(process.execPath, args, { cwd: DIR, timeout: 25 * 60e3, encoding: "utf8", windowsHide: true });
+      log("   " + out.trim().split(/\r?\n/).slice(-2).join(" | ").slice(0, 200));
+    } catch (e) { log("   ⚠ camera-bao-cao: " + String(e.message).slice(0, 160)); }
+    try { return JSON.parse(fs.readFileSync(path.join(DIR, ".exports", "cam-baocao", String(t.id), "ket-qua.json"), "utf8")); } catch { return null; }
+  };
+  const ganBangChungB1 = async (b1id, taskId, kc) => {   // QC-01: xoá trắng rồi nạp, đọc lại thấy đủ mới tin
+    try {
+      const { execFileSync } = await import("node:child_process");
+      for (const [key, f] of [["PIC02", kc.anh], ["video02", kc.clip]]) {
+        const out = execFileSync(process.execPath, [path.join(DIR, "_thay-file-phieu.mjs"), String(b1id), key, f, "--lam"], { cwd: DIR, timeout: 22 * 60e3, encoding: "utf8", windowsHide: true });
+        log("   " + out.trim().split(/\r?\n/).pop().slice(0, 160));
+      }
+      const d = await docTask(token, taskId); const b = ((d && d.subtasks) || []).find((s) => String(s.id) === String(b1id)); const cf = (b && b.data && b.data.configs) || {};
+      return [].concat(cf.PIC02 || []).some((x) => /ANH-3-MOC/.test(x)) && [].concat(cf.video02 || []).some((x) => /CLIP-(CHUAN|CAMERA)/.test(x));   // CLIP-CAMERA = bản không AI (08/10)
+    } catch (e) { log("   ⚠ gắn bằng chứng: " + String(e.message).slice(0, 120)); return false; }
+  };
+  const cauCamTam = (kc, bc, bin) => {
+    /* 07/10 user: luật ngầm (camera giờ báo cáo, số phút có người) KHÔNG ghi lên phiếu — số đo chỉ ở dashboard nội bộ (vesinh-xet.json + cam-baocao). */
+    return "@[Lê Chí Tâm](user_id:18811) " + DAU_NHAC_BUI + " " + bin + " trước khi xác minh.";
+  };
+
   const canXuLy = dsVeSinh.filter((x) => x.b1 && x.b1.status === 0 && Number(x.t.status) === 0 &&
     !so.fail[x.t.id] && !so.dgB1[x.t.id] && !so.qltt[x.t.id]);
   if (canXuLy.length) {
@@ -681,6 +725,14 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         "Vị trí này đã ghi nhận vi phạm ngày " + dmyVN(g.ngay) + ": https://work.hasaki.vn/tasks?task_id=" + g.id + " — " + DAU_14 + ".",
         "đã ghi nhận cùng vị trí + cùng người + cùng lỗi ngày " + g.ngay + " (task " + g.id + ") — luật " + CUA_SO + " ngày");
 
+      /* 07/10: ẢNH CHỤP XÉT VỆ SINH cho dashboard Xác minh (bang-591 đọc .exports/vesinh-xet.json — 0 lượt gọi thêm):
+         từng phiếu B1 còn mở: phụ trách · báo cáo gần nhất · cách bao nhiêu giờ · trong/ngoài cửa sổ bụi · máy đã làm gì (bui/cam/dgB1/fail/qltt) */
+      const XET = {};
+      const ghiXet = (x, kq, hanhDong, them) => { const c = (x.t.data && x.t.data.configs) || {}; const bc = kq && kq.bcPtGanNhat;
+        XET[x.t.id] = Object.assign({ code: x.t.code, bin: c.BIN00 || "", ngayVP: c.DATE00 || "", loi: c.TYPE00 || "", phuTrach: kq && kq.phuTrach ? { ma: kq.phuTrach.code, ten: kq.phuTrach.ten } : null,
+          ketLuan: kq ? kq.ketLuan : "", ngayXet: kq ? kq.ngayXet : "", bc: bc ? { ngay: bc.ngay, gio: bc.gio, req: bc.req } : null, cachGioBc: kq && kq.cachGioBc != null ? Math.round(kq.cachGioBc * 10) / 10 : null,
+          trongCuaSoBui: !!(kq && kq.trongCuaSoBui), cuaSoGio: CUA_SO_BUI_GIO, hanhDong, bui: so.bui[x.t.id] || null, cam: so.cam[x.t.id] || null, dgB1: so.dgB1[x.t.id] || null }, them || {}); };
+      const luuXet = () => { try { fs.writeFileSync(path.join(DIR, ".exports", "vesinh-xet.json"), JSON.stringify({ luc: new Date().toISOString(), thu: THU, phieu: XET })); } catch (e) { log("⚠ ghi vesinh-xet: " + e.message); } };
       /* (2)(3)(4) từng phiếu còn mở chưa bị fail trùng */
       const soQL = docSoQLTT(DIR);
       const QL_CAP_TREN = new Map([["ho ngoc tu uyen", "Hà Trọng Thúc Bằng"], ["le thi ngoc huyen", "Hà Trọng Thúc Bằng"]]);
@@ -688,11 +740,78 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         if (so.fail[x.t.id] || so.dgB1[x.t.id] || so.qltt[x.t.id] || daThuFail.has(x.t.id)) continue;
         const kq = layKQ(x), c = (x.t.data && x.t.data.configs) || {};
         if (!kq) continue;
-        if (!kq.phuTrach) { log("⑤ " + x.t.code + ": vị trí «" + c.BIN00 + "» không tra được phụ trách — để người xác minh."); continue; }
+        if (!kq.phuTrach) { ghiXet(x, kq, "khong-phan-cong"); log("⑤ " + x.t.code + ": vị trí «" + c.BIN00 + "» không tra được phụ trách — để người xác minh."); continue; }
+        ghiXet(x, kq, kq.suyNV ? (kq.trongCuaSoBui ? "camera" : kq.ketLuan === "chua_dat" ? "bui" : "dong-b1") : kq.ketLuan);
         if (kq.suyNV) {   /* (2) đi làm mà không báo cáo / vệ sinh chưa đạt */
           const nhan = kq.ketLuan === "chua_dat" ? "VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn)" : "KHÔNG báo cáo";
           const g14 = daGhiNhan14(kq.khoa, kq.suyNV, ngayVP(x), x.t.id, loaiCua(x.t));
           if (g14) { nFail++; await fail14(x, g14); continue; }
+          /* ═══ 07/10 (user) — CỬA SỔ BỤI 8h + CAMERA GIỜ BÁO CÁO (chỉ khi phụ trách CÓ báo cáo) ═══
+             VS-07: báo cáo gần nhất của phụ trách trong 8h trước ghi nhận → camera-bao-cao.mjs tra đúng giờ báo cáo:
+                    «chi-chup» (có mặt tại kệ ngắn, chỉ chụp ảnh) → gắn ảnh 3 mốc + clip chuẩn vào B1 rồi đóng B1 → B1.1;
+                    «co-thao-tac» / không thấy / chưa rõ → bình luận nhờ anh Tâm kiểm tra thực tế (sổ so.cam), phiếu ở lại B1.
+             VS-06: có báo cáo (ngày xét) nhưng cách ghi nhận > 8h → kho bụi, không buộc máy → bình luận nhờ anh Tâm (sổ so.bui).
+             Không báo cáo (VS-02) → giữ luật cũ: đóng B1 với ảnh vi phạm. */
+          if (kq.trongCuaSoBui) {
+            const bc = kq.bcPtGanNhat;
+            if (so.cam[x.t.id] && (so.cam[x.t.id].xong || (so.cam[x.t.id].ketLuan && so.cam[x.t.id].ketLuan !== "chi-chup"))) continue;   // đã xử / đã nhắc anh Tâm
+            if (nCam >= CAM_MAX) { log("⑤ " + x.t.code + ": báo cáo " + bc.ngay + " " + bc.gio + " trong " + CUA_SO_BUI_GIO + "h — chờ lượt sau (đã chạy " + nCam + " camera)."); continue; }
+            nCam++;
+            log("⑤ " + x.t.code + " (task " + x.t.id + "): phụ trách " + kq.phuTrach.ten + " báo cáo " + bc.ngay + " " + bc.gio + " cách ghi nhận " + Math.round(kq.cachGioBc * 10) / 10 + "h (trong " + CUA_SO_BUI_GIO + "h) → camera giờ báo cáo (VS-07)");
+            if (THU) { log("   [thử] sẽ chạy camera-bao-cao.mjs --task=" + x.t.id); continue; }
+            const kc = await camBaoCao(x.t, kq);
+            if (!kc) { log("   ⚠ camera-bao-cao không ra kết quả — thử lượt sau."); continue; }
+            so.cam[x.t.id] = { ...(so.cam[x.t.id] || {}), ketLuan: kc.ketLuan, luc: Date.now(), coMat: kc.coMatGiay || 0 };
+            /* ═══ 08/10 KHÔNG AI (user: «gán camera mà không thông qua AI») ═══
+               kc.khongAI: ảnh 3 mốc + clip cắt theo giờ nộp (không mô hình, không kết luận) → thay PIC02/video02 của B1 (Hình ảnh bằng chứng = camera,
+               đúng yêu cầu 07/10), phiếu Ở LẠI B1, bình luận nhờ anh Tâm xem clip. Máy không đóng B1 trong nhánh này. */
+            const dongDuoc = kc.ketLuan === "chi-chup" && kc.anh && kc.clip && Number(process.env.B11_CAM_TU_DONG || 0) === 1;
+            /* 08/10 Gemini: cùng cách gắn như không AI (ảnh 3 mốc + clip khung đỏ bám bbox Gemini) khi không được tự đóng; không có clip (bám chưa nhất quán) → chỉ nhờ anh Tâm. */
+            if ((kc.khongAI || kc.ai === "gemini") && !dongDuoc) {
+              if (kc.khongAI && !(kc.anh && kc.clip)) { log("   ⚠ chưa có ảnh/clip camera (không AI) — thử lượt sau."); delete so.cam[x.t.id]; continue; }
+              if (kc.anh && kc.clip && !so.cam[x.t.id].ganB1) {
+                const ok = await ganBangChungB1(x.b1.id, x.t.id, kc);
+                if (!ok) { log("   ⚠ chưa gắn được ảnh/clip camera lên B1 — thử lượt sau."); delete so.cam[x.t.id]; continue; }
+                so.cam[x.t.id].ganB1 = Date.now(); log("   ✓ đã gắn ảnh 3 mốc + clip camera lúc nộp báo cáo vào B1 (" + (kc.khongAI ? "không AI" : "Gemini " + kc.ketLuan) + ", không đóng B1).");
+              } else if (!kc.clip) log("   Gemini " + kc.ketLuan + " nhưng không có clip (bám người chưa nhất quán) → chỉ nhờ anh Tâm.");
+              const cau = cauCamTam(kc, bc, c.BIN00) + (so.cam[x.t.id].ganB1 ? " Đã gắn clip camera lúc báo cáo vệ sinh vào bước B1." : "");
+              const cu = await docBinhLuan(token, x.t.id);
+              if (cu && cu.some((y) => y.includes(DAU_NHAC_BUI))) { log("   = đã có bình luận nhờ anh Tâm — chỉ ghi sổ."); continue; }
+              if (await guiBinhLuan(token, x.t.id, cau)) log("   ✓ đã bình luận nhờ anh Tâm xem clip camera.");
+              else { log("   ⚠ bình luận không xác nhận được — thử lượt sau (ảnh/clip đã gắn, không gắn lại)."); so.cam[x.t.id].ketLuan = ""; }
+              continue;
+            }
+            /* 07/10: cổng B11_CAM_TU_DONG (mặc định 0) — máy CHƯA được tự đóng B1 theo «chỉ chụp» cho tới khi có ≥3 án lệ camera đúng
+               (ca đầu 14079520: đo điểm ảnh ra 205 s mà vùng trống). Chưa bật → cũng nhờ anh Tâm, kèm số giây máy đo. */
+            if (kc.ketLuan === "chi-chup" && kc.anh && kc.clip && Number(process.env.B11_CAM_TU_DONG || 0) === 1) {
+              const ok = await ganBangChungB1(x.b1.id, x.t.id, kc);
+              if (!ok) { log("   ⚠ chưa gắn được ảnh/clip camera lên B1 — không đóng, thử lượt sau."); delete so.cam[x.t.id]; continue; }
+              nDongB1++;
+              log("   camera: NV chỉ có mặt " + kc.coMatGiay + " s tại kệ lúc nộp báo cáo → đóng B1 mở B1.1 (bằng chứng = camera)");
+              if (await dongB1Bang(x.t, kq.suyNV)) { so.dgB1[x.t.id] = Date.now(); so.cam[x.t.id].xong = true; }
+              else delete so.cam[x.t.id];
+              ghiNhan.push({ khoa: kq.khoa, code: String(kq.suyNV), ngay: ngayVP(x), id: x.t.id });
+              continue;
+            }
+            const cau = cauCamTam(kc, bc, c.BIN00);
+            const cu = await docBinhLuan(token, x.t.id);
+            if (cu && cu.some((y) => y.includes(DAU_NHAC_BUI))) { log("   = đã có bình luận nhờ anh Tâm — chỉ ghi sổ."); continue; }
+            if (await guiBinhLuan(token, x.t.id, cau)) log("   ✓ đã bình luận nhờ anh Tâm kiểm tra thực tế (" + kc.ketLuan + ", " + (kc.coMatGiay || 0) + " s).");
+            else { log("   ⚠ bình luận không xác nhận được — thử lượt sau."); delete so.cam[x.t.id]; }
+            continue;
+          }
+          if (kq.ketLuan === "chua_dat") {
+            if (so.bui[x.t.id]) continue;
+            nBui++;
+            const cau = cauNhacBui(kq, c.BIN00, c.DATE00 || x.t.created_at || "");
+            log("⑤ " + x.t.code + " (task " + x.t.id + "): báo cáo gần nhất " + kq.bcPtGanNhat.ngay + " " + kq.bcPtGanNhat.gio + " cách ghi nhận " + Math.round(kq.cachGioBc) + "h (quá " + CUA_SO_BUI_GIO + "h, kho bụi) → KHÔNG chuyển B1.1, nhờ anh Tâm kiểm tra thực tế (VS-06)");
+            if (THU) { log("   [thư nháp] " + cau); continue; }
+            const cu = await docBinhLuan(token, x.t.id);
+            if (cu && cu.some((y) => y.includes(DAU_NHAC_BUI))) { so.bui[x.t.id] = Date.now(); log("   = đã có bình luận nhờ anh Tâm — chỉ ghi sổ."); }
+            else if (await guiBinhLuan(token, x.t.id, cau)) { so.bui[x.t.id] = Date.now(); log("   ✓ đã bình luận tag anh Tâm."); }
+            else log("   ⚠ bình luận không xác nhận được — thử lượt sau.");
+            continue;
+          }
           nDongB1++;
           log("⑤ " + x.t.code + ": phụ trách " + kq.suyNV + " đi làm ngày " + kq.ngayXet + " — " + nhan + " → đóng B1 mở B1.1" +
             (kq.khopMo ? " (mã «" + c.BIN00 + "» khớp mờ → " + kq.khoa + ")" : ""));
@@ -811,10 +930,12 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         }
         log("⑤ " + x.t.code + ": " + kq.ketLuan + " (phụ trách " + kq.phuTrach.ten + ") — để người xác minh.");
       }
+      luuXet();
     }
   }
 
   if (!THU) fs.writeFileSync(F_SO, JSON.stringify(so), "utf8");
   log("XONG — ①tag " + nNhac + " · ①b phạt 72h " + nLeo + " · ②nhóm " + nNhom + " · ③điền B3.x " + nB31 + " / huỷ nhánh thừa " + nHuyB3 +
-    " · ④truy vết " + nTV + " · ⑤đóng B1 " + nDongB1 + " / fail " + nFail + " / QLTT " + nQLTT + (THU ? " (diễn tập, chưa ghi gì)" : ""));
+    " · ④truy vết " + nTV + " · ⑤đóng B1 " + nDongB1 + " / fail " + nFail + " / QLTT " + nQLTT + " / bụi 8h " + nBui + " / camera " + nCam + (THU ? " (diễn tập, chưa ghi gì)" : ""));
+  await TD?.xong();
 })().catch((e) => { log("LỖI:", e.message); process.exitCode = 1; });

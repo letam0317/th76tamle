@@ -7,8 +7,13 @@ import fs from "node:fs"; import path from "node:path"; import { execFileSync } 
 const [ID] = process.argv.slice(2).filter((x) => !x.startsWith("--"));
 const THEM = ((process.argv.find((x) => x.startsWith("--them=")) || "").slice(7)).split(",").filter(Boolean);
 const BD = JSON.parse(fs.readFileSync("ban-do-camera-o.json", "utf8")); const TK = BD.tenKenh || {};
-const board = JSON.parse(fs.readFileSync(fs.existsSync(".exports/board591-live-0510.json") ? ".exports/board591-live-0510.json" : ".exports/board591-live-0210.json", "utf8"));
-const x = board.find((r) => String(r.id) === String(ID)); if (!x) { console.log("✗ không có phiếu trong board cache"); process.exit(1); }
+/* 10/10: bản chụp board591-live-* không tự làm mới (mới nhất 07/10) → phiếu từ 06/10 trở đi báo "không có phiếu" (146 lần, 0 bằng chứng mới).
+ * Đọc bản chụp MỚI NHẤT trước; không có thì dựng từ tasks-cache.json (auto-export làm mới mỗi lượt; cột 6 ảnh · 8 ngày vi phạm · 10 vị trí). */
+const fb = fs.readdirSync(".exports").filter((f) => /^board591-live-\d{4}\.json$/.test(f)).sort((p, q) => fs.statSync(".exports/" + q).mtimeMs - fs.statSync(".exports/" + p).mtimeMs);
+let x = null; for (const f of fb) { x = JSON.parse(fs.readFileSync(".exports/" + f, "utf8")).find((r) => String(r.id) === String(ID)); if (x) break; }
+if (!x) { try { const tc = JSON.parse(fs.readFileSync(".exports/tasks-cache.json", "utf8")); const r = Object.values(tc.rows || {}).find((v) => String(v[1] || "").endsWith("task_id=" + ID));
+  if (r) x = { id: ID, data: { configs: { BIN00: r[10], DATE00: r[8], IMA00: String(r[6] || "").split(/[\s,]+/).filter((u) => /^http/.test(u)).map((u) => u.replace(/^https:\/\/hr-media\.hasaki\.vn\/production\/hr\//, "")) } } }; } catch { /* */ } }
+if (!x) { console.log("✗ không có phiếu trong board cache"); process.exit(1); }
 const LUC = (process.argv.find((v) => v.startsWith("--luc=")) || "").slice(6).replace("T", " ");   // 05/10: giờ khác giờ chụp (vd giờ lệnh WMS)
 const c = x.data.configs, bin = String(c.BIN00 || "").trim(), luc = LUC || String(c.DATE00 || "");
 const kd = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").toLowerCase();

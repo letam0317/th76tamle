@@ -30,7 +30,7 @@ import { fileURLToPath } from "node:url";
 import { chuanTu, chuanTuSau } from "./tu-ngu.mjs";   // TU-01: "châm hàng" không dùng "cất"
 import { execFileSync } from "node:child_process";
 import { layTokenSongWork, mayDuocChay } from "./session-rules.js";
-import { laHangMucVeSinhHangNgay } from "./truy-vet-vesinh.mjs";
+import { laHangMucVeSinhHangNgay, napNguonTruyVet, traPhanCong } from "./truy-vet-vesinh.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
@@ -86,11 +86,38 @@ for (const v of Object.values(C.rows)) {
 const DB = (docJ(path.join(DIR, ".cache-danhba.json"), { data: [] }).data || []);
 const nvTheoEmail = (em) => DB.find((x) => String(x.staff_email || "").toLowerCase() === String(em).toLowerCase());
 
+/* luật đã được user duyệt áp dụng (không còn cờ deXuat) — tự làm hay chỉ ghi sheet vẫn theo cột Bạn duyệt (choTuLam) */
+const daDuyet = (ma) => !!LUAT[ma] && !LUAT[ma].deXuat;
+/* 10/10 DL-01 vị trí là KHU VỰC (lối đi, băng chuyền, bãi xe…) → kênh camera khớp nhiều chữ nhất với tên kênh SmartPSS (ban-do-camera-o.json tenKenh) */
+const TEN_KENH = Object.entries(docJ(path.join(DIR, "ban-do-camera-o.json"), {}).tenKenh || {}).filter(([k]) => /^\d/.test(k));
+function kenhKhu(chu) {
+  const tu = boDau(chu).replace(/[^a-z0-9 ]/g, " ").split(" ").filter((w) => w.length >= 2 && !["khu", "vuc", "kv", "cua", "va"].includes(w)); if (!tu.length) return "";
+  const diem = TEN_KENH.map(([k, v]) => [k, tu.filter((w) => (" " + boDau(v).replace(/[^a-z0-9]/g, " ") + " ").includes(" " + w + " ")).length]);
+  const mx = Math.max(0, ...diem.map((d) => d[1])); if (mx < Math.min(2, tu.length)) return "";
+  return "kênh " + diem.filter((d) => d[1] === mx).slice(0, 4).map((d) => d[0]).join(", ");
+}
+let NGUON_PC = null;   // bảng phân công + chấm công (GAS, 0 lượt work/wms/hr) — nạp 1 lần khi có phiếu A1-01
+/* 10/10 đo: GAS readTab chập chờn (3/3 lần rỗng) → kết luận A1-01 đổi theo lượt. Giữ bản đọc TỐT gần nhất ở đĩa, dùng lại nếu ≤48h. */
+const F_PC = path.join(EXP, ".nguon-phancong-cache.json");
+const napPC = async () => {
+  if (NGUON_PC) return NGUON_PC;
+  const n = await napNguonTruyVet(() => {}).catch(() => null);
+  if (n && n.pc.size && n.cc.size) {
+    try { fs.writeFileSync(F_PC, JSON.stringify({ luc: Date.now(), pc: [...n.pc], cc: [...n.cc].map(([k, m]) => [k, [...m]]) })); } catch { /* */ }
+    return (NGUON_PC = { ...n, nguon: "GAS" });
+  }
+  const c = docJ(F_PC, null);
+  if (c && Date.now() - c.luc < 48 * 36e5) return (NGUON_PC = { pc: new Map(c.pc), cc: new Map(c.cc.map(([k, m]) => [k, new Map(m)])), nguon: "cache " + new Date(c.luc + 7 * 36e5).toISOString().slice(5, 16).replace("T", " ") });
+  return (NGUON_PC = { pc: new Map(), cc: new Map(), loi: true });
+};
+
 /* ---- phân loại theo từ khoá của bộ luật ---- */
 function phanLoai(loi) {
   if (laHangMucVeSinhHangNgay(loi)) return "VS";
   const b = boDau(loi);
   for (const ma of ["TB-01", "TB-02", "SH-01"]) if ((LUAT[ma].tuKhoa || []).some((k) => b.includes(k))) return ma;
+  /* 10/10 user duyệt TB-03, CAM-04 (chỉ ghi sheet) → máy áp; A1-01 là nhánh lùi trong TB-01/TB-02 */
+  for (const ma of ["TB-03", "CAM-04"]) if (daDuyet(ma) && (LUAT[ma].tuKhoa || []).some((k) => b.includes(k))) return ma;
   return "KHAC";
 }
 /* Luật ĐỀ XUẤT (deXuat: true) chưa được duyệt → KHÔNG thực thi, chỉ nêu tên ở lý do để bạn thấy luật nào sẽ áp. */
@@ -101,7 +128,12 @@ const msVN = (s) => Date.parse(String(s).replace(" ", "T") + "+07:00");
 
 /* ---- kênh camera đầu ghi .19 theo dãy kệ (bảng memory camera-a1-dau-ghi, 29/09) ---- */
 function kenhCamera(bin) {
-  const m = /F0-A\d-(\w+)-(\d+)/.exec(bin || ""); if (!m) return "";
+  /* 10/10: kệ A2 KHÔNG thuộc đầu ghi .19 (trước đó A2-507 bị gán «kênh 19» = camera dãy A1-506/507) → tra tên kênh SmartPSS: «A2 - 501», «KE 507 510 SAU» (dãy a–b) */
+  const m2 = /^F0-A2-(\d{3})-/.exec(bin || "");
+  if (m2) { const d = Number(m2[1]); const k = TEN_KENH.filter(([, v]) => { const t = boDau(v); const a = /^a2 - (\d{3})/.exec(t); if (a) return Number(a[1]) === d;
+      const r = /^ke (\d{3})\D+(\d{3})?/.exec(t); return !!r && d >= Number(r[1]) && d <= Number(r[2] || r[1]); }).map(([k]) => k);
+    return k.length ? "kênh " + k.slice(0, 4).join(", ") : ""; }
+  const m = /F0-A1-(\w+)-(\d+)/.exec(bin || ""); if (!m) return "";
   const day = m[1], o = Number(m[2]);
   const L = { "5L1": [[49, 1, 9], [50, 7, 14], [51, 15, 21], [52, 20, 24]], "5L2": [[53, 1, 10], [54, 7, 19]], "5L3": [[55, 1, 7], [56, 5, 11], [57, 12, 19], [58, 18, 27]] };
   if (L[day]) { const k = L[day].filter(([, a, b]) => o >= a && o <= b).map((x) => x[0]); return k.length ? "kênh " + k.join("/") : ""; }
@@ -136,6 +168,10 @@ const nguoi = (em) => { const x = nvTheoEmail(em); return x ? { ten: x.staff_nam
 async function xet(p) {
   const loai = phanLoai(p.loi), bin = chuanMa(p.bin), cam = kenhCamera(bin);
   if (loai === "VS") return { luat: "VS", ketLuan: "canh-b11", lyDo: "Lỗi vệ sinh hằng ngày — canh-b11 luật ⑤ xử" };
+  if ((loai === "CAM-04" || !bin) && daDuyet("CAM-04") && /^\d{4}-\d\d-\d\d \d\d:\d\d/.test(p.ngay)) {   // 10/10 user: DL-01 khu vực xử như CAM-04
+    const kc = cam || kenhKhu(p.bin);
+    return { luat: "CAM-04", ketLuan: "nghi-ngo", camera: kc, lyDo: "Lỗi hành vi tại «" + p.bin + "» — không có lệnh WMS; người chịu = người camera thấy làm ở đó lúc/trước giờ ghi nhận " + String(p.ngay).slice(5, 16) + (kc ? " (" + kc + ")" : " (chưa khớp được kênh camera theo tên khu)") + ". Máy cắt khung camera giờ ghi nhận ở tab Xác minh; bạn nhận người" };
+  }
   if (!bin || !/^\d{4}-\d\d-\d\d \d\d:\d\d/.test(p.ngay))
     return { luat: "DL-01", ketLuan: "nghi-ngo", lyDo: !bin ? "Vị trí «" + p.bin + "» không phải mã ô — không tra được ai tác động" : "Phiếu thiếu giờ ghi nhận" };
   if (loai === "SH-01") return { luat: "SH-01", ketLuan: "nghi-ngo", camera: cam, lyDo: "Lỗi soạn hàng — chưa tự tra người lấy (tốn 47–54 lượt WMS/phiếu). Chọn «Cắt thêm clip camera» nếu cần" + (cam ? " · " + cam : "") };
@@ -147,6 +183,12 @@ async function xet(p) {
   }
   const ls = await lichSuCat(bin, p.ngay);
   if (!ls) return { luat: loai, ketLuan: "cho-wms", lyDo: "Chưa đọc được lịch sử WMS (trần lượt gọi/lỗi mạng) — lượt sau" };
+  if (loai === "TB-03") {   // 10/10 user duyệt (mục 28): người chịu = người tác động hàng vào ô GẦN NHẤT trước ảnh (WMS bin_in — chưa tính lệnh lấy RA khỏi ô)
+    const r = ls.rec.filter((x) => x.loai !== "REPUSH_ORDER_CANCEL_PUSH").sort((a, b) => (a.at < b.at ? 1 : -1));
+    if (!r.length) return { luat: "TB-03", ketLuan: "nghi-ngo", camera: cam, lyDo: "Mục 28: không có lệnh châm hàng vào ô trong " + CUA_SO_GIO + "h trước ảnh — người tác động gần nhất ở xa hơn; xem camera" + (cam ? " " + cam : "") };
+    const g = { ...nguoi(r[0].email), qty: r[0].qty, lan: [r[0].at.slice(5, 16)] };
+    return { luat: "TB-03", ketLuan: "B1.1", nv: [g], doChac: "VỪA", camera: cam, lyDo: "Mục 28 (thực tế lệch hệ thống): người tác động hàng vào ô gần nhất trước ảnh = " + g.ten + (g.code ? " (" + g.code + ")" : "") + " châm " + g.qty + " cái lúc " + g.lan[0] + " — WMS, chưa đối chiếu camera" };
+  }
   const cat = ls.rec.filter((x) => x.loai !== "REPUSH_ORDER_CANCEL_PUSH" && (loai === "TB-02" || x.qty >= NGUONG_THUNG));
   const gom = {};
   for (const x of cat) { (gom[x.email] ||= { ...nguoi(x.email), qty: 0, lan: [] }); gom[x.email].qty += x.qty; gom[x.email].lan.push(x.at.slice(5, 16)); }
@@ -161,13 +203,25 @@ async function xet(p) {
   /* 05/10 user: WMS chỉ cho ỨNG VIÊN — phải tra camera đúng giờ châm xem người đó có chuyển pallet tới vị trí không; đúng mới B1.1.
      Xác nhận camera ghi ở .exports/xac-nhan-camera.json {phieu: {nv:[mã], luc, ghiChu}} (người/máy soi xong mới ghi). */
   const XN = docJ(path.join(EXP, "xac-nhan-camera.json"), {});
+  /* 10/10: camera đã xác nhận (người hoặc máy xac-minh-dem «chắc») người nằm TRONG các ứng viên WMS → chốt đúng người đó dù WMS có nhiều người châm */
+  const xnNv = (XN[p.id]?.nv || []).map(String), chot = ds.filter((n) => xnNv.includes(String(n.code)));
+  if (ds.length > 1 && chot.length)
+    return { luat: loai, ketLuan: "B1.1", nv: chot, doChac: "CAO", camera: cam, lyDo: "Camera xác nhận " + chot.map((n) => n.ten + " (" + n.code + ")").join(", ") + " đặt hàng vào ô (" + (XN[p.id].may ? "máy: camera + lệnh WMS khớp ≤3′" : "người soi") + ") trong " + ds.length + " người châm 72h: " + tom };
   if (ds.length === 1 && ds[0].code && !(XN[p.id] && (XN[p.id].nv || []).includes(String(ds[0].code))))
     return { luat: loai, ketLuan: "cho-camera", nv: ds, camera: cam, lyDo: "WMS: chỉ 1 người châm" + (loai === "TB-01" ? " số lượng lớn" : "") + " trong " + CUA_SO_GIO + "h: " + tom + " — CHỜ đối chiếu camera đúng giờ châm" + (cam ? " (" + cam + ")" : "") };
   if (ds.length === 1 && ds[0].code)
     return { luat: loai, ketLuan: "B1.1", nv: ds, doChac: "CAO", camera: cam, lyDo: "Chỉ 1 người châm hàng " + (loai === "TB-01" ? "số lượng lớn " : "") + "vào ô trong " + CUA_SO_GIO + "h trước ảnh: " + tom };
+  /* 10/10 user duyệt A1-01: WMS không chỉ ra đúng 1 người → gán người PHỤ TRÁCH kệ (bảng phân công) nếu người đó đi làm ngày ghi nhận */
+  let ghiA101 = "";
+  if (daDuyet("A1-01") && /^F0-A1-/.test(bin)) {
+    const n = await napPC(), tra = traPhanCong(n, bin), pt = tra.pt, ngay = String(p.ngay).slice(0, 10), cc = pt && n.cc.get(String(pt.code))?.get(ngay);
+    if (pt && cc) return { luat: "A1-01", ketLuan: "B1.1", nv: [{ ten: pt.ten, code: String(pt.code), email: pt.email }], ungVienWms: ds, doChac: "VỪA", camera: cam,
+      lyDo: "WMS " + (ds.length ? ds.length + " người châm" : "không ai châm") + " trong " + CUA_SO_GIO + "h → gán phụ trách kệ " + tra.khoa + ": " + pt.ten + " (" + pt.code + "), đi làm " + ngay.slice(5) + " " + cc.vao + "–" + cc.ra + (ds.length ? " · ứng viên WMS: " + tom : "") };
+    ghiA101 = n.loi ? "A1-01: chưa đọc được bảng phân công (Apps Script lỗi, không có bản lưu ≤48h) — lượt sau · " : pt ? "A1-01: phụ trách kệ " + pt.ten + " (" + pt.code + ") không có chấm công ngày " + ngay.slice(5) + " · " : tra.nhieuKhop ? "A1-01: ô khớp nhiều người phụ trách · " : "A1-01: ô chưa có trong bảng phân công · ";
+  }
   return { luat: loai, ketLuan: "nghi-ngo", nv: ds, camera: cam,
-    lyDo: ds.length ? ds.length + " người châm hàng vào ô trong " + CUA_SO_GIO + "h trước ảnh: " + tom + " — xem camera" + (cam ? " " + cam : "") + " để chốt ai/những ai"
-      : "Không ai châm hàng " + (loai === "TB-01" ? "≥" + NGUONG_THUNG + " cái " : "") + "vào ô trong " + CUA_SO_GIO + "h trước ảnh — hàng có thể đã châm từ trước nữa" };
+    lyDo: ghiA101 + (ds.length ? ds.length + " người châm hàng vào ô trong " + CUA_SO_GIO + "h trước ảnh: " + tom + " — xem camera" + (cam ? " " + cam : "") + " để chốt ai/những ai"
+      : "Không ai châm hàng " + (loai === "TB-01" ? "≥" + NGUONG_THUNG + " cái " : "") + "vào ô trong " + CUA_SO_GIO + "h trước ảnh — hàng có thể đã châm từ trước nữa") };
 }
 
 /* ---- dừng phiếu (khuôn canh-b11: re-create-step −1 + note_failed + đọc lại) ---- */
@@ -232,7 +286,12 @@ if (QC) {
 
 log("Phiếu treo B1: " + phieu.length + (LAM ? "" : " (diễn tập — chưa ghi gì lên work.hasaki)"));
 const dem = {};
+// 14/10 «chạy ra sao, của task nào» → tab Máy trạm (chỉ lượt thật, không diễn tập/QC)
+const TD = LAM && !QC ? await import("./tien-do.mjs") : null;
+TD?.batDau("canh-xac-minh-b1", "Soát phiếu B1 theo luật");
+let iTD = 0;
 for (const p of phieu) {
+  TD?.tienDo({ buoc: "Soát phiếu B1 theo luật", task: p.id, i: ++iTD, n: phieu.length });
   const kq = await xet(p);
   KQ[p.id] = { ...kq, bin: p.bin, ngay: p.ngay, luc: new Date().toISOString() };
   dem[kq.luat + "·" + kq.ketLuan] = (dem[kq.luat + "·" + kq.ketLuan] || 0) + 1;
@@ -252,6 +311,7 @@ const RAW = docJ(path.join(EXP, "b1-treo-raw.json"), {});          // {id: {NV n
 let token = null;
 for (const [id, { qd, gc }] of Object.entries(QD)) {
   if (!qd || SO.qd[id + "|" + qd]) continue;
+  TD?.tienDo({ buoc: "Làm theo quyết định của bạn", task: id, i: 0, n: 0, chiTiet: qd });
   const maTrong = (s) => [...new Set(String(s || "").match(/\b\d{6}\b/g) || [])];
   let viec = null;
   if (qd === "Gán lỗi cho NV máy nghi") {
@@ -282,3 +342,4 @@ for (const [id, { qd, gc }] of Object.entries(QD)) {
 }
 ghiJ(F_KQ, KQ); ghiJ(F_SO, SO); ghiJ(F_CN, CN);
 log("Tổng: " + Object.entries(dem).map(([k, n]) => k + " " + n).join(" · ") + " · WMS " + nWms + " lượt");
+await TD?.xong();

@@ -127,17 +127,18 @@ const b64 = await p.evaluate(async (C, doan) => {
     dong.forEach((s, i) => { const y0 = 720 - 46 * (dong.length - i); const tw = g.measureText(s).width + 24;
       g.fillStyle = "rgba(200,20,20,.92)"; g.fillRect(12, y0, tw, 42); g.fillStyle = "#fff"; g.fillText(s, 24, y0 + 29); });
   };
-  let chay = true; const loop = () => { ve(); if (chay) requestAnimationFrame(loop); };
-  rec.start(1000); loop();
+  /* 06/10: Edge chạy ẩn có lúc NGỪNG nhịp requestAnimationFrame (14046434/38 treo giữa đoạn dù video vẫn chạy) → vẽ + kiểm hết đoạn bằng setInterval */
+  let chay = true; const nhip = setInterval(() => { if (chay) ve(); }, 40);
+  rec.start(1000); ve();
   for (const x of doan) {
     await doiSrc(x.n);
     await seek(Math.max(0, x.a));
     d = x; v.playbackRate = x.toc || 1; await v.play();
     const het = Math.min(x.z, v.duration - 0.05);
-    await new Promise((r) => { const t = () => { if (v.currentTime >= het || v.ended) { v.pause(); r(); } else requestAnimationFrame(t); }; t(); });
+    await new Promise((r) => { const iv = setInterval(() => { if (v.currentTime >= het || v.ended) { clearInterval(iv); v.pause(); r(); } }, 30); });
     console.log("đoạn " + x.tu + "–" + x.den + " x" + (x.toc || 1) + " xong");
   }
-  chay = false; await new Promise((r) => setTimeout(r, 300)); rec.stop(); await xong;
+  chay = false; clearInterval(nhip); await new Promise((r) => setTimeout(r, 300)); rec.stop(); await xong;
   const buf = new Uint8Array(await new Blob(parts, { type: "video/webm" }).arrayBuffer());
   let s = ""; for (let i = 0; i < buf.length; i += 32768) s += String.fromCharCode.apply(null, buf.subarray(i, i + 32768));
   return btoa(s);

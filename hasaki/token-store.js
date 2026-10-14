@@ -14,6 +14,8 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+// 12/10: mọi bộ ghi lên wshr đều nạp tệp này → sổ tác giả ghi lại cò/script nào đã tạo phiếu/bình luận/ảnh (chỉ máy này xem).
+import "./so-tac-gia.mjs";
 
 const CACHE = (DIR) => path.join(DIR, ".wms-session", "token-cache.json");
 const KHOA = (DIR) => path.join(DIR, ".wms-session", ".capture.lock");

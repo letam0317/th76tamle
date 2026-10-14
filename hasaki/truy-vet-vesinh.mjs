@@ -24,7 +24,19 @@
  */
 import { docTabGas } from "./session-rules.js";
 
-const PG_URL = (id) => "https://planogram.hasaki.vn/asset-management/request-of-declaration/details/" + id;
+export const PG_URL = (id) => "https://planogram.hasaki.vn/asset-management/request-of-declaration/details/" + id;
+
+/* 07/10/2026 (user): KHO RẤT BỤI → "cửa sổ bụi" 8 giờ. Mốc = giờ ghi nhận − 8h (ghi nhận 09:00 06/10 → mốc 01:00 06/10).
+ * Báo cáo gần nhất của phụ trách TRƯỚC mốc này → bụi có thể bám lại tự nhiên → KHÔNG chuyển B1.1, bình luận nhờ
+ * anh Tâm (233135) kiểm tra thực tế (VS-06). Báo cáo TRONG cửa sổ → tra camera đúng giờ báo cáo (VS-07, camera-bao-cao.mjs). */
+export const CUA_SO_BUI_GIO = Number(process.env.VS_BUI_GIO || 8);
+export const DAU_NHAC_BUI = "Nhờ anh Tâm kiểm tra thực tế vị trí";   // 07/10: câu trên phiếu chỉ còn thế này — luật ngầm không nói ra
+const dmyGio = (ngay, gio) => (gio || "?") + " " + (ngay ? ngay.slice(8, 10) + "/" + ngay.slice(5, 7) : "?");
+/* Câu nhắc anh Tâm (user_id danh bạ 18811 = Lê Chí Tâm 233135) — KHÔNG kèm giờ báo cáo / khoảng cách / 8h (luật ngầm, user 07/10). */
+export function cauNhacBui(kq, viTri, thoiDiem) {
+  /* 07/10 user: cửa sổ 8h là LUẬT NGẦM — KHÔNG được ghi lên phiếu/bình luận (NV biết sẽ đối phó). Chi tiết chỉ ở dashboard nội bộ (vesinh-xet.json). */
+  return "@[Lê Chí Tâm](user_id:18811) " + DAU_NHAC_BUI + " " + viTri + " trước khi xác minh.";
+}
 
 /* Hạng mục áp dụng — so KHÔNG DẤU để miễn nhiễm khác biệt gõ dấu giữa form/planogram. */
 const boDau = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
@@ -172,6 +184,15 @@ export function truyVet(n, viTri, thoiDiem) {
      KHÔNG BÁO CÁO lẫn ca VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn). Nghỉ/không rõ → không buộc. */
   const suyNV = (pt && coDiLam === true) ? pt.code : "";
 
+  /* CỬA SỔ BỤI 8h (07/10): báo cáo GẦN NHẤT của chính phụ trách trước lúc ghi nhận (bất kỳ ngày) + cách bao nhiêu giờ.
+     Dùng giờ ghi nhận có giây (DATE00); lịch sử báo cáo chỉ tới phút. */
+  const giayGN = String(thoiDiem || "").slice(11, 19).length === 8 ? String(thoiDiem).slice(11, 19) : gioGN + ":00";
+  const msGN = Date.parse(ngayGN + "T" + giayGN + "+07:00");
+  const bcPtGanNhat = pt ? bcKe.filter((x) => (x.code === pt.code || x.email === String(pt.email || "").toLowerCase()) && (x.ngay + " " + x.gio) <= (ngayGN + " " + gioGN))
+    .sort((a, b) => (b.ngay + b.gio).localeCompare(a.ngay + a.gio))[0] || null : null;
+  const cachGioBc = bcPtGanNhat ? (msGN - Date.parse(bcPtGanNhat.ngay + "T" + bcPtGanNhat.gio + ":00+07:00")) / 36e5 : null;
+  const trongCuaSoBui = cachGioBc != null && cachGioBc >= 0 && cachGioBc <= CUA_SO_BUI_GIO;
+
   /* PHÂN LOẠI NGHỈ (user chốt 25/09 chiều) — đo CHUỖI ngày không chấm công chứa ngày xét:
    *   nghi_ngan  (1–2 ngày)   → phiếu fail "Nhân sự phụ trách … không đi làm ngày …"
    *   nghi_dai   (≥3 ngày)    → trách nhiệm QLTT (không chia nhân sự vệ sinh kịp thời)
@@ -190,7 +211,8 @@ export function truyVet(n, viTri, thoiDiem) {
   const ketLuan = !pt ? "khong_phan_cong" : coDiLam !== true ? (coDiLam === false ? nghi.loai : "khong_ro")
     : daBC ? "chua_dat" : "khong_bao_cao";
   return { text: T.join("\n"), html: H.join(""), suyNV, ketLuan, ngayXet, phuTrach: pt,
-    nghi, coBaoCaoNgayXet: bcNgayXet.length > 0, khoa, khopMo: !!tra.mo };
+    nghi, coBaoCaoNgayXet: bcNgayXet.length > 0, khoa, khopMo: !!tra.mo,
+    bcPtGanNhat, bcGanNhat: truoc[0] || null, cachGioBc, trongCuaSoBui };
 }
 
 /* Dấu nhận biết khối đã ghi (chống ghi trùng khi chạy lại) */
