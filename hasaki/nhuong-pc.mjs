@@ -52,7 +52,11 @@ async function quyet(bang, now) {
      Chỉ nhường khi PC đã CÓ BẰNG CHỨNG chạy thật (chayLuc có lượt trong 3 giờ qua); chưa có → laptop vẫn làm (trùng còn hơn sót). */
   const ganNhat = Math.max(0, ...Object.values(hb.chayLuc || {}).map((x) => Date.parse(x) || 0));
   if (now - ganNhat > 3 * 36e5) await ghi(true, chon + " bản mới nhưng chưa có lượt chạy nào trong 3 giờ — laptop vẫn làm");
-  await ghi(false, chon + " nhận việc này");
+  /* 14/10 18:30 LỖ HỔNG: laptop (luật mới) tính tim-bang-chung/canh-b11 thuộc FOQ5T89 nên nhường, nhưng FOQ5T89 (luật CŨ) tính thuộc JE
+     → 2 lượt KHÔNG AI CHẠY. Máy lệch phiên bản thì «mọi máy tính ra cùng kết quả» sai ⇒ chỉ nhường khi CHÍNH PC ĐÓ báo việc là của nó
+     (viecGiao trong nhịp tim — PC tự tính bằng luật của chính nó). PC không nhận → laptop làm. */
+  if (!(hb.viecGiao || []).includes(viec.ten)) await ghi(true, chon + " chưa tự nhận việc này (bảng giao của chính nó khác — lệch phiên bản) — laptop làm");
+  await ghi(false, chon + " nhận việc này (chính nó cũng tự nhận)");
 }
 
 if (process.env.NHUONG_BANG) { const t = JSON.parse(fs.readFileSync(process.env.NHUONG_BANG, "utf8")); await quyet(t.may, t.srvNow || Date.now()); }
