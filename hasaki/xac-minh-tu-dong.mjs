@@ -17,7 +17,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 try { spawnSync(process.execPath, ["don-clip.mjs", "--im"], { cwd: DIR, windowsHide: true, timeout: 120000 }); } catch { }  /* 13/10: van don dia (PC xoa-ngay, laptop no-op) */
 const A = process.argv.slice(2); const IDS = A.filter((x) => /^\d{6,}$/.test(x));
 const opt = (k, d) => (A.find((x) => x.startsWith("--" + k + "=")) || "").split("=").slice(1).join("=") || d;
-const RA = opt("ra", path.join(DIR, ".exports", "xm-tu-dong")); const CONG = fs.existsSync("C:\\Users\\lechitam\\agy-xm.mjs") ? "C:\\Users\\lechitam\\agy-xm.mjs" : path.join(DIR, "agy-xm.mjs");   // 14/10 máy trạm: không có bản gốc → dùng bản trong dự án const XM = path.join(DIR, ".exports", "agy-xm");
+const RA = opt("ra", path.join(DIR, ".exports", "xm-tu-dong")); const CONG = fs.existsSync("C:\\Users\\lechitam\\agy-xm.mjs") ? "C:\\Users\\lechitam\\agy-xm.mjs" : path.join(DIR, "agy-xm.mjs"); const XM = path.join(DIR, ".exports", "agy-xm"); fs.mkdirSync(XM, { recursive: true });   // 14/10 máy trạm: không có bản gốc agy-xm → bản trong dự án; thư mục agy-xm tự tạo (PC mới chưa có)
 const CHUOI = [...new Set([opt("model", "gemini-3.1-flash-lite"), "gemini-3.5-flash-lite"])];   // câu dễ: Flash Lite 500 lượt/ngày (3.5 lite đã bị chấm ảnh vệ sinh dùng 350)   // 09/10: 2.5 đã ngừng cho người dùng mới (404)
 const KEY = process.env.GEMINI_API_KEY;
 /* 13/10 (user: «gọi API cho cả, mà không phải cài»): tầng Claude dự phòng gọi THẲNG API Anthropic (KHÔNG cần cài agy) —

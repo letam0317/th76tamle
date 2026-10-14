@@ -4,7 +4,7 @@
  *  Mỗi phiếu: chép ảnh MỐC (trước/sau), ẢNH GHÉP CÁC GÓC lúc đặt đồ vật, ẢNH KHOANH VÙNG → may/<id>_XM-*.jpg; ghi bang-chung-b1.json[id] = {anh, chu, kenh, luc, nguon:"xac-minh-tu-dong"}. */
 import "dotenv/config";   // 14/10: tự nạp .env (BAIXE_DIR…) — chạy thẳng trên PC không qua chay-xm từng ghi bằng chứng vào đường mặc định của laptop
 import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
-const DIR = path.dirname(fileURLToPath(import.meta.url)); const EXP = path.join(DIR, ".exports"), XM = path.join(EXP, "agy-xm");
+const DIR = path.dirname(fileURLToPath(import.meta.url)); const EXP = path.join(DIR, ".exports"), XM = path.join(EXP, "agy-xm"); fs.mkdirSync(XM, { recursive: true });   /* 14/10 PC mới chưa có thư mục này */
 const MAY = path.join(process.env.BAIXE_DIR ? path.dirname(process.env.BAIXE_DIR) : "C:/Users/lechitam/Videos/5S-bang-chung", "may");   // 14/10 máy trạm: theo BAIXE_DIR như các script khác fs.mkdirSync(MAY, { recursive: true });
 const goc = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync(EXP).filter((d) => /^xm-tu-dong/.test(d) && fs.statSync(path.join(EXP, d)).isDirectory()).map((d) => path.join(EXP, d));
 const ban = {}; for (const r of goc) for (const id of fs.readdirSync(r).filter((x) => /^\d{6,}$/.test(x))) { const f = path.join(r, id, "BAO-CAO.md"); if (!fs.existsSync(f)) continue; const t = fs.statSync(f).mtimeMs; if (!ban[id] || ban[id].t < t) ban[id] = { t, d: path.join(r, id) }; }

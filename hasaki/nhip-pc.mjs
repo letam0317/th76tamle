@@ -93,6 +93,20 @@ function banCode() {   // ma commit dang chay (doc thang .git, khong goi git)
   } catch { return ""; }
 }
 
+/* 14/10: QLIT lên bản mới mà nhật ký cổng gác KHÔNG có dòng quyết định nào ⇒ task «5S DP …» không hề gọi cổng gác. Từ xa không thấy task
+   ⇒ nhịp tim gửi trạng thái task (tên|trạng thái|lần chạy cuối|mã kết quả|lần chạy kế), đọc lại mỗi 10' (đệm .task-dp.json). */
+const TASK_F = path.join(DIR, ".task-dp.json");
+async function trangThaiTask() {
+  try { const c = JSON.parse(fs.readFileSync(TASK_F, "utf8")); if (Date.now() - c.luc < 10 * 60e3) return c.ds; } catch { /* chưa có */ }
+  const { execFile } = await import("node:child_process");
+  const ps = "Get-ScheduledTask | Where-Object { $_.TaskName -like '5S DP *' -or $_.TaskName -like 'Audit *' } | ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; " +
+    "$_.TaskName + '|' + $_.State + '|' + $(if ($i.LastRunTime) { $i.LastRunTime.ToString('dd/MM HH:mm') } else { '-' }) + '|' + $i.LastTaskResult + '|' + $(if ($i.NextRunTime) { $i.NextRunTime.ToString('dd/MM HH:mm') } else { '-' }) }";
+  const out = await new Promise((r) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { windowsHide: true, timeout: 30000 }, (e, so) => r(e ? "" : String(so))));
+  const ds = out.split(/\r?\n/).map((d) => d.trim()).filter(Boolean).slice(0, 20).map((d) => d.slice(0, 120));
+  try { fs.writeFileSync(TASK_F, JSON.stringify({ luc: Date.now(), ds })); } catch { /* */ }
+  return ds;
+}
+
 export async function guiNhip(log = () => {}, opts = {}) {
   const sk = await sucKhoe();
   let dangChay = opts.dangChay; if (!dangChay) { try { dangChay = JSON.parse(fs.readFileSync(DC_TOM, "utf8")); } catch { dangChay = []; } }
@@ -102,7 +116,7 @@ export async function guiNhip(log = () => {}, opts = {}) {
   let congGan = []; try { congGan = fs.readFileSync(path.join(DIR, "runner-dieu-phoi.log"), "utf8").trim().split(/\r?\n/).slice(-8).map((d) => d.slice(0, 180)); } catch { /* chưa có */ }   // 14/10: 8 dòng cuối cổng gác → xem từ xa vì sao máy chạy/không chạy
   let chayLuc = {}; try { chayLuc = JSON.parse(fs.readFileSync(CHAY_F, "utf8")); } catch { /* chưa chạy việc nào */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
-    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
+    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, taskDP: await trangThaiTask(), oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
   try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).
