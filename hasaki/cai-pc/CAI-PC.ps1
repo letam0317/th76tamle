@@ -7,7 +7,8 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 14/10: ch
 $kit = $PSScriptRoot
 $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 $repo = "https://github.com/letam0317/th76tamle.git"
-$caiVao = "C:\AuditFactory"; $gitDir = "$caiVao\hasaki-repo"; $duAn = "$gitDir\hasaki"
+$caiVao = if ($env:HSK_CAI_VAO) { $env:HSK_CAI_VAO } else { "C:\AuditFactory" }   # HSK_CAI_VAO: chi bo chay thu qc-cai-pc.ps1 dung (thu muc rieng)
+$gitDir = "$caiVao\hasaki-repo"; $duAn = "$gitDir\hasaki"
 $may = [System.Net.Dns]::GetHostName()   # 14/10: TEN DAY DU = os.hostname() cua nhip tim/dieu phoi (COMPUTERNAME bi cat 15 ky tu, VIET HOA)
 $nhan = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
 $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
