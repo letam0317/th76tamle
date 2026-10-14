@@ -3,6 +3,7 @@
 #   trong cai-pc\dieu-phoi.json (viec nao co hostname may nay trong uuTien thi cai).
 #   Sau khi cai: may TU dong bo + TU them/bot viec (git pull) qua task 'Audit cap nhat PC' - KHONG cai lai.
 $ErrorActionPreference = "Stop"
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 14/10: chu tieng Viet node in ra tung bi vo ("Tß╗òng")
 $kit = $PSScriptRoot
 $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 $repo = "https://github.com/letam0317/th76tamle.git"
@@ -78,7 +79,15 @@ if ($env:HSK_KHOA_B64) {
 foreach($p in $cfg.envCung.PSObject.Properties){ $dong[$p.Name] = "$($p.Name)=$($p.Value)" }
 ($dong.Values | Sort-Object) -join "`r`n" | Out-File $envF -Encoding utf8
 $trong = $kq.envKeys | Where-Object { $dong[$_] -match '=\s*$' }
-if ($trong) { Write-Host "  [!] .env CON TRONG: $($trong -join ', ') - dien gia tri truoc khi chay that." -ForegroundColor Yellow }
+# ---- THIEU KHOA (14/10: bo cai tai NGAY TREN PC = ban cong khai) -> XIN KHOA, laptop bam Duyet o muc May tram, khong chep file ----
+if ($trong -contains "APPSCRIPT_KEY" -or $trong -contains "APPSCRIPT_URL") {
+  $ErrorActionPreference = "Continue"; Push-Location $duAn
+  & "$duAn\node.exe" cai-pc\xin-khoa.mjs        # in MA XAC NHAN ra man hinh, cho Duyet (toi da 30')
+  $okXin = ($LASTEXITCODE -eq 0); Pop-Location; $ErrorActionPreference = "Stop"
+  if ($okXin) { $dong = @{}; foreach($l in Get-Content $envF){ if($l -match '^\s*([A-Z0-9_]+)\s*='){ $dong[$matches[1]] = $l } }
+    $trong = $kq.envKeys | Where-Object { -not $dong[$_] -or $dong[$_] -match '=\s*$' } }
+}
+if ($trong) { Write-Host "  [!] .env CON TRONG: $($trong -join ', ') - may nay se khong nhan viec can cac khoa do." -ForegroundColor Yellow }
 
 # ---- Khoa quyen thu muc chi SYSTEM + Administrators ----
 icacls $caiVao /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" | Out-Null
@@ -120,7 +129,7 @@ $sha = (git -C $gitDir rev-parse --short HEAD 2>$null)
 Write-Host ""
 Write-Host "XONG: $($kq.nap) viec$(if($kq.xoa){", go $($kq.xoa) cu"}) (ban $sha). Tu cap nhat + nhip tim da bat." -ForegroundColor Green
 Write-Host "CON LAM TAY:" -ForegroundColor Yellow
-if ($trong) { Write-Host "  1. Dien .env con trong: $envF  (de khoi lam tay: tai bo cai bang nut tren dashboard o LAPTOP da dang nhap Xac minh)" }
+if ($trong) { Write-Host "  1. Thieu khoa: chay lai bo cai -> tu xin khoa, bam Duyet tren laptop (muc May tram)." }
 else { Write-Host "  1. .env da du khoa - khong can lam gi." }
 Write-Host "  2. Nen cam DAY LAN + tat ngu. May WiFi/ngu VAN CHAY: ngu = tam nghi, may khac ganh thay; bat lai la chay bu."
 Write-Host "  3. (Neu may lam bridge) mo Edge dang nhap WMS + cai extension wms-bridge."

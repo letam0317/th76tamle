@@ -69,5 +69,5 @@ echo [*] Chay bo cai...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%GOC%\hasaki\cai-pc\CAI-PC.ps1"
 
 echo.
-echo === XONG. Xem dong [CON LAM TAY] o tren (ban tai tu laptop da co san khoa - khong can lam gi). ===
+echo === XONG. Dong xanh [OK] DA BAO VE MAY CHU o tren = may nay da chay. Dong do [X] = dan noi dung cho quan tri. ===
 pause

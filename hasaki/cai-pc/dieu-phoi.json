@@ -1,6 +1,7 @@
 {
   "_doc": "NGUON DUY NHAT cho (1) CHIA VIEC va (2) BO SUNG/BOT viec tu dong. Moi viec = 1 task. KHONG can khai may nao manh: moi may cai HET viec, cong gac TU CHON may MANH NHAT + DU KHOA + khoe de chay (viec nang can khoa top-review -> chi may co khoa do nhan). Dieu khien NANG LUC = khoa ban dien trong .env tung may (may khong dien TOPREVIEW -> khong nhan viec camera). Muon GHIM tay 1 viec cho 1 may: them \"uuTien\":[\"HOSTNAME\"].",
   "nhanh": "cai-tien/bo-sung-factory",
+  "gasUrl": "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec",
   "hetHanPhut": 3,
   "capNhat": {
     "tenTask": "Audit cap nhat PC",
