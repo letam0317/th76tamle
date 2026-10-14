@@ -47,6 +47,10 @@ async function quyet(bang, now) {
   if (chon === os.hostname()) await ghi(true, "điều phối chọn chính laptop");
   const hb = bang.find((m) => m.may === chon);
   if (!hb || !("chayLuc" in hb)) await ghi(true, chon + " còn bản cũ (ban ngày tự bỏ lượt) — laptop làm thay");
+  /* 14/10 13:58: QLIT lên bản mới, laptop nhường planogram 13:55 nhưng QLIT không ghi nhận lần chạy nào → có thể bỏ sót lượt.
+     Chỉ nhường khi PC đã CÓ BẰNG CHỨNG chạy thật (chayLuc có lượt trong 3 giờ qua); chưa có → laptop vẫn làm (trùng còn hơn sót). */
+  const ganNhat = Math.max(0, ...Object.values(hb.chayLuc || {}).map((x) => Date.parse(x) || 0));
+  if (now - ganNhat > 3 * 36e5) await ghi(true, chon + " bản mới nhưng chưa có lượt chạy nào trong 3 giờ — laptop vẫn làm");
   await ghi(false, chon + " nhận việc này");
 }
 
