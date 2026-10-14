@@ -56,6 +56,9 @@ async function quyet(bang, now) {
      → 2 lượt KHÔNG AI CHẠY. Máy lệch phiên bản thì «mọi máy tính ra cùng kết quả» sai ⇒ chỉ nhường khi CHÍNH PC ĐÓ báo việc là của nó
      (viecGiao trong nhịp tim — PC tự tính bằng luật của chính nó). PC không nhận → laptop làm. */
   if (!(hb.viecGiao || []).includes(viec.ten)) await ghi(true, chon + " chưa tự nhận việc này (bảng giao của chính nó khác — lệch phiên bản) — laptop làm");
+  /* 14/10 23:40 LỖ HỔNG: QLIT tự nhận planogram nhưng KHÔNG CÓ task «5S DP co-canh-planogram» (chỉ 4/13 task) → laptop nhường, không ai chạy.
+     PC có báo trạng thái task (taskDP) mà thiếu task của việc này → laptop làm. */
+  if ((hb.taskDP || []).length && !(hb.taskDP || []).some((d) => String(d).startsWith("5S DP " + viec.ten + "|"))) await ghi(true, chon + " không có task của việc này — laptop làm");
   await ghi(false, chon + " nhận việc này (chính nó cũng tự nhận)");
 }
 

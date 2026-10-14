@@ -47,12 +47,14 @@ export const TAI_NANG = 3, TAI_NHE = 1;
 
 function songConLai(viec, board, now, cfg) {
   const song = maySong(board, now, cfg.hetHanPhut || 8);
-  for (const [m, hb] of song) if (biDung(hb, viec.ten) || congChet(hb, now)) song.delete(m);
+  for (const [m, hb] of song) if (biDung(hb, viec.ten) || congChet(hb, now) || thieuTask(hb, viec.ten)) song.delete(m);
   return song;
 }
 /* 14/10: QLIT gửi nhịp tim đều nhưng task việc KHÔNG HỀ gọi cổng gác (nhật ký cổng trống) → nhận 6 việc mà không làm. Cổng gác ghi giờ quyết
    định gần nhất (congLuc) → nhịp tim gửi. Máy CÓ báo congLuc mà trống/im quá 3 giờ = cổng gác chết → không giao việc. Máy bản cũ (không có
    khoá congLuc) giữ như cũ. Mọi task (kể cả việc không giao) đều gọi cổng gác theo lịch ⇒ máy khoẻ luôn có congLuc mới trong ≤ 15'. */
+/* 14/10 23:40: QLIT chỉ có 4/13 task «5S DP» mà vẫn được giao planogram → không ai chạy. Máy CÓ báo taskDP mà thiếu task của việc → không giao việc đó. */
+export const thieuTask = (hb, ten) => !!hb && Array.isArray(hb.taskDP) && hb.taskDP.length > 0 && !hb.taskDP.some((d) => String(d).startsWith("5S DP " + ten + "|"));
 export const congChet = (hb, now = Date.now()) => !!hb && ("congLuc" in hb) && (!hb.congLuc || now - Date.parse(hb.congLuc) > 3 * 3600e3);
 function chonGhim(viec, song) {
   for (const may of viec.uuTien) {
@@ -234,6 +236,10 @@ function test() {
   eq(Object.values(chiaViec([chet, song], now, cfg3)).every((m) => m === "FOQ"), true, "cong gac chet (congLuc trong) -> khong giao viec");
   eq(Object.values(chiaViec([cu3h, song], now, cfg3)).every((m) => m === "FOQ"), true, "cong gac im > 3 gio -> khong giao viec");
   eq(Object.values(chiaViec([hb2("QLIT", 415, 60, false, K), song], now, cfg3)).includes("QLIT"), true, "ban cu (khong congLuc) -> van giao nhu cu");
+  // 14/10 23:40 THIẾU TASK: QLIT chỉ có task n1 → chỉ được giao n1 (nếu là máy tốt nhất), các việc khác sang máy có task
+  const thieu = { ...hb2("QLIT", 415, 60, false, K), taskDP: ["5S DP n1|Ready|-|0|-", "Audit nhip tim PC|Ready|-|0|-"] };
+  g = chiaViec([thieu, hb2("FOQ", 296, 60, false, K)], now, cfg3);
+  eq(Object.entries(g).filter(([t, m]) => m === "QLIT").every(([t]) => t === "n1") && Object.entries(g).filter(([t]) => t !== "n1").every(([, m]) => m === "FOQ"), true, "thieu task -> khong giao viec may khong co task");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);
