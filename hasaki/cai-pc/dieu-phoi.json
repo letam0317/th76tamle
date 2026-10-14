@@ -31,12 +31,8 @@
         "TOPREVIEW_USER",
         "TOPREVIEW_PASS"
       ],
-      "uuTien": [
-        "HSK-KHO170-tamlc-1"
-      ],
-      "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
-      "dongBoXm": true
+      "dongBoXm": true,
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
     },
     {
       "ten": "canh-xac-minh-b1",
@@ -51,12 +47,8 @@
         "TOPREVIEW_PASS",
         "GEMINI_API_KEY"
       ],
-      "uuTien": [
-        "HSK-KHO170-tamlc-1"
-      ],
-      "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
-      "dongBoXm": true
+      "dongBoXm": true,
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
     },
     {
       "ten": "tim-bang-chung-b1",
@@ -70,12 +62,8 @@
         "TOPREVIEW_USER",
         "TOPREVIEW_PASS"
       ],
-      "uuTien": [
-        "HSK-KHO170-tamlc-1"
-      ],
-      "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
-      "dongBoXm": true
+      "dongBoXm": true,
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
     },
     {
       "ten": "canh-bai-xe-sang",
@@ -129,12 +117,8 @@
         "TOPREVIEW_PASS",
         "GEMINI_API_KEY"
       ],
-      "uuTien": [
-        "HSK-KHO170-tamlc-1"
-      ],
-      "chiLaptop": true,
-      "_chiLaptop": "14/10: cần dữ liệu .exports chỉ có trên laptop (tasks-cache, quyết định user, án lệ, kết quả soát) — PC chưa có đồng bộ → GHIM laptop. Gỡ khi có đồng bộ .exports sang PC.",
-      "dongBoXm": true
+      "dongBoXm": true,
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
     },
     {
       "ten": "co-canh-planogram",
