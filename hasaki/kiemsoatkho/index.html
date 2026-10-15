@@ -676,6 +676,12 @@ thead th.c-status, tbody td.c-status{width:150px;}
 
 /* ===== TAB HẠNG MỤC 5S ===== */
 .hm-loc{grid-template-columns:minmax(0,460px);}   /* 13/10 ô tìm Quy định cùng khuôn khung lọc của Vi phạm / Xác minh */
+.hm-dau{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,420px); gap:16px; margin-bottom:16px; align-items:stretch;}
+.hm-dau .hm-loc{grid-template-columns:minmax(0,1fr); margin:0;}
+.hm-tieude{display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; padding:16px 24px; overflow:visible;}
+.hm-tieude .hm-td{margin:0; font-size:24px; font-weight:600; line-height:32px;}
+.hm-tieude #hmDem{font-size:14px;}
+@media (max-width:768px){ .hm-dau{grid-template-columns:minmax(0,1fr); gap:12px;} .hm-tieude{padding:12px 16px;} .hm-tieude .hm-td{font-size:20px; line-height:28px;} }
 .hm-bar{display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;}
 .hm-bar input{flex:1 1 260px; max-width:460px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 12px;}
 .hm-bar input:focus{outline:none; border-color:var(--accent);}
@@ -1216,7 +1222,7 @@ body.side-open #sideToggle:hover .st-arrow{transform:translateX(-1.6px);}       
    CỐ Ý chỉ animate `transform`, KHÔNG animate opacity: .s-item có opacity .72 (và 1 khi hover/.on),
    mà animation fill thắng khai báo thường -> nhét opacity vào keyframe là mất luôn hiệu ứng hover.
    fill `backwards` để giữ vị trí lệch trong lúc chờ delay, hết animation thì nhả về style gốc. */
-body.side-open #sideNav .s-grp,body.side-open #sideNav .s-item{animation:sideVao .34s var(--ez-apple) backwards;}
+body.side-vao.side-open #sideNav .s-grp,body.side-vao.side-open #sideNav .s-item{animation:sideVao .34s var(--ez-apple) backwards;}
 @keyframes sideVao{from{transform:translate3d(-12px,0,0);} to{transform:none;}}
 body.side-open #sideNav .s-sub .s-item:nth-child(1){animation-delay:.03s;}
 body.side-open #sideNav .s-sub .s-item:nth-child(2){animation-delay:.06s;}
@@ -1241,10 +1247,10 @@ body.side-open #sideNav .s-grp:nth-of-type(2){animation-delay:.05s;}
 body.side-anim{overflow-x:clip;}
 /* ===== MOBILE (≤768px): phủ lên nội dung + nền mờ (không đủ chỗ để đẩy) ===== */
 @media(max-width:768px){
-  #sideNav{width:80vw;max-width:300px;}
+  #sideNav{width:72vw;max-width:264px;   /* 15/10 user «thanh bên to» trên điện thoại: 80vw/300px → 72vw/264px (cỡ Drawer antd) */}
   /* min(80vw,300px) khớp đúng mép drawer — bản cũ dùng calc(80vw+7px) nên máy rộng >375px nút bị lệch ~19px */
-  body.side-open #sideToggle{translate:min(80vw,300px) 0;}
-  @supports not (translate:1px 0){ body.side-open #sideToggle{left:calc(min(80vw,300px) + 7px);} }
+  body.side-open #sideToggle{translate:calc(min(72vw,264px) - 52px) 0;z-index:1303;}   /* 15/10: nút thu nằm TRONG đầu ngăn kéo (góc phải, ngang logo) — ra ngoài thì đè nút «Ghi nhận 5S» */
+  @supports not (translate:1px 0){ body.side-open #sideToggle{left:calc(min(72vw,264px) + 7px);} }
   body.side-open #sideBackdrop{opacity:1;visibility:visible;}
 }
 
@@ -1401,8 +1407,8 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261014tq4"></script>
-<script src="tai-khoan.js?v=20261014tq4"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
+<script src="hasaki-giaodien-antd.js?v=20261015c"></script>
+<script src="tai-khoan.js?v=20261015a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -1412,6 +1418,9 @@ body.side-anim{overflow-x:clip;}
   ><rect x="3" y="4" width="18" height="16" rx="2.6"></rect><line x1="9" y1="4" x2="9" y2="20"></line
   ><path class="st-arrow" d="M16.6 9.4 13.9 12l2.7 2.6"></path></svg></button>
 <div id="sideBackdrop" aria-hidden="true"></div>
+<script>/* 15/10 user «vào bằng điện thoại… đăng nhập gặp lỗi»: máy chủ Xác minh 127.0.0.1:8591 chỉ có trên máy Windows (laptop/PC trạm) —
+   điện thoại/máy tính bảng KHÔNG gọi 127.0.0.1 (Chrome điện thoại chặn CORS «mạng cục bộ» / bật hộp hỏi quyền, trông như lỗi đăng nhập) */
+window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
 <script>/* 14/10: pop-up không che thanh bên — --pop-trai = mép phải thật của #sideNav (máy tính); điện thoại = 0 (ngăn kéo nổi trên pop-up) */
 (function(){var nav=document.getElementById("sideNav");if(!nav)return;var h=0;
   var tg=document.getElementById("sideToggle");
@@ -1592,11 +1601,14 @@ body.side-anim{overflow-x:clip;}
 
   <!-- ===== TAB HẠNG MỤC 5S (đọc QUY-DINH trực tiếp, đồng bộ thời gian thực) ===== -->
   <section id="pane-hangmuc" class="pane hidden">
-    <div class="filters hm-loc">
-      <label><span class="lbl">Tìm</span><input type="search" id="hmTim" autocomplete="off" placeholder="Quy định / lỗi vi phạm / nghiệp vụ…"></label>
+    <!-- 15/10 user: tiêu đề «Quy định & hạng mục 5S» làm to, ô Tìm khung riêng NGANG HÀNG bên phải; bảng ở dưới -->
+    <div class="hm-dau">
+      <div class="panel hm-tieude"><div class="hm-td" role="heading" aria-level="2">Quy định &amp; hạng mục 5S</div><span id="hmDem" class="muted"></span></div>
+      <div class="filters hm-loc">
+        <label><span class="lbl">Tìm</span><input type="search" id="hmTim" autocomplete="off" placeholder="Quy định / lỗi vi phạm / nghiệp vụ…"></label>
+      </div>
     </div>
     <div class="panel">
-      <div class="panel-head"><span>Quy định &amp; hạng mục 5S</span><span id="hmDem" class="muted" style="font-weight:400;font-size:14px"></span></div>
       <div class="table-wrap" id="hmWrap">
         <div style="padding:16px"><div class="sk sk-line" style="width:90%"></div><div class="sk sk-line" style="width:75%"></div><div class="sk sk-line" style="width:85%"></div></div>
       </div>
@@ -3360,7 +3372,7 @@ function moHasakiMayTram(){
   const pane=$('pane-maytram');
   if(!_mtNap){
     _mtNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261014mt16';
+      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261015a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-maytram.js'));
       document.body.appendChild(s);
     });
@@ -3389,7 +3401,7 @@ function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261013mt2';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261015a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3458,7 +3470,7 @@ function soThanhBen(){
   HOME_MUC.forEach(function(g){ g.items.forEach(function(it){ if(it.sub) return;
     var el=document.querySelector('#sideNav .s-item[data-tab="'+it.t+'"]:not([data-sub]) .sn'); if(!el) return;
     var s=null; try{ s=it.so?it.so():null; }catch(e){}
-    el.textContent = s ? s.k : ""; el.title = s ? s.l : ""; }); });
+    var k = s ? s.k : "", l = s ? s.l : ""; if (el.textContent !== k) el.textContent = k; if (el.title !== l) el.title = l; }); });   // 15/10 chỉ ghi khi đổi
 }
 /* 13/10 user chọn PHƯƠNG ÁN B cho Tổng quan: hàng chỉ số + thẻ chức năng (lớp antd: window.tqVe). Số tab nặng (Planogram, Kiểm kê,
    Bất thường) lấy từ tqDoc — do chính module ghi khi vẽ xong (≤12 giờ), Tổng quan KHÔNG tự tải thêm gì. */
@@ -4207,7 +4219,7 @@ document.addEventListener('click', ()=>csDongHet(null));
     nav.innerHTML = html;
     /* 05/10 user: "trang chỉ mình t coi được" — tab Xác minh CHỈ hiện khi máy đang mở có máy chủ nội bộ bang-591 (127.0.0.1:8591);
        máy người khác không thấy cả nút tab. Dữ liệu vốn chỉ nằm trên máy quản lý, đây chỉ là giấu lối vào. */
-    if (!window.__HX_MAY_CHU && !build._do) { build._do = 1;
+    if (!window.__HX_MAY_CHU && !build._do && !window.__HX_KHONG_MAY) { build._do = 1;
       var ctl = new AbortController(); setTimeout(function(){ ctl.abort(); }, 1500);
       fetch("http://127.0.0.1:8591/api/ping", { signal: ctl.signal }).then(function(r){ if (r.ok) { window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); build(); } })
         .catch(function(){ var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_CHAN) { window.__HX_CHAN = 1; build(); } }); }
@@ -4236,7 +4248,8 @@ document.addEventListener('click', ()=>csDongHet(null));
      + will-change + clip ngang. Bật/tắt theo lượt nên KHÔNG giữ layer thừa khi đứng yên. */
   var hetAnim = null;
   function nhipAnim(){
-    document.body.classList.add("side-anim");
+    if(document.body.dataset.moNgay){ setTimeout(function(){ window.dispatchEvent(new Event("resize")); },0); return; }   // 15/10 mở sẵn lúc tải (lớp antd) = không trượt
+    document.body.classList.add("side-anim"); /* 15/10 user «thanh bên giật, nhảy chữ dù không trỏ chuột»: nhịp trượt-vào của mục chỉ chạy khi NGƯỜI DÙNG bấm mở (.side-vao ~600ms) — trước đây chạy lại mỗi lần thanh bên được dựng lại (tải trang 3 lần, đổi phiên Xác minh, bộ áp bố cục) */ document.body.classList.add("side-vao"); clearTimeout(window.__hetVao); window.__hetVao=setTimeout(function(){ document.body.classList.remove("side-vao"); },600);
     clearTimeout(hetAnim);
     hetAnim = setTimeout(function(){
       document.body.classList.remove("side-anim");

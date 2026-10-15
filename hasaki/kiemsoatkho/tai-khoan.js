@@ -165,7 +165,7 @@
 
   /* ---------- Xác minh: đổi phiên tài khoản → phiên máy chủ 8591 (chỉ Retail, chỉ khi có quyền) ---------- */
   function doiPhienXm() {
-    if (APP !== "r" || !TK.phien || !window.tkCo("r.xacminh")) return Promise.resolve(false);
+    if (APP !== "r" || !TK.phien || !window.tkCo("r.xacminh") || window.__HX_KHONG_MAY) return Promise.resolve(false);   // 15/10: điện thoại không có máy chủ 8591
     return fetch(API_XM + "/api/dang-nhap-tk", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phienTk: TK.phien }) })
       .then(function (r) { return r.json(); }).then(function (j) { if (!j.phien) return false; ls.set("hx-phien", j.phien); try { window.dispatchEvent(new Event("hx-phien")); } catch (e) {} return true; })
       .catch(function () { return false; });

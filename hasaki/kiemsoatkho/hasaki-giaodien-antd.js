@@ -240,7 +240,10 @@
     B + " :is(#pane-kk .ks,#pane-htonbat .ht-tile){border:1px solid var(--ad-chia)!important;box-shadow:none!important}",
     /* AD-03 bo góc: thẻ/khung 8 · nút/ô nhập 6 · nhãn (Tag) 4 */
     B + " :is(.hp-panel,.hk-panel,.ht-panel,.hk-whcard,.hm-legend,.hm-lg-card,.tkq-card,.hp-tile,#pane-kk .ks,#pane-htonbat .ht-tile){border-radius:8px!important}",
-    B + " :is(.hp-h2btn,.hp-whtab,.hx-nut,.cn,.hp-ccsearch){border-radius:6px!important}",
+    B + " :is(.hp-h2btn,.hp-whtab,.hx-nut,.cn,.hp-ccsearch,.kktab,.pg-whtab,.pg-search){border-radius:6px!important}",   // 15/10 Factory: nút/chip viên thuốc 999px → nút antd 6px
+    /* 15/10 user «Kế hoạch chờ push (WMS) bo góc có đúng antd?» — nút đầu trang = Button mặc định antd: cao 32 · đệm 4×15 · chữ 14 thường · bo 6 */
+    B + " #hdrKkPlan{height:32px;padding:4px 15px;font-size:14px;font-weight:400;line-height:22px;color:var(--text);border:1px solid var(--border);background:var(--surface);box-shadow:none}",
+    B + " #hdrKkPlan:hover{color:var(--accent);border-color:var(--accent)}",
     B + " :is(.hx-tag,.kpi-pill,.hk-stchip,.hp-legchip,.hp-legcnt,#pane-planogram .hp-tdrow .n){border-radius:4px!important}",
     /* nút "i" chú thích: hình tròn thật (rộng = cao) */
     B + " .h2tip{width:16px!important;height:16px!important;min-height:16px!important;padding:0!important;line-height:14px!important;display:inline-grid;place-items:center}",
@@ -344,8 +347,8 @@
       /* đầu trang điện thoại 1 hàng: chỉ còn tên mục (nhóm đã thấy trong thanh bên) — chặn luật 13 rác đầu màn */
       H + " #adCrumb .g," + H + " #adCrumb .s{display:none}" +
       H + " #adCrumb{white-space:normal}" + H + " #adCrumb b{font-size:14px;line-height:20px}" +   // máy hẹp 360px: tên dài xuống 2 dòng, không cắt chữ
-      H + " #adLogo{width:min(80vw,300px)}" + H + " #adChuyen{width:min(80vw,300px)}" +
-      H + " #sideNav{width:80vw;max-width:300px}" +
+      H + " #adLogo{width:min(72vw,264px)}" + H + " #adChuyen{width:min(72vw,264px)}" +
+      H + " #sideNav{width:72vw;max-width:264px}" +
       H + " #sideToggle{width:40px;height:40px;top:8px;left:8px}" +
       H + " #btnSettings{width:40px;height:40px}" +
       H + " #btnGhiNhan{min-height:40px}" +
@@ -535,7 +538,8 @@
     if (nav) try { new MutationObserver(function () { capNhatCrumb(); dongBoLink(); henCanO(); ganIcon(); }).observe(nav, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] }); } catch (e) {}
     /* máy tính rộng (≥992, mốc lg của antd): ghim thanh bên ngay khi vào, như bố cục trái–phải của antd */
     if (window.matchMedia("(min-width:992px)").matches && !document.body.classList.contains("side-open")) {
-      var tg = document.getElementById("sideToggle"); if (tg) tg.click();
+      /* 15/10 user «thanh bên giật, nhảy chữ»: mở SẴN không hiệu ứng (cờ moNgay) — trước đây chạy nhịp trượt-vào đúng lúc thanh bên đang dựng lại */
+      var tg = document.getElementById("sideToggle"); if (tg) { document.body.dataset.moNgay = "1"; tg.click(); delete document.body.dataset.moNgay; }
     }
   }
 
