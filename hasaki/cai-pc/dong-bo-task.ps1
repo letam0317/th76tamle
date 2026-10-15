@@ -50,7 +50,9 @@ function Nap-ViecDP($viec, $kit, $duAn, $duongCu) {
 function DongBo-DieuPhoi($kit, $cfg, $duAn, $duongCu) {
   $may = [System.Net.Dns]::GetHostName()   # 14/10: khop ten trong uuTien / bang nhip (os.hostname)
   $soFile = "$duAn\.cai-pc-tasks.json"
-  $daQuanLy = @(); if (Test-Path $soFile) { try { $daQuanLy = @(Get-Content $soFile -Raw | ConvertFrom-Json) } catch {} }
+  # 15/10 THU PHAM "0/13 task": PS 5.1 ConvertFrom-Json tra MANG thanh 1 phan tu -> @(...) = 1 phan tu chua ca 13 ten ->
+  #   vong go ben duoi coi ca mang la 1 task "thua" -> Unregister ca 13 task vua nap (log "nap 13, go 1" moi luot). Nay: trai mang ra.
+  $daQuanLy = @(); if (Test-Path $soFile) { try { $daQuanLy = @(Get-Content $soFile -Raw | ConvertFrom-Json | ForEach-Object { $_ } | Where-Object { $_ -is [string] -and $_ -like '5S DP *' }) } catch {} }
   # Cai HET viec (cong gac + khoa + suc manh tu loc o runtime); may nao co khoa top-review moi nhan viec camera.
   # Chi khi 1 viec co uuTien (ghim tay) thi moi loc theo hostname.
   $muon = @(); $envKeys = @()
