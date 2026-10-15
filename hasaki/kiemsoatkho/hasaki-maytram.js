@@ -311,7 +311,8 @@
         nhom.map(function (ly) { return '<div class="hx-mt-ly"><div class="ly">' + e_(ly) + "</div>" + chiaNang(theo[ly], function (t) { return '<span class="hx-tag">' + e_(tenV(t)) + "</span>"; }) + "</div>"; }).join("") + "</div>";
     }
     /* 15/10 user «máy nào không chạy đưa xuống dưới, ủn máy đang chạy/còn sống lên trên»: đang làm việc → sống chờ việc → sống nhưng Dừng → mất nhịp; cùng hạng theo điểm */
-    var hangMay = function (m) { return !m.song ? 3 : m.dung ? 2 : (m.dangChay || []).length ? 0 : 1; };
+    // 15/10 chiều: laptop Dừng nhưng ĐANG LÀM THAY từng bị xếp dưới 2 máy rảnh → hạng theo ĐÚNG nhãn trên thẻ: «Đang làm việc» (kể cả làm thay) lên đầu
+    var hangMay = function (m) { return !m.song ? 3 : (m.dangChay || []).length ? 0 : m.dung ? 2 : 1; };
     var mayXep = MTD.may.slice().sort(function (a, b) { return (hangMay(a) - hangMay(b)) || ((b.diem || 0) - (a.diem || 0)) || String(a.may).localeCompare(String(b.may)); });
     h += MTD.may.length ? '<div class="mt-hang">' + mayXep.map(the).join("") + "</div>"
       : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';    if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';

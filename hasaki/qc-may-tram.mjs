@@ -136,6 +136,8 @@ try {
         return { tag: t.querySelector(".mt-dau .hx-tag").textContent, mo: t.classList.contains("mo"), chip: [...t.querySelectorAll(".mt-c")].map((c) => c.className + ":" + c.textContent) }; });
       ok(lt.tag === "Đang làm việc" && !lt.mo && lt.chip.length === 4 && lt.chip.some((c) => /chay:Cò xác minh B1/.test(c)) && lt.chip.filter((c) => /mt-c cho:/.test(c)).length === 3, "thẻ laptop: «Dự phòng», SÁNG khi đang làm thay, 4 việc ghim laptop: 1 chạy (xanh) + 3 chờ (" + lt.tag + " · " + lt.chip.join(",") + ")");
       ok(await p.evaluate(() => !/Cò canh B1.1|Cò xác minh B1|Tìm bằng chứng B1|Xác minh camera tối/.test((document.querySelector("#pane-maytram .mt-chua") || {}).innerText || "")), "việc ghim laptop KHÔNG nằm trong «Việc chưa có máy nhận»");
+      { const tt = await p.evaluate(() => [...document.querySelectorAll("#pane-maytram .mt-o")].map((o) => o.querySelector(".mt-dau b").textContent + ":" + o.querySelector(".mt-dau .hx-tag").textContent));
+        ok(/Đang làm việc$/.test(tt[0]) && tt.slice(1).every((x) => !/Đang làm việc$/.test(x)), "máy ĐANG LÀM VIỆC (kể cả laptop Dừng làm thay) xếp trên máy rảnh (" + tt.join(" → ") + ")"); }
       ok((dcMay["HSK-KHO170-QLIT"] || []).length === 0, "QLIT không chạy gì → thẻ không có khối Đang chạy");
       // 14/10 user «sao thấy cả 4 đều đứng im»: máy bật mà không việc nào đang chạy → «Rảnh» + «Hôm nay đã làm N việc · gần nhất …»
       const hn = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /QLIT/.test(e.querySelector(".mt-dau b").textContent));
