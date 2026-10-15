@@ -485,6 +485,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'sku_ocr') return tbOK_(duLieu) ? phanHoiJson(skuOcr_(duLieu)) : tbTuChoi_();      // khoá thiết bị; OCR Drive miễn phí nhưng vẫn không cho người lạ mượn
     // 14/10 form nghiệm thu checklist kiểm kê — chưa duyệt: CHỈ nhận khi kèm khoá quản trị (bản nội bộ). User duyệt → NT_MO = true.
     if (duLieu && /^nt_(lay|tai|ghi)$/.test(String(duLieu.action || ''))) return (NT_MO ? tbOK_(duLieu) : keyBodyOK_(duLieu)) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();
+    if (duLieu && duLieu.action === 'nt_dung_lai') return keyBodyOK_(duLieu) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();   // 15/10 dựng lại MỌI ô theo khuôn mới — chỉ khoá quản trị
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -3366,6 +3367,7 @@ function apiNghiemThu_(d) {
     var id = (d.sheetId && keyBodyOK_(d)) ? String(d.sheetId) : NT_SHEET_ID;
     if (d.action === 'nt_lay') return ntLay_(id);
     if (d.action === 'nt_tai') return ntTai_(d);
+    if (d.action === 'nt_dung_lai') return ntDungLai_(id);
     return ntGhi_(d, id);
   } catch (e) { return { status: 'error', message: String((e && e.message) || e) }; }
 }
@@ -3395,22 +3397,75 @@ function ntMetaTep_(t) {
   if (g) o.ghiChu = g; if (v) o.viTri = v; if (m) o.ma = m; return o;
 }
 function ntLink_(t) { return 'https://drive.google.com/file/d/' + t.id + '/view'; }
-/* Phần chữ form dựng cho ô G (nhãn Ảnh n / Clip n mang link). */
+/* Phần chữ form dựng cho ô G. 15/10 user: «ghi chú và ảnh/clip của ghi chú đó nằm cùng nhau; ảnh/ghi chú khác
+ * nhau phải tách biệt» → mỗi lần phản hồi = 1 KHỐI (đầu khối đậm: giờ · người), các khối cách nhau bằng vạch
+ * mờ; trong khối mỗi ảnh/clip 1 dòng riêng «▸ Ảnh n — ghi chú của chính ảnh đó», mã vị trí/UIDgr của ảnh
+ * xuống dòng ngay dưới (chữ xám). kieu = [đầu, cuối, tên kiểu] để ntVietO_ tô. */
+var NT_VACH = '──────────';
 function ntDung_(muc) {
-  var txt = '', link = [];
+  var txt = '', link = [], kieu = [];
+  var them = function (s, k) { if (k) kieu.push([txt.length, txt.length + s.length, k]); txt += s; };
   muc.forEach(function (m, i) {
-    if (i) txt += '\n';
-    txt += '[' + m.luc + ' · ' + m.ai + (m.sua ? ' · sửa ' + m.sua : '') + ']' + (m.ghiChu ? ' ' + m.ghiChu : '');
+    if (i) them('\n' + NT_VACH + '\n', 'vach');
+    them(m.luc + ' · ' + m.ai, 'dau');
+    if (m.sua) them('  (sửa ' + m.sua + ')', 'phu');
+    if (m.ghiChu) them('\n' + m.ghiChu);
     var a = 0, c = 0;
-    (m.tep || []).forEach(function (t, j) {
-      txt += j === 0 ? '\n' : ' · ';
+    (m.tep || []).forEach(function (t) {
+      them('\n▸ ', 'mui');
       var nhan = t.loai === 'video' ? 'Clip ' + (++c) : 'Ảnh ' + (++a);
-      link.push([txt.length, txt.length + nhan.length, ntLink_(t)]); txt += nhan;
-      var cu = [t.viTri ? 'Vị trí ' + t.viTri : '', t.ma ? 'UIDgr ' + t.ma : '', t.ghiChu || ''].filter(String).join(' · ');
-      if (cu) txt += ' (' + cu + ')';
+      link.push([txt.length, txt.length + nhan.length, ntLink_(t)]); them(nhan, 'link');
+      if (t.ghiChu) them(' — ' + t.ghiChu);
+      var ma = [t.viTri ? 'Vị trí ' + t.viTri : '', t.ma ? 'UIDgr ' + t.ma : ''].filter(String).join(' · ');
+      if (ma) them('\n    ' + ma, 'phu');
     });
   });
-  return { txt: txt, link: link };
+  return { txt: txt, link: link, kieu: kieu };
+}
+function ntKieu_() {
+  var k = function () { return SpreadsheetApp.newTextStyle(); };
+  return {
+    goc: k().setBold(false).setItalic(false).setUnderline(false).setForegroundColor('#202124').build(),   // nền: chặn kiểu link lây sang chữ thường
+    dau: k().setBold(true).setForegroundColor('#0f5132').build(),
+    phu: k().setItalic(true).setForegroundColor('#6b7280').build(),
+    vach: k().setForegroundColor('#c7ccd3').build(),
+    mui: k().setForegroundColor('#0f5132').build(),
+    link: k().setBold(true).setUnderline(true).setForegroundColor('#1a73e8').build()
+  };
+}
+/* Ghi 1 ô G: chữ gõ tay (nếu có) giữ ở đầu + đoạn dựng từ các mục. Trả về {dung, tay}. */
+function ntVietO_(o, ban, st) {
+  var rt = o.getRichTextValue(), cuText = rt ? rt.getText() : String(o.getDisplayValue() || '');
+  var tach = ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), lech = tach.tay ? tach.tay.length + (dung.txt ? 1 : 0) : 0;
+  var b = SpreadsheetApp.newRichTextValue().setText(tach.tay + (tach.tay && dung.txt ? '\n' : '') + dung.txt);
+  if (rt && tach.tay && tach.dau) rt.getRuns().forEach(function (run) {   // giữ định dạng + link phần gõ tay
+    var s = run.getStartIndex(), e = Math.min(run.getEndIndex(), tach.tay.length);
+    if (e <= s) return;
+    b.setTextStyle(s, e, run.getTextStyle()); if (run.getLinkUrl()) b.setLinkUrl(s, e, run.getLinkUrl());
+  });
+  st = st || ntKieu_();
+  if (dung.txt) b.setTextStyle(lech, lech + dung.txt.length, st.goc);
+  dung.kieu.forEach(function (k) { b.setTextStyle(lech + k[0], lech + k[1], st[k[2]]); });
+  dung.link.forEach(function (l) { b.setLinkUrl(lech + l[0], lech + l[1], l[2]); });
+  o.setRichTextValue(b.build());
+  if (dung.txt) o.setWrap(true).setVerticalAlignment('top');   // chỉ ô form ghi — nhiều dòng phải xuống dòng mới đọc được
+  return { dung: dung.txt, tay: tach.tay };
+}
+/* nt_dung_lai: dựng lại MỌI ô G đang có mục theo khuôn hiện tại (đổi khuôn xong chạy 1 lần). */
+function ntDungLai_(id) {
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var sh = ntTab_(id), n = sh.getLastRow(), c = ntCot_(sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]);
+    var ck = sh.getRange(1, c.ck, n, 1).getDisplayValues(), sp = PropertiesService.getScriptProperties(), all = sp.getProperties(), st = ntKieu_(), so = 0;
+    for (var r = 1; r < n; r++) {
+      var noi = String(ck[r][0]).trim(); if (!noi) continue;
+      var khoa = ntKhoa_(id, noi), ban = ntDocBan_(all[khoa]); if (!ban.muc.length) continue;
+      ban.dung = ntVietO_(sh.getRange(r + 1, c.ph), ban, st).dung;
+      sp.setProperty(khoa, JSON.stringify(ban)); so++;   // KHÔNG sửa all[khoa]: checklist trùng chữ ở 2 dòng → dòng sau vẫn tách bằng đoạn CŨ
+    }
+    SpreadsheetApp.flush();
+    return { status: 'success', so: so };
+  } finally { lock.releaseLock(); }
 }
 /* Chữ gõ tay trong ô = ô hiện tại bỏ đi đoạn form dựng lần trước. */
 function ntTachTay_(cuText, dung) {
@@ -3499,17 +3554,8 @@ function ntGhi_(d, id) {
       for (var r = 1; r < n; r++) if (String(ck[r][0]).trim() === ckGui) { dong = r + 1; break; }
     }
     if (!dong) return { status: 'error', message: 'Không còn thấy dòng checklist này trên sheet (đã bị sửa/xoá?) — tải lại danh sách.' };
-    var o = sh.getRange(dong, c.ph), rt = o.getRichTextValue(), cuText = rt ? rt.getText() : String(o.getDisplayValue() || '');
-    var tach = ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), lech = tach.tay ? tach.tay.length + (dung.txt ? 1 : 0) : 0;
-    var b = SpreadsheetApp.newRichTextValue().setText(tach.tay + (tach.tay && dung.txt ? '\n' : '') + dung.txt);
-    if (rt && tach.tay && tach.dau) rt.getRuns().forEach(function (run) {   // giữ định dạng + link phần gõ tay
-      var s = run.getStartIndex(), e = Math.min(run.getEndIndex(), tach.tay.length);
-      if (e <= s) return;
-      b.setTextStyle(s, e, run.getTextStyle()); if (run.getLinkUrl()) b.setLinkUrl(s, e, run.getLinkUrl());
-    });
-    dung.link.forEach(function (l) { b.setLinkUrl(lech + l[0], lech + l[1], l[2]); });
-    o.setRichTextValue(b.build());
-    ban.dung = dung.txt;
+    var viet = ntVietO_(sh.getRange(dong, c.ph), ban), tach = { tay: viet.tay };
+    ban.dung = viet.dung;
     if (ban.muc.length) sp.setProperty(khoa, JSON.stringify(ban)); else sp.deleteProperty(khoa);
     SpreadsheetApp.flush();
     lock.releaseLock(); lock = null;
