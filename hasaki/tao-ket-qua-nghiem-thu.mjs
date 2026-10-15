@@ -140,7 +140,7 @@ fs.writeFileSync(RA, khuon.replace("/*__DU_LIEU__*/null", JSON.stringify(goi).re
 const dem = (k) => muc.filter((m) => m.ketLuan === k).length;
 console.log(`xong: ${muc.length} mục — Đạt ${dem("dat")} · Chưa đạt ${dem("chua")} · Chưa nghiệm thu ${dem("cho")} · ${tatCa.length} ảnh/clip → ${path.relative(DIR, RA)}`);
 
-/* --pdf: xuất bản PDF khổ A4 bằng Edge (mở thẳng tệp trên đĩa, không cần máy chủ 8123) → .exports/Ket-qua-nghiem-thu-<ngày>.pdf
+/* --pdf: xuất bản PDF khổ A4 bằng Edge (mở thẳng tệp trên đĩa, không cần máy chủ 8123) → Desktop\Tệp xuất\Kết quả nghiệm thu <ngày>.pdf
    Clip trong PDF = khung hình đại diện + dấu ▶; bấm ảnh/clip trong PDF mở bản gốc trên Drive. */
 if (process.argv.includes("--pdf")) {
   const { default: puppeteer } = await import("puppeteer");
@@ -161,11 +161,11 @@ if (process.argv.includes("--pdf")) {
       await Promise.all([...document.images].map((i) => i.complete ? 0 : new Promise((ok) => { i.onload = i.onerror = ok; })));
     });
     const ngay = new Date().toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }).split("/").map((x) => x.padStart(2, "0"));
-    const pdf = path.join(DIR, ".exports", `Ket-qua-nghiem-thu-${ngay[0]}-${ngay[1]}-${ngay[2]}.pdf`);
-    fs.mkdirSync(path.dirname(pdf), { recursive: true });
+    const { thuMucXuat } = await import("./thu-muc-xuat.mjs");   // Desktop\Tệp xuất — user xem thẳng, khỏi đi tìm
+    const pdf = path.join(thuMucXuat(), `Kết quả nghiệm thu ${ngay[0]}-${ngay[1]}-${ngay[2]}.pdf`);
     await p.pdf({ path: pdf, format: "A4", printBackground: true, margin: { top: "12mm", bottom: "14mm", left: "10mm", right: "10mm" },
       displayHeaderFooter: true, headerTemplate: "<span></span>",
       footerTemplate: `<div style="width:100%;font:9px Arial;color:#888;padding:0 10mm;display:flex;justify-content:space-between"><span>Kết quả nghiệm thu — Công việc sắp xếp chuẩn bị kiểm tổng</span><span>Trang <span class="pageNumber"></span>/<span class="totalPages"></span></span></div>` });
-    console.log(`PDF: ${path.relative(DIR, pdf)} (${(fs.statSync(pdf).size / 1048576).toFixed(1)} MB)`);
+    console.log(`PDF: ${pdf} (${(fs.statSync(pdf).size / 1048576).toFixed(1)} MB)`);
   } finally { await b.close(); }
 }
