@@ -63,8 +63,12 @@
       ".mt-c.chay{border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 12%,transparent)}.mt-c.cho{border-color:color-mix(in srgb,var(--info,var(--accent)) 40%,transparent);background:color-mix(in srgb,var(--info,var(--accent)) 9%,transparent)}",
       ".mt-c.dung{border-color:color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent);}.mt-c.dung .ten{text-decoration:line-through}",
       ".mt-nh{font-size:11px;font-weight:600;color:var(--muted);align-self:center;min-width:34px}.mt-nh.nang{color:var(--bad,#dc2626)}.hx-mt-ly .ds+.ds{margin-top:4px}",
+      ".mt-phai .ds,.hx-mt-ly .ds{display:flex!important;flex-wrap:nowrap!important;align-items:flex-start;gap:8px}.mt-nh{flex:0 0 40px;min-width:40px;line-height:28px;align-self:flex-start}" +
+        ".mt-luoi{flex:1;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}" +
+        ".mt-luoi>.mt-c,.mt-luoi>.hx-tag{display:flex;align-items:center;justify-content:space-between;gap:4px;width:auto;min-width:0;max-width:none;height:28px;box-sizing:border-box;padding:0 8px;border-radius:8px;margin:0;overflow:hidden}" +
+        ".mt-luoi>.mt-c .ten,.mt-luoi>.hx-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;font-size:12px}.mt-luoi>.mt-c .ten{flex:1}.mt-luoi .mt-x{flex:none;margin:0 -4px 0 0;padding:0 2px}",
       ".mt-nut{margin-top:auto}.mt-nut .hx-nut{width:100%;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
-      "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}.mt-c{min-height:40px}.mt-x{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;align-items:center;padding:0;margin:-2px -7px -2px 0}.mt-nut .hx-nut{min-height:40px}}",
+      "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}.mt-c{min-height:40px}.mt-x{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;align-items:center;padding:0;margin:-2px -7px -2px 0}.mt-luoi{grid-template-columns:repeat(2,minmax(0,1fr))}.mt-luoi>.mt-c{height:auto;min-height:40px}.mt-luoi>.mt-c .ten{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:16px;padding:4px 0}.mt-luoi .mt-x{margin:0 -8px 0 0;padding:0}.mt-nh{flex-basis:34px;min-width:34px;line-height:40px}.hx-mt-ly .mt-nh{line-height:24px}.hx-mt-ly .mt-luoi{gap:4px}.hx-mt-ly .mt-luoi>.hx-tag{height:24px}.hx-mt-ly{padding:8px 12px}.mt-nut .hx-nut{min-height:40px}}",
       ".hx-mt-xin{margin:4px 0 14px;border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}.hx-mt-xin .ma{font-family:ui-monospace,Consolas,monospace;font-size:14px;letter-spacing:2px;color:var(--text)}",
       ".hx-mt-ly{padding:10px 16px;border-top:1px solid var(--border)}.hx-mt-ly .ly{font-size:13px;color:var(--muted);margin-bottom:6px}.hx-mt-ly .ds{display:flex;flex-wrap:wrap;gap:6px}.hx-mt-ly .hx-tag{margin:0;font-weight:600;font-size:12px;color:var(--text)}",
       ".hx-mt-v{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 16px;border-top:1px solid var(--border)}.hx-mt-v .ten{flex:1;min-width:0;font-size:13.5px}.hx-mt-v .ten small{display:block;color:var(--muted);font-size:12px}",
@@ -106,6 +110,7 @@
   var MAY_CHU = false, CAN_DN = false;
   function dongMayChu() {
     if (window.__HX_MAY_CHU) return Promise.resolve(true);
+    if (window.__HX_KHONG_MAY) return Promise.resolve(false);   // 15/10: điện thoại → chỉ đọc qua Apps Script, không gọi 127.0.0.1
     var ctl = new AbortController(), h = setTimeout(function () { ctl.abort(); }, 1500);
     return fetch(API + "/api/ping", { signal: ctl.signal }).then(function (r) { clearTimeout(h); return r.ok; }).catch(function () { return false; });
   }
@@ -115,9 +120,15 @@
       // 14/10: trang có HỆ TÀI KHOẢN → bắt buộc đăng nhập ở đó (phiên Xác minh cũ hx-phien còn sót trên laptop KHÔNG đủ)
       if (window.TK && !phienTk()) { CAN_DN = true; DIEU_KHIEN = false; return null; }
       if (co) {   // máy quản lý: cần phiên Xác minh (8591) — đầy đủ + nút điều khiển
-        if (!phien()) { CAN_DN = true; return null; }
-        return goi591("/api/may-tram").then(function (j) { DIEU_KHIEN = true; CAN_DN = false; return j; })
-          .catch(function (e) { if (e.ma === 401) { try { localStorage.removeItem("hx-phien"); } catch (x) {} CAN_DN = true; return null; } throw e; });
+        /* 15/10 user thấy «Tài khoản «Lê Chí Tâm» chưa có quyền Xác minh» dù là quản trị: phiên 8591 (hx-phien) mất/hết hạn (máy chủ
+           khởi động lại) → 401 → báo nhầm thiếu quyền. Nay: đổi lại phiên tài khoản → phiên 8591 MỘT lần rồi thử lại, hỏng mới hỏi đăng nhập. */
+        var doiLai = function () { return typeof window.tkDoiPhienXm === "function" && window.TK ? window.tkDoiPhienXm() : Promise.resolve(false); };
+        var lay = function (lan) {
+          if (!phien()) return lan ? (CAN_DN = true, null) : doiLai().then(function () { return lay(1); });
+          return goi591("/api/may-tram").then(function (j) { DIEU_KHIEN = true; CAN_DN = false; return j; })
+            .catch(function (e) { if (e.ma === 401) { try { localStorage.removeItem("hx-phien"); } catch (x) {} return lay(lan); } throw e; });
+        };
+        return lay(0);
       }
       /* 14/10 trưa: dùng phiên HỆ TÀI KHOẢN MỚI (tai-khoan.js, nút «Đăng nhập» thanh bên) nếu có quyền Xác minh — 1 lần đăng nhập */
       var tkPh = phienTk(), mp = mtPhien(), ph = tkPh || (mp && mp.ph);
@@ -135,7 +146,9 @@
   function veDangNhap(thongBao) {
     if (typeof window.tkMoDangNhap === "function") {   // có hệ tài khoản chung → dùng ĐÚNG ô đăng nhập của nó, không ô riêng
       PANE.innerHTML = '<div class="panel mt-dn"><div class="panel-head"><span>Đăng nhập để xem Máy trạm</span></div><div style="padding:16px;display:flex;flex-direction:column;gap:12px">' +
-        (window.TK && window.TK.nguoi ? '<div class="mt-st loi">Tài khoản «' + e_(window.TK.nguoi.ten || window.TK.nguoi.id) + '» chưa có quyền Xác minh.</div>' : "") +
+        (window.TK && window.TK.nguoi ? '<div class="mt-st loi">' + (typeof window.tkCo === "function" && !window.tkCo("r.xacminh")
+          ? "Tài khoản «" + e_(window.TK.nguoi.ten || window.TK.nguoi.id) + "» chưa có quyền Xác minh."
+          : "Phiên đăng nhập đã hết — bấm Đăng nhập để vào lại.") + "</div>" : "") +   // 15/10: chỉ báo thiếu quyền khi THẬT SỰ thiếu
         '<button type="button" class="hx-nut" id="mtMoTk">Đăng nhập</button></div></div>';
       document.getElementById("mtMoTk").onclick = function () { window.tkMoDangNhap(); };
       return;
@@ -178,9 +191,14 @@
     var nangCua = {}; (MTD.viec || []).forEach(function (v) { if (v.nang != null) nangCua[v.ten] = !!v.nang; });
     MTD.may.forEach(function (m) { (m.viecNang || []).forEach(function (t) { nangCua[t] = true; }); (m.tatCaViec || []).forEach(function (t) { if (!(t in nangCua)) nangCua[t] = false; }); });
     /* 14/10 «thêm nhãn nặng nhẹ»: chia việc thành hàng «Nặng:» / «Nhẹ:» — nhãn ghi 1 LẦN mỗi hàng, không gắn vào từng việc (luật không lặp) */
-    var chiaNang = function (ds, ve1) { var n = ds.filter(function (t) { return nangCua[t] === true; }), h = ds.filter(function (t) { return nangCua[t] === false; }), k = ds.filter(function (t) { return !(t in nangCua); });
+    /* 14/10 khuya user «chip việc nặng nhẹ hiển thị cẩu thả, k theo thứ tự, cái to cái nhỏ lộn xộn»:
+       · nhãn «Nặng:/Nhẹ:» thành CỘT TRÁI cố định — hàng chip thứ 2 không còn thụt dưới nhãn
+       · chip vào LƯỚI ô rộng bằng nhau, cao bằng nhau, chữ 1 dòng (dài thì «…», rê chuột xem đủ)
+       · thứ tự CỐ ĐỊNH: hang(t) (đang chạy → chờ → chạy dở → đã dừng) rồi tên A→Z — cùng màu đứng cạnh nhau */
+    var chiaNang = function (ds, ve1, hang) { var n = ds.filter(function (t) { return nangCua[t] === true; }), h = ds.filter(function (t) { return nangCua[t] === false; }), k = ds.filter(function (t) { return !(t in nangCua); });
+      var xep = function (a) { return a.slice().sort(function (x, y) { return ((hang ? hang(x) : 0) - (hang ? hang(y) : 0)) || tenV(x).localeCompare(tenV(y), "vi"); }); };
       return [[n, "Nặng", " nang"], [h, "Nhẹ", ""], [k, "", ""]].filter(function (x) { return x[0].length; })
-        .map(function (x) { return '<div class="ds">' + (x[1] ? '<span class="mt-nh' + x[2] + '">' + x[1] + ":</span>" : "") + x[0].map(ve1).join("") + "</div>"; }).join(""); };
+        .map(function (x) { return '<div class="ds">' + '<span class="mt-nh' + x[2] + '">' + (x[1] ? x[1] + ":" : "") + "</span>" + '<div class="mt-luoi">' + xep(x[0]).map(ve1).join("") + "</div></div>"; }).join(""); };
     var coMayKhac = function (m) { return MTD.may.some(function (x) { return x.may !== m.may && x.song && !x.dung; }); };
     var tenBoi = function (b) { return /^bo cai/.test(b) ? "bộ cài (máy quản lý)" : b; };   // nhãn ASCII do bộ cài gửi → tiếng Việt
     var gioPhut = function (ms) { var d = new Date(ms); return (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes() + (Date.now() - ms > 864e5 ? " " + d.getDate() + "/" + (d.getMonth() + 1) : ""); };
@@ -244,9 +262,10 @@
         var nghia = dung ? "Đã dừng ở máy này" + (sang && sang !== m.may ? " → " + sang + " làm thay" : "") : chay ? "Đang chạy" : lop === "cho" ? "Được giao · chờ tới giờ" + ((m.chayLuc || {})[t] ? " · chạy gần nhất " + gioPhut(Date.parse(m.chayLuc[t])) : " · chưa chạy lần nào trên máy này") : "Đang chạy dở (đã giao máy khác)";
         /* 14/10 «chip việc có dấu x bên phải — máy nặng quá thì tắt, bộ điều phối chuyển việc sang máy khác»; việc đã tắt → ↺ bật lại */
         var x = DIEU_KHIEN && !m.dung ? '<button class="mt-x" data-may="' + e_(m.may) + '" data-viec="' + e_(t) + '" data-dung="' + (dung ? "0" : "1") + '" title="' + e_(dung ? "Bật lại việc này trên máy này" : "Tắt việc này trên máy này — chuyển sang máy khác") + '" aria-label="' + e_((dung ? "Bật lại " : "Tắt ") + tenV(t)) + '">' + (dung ? "↺" : "×") + "</button>" : "";
-        return '<span class="mt-c ' + lop + '" title="' + e_(nghia) + '"><span class="ten">' + e_(tenV(t)) + "</span>" + x + "</span>";
+        return '<span class="mt-c ' + lop + '" title="' + e_(tenV(t) + " — " + nghia) + '"><span class="ten">' + e_(tenV(t)) + "</span>" + x + "</span>";
       };
-      var chip = (viec.length ? chiaNang(viec, veChip) : "") || '<div class="mt-trong">' + (m.dung ? (m.duPhong ? "Dự phòng — chỉ làm thay khi PC chưa nhận việc." : coMayKhac(m) ? "Đang dừng — việc do máy khác làm." : "Đang dừng — không nhận việc.")
+      var hangChip = function (t) { return (m.dungViec || []).indexOf(t) >= 0 ? 3 : (m.dangChay || []).indexOf(t) >= 0 ? 0 : (m.viecGiao || []).indexOf(t) >= 0 || chiLap.indexOf(t) >= 0 ? 1 : 2; };
+      var chip = (viec.length ? chiaNang(viec, veChip, hangChip) : "") || '<div class="mt-trong">' + (m.dung ? (m.duPhong ? "Dự phòng — chỉ làm thay khi PC chưa nhận việc." : coMayKhac(m) ? "Đang dừng — việc do máy khác làm." : "Đang dừng — không nhận việc.")
         : m.song ? "Chưa được giao việc." : (coMayKhac(m) ? "Mất nhịp — việc đã sang máy khác." : "Mất nhịp.")) + "</div>";
       var nutMay = !DIEU_KHIEN ? "" : !m.song && !m.dung ? '<button class="hx-nut phu" data-may="' + e_(m.may) + '" data-xoa="1">Gỡ</button>'   // máy im: chỉ còn gỡ
         : '<button class="hx-nut' + (m.dung ? "" : " phu") + '" data-may="' + e_(m.may) + '" data-dung="' + (m.dung ? "0" : "1") + '">' + (m.dung ? "Cho chạy lại" : "Dừng máy") + "</button>";
