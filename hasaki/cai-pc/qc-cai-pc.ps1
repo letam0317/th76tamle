@@ -19,7 +19,7 @@ Import-Module ScheduledTasks
 $global:QC = [ordered]@{ taskXml = @(); taskCmdlet = @(); loi = @(); lenhAdmin = @() }
 
 function global:Register-ScheduledTask {
-  param($Xml, $TaskName, $Action, $Trigger, $Settings, $Principal, [switch]$Force)
+  param($Xml, $TaskName, $Action, $Trigger, $Settings, $Principal, $User, $ErrorAction, [switch]$Force)
   if ($Xml) {
     try { $d = $svc.NewTask(0); $d.XmlText = $Xml; $global:QC.taskXml += "$TaskName OK ($($d.Principal.UserId))" }
     catch { $global:QC.loi += "$TaskName : $($_.Exception.Message)"; throw }   # nem loi y nhu Windows -> bo cai vo dung cho that

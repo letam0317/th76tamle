@@ -20,16 +20,29 @@ function Nap-ViecDP($viec, $kit, $duAn, $duongCu) {
   $raw = [regex]::Replace($raw, '(?s)<Actions.*?</Actions>',
     "<Actions Context=""Author""><Exec><Command>wscript.exe</Command><Arguments>$([System.Security.SecurityElement]::Escape($argMoi))</Arguments><WorkingDirectory>$([System.Security.SecurityElement]::Escape($kit))</WorkingDirectory></Exec></Actions>")
   $ten = "5S DP " + $viec.ten
-  Register-ScheduledTask -Xml $raw -TaskName $ten -Force | Out-Null
-  # MAY NGU/WIFI: chinh Settings bang cmdlet (tu dung XML dung thu tu schema) sau khi dang ky
+  # MAY NGU/WIFI: chinh Settings qua bo doc XML cua Task Scheduler (tu dung XML dung thu tu schema) TRUOC khi dang ky
   try {
-    $st = Get-ScheduledTask -TaskName $ten
-    $st.Settings.WakeToRun = $true
-    $st.Settings.StartWhenAvailable = $true
-    $st.Settings.DisallowStartIfOnBatteries = $false
-    $st.Settings.StopIfGoingOnBatteries = $false
-    Set-ScheduledTask -InputObject $st | Out-Null
+    $svcX = New-Object -ComObject Schedule.Service; $svcX.Connect(); $d = $svcX.NewTask(0); $d.XmlText = $raw
+    $d.Settings.WakeToRun = $true; $d.Settings.StartWhenAvailable = $true
+    $d.Settings.DisallowStartIfOnBatteries = $false; $d.Settings.StopIfGoingOnBatteries = $false
+    $raw = $d.XmlText
   } catch { Write-Host "  [!] khong chinh duoc Settings cho $ten : $_" }
+  # 15/10 GOC "0/13 task" tren CA 4 may: Register -Xml KHONG -User -> Windows tu choi (UserId SYSTEM ma khong co kieu dang nhap
+  #   ServiceAccount), loi bi nuot (ErrorAction Continue) nen van bao "nap 13". 2 task Audit song duoc vi dang ky bang Principal
+  #   ServiceAccount. Nay: -User SYSTEM (= ServiceAccount), loi THAT ghi vao nhat ky (capGan), chi tinh task THAT SU co.
+  $loi = ""
+  try { Register-ScheduledTask -Xml $raw -TaskName $ten -User "NT AUTHORITY\SYSTEM" -Force -ErrorAction Stop | Out-Null } catch { $loi = $_.Exception.Message }
+  if (-not (Get-ScheduledTask -TaskName $ten -ErrorAction SilentlyContinue)) {
+    # du phong: schtasks /RU SYSTEM (tep XML UTF-16 dung nhu khai bao trong XML)
+    $tmp = Join-Path $env:TEMP ("dp-" + $viec.ten + ".xml")
+    try { [IO.File]::WriteAllText($tmp, $raw, [Text.Encoding]::Unicode); $o = (& schtasks.exe /Create /TN $ten /XML $tmp /RU SYSTEM /F 2>&1) -join " "; if ($LASTEXITCODE -ne 0) { $loi += " | schtasks: " + $o } } catch { $loi += " | " + $_ }
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+  }
+  if (-not (Get-ScheduledTask -TaskName $ten -ErrorAction SilentlyContinue)) {
+    $m = "[X] khong dang ky duoc $ten : " + ($loi -replace '\s+', ' ').Trim()
+    Write-Host "  $m"; try { "$("{0:yyyy-MM-dd HH:mm:ss}" -f (Get-Date)) $m" | Out-File "$duAn\.cap-nhat-pc.log" -Append -Encoding utf8 } catch {}
+    return $null
+  }
   return $ten
 }
 
