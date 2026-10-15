@@ -11,7 +11,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url)), RA = path.join(DIR, ".
 const URL0 = (process.argv.find((a) => a.startsWith("--url=")) || "").slice(6) || "http://localhost:8123/kiemsoatkho/";
 fs.mkdirSync(RA, { recursive: true });
 const now = Date.now(), iso = (s) => new Date(now - s * 1000).toISOString();
-const PC1 = { may: "PC-KHO-01", luc: iso(24), ramTrongPct: 38, cpuPct: 72, diaTrongGB: 8.4, yeu: false, diem: 420, nhan: 8, ramTongGB: 16, ban: "5be3da2",
+const PC1 = { may: "PC-KHO-01", luc: iso(24), ramTrongPct: 38, cpuPct: 72, diaTrongGB: 8.4, yeu: true, diem: 420, nhan: 8, ramTongGB: 16, ban: "5be3da2",
   dangChay: ["canh-b11"], dungViec: ["canh-bai-xe-sang"], dung: false, viecGiao: ["canh-b11", "tim-bang-chung-b1", "co-canh-planogram"],
   tatCaViec: ["canh-b11", "canh-bai-xe-sang", "tim-bang-chung-b1", "co-canh-planogram"] };
 const PC2 = { may: "PC-KHO-02", luc: iso(5400), ramTrongPct: 61, cpuPct: 4, diaTrongGB: 120, yeu: false, diem: 300, nhan: 4, ramTongGB: 8, ban: "13d633b",
@@ -185,6 +185,7 @@ try {
       ok(g.x.filter((v) => v.k === "↺").length === 1 && g.x.filter((v) => v.k === "×").length === 12, "việc đã tắt hiện ↺ (bật lại), còn lại ×");
       if (m.mob) ok(g.x.every((v) => v.w >= 40 && v.h >= 40), "điện thoại: nút × vùng chạm ≥40px (" + g.x.map((v) => Math.round(v.w) + "×" + Math.round(v.h)).slice(0, 3).join(",") + "…)");
       const od = await p.evaluate(() => [...document.querySelector("#pane-maytram .mt-o").querySelectorAll(".mt-sk .r")].map((r) => r.innerText.replace(/\s+/g, " ").trim()));
+      ok(await p.evaluate(() => { const r = [...document.querySelector("#pane-maytram .mt-o").querySelectorAll(".mt-sk .r")].slice(2, 4).map((x) => x.getBoundingClientRect()); return r.length === 2 && Math.abs(r[0].top - r[1].top) < 2 && r[1].left > r[0].right; }), "ổ C | ổ D cùng 1 hàng, trái sang phải");
       ok(od.includes("C: 12 GB") && od.includes("D: 813 GB") && !od.some((x) => /^Ổ C/.test(x)), "liệt kê MỌI ổ đĩa: " + od.slice(2).join(" | "));
       ok(await p.evaluate(() => { const b = document.querySelector("#pane-maytram .mt-o .mt-sk .r[title*='Ổ C'] i b"); return !!b && Math.abs(parseFloat(b.style.width) - 95) <= 1; }), "thanh ổ C = phần ĐÃ DÙNG (95%), đổi màu khi sắp đầy");
       // 14/10 user «thông tin ở nút máy trạm lộn xộn, lặp lại»: bỏ dòng tóm «13 việc · 2 chạy · 10 chờ» (trùng màu chip + khối Đang chạy) — thay bằng SỨC KHOẺ + «Hôm nay đã làm»
@@ -244,6 +245,7 @@ try {
     ok(/PC-KHO-01/.test(bc.chu[0]) && /Đang chạy/.test(bc.chu[0]) && /RAM 62%/.test(bc.chu[0]) && /CPU 72%/.test(bc.chu[0]) && /Ổ C 8 GB/.test(bc.chu[0]), "thẻ 1: trạng thái + RAM 62% + CPU 72% + ổ C 8 GB");
     ok(/nhịp tim 2\d giây trước/.test(bc.tipPhu[0]) && /bản 5be3da2/.test(bc.tipPhu[0]) && !/giây trước/.test(bc.chu[0]), "thẻ 1: nhịp tim + bản code CHỈ trong chú thích tên máy (thẻ gọn)");
     const c1 = bc.chip[0].join("|");
+    ok(/Sức khoẻ: Cần chú ý.*tạm ngưng việc nặng \(RAM 62%, chờ xuống 60%\)/.test(bc.chu[0]), "máy có cờ Yếu → Sức khoẻ KHÔNG được ghi «Tốt», nêu lý do (" + (bc.chu[0].match(/Sức khoẻ:[^R]*/) || [""])[0] + ")");
     ok(/chay:Cò canh B1\.1/.test(c1) && /cho:Tìm bằng chứng B1/.test(c1) && /dung:Canh bãi xe sáng/.test(c1), "thẻ 1: chip việc đúng màu (chạy / chờ lịch / dừng)");
     ok(/dung:Canh bãi xe sáng→ chờ máy chạy bù/.test(c1), "thẻ 1: việc nặng đã dừng, đang chuyển → «chờ máy chạy bù» (" + c1 + ")");
     ok(/PC-KHO-02/.test(bc.chu[1]) && /Mất nhịp/.test(bc.chu[1]) && /Sức khoẻ: Kém mất nhịp (2 giờ trước|90 phút trước)/.test(bc.chu[1]) && /không có khoá camera/.test(bc.tipPhu[1]), "thẻ 2: mất nhịp → Sức khoẻ Kém + lý do; «không khoá camera» trong chú thích");

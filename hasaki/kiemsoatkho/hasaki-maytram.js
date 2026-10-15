@@ -250,6 +250,9 @@
       var ram = Math.round(100 - (m.ramTrongPct || 0)), cpu = Math.round(m.cpuPct || 0);
       if (m.song) { if (ram >= 85) kem.push("RAM đầy " + ram + "%"); else if (ram >= 70) chuY.push("RAM " + ram + "%");
         if (cpu >= 90) kem.push("CPU " + cpu + "%"); else if (cpu >= 70) chuY.push("CPU " + cpu + "%"); }
+      /* 15/10 user «sao Yếu mà sức khoẻ Tốt»: máy tự cắm cờ yeu khi RAM trống < 30% và chỉ gỡ khi trống lại ≥ 40% (chống bật tắt) —
+         RAM đang hạ (60–70%) thì cờ còn mà ngưỡng 70% ở đây chưa báo ⇒ lệch. Nay cờ yeu luôn hiện thành lý do. */
+      if (m.song && m.yeu) chuY.push("tạm ngưng việc nặng" + (ram < 70 ? " (RAM " + ram + "%, chờ xuống 60%)" : ""));
       (m.oDia && m.oDia.length ? m.oDia : m.diaTrongGB != null ? [{ o: "C", trong: m.diaTrongGB }] : []).forEach(function (x) {   // CÙNG ngưỡng màu thanh ổ (đỏ ≥ 95% / vàng ≥ 85%) — thanh đỏ mà ghi «Tốt» là lệch
         var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0, ten = "ổ " + x.o + (dung ? " đầy " + dung + "%" : "") + ", còn " + Math.round(x.trong) + " GB";
         if (x.trong < 3) kem.push(ten); else if (x.trong < 10 || dung >= 85) chuY.push(ten); });
@@ -301,8 +304,8 @@
         '<div class="mt-dg ' + dg.muc + '"><span>Sức khoẻ: <b>' + dg.chu + "</b></span>" + (dg.ly.length ? "<small>" + e_(dg.ly.join(" · ")) + "</small>" : "") + "</div>" +
         '<div class="mt-sk"><div class="r2">' + dong("RAM", ramDung + "%", ramDung, mucDo(ramDung, 70, 85)) + dong("CPU", cpu + "%", cpu, mucDo(cpu, 70, 90)) + "</div>" +
         /* 14/10 user «ổ C ít quá, cần liệt kê thêm ổ mà máy trạm có»: mỗi ổ 1 dòng — thanh = phần ĐÃ DÙNG, số = còn trống. PC bản cũ (chưa gửi oDia) → ổ C như trước */
-        ((m.oDia && m.oDia.length) ? m.oDia.map(function (x) { var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0;
-            return '<div class="r" title="' + e_("Ổ " + x.o + ": còn " + x.trong + " / " + x.tong + " GB") + '"><span>' + e_(x.o) + ':</span><i><b class="' + (x.trong < 3 || dung >= 95 ? "bad" : x.trong < 10 || dung >= 85 ? "warn" : "") + '" style="width:' + dung + '%"></b></i><em>' + Math.round(x.trong) + " GB</em></div>"; }).join("")
+        ((m.oDia && m.oDia.length) ? '<div class="r2">' + m.oDia.map(function (x) { var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0;
+            return '<div class="r" title="' + e_("Ổ " + x.o + ": còn " + x.trong + " / " + x.tong + " GB") + '"><span>' + e_(x.o) + ':</span><i><b class="' + (x.trong < 3 || dung >= 95 ? "bad" : x.trong < 10 || dung >= 85 ? "warn" : "") + '" style="width:' + dung + '%"></b></i><em>' + Math.round(x.trong) + " GB</em></div>"; }).join("") + "</div>"
           : dong("Ổ C", dia == null ? "—" : Math.round(dia) + " GB", dia == null ? 0 : Math.min(100, dia / 0.5), dia == null ? "" : dia < 3 ? "bad" : dia < 10 ? "warn" : "")) + "</div>" +
         (nutMay ? '<div class="mt-nut">' + nutMay + "</div>" : "") + "</div>" +
         '<div class="mt-phai"><span class="mt-ct">Việc đảm nhận</span>' + chip + "</div>" +
