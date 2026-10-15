@@ -3448,9 +3448,9 @@ function ntKieu_() {
   };
 }
 /* Ghi 1 ô G: chữ gõ tay (nếu có) giữ ở đầu + đoạn dựng từ các mục. Trả về {dung, tay}. */
-function ntVietO_(o, ban, st) {
+function ntVietO_(o, ban, st, boTay) {
   var rt = o.getRichTextValue(), cuText = rt ? rt.getText() : String(o.getDisplayValue() || '');
-  var tach = ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), noi = tach.tay && dung.txt ? '\n' + NT_VACH + '\n' : '', lech = tach.tay.length + noi.length;
+  var tach = boTay ? { tay: "", dau: true } : ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), noi = tach.tay && dung.txt ? '\n' + NT_VACH + '\n' : '', lech = tach.tay.length + noi.length;
   var b = SpreadsheetApp.newRichTextValue().setText(tach.tay + noi + dung.txt);
   if (rt && tach.tay && tach.dau) rt.getRuns().forEach(function (run) {   // giữ định dạng + link phần gõ tay
     var s = run.getStartIndex(), e = Math.min(run.getEndIndex(), tach.tay.length);
@@ -3624,7 +3624,7 @@ function ntGhi_(d, id) {
       for (var r = 1; r < n; r++) if (String(ck[r][0]).trim() === ckGui) { dong = r + 1; break; }
     }
     if (!dong) return { status: 'error', message: 'Không còn thấy dòng checklist này trên sheet (đã bị sửa/xoá?) — tải lại danh sách.' };
-    var viet = ntVietO_(sh.getRange(dong, c.ph), ban), tach = { tay: viet.tay };
+    var viet = ntVietO_(sh.getRange(dong, c.ph), ban, null, !!(d.boTay && keyBodyOK_(d))), tach = { tay: viet.tay };
     ban.dung = viet.dung;
     if (ban.muc.length) sp.setProperty(khoa, JSON.stringify(ban)); else sp.deleteProperty(khoa);
     SpreadsheetApp.flush();
