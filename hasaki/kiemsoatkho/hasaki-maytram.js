@@ -44,7 +44,7 @@
       ".hx-mt-phu{padding:2px 16px 8px;font-size:12px;color:var(--muted)}",
       /* 14/10 hàng thẻ máy gọn */
       /* 14/10 chiều user «đổi hiển thị từ ngang sang dọc… máy k chạy thì làm mờ… chip việc từ trái sang phải, kê bên phải chip máy trạm» */
-      ".mt-dg{display:flex;flex-direction:column;gap:2px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border)}.mt-dg b{font-weight:600}.mt-dg small{font-size:11px;color:var(--muted)}" +
+      ".mt-dg{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border)}.mt-dg b{font-weight:600}.mt-dg small{font-size:11px;color:var(--muted)}" +
       ".mt-dg.tot{border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 8%,transparent)}.mt-dg.tot b{color:var(--good)}" +
       ".mt-dg.chu-y{border-color:color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 9%,transparent)}.mt-dg.chu-y b{color:var(--warn)}" +
       ".mt-dg.kem{border-color:color-mix(in srgb,var(--bad,#dc2626) 45%,transparent);background:color-mix(in srgb,var(--bad,#dc2626) 8%,transparent)}.mt-dg.kem b{color:var(--bad,#dc2626)}" +
@@ -62,7 +62,7 @@
         ".mt-c .sang{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap}.mt-c .sang.chua{color:var(--warn)}",
       ".mt-o.mo{background:var(--surface2)}.mt-o.mo .mt-dau,.mt-o.mo .mt-sk,.mt-o.mo .mt-phu,.mt-o.mo .mt-phai,.mt-o.mo .mt-ket{opacity:.45}",   // máy dừng/mất nhịp: mờ — riêng nút «Cho chạy lại» vẫn sáng
       ".mt-dau{display:flex;align-items:flex-start;gap:4px 6px;justify-content:space-between;flex-wrap:wrap}.mt-dau b{font-size:13px;line-height:17px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.mt-dau .hx-tag{flex:none;margin:0}",
-      ".mt-sk{display:flex;flex-direction:column;gap:3px}.mt-sk .r{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;color:var(--muted)}",
+      ".mt-sk{display:flex;flex-direction:column;gap:3px}.mt-sk .r2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.mt-sk .r{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;color:var(--muted)}",
       ".mt-sk .r i{height:5px;border-radius:3px;background:var(--surface2);overflow:hidden}.mt-sk .r i b{display:block;height:100%;background:var(--good)}.mt-sk .r i b.warn{background:var(--warn)}.mt-sk .r i b.bad{background:var(--bad,#dc2626)}",
       ".mt-sk .r em{font-style:normal;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}",
       ".mt-phu{font-size:11px;color:var(--muted)}.mt-trong{font-size:12px;color:var(--muted)}",
@@ -80,7 +80,7 @@
         ".mt-luoi>.mt-c .ten{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.mt-luoi .mt-x{flex:none;margin:0 -6px 0 0;padding:0 2px}",
       ".mt-cot{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:4px}.mt-cot.phai{align-items:flex-end;text-align:right}.mt-cot.phai .mt-luoi{justify-content:flex-end}.mt-cot>.ly{font-size:12px;color:var(--muted);margin-top:2px}.mt-luoi>.mt-nh{line-height:28px;align-self:center}.hx-mt-ly .mt-luoi>.mt-nh{line-height:24px}" +
         "@media(max-width:560px){.mt-cot{flex:none;width:100%}.mt-cot.phai{align-items:flex-start;text-align:left}.mt-cot.phai .mt-luoi{justify-content:flex-start}}",
-      ".mt-nut{margin-top:auto;display:flex;flex-direction:column;gap:6px}.mt-nut .hx-nut{width:100%;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
+      ".mt-nut{margin-top:auto;display:flex;gap:6px}.mt-nut .hx-nut{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
       "@media(max-width:560px){.mt-tde{display:none}.mt-ct{display:block}.mt-o>div,.mt-o>div:first-child,.mt-o>div:last-child{padding:0}.mt-o>div+div{border-left:0;border-top:1px solid var(--border);padding-top:8px}}",
       "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}.mt-c{min-height:40px}.mt-x{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;align-items:center;padding:0;margin:-2px -7px -2px 0}.mt-nn{flex-direction:column;gap:8px}.mt-nhom,.mt-nn>.mt-nhom:only-child{flex:none;width:100%}.mt-nhom.phai,.mt-nhom.phai .mt-luoi{justify-content:flex-start}.mt-luoi>.mt-c{height:40px}.mt-luoi .mt-x{min-width:40px;min-height:40px;margin:0 -10px 0 0}.mt-nh{line-height:40px;min-width:34px}.hx-mt-ly .mt-nh{line-height:24px}.hx-mt-ly .mt-luoi{gap:4px}.hx-mt-ly .mt-luoi>.hx-tag{height:24px;padding:0 8px}.hx-mt-ly{padding:8px 12px}.mt-nut .hx-nut{min-height:40px}}",
       ".hx-mt-xin{margin:4px 0 14px;border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}.hx-mt-xin .ma{font-family:ui-monospace,Consolas,monospace;font-size:14px;letter-spacing:2px;color:var(--text)}",
@@ -290,7 +290,7 @@
         : '<button class="hx-nut' + (m.dung ? "" : " phu") + '" data-may="' + e_(m.may) + '" data-dung="' + (m.dung ? "0" : "1") + '">' + (m.dung ? "Cho chạy lại" : "Dừng máy") + "</button>";
       /* 15/10 user «tìm cách quản lý các máy»: «Cập nhật ngay» — nhịp tim PC (SYSTEM, mỗi phút) nhận lệnh qua Apps Script → chạy bộ cập nhật ngay, bỏ chờ 2 giờ.
          Đã gửi mà máy chưa nhận → nút khoá «Chờ máy nhận lệnh…» (lệnh tự gỡ khi PC báo đã nhận). */
-      if (DIEU_KHIEN && m.song) nutMay = (m.capNhatYc ? '<button class="hx-nut phu" disabled title="Gửi lúc ' + e_(gioPhut(Date.parse(m.capNhatYc))) + ' — máy nhận trong ~1 phút">Chờ máy nhận lệnh cập nhật…</button>'
+      if (DIEU_KHIEN && m.song) nutMay = (m.capNhatYc ? '<button class="hx-nut phu" disabled title="Gửi lúc ' + e_(gioPhut(Date.parse(m.capNhatYc))) + ' — máy nhận trong ~1 phút">Chờ máy nhận lệnh…</button>'
         : '<button class="hx-nut phu" data-may="' + e_(m.may) + '" data-capnhat="1" title="' + e_("Lấy bản mới nhất ngay (không chờ lượt 2 giờ) · " + ((m.capGan || []).slice(-1)[0] || "")) + '">Cập nhật ngay</button>') + nutMay;
       /* 14/10 user «thông tin ở nút máy trạm đang lộn xộn, lặp lại»: thông tin phụ (nhân, RAM, điểm, bản, nhịp, dừng bởi) dồn vào chú thích tên máy;
          thẻ chỉ còn: tên · trạng thái · SỨC KHOẺ (kết luận + lý do) · thanh RAM/CPU/ổ · nút. Bỏ dòng «13 việc · 2 chạy · 10 chờ» (trùng màu chip + khối Đang chạy). */
@@ -299,7 +299,7 @@
         ((m.coKhoa || []).indexOf("TOPREVIEW_USER") < 0 ? " · không có khoá camera" : "") + (m.dung && m.lenhBoi ? " · dừng bởi " + tenBoi(m.lenhBoi) : "");
       return '<div class="mt-o' + (m.song ? "" : " cu") + (!m.song || (m.dung && !lamThay) ? " mo" : "") + '"><div class="mt-trai"><div class="mt-dau"><b title="' + e_(tip) + '">' + e_(m.may) + '</b><span class="hx-tag ' + tt[1] + '">' + tt[0] + "</span></div>" +
         '<div class="mt-dg ' + dg.muc + '"><span>Sức khoẻ: <b>' + dg.chu + "</b></span>" + (dg.ly.length ? "<small>" + e_(dg.ly.join(" · ")) + "</small>" : "") + "</div>" +
-        '<div class="mt-sk">' + dong("RAM", ramDung + "%", ramDung, mucDo(ramDung, 70, 85)) + dong("CPU", cpu + "%", cpu, mucDo(cpu, 70, 90)) +
+        '<div class="mt-sk"><div class="r2">' + dong("RAM", ramDung + "%", ramDung, mucDo(ramDung, 70, 85)) + dong("CPU", cpu + "%", cpu, mucDo(cpu, 70, 90)) + "</div>" +
         /* 14/10 user «ổ C ít quá, cần liệt kê thêm ổ mà máy trạm có»: mỗi ổ 1 dòng — thanh = phần ĐÃ DÙNG, số = còn trống. PC bản cũ (chưa gửi oDia) → ổ C như trước */
         ((m.oDia && m.oDia.length) ? m.oDia.map(function (x) { var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0;
             return '<div class="r" title="' + e_("Ổ " + x.o + ": còn " + x.trong + " / " + x.tong + " GB") + '"><span>' + e_(x.o) + ':</span><i><b class="' + (x.trong < 3 || dung >= 95 ? "bad" : x.trong < 10 || dung >= 85 ? "warn" : "") + '" style="width:' + dung + '%"></b></i><em>' + Math.round(x.trong) + " GB</em></div>"; }).join("")

@@ -190,6 +190,12 @@ try {
       // 14/10 user «thông tin ở nút máy trạm lộn xộn, lặp lại»: bỏ dòng tóm «13 việc · 2 chạy · 10 chờ» (trùng màu chip + khối Đang chạy) — thay bằng SỨC KHOẺ + «Hôm nay đã làm»
       const sk = await p.evaluate(() => { const o = document.querySelector("#pane-maytram .mt-o"); return { tom: !!document.querySelector("#pane-maytram .mt-tom, #pane-maytram .mt-gan"), dg: (o.querySelector(".mt-dg") || {}).textContent || "", lop: (o.querySelector(".mt-dg") || {}).className || "", hn: (o.querySelector(".mt-hn") || {}).textContent || "" }; });
       ok(!sk.tom, "không còn dòng tóm tắt lặp (13 việc · 2 chạy · …)");
+      // 15/10 user «gom RAM và CPU thành 1 hàng; 2 nút Cập nhật ngay | Dừng máy (phải) ngang hàng; Sức khoẻ: Cần chú ý + lý do ngang hàng khi bên phải còn trống»
+      const nh1 = await p.evaluate(() => { const o = document.querySelector("#pane-maytram .mt-o"), r = [...o.querySelectorAll(".mt-sk .r")].slice(0, 2).map((x) => x.getBoundingClientRect());
+        const n = [...o.querySelectorAll(".mt-nut .hx-nut")].map((x) => ({ t: x.textContent, r: x.getBoundingClientRect() })), dg = o.querySelector(".mt-dg"), a = dg.firstElementChild.getBoundingClientRect(), b = dg.querySelector("small").getBoundingClientRect();
+        return { ramCpu: Math.abs(r[0].top - r[1].top) < 2 && r[1].left > r[0].right, nut: n.length === 2 && Math.abs(n[0].r.top - n[1].r.top) < 2 && n[1].r.left > n[0].r.right && n[1].t === "Dừng máy" && n[0].t === "Cập nhật ngay",
+          dg: Math.abs(a.top - b.top) < 4 && b.left > a.right }; });
+      ok(nh1.ramCpu && nh1.nut && nh1.dg, "RAM|CPU cùng 1 hàng · nút Cập nhật ngay | Dừng máy (phải) cùng hàng · «Sức khoẻ: …» và lý do cùng dòng (" + JSON.stringify(nh1) + ")");
       // máy mẫu: ổ C đã dùng 95% (thanh ĐỎ) dù còn 12 GB → sức khoẻ phải «Cần chú ý» + lý do — thanh đỏ mà ghi «Tốt» là lệch (lỗi đã gặp 14/10)
       ok(/^Sức khoẻ: Cần chú ýổ C đầy 95%, còn 12 GB$/.test(sk.dg) && /\bchu-y\b/.test(sk.lop), "đánh giá sức khoẻ khớp màu thanh ổ đĩa: «Cần chú ý · ổ C đầy 95%» (" + sk.dg + ")");
       ok(await p.evaluate(() => { const t = document.querySelector("#pane-maytram .mt-o .mt-dau b"); return t.scrollHeight <= 20; }), "tên máy 1 dòng, không ngắt giữa tên");
