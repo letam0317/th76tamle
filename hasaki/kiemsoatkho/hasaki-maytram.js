@@ -70,7 +70,7 @@
         ".mt-luoi{display:flex;flex-wrap:wrap;gap:6px;min-width:0}" +
         ".mt-luoi>.mt-c,.mt-luoi>.hx-tag{display:inline-flex;align-items:center;gap:4px;flex:none;width:auto;max-width:100%;height:28px;box-sizing:border-box;padding:0 10px;border-radius:14px;margin:0;font-size:12px;font-weight:500;line-height:1;white-space:nowrap}" +
         ".mt-luoi>.mt-c .ten{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.mt-luoi .mt-x{flex:none;margin:0 -6px 0 0;padding:0 2px}",
-      ".mt-nut{margin-top:auto}.mt-nut .hx-nut{width:100%;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
+      ".mt-nut{margin-top:auto;display:flex;flex-direction:column;gap:6px}.mt-nut .hx-nut{width:100%;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
       "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}.mt-c{min-height:40px}.mt-x{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;align-items:center;padding:0;margin:-2px -7px -2px 0}.mt-nn{flex-direction:column;gap:8px}.mt-nhom,.mt-nn>.mt-nhom:only-child{flex:none;width:100%}.mt-nhom.phai,.mt-nhom.phai .mt-luoi{justify-content:flex-start}.mt-luoi>.mt-c{height:40px}.mt-luoi .mt-x{min-width:40px;min-height:40px;margin:0 -10px 0 0}.mt-nh{line-height:40px;min-width:34px}.hx-mt-ly .mt-nh{line-height:24px}.hx-mt-ly .mt-luoi{gap:4px}.hx-mt-ly .mt-luoi>.hx-tag{height:24px;padding:0 8px}.hx-mt-ly{padding:8px 12px}.mt-nut .hx-nut{min-height:40px}}",
       ".hx-mt-xin{margin:4px 0 14px;border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}.hx-mt-xin .ma{font-family:ui-monospace,Consolas,monospace;font-size:14px;letter-spacing:2px;color:var(--text)}",
       ".hx-mt-ly{padding:10px 16px;border-top:1px solid var(--border)}.hx-mt-ly .ly{font-size:13px;color:var(--muted);margin-bottom:6px}.hx-mt-ly .ds{display:flex;flex-wrap:wrap;gap:6px}.hx-mt-ly .hx-tag{margin:0;font-weight:500;font-size:12px;color:var(--text)}",
@@ -273,6 +273,10 @@
         : m.song ? "Chưa được giao việc." : (coMayKhac(m) ? "Mất nhịp — việc đã sang máy khác." : "Mất nhịp.")) + "</div>";
       var nutMay = !DIEU_KHIEN ? "" : !m.song && !m.dung ? '<button class="hx-nut phu" data-may="' + e_(m.may) + '" data-xoa="1">Gỡ</button>'   // máy im: chỉ còn gỡ
         : '<button class="hx-nut' + (m.dung ? "" : " phu") + '" data-may="' + e_(m.may) + '" data-dung="' + (m.dung ? "0" : "1") + '">' + (m.dung ? "Cho chạy lại" : "Dừng máy") + "</button>";
+      /* 15/10 user «tìm cách quản lý các máy»: «Cập nhật ngay» — nhịp tim PC (SYSTEM, mỗi phút) nhận lệnh qua Apps Script → chạy bộ cập nhật ngay, bỏ chờ 2 giờ.
+         Đã gửi mà máy chưa nhận → nút khoá «Chờ máy nhận lệnh…» (lệnh tự gỡ khi PC báo đã nhận). */
+      if (DIEU_KHIEN && m.song) nutMay = (m.capNhatYc ? '<button class="hx-nut phu" disabled title="Gửi lúc ' + e_(gioPhut(Date.parse(m.capNhatYc))) + ' — máy nhận trong ~1 phút">Chờ máy nhận lệnh cập nhật…</button>'
+        : '<button class="hx-nut phu" data-may="' + e_(m.may) + '" data-capnhat="1" title="' + e_("Lấy bản mới nhất ngay (không chờ lượt 2 giờ) · " + ((m.capGan || []).slice(-1)[0] || "")) + '">Cập nhật ngay</button>') + nutMay;
       /* 14/10 user «thông tin ở nút máy trạm đang lộn xộn, lặp lại»: thông tin phụ (nhân, RAM, điểm, bản, nhịp, dừng bởi) dồn vào chú thích tên máy;
          thẻ chỉ còn: tên · trạng thái · SỨC KHOẺ (kết luận + lý do) · thanh RAM/CPU/ổ · nút. Bỏ dòng «13 việc · 2 chạy · 10 chờ» (trùng màu chip + khối Đang chạy). */
       var dg = danhGia(m);
@@ -327,14 +331,14 @@
     });
     PANE.querySelectorAll("button[data-may]").forEach(function (n) {
       n.onclick = function () {
-        var dung = n.dataset.dung === "1", xoa = n.dataset.xoa === "1", viec = n.dataset.viec || "", cu = n.textContent;
+        var dung = n.dataset.dung === "1", xoa = n.dataset.xoa === "1", capNhat = n.dataset.capnhat === "1", viec = n.dataset.viec || "", cu = n.textContent;
         if (dung && !window.confirm((viec ? "Tắt «" + tenV(viec) + "» trên " : "Dừng cả máy ") + n.dataset.may + "?" + (viec ? " Bộ điều phối sẽ chuyển việc này sang máy khác." : " Mọi việc của máy này sẽ chuyển sang máy khác."))) return;
         n.disabled = true; n.textContent = n.classList.contains("mt-x") ? "…" : "Đang gửi…";
-        (MAY_CHU ? goi591("/api/may-tram/lenh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ may: n.dataset.may, viec: viec, dung: dung, xoa: xoa }) })
+        (MAY_CHU ? goi591("/api/may-tram/lenh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ may: n.dataset.may, viec: viec, dung: dung, xoa: xoa, capNhat: capNhat }) })
           /* 14/10: không có 8591 (trình duyệt chặn gọi máy nội bộ / máy khác) → lệnh qua GAS bằng phiên tài khoản có quyền «làm» Xác minh */
-          : postGas({ action: "pcLenhPh", ph: phienTk(), may: n.dataset.may, viec: viec, dung: dung, xoa: xoa }).then(function (j) { if (j.status !== "success") throw new Error(j.message || "Apps Script từ chối"); return j; }))
+          : postGas({ action: "pcLenhPh", ph: phienTk(), may: n.dataset.may, viec: viec, dung: dung, xoa: xoa, capNhat: capNhat }).then(function (j) { if (j.status !== "success") throw new Error(j.message || "Apps Script từ chối"); return j; }))
           .then(function (j) {
-            if (typeof toast === "function") toast(xoa ? "Đã gỡ " + n.dataset.may + " khỏi danh sách" : (dung ? (viec ? "Đã tắt " : "Đã dừng ") : (viec ? "Đã bật lại " : "Đã cho chạy lại ")) + (viec ? tenV(viec) + " trên " : "") + n.dataset.may + (j.daChuyen && j.daChuyen.length ? " — đang chuyển " + j.daChuyen.map(tenV).join(", ") + " sang máy khác" : ""), "ok");
+            if (typeof toast === "function") toast(capNhat ? "Đã gửi lệnh cập nhật — " + n.dataset.may + " tự lấy bản mới trong ~1–2 phút" : xoa ? "Đã gỡ " + n.dataset.may + " khỏi danh sách" : (dung ? (viec ? "Đã tắt " : "Đã dừng ") : (viec ? "Đã bật lại " : "Đã cho chạy lại ")) + (viec ? tenV(viec) + " trên " : "") + n.dataset.may + (j.daChuyen && j.daChuyen.length ? " — đang chuyển " + j.daChuyen.map(tenV).join(", ") + " sang máy khác" : ""), "ok");
             return tai().then(ve);
           })
           .catch(function (e) { if (typeof toast === "function") toast("Không gửi được lệnh: " + e.message, "loi"); })

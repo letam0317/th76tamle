@@ -46,7 +46,9 @@ const DC_TOM = path.join(DC_DIR, "_tom-tat.json");      // ten viec dang chay (l
 export const LENH_F = path.join(DIR, ".lenh-may.json");  // lenh dung cua may nay (GAS tra ve) -> cong gac doc khi GAS cham
 const NHAN_F = path.join(DIR, ".da-nhan-chuyen.json");   // viec vua chay bu (bao GAS xoa o nhip ke)
 export const CHAY_F = path.join(DIR, ".chay-luc.json");  // 14/10 { viec: ISO } lần cổng gác cho CHẠY gần nhất -> tab Máy trạm hiện «chạy lúc …» (chứng minh có chạy)
-const GIAO_F = path.join(DIR, ".viec-giao.json");         // viec may nay duoc giao (tinh tu bang nhip vua nhan) -> gui o nhip ke
+const GIAO_F = path.join(DIR, ".viec-giao.json");
+const CAPNHAT_F = path.join(DIR, ".cap-nhat-yc.txt");     // 15/10 lenh «Cap nhat ngay» da nhan (ISO) -> bao GAS go lenh, khong chay lap
+const CAPNGAY_F = path.join(DIR, ".cap-nhat-ngay");       // co cho _CAP-NHAT-PC.ps1: bo cho canary lan nay         // viec may nay duoc giao (tinh tu bang nhip vua nhan) -> gui o nhip ke
 
 async function dsTienTrinh() {
   const { execFile } = await import("node:child_process");
@@ -116,7 +118,7 @@ export async function guiNhip(log = () => {}, opts = {}) {
   let congGan = []; try { congGan = fs.readFileSync(path.join(DIR, "runner-dieu-phoi.log"), "utf8").trim().split(/\r?\n/).slice(-8).map((d) => d.slice(0, 180)); } catch { /* chưa có */ }   // 14/10: 8 dòng cuối cổng gác → xem từ xa vì sao máy chạy/không chạy
   let chayLuc = {}; try { chayLuc = JSON.parse(fs.readFileSync(CHAY_F, "utf8")); } catch { /* chưa chạy việc nào */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
-    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, capGan: (() => { try { return fs.readFileSync(path.join(DIR, ".cap-nhat-pc.log"), "utf8").replace(/^\uFEFF/, "").trim().split(/\r?\n/).slice(-6).map((d) => d.slice(0, 160)); } catch { return []; } })(), congLuc: (() => { try { return fs.readFileSync(path.join(DIR, ".cong-luc"), "utf8").trim() || null; } catch { return null; } })(), taskDP: await trangThaiTask(), oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], luc: new Date().toISOString() };
+    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, capGan: (() => { try { return fs.readFileSync(path.join(DIR, ".cap-nhat-pc.log"), "utf8").replace(/^\uFEFF/, "").trim().split(/\r?\n/).slice(-6).map((d) => d.slice(0, 160)); } catch { return []; } })(), congLuc: (() => { try { return fs.readFileSync(path.join(DIR, ".cong-luc"), "utf8").trim() || null; } catch { return null; } })(), taskDP: await trangThaiTask(), oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], capNhatNhan: (() => { try { return fs.readFileSync(CAPNHAT_F, "utf8").trim(); } catch { return ""; } })(), luc: new Date().toISOString() };
   try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).
@@ -154,6 +156,17 @@ if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
   // 1) LENH DUNG: viec dang chay ma may nay bi dung (ca may / rieng viec) -> dung ngay; nhip ke bao GAS "da dung" -> may khac chay bu
   const l = r.lenh || (() => { try { return JSON.parse(fs.readFileSync(LENH_F, "utf8")); } catch { return null; } })();
   if (l && dc) for (const [viec, pids] of Object.entries(dc)) if (l.dung || (l.dungViec || []).includes(viec)) await dungViec(viec, pids, nk);
+
+  // 1b) 15/10 «CAP NHAT NGAY» (bam o tab May tram): chay task SYSTEM 'Audit cap nhat PC' ngay, bo cho canary (co .cap-nhat-ngay)
+  if (r.nguon === "gas" && l && l.capNhat) {
+    let daLam = ""; try { daLam = fs.readFileSync(CAPNHAT_F, "utf8").trim(); } catch { /* */ }
+    if (daLam < l.capNhat) {
+      try { fs.writeFileSync(CAPNGAY_F, l.capNhat); fs.writeFileSync(CAPNHAT_F, l.capNhat); } catch { /* */ }
+      const { execFile } = await import("node:child_process");
+      const ok = await new Promise((res) => execFile("schtasks", ["/Run", "/TN", "Audit cap nhat PC"], { windowsHide: true, timeout: 15000 }, (e) => res(!e)));
+      nk(`lenh cap nhat ngay (${l.capNhat}) -> ${ok ? "da goi task cap nhat" : "LOI goi task cap nhat"}`);
+    }
+  }
 
   // 2) CHAY BU: viec bi dung giua chung o may khac, dieu phoi chon may nay -> chay task "5S DP <viec>" ngay (van qua cong gac)
   if (r.nguon === "gas" && r.chuyen?.length) {

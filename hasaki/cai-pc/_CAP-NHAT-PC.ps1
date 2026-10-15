@@ -57,6 +57,8 @@ try {
       if ($top -and $top.may -eq [System.Net.Dns]::GetHostName()) { $laCanary = $true }
     } else { $laCanary = $true }   # chua co bang (may don) -> tu lam canary
   } catch { $laCanary = $true }
+  # 15/10 lenh "Cap nhat ngay" tu tab May tram (nhip tim dat co .cap-nhat-ngay) -> nhan ban moi nhat ngay, bo cho canary
+  if (Test-Path "$duAn\.cap-nhat-ngay") { $laCanary = $true; Remove-Item "$duAn\.cap-nhat-ngay" -Force -ErrorAction SilentlyContinue; Ghi "lenh cap nhat NGAY tu May tram -> bo cho canary" }
   $dich = "origin/$nhanh"
   if (-not $laCanary -and $canaryGio -gt 0) {
     # 14/10: truoc day doi CA NHANH im $canaryGio gio (HEAD du tuoi) - 3 phien day lien tuc => JE/FOQ khong bao gio nhan ban moi.

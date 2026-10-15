@@ -217,13 +217,19 @@ try {
     if (m.quanLy) {
       ok(bc.nut.some((n) => n.t === "Gỡ") && !/Dừng máy/.test(bc.chu[1]) && bc.nut.some((n) => n.t === "Dừng máy"), "máy quản lý: máy sống có «Dừng máy», máy mất nhịp chỉ có «Gỡ»");
       if (m.mob) ok(bc.nut.every((n) => n.h >= 40), "vùng chạm ≥40px trên điện thoại (" + bc.nut.map((n) => n.h).join(",") + ")");
+      // 15/10 «Cập nhật ngay»: chỉ máy SỐNG có nút; bấm → lệnh capNhat (không hỏi lại — không làm gián đoạn việc)
+      const cn = await p.evaluate(() => [...document.querySelectorAll("#pane-maytram button[data-capnhat]")].map((b) => b.dataset.may));
+      ok(cn.includes("PC-KHO-01") && !cn.includes("PC-KHO-02"), "nút «Cập nhật ngay» chỉ ở máy sống (" + cn.join(",") + ")");
+      { const truoc = post.length; await p.click('#pane-maytram button[data-capnhat][data-may="PC-KHO-01"]'); await new Promise((r) => setTimeout(r, 1200));
+        const bq = post.slice(truoc).find((x) => /may-tram\/lenh/.test(x.url)), oq = bq ? JSON.parse(bq.body) : {};
+        ok(oq.may === "PC-KHO-01" && oq.capNhat === true && !oq.dung, "bấm «Cập nhật ngay» → gửi lệnh capNhat cho đúng máy (" + JSON.stringify(oq) + ")"); }
       const xk = await p.evaluate(() => { const k = document.querySelector("#pane-maytram .hx-mt-xin"); return k ? k.innerText.replace(/\s+/g, " ") : ""; });
       ok(/PC-MOI-03/.test(xk) && /Mã xác nhận 7F3A/.test(xk) && /Duyệt/.test(xk) && /Từ chối/.test(xk), "khối PC xin khoá: tên máy + mã xác nhận + Duyệt/Từ chối");
       await p.click('#pane-maytram button[data-xin="PC-MOI-03"][data-dongy="1"]'); await new Promise((r) => setTimeout(r, 1200));
       const dk = post.find((x) => /duyet-khoa/.test(x.url)), od = dk ? JSON.parse(dk.body) : {};
       ok(od.may === "PC-MOI-03" && od.dongY === true, "bấm Duyệt → lệnh {PC-MOI-03, đồng ý}");
       hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="canh-b11"]'); await new Promise((r) => setTimeout(r, 1200));
-      const bd = post.find((x) => /may-tram\/lenh/.test(x.url)), o = bd ? JSON.parse(bd.body) : {};
+      const bd = post.find((x) => /may-tram\/lenh/.test(x.url) && JSON.parse(x.body).viec), o = bd ? JSON.parse(bd.body) : {};
       ok(hoi.length === 1 && /Tắt «Cò canh B1\.1» trên PC-KHO-01/.test(hoi[0]), "bấm × trên chip việc → hỏi lại trước khi tắt (" + (hoi[0] || "không hỏi") + ")");
       ok(o.may === "PC-KHO-01" && o.viec === "canh-b11" && o.dung === true, "đồng ý → lệnh {PC-KHO-01, canh-b11, dừng}");
     } else {

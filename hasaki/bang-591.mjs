@@ -443,9 +443,9 @@ const sv = http.createServer(async (q, s) => {
       if (o.viec && !cfg.viec.some((v) => v.ten === o.viec)) return guiJ(s, 400, { loi: "việc lạ" });
       try {
         const { gasPost } = await import("./session-rules.js");
-        const j = await gasPost({ action: "pcLenh", key: process.env.APPSCRIPT_KEY, may: o.may, viec: o.viec || "", dung: !!o.dung, xoa: !!o.xoa, boi: (kiemPhien(phien) || {}).email || "máy chủ 8591" }, () => {}, "pcLenh");
+        const j = await gasPost({ action: "pcLenh", key: process.env.APPSCRIPT_KEY, may: o.may, viec: o.viec || "", dung: !!o.dung, xoa: !!o.xoa, capNhat: !!o.capNhat, boi: (kiemPhien(phien) || {}).email || "máy chủ 8591" }, () => {}, "pcLenh");
         if (!j || j.status !== "success") return guiJ(s, 502, { loi: (j && j.message) || "Apps Script không nhận lệnh" });
-        log(`máy trạm: ${o.xoa ? "GỠ" : o.dung ? "DỪNG" : "TIẾP TỤC"} ${o.may}${o.viec ? " · " + o.viec : " (cả máy)"}${j.daChuyen?.length ? " → chuyển " + j.daChuyen.join(", ") : ""}`);
+        log(`máy trạm: ${o.capNhat ? "CẬP NHẬT NGAY" : o.xoa ? "GỠ" : o.dung ? "DỪNG" : "TIẾP TỤC"} ${o.may}${o.viec ? " · " + o.viec : " (cả máy)"}${j.daChuyen?.length ? " → chuyển " + j.daChuyen.join(", ") : ""}`);
         MT = null; return guiJ(s, 200, { ok: 1, lenh: j.lenh, daChuyen: j.daChuyen || [] });
       } catch (e) { return guiJ(s, 502, { loi: e.message }); }
     }
