@@ -420,7 +420,16 @@
         try { const c = JSON.parse(localStorage.getItem(KHO_DS) || 'null'); if (c && Array.isArray(c.dong)) { this.ds = c.dong.map(this._chuan); this.luc = c.luc || ''; } } catch (e) {}
         /* Còn phản hồi đang đẩy lên sheet mà đóng trang thì mất — hỏi lại trước khi rời. */
         window.addEventListener('beforeunload', (e) => { if (this.ds.some(d => this.dongBoCua(d))) { e.preventDefault(); e.returnValue = ''; } });
-        this.taiDs();
+        this.taiDs().then(() => this._guiLaiKhoiPhuc());
+      },
+      /* 15/10: mục chưa lưu cất từ lượt trước (trang bị đóng giữa chừng) → tự gửi lại; tệp chưa kịp tải thì để người dùng xem rồi bấm thử lại. */
+      _guiLaiKhoiPhuc() {
+        if (this.loiTai) return;
+        this.ds.forEach(d => d.muc.forEach(m => {
+          if (!m._khoiPhuc || m.cho !== 'loi') return;
+          delete m._khoiPhuc;
+          if (!/chưa tải lên kịp/.test(m.loi || '') && (m.ghiChu || (m.tep || []).length)) this.dongBo(d, m);
+        }));
       },
       _chuan(d) { d.muc = Array.isArray(d.muc) ? d.muc : []; d.tay = d.tay || ''; return d; },
       _nguoiDung() {
@@ -433,7 +442,15 @@
       /* Bộ nhớ máy chỉ giữ phần ĐÃ lên sheet (không giữ ảnh tạm / mục đang đẩy). */
       _luuMay() {
         try {
-          const sach = this.ds.map(d => Object.assign({}, d, { muc: d.muc.filter(m => !m.cho).map(m => Object.assign({}, m, { tep: (m.tep || []).filter(t => t.id).map(t => ({ id: t.id, loai: t.loai })) })) }));
+          /* 15/10: mục CHƯA LƯU lên sheet cũng cất (ghi chú + ảnh/clip đã tải lên Drive kèm ky) — trước đây đóng trang
+             là mất sạch ghi chú (dòng 25 Phòng bonding: 7 tệp đã lên Drive, ghi chú mất). Mở lại form → tự gửi lại. */
+          const sach = this.ds.map(d => Object.assign({}, d, { muc: d.muc.map(m => {
+            if (!m.cho) return Object.assign({}, m, { tep: (m.tep || []).filter(t => t.id).map(t => ({ id: t.id, loai: t.loai })) });
+            const thieu = (m.tep || []).filter(t => !t.id).length;
+            return { id: m.id, luc: m.luc, ai: m.ai, ghiChu: m.ghiChu, sua: m.sua, cho: 'loi', _khoiPhuc: 1,
+              loi: 'Chưa lưu lên sheet' + (thieu ? ' — ' + thieu + ' ảnh/clip chưa tải lên kịp, cần đính lại' : ''),
+              tep: (m.tep || []).filter(t => t.id).map(t => Object.assign({ id: t.id, ky: t.ky, loai: t.loai }, this._metaTep(t))) };
+          }) }));
           localStorage.setItem(KHO_DS, JSON.stringify({ dong: sach, luc: this.luc }));
         } catch (e) {}
       },
@@ -617,6 +634,7 @@
         const daSua = !!this.sua;
         this._xoaNhap(true);
         this.thongBao = { loai: 'ok', noiDung: daSua ? '✓ Đã sửa — đang lưu lên sheet ở nền.' : '✓ Đã ghi — đang lưu lên sheet ở nền, bạn làm tiếp được.' };
+        this._luuMay();   // cất ngay ghi chú vừa gõ — đóng trang giữa chừng không mất
         this.dongBo(d, m);
       },
       async dongBo(d, m) {
@@ -629,6 +647,7 @@
               const j = await this.goi({ action: 'nt_tai', dong: d.dong, ten: f.ten, mime: f.mime, base64: k >= 0 ? b64.slice(k + 7) : b64 });
               if (j.status !== 'success') throw new Error(j.message || 'Không tải được ảnh/clip');
               t.id = j.id; t.ky = j.ky; delete t._f;   // xong thì nhả base64 cho nhẹ máy
+              this._luuMay();   // tệp đã lên Drive → cất id+ky để gửi lại được dù trang bị đóng
             }
           };
           await Promise.all(Array.from({ length: Math.min(this.TOI_DA_SONG_SONG, can.length) }, tho));
@@ -637,7 +656,7 @@
             muc: { id: m.id, ghiChu: m.ghiChu, tep: m.tep.map(t => Object.assign({ id: t.id, ky: t.ky, loai: t.loai }, this._metaTep(t))) } });
           if (j.status !== 'success') throw new Error(j.message || 'Lỗi máy chủ');
           this._hopNhat(d, j, m);
-        } catch (e) { if (m._cu && !m.tep.some(t => t.id)) { /* giữ bản sửa để thử lại */ } m.cho = 'loi'; m.loi = e.message; this.thongBao = { loai: 'err', noiDung: '✗ Chưa lưu được lên sheet: ' + e.message + ' — bấm "thử lại" ở phản hồi đó.' }; }
+        } catch (e) { if (m._cu && !m.tep.some(t => t.id)) { /* giữ bản sửa để thử lại */ } m.cho = 'loi'; m.loi = e.message; this._luuMay(); this.thongBao = { loai: 'err', noiDung: '✗ Chưa lưu được lên sheet: ' + e.message + ' — bấm "thử lại" ở phản hồi đó.' }; }
       },
       /* Lấy danh sách mục máy chủ trả về làm gốc; mục khác đang đẩy dở trên máy thì giữ bản máy; giữ ảnh xem trước cho mượt. */
       _hopNhat(d, j, m) {
