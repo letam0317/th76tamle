@@ -5,7 +5,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import sharp from "sharp";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -60,7 +60,14 @@ async function layDuLieu() {
   }
 }
 
+/* rớt mạng giữa chừng (ECONNRESET 15/10) → thử lại tối đa 3 lần */
 async function taiTep(t) {
+  for (let i = 0; ; i++) {
+    try { return await taiTep1(t); }
+    catch (e) { if (i >= 2) throw e; await new Promise((ok) => setTimeout(ok, 2000 * (i + 1))); }
+  }
+}
+async function taiTep1(t) {
   const duoi = t.loai === "video" ? ".mp4" : ".jpg", tep = path.join(MEDIA, t.id + duoi);
   if (fs.existsSync(tep) && fs.statSync(tep).size > 0) return path.basename(tep);
   let r = await fetch(`https://drive.usercontent.google.com/download?id=${t.id}&export=download&confirm=t`);
@@ -132,3 +139,33 @@ const khuon = fs.readFileSync(path.join(DIR, "kiemsoatkho", "ket-qua-nghiem-thu.
 fs.writeFileSync(RA, khuon.replace("/*__DU_LIEU__*/null", JSON.stringify(goi).replace(/</g, "\\u003c")));
 const dem = (k) => muc.filter((m) => m.ketLuan === k).length;
 console.log(`xong: ${muc.length} mục — Đạt ${dem("dat")} · Chưa đạt ${dem("chua")} · Chưa nghiệm thu ${dem("cho")} · ${tatCa.length} ảnh/clip → ${path.relative(DIR, RA)}`);
+
+/* --pdf: xuất bản PDF khổ A4 bằng Edge (mở thẳng tệp trên đĩa, không cần máy chủ 8123) → .exports/Ket-qua-nghiem-thu-<ngày>.pdf
+   Clip trong PDF = khung hình đại diện + dấu ▶; bấm ảnh/clip trong PDF mở bản gốc trên Drive. */
+if (process.argv.includes("--pdf")) {
+  const { default: puppeteer } = await import("puppeteer");
+  const EDGE = ["C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe"].find((p) => fs.existsSync(p));
+  const b = await puppeteer.launch({ headless: "new", executablePath: EDGE, args: ["--allow-file-access-from-files"] });   // không có cờ này canvas chụp khung clip bị coi là «bẩn»
+  try {
+    const p = await b.newPage();
+    await p.setViewport({ width: 1000, height: 1400 });
+    await p.goto(pathToFileURL(RA).href + "?in=1", { waitUntil: "load", timeout: 120000 });
+    await p.evaluate(async () => {
+      for (const v of [...document.querySelectorAll(".tep video")]) {   // clip → ảnh khung hình
+        if (v.readyState < 2) await new Promise((ok) => { v.addEventListener("loadeddata", ok, { once: true }); setTimeout(ok, 8000); });
+        try { v.currentTime = Math.min(1, (v.duration || 2) / 2); await new Promise((ok) => { v.addEventListener("seeked", ok, { once: true }); setTimeout(ok, 4000); }); } catch (e) { }
+        const c = document.createElement("canvas"), s = Math.min(1, 800 / Math.max(v.videoWidth, v.videoHeight));
+        c.width = v.videoWidth * s; c.height = v.videoHeight * s; c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        const img = new Image(); img.src = c.toDataURL("image/jpeg", 0.82); v.replaceWith(img);
+      }
+      await Promise.all([...document.images].map((i) => i.complete ? 0 : new Promise((ok) => { i.onload = i.onerror = ok; })));
+    });
+    const ngay = new Date().toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }).split("/").map((x) => x.padStart(2, "0"));
+    const pdf = path.join(DIR, ".exports", `Ket-qua-nghiem-thu-${ngay[0]}-${ngay[1]}-${ngay[2]}.pdf`);
+    fs.mkdirSync(path.dirname(pdf), { recursive: true });
+    await p.pdf({ path: pdf, format: "A4", printBackground: true, margin: { top: "12mm", bottom: "14mm", left: "10mm", right: "10mm" },
+      displayHeaderFooter: true, headerTemplate: "<span></span>",
+      footerTemplate: `<div style="width:100%;font:9px Arial;color:#888;padding:0 10mm;display:flex;justify-content:space-between"><span>Kết quả nghiệm thu — Công việc sắp xếp chuẩn bị kiểm tổng</span><span>Trang <span class="pageNumber"></span>/<span class="totalPages"></span></span></div>` });
+    console.log(`PDF: ${path.relative(DIR, pdf)} (${(fs.statSync(pdf).size / 1048576).toFixed(1)} MB)`);
+  } finally { await b.close(); }
+}

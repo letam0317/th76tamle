@@ -106,9 +106,19 @@
     .xem { padding: 12px; } .xem .lui, .xem .toi { top: auto; bottom: 8px; transform: none; }
   }
   @media print {
-    body { background: #fff; } .cong-cu, .xem { display: none !important; }
-    .muc, .tep { break-inside: avoid; box-shadow: none; } .tep .hinh .play { display: none; }
+    body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .cong-cu, .xem { display: none !important; }
+    .khung { max-width: none; padding: 0; }
+    :root { --h: 175px; }   /* ảnh nhỏ lại cho gọn trang; bấm ảnh trong PDF mở bản gốc */
+    .tep { width: max(118px, calc(var(--ty) * var(--h))); }
+    .tep .chu { font-size: 11px; padding: 5px 7px 7px; } .the-ma span { font-size: 10px; }
+    .muc { box-shadow: none; padding: 12px 14px; margin-bottom: 8px; }   /* mục dài được ngắt qua trang, từng ảnh thì không */
+    .tep, .dau, .td { break-inside: avoid; box-shadow: none; }
+    .nhom { break-after: avoid; margin: 16px 0 8px; }
+    .luoi { gap: 8px; }
+    .the-tong { box-shadow: none; } .the-tong:hover { transform: none; }
   }
+  /* Bản PDF (?in=1): ảnh/clip là link mở bản gốc trên Drive */
+  .tep a.goc { display: block; height: 100%; color: inherit; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -133,6 +143,8 @@
 const DL = /*__DU_LIEU__*/null;
 /* Trên máy này (xem-noi-bo / mở tệp trực tiếp) dùng bản đã tải về nt-media/; nơi khác dùng link Drive (anyone-with-link). */
 const TREN_MAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) || location.protocol === 'file:';
+/* ?in=1: bản xuất PDF (tao-ket-qua-nghiem-thu.mjs --pdf) — tải hết ảnh ngay, clip thay bằng khung hình đại diện, bấm mở bản gốc trên Drive */
+const IN = new URLSearchParams(location.search).has('in');
 const KL = { dat: ['Đạt', 'var(--dat)'], chua: ['Chưa đạt', 'var(--chua)'], cho: ['Chưa nghiệm thu', 'var(--cho-dam)'] };
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const boDau = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
@@ -167,9 +179,11 @@ function khop(m) {
 
 function veTep(t) {
   const i = tatCaTep.push(t) - 1, ma = theMa(t), ty = t.ty || (t.loai === 'video' ? .5625 : .75);
-  const hinh = t.loai === 'video'
-    ? (TREN_MAY ? `<video src="${anhNho(t)}#t=0.5" preload="metadata" muted playsinline></video>` : `<img loading="lazy" src="${anhNho(t)}" alt="">`) + '<span class="play">▶</span><span class="loai">CLIP</span>'
-    : `<img loading="lazy"${lopXoay(t)} src="${anhNho(t)}" alt="">`;
+  const tai = IN ? '' : ' loading="lazy"';
+  let hinh = t.loai === 'video'
+    ? (TREN_MAY ? `<video src="${anhNho(t)}#t=0.5" preload="metadata" muted playsinline></video>` : `<img${tai} src="${anhNho(t)}" alt="">`) + '<span class="play">▶</span><span class="loai">CLIP</span>'
+    : `<img${tai}${lopXoay(t)} src="${anhNho(t)}" alt="">`;
+  if (IN) hinh = `<a class="goc" href="https://drive.google.com/file/d/${t.id}/view" target="_blank">${hinh}</a>`;
   const chu = t.ghiChu || ma.length ? `<div class="chu">${lienKet(t.ghiChu)}${ma.length ? `<div class="the-ma">${ma.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}</div>` : '';
   return `<div class="tep${ty > 1.15 ? ' ngang' : ''}" style="--ty:${ty}"><div class="hinh" data-xem="${i}">${hinh}</div>${chu}</div>`;
 }
