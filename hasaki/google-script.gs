@@ -485,7 +485,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'sku_ocr') return tbOK_(duLieu) ? phanHoiJson(skuOcr_(duLieu)) : tbTuChoi_();      // khoá thiết bị; OCR Drive miễn phí nhưng vẫn không cho người lạ mượn
     // 14/10 form nghiệm thu checklist kiểm kê — chưa duyệt: CHỈ nhận khi kèm khoá quản trị (bản nội bộ). User duyệt → NT_MO = true.
     if (duLieu && /^nt_(lay|tai|ghi)$/.test(String(duLieu.action || ''))) return (NT_MO ? tbOK_(duLieu) : keyBodyOK_(duLieu)) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();
-    if (duLieu && duLieu.action === 'nt_dung_lai') return keyBodyOK_(duLieu) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();   // 15/10 dựng lại MỌI ô theo khuôn mới — chỉ khoá quản trị
+    if (duLieu && /^nt_(dung_lai|dinh_dang)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();   // 15/10 dựng lại MỌI ô theo khuôn mới — chỉ khoá quản trị
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -3368,6 +3368,7 @@ function apiNghiemThu_(d) {
     if (d.action === 'nt_lay') return ntLay_(id);
     if (d.action === 'nt_tai') return ntTai_(d);
     if (d.action === 'nt_dung_lai') return ntDungLai_(id);
+    if (d.action === 'nt_dinh_dang') { var dd = ntDinhDang_(id); dd.o = ntDungLai_(id).so; return dd; }   // trình bày cả bảng rồi tô lại ô G (định dạng cả bảng xoá kiểu từng đoạn)
     return ntGhi_(d, id);
   } catch (e) { return { status: 'error', message: String((e && e.message) || e) }; }
 }
@@ -3393,31 +3394,43 @@ function ntKy_(fileId) {
 function ntDocBan_(raw) { try { var o = JSON.parse(raw || '{}'); return { muc: o.muc || [], dung: o.dung || '' }; } catch (e) { return { muc: [], dung: '' }; } }
 /* Chú thích riêng 1 tệp: chỉ giữ ô có chữ, cắt độ dài (ghi chú 500, mã 300). */
 function ntMetaTep_(t) {
-  var o = {}, g = String(t.ghiChu || '').replace(/\s+/g, ' ').trim().slice(0, 500), v = String(t.viTri || '').trim().slice(0, 300), m = String(t.ma || '').trim().slice(0, 300);
+  var o = {}, g = String(t.ghiChu || '').replace(/\s+/g, ' ').trim().slice(0, 500), v = String(t.viTri || '').trim().slice(0, 800), m = String(t.ma || '').trim().slice(0, 800);
   if (g) o.ghiChu = g; if (v) o.viTri = v; if (m) o.ma = m; return o;
 }
 function ntLink_(t) { return 'https://drive.google.com/file/d/' + t.id + '/view'; }
 /* Phần chữ form dựng cho ô G. 15/10 user: «ghi chú và ảnh/clip của ghi chú đó nằm cùng nhau; ảnh/ghi chú khác
- * nhau phải tách biệt» → mỗi lần phản hồi = 1 KHỐI (đầu khối đậm: giờ · người), các khối cách nhau bằng vạch
- * mờ; trong khối mỗi ảnh/clip 1 dòng riêng «▸ Ảnh n — ghi chú của chính ảnh đó», mã vị trí/UIDgr của ảnh
- * xuống dòng ngay dưới (chữ xám). kieu = [đầu, cuối, tên kiểu] để ntVietO_ tô. */
+ * nhau phải tách biệt» → mỗi lần phản hồi = 1 KHỐI, các khối cách nhau bằng vạch mờ; trong khối mỗi ảnh/clip
+ * 1 dòng riêng «▸ Ảnh n — ghi chú của chính ảnh đó», mã vị trí/UIDgr của ảnh xuống dòng ngay dưới (chữ xám).
+ * 15/10 user bỏ dòng đầu khối «giờ · người · (sửa …)» là thừa — giờ/người vẫn lưu ở mục, form vẫn hiện.
+ * kieu = [đầu, cuối, tên kiểu] để ntVietO_ tô. */
 var NT_VACH = '──────────';
 function ntDung_(muc) {
   var txt = '', link = [], kieu = [];
   var them = function (s, k) { if (k) kieu.push([txt.length, txt.length + s.length, k]); txt += s; };
+  /* 15/10 user: link dán vào ghi chú/ô mã → chữ gọn «Link WMS» (trang khác: «Link») mang hyperlink như «Ảnh n». */
+  var themChu = function (s, k) {
+    String(s).split(/(https?:\/\/[^\s,;]+)/).forEach(function (p, j) {
+      if (!p) return;
+      if (j % 2) { var nh = /(^|\.)(inshasaki|hasaki)\.(com|vn)\//i.test(p.replace(/^https?:\/\//, '')) ? (/wms\./i.test(p) ? 'Link WMS' : 'Link Hasaki') : 'Link';
+        link.push([txt.length, txt.length + nh.length, p]); them(nh, 'link'); }
+      else them(p, k);
+    });
+  };
+  var laLink = function (s) { return /^https?:\/\/\S+$/.test(String(s).trim()); };
   muc.forEach(function (m, i) {
-    if (i) them('\n' + NT_VACH + '\n', 'vach');
-    them(m.luc + ' · ' + m.ai, 'dau');
-    if (m.sua) them('  (sửa ' + m.sua + ')', 'phu');
-    if (m.ghiChu) them('\n' + m.ghiChu);
+    var dau = txt.length;
+    if (i) them('\n' + NT_VACH, 'vach');
+    var xuong = function () { if (txt.length > dau || i) them('\n'); };
+    if (m.ghiChu) { xuong(); themChu(m.ghiChu); }
     var a = 0, c = 0;
     (m.tep || []).forEach(function (t) {
-      them('\n▸ ', 'mui');
+      xuong(); them('▸ ', 'mui');
       var nhan = t.loai === 'video' ? 'Clip ' + (++c) : 'Ảnh ' + (++a);
       link.push([txt.length, txt.length + nhan.length, ntLink_(t)]); them(nhan, 'link');
-      if (t.ghiChu) them(' — ' + t.ghiChu);
-      var ma = [t.viTri ? 'Vị trí ' + t.viTri : '', t.ma ? 'UIDgr ' + t.ma : ''].filter(String).join(' · ');
-      if (ma) them('\n    ' + ma, 'phu');
+      if (t.ghiChu) { them(' — '); themChu(t.ghiChu); }
+      /* ô mã chỉ chứa 1 link → bỏ nhãn «Vị trí»/«UIDgr» (vô nghĩa trước 1 đường link) */
+      var ma = [t.viTri ? (laLink(t.viTri) ? '' : 'Vị trí ') + t.viTri : '', t.ma ? (laLink(t.ma) ? '' : 'UIDgr ') + t.ma : ''].filter(String).join(' · ');
+      if (ma) { them('\n    ', 'phu'); themChu(ma, 'phu'); }
     });
   });
   return { txt: txt, link: link, kieu: kieu };
@@ -3436,20 +3449,56 @@ function ntKieu_() {
 /* Ghi 1 ô G: chữ gõ tay (nếu có) giữ ở đầu + đoạn dựng từ các mục. Trả về {dung, tay}. */
 function ntVietO_(o, ban, st) {
   var rt = o.getRichTextValue(), cuText = rt ? rt.getText() : String(o.getDisplayValue() || '');
-  var tach = ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), lech = tach.tay ? tach.tay.length + (dung.txt ? 1 : 0) : 0;
-  var b = SpreadsheetApp.newRichTextValue().setText(tach.tay + (tach.tay && dung.txt ? '\n' : '') + dung.txt);
+  var tach = ntTachTay_(cuText, ban.dung), dung = ntDung_(ban.muc), noi = tach.tay && dung.txt ? '\n' + NT_VACH + '\n' : '', lech = tach.tay.length + noi.length;
+  var b = SpreadsheetApp.newRichTextValue().setText(tach.tay + noi + dung.txt);
   if (rt && tach.tay && tach.dau) rt.getRuns().forEach(function (run) {   // giữ định dạng + link phần gõ tay
     var s = run.getStartIndex(), e = Math.min(run.getEndIndex(), tach.tay.length);
     if (e <= s) return;
     b.setTextStyle(s, e, run.getTextStyle()); if (run.getLinkUrl()) b.setLinkUrl(s, e, run.getLinkUrl());
   });
   st = st || ntKieu_();
+  if (noi) b.setTextStyle(tach.tay.length, lech, st.vach);   // vạch ngăn chữ gõ tay ↔ phần form ghi
   if (dung.txt) b.setTextStyle(lech, lech + dung.txt.length, st.goc);
   dung.kieu.forEach(function (k) { b.setTextStyle(lech + k[0], lech + k[1], st[k[2]]); });
   dung.link.forEach(function (l) { b.setLinkUrl(lech + l[0], lech + l[1], l[2]); });
   o.setRichTextValue(b.build());
   if (dung.txt) o.setWrap(true).setVerticalAlignment('top');   // chỉ ô form ghi — nhiều dòng phải xuống dòng mới đọc được
   return { dung: dung.txt, tay: tach.tay };
+}
+/* nt_dinh_dang (15/10 user «chỉnh cho tất cả các cột»): trình bày CẢ BẢNG — chỉ đổi định dạng, KHÔNG đổi chữ,
+ * không thêm/xoá cột/dòng, không đụng màu chữ/đậm user tự tô (trừ dòng tiêu đề, cột STT + Công việc).
+ * Tiêu đề nền xanh chữ trắng + cố định dòng 1; mọi ô xuống dòng, canh trên; mỗi NHÓM việc (từ dòng có STT tới
+ * trước STT kế) 1 màu nền xen kẽ + vạch đậm ở đầu nhóm; cột rộng theo nội dung; «OK» ở cột tiến độ chữ xanh. */
+function ntDinhDang_(id) {
+  var sh = ntTab_(id), n = sh.getLastRow(), m = sh.getLastColumn();
+  if (n < 2) return { status: 'success', dong: 0 };
+  var v = sh.getRange(1, 1, n, m).getDisplayValues(), c = ntCot_(v[0]);
+  var ht = 0; for (var j = 0; j < m; j++) if (/^\s*Hiện trạng/i.test(v[0][j])) ht = j + 1;
+  var rong = {}; rong[c.stt] = 48; rong[c.cv] = 150; rong[c.ck] = 300; rong[c.td] = 240; rong[c.yc] = 220; rong[c.ph] = 380; if (ht) rong[ht] = 230;
+  for (var k in rong) if (+k <= m) sh.setColumnWidth(+k, rong[k]);
+  var bang = sh.getRange(1, 1, n, m);
+  bang.setFontFamily('Arial').setFontSize(10).setWrap(true).setVerticalAlignment('top')
+    .setBorder(true, true, true, true, true, true, '#d5dbe1', SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(1, 1, 1, m).setBackground('#0f5132').setFontColor('#ffffff').setFontWeight('bold')
+    .setVerticalAlignment('middle').setHorizontalAlignment('center');
+  sh.setRowHeight(1, 48); sh.setFrozenRows(1);
+  sh.getRange(2, c.stt, n - 1, 1).setHorizontalAlignment('center').setFontWeight('bold');
+  sh.getRange(2, c.cv, n - 1, 1).setFontWeight('bold');
+  /* Nhóm việc: dòng có STT mở nhóm mới; nền xen kẽ trắng / xanh rất nhạt. */
+  var nen = [], le = true, dauNhom = [];
+  for (var r = 1; r < n; r++) {
+    if (String(v[r][c.stt - 1]).trim()) { le = !le; dauNhom.push(r + 1); }
+    var mau = le ? '#f3f8f5' : '#ffffff', hang = []; for (var x = 0; x < m; x++) hang.push(mau); nen.push(hang);
+  }
+  sh.getRange(2, 1, n - 1, m).setBackgrounds(nen);
+  dauNhom.forEach(function (d) { if (d > 2) sh.getRange(d, 1, 1, m).setBorder(true, null, null, null, null, null, '#7fa392', SpreadsheetApp.BorderStyle.SOLID_MEDIUM); });
+  /* «OK» ở cột tiến độ: luật định dạng có điều kiện (ô đổi chữ sau này vẫn đúng) — thêm 1 lần, không nhân bản. */
+  var vung = sh.getRange(2, c.td, Math.max(n, 200) - 1, 1), luat = sh.getConditionalFormatRules();
+  var daCo = luat.some(function (l) { var b = l.getBooleanCondition(); return b && b.getCriteriaType() === SpreadsheetApp.BooleanCriteria.TEXT_EQUAL_TO && String(b.getCriteriaValues()[0]) === 'OK' && l.getRanges().some(function (g) { return g.getColumn() === c.td; }); });
+  if (!daCo) { luat.push(SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('OK').setFontColor('#137333').setBold(true).setRanges([vung]).build()); sh.setConditionalFormatRules(luat); }
+  SpreadsheetApp.flush();
+  sh.autoResizeRows(2, n - 1);
+  return { status: 'success', dong: n, nhom: dauNhom.length };
 }
 /* nt_dung_lai: dựng lại MỌI ô G đang có mục theo khuôn hiện tại (đổi khuôn xong chạy 1 lần). */
 function ntDungLai_(id) {
@@ -3469,6 +3518,10 @@ function ntDungLai_(id) {
 }
 /* Chữ gõ tay trong ô = ô hiện tại bỏ đi đoạn form dựng lần trước. */
 function ntTachTay_(cuText, dung) {
+  var r = ntTachTay0_(cuText, dung); r.tay = r.tay.replace(/\n*─+\s*$/, '');   // bỏ vạch ngăn do form chèn sau chữ tay
+  return r;
+}
+function ntTachTay0_(cuText, dung) {
   if (!dung) return { tay: cuText, dau: true };
   if (cuText === dung) return { tay: '', dau: true };
   var k = cuText.lastIndexOf(dung);
