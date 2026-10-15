@@ -270,7 +270,7 @@
     B + " :is(.abntile,.ht-tile) > .k{font-size:24px!important;font-weight:600!important;line-height:32px!important;color:var(--text)!important;letter-spacing:0}",
     B + " :is(.abntile,.ht-tile) > .s{font-size:12px!important;line-height:20px;color:var(--muted)!important;margin-top:4px!important}",
     B + " :is(#viewAbn,#pane-htonbat) :is(small,.v small,.sub){font-size:12px!important}",
-    B + " :is(.abnrl,.ht-rl){font-size:14px!important;line-height:22px}" + B + " :is(#viewAbn,#pane-htonbat) h2 span:not(.h2tip):not(.dot){font-size:12px!important}" + B + " .cn-lb{font-size:12px!important}",
+    B + " :is(.abnrl,.ht-rl){font-size:14px!important;line-height:22px}" + B + " :is(#viewAbn,#pane-htonbat) h2 span:not(.h2tip):not(.dot){font-size:12px!important}" + B + " .cn-lb{font-size:12px!important;font-weight:600!important}" + B + " #toast{border-radius:8px!important}",   // 15/10 AD-06/AD-03 (Factory Tổng quan)
     /* 13/10 user (tab Kiểm kê, Retail + Factory): «6 ô số sao không nằm thẳng cùng 1 hàng» — 2 khung SKU / vị trí xếp CHỒNG (mỗi khung hết bề ngang),
        dải 6 ô = 6 cột bằng nhau 1 hàng (điện thoại 2 cột); ô = Statistic antd: nhãn xám 14 TRÊN, số 24/600 dưới (giữ màu NGHĨA: lệch âm đỏ, đạt xanh) */
     B + " #pane-kk .hk-grid2," + B + " #viewKK .grid2.even{grid-template-columns:minmax(0,1fr)!important}",
