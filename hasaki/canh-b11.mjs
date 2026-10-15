@@ -220,7 +220,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   const byCode = new Map(), byTen = new Map();
   for (const x of db) { if (x.code) byCode.set(String(x.code), x); if (x.staff_name) byTen.set(boDau(x.staff_name), x); }
 
-  let so = { nhac: {}, nhom: {}, b31: {}, b32: {}, tv: {}, dgB1: {}, fail: {}, qltt: {}, b3huy: {} };
+  let so = { nhac: {}, nhom: {}, b31: {}, b32: {}, tv: {}, dgB1: {}, fail: {}, qltt: {}, b3huy: {}, khop11: {}, tay11: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
   for (const k of ["tv", "dgB1", "b32", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho", "bui", "cam"]) if (!so[k]) so[k] = {};
   let nguonTV = null;   // 4 tab GAS — chỉ nạp khi thật sự có task cần truy vết
@@ -380,7 +380,13 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     if (b11 && b11.status === 0 && codes.length && nvs.length === codes.length) {
       const dangCam = (b11.staff || []).map((x) => String((x.info && x.info.code) || "")).filter(Boolean);
       const lech = dangCam.some((c) => !codes.includes(c)) || codes.some((c) => !dangCam.includes(c));
-      if (lech) {
+      /* 15/10 user «tại sao lại gỡ dữ liệu t đã tự chỉnh tay» (B1.1 14055993: 15:57 user giao Kim Ngân gỡ Thanh Ngân → 16:35 ②b giao lại).
+         B1.1 ĐÃ TỪNG khớp NV vi phạm (máy thấy hoặc máy giao) mà nay lệch = NGƯỜI sửa tay → để nguyên, không giao lại.
+         Chỉ sửa lệch do engine giao B1.1 cho quản lý ngay lúc tạo (chưa từng khớp). */
+      if (!lech) so.khop11[t.id] = 1;
+      else if (so.khop11[t.id] || so.tay11[t.id]) {
+        if (!so.tay11[t.id]) { so.tay11[t.id] = Date.now(); log("②b " + t.code + " (B1.1 " + b11.id + "): người cầm đã bị SỬA TAY (" + (b11.staff || []).map((x) => x.info && x.info.staff_name).join(", ") + ") — để nguyên, không giao lại."); }
+      } else if (lech) {
         log("②b " + t.code + " (B1.1 " + b11.id + "): đang ở tay " + (b11.staff || []).map((x) => x.info && x.info.staff_name).join(", ") +
           " ≠ NV vi phạm " + nvs.map((x) => x.staff_name).join(", ") + " → giao lại");
         if (!THU) {
@@ -388,7 +394,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
           const d2 = await docTask(token, b11.id);
           const sau = ((d2 && d2.staff) || []).map((x) => String((x.info && x.info.code) || ""));
           if (sau.length === codes.length && codes.every((c) => sau.includes(c))) {
-            b11.staff = d2.staff;
+            b11.staff = d2.staff; so.khop11[t.id] = 1;
             if (so.hen72[t.id]) so.hen72[t.id] = Date.now();
             log("   ✓ B1.1 đã về tay đúng NV vi phạm.");
           } else log("   ⚠ đọc lại chưa đúng (" + sau.join(",") + ") — thử lượt sau.");

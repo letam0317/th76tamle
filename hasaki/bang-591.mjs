@@ -193,7 +193,11 @@ function gom() {
     return m; })();
   for (const p of phieu) { const b = BC[p.id]; const enc = (f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/");
     if (b && b.chup) p.bcChup = { clipInfo: b.chup.clipInfo, anh: b.chup.anh.map(enc), clip: b.chup.clip ? enc(b.chup.clip) : "", chu: b.chup.chu, lui: b.chup.lui ? enc(b.chup.lui) : "", luiMoc: b.chup.luiMoc, luiCo: b.chup.luiCo, luc: b.chup.luc };
-    if (b && (b.clip.length || b.anh.length || b.clipMay)) p.bc = { clip: (b.clip.length ? b.clip : b.clipMay ? [b.clipMay] : []).map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), clipTho: !b.clip.length && !!b.clipMay, truy: b.truy || null, clipInfo: !b.clip.length ? b.clipInfo || null : null, anh: b.anh.map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), chu: b.chu || "", kenh: b.kenh || "" }; }
+    if (b && (b.clip.length || b.anh.length || b.clipMay)) p.bc = { clip: (b.clip.length ? b.clip : b.clipMay ? [b.clipMay] : []).map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), clipTho: !b.clip.length && !!b.clipMay, truy: b.truy || null, clipInfo: !b.clip.length ? b.clipInfo || null : null, anh: b.anh.map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), chu: b.chu || "", kenh: b.kenh || "" };
+    /* 15/10 user (phiếu 14046962 bãi xe): «đã có clip do chính máy chạy mà vẫn "Chưa có bằng chứng camera — máy đang tìm"». Clip máy ĐÍNH KÈM
+       lúc lập phiếu (cột Video vi phạm / B1 ▸ Video) nằm trên hr-media, không ở kho bằng chứng local → trước đây bị bỏ qua. */
+    if (!p.bc || !p.bc.clip.length) { const r = (c.rows || {})[p.code] || null, vd = r ? [g(r, "Video vi phạm"), g(r, "B1. Xác minh lỗi vi phạm ▸ Video (Nếu có)")].join("\n").split("\n").map((s) => s.trim()).find((s) => /^https?:\/\/\S+\.(webm|mp4)(\?|$)/i.test(s)) : "";
+      if (vd) p.bc = { ...(p.bc || { anh: [], chu: "", kenh: "" }), clip: [vd], clipTho: false, truy: null, clipInfo: null, chu: (p.bc && p.bc.chu) || "Clip camera máy đính kèm lúc lập phiếu" }; } }
 
   /* 12/10 user: "bổ sung bằng chứng truy vấn được ở WMS — lịch sử chuyển vị trí … lỗi lộn xộn thì người phụ trách kệ có khả năng chịu
      trách nhiệm, đồng thời người châm cũng có khả năng … hiển thị theo thứ tự gần thời gian ghi nhận nhất về trước".
