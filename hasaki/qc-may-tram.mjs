@@ -128,8 +128,22 @@ try {
     ok(bc.ngang <= 0, "không kéo ngang trang (" + bc.ngang + ")");
     // 14/10 chiều: «Đang chạy» nằm TRONG TỪNG THẺ MÁY (không còn khối chung) — việc · bước · phiếu (link) · i/n · từ giờ · cập nhật
     const dcMay = await p.evaluate(() => Object.fromEntries([...document.querySelectorAll("#pane-maytram .mt-o")].map((o) => [o.querySelector(".mt-dau b").textContent,
-      [...o.querySelectorAll(".mt-phai .mt-dc")].map((d) => ({ t: d.innerText.replace(/\s+/g, " ").trim(), link: (d.querySelector(".mt-dc-bc a") || {}).href || "",
-        thanh: d.querySelector(".mt-dc-thanh b") ? parseFloat(d.querySelector(".mt-dc-thanh b").style.width) : -1, dauPhai: d.parentElement.firstElementChild === d }))])));
+      [...o.querySelectorAll(".mt-ket .mt-dc")].map((d) => ({ t: d.innerText.replace(/\s+/g, " ").trim(), link: (d.querySelector(".mt-dc-bc a") || {}).href || "",
+        thanh: d.querySelector(".mt-dc-thanh b") ? parseFloat(d.querySelector(".mt-dc-thanh b").style.width) : -1, dauPhai: d.parentElement.querySelector(".mt-dc,.mt-hn") === d }))])));
+    // 15/10 user «chia 3 mục ngang hàng: Thông tin máy, sức khoẻ / Việc đảm nhận / Việc đang làm và kết quả — canh đồng đều»
+    const c3 = await p.evaluate(() => { const the = [...document.querySelectorAll("#pane-maytram .mt-o")], td = document.querySelector("#pane-maytram .mt-tde");
+      const cot = the.map((o) => [".mt-trai", ".mt-phai", ".mt-ket"].map((s) => { const e = o.querySelector(":scope > " + s); return e ? e.getBoundingClientRect() : null; }));
+      const tdHien = td && td.offsetParent !== null, tdL = tdHien ? [...td.children].map((s) => s.getBoundingClientRect().left + parseFloat(getComputedStyle(s).paddingLeft)) : [];
+      return { du: cot.every((c) => c.every(Boolean)), moc: cot.map((c) => c.map((r) => Math.round(r ? r.left : -1))), tdHien, tdL: tdL.map(Math.round),
+        nhan: tdHien ? [...td.children].map((s) => s.textContent) : [...(the[0] || document).querySelectorAll(".mt-ct")].map((s) => s.textContent),
+        ngang: cot.every((c) => c[1] && Math.abs(c[1].top - c[0].top) < 2 && Math.abs(c[2].top - c[0].top) < 2) }; });
+    ok(c3.du, "mỗi máy đủ 3 mục (thông tin · việc đảm nhận · đang làm/kết quả)");
+    if (!m.mob) {
+      const thang = c3.moc.every((r) => r.every((x, i) => Math.abs(x - c3.moc[0][i]) <= 1));
+      const trungTieuDe = c3.moc[0].slice(1).every((x, i) => Math.abs(x + 14 - c3.tdL[i + 1]) <= 2);
+      ok(c3.ngang && thang && c3.tdHien && trungTieuDe && c3.nhan.join("|") === "Thông tin máy · sức khoẻ|Việc đảm nhận|Việc đang làm và kết quả",
+        "3 mục NGANG HÀNG, thẳng cột giữa các máy và khớp hàng tiêu đề (" + JSON.stringify({ moc: c3.moc, tdL: c3.tdL }) + ")");
+    } else ok(!c3.tdHien && c3.nhan.join("|") === "Việc đảm nhận|Việc đang làm và kết quả", "điện thoại: 3 mục xếp dọc, nhãn mục nằm ngay trong thẻ (" + c3.nhan.join("|") + ")");
     ok(!(await p.$("#pane-maytram .mt-dang")), "không còn khối «Đang chạy» chung (tránh lặp)");
     if (m.duPhong) {   // laptop dự phòng đang làm thay
       const d = (dcMay["HSK-KHO170-tamlc-1"] || [])[0];
@@ -186,10 +200,14 @@ try {
       const bo = await p.evaluate(() => { const o = document.querySelector("#pane-maytram .mt-o"), nh = [...o.querySelectorAll(".mt-phai .mt-nhom")], ph = o.querySelector(".mt-phai").getBoundingClientRect();
         const c = [...o.querySelectorAll(".mt-phai .mt-c")].map((e) => { const r = e.getBoundingClientRect(), t = e.querySelector(".ten"); return { w: r.width, h: Math.round(r.height), cat: t.scrollWidth > t.clientWidth + 1 }; });
         const rN = nh[0].getBoundingClientRect(), cuoiNhe = [...nh[1].querySelectorAll(".mt-c")].map((e) => e.getBoundingClientRect().right);
-        return { ngang: Math.abs(rN.top - nh[1].getBoundingClientRect().top) < 2, traiN: Math.abs(rN.left - ph.left) < 2, phaiNhe: Math.max(...cuoiNhe) >= ph.right - 2,
+        const rL = nh[1].getBoundingClientRect(), c0 = (g) => g.querySelector(".mt-c").getBoundingClientRect().left;
+        return { ngang: rL.top >= rN.bottom - 1 && Math.abs(rL.left - rN.left) < 2 && Math.abs(c0(nh[0]) - c0(nh[1])) < 2, traiN: Math.abs(rN.left - ph.left - parseFloat(getComputedStyle(o.querySelector(".mt-phai")).paddingLeft)) < 2, phaiNhe: Math.max(...cuoiNhe) <= ph.right + 1,
           caoDeu: new Set(c.map((x) => x.h)).size === 1, rongTheoChu: new Set(c.map((x) => Math.round(x.w))).size > 3, khongCat: c.every((x) => !x.cat),
           thuTu: [...document.querySelectorAll("#pane-maytram .mt-o .mt-dau b")].map((b) => b.textContent) }; });
-      if (!m.mob) ok(bo.ngang && bo.traiN && bo.phaiNhe, "Nặng chốt TRÁI, Nhẹ chốt PHẢI cùng 1 hàng (" + JSON.stringify({ ngang: bo.ngang, traiN: bo.traiN, phaiNhe: bo.phaiNhe }) + ")");
+      // 15/10 chiều: cột «Việc đảm nhận» hẹp hơn → Nặng TRÊN, Nhẹ DƯỚI, chip 2 nhóm thẳng lề, không tràn cột
+      if (!m.mob) ok(bo.ngang && bo.traiN && bo.phaiNhe, "Nặng trên, Nhẹ dưới, chip 2 nhóm thẳng lề, không tràn cột (" + JSON.stringify({ ngang: bo.ngang, traiN: bo.traiN, phaiNhe: bo.phaiNhe }) + ")");
+      { const cc = await p.evaluate(() => { const c = [...document.querySelectorAll("#pane-maytram .mt-o .mt-c.dung")].map((e) => e.textContent); return c; });
+        ok(cc.length === 1 && /^Chấm công→ chưa máy nào nhận/.test(cc[0]), "việc đã tắt ghi rõ ai nhận thay (" + cc.join(" | ") + ")"); }
       ok(bo.caoDeu && bo.rongTheoChu && bo.khongCat, "chip cao đều, rộng vừa theo chữ, không cắt chữ (" + JSON.stringify({ caoDeu: bo.caoDeu, rongTheoChu: bo.rongTheoChu, khongCat: bo.khongCat }) + ")");
       ok(bo.thuTu[0] === "HSK-KHO170-QLIT" && bo.thuTu[bo.thuTu.length - 1] === "HSK-KHO170-tamlc-1", "máy đang chạy trên cùng, máy dừng dưới cùng (" + bo.thuTu.join(" → ") + ")");
       hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="tim-bang-chung-b1"]'); await new Promise((r) => setTimeout(r, 1200));
@@ -221,6 +239,7 @@ try {
     ok(/nhịp tim 2\d giây trước/.test(bc.tipPhu[0]) && /bản 5be3da2/.test(bc.tipPhu[0]) && !/giây trước/.test(bc.chu[0]), "thẻ 1: nhịp tim + bản code CHỈ trong chú thích tên máy (thẻ gọn)");
     const c1 = bc.chip[0].join("|");
     ok(/chay:Cò canh B1\.1/.test(c1) && /cho:Tìm bằng chứng B1/.test(c1) && /dung:Canh bãi xe sáng/.test(c1), "thẻ 1: chip việc đúng màu (chạy / chờ lịch / dừng)");
+    ok(/dung:Canh bãi xe sáng→ chờ máy chạy bù/.test(c1), "thẻ 1: việc nặng đã dừng, đang chuyển → «chờ máy chạy bù» (" + c1 + ")");
     ok(/PC-KHO-02/.test(bc.chu[1]) && /Mất nhịp/.test(bc.chu[1]) && /Sức khoẻ: Kém mất nhịp (2 giờ trước|90 phút trước)/.test(bc.chu[1]) && /không có khoá camera/.test(bc.tipPhu[1]), "thẻ 2: mất nhịp → Sức khoẻ Kém + lý do; «không khoá camera» trong chú thích");
     const nb = await nhom();
     ok(nb[nb.length - 1] === "Máy trạm" && (m.quanLy || nb.length === 1), "thanh bên: Máy trạm DƯỚI CÙNG nhóm Xác minh (" + nb.join(" | ") + ")");
