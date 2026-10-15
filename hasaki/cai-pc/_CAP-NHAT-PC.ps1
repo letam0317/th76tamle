@@ -29,6 +29,11 @@ try {
       if (-not $t) { $thieu += $v.ten } elseif ($t.State -eq "Disabled") { Enable-ScheduledTask -TaskName $t.TaskName -ErrorAction SilentlyContinue | Out-Null; $tat += $v.ten }
     }
     if ($tat.Count) { Ghi ("tu chua: bat lai task bi tat: " + ($tat -join ",")) }
+    # 15/10 nhip tim KET (FOQ 11:44): IgnoreNew + khong gioi han gio -> 1 luot treo chan moi luot sau. Gioi han 2 phut + ket qua > 3 phut thi giet.
+    try { $hb = Get-ScheduledTask -TaskName "Audit nhip tim PC" -ErrorAction Stop
+      if ($hb.Settings.ExecutionTimeLimit -ne "PT2M") { $hb.Settings.ExecutionTimeLimit = "PT2M"; Set-ScheduledTask -InputObject $hb | Out-Null; Ghi "tu chua: nhip tim gioi han 2 phut" }
+      if ($hb.State -eq "Running" -and ((Get-Date) - (Get-ScheduledTaskInfo -TaskName "Audit nhip tim PC").LastRunTime).TotalMinutes -gt 3) { Stop-ScheduledTask -TaskName "Audit nhip tim PC"; Ghi "tu chua: nhip tim KET > 3 phut -> da dung" }
+    } catch { Ghi "[X] tu chua nhip tim: $_" }
     if ($thieu.Count) {
       Ghi ("tu chua: THIEU task " + ($thieu -join ",") + " -> dang ky lai")
       . "$kit\dong-bo-task.ps1"; $kq0 = DongBo-DieuPhoi $kit $cfg $duAn "C:\Users\lechitam\New folder\hasaki"

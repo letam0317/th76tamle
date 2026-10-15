@@ -142,6 +142,8 @@ export async function layBang(log = () => {}, opts = {}) { return guiNhip(log, o
 
 // NHIP TIM (task 'Audit nhip tim PC' moi 1'): do viec dang chay -> gui -> thi hanh LENH DUNG -> CHAY BU viec duoc chuyen sang.
 if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
+  // 15/10 FOQ5T89 câm từ 11:44 dù máy bật: 1 lượt kẹt chờ Google → task (MultipleInstances IgnoreNew) bỏ qua MỌI lượt sau. Tự thoát sau 80 giây (lượt bình thường < 60 giây: GAS 20s + đọc task 30s).
+  setTimeout(() => { try { fs.appendFileSync(path.join(DIR, "runner-dieu-phoi.log"), new Date().toTimeString().slice(0, 8) + " nhip: qua 80s -> tu thoat (chong treo)" + os.EOL); } catch { /* */ } process.exit(3); }, 80000).unref();
   const nk = (...a) => { const d = new Date().toTimeString().slice(0, 8) + " " + a.join(" "); console.error(d); try { fs.appendFileSync(path.join(DIR, "runner-dieu-phoi.log"), d + "\n"); } catch { /* */ } };
   const dc = await doDangChay();
   if (dc) { try { fs.mkdirSync(DC_DIR, { recursive: true }); fs.writeFileSync(DC_TOM, JSON.stringify(Object.keys(dc))); } catch { /* */ } }
