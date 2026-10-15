@@ -485,7 +485,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'sku_ocr') return tbOK_(duLieu) ? phanHoiJson(skuOcr_(duLieu)) : tbTuChoi_();      // khoá thiết bị; OCR Drive miễn phí nhưng vẫn không cho người lạ mượn
     // 14/10 form nghiệm thu checklist kiểm kê — chưa duyệt: CHỈ nhận khi kèm khoá quản trị (bản nội bộ). User duyệt → NT_MO = true.
     if (duLieu && /^nt_(lay|tai|ghi)$/.test(String(duLieu.action || ''))) return (NT_MO ? tbOK_(duLieu) : keyBodyOK_(duLieu)) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();
-    if (duLieu && /^nt_(dung_lai|dinh_dang)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();   // 15/10 dựng lại MỌI ô theo khuôn mới — chỉ khoá quản trị
+    if (duLieu && /^nt_(dung_lai|dinh_dang|tu_dinh_dang)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? phanHoiJson(apiNghiemThu_(duLieu)) : tbTuChoi_();   // 15/10 dựng lại MỌI ô theo khuôn mới — chỉ khoá quản trị
     // PIN qua POST body (an toàn hơn query GET: không lọt access-log/history/referer). Trả JSON thường.
     // GET JSONP cũ vẫn giữ nguyên để frontend hiện tại không gãy — flip frontend sang POST sau đó an toàn.
     if (duLieu && duLieu.action === 'checkPin') return apiCheckPinPost(duLieu);
@@ -3365,10 +3365,11 @@ function apiNghiemThu_(d) {
   try {
     /* sheetId khác chỉ cho KHOÁ QUẢN TRỊ — để QC ghi thử vào sheet nháp, không đụng sheet thật. */
     var id = (d.sheetId && keyBodyOK_(d)) ? String(d.sheetId) : NT_SHEET_ID;
-    if (d.action === 'nt_lay') return ntLay_(id);
+    if (d.action === 'nt_lay') { try { ntTuDinhDang_(id); } catch (eD) { } return ntLay_(id); }   // bảng có dòng mới → trình bày lại trước khi đọc
+    if (d.action === 'nt_tu_dinh_dang') return ntTuDinhDang_(id);
     if (d.action === 'nt_tai') return ntTai_(d);
     if (d.action === 'nt_dung_lai') return ntDungLai_(id);
-    if (d.action === 'nt_dinh_dang') { var dd = ntDinhDang_(id); dd.o = ntDungLai_(id).so; return dd; }   // trình bày cả bảng rồi tô lại ô G (định dạng cả bảng xoá kiểu từng đoạn)
+    if (d.action === 'nt_dinh_dang') { var dd = ntDinhDang_(id); if (!d.chiDinhDang) dd.o = ntDungLai_(id).so; return dd; }   // trình bày cả bảng rồi tô lại ô G (định dạng cả bảng xoá kiểu từng đoạn)
     return ntGhi_(d, id);
   } catch (e) { return { status: 'error', message: String((e && e.message) || e) }; }
 }
@@ -3500,6 +3501,22 @@ function ntDinhDang_(id) {
   sh.autoResizeRows(2, n - 1);
   return { status: 'success', dong: n, nhom: dauNhom.length };
 }
+/* 15/10 user «tự trình bày lại khi có dòng mới»: dấu vân bảng = số dòng/cột + cột STT + dòng nào có Checklist.
+ * Đổi → ntDinhDang_ (chỉ định dạng, KHÔNG cần khoá: không đụng Script Properties/ô G; kiểu từng đoạn ô G vẫn
+ * giữ vì chỉ đặt phông/cỡ chữ). Gọi từ nt_lay (form mở) + lệnh nt_tu_dinh_dang (lịch 15' DAY-BAO-CAO-5S.bat).
+ * Không dùng trigger onChange: cần scope script.scriptapp → bắt cấp phép lại cả web app. */
+function ntTuDinhDang_(id) {
+  var sh = ntTab_(id), n = sh.getLastRow(), m = sh.getLastColumn();
+  var v = sh.getRange(1, 1, Math.max(n, 1), m).getDisplayValues(), c = ntCot_(v[0]);
+  var van = n + '|' + m + '|' + v.map(function (r) { return String(r[c.stt - 1]).trim() + (String(r[c.ck - 1]).trim() ? '+' : '-'); }).join(',');
+  van = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, van, Utilities.Charset.UTF_8));
+  var sp = PropertiesService.getScriptProperties(), khoa = 'NT_DD|' + id;
+  if (sp.getProperty(khoa) === van) return { status: 'success', doi: false };
+  var cache = CacheService.getScriptCache();
+  if (cache.get(khoa)) return { status: 'success', doi: false, dangChay: true };   // lượt khác đang trình bày
+  cache.put(khoa, '1', 120);
+  try { var r = ntDinhDang_(id); sp.setProperty(khoa, van); r.doi = true; return r; } finally { cache.remove(khoa); }
+}
 /* nt_dung_lai: dựng lại MỌI ô G đang có mục theo khuôn hiện tại (đổi khuôn xong chạy 1 lần). */
 function ntDungLai_(id) {
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
@@ -3569,7 +3586,7 @@ function ntGhi_(d, id) {
   var ckGui = String(d.checklist || '').trim(), mu = d.muc || {}, mid = String(mu.id || '').slice(0, 40);
   if (!ckGui) return { status: 'error', message: 'Thiếu nội dung checklist' };
   if (!/^[\w-]{6,40}$/.test(mid)) return { status: 'error', message: 'Thiếu mã mục' };
-  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  var lock = LockService.getScriptLock(); lock.waitLock(60000);   // 15/10: 20s hụt khi nt_dinh_dang/nt_dung_lai giữ khoá → dòng 25 mất bước ghi (7 tệp đã lên Drive)
   try {
     var sp = PropertiesService.getScriptProperties(), khoa = ntKhoa_(id, ckGui), ban = ntDocBan_(sp.getProperty(khoa));
     var vt = -1; for (var i = 0; i < ban.muc.length; i++) if (ban.muc[i].id === mid) vt = i;

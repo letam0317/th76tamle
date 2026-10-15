@@ -11,6 +11,8 @@ REM Xoay log truoc khi ghi (log ghi bang >> nen khong tu nho lai - xem XOAY-LOG.
 call "%~dp0XOAY-LOG.bat" day-bao-cao-5s.log
 echo [%date% %time%] Bat dau day bao cao 5S... >> day-bao-cao-5s.log
 node push-5s-to-workflow.js >> day-bao-cao-5s.log 2>&1
+REM 15/10/2026: sheet Nghiem thu checklist co dong moi thi tu trinh bay lai (khong doi thi bo qua)
+node nt-tu-dinh-dang.mjs >> day-bao-cao-5s.log 2>&1
 echo [%date% %time%] Ket thuc. >> day-bao-cao-5s.log
 echo. >> day-bao-cao-5s.log
 REM Chay xong tu dong dong cua so ngay (log ghi vao day-bao-cao-5s.log).
