@@ -141,7 +141,7 @@
             <div class="rounded-2xl border px-3 py-2" :class="sua === m.id ? 'border-blue-400 bg-blue-50' : m.cho === 'loi' ? 'border-red-200 bg-red-50' : 'border-green-100 bg-green-50'">
               <div class="flex items-center gap-1">
                 <span class="flex-1 min-w-0 text-[11px] text-slate-500 truncate" x-text="m.luc + ' · ' + m.ai + (m.sua ? ' · sửa ' + m.sua : '')"></span>
-                <span x-show="m.cho === 'dang'" class="shrink-0 text-[11px] font-semibold text-blue-600">Đang lưu lên sheet…</span>
+                <span x-show="m.cho === 'dang'" class="shrink-0 text-[11px] font-semibold text-blue-600" x-text="m.tt || 'Đang lưu lên sheet…'"></span>
                 <button type="button" x-show="m.cho === 'loi'" @click="thuLai(m)" class="shrink-0 rounded-xl text-[12px] font-semibold text-red-600 px-2 min-h-[40px]">✗ Chưa lưu — thử lại</button>
                 <button type="button" x-show="!m.cho && sua !== m.id" @click="batSua(m)" class="shrink-0 rounded-xl text-[13px] font-semibold text-blue-700 hover:bg-white px-3 min-h-[40px]">Sửa</button>
                 <button type="button" x-show="!m.cho && sua !== m.id" @click="xoaMuc(m)" class="shrink-0 rounded-xl text-[13px] font-semibold text-red-600 hover:bg-white px-3 min-h-[40px]">Xoá</button>
@@ -456,7 +456,7 @@
       },
 
       /* Gọi GAS: trả HTML (chập chờn 404 — bẫy 12/08) hoặc rớt mạng thì thử lại CÙNG nonce → máy chủ không ghi 2 lần. */
-      async goi(body, lan = 4) {
+      async goi(body, lan = 4, cho = 150000) {
         const nonce = body.nonce || ('nt' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
         let tb = ''; try { tb = localStorage.getItem('tb-khoa') || ''; } catch (e) {}
         const goi = JSON.stringify(Object.assign({}, body, { nonce, tb }));
@@ -464,9 +464,14 @@
         for (let i = 0; i < lan; i++) {
           if (i) await new Promise(r => setTimeout(r, 1500 * i));
           try {
-            const r = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: goi,
-              signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(150000) : undefined });
-            const t = String(await r.text() || '').trim();
+            /* 15/10: trình duyệt cũ không có AbortSignal.timeout → không có hạn chờ, mục ADJ treo «Đang lưu…» mãi. Tự đặt hạn bằng AbortController. */
+            const hc = new AbortController(), hen = setTimeout(() => hc.abort(), cho);
+            let t;
+            try {
+              const r = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: goi, signal: hc.signal });
+              t = String(await r.text() || '').trim();
+            } catch (e) { throw new Error(e && e.name === 'AbortError' ? 'mạng chậm, quá ' + Math.round(cho / 1000) + ' giây chưa xong' : ((e && e.message) || String(e))); }
+            finally { clearTimeout(hen); }
             if (t.charAt(0) !== '{') { loi = 'Apps Script trả trang lỗi (chập chờn)'; continue; }
             const j = JSON.parse(t);
             if (j.canKhoa) { this.canQuyen = true; throw Object.assign(new Error('Máy này chưa được cấp quyền — xin mã OTP ở khung phía trên'), { dung: 1 }); }
@@ -641,22 +646,29 @@
         m.cho = 'dang'; m.loi = '';
         try {
           const can = m.tep.filter(t => !t.id), hang = can.slice();
+          /* 15/10: hiện tiến trình thật (trước chỉ «Đang lưu lên sheet…» suốt nhiều phút → tưởng treo). */
+          let xong = 0; const ttTai = () => { m.tt = can.length ? 'Đang tải ảnh/clip ' + xong + '/' + can.length + '…' : ''; };
+          ttTai();
           const tho = async () => {
             while (hang.length) {
               const t = hang.shift(), f = t._f, b64 = String(f.base64 || ''), k = b64.indexOf('base64,');
-              const j = await this.goi({ action: 'nt_tai', dong: d.dong, ten: f.ten, mime: f.mime, base64: k >= 0 ? b64.slice(k + 7) : b64 });
+              /* tệp lớn: hạn chờ theo cỡ (≥2 phút, +8 giây/MB), chỉ thử lại 1 lần — 4 lần × tệp 37MB = treo trên 10 phút */
+              const mb = b64.length * 0.75 / 1048576;
+              const j = await this.goi({ action: 'nt_tai', dong: d.dong, ten: f.ten, mime: f.mime, base64: k >= 0 ? b64.slice(k + 7) : b64 }, 2, Math.max(120000, 60000 + mb * 8000));
               if (j.status !== 'success') throw new Error(j.message || 'Không tải được ảnh/clip');
               t.id = j.id; t.ky = j.ky; delete t._f;   // xong thì nhả base64 cho nhẹ máy
+              xong++; ttTai();
               this._luuMay();   // tệp đã lên Drive → cất id+ky để gửi lại được dù trang bị đóng
             }
           };
           await Promise.all(Array.from({ length: Math.min(this.TOI_DA_SONG_SONG, can.length) }, tho));
+          m.tt = 'Đang ghi vào sheet…';
           const ng = this._nguoiDung() || {};
           const j = await this.goi({ action: 'nt_ghi', dong: d.dong, checklist: d.checklist, nguoiGui: { ten: m.ai, code: ng.code || '' },
             muc: { id: m.id, ghiChu: m.ghiChu, tep: m.tep.map(t => Object.assign({ id: t.id, ky: t.ky, loai: t.loai }, this._metaTep(t))) } });
           if (j.status !== 'success') throw new Error(j.message || 'Lỗi máy chủ');
           this._hopNhat(d, j, m);
-        } catch (e) { if (m._cu && !m.tep.some(t => t.id)) { /* giữ bản sửa để thử lại */ } m.cho = 'loi'; m.loi = e.message; this._luuMay(); this.thongBao = { loai: 'err', noiDung: '✗ Chưa lưu được lên sheet: ' + e.message + ' — bấm "thử lại" ở phản hồi đó.' }; }
+        } catch (e) { m.tt = ''; if (m._cu && !m.tep.some(t => t.id)) { /* giữ bản sửa để thử lại */ } m.cho = 'loi'; m.loi = e.message; this._luuMay(); this.thongBao = { loai: 'err', noiDung: '✗ Chưa lưu được lên sheet: ' + e.message + ' — bấm "thử lại" ở phản hồi đó.' }; }
       },
       /* Lấy danh sách mục máy chủ trả về làm gốc; mục khác đang đẩy dở trên máy thì giữ bản máy; giữ ảnh xem trước cho mượt. */
       _hopNhat(d, j, m) {
@@ -784,6 +796,7 @@
         }
         if (!stream) { this.dangChupAnh = false; alert('Không mở được camera. Hãy cho phép quyền camera/mic và mở trang qua HTTPS.\n' + loiCuoi); return; }
         this._cameraStream = stream;
+        this._ngheTrongLuc();
         const v = this.$refs.video;
         v.muted = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
         v.srcObject = stream; await v.play().catch(() => {});
@@ -791,12 +804,34 @@
       async doiCamera() { if (this.dangQuay) return; this.cameraSau = !this.cameraSau; await this._batCamera(); },
       async datCheDo(video) { if (this.dangQuay || this.cheDoVideo === video) return; this.cheDoVideo = video; await this._batCamera(); },
       _themTep(o) { o.tam = maMoi('t'); o.ghiChu = ''; o.viTri = ''; o.ma = ''; this.files.push(o); },
+      /* 15/10: cầm ngang điện thoại (máy khoá xoay màn hình) thì luồng camera vẫn là khung DỌC → ảnh lưu nằm nghiêng
+         (17 ảnh nghiệm thu 14–15/10). Đọc chiều trọng lực lúc bấm chụp để xoay ảnh về đúng chiều. Không xin quyền:
+         máy không cho đọc cảm biến (iPhone chưa cấp) thì giữ như cũ. */
+      _ngheTrongLuc() {
+        if (this._daNgheTL || typeof window.DeviceMotionEvent === 'undefined') return;
+        this._daNgheTL = true;
+        const ios = /iP(hone|ad|od)/.test(navigator.userAgent);   // Safari iOS báo ngược dấu so với Android
+        window.addEventListener('devicemotion', (e) => {
+          const g = e.accelerationIncludingGravity; if (!g || g.x == null) return;
+          this._trongLuc = { x: ios ? -g.x : g.x, y: ios ? -g.y : g.y, luc: Date.now() };
+        });
+      },
+      _gocXoay(w, h) {
+        const g = this._trongLuc;
+        if (!g || Date.now() - g.luc > 2000 || w > h) return 0;   // không có số đo mới, hoặc luồng camera đã ngang sẵn
+        if (Math.abs(g.x) < 5 || Math.abs(g.x) < Math.abs(g.y) * 1.3) return 0;   // đang cầm dọc / nghiêng ít
+        return g.x > 0 ? 270 : 90;   // cạnh phải chĩa lên → xoay ngược kim; cạnh trái chĩa lên → xoay xuôi kim
+      },
       chupAnh() {
         const v = this.$refs.video; if (!v || !v.videoWidth) return;
         let w = v.videoWidth, h = v.videoHeight;
         if (Math.max(w, h) > this.MAX_ANH_PX) { const s = this.MAX_ANH_PX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
-        const c = this.$refs.canvas; c.width = w; c.height = h;
-        c.getContext('2d').drawImage(v, 0, 0, w, h);
+        const c = this.$refs.canvas, goc = this._gocXoay(w, h), ctx = c.getContext('2d');
+        if (goc) { c.width = h; c.height = w; } else { c.width = w; c.height = h; }
+        if (goc === 270) { ctx.translate(0, w); ctx.rotate(-Math.PI / 2); }
+        else if (goc === 90) { ctx.translate(h, 0); ctx.rotate(Math.PI / 2); }
+        ctx.drawImage(v, 0, 0, w, h);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         const dataUrl = c.toDataURL('image/jpeg', 0.8);
         this._themTep({ ten: 'chup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.jpg', loai: 'image', mime: 'image/jpeg', preview: dataUrl, base64: dataUrl });
         this.soAnhChup++;

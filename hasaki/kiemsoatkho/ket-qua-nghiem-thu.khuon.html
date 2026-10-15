@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kết quả nghiệm thu</title>
+<!-- KHUÔN: tao-ket-qua-nghiem-thu.mjs nhúng dữ liệu vào chỗ DU_LIEU rồi ghi ra ket-qua-nghiem-thu.html. Sửa giao diện ở tệp này. -->
+<style>
+  :root {
+    --nen: #f3f5f4; --the: #fff; --chu: #18211d; --nhat: #5f6b66; --mo: #8a948f; --vien: #e2e7e4;
+    --xanh: #0f5132; --xanh-2: #146c43; --xanh-nhat: #e6f2ec;
+    --dat: #157347; --dat-nen: #e3f4ea; --chua: #b42318; --chua-nen: #fdeceb; --cho: #946200; --cho-nen: #fdf4d9; --cho-dam: #d9a400;
+    --bong: 0 1px 2px rgba(16,24,20,.06), 0 2px 8px rgba(16,24,20,.05);
+    --h: 260px;            /* chiều cao hàng ảnh/clip */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--nen); color: var(--chu); font: 14px/1.55 "Segoe UI", Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--xanh-2); }
+  .khung { max-width: 1120px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* Đầu trang + 3 thẻ tổng (bấm thẻ = lọc) */
+  header { background: linear-gradient(135deg, var(--xanh), var(--xanh-2)); color: #fff; border-radius: 14px; padding: 20px 22px; box-shadow: var(--bong); }
+  header h1 { margin: 0; font-size: 24px; line-height: 1.25; letter-spacing: .2px; }
+  header .phu { font-size: 16px; opacity: .92; margin-top: 2px; }
+  header .nguon { font-size: 12.5px; opacity: .78; margin-top: 10px; }
+  header .nguon a { color: #fff; }
+  .tong { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 14px 0 0; }
+  .the-tong { background: var(--the); border: 1px solid var(--vien); border-radius: 12px; padding: 12px 14px; cursor: pointer; text-align: left; font: inherit; color: inherit; box-shadow: var(--bong); border-top: 4px solid var(--mau); transition: box-shadow .15s, transform .15s; }
+  .the-tong:hover { transform: translateY(-1px); }
+  .the-tong.on { box-shadow: 0 0 0 2px var(--mau), var(--bong); }
+  .the-tong .ten { font-size: 13px; color: var(--nhat); }
+  .the-tong .so { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+  .the-tong .so b { font-size: 30px; line-height: 1.1; color: var(--mau); }
+  .the-tong .so span { font-size: 13px; color: var(--nhat); }
+  .the-tong .so em { margin-left: auto; font-style: normal; font-size: 13px; font-weight: 600; color: var(--mau); background: color-mix(in srgb, var(--mau) 12%, transparent); border-radius: 999px; padding: 1px 9px; }
+  .cong-cu { display: flex; gap: 10px; align-items: center; margin: 14px 0 4px; }
+  .cong-cu .dang { color: var(--nhat); font-size: 13px; }
+  .cong-cu .bo-loc { border: 0; background: none; color: var(--xanh-2); cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline; padding: 0; }
+  .tim { margin-left: auto; flex: 0 1 300px; border: 1px solid var(--vien); border-radius: 999px; padding: 8px 14px; font: inherit; background: var(--the); }
+  .tim:focus { outline: none; border-color: var(--xanh-2); box-shadow: 0 0 0 3px var(--xanh-nhat); }
+
+  /* Nhóm việc */
+  .nhom { display: flex; gap: 10px; align-items: center; margin: 26px 0 10px; }
+  .nhom .so { background: var(--xanh); color: #fff; border-radius: 8px; min-width: 28px; height: 28px; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .nhom h2 { margin: 0; font-size: 17px; }
+  .nhom .dem { margin-left: auto; display: flex; gap: 6px; }
+  .nhom .dem span { font-size: 12px; border-radius: 999px; padding: 1px 8px; font-weight: 600; }
+
+  /* Mục */
+  .muc { background: var(--the); border: 1px solid var(--vien); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; box-shadow: var(--bong); position: relative; overflow: hidden; }
+  .muc::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--vach); }
+  .muc.dat { --vach: var(--dat); } .muc.chua { --vach: var(--chua); } .muc.cho { --vach: var(--cho-dam); }
+  .dau { display: flex; gap: 12px; align-items: flex-start; }
+  .dau .stt { flex: none; color: var(--mo); font-weight: 600; font-size: 13px; padding-top: 1px; min-width: 30px; }
+  .dau .ck { flex: 1; white-space: pre-line; font-weight: 600; font-size: 14.5px; }
+  .nhan { flex: none; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 11px; white-space: nowrap; }
+  .nhan.dat, .dem .dat { color: var(--dat); background: var(--dat-nen); }
+  .nhan.chua, .dem .chua { color: var(--chua); background: var(--chua-nen); }
+  .nhan.cho, .dem .cho { color: var(--cho); background: var(--cho-nen); }
+  .than { margin-left: 42px; }
+  .td { margin-top: 10px; font-size: 13px; color: var(--nhat); white-space: pre-line; padding: 8px 12px; background: #f7f9f8; border-radius: 8px; }
+  .td b { color: var(--chu); font-weight: 600; }
+  .ph { margin-top: 14px; }
+  .ph + .ph { padding-top: 14px; border-top: 1px dashed var(--vien); }
+  .ph .gc { white-space: pre-line; margin-bottom: 10px; }
+  .tay { margin-top: 12px; padding: 9px 12px; background: var(--xanh-nhat); border-radius: 8px; white-space: pre-line; font-size: 13.5px; }
+
+  /* Ảnh/clip: giữ đúng khổ — ảnh ngang hiện ngang, ảnh dọc hiện dọc (--ty = rộng/cao, đo lúc dựng) */
+  .luoi { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  .tep { --ty: .5625; width: max(180px, calc(var(--ty) * var(--h))); max-width: 100%; background: var(--the); border: 1px solid var(--vien); border-radius: 10px; overflow: hidden; box-shadow: var(--bong); }
+  .tep .hinh { position: relative; aspect-ratio: var(--ty); background: #1b1f1d; cursor: zoom-in; overflow: hidden; }
+  .tep .hinh img, .tep .hinh video { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s; }
+  .tep .hinh:hover img, .tep .hinh:hover video { transform: scale(1.03); }
+  /* Ảnh nằm nghiêng xem từ link Drive (ngoài máy này): xoay bằng CSS; trên máy này đã có tệp xoay sẵn */
+  .tep .hinh img.x270 { position: absolute; left: 50%; top: 50%; width: calc(100% / var(--ty)); height: calc(100% * var(--ty)); transform: translate(-50%, -50%) rotate(-90deg); }
+  .tep .hinh:hover img.x270 { transform: translate(-50%, -50%) rotate(-90deg) scale(1.03); }
+  .xem img.x270 { transform: rotate(-90deg); max-width: calc(100vh - 120px); max-height: calc(100vw - 32px); }
+  .tep .hinh .play { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; display: grid; place-items: center; font-size: 18px; padding-left: 3px; pointer-events: none; }
+  .tep .hinh .loai { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; font-weight: 600; border-radius: 4px; padding: 1px 7px; letter-spacing: .3px; }
+  .tep .chu { padding: 8px 10px 10px; font-size: 12.5px; line-height: 1.45; }
+  .the-ma { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .the-ma span { font-size: 11.5px; background: #f1f4f2; border: 1px solid var(--vien); border-radius: 5px; padding: 0 6px; color: var(--nhat); word-break: break-all; }
+  .the-ma span b { font-weight: 600; color: var(--chu); }
+
+  .rong { text-align: center; color: var(--nhat); padding: 40px 0; }
+  .xem { position: fixed; inset: 0; background: rgba(8,12,10,.96); display: none; z-index: 10; flex-direction: column; align-items: center; justify-content: center; padding: 16px 56px; }
+  .xem.mo { display: flex; }
+  .xem a { color: #8fd6ae; }
+  .xem img, .xem video, .xem iframe { max-width: 100%; max-height: calc(100vh - 120px); border-radius: 8px; background: #000; }
+  .xem iframe { width: min(960px, 100%); height: calc(100vh - 120px); border: 0; }
+  .xem .chu { color: #fff; margin-top: 12px; text-align: center; max-width: 900px; font-size: 14px; }
+  .xem .chu .vt { color: #b9c4bf; font-size: 13px; }
+  .xem .dong { position: absolute; top: 10px; right: 14px; color: #fff; font-size: 30px; background: none; border: 0; cursor: pointer; }
+  .xem .lui, .xem .toi { position: absolute; top: 50%; transform: translateY(-50%); color: #fff; font-size: 44px; background: none; border: 0; cursor: pointer; padding: 10px; }
+  .xem .lui { left: 4px; } .xem .toi { right: 4px; }
+
+  @media (max-width: 640px) {
+    :root { --h: 200px; }
+    .khung { padding: 10px 10px 30px; }
+    header { padding: 16px; } header h1 { font-size: 21px; }
+    .tong { gap: 8px; } .the-tong { padding: 9px 10px; } .the-tong .so b { font-size: 24px; }
+    .cong-cu { flex-wrap: wrap; } .tim { margin-left: 0; flex: 1 1 100%; order: -1; }
+    .muc { padding: 14px; } .than { margin-left: 0; } .dau .stt { min-width: 0; }
+    .luoi { gap: 8px; } .tep { width: calc(50% - 4px); }
+    .tep.ngang { width: 100%; }
+    .xem { padding: 12px; } .xem .lui, .xem .toi { top: auto; bottom: 8px; transform: none; }
+  }
+  @media print {
+    body { background: #fff; } .cong-cu, .xem { display: none !important; }
+    .muc, .tep { break-inside: avoid; box-shadow: none; } .tep .hinh .play { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="khung">
+  <header>
+    <h1>Kết quả nghiệm thu</h1>
+    <div class="phu">Công việc sắp xếp chuẩn bị kiểm tổng</div>
+    <div class="nguon" id="nguon"></div>
+  </header>
+  <div class="tong" id="tong"></div>
+  <div class="cong-cu"><span class="dang" id="dang"></span><input class="tim" id="tim" type="search" placeholder="Tìm mục, vị trí, SKU…"></div>
+  <main id="ds"></main>
+</div>
+<div class="xem" id="xem">
+  <button class="dong" title="Đóng" data-dong>×</button>
+  <button class="lui" title="Trước" data-buoc="-1">‹</button>
+  <div id="xemND"></div>
+  <div class="chu" id="xemChu"></div>
+  <button class="toi" title="Sau" data-buoc="1">›</button>
+</div>
+<script>
+const DL = /*__DU_LIEU__*/null;
+/* Trên máy này (xem-noi-bo / mở tệp trực tiếp) dùng bản đã tải về nt-media/; nơi khác dùng link Drive (anyone-with-link). */
+const TREN_MAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) || location.protocol === 'file:';
+const KL = { dat: ['Đạt', 'var(--dat)'], chua: ['Chưa đạt', 'var(--chua)'], cho: ['Chưa nghiệm thu', 'var(--cho-dam)'] };
+const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const boDau = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
+/* Link dán trong ghi chú → chữ ngắn «Link WMS» / «Link» (cùng khuôn ô G của sheet). */
+const lienKet = (s) => esc(s).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${/wms\./.test(u) ? 'Link WMS' : 'Link'}</a>`);
+const nguon = (t) => TREN_MAY ? 'nt-media/' + t.may : (t.loai === 'video' ? `https://drive.google.com/file/d/${t.id}/preview` : `https://drive.google.com/thumbnail?id=${t.id}&sz=w1600`);
+const lopXoay = (t) => (!TREN_MAY && t.xoay === 270 ? ' class="x270"' : '');
+const anhNho = (t) => TREN_MAY ? 'nt-media/' + t.may : `https://drive.google.com/thumbnail?id=${t.id}&sz=w800`;
+const theMa = (t) => {
+  const vt = t.viTri && (/^https?:/.test(t.viTri) ? lienKet(t.viTri) : `<b>Vị trí</b> ${esc(t.viTri)}`);
+  return [vt, t.ma && `<b>Mã</b> ${esc(t.ma)}`].filter(Boolean);
+};
+
+let loc = 'tat', tu = '';
+const tatCaTep = [];
+
+function veTong() {
+  const dem = { dat: 0, chua: 0, cho: 0 }; DL.muc.forEach((m) => dem[m.ketLuan]++);
+  const n = DL.muc.length, nTep = DL.muc.reduce((a, m) => a + m.phanHoi.reduce((b, p) => b + p.tep.length, 0), 0);
+  document.getElementById('nguon').innerHTML = `${n} mục kiểm · ${nTep} ảnh/clip hiện trạng · số liệu lúc ${esc(DL.luc)} · <a href="${DL.sheet}" target="_blank" rel="noopener">Sheet nghiệm thu</a>`;
+  /* 15/10 user: bỏ thẻ «Chưa nghiệm thu»; số mục và % tách rời (trước dính thành «615%») */
+  document.getElementById('tong').innerHTML = ['dat', 'chua'].map((k) =>
+    `<button class="the-tong${loc === k ? ' on' : ''}" style="--mau:${KL[k][1]}" data-loc="${k}"><div class="ten">${KL[k][0]}</div><div class="so"><b>${dem[k]}</b><span>/ ${n} mục</span><em>${Math.round(dem[k] / n * 100)}%</em></div></button>`).join('');
+}
+
+function khop(m) {
+  if (loc !== 'tat' && m.ketLuan !== loc) return false;
+  if (!tu.trim()) return true;
+  const kho = boDau([m.stt, m.congViec, m.checklist, m.tienDo, m.tay, ...m.phanHoi.flatMap((p) => [p.ghiChu, ...p.tep.flatMap((t) => [t.ghiChu, t.viTri, t.ma])])].join(' '));
+  return boDau(tu).split(/\s+/).filter(Boolean).every((w) => kho.includes(w));
+}
+
+function veTep(t) {
+  const i = tatCaTep.push(t) - 1, ma = theMa(t), ty = t.ty || (t.loai === 'video' ? .5625 : .75);
+  const hinh = t.loai === 'video'
+    ? (TREN_MAY ? `<video src="${anhNho(t)}#t=0.5" preload="metadata" muted playsinline></video>` : `<img loading="lazy" src="${anhNho(t)}" alt="">`) + '<span class="play">▶</span><span class="loai">CLIP</span>'
+    : `<img loading="lazy"${lopXoay(t)} src="${anhNho(t)}" alt="">`;
+  const chu = t.ghiChu || ma.length ? `<div class="chu">${lienKet(t.ghiChu)}${ma.length ? `<div class="the-ma">${ma.map((x) => `<span>${x}</span>`).join('')}</div>` : ''}</div>` : '';
+  return `<div class="tep${ty > 1.15 ? ' ngang' : ''}" style="--ty:${ty}"><div class="hinh" data-xem="${i}">${hinh}</div>${chu}</div>`;
+}
+
+function veDs() {
+  tatCaTep.length = 0;
+  const ds = DL.muc.filter(khop);
+  document.getElementById('dang').innerHTML = loc === 'tat' && !tu.trim() ? `Hiển thị toàn bộ ${ds.length} mục`
+    : `Đang xem ${ds.length} mục${loc !== 'tat' ? ' «' + KL[loc][0] + '»' : ''} · <button class="bo-loc" data-loc="tat" data-xoa-tim>Xem tất cả</button>`;
+  if (!ds.length) { document.getElementById('ds').innerHTML = '<div class="rong">Không có mục nào khớp.</div>'; return; }
+  /* gom theo nhóm việc (STT cột A) để đánh số 1.1, 1.2… */
+  const nhom = [];
+  for (const m of ds) { const k = m.stt + '|' + m.congViec; if (!nhom.length || nhom[nhom.length - 1].k !== k) nhom.push({ k, stt: m.stt, ten: m.congViec, ds: [] }); nhom[nhom.length - 1].ds.push(m); }
+  let html = '';
+  for (const g of nhom) {
+    const dem = {}; g.ds.forEach((m) => dem[m.ketLuan] = (dem[m.ketLuan] || 0) + 1);
+    html += `<div class="nhom"><span class="so">${esc(g.stt)}</span><h2>${esc(g.ten)}</h2><div class="dem">${g.ds.length < 2 ? "" : Object.keys(KL).filter((k) => dem[k]).map((k) => `<span class="${k}" title="${KL[k][0]}">${dem[k]} ${KL[k][0].toLowerCase()}</span>`).join('')}</div></div>`;
+    g.ds.forEach((m, i) => {
+      const so = g.ds.length > 1 || DL.muc.filter((x) => x.stt === m.stt).length > 1 ? `${m.stt}.${DL.muc.filter((x) => x.stt === m.stt).indexOf(m) + 1}` : m.stt;
+      const td = m.tienDo && m.tienDo !== '//' ? `<div class="td"><b>Tiến độ bộ phận báo:</b> ${lienKet(m.tienDo)}</div>` : '';
+      const ph = m.phanHoi.map((p) => `<div class="ph">${p.ghiChu ? `<div class="gc">${lienKet(p.ghiChu)}</div>` : ''}${p.tep.length ? `<div class="luoi">${p.tep.map(veTep).join('')}</div>` : ''}</div>`).join('');
+      html += `<article class="muc ${m.ketLuan}"><div class="dau"><span class="stt">${esc(so)}</span><div class="ck">${esc(m.checklist)}</div><span class="nhan ${m.ketLuan}">${KL[m.ketLuan][0]}</span></div><div class="than">${td}${ph}${m.tay ? `<div class="tay">${lienKet(m.tay)}</div>` : ''}</div></article>`;
+    });
+  }
+  document.getElementById('ds').innerHTML = html;
+}
+
+/* Tệp chưa đo được khổ lúc dựng → đo khi tải xong rồi chỉnh khung. */
+document.addEventListener('load', (e) => { const el = e.target; if (el.tagName === 'IMG' && !el.classList.contains('x270')) chinhKho(el, el.naturalWidth, el.naturalHeight); }, true);
+document.addEventListener('loadedmetadata', (e) => { const el = e.target; if (el.closest('.tep')) chinhKho(el, el.videoWidth, el.videoHeight); }, true);
+function chinhKho(el, w, h) {
+  const tep = el.closest('.tep'); if (!tep || !w || !h) return;
+  const ty = +(w / h).toFixed(3); if (Math.abs(ty - parseFloat(tep.style.getPropertyValue('--ty'))) < .02) return;
+  tep.style.setProperty('--ty', ty); tep.classList.toggle('ngang', ty > 1.15);
+}
+
+let dangXem = -1;
+function moXem(i) {
+  const t = tatCaTep[i]; if (!t) return; dangXem = i;
+  const src = nguon(t);
+  document.getElementById('xemND').innerHTML = t.loai === 'video'
+    ? (TREN_MAY ? `<video src="${src}" controls autoplay playsinline></video>` : `<iframe src="${src}" allow="autoplay"></iframe>`)
+    : `<img${lopXoay(t)} src="${src}" alt="">`;
+  const ma = theMa(t);
+  document.getElementById('xemChu').innerHTML = [lienKet(t.ghiChu), ma.length && `<span class="vt">${ma.join(' · ').replace(/<\/?b>/g, '')}</span>`, `<span class="vt">${i + 1}/${tatCaTep.length}</span>`].filter(Boolean).join('<br>');
+  document.getElementById('xem').classList.add('mo');
+}
+function dongXem() { dangXem = -1; document.getElementById('xem').classList.remove('mo'); document.getElementById('xemND').innerHTML = ''; }
+
+document.getElementById('tim').addEventListener('input', (e) => { tu = e.target.value; veDs(); });
+document.addEventListener('click', (e) => {
+  const l = e.target.closest('[data-loc]');
+  if (l) { loc = loc === l.dataset.loc ? 'tat' : l.dataset.loc; if (l.hasAttribute('data-xoa-tim')) { tu = ''; document.getElementById('tim').value = ''; } veTong(); veDs(); return; }
+  const x = e.target.closest('[data-xem]'); if (x) return moXem(+x.dataset.xem);
+  const b = e.target.closest('[data-buoc]'); if (b) return moXem((dangXem + +b.dataset.buoc + tatCaTep.length) % tatCaTep.length);
+  if (e.target.closest('[data-dong]') || e.target.id === 'xem') dongXem();
+});
+document.addEventListener('keydown', (e) => {
+  if (dangXem < 0) return;
+  if (e.key === 'Escape') dongXem();
+  if (e.key === 'ArrowRight') moXem((dangXem + 1) % tatCaTep.length);
+  if (e.key === 'ArrowLeft') moXem((dangXem - 1 + tatCaTep.length) % tatCaTep.length);
+});
+veTong(); veDs();
+</script>
+</body>
+</html>
