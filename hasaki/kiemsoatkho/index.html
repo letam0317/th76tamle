@@ -1112,8 +1112,8 @@ body.side-open #sideNav{transform:none;}
 #sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}
 /* 15/10 «Tồn kho chính xác»: 2 phần cùng trang — tiêu đề phần (antd Title 20/600) */
 /* 15/10 (lượt 2) user «Kiểm kê và Bất thường là 2 khung khác nhau — đóng khung cho đẹp»: mỗi phần = 1 khung (Card antd) — tiêu đề là đầu khung, vạch ngăn dưới */
-#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){border:1px solid var(--ad-chia,var(--border));border-radius:8px;background:color-mix(in srgb,var(--text) 2%,var(--surface));padding:0 16px 16px;margin-bottom:16px}
-#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{display:block;margin:0 -16px 16px;padding:12px 24px;border-bottom:1px solid var(--ad-chia,var(--border));background:var(--surface);border-radius:8px 8px 0 0;font-size:16px;font-weight:600;line-height:24px;color:var(--text)}
+#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){border:1px solid var(--ad-chia,var(--border));border-radius:8px;background:var(--surface);padding:0 24px 4px;margin-bottom:16px}
+#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{display:block;margin:0 -24px;padding:16px 24px;border-bottom:1px solid var(--ad-chia,var(--border));background:var(--surface);border-radius:8px 8px 0 0;font-size:16px;font-weight:600;line-height:24px;color:var(--text)}
 #pane-kk:not(.hidden)::before{content:"Kiểm kê"}
 #pane-htonbat:not(.hidden)::before{content:"Bất thường"}
 @media(max-width:768px){#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){padding:0 8px 8px}#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{margin:0 -8px 12px;padding:10px 16px}}
@@ -1446,7 +1446,7 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261015f"></script>
+<script src="hasaki-giaodien-antd.js?v=20261015g"></script>
 <script src="tai-khoan.js?v=20261015b"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 </head>
 <body class="hx-an">

@@ -284,7 +284,6 @@
     /* 15/10 user: HÀNG 2 = [Kiểm kê theo SKU] [Kiểm kê theo mã vị trí] NGANG HÀNG; 6 ô số VẪN 1 hàng ⇒ ô gọn (đệm 8×10, nhãn 12 tối đa 2 dòng, số 20/600).
        Màn < 1280 (khung nội dung < ~1000px) giữ xếp chồng — 6 ô trong nửa khung sẽ quá hẹp để đọc. */
     "@media(min-width:1280px){" + B + " #pane-kk .hk-grid2," + B + " #viewKK .grid2.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}" +
-      B + " :is(#pane-kk .hk-grid2 > .hk-panel,#viewKK .grid2.even > .panel){padding:16px!important}" +
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip){gap:8px!important}" +
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{padding:8px 10px!important}" +
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{font-size:12px!important;line-height:18px!important;white-space:normal!important;overflow:visible!important;min-height:36px}" +
@@ -297,6 +296,22 @@
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .s{max-height:32px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}" +
       B + " :is(#pane-kk .hk-grid2 > .hk-panel,#viewKK .grid2.even > .panel) > h2{min-height:28px;margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}",
     "@media(max-width:768px){" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip){grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{padding:8px 10px!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{font-size:12px!important;line-height:18px!important;white-space:normal!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v{font-size:20px!important;line-height:28px!important}}",   // 15/10 điện thoại 3 cột × 2 hàng (6 ô 1 hàng không đọc được ở 390px)
+    /* 15/10 user «dùng ant design QC lại khung Kiểm kê/Bất thường — nhiều khung, không chuyên nghiệp»: đo được 3 tầng viền lồng nhau
+       (khung phần → thẻ khối → ô số). Chuẩn antd: 1 Card / phần; bên trong KHÔNG lồng Card — khối là vùng phẳng ngăn bằng vạch ngang
+       (Divider), ô số là Statistic không viền ngăn bằng vạch dọc; thẻ kho (Tiến độ theo kho) = nền xám nhạt, không viền. */
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.panel,.hk-panel,.ht-panel){border:0!important;border-top:1px solid var(--ad-chia)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:20px 0!important;margin:-1px 0 0!important;min-height:0}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.panel,.hk-panel,.ht-panel) :is(.panel,.hk-panel,.ht-panel){border-top:0!important;padding:0!important;margin:0!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-grid2,.hk-hang1,.grid2,.kktop,.kkphai,.ht-grid2){gap:0 32px!important;margin:0!important;align-items:stretch}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) .kkphai{gap:0!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.panel,.hk-panel,.ht-panel) > h2{margin:0 0 12px!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles){gap:0!important;margin:12px 0!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile){border:0!important;border-left:1px solid var(--ad-chia)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:4px 16px!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile):first-child{border-left:0!important;padding-left:0!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile):hover{background:var(--ad-re)!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(#tvtWrap .abntiles > .abntile){padding:4px 16px!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.whcard,.hk-whcard){border:0!important;background:color-mix(in srgb,var(--text) 3%,var(--surface))!important;box-shadow:none!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.whcard,.hk-whcard).active{box-shadow:inset 0 0 0 1px var(--accent)!important}",
+    "@media(max-width:768px){" + B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile){padding:4px 10px!important}" + B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile):nth-child(3n+1){border-left:0!important;padding-left:0!important}}",
     /* 13/10 QC «vừa chiều ngang»: bảng Task vi phạm (Retail) rộng 1.342px trong khung 1.159px ở màn 1440 → phải kéo ngang.
        Tên NV / quản lý được xuống dòng (bỏ min 22ch), nhãn cột «Tần suất vi phạm» xuống dòng — bảng vừa khung, không cuộn ngang */
     "@media(min-width:769px){" + B + " :is(thead th,tbody td):is(.c-nv,.c-ql){min-width:0!important;white-space:normal!important}" + B + " thead th:is(.c-freq,.c-nv,.c-ql){white-space:normal!important}}",
