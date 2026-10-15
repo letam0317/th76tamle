@@ -88,10 +88,34 @@ export function chiaViec(board, now, cfg) {
   const conLai = ds.filter(({ v }) => !(v.uuTien && v.uuTien.length)).map((x) => ({ ...x, du: dungDuoc(x.v, x.song) }));
   conLai.sort((a, b) => (b.v.nang ? 1 : 0) - (a.v.nang ? 1 : 0) || a.du.length - b.du.length || String(a.v.ten).localeCompare(String(b.v.ten)));
   const nhaNang = cfg.mayViecNang || [];                              // 14/10 user «việc nặng nên đưa cho je75k38»: máy nhà của việc nặng
+  /* 15/10 user «2 máy JE75K38 / FOQ5T89 ưu tiên xác minh, tìm bằng chứng camera B1 để chuyển B1.1»: cfg.mayB1 = máy dành cho việc
+     có b1:true — việc B1 giao TRƯỚC, chia đều giữa các máy B1 (còn sống + đủ khoá + khoẻ + bản mới); việc khác NÉ máy B1 khi còn máy
+     khác đủ điều kiện (để 2 máy rảnh cho B1). Không máy B1 nào dùng được → việc B1 chia đều như thường. Khoá xm_khoa của chay-xm vẫn
+     chỉ cho 1 máy chạy cò xác minh 1 lúc (dữ liệu chung) — 2 máy là để gánh thay + nhẹ tải, không phải chạy song song. */
+  const mayB1 = cfg.mayB1 || [];
+  const laB1 = (v) => !!v.b1 && mayB1.length > 0;
+  conLai.sort((a, b) => (laB1(b.v) ? 1 : 0) - (laB1(a.v) ? 1 : 0));   // sort ổn định: giữ thứ tự cũ trong từng nhóm
+  for (const x of conLai) {
+    if (laB1(x.v)) {
+      const b1 = x.du.filter((hb) => mayB1.includes(hb.may) && !hb.yeu && ("chayLuc" in hb));
+      if (b1.length) x.du = b1;
+    } else if (mayB1.length) {
+      const ngoai = x.du.filter((hb) => !mayB1.includes(hb.may));
+      if (ngoai.length) x.du = ngoai;
+    }
+  }
   for (const { v, du } of conLai) {
     const w = v.nang ? TAI_NANG : TAI_NHE;
+    if (laB1(v) && du.length && du.every((hb) => mayB1.includes(hb.may))) {         // việc B1 đã lọc về máy B1 → chia đều giữa chúng, bỏ qua mayViecNang
+      let tot = null, totTi = Infinity;
+      for (const hb of du) {
+        const ti = ((tai.get(hb.may) || 0) + w) / sucChua(hb);
+        if (ti < totTi - 1e-9 || (Math.abs(ti - totTi) <= 1e-9 && String(hb.may).localeCompare(String(tot.may)) < 0)) { tot = hb; totTi = ti; }
+      }
+      giao[v.ten] = tot.may; tai.set(tot.may, (tai.get(tot.may) || 0) + w); continue;
+    }
     // còn sống + đủ khoá + khoẻ + không Dừng + BẢN MỚI (có chayLuc — bản cũ không chạy được cò xác minh qua kho) — không thì chia đều
-    const nha = v.nang && nhaNang.find((m) => du.some((hb) => hb.may === m && !hb.yeu && ("chayLuc" in hb)));
+    const nha = v.nang && !laB1(v) && nhaNang.find((m) => du.some((hb) => hb.may === m && !hb.yeu && ("chayLuc" in hb)));
     if (nha) { giao[v.ten] = nha; tai.set(nha, (tai.get(nha) || 0) + w); continue; }     // không thì chia đều như thường
     let tot = null, totTi = Infinity;
     for (const hb of du) {
@@ -240,6 +264,23 @@ function test() {
   const thieu = { ...hb2("QLIT", 415, 60, false, K), taskDP: ["5S DP n1|Ready|-|0|-", "Audit nhip tim PC|Ready|-|0|-"] };
   g = chiaViec([thieu, hb2("FOQ", 296, 60, false, K)], now, cfg3);
   eq(Object.entries(g).filter(([t, m]) => m === "QLIT").every(([t]) => t === "n1") && Object.entries(g).filter(([t]) => t !== "n1").every(([, m]) => m === "FOQ"), true, "thieu task -> khong giao viec may khong co task");
+
+  // 15/10 mayB1: việc b1 chia đều JE+FOQ; việc khác né 2 máy này khi QLIT còn nhận được
+  const cfg5 = { hetHanPhut: 8, mayViecNang: ["JE"], mayB1: ["JE", "FOQ"], viec: [
+    ...["x1", "x2", "x3", "x4"].map((t) => ({ ten: t, nang: true, b1: true, envKeys: K })),
+    ...cfg3.viec.slice(0, 3), ...cfg3.viec.slice(7),
+  ] };
+  const bB1 = [moi(hb2("QLIT", 415, 60, false, K)), moi(hb2("FOQ", 415, 60, false, K)), moi(hb2("JE", 296, 60, false, K))];
+  g = chiaViec(bB1, now, cfg5);
+  const xs = ["x1", "x2", "x3", "x4"].map((t) => g[t]);
+  eq(xs.every((m) => m === "JE" || m === "FOQ") && xs.includes("JE") && xs.includes("FOQ"), true, "mayB1: 4 viec B1 chia ca JE va FOQ");
+  eq(cfg5.viec.filter((v) => !v.b1).every((v) => g[v.ten] === "QLIT"), true, "mayB1: viec khac ne JE/FOQ -> QLIT");
+  g = chiaViec([{ ...bB1[0], dung: true }, bB1[1], bB1[2]], now, cfg5);
+  eq(Object.values(g).every((m) => m === "JE" || m === "FOQ"), true, "QLIT Dung -> viec khac van ve JE/FOQ (khong bo viec)");
+  g = chiaViec([bB1[0], { ...bB1[1], dung: true }, bB1[2]], now, cfg5);
+  eq(["x1", "x2", "x3", "x4"].every((t) => g[t] === "JE"), true, "FOQ Dung -> JE ganh het viec B1");
+  g = chiaViec([bB1[0], { ...bB1[1], dung: true }, { ...bB1[2], dung: true }], now, cfg5);
+  eq(["x1", "x2", "x3", "x4"].every((t) => g[t] === "QLIT"), true, "ca 2 may B1 Dung -> viec B1 sang QLIT");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);

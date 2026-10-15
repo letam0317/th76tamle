@@ -7,6 +7,11 @@
   "mayViecNang": [
     "DESKTOP-JE75K38"
   ],
+  "_mayB1": "15/10 user: 2 may nay UU TIEN viec b1:true (xac minh / tim bang chung camera-anh B1 de chuyen B1.1) - chia deu giua 2 may; viec khac ne 2 may nay khi con may khac nhan duoc. Khoa xm_khoa van chi cho 1 may chay cò xac minh 1 luc.",
+  "mayB1": [
+    "DESKTOP-JE75K38",
+    "DESKTOP-FOQ5T89"
+  ],
   "capNhat": {
     "tenTask": "Audit cap nhat PC",
     "nhip": "PT2H",
@@ -32,7 +37,8 @@
         "TOPREVIEW_PASS"
       ],
       "dongBoXm": true,
-      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
+      "b1": true
     },
     {
       "ten": "canh-xac-minh-b1",
@@ -48,7 +54,8 @@
         "GEMINI_API_KEY"
       ],
       "dongBoXm": true,
-      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
+      "b1": true
     },
     {
       "ten": "tim-bang-chung-b1",
@@ -63,7 +70,8 @@
         "TOPREVIEW_PASS"
       ],
       "dongBoXm": true,
-      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
+      "b1": true
     },
     {
       "ten": "canh-bai-xe-sang",
@@ -118,7 +126,8 @@
         "GEMINI_API_KEY"
       ],
       "dongBoXm": true,
-      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop"
+      "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
+      "b1": true
     },
     {
       "ten": "co-canh-planogram",
