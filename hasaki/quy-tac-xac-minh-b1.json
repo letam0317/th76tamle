@@ -595,6 +595,23 @@
    "quyDinh": null
   },
   {
+   "ma": "QD-02",
+   "nhom": "Quyết định của bạn",
+   "ten": "Bạn đã sửa tay trên phiếu thì máy KHÔNG ghi đè",
+   "dieuKien": "Một trường trên phiếu (người cầm B1.1, NV vi phạm, trạng thái…) đã từng đúng như máy muốn, sau đó bị đổi khác = bạn sửa tay. Mọi lượt sửa đều đứng tên Lê Chí Tâm nên work không phân biệt người với máy — máy tự nhớ trạng thái đã khớp để biết.",
+   "mayLam": "Để nguyên lựa chọn của bạn, ghi 1 dòng nhật ký «SỬA TAY — để nguyên», không giao lại / không sửa lại. Chỉ tự sửa lệch do hệ thống work gây ra lúc vừa tạo bước (vd engine giao B1.1 cho quản lý). Muốn máy sửa lại thì sửa luôn ô gốc (vd «Nhân viên vi phạm» ở B1) cho khớp. Cò mới có luật «ép về đúng» phải làm cùng cách.",
+   "macDinh": "tu-lam",
+   "chay": "canh-b11 ②b (sổ .canh-b11.json khop11/tay11)",
+   "tu": "15/10/2026",
+   "khacCu": "Mới — trước đây ②b thấy B1.1 lệch NV vi phạm ở B1 là giao lại, kể cả khi bạn vừa sửa tay. User 15/10 (14055993): 15:57 05/10 bạn giao Kim Ngân gỡ Thanh Ngân → 16:35 máy giao lại. Chưa kiểm trên phiếu thật sau khi sửa (8a41036): lần đầu gặp ca sửa tay, nhật ký canh-b11.log sẽ có dòng «SỬA TAY».",
+   "anLe": [
+    {
+     "phieu": "14055993",
+     "ghiChu": "B1.1 bị máy giao lại sau khi user sửa tay"
+    }
+   ]
+  },
+  {
    "ma": "XE-01",
    "nhom": "Soạn · đóng gói",
    "ten": "Lấy xe soạn không theo thứ tự (ra thẳng khu đang soạn)",
@@ -964,6 +981,10 @@
   {
    "luc": "2026-10-09",
    "viec": "VS-06 mayLam: bỏ câu mẫu cũ có «cách lúc ghi nhận N giờ (quá 8 giờ)» — agy thi đề 14079520 chép đúng câu này lên phiếu (lộ luật ngầm). Nay ghi nguyên văn câu trung tính của code."
+  },
+  {
+   "luc": "2026-10-15",
+   "viec": "Thêm QD-02: tôn trọng sửa tay — máy không ghi đè trường user đã chỉnh (canh-b11 ②b khop11/tay11, commit 8a41036)."
   }
  ]
 }
