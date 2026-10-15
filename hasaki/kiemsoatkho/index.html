@@ -1111,9 +1111,14 @@ body.side-open #sideNav{transform:none;}
 #sideNav .s-sub{display:flex;flex-direction:column;gap:1px;margin:1px 0 3px 13px;padding-left:8px;border-left:1.5px solid var(--border);}
 #sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}
 /* 15/10 «Tồn kho chính xác»: 2 phần cùng trang — tiêu đề phần (antd Title 20/600) */
-#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{display:block;margin:4px 0 12px;font-size:20px;font-weight:600;line-height:28px;color:var(--text)}
+/* 15/10 (lượt 2) user «Kiểm kê và Bất thường là 2 khung khác nhau — đóng khung cho đẹp»: mỗi phần = 1 khung (Card antd) — tiêu đề là đầu khung, vạch ngăn dưới */
+#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){border:1px solid var(--ad-chia,var(--border));border-radius:8px;background:color-mix(in srgb,var(--text) 2%,var(--surface));padding:0 16px 16px;margin-bottom:16px}
+#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{display:block;margin:0 -16px 16px;padding:12px 24px;border-bottom:1px solid var(--ad-chia,var(--border));background:var(--surface);border-radius:8px 8px 0 0;font-size:16px;font-weight:600;line-height:24px;color:var(--text)}
 #pane-kk:not(.hidden)::before{content:"Kiểm kê"}
-#pane-htonbat:not(.hidden)::before{content:"Bất thường";margin-top:24px}
+#pane-htonbat:not(.hidden)::before{content:"Bất thường"}
+@media(max-width:768px){#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){padding:0 8px 8px}#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{margin:0 -8px 12px;padding:10px 16px}}
+/* 15/10 user «Cập nhật sao hiển thị 2 lần»: 1 viên chung ở cuối trang (viên của Bất thường) — viên Kiểm kê ẩn, giờ/tooltip/bấm gộp cả 2 nguồn (cnGopVe) */
+#pane-kk .hk-srcfoot{display:none!important}
 /* 15/10 tiêu đề nhóm «Xác minh» có khoá (chưa đăng nhập) — cùng kiểu .s-grp, bấm được */
 html.ad #sideNav .s-grp.s-khoa{display:flex!important;align-items:center;gap:6px;cursor:pointer;border-radius:8px;margin:0 4px}
 html.ad #sideNav .s-grp.s-khoa:hover{color:var(--text);background:var(--ad-re)}
@@ -3558,7 +3563,19 @@ function homeRender(){
 }
 document.addEventListener("tq-so",function(){ var p=$('pane-home'); if(p&&!p.classList.contains('hidden')) homeRender(); });
 /* 12/10 VIÊN "CẬP NHẬT" DÙNG CHUNG — module gọi hskCapNhat(ms, {id, onclick, tip}) lấy HTML; bấm = làm mới. */
+/* 15/10 «Tồn kho chính xác»: Kiểm kê (hkReload) + Bất thường (htReload) chung 1 viên — hiện mốc CŨ HƠN (dữ liệu chậm nhất), title đủ 2 mốc, bấm làm mới cả 2 */
+window.__cnGop={};
+function cnGopVe(){ var el=document.getElementById("htReload"); if(!el) return; var a=__cnGop.hkReload, b=__cnGop.htReload;
+  var ds=[a,b].filter(function(x){ return x&&x.ms; }); if(!ds.length) return;
+  var ms=Math.min.apply(null, ds.map(function(x){ return x.ms; })), d=new Date(ms), p=function(n){ return String(n).padStart(2,"0"); };
+  var f=function(x){ var t=new Date(x.ms); return p(t.getHours())+":"+p(t.getMinutes())+" "+p(t.getDate())+"/"+p(t.getMonth()+1); };
+  var g=el.querySelector(".cn-gio"), n=el.querySelector(".cn-ngay");
+  if(g) g.textContent=p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds()); if(n) n.textContent=p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();
+  el.title=(a&&a.ms?"Kiểm kê: "+f(a)+" · ":"")+(b&&b.ms?"Bất thường: "+f(b)+" · ":"")+"Bấm để làm mới cả 2";
+  el.setAttribute("onclick","window.HKIEMKE&&HKIEMKE.reload();window.HTONBAT&&HTONBAT.reload()");
+}
 window.hskCapNhat=function(ms, o){ o=o||{};
+  if(o.id==="hkReload"||o.id==="htReload"){ __cnGop[o.id]={ms:ms}; setTimeout(cnGopVe,0); }
   var d=ms?new Date(ms):null, p=function(n){ return String(n).padStart(2,"0"); };
   var gio=d?p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds()):"--:--:--", ngay=d?p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear():"";
   return '<button type="button" class="cn"'+(o.id?' id="'+o.id+'"':'')+(o.onclick?' onclick="'+o.onclick+'"':'')+
