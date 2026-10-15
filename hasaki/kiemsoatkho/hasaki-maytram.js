@@ -70,6 +70,8 @@
         ".mt-luoi{display:flex;flex-wrap:wrap;gap:6px;min-width:0}" +
         ".mt-luoi>.mt-c,.mt-luoi>.hx-tag{display:inline-flex;align-items:center;gap:4px;flex:none;width:auto;max-width:100%;height:28px;box-sizing:border-box;padding:0 10px;border-radius:14px;margin:0;font-size:12px;font-weight:500;line-height:1;white-space:nowrap}" +
         ".mt-luoi>.mt-c .ten{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.mt-luoi .mt-x{flex:none;margin:0 -6px 0 0;padding:0 2px}",
+      ".mt-cot{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:4px}.mt-cot.phai{align-items:flex-end;text-align:right}.mt-cot.phai .mt-luoi{justify-content:flex-end}.mt-cot>.ly{font-size:12px;color:var(--muted);margin-top:2px}.mt-luoi>.mt-nh{line-height:28px;align-self:center}.hx-mt-ly .mt-luoi>.mt-nh{line-height:24px}" +
+        "@media(max-width:560px){.mt-cot{flex:none;width:100%}.mt-cot.phai{align-items:flex-start;text-align:left}.mt-cot.phai .mt-luoi{justify-content:flex-start}}",
       ".mt-nut{margin-top:auto;display:flex;flex-direction:column;gap:6px}.mt-nut .hx-nut{width:100%;min-height:28px;font-size:12px;padding:0 8px;border-radius:6px}",
       "@media(max-width:560px){.mt-hang{gap:6px}.mt-o{grid-template-columns:minmax(0,1fr);gap:8px;padding:8px}.mt-sk .r{grid-template-columns:24px minmax(0,1fr) auto;gap:4px}.mt-c{min-height:40px}.mt-x{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;align-items:center;padding:0;margin:-2px -7px -2px 0}.mt-nn{flex-direction:column;gap:8px}.mt-nhom,.mt-nn>.mt-nhom:only-child{flex:none;width:100%}.mt-nhom.phai,.mt-nhom.phai .mt-luoi{justify-content:flex-start}.mt-luoi>.mt-c{height:40px}.mt-luoi .mt-x{min-width:40px;min-height:40px;margin:0 -10px 0 0}.mt-nh{line-height:40px;min-width:34px}.hx-mt-ly .mt-nh{line-height:24px}.hx-mt-ly .mt-luoi{gap:4px}.hx-mt-ly .mt-luoi>.hx-tag{height:24px;padding:0 8px}.hx-mt-ly{padding:8px 12px}.mt-nut .hx-nut{min-height:40px}}",
       ".hx-mt-xin{margin:4px 0 14px;border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}.hx-mt-xin .ma{font-family:ui-monospace,Consolas,monospace;font-size:14px;letter-spacing:2px;color:var(--text)}",
@@ -308,7 +310,17 @@
           : k.indexOf("TOPREVIEW_USER") >= 0 ? "Cần PC có khoá camera" + (k.indexOf("GEMINI_API_KEY") >= 0 ? " và khoá AI" : "") : "Cần PC đang chạy";
         if (!theo[ly]) { theo[ly] = []; nhom.push(ly); } theo[ly].push(v.ten); });
       h += '<div class="panel mt-chua"><div class="panel-head"><span>Việc chưa có máy nhận</span><span>' + chuaCo.length + "</span></div>" +
-        nhom.map(function (ly) { return '<div class="hx-mt-ly"><div class="ly">' + e_(ly) + "</div>" + chiaNang(theo[ly], function (t) { return '<span class="hx-tag">' + e_(tenV(t)) + "</span>"; }) + "</div>"; }).join("") + "</div>";
+        /* 15/10 user: Nặng chốt TRÁI, Nhẹ chốt PHẢI NGANG HÀNG — dữ liệu thật chia nhiều lý do (khoá camera / khoá AI / cần PC) nên trước đây
+           Nhẹ rơi xuống hàng riêng. Nay 2 CỘT: Nặng (mọi lý do) trái · Nhẹ (mọi lý do) phải; lý do ghi nhỏ trong cột, nhãn Nặng/Nhẹ 1 lần. */
+        (function () {
+          var tag = function (t) { return '<span class="hx-tag">' + e_(tenV(t)) + "</span>"; };
+          var mot = nhom.length === 1;   // 1 lý do chung → ghi 1 LẦN trên cùng (luật không lặp), cột chỉ còn chip
+          var cot = function (laNang) { var dau = true, nhan = '<span class="mt-nh' + (laNang ? " nang" : "") + '">' + (laNang ? "Nặng" : "Nhẹ") + ":</span>";
+            var phan = nhom.map(function (ly) { var ds = theo[ly].filter(function (t) { return (nangCua[t] === true) === laNang; }).sort(function (x, y) { return tenV(x).localeCompare(tenV(y), "vi"); });
+              if (!ds.length) return ""; var h1 = (mot ? "" : '<div class="ly">' + e_(ly) + "</div>") + '<div class="mt-luoi">' + (dau ? nhan : "") + ds.map(tag).join("") + "</div>"; dau = false; return h1; }).join("");
+            return phan ? '<div class="mt-cot' + (laNang ? "" : " phai") + '">' + phan + "</div>" : ""; };
+          var n = cot(true), l = cot(false);
+          return '<div class="hx-mt-ly">' + (mot ? '<div class="ly">' + e_(nhom[0]) + "</div>" : "") + '<div class="mt-nn">' + n + (n ? l : l.replace("mt-cot phai", "mt-cot")) + "</div></div>"; })() + "</div>";
     }
     /* 15/10 user «máy nào không chạy đưa xuống dưới, ủn máy đang chạy/còn sống lên trên»: đang làm việc → sống chờ việc → sống nhưng Dừng → mất nhịp; cùng hạng theo điểm */
     // 15/10 chiều: laptop Dừng nhưng ĐANG LÀM THAY từng bị xếp dưới 2 máy rảnh → hạng theo ĐÚNG nhãn trên thẻ: «Đang làm việc» (kể cả làm thay) lên đầu

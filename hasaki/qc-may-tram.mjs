@@ -47,6 +47,9 @@ const API_PC13 = { srvNow: now, hetHanPhut: 3, chuyen: [], xin: [],
 CA.push({ ten: "pc13-pc", w: 1366, h: 900, mob: false, quanLy: true, data2: API_PC13 }, { ten: "pc13-ip14", w: 390, h: 844, mob: true, quanLy: true, data2: API_PC13 }, { ten: "pc13-and360", w: 360, h: 740, mob: true, quanLy: true, data2: API_PC13 });
 CA.push({ ten: "chi-laptop-dung", w: 1366, h: 900, mob: false, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-ip14", w: 390, h: 844, mob: true, quanLy: true, data: API_LAPTOP }, { ten: "chi-laptop-dung-and360", w: 360, h: 740, mob: true, quanLy: true, data: API_LAPTOP });
 // 14/10 «đang chạy công việc gì cũng cần hiển thị»: laptop DỰ PHÒNG đang làm thay Cò xác minh B1 (GAS PCPHU gộp duPhong/dangChay/batDau)
+// 15/10 ca THẬT của user: còn máy sống → việc chưa nhận chia 3 LÝ DO (khoá camera / khoá camera+AI / cần PC) — Nặng trái, Nhẹ phải cùng hàng
+const API_3LY = { ...API_LAPTOP, may: [{ ...API_LAPTOP.may[0], dung: false, lenhBoi: "" }] };
+CA.push({ ten: "ba-ly-do", w: 1366, h: 900, mob: false, quanLy: true, data: API_3LY }, { ten: "ba-ly-do-ip14", w: 390, h: 844, mob: true, quanLy: true, data: API_3LY });
 const API_DUPHONG = { ...API_PC13, may: [{ ...API_PC13.may[0], dangChay: [], dungViec: [], chayLuc: { "co-canh-planogram": iso(300) }, taskDP: ["5S DP canh-b11|Ready|30/11 00:00|267011|14/10 22:35", "5S DP canh-xac-minh-b1|Ready|30/11 00:00|267011|15/10 07:50", "5S DP tim-bang-chung-b1|Ready|30/11 00:00|267011|15/10 08:30", "5S DP xac-minh-camera|Ready|30/11 00:00|267011|15/10 19:30", "Audit nhip tim PC|Ready|14/10 21:51|0|14/10 21:52"] },   // 14/10 QLIT thật: chỉ 4/13 task
   { ...API_LAPTOP.may[0], duPhong: true, dangChay: ["canh-xac-minh-b1"], batDau: { "canh-xac-minh-b1": iso(12 * 60) }, chayLuc: { "canh-xac-minh-b1": iso(12 * 60) }, tienDo: { "canh-xac-minh-b1": { buoc: "Soát phiếu B1 theo luật", task: "14180441", i: 23, n: 83, chiTiet: "", luc: iso(9) } } }] };
 const GHIM4 = ["canh-b11", "canh-xac-minh-b1", "tim-bang-chung-b1", "xac-minh-camera"];   // 14/10 ghim laptop (cần .exports)
@@ -197,13 +200,19 @@ try {
     if (m.data) {   // ca hiển thị: chỉ laptop đang dừng, 13 việc chưa có máy
       const d = await p.evaluate(() => { const pn = document.querySelector("#pane-maytram"), khoi = pn.querySelector(".mt-chua");
         return { t: pn.innerText, ly: [...pn.querySelectorAll(".hx-mt-ly .ly")].map((x) => x.textContent), nhan: pn.querySelectorAll(".hx-mt-ly .hx-tag").length, caoKhoi: khoi ? Math.round(khoi.getBoundingClientRect().height) : 0 }; });
-      ok(!/chuyển sang máy khác|sang máy khác/.test(d.t) && /Đang dừng — không nhận việc/.test(d.t), "máy dừng duy nhất: KHÔNG nói «sang máy khác»");
-      ok(d.ly.length === 1 && d.ly[0] === "Chưa có PC nào đang chạy" && d.nhan === 13, "13 việc gom thành 1 lý do + 13 nhãn (" + d.ly.join(" | ") + " · " + d.nhan + ")");
+      const laL = m.data === API_LAPTOP;
+      if (!laL) ok(d.ly.length === 3 && new Set(d.ly).size === 3, "3 lý do, mỗi lý do ghi 1 lần (" + d.ly.join(" | ") + ")");
+      if (laL) ok(!/chuyển sang máy khác|sang máy khác/.test(d.t) && /Đang dừng — không nhận việc/.test(d.t), "máy dừng duy nhất: KHÔNG nói «sang máy khác»");
+      if (laL) ok(d.ly.length === 1 && d.ly[0] === "Chưa có PC nào đang chạy" && d.nhan === 13, "13 việc gom thành 1 lý do + 13 nhãn (" + d.ly.join(" | ") + " · " + d.nhan + ")");
       ok(!/APPSCRIPT_|TOPREVIEW_|GEMINI_/.test(d.t), "không lộ tên khoá kỹ thuật");
-      const nc = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-chua .mt-nhom");
+      const nc = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-chua .mt-cot");
       ok(nc["Nặng:"] === 7 && nc["Nhẹ:"] === 6, "Việc chưa có máy nhận: chia hàng Nặng/Nhẹ, nhãn ghi 1 lần (" + JSON.stringify(nc) + ")");
-      ok(!/điểm \d/.test(d.t) && /dừng bởi bộ cài \(máy quản lý\)/.test(bc.tipPhu[0]), "thẻ gọn: «điểm», «dừng bởi» chỉ trong chú thích rê chuột");
-      const tran = m.mob ? 300 : 220;   // 14/10 điện thoại: thêm 2 hàng «Nặng:/Nhẹ:» (user yêu cầu nhãn nặng nhẹ) → 285px, vẫn nửa trên màn
+      if (!m.mob) { const c2 = await p.evaluate(() => { const c = [...document.querySelectorAll("#pane-maytram .mt-chua .mt-cot")], k = document.querySelector("#pane-maytram .mt-chua .hx-mt-ly").getBoundingClientRect();
+          const r = c.map((e) => e.getBoundingClientRect()), cuoi = Math.max(...[...c[1].querySelectorAll(".hx-tag")].map((t) => t.getBoundingClientRect().right));
+          return { ngang: Math.abs(r[0].top - r[1].top) < 2, trai: r[0].left < k.left + 20, phai: cuoi >= k.right - 20 }; });
+        ok(c2.ngang && c2.trai && c2.phai, "Việc chưa nhận: cột Nặng TRÁI, cột Nhẹ PHẢI cùng hàng (" + JSON.stringify(c2) + ")"); }
+      if (laL) ok(!/điểm \d/.test(d.t) && /dừng bởi bộ cài \(máy quản lý\)/.test(bc.tipPhu[0]), "thẻ gọn: «điểm», «dừng bởi» chỉ trong chú thích rê chuột");
+      const tran = (m.mob ? 300 : 220) + (laL ? 0 : 60);   // 15/10 3 lý do = thêm 2 dòng lý do   // 14/10 điện thoại: thêm 2 hàng «Nặng:/Nhẹ:» (user yêu cầu nhãn nặng nhẹ) → 285px, vẫn nửa trên màn
       ok(d.caoKhoi > 0 && d.caoKhoi < tran, "khối chưa nhận gọn (" + d.caoKhoi + "px < " + tran + ")");
       await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
