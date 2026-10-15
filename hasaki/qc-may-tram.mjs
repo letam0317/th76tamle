@@ -152,10 +152,10 @@ try {
     if (m.data2) {   // 14/10 chiều: chip việc TRÁI→PHẢI kê BÊN PHẢI thẻ máy (máy tính); máy dừng MỜ, máy chạy sáng; mỗi chip có ×
       const g = await p.evaluate(() => { const the = [...document.querySelectorAll("#pane-maytram .mt-o")];
         const o = the[0], tr = o.querySelector(".mt-trai").getBoundingClientRect(), ph = o.querySelector(".mt-phai").getBoundingClientRect();
-        const chip = [...o.querySelectorAll(".mt-phai .ds")[0].querySelectorAll(".mt-c")].map((c) => c.getBoundingClientRect());
+        const chip = [...o.querySelectorAll(".mt-phai .mt-nhom")[0].querySelectorAll(".mt-c")].map((c) => c.getBoundingClientRect());
         const x = [...o.querySelectorAll(".mt-c")].map((c) => { const b = c.querySelector(".mt-x"); if (!b) return null; const r = b.getBoundingClientRect(), rc = c.getBoundingClientRect(); return { phai: r.right >= rc.right - 8, w: r.width, h: r.height, k: b.textContent }; });
         const mo = (sel) => { const t = the.find((e) => e.querySelector(".mt-dau b").textContent === sel); return t ? +getComputedStyle(t.querySelector(".mt-phai")).opacity : -1; };
-        return { benPhai: ph.left >= tr.right - 1 && Math.abs(ph.top - tr.top) < 2, duoi: ph.top >= tr.bottom - 1, traiPhai: chip.length > 1 && chip[1].left > chip[0].left && Math.abs(chip[1].top - chip[0].top) < 2,
+        return { benPhai: ph.left >= tr.right - 1 && Math.abs(ph.top - tr.top) < 2, duoi: ph.top >= tr.bottom - 1, traiPhai: chip.length > 1 && ((chip[1].left > chip[0].left && Math.abs(chip[1].top - chip[0].top) < 2) || (chip[1].top > chip[0].top && Math.abs(chip[1].left - chip[0].left) < 2)),
           x, moDung: mo("HSK-KHO170-tamlc-1"), moChay: mo("HSK-KHO170-QLIT"), nutDungSang: +getComputedStyle(the[1].querySelector(".mt-nut")).opacity,
           tom: (document.querySelector("#pane-maytram .mt-tom") || {}).textContent || "" }; });
       if (!m.mob) ok(g.benPhai, "chip việc kê BÊN PHẢI thẻ máy");
@@ -175,8 +175,18 @@ try {
       ok(/^Sức khoẻ: Cần chú ýổ C đầy 95%, còn 12 GB$/.test(sk.dg) && /\bchu-y\b/.test(sk.lop), "đánh giá sức khoẻ khớp màu thanh ổ đĩa: «Cần chú ý · ổ C đầy 95%» (" + sk.dg + ")");
       ok(await p.evaluate(() => { const t = document.querySelector("#pane-maytram .mt-o .mt-dau b"); return t.scrollHeight <= 20; }), "tên máy 1 dòng, không ngắt giữa tên");
       ok(/^Hôm nay đã làm 2 việc · gần nhất: Cò canh planogram lúc \d\d:\d\d \(\d+ phút trước\)$/.test(sk.hn), "dòng «Hôm nay đã làm» (" + sk.hn + ")");
-      const nn = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-o .mt-phai .ds");
+      const nn = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-o .mt-phai .mt-nhom");
       ok(nn["Nặng:"] === 7 && nn["Nhẹ:"] === 6, "chip việc chia hàng Nặng/Nhẹ, nhãn ghi 1 lần, hiện sẵn không cần bấm (" + JSON.stringify(nn) + ")");
+      // 15/10 user «chip vừa khớp chữ, đồng bộ; Nặng chốt trái, Nhẹ chốt phải ngang hàng Nặng»; «máy không chạy xuống dưới»
+      const bo = await p.evaluate(() => { const o = document.querySelector("#pane-maytram .mt-o"), nh = [...o.querySelectorAll(".mt-phai .mt-nhom")], ph = o.querySelector(".mt-phai").getBoundingClientRect();
+        const c = [...o.querySelectorAll(".mt-phai .mt-c")].map((e) => { const r = e.getBoundingClientRect(), t = e.querySelector(".ten"); return { w: r.width, h: Math.round(r.height), cat: t.scrollWidth > t.clientWidth + 1 }; });
+        const rN = nh[0].getBoundingClientRect(), cuoiNhe = [...nh[1].querySelectorAll(".mt-c")].map((e) => e.getBoundingClientRect().right);
+        return { ngang: Math.abs(rN.top - nh[1].getBoundingClientRect().top) < 2, traiN: Math.abs(rN.left - ph.left) < 2, phaiNhe: Math.max(...cuoiNhe) >= ph.right - 2,
+          caoDeu: new Set(c.map((x) => x.h)).size === 1, rongTheoChu: new Set(c.map((x) => Math.round(x.w))).size > 3, khongCat: c.every((x) => !x.cat),
+          thuTu: [...document.querySelectorAll("#pane-maytram .mt-o .mt-dau b")].map((b) => b.textContent) }; });
+      if (!m.mob) ok(bo.ngang && bo.traiN && bo.phaiNhe, "Nặng chốt TRÁI, Nhẹ chốt PHẢI cùng 1 hàng (" + JSON.stringify({ ngang: bo.ngang, traiN: bo.traiN, phaiNhe: bo.phaiNhe }) + ")");
+      ok(bo.caoDeu && bo.rongTheoChu && bo.khongCat, "chip cao đều, rộng vừa theo chữ, không cắt chữ (" + JSON.stringify({ caoDeu: bo.caoDeu, rongTheoChu: bo.rongTheoChu, khongCat: bo.khongCat }) + ")");
+      ok(bo.thuTu[0] === "HSK-KHO170-QLIT" && bo.thuTu[bo.thuTu.length - 1] === "HSK-KHO170-tamlc-1", "máy đang chạy trên cùng, máy dừng dưới cùng (" + bo.thuTu.join(" → ") + ")");
       hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="tim-bang-chung-b1"]'); await new Promise((r) => setTimeout(r, 1200));
       const bx = post.filter((x) => /may-tram\/lenh/.test(x.url)).pop(), ox = bx ? JSON.parse(bx.body) : {};
       ok(hoi.length === 1 && /chuyển việc này sang máy khác/.test(hoi[0]) && ox.viec === "tim-bang-chung-b1" && ox.dung === true, "bấm × → hỏi lại rồi gửi lệnh tắt việc trên máy (" + (hoi[0] || "không hỏi") + ")");
@@ -188,7 +198,7 @@ try {
       ok(!/chuyển sang máy khác|sang máy khác/.test(d.t) && /Đang dừng — không nhận việc/.test(d.t), "máy dừng duy nhất: KHÔNG nói «sang máy khác»");
       ok(d.ly.length === 1 && d.ly[0] === "Chưa có PC nào đang chạy" && d.nhan === 13, "13 việc gom thành 1 lý do + 13 nhãn (" + d.ly.join(" | ") + " · " + d.nhan + ")");
       ok(!/APPSCRIPT_|TOPREVIEW_|GEMINI_/.test(d.t), "không lộ tên khoá kỹ thuật");
-      const nc = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-chua .ds");
+      const nc = await p.evaluate((sel) => { const o = {}; document.querySelectorAll(sel).forEach((d) => { const nh = d.querySelector(".mt-nh"); o[nh ? nh.textContent : "?"] = d.querySelectorAll(".mt-c,.hx-tag").length; }); return o; }, "#pane-maytram .mt-chua .mt-nhom");
       ok(nc["Nặng:"] === 7 && nc["Nhẹ:"] === 6, "Việc chưa có máy nhận: chia hàng Nặng/Nhẹ, nhãn ghi 1 lần (" + JSON.stringify(nc) + ")");
       ok(!/điểm \d/.test(d.t) && /dừng bởi bộ cài \(máy quản lý\)/.test(bc.tipPhu[0]), "thẻ gọn: «điểm», «dừng bởi» chỉ trong chú thích rê chuột");
       const tran = m.mob ? 300 : 220;   // 14/10 điện thoại: thêm 2 hàng «Nặng:/Nhẹ:» (user yêu cầu nhãn nặng nhẹ) → 285px, vẫn nửa trên màn
