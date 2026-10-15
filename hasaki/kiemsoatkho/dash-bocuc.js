@@ -30,13 +30,8 @@ window.DASH_BOCUC = {
    "nhom": "Hạng mục 5S"
   },
   {
-   "k": "htonbat",
-   "ten": "Bất thường",
-   "nhom": "Tồn kho"
-  },
-  {
    "k": "kk",
-   "ten": "Kiểm kê",
+   "ten": "Tồn kho chính xác",
    "nhom": "Tồn kho"
   },
   {
@@ -47,6 +42,11 @@ window.DASH_BOCUC = {
   {
    "k": "xacminh:cam",
    "ten": "Theo máy",
+   "nhom": "Xác minh"
+  },
+  {
+   "k": "maytram",
+   "ten": "Máy trạm",
    "nhom": "Xác minh"
   },
   {

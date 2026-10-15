@@ -1110,6 +1110,10 @@ body.side-open #sideNav{transform:none;}
 /* Sub-tab: thụt vào + đường dẫn dọc */
 #sideNav .s-sub{display:flex;flex-direction:column;gap:1px;margin:1px 0 3px 13px;padding-left:8px;border-left:1.5px solid var(--border);}
 #sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}
+/* 15/10 «Tồn kho chính xác»: 2 phần cùng trang — tiêu đề phần (antd Title 20/600) */
+#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{display:block;margin:4px 0 12px;font-size:20px;font-weight:600;line-height:28px;color:var(--text)}
+#pane-kk:not(.hidden)::before{content:"Kiểm kê"}
+#pane-htonbat:not(.hidden)::before{content:"Bất thường";margin-top:24px}
 /* 15/10 tiêu đề nhóm «Xác minh» có khoá (chưa đăng nhập) — cùng kiểu .s-grp, bấm được */
 html.ad #sideNav .s-grp.s-khoa{display:flex!important;align-items:center;gap:6px;cursor:pointer;border-radius:8px;margin:0 4px}
 html.ad #sideNav .s-grp.s-khoa:hover{color:var(--text);background:var(--ad-re)}
@@ -1436,8 +1440,8 @@ body.side-anim{overflow-x:clip;}
 </style>
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
-<script>window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261015e"></script>
+<script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
+<script src="hasaki-giaodien-antd.js?v=20261015f"></script>
 <script src="tai-khoan.js?v=20261015b"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 </head>
 <body class="hx-an">
@@ -1552,7 +1556,6 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
   <!-- ===== TAB KIỂM KÊ (Factory) — factory-kiemke.js, LAZY; data tab riêng kiemke-material ===== -->
   <section id="pane-fkiemke" class="pane hidden"></section>
   <!-- ===== TAB TỒN KHO BẤT THƯỜNG (Hasaki) — hasaki-tonbatthuong.js, LAZY; data tab stock-inventory-hasaki ===== -->
-  <section id="pane-htonbat" class="pane hidden"></section>
   <section id="pane-maytram" class="pane hidden"></section>
   <!-- ===== TAB PLANOGRAM (Hasaki) — hasaki-planogram.js, LAZY; data 6 tab: VESINH-YEUCAU (yêu cầu hôm nay + ảnh) / VESINH-NHATKY (NV theo ngày) / PHU-TRACH-QUAY-KE / CHAMCONG-VESINH / VESINH-PHANCONG (chủ vị trí) / VESINH-LICHSU (lịch sử báo cáo 60 ngày) / VESINH-CHAMCONG-NGAY (chấm công theo ngày 60 ngày — 2 tab này nạp khi mở pop-up ô) ===== -->
   <section id="pane-planogram" class="pane hidden"></section>
@@ -1686,6 +1689,7 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
   <!-- ===== TAB KIỂM KÊ (Hasaki) — hasaki-kiemke.js, LAZY; nhân bản tab Kiểm kê Audit Factory,
        data tab kiemke-sku-hasaki / kiemke-location-hasaki (push-pc-to-sheet.mjs, cụm 8h40) ===== -->
   <section id="pane-kk" class="pane hidden"></section>
+  <section id="pane-htonbat" class="pane hidden"></section>   <!-- 15/10 ngay dưới Kiểm kê: cùng trang «Tồn kho chính xác» -->
 </div>
 
 <!-- ===== MODAL CHI TIẾT (HORIZONTAL STEPPER) ===== -->
@@ -3312,10 +3316,11 @@ window.nutDauTrang=nutDauTrang;
 function setTab(name){
   dongMoiPopup();
   if(!CTY[CTY_ID].tabs.includes(name)) name = tabMacDinh();   // tab không thuộc công ty -> về mặc định
+  const denBT = name==='htonbat'; if(denBT) name='kk';   // 15/10 «Tồn kho chính xác» = Kiểm kê (trên) + Bất thường (dưới) cùng 1 trang
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   Object.keys(TAB_DEFS).forEach(n=>{
     const el=$('pane-'+n); if(!el) return;
-    if(n===name){ el.classList.remove('hidden'); el.style.animation='none'; requestAnimationFrame(()=>el.style.animation=''); }
+    if(n===name || (name==='kk' && n==='htonbat')){ el.classList.remove('hidden'); el.style.animation='none'; requestAnimationFrame(()=>el.style.animation=''); }
     else el.classList.add('hidden');
   });
   nutDauTrang(name);
@@ -3327,7 +3332,7 @@ function setTab(name){
   if(name==='maytram'){ moHasakiMayTram(); } // LAZY: module Máy trạm
   if(name==='planogram'){ moHasakiPlanogram(); } // LAZY: module Planogram HASAKI (tab PHU-TRACH-QUAY-KE)
   if(name==='xacminh'){ moHasakiXacMinh(); }  // LAZY: module Xác minh & Cò camera (máy chủ nội bộ bang-591)
-  if(name==='kk'){ moHasakiKiemke(); }       // LAZY: module Kiểm kê HASAKI (tab kiemke-sku-hasaki / kiemke-location-hasaki)
+  if(name==='kk'){ moHasakiKiemke(); moHasakiTonbat(); if(denBT) setTimeout(()=>{ const a=$('pane-htonbat'); if(a) a.scrollIntoView({behavior:'smooth',block:'start'}); },60); }       // LAZY: module Kiểm kê HASAKI (tab kiemke-sku-hasaki / kiemke-location-hasaki)
   // STATE: nhớ tab THEO TỪNG CÔNG TY + deep-link ?company=&tab= (F5/chia sẻ không mất dấu)
   try{ localStorage.setItem('currentTab:'+CTY_ID, name); }catch(e){}
   try{ const u=new URL(location.href); u.searchParams.set('company',CTY_ID); u.searchParams.set('tab',name);
@@ -3499,17 +3504,15 @@ var HOME_MUC = [
       muc: ["Tiến độ hôm nay", "Sơ đồ khu vực", "Cần xử lý", "Nhân viên"] }
   ]},
   { g: "Tồn kho", mo: "Số liệu kho đọc từ WMS mỗi ngày", items: [
-    { t: "kk", ten: "Kiểm kê", cc: "var(--info,var(--accent))", mo: "Phiếu kiểm kê thật (physical-count) theo SKU và theo mã vị trí: tiến độ từng kho, lệch âm/dương.",
-      muc: ["Theo SKU", "Theo vị trí", "Tiến độ theo kho", "Lệch âm/dương"] },
-    { t: "htonbat", ten: "Bất thường", cc: "var(--warn)", mo: "SKU vướng Conflict · UID Temp · Not Found · Unsuitable · Committed, tách theo kho và theo loại.",
-      muc: ["Conflict", "UID Temp", "Not Found", "Unsuitable", "Committed"] }
+    { t: "kk", ten: "Tồn kho chính xác", cc: "var(--info,var(--accent))", mo: "Kiểm kê thật (physical-count) theo SKU và mã vị trí, kèm SKU bất thường (Conflict · UID Temp · Not Found · Unsuitable · Committed).",
+      muc: ["Kiểm kê", "Tiến độ theo kho", "Lệch âm/dương", "Bất thường"] }
   ]},
   { g: "Xác minh", hx: 1, mo: "Chỉ máy quản lý · cần đăng nhập", items: [
     { t: "xacminh", sub: "treo", ten: "Theo tác vụ", cc: "var(--accent)", mo: "Phiếu WF591 đang mở: bằng chứng camera, máy gợi ý là ai, việc tiếp theo.", muc: ["Bằng chứng", "Máy gợi ý", "Quyết định"] },
     { t: "xacminh", sub: "cam", ten: "Theo máy", cc: "var(--warn)", mo: "Sự việc máy tự bắt từ camera (bãi xe, khu phân loại) chờ quyết định.", muc: ["Clip", "Bộ chọn theo ảnh", "Lập phiếu"] },
-    { t: "xacminh", sub: "tg", ten: "Nhật ký", cc: "var(--muted)", mo: "Phiếu, bình luận, ảnh máy đã ghi lên work.hasaki.vn — lọc theo bộ, việc, ngày.", muc: ["Bộ nào làm", "Làm gì", "Ngày"] },
     { t: "maytram", ten: "Máy trạm", cc: "var(--good)", mo: "Các PC chạy cò: nhịp tim, RAM · CPU · ổ C, việc đang làm; dừng hoặc cho chạy lại trên máy quản lý.", muc: ["Nhịp tim", "Sức khoẻ", "Việc"],
-      so: function(){ var d=window.tqDoc&&tqDoc("mt"); return d&&d.tong?{ k: d.tong, l: d.song+" đang chạy / "+d.tong+" máy" }:null; } }   // 14/10 user: «máy trạm là 2 mà thanh bên 0/1» → số = tổng máy
+      so: function(){ var d=window.tqDoc&&tqDoc("mt"); return d&&d.tong?{ k: d.tong, l: d.song+" đang chạy / "+d.tong+" máy" }:null; } },   // 14/10 user: «máy trạm là 2 mà thanh bên 0/1» → số = tổng máy
+    { t: "xacminh", sub: "tg", ten: "Nhật ký", cc: "var(--muted)", mo: "Phiếu, bình luận, ảnh máy đã ghi lên work.hasaki.vn — lọc theo bộ, việc, ngày.", muc: ["Bộ nào làm", "Làm gì", "Ngày"] }
   ]}
 ];
 function nf0(n){ return Number(n||0).toLocaleString("vi-VN"); }
@@ -4231,9 +4234,9 @@ document.addEventListener('click', ()=>csDongHet(null));
     /* 12/10 user chốt thứ tự + tên: 5S → Tồn kho → Xác minh; bỏ mục con Nhân viên + Nhắc QLTT (nhắc đã nằm trong Nhật ký, lọc ở đó) */
     { g: "", items: [["home","Tổng quan"]] },   // 12/10 trang Tổng quan đứng riêng trên đầu (không tiêu đề nhóm)
     { g: "Hạng mục 5S",   items: [["tong","Tổng kết"],["task","Vi phạm"],["hangmuc","Quy định"],["planogram","Planogram"]] },
-    { g: "Tồn kho", items: [["kk","Kiểm kê"],["htonbat","Bất thường"]] },
+    { g: "Tồn kho", items: [["kk","Tồn kho chính xác"]] },   // 15/10 user: gộp Kiểm kê + Bất thường thành 1 mục (trong trang Kiểm kê trên, Bất thường dưới)
     /* 05/10 user chọn kiểu A: mục con Xác minh nằm ở thanh bên (thay dải chip trong tab). Chỉ hiện trên máy có máy chủ 8591. */
-    { g: "Xác minh", hx: 1, items: [["xacminh","Theo tác vụ","treo"],["xacminh","Theo máy","cam"],["xacminh","Nhật ký","tg"],["maytram","Máy trạm"]] }   // 13/10 tối user: Máy trạm ở Xác minh, DƯỚI CÙNG, phải đăng nhập mới xem (điện thoại: nhóm chỉ còn mục này)
+    { g: "Xác minh", hx: 1, items: [["xacminh","Theo tác vụ","treo"],["xacminh","Theo máy","cam"],["maytram","Máy trạm"],["xacminh","Nhật ký","tg"]] }   // 15/10 user: Nhật ký xuống dưới Máy trạm   // 13/10 tối user: Máy trạm ở Xác minh, DƯỚI CÙNG, phải đăng nhập mới xem (điện thoại: nhóm chỉ còn mục này)
   ];
   var nav = document.getElementById("sideNav"), tg = document.getElementById("sideToggle"), bd = document.getElementById("sideBackdrop");
   function tabActive(){ var el = document.querySelector(".tab.active"); return el ? el.getAttribute("data-tab") : null; }

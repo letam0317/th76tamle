@@ -54,7 +54,8 @@ for (const app of [{ goc: "/retail/", ten: "Audit Retail", sang: "Audit Factory"
     daQua.push(path);
     /* N8 13/10 user «Kiểm kê lại hiển thị ở Trạng thái lưu trữ»: mỗi lúc chỉ 1 khung tab hiện (bộ áp bố cục từng đè thuộc tính hidden) */
     const hien = await p.evaluate(() => [...document.querySelectorAll("[id^=view],[id^=pane-]")].filter((v) => !v.parentElement.closest("[id^=view],[id^=pane-]") && v.offsetParent && v.getBoundingClientRect().height > 0).map((v) => v.id));
-    if (hien.length > 1) chong.push(m.ten + ": " + hien.join("+"));
+    const GOP = ["pane-kk+pane-htonbat", "viewKK+viewAbn"];   // 15/10 mục gộp «Tồn kho chính xác» = Kiểm kê (trên) + Bất thường (dưới) — chủ ý 2 khung
+    if (hien.length > 1 && GOP.indexOf(hien.join("+")) < 0) chong.push(m.ten + ": " + hien.join("+"));
     if (path !== m.duong || on !== m.duong || !/^[a-z0-9/]+$/.test(path)) sai.push(m.ten + " → " + path + " (mong " + m.duong + ")");
   }
   ok(!chong.length, "N8 mỗi mục chỉ hiện 1 khung tab" + (chong.length ? " — " + chong.join(" | ") : ""));

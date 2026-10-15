@@ -289,7 +289,13 @@
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{padding:8px 10px!important}" +
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{font-size:12px!important;line-height:18px!important;white-space:normal!important;overflow:visible!important;min-height:36px}" +
       B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v{font-size:20px!important;line-height:28px!important;white-space:nowrap}" +
-      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .s{white-space:normal;font-size:12px;line-height:16px}}",
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .s{white-space:normal;font-size:12px;line-height:16px}" +
+      /* 15/10 user «2 thanh tiến độ SKU / mã vị trí lệch, không ngang hàng»: ô 2 khung cao khác nhau (nhãn 1–3 dòng, có/không dòng phụ)
+         ⇒ CHỐT khuôn ô: nhãn đúng 2 dòng · số 28 · dòng phụ đúng 2 dòng ⇒ mọi ô cao 120px ở cả 2 khung; tiêu đề khung cao cố định 28 */
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{height:120px;box-sizing:border-box;overflow:hidden}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{height:36px;min-height:0!important;overflow:hidden!important;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .s{max-height:32px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}" +
+      B + " :is(#pane-kk .hk-grid2 > .hk-panel,#viewKK .grid2.even > .panel) > h2{min-height:28px;margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}",
     "@media(max-width:768px){" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip){grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{padding:8px 10px!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{font-size:12px!important;line-height:18px!important;white-space:normal!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v{font-size:20px!important;line-height:28px!important}}",   // 15/10 điện thoại 3 cột × 2 hàng (6 ô 1 hàng không đọc được ở 390px)
     /* 13/10 QC «vừa chiều ngang»: bảng Task vi phạm (Retail) rộng 1.342px trong khung 1.159px ở màn 1440 → phải kéo ngang.
        Tên NV / quản lý được xuống dòng (bỏ min 22ch), nhãn cột «Tần suất vi phạm» xuống dòng — bảng vừa khung, không cuộn ngang */
@@ -402,6 +408,9 @@
   function mucTheoDuong(p) {
     var ds = [].slice.call(document.querySelectorAll("#sideNav .s-item"));
     for (var i = 0; i < ds.length; i++) if (duongMuc(ds[i]).replace(/\/$/, "") === p.replace(/\/$/, "")) return ds[i];
+    /* 15/10 BÍ DANH link cũ khi gộp/đổi tên mục: window.AD_BI_DANH = { "<nhóm>/<mục cũ>": "<data-tab>[#id khối cần cuộn tới]" } */
+    var bd = (window.AD_BI_DANH || {})[p.replace(gocApp(), "").replace(/\/$/, "")];
+    if (bd) { var x = document.querySelector('#sideNav .s-item[data-tab="' + bd.split("#")[0] + '"]'); if (x) { x.__cuon = bd.split("#")[1] || ""; return x; } }
     return null;
   }
   var choMo = LINK_SAU ? location.pathname : "", dangPop = false, hetCho = Date.now() + 15000;
@@ -409,7 +418,9 @@
     if (!LINK_SAU) return;
     if (choMo) {   // mở thẳng link sâu: chờ thanh bên có mục khớp (mục Xác minh đến muộn — đợi ping máy chủ + đăng nhập) rồi bấm như người dùng bấm
       if (choMo.replace(/\/$/, "") + "/" === gocApp()) { choMo = ""; }
-      else { var it = mucTheoDuong(choMo); if (it) { var p0 = choMo; choMo = ""; if (!it.classList.contains("on")) { it.click(); return; } } else if (Date.now() < hetCho) return; else choMo = ""; }
+      else { var it = mucTheoDuong(choMo); if (it) { var p0 = choMo; choMo = ""; var cuon = it.__cuon; it.__cuon = "";
+        if (cuon) setTimeout(function () { var k = document.getElementById(cuon); if (k) k.scrollIntoView({ block: "start" }); }, 1500);
+        if (!it.classList.contains("on")) { it.click(); return; } } else if (Date.now() < hetCho) return; else choMo = ""; }
     }
     var on = document.querySelector("#sideNav .s-item.on"); if (!on) return;
     var dich = duongMuc(on); if (dich === location.pathname) return;
