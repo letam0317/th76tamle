@@ -676,12 +676,25 @@ thead th.c-status, tbody td.c-status{width:150px;}
 
 /* ===== TAB HẠNG MỤC 5S ===== */
 .hm-loc{grid-template-columns:minmax(0,460px);}   /* 13/10 ô tìm Quy định cùng khuôn khung lọc của Vi phạm / Xác minh */
-.hm-dau{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,420px); gap:16px; margin-bottom:16px; align-items:stretch;}
-.hm-dau .hm-loc{grid-template-columns:minmax(0,1fr); margin:0;}
-.hm-tieude{display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; padding:16px 24px; overflow:visible;}
+/* 15/10 (lượt 2): đầu khung bảng = tiêu đề to (trái) + ô Tìm nổi bật (phải, khung riêng); bảng liền ngay dưới trong cùng khung */
+.hm-dau{display:flex; align-items:center; flex-wrap:wrap; gap:12px 24px; padding:16px 24px; border-bottom:1px solid var(--ad-chia,var(--border));}
+.hm-tieude{display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 12px; flex:1 1 auto; min-width:0;}
 .hm-tieude .hm-td{margin:0; font-size:24px; font-weight:600; line-height:32px;}
 .hm-tieude #hmDem{font-size:14px;}
-@media (max-width:768px){ .hm-dau{grid-template-columns:minmax(0,1fr); gap:12px;} .hm-tieude{padding:12px 16px;} .hm-tieude .hm-td{font-size:20px; line-height:28px;} }
+.hm-tim{flex:0 1 420px; min-width:240px; margin-left:auto; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px; box-sizing:border-box;
+  border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-radius:6px; background:color-mix(in srgb,var(--accent) 5%,var(--surface));
+  box-shadow:0 1px 2px rgba(0,0,0,.04); transition:border-color .2s,box-shadow .2s; cursor:text;}
+#pane-hangmuc .hm-tim{flex-direction:row!important; align-items:center!important; margin-top:0!important;}
+.hm-tim:hover{border-color:var(--accent);}
+.hm-tim:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent); background:var(--surface);}
+.hm-tim svg{width:18px; height:18px; flex:none; fill:var(--accent);}
+html.ad .hm-tim input{flex:1; min-width:0; border:0!important; outline:0; box-shadow:none!important; background:transparent; padding:0!important; font-size:14px; height:auto;}
+.hm-l1{display:block;}
+#pane-hangmuc td.hm-lan .kpi-neg,#pane-hangmuc .hm-c-lan .kpi-neg{font-size:16px; font-weight:600; line-height:24px;}
+.hm-xl{display:inline-block; margin-top:4px; padding:0 8px; border-radius:4px; font-size:13px; font-weight:600; line-height:22px; white-space:nowrap;
+  color:#b45309; background:color-mix(in srgb,#f59e0b 16%,transparent); border:1px solid color-mix(in srgb,#f59e0b 40%,transparent);}
+.hm-xl.nang{color:var(--bad); background:color-mix(in srgb,var(--bad) 10%,transparent); border-color:color-mix(in srgb,var(--bad) 35%,transparent);}
+@media (max-width:768px){ .hm-dau{padding:12px 16px;} .hm-tieude .hm-td{font-size:20px; line-height:28px;} .hm-tim{flex:1 1 100%; min-width:0; margin-left:0;} }
 .hm-bar{display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;}
 .hm-bar input{flex:1 1 260px; max-width:460px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 12px;}
 .hm-bar input:focus{outline:none; border-color:var(--accent);}
@@ -699,6 +712,7 @@ thead th.c-status, tbody td.c-status{width:150px;}
 .hm-sep{color:var(--muted); opacity:.6;}
 /* mobile: mỗi "lần" 1 dòng, có vạch ngăn nhẹ */
 .hm-c-lan{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:5px 0; border-top:1px solid var(--border); font-size:12.5px;}
+.hm-c-lan > span:last-child{text-align:right;}
 .hm-c-lan:first-child{border-top:0;}
 .hm-c-k{color:var(--muted); font-weight:600; flex:0 0 auto;}
 .hm-c-lan>span:last-child{text-align:right;}
@@ -1095,7 +1109,23 @@ body.side-open #sideNav{transform:none;}
 #sideNav .s-grp::before{content:"";width:12px;height:12px;border-radius:3.5px;background:var(--accent);opacity:.9;flex:none;}
 /* Sub-tab: thụt vào + đường dẫn dọc */
 #sideNav .s-sub{display:flex;flex-direction:column;gap:1px;margin:1px 0 3px 13px;padding-left:8px;border-left:1.5px solid var(--border);}
-#sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}   /* 12/10 nút Xác minh đơn khi chưa đăng nhập */
+#sideNav .s-sub.s-mot{margin:10px 0 3px 0;padding-left:0;border-left:0;}
+/* 15/10 tiêu đề nhóm «Xác minh» có khoá (chưa đăng nhập) — cùng kiểu .s-grp, bấm được */
+html.ad #sideNav .s-grp.s-khoa{display:flex!important;align-items:center;gap:6px;cursor:pointer;border-radius:8px;margin:0 4px}
+html.ad #sideNav .s-grp.s-khoa:hover{color:var(--text);background:var(--ad-re)}
+html.ad #sideNav .s-grp.s-khoa:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+#sideNav .s-khoa .khoa{display:inline-flex}
+#sideNav .s-khoa .khoa svg{width:14px;height:14px;fill:currentColor}
+@media(min-width:769px){ html.ad body:not(.side-open) #sideNav .s-grp.s-khoa{font-size:0;height:auto;padding:10px 0;margin:8px 2px 0;background:none;justify-content:center;border-top:1px solid var(--ad-chia);border-radius:0}
+  html.ad body:not(.side-open) #sideNav .s-khoa .khoa svg{width:18px;height:18px} }
+/* thẻ khoá trong khung tab Xác minh / Máy trạm */
+.xm-khoa-on > :not(.xm-khoa){display:none!important}
+.xm-khoa{max-width:420px;margin:48px auto;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.xm-khoa-ic svg{width:40px;height:40px;fill:var(--muted)}
+.xm-khoa-t{font-size:16px;font-weight:600;line-height:24px}
+.xm-khoa-s{font-size:14px;color:var(--muted);line-height:22px}
+.xm-khoa-nut{margin-top:8px;height:32px;padding:4px 15px;border:1px solid var(--accent);border-radius:6px;background:var(--accent);color:#fff;font:inherit;font-size:14px;cursor:pointer}
+.xm-khoa-nut:hover{filter:brightness(1.08)}   /* 12/10 nút Xác minh đơn khi chưa đăng nhập */
 #sideNav .s-sub.s-dau{margin-top:0;}
 /* ===== 12/10 TRANG TỔNG QUAN (khuôn trang Tổng quan Audit Factory) — MỘT panel + MỘT lưới, tiêu đề nhóm trọn bề ngang.
    Thẻ là <button> thật (focus ring, Enter); màu qua biến theme. Tiền tố ov- (hm- đã dùng cho tab Quy định). */
@@ -1407,8 +1437,8 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261015c"></script>
-<script src="tai-khoan.js?v=20261015a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
+<script src="hasaki-giaodien-antd.js?v=20261015d"></script>
+<script src="tai-khoan.js?v=20261015b"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -1602,13 +1632,12 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
   <!-- ===== TAB HẠNG MỤC 5S (đọc QUY-DINH trực tiếp, đồng bộ thời gian thực) ===== -->
   <section id="pane-hangmuc" class="pane hidden">
     <!-- 15/10 user: tiêu đề «Quy định & hạng mục 5S» làm to, ô Tìm khung riêng NGANG HÀNG bên phải; bảng ở dưới -->
-    <div class="hm-dau">
-      <div class="panel hm-tieude"><div class="hm-td" role="heading" aria-level="2">Quy định &amp; hạng mục 5S</div><span id="hmDem" class="muted"></span></div>
-      <div class="filters hm-loc">
-        <label><span class="lbl">Tìm</span><input type="search" id="hmTim" autocomplete="off" placeholder="Quy định / lỗi vi phạm / nghiệp vụ…"></label>
+    <!-- 15/10 (lượt 2) user: khung tiêu đề GHÉP LIỀN khung bảng (tiêu đề = đầu khung); ô Tìm khung riêng, nổi bật, ngang hàng bên phải -->
+    <div class="panel hm-khung">
+      <div class="hm-dau">
+        <div class="hm-tieude"><div class="hm-td" role="heading" aria-level="2">Quy định &amp; hạng mục 5S</div><span id="hmDem" class="muted"></span></div>
+        <label class="hm-tim"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg><input type="search" id="hmTim" autocomplete="off" aria-label="Tìm quy định" placeholder="Tìm quy định / lỗi vi phạm / nghiệp vụ…"></label>
       </div>
-    </div>
-    <div class="panel">
       <div class="table-wrap" id="hmWrap">
         <div style="padding:16px"><div class="sk sk-line" style="width:90%"></div><div class="sk sk-line" style="width:75%"></div><div class="sk sk-line" style="width:85%"></div></div>
       </div>
@@ -3370,9 +3399,10 @@ function moHasakiTonbat(){
 let _mtNap=null;
 function moHasakiMayTram(){
   const pane=$('pane-maytram');
+  if(!xmDuocXem()){ xmKhoaPane(pane); return; } xmMoKhoa(pane);
   if(!_mtNap){
     _mtNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261015a';
+      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261015b';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-maytram.js'));
       document.body.appendChild(s);
     });
@@ -3396,9 +3426,29 @@ function moHasakiPlanogram(){
   _hpNap.then(()=>window.HPLANOGRAM && window.HPLANOGRAM.init(pane))
     .catch(e=>{ _hpNap=null; pane.innerHTML='<div class="panel" style="margin-top:14px;padding:24px;text-align:center;color:var(--muted)">'+esc(e.message)+' — thử tải lại trang.</div>'; });
 }
+/* 15/10 user «vì sao chưa đăng nhập mà xem được nhật ký?»: Xác minh + Máy trạm CHỈ mở khi đã đăng nhập tài khoản có quyền r.xacminh
+   (cùng điều kiện thanh bên). Chưa đủ ⇒ khung tab chỉ còn thẻ khoá, module KHÔNG được nạp/khởi động (không gọi máy chủ 8591). */
+function xmDuocXem(){ try { return window.TK ? !!(window.TK.nguoi && (typeof window.tkCo !== "function" || window.tkCo("r.xacminh"))) : !!localStorage.getItem("hx-phien"); } catch(e){ return false; } }
+function xmMoDangNhap(){
+  if (window.TK && window.TK.nguoi) { if (typeof toast === "function") toast("Tài khoản " + window.TK.nguoi.id + " chưa có quyền Xác minh — nhờ quản trị cấp quyền.", "loi"); return; }
+  if (typeof window.tkMoDangNhap === "function") window.tkMoDangNhap(function(){ if (xmDuocXem()) setTab("xacminh"); });
+}
+function xmKhoaPane(pane){
+  pane.classList.add("xm-khoa-on");
+  if (!pane.querySelector(":scope > .xm-khoa")) pane.insertAdjacentHTML("afterbegin",
+    '<div class="panel xm-khoa"><span class="xm-khoa-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/></svg></span><div class="xm-khoa-t">Xác minh cần đăng nhập</div>' +
+    '<div class="xm-khoa-s">Chỉ tài khoản được cấp quyền Xác minh mới xem được.</div>' +
+    '<button type="button" class="xm-khoa-nut" onclick="xmMoDangNhap()">Đăng nhập</button></div>');
+}
+function xmMoKhoa(pane){ pane.classList.remove("xm-khoa-on"); var k = pane.querySelector(":scope > .xm-khoa"); if (k) k.remove(); }
+/* đăng nhập / đăng xuất khi đang đứng ở tab bị khoá → dựng lại đúng trạng thái */
+function xmDoiPhien(){ var a = document.querySelector(".tab.active"), t = a && a.getAttribute("data-tab");
+  if (t === "xacminh") moHasakiXacMinh(); else if (t === "maytram") moHasakiMayTram(); }
+document.addEventListener("tk-doi", xmDoiPhien); window.addEventListener("hx-phien", xmDoiPhien);
 let _hxNap=null;
 function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
+  if(!xmDuocXem()){ xmKhoaPane(pane); return; } xmMoKhoa(pane);
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
       const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261015a';
@@ -3417,7 +3467,7 @@ function moHasakiKiemke(){
       '<div class="sk sk-line" style="width:68%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _hkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261013tq';
+      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261015a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-kiemke.js'));
       document.body.appendChild(s);
     });
@@ -3540,8 +3590,9 @@ function lanTxt(kpi,haKN,xuLy){
       : `<span class="kpi-neg">−${esc(k)}% KPI</span>`);
   }
   if(String(haKN).trim()==="Có") parts.push("Hạ KN");
-  const x=String(xuLy).trim(); if(x && x!=="Không") parts.push(esc(x));
-  return parts.length?parts.join('<span class="hm-sep"> · </span>'):"—";
+  /* 15/10 user: «Biên bản» (hình thức xử lý) XUỐNG HÀNG riêng + nổi bật (Tag), không nối «·» sau % KPI */
+  const x=String(xuLy).trim(), xl=(x && x!=="Không")?'<span class="hm-xl'+(/ngưng/i.test(x)?' nang':'')+'">'+esc(x)+'</span>':"";
+  return parts.length||xl?'<span class="hm-l1">'+parts.join('<span class="hm-sep"> · </span>')+'</span>'+xl:"—";
 }
 function hmXoaTim(){ $("hmTim").value=""; renderQuyDinh(); }
 function renderQuyDinh(){
@@ -4202,11 +4253,12 @@ document.addEventListener('click', ()=>csDongHet(null));
     /* 12/10 user: chưa đăng nhập Xác minh thì CHỈ 1 nút "Xác minh"; đăng nhập xong mới hiện 5 mục con (hasaki-xacminh.js bắn "hx-phien") */
     /* 14/10 user: «chưa đăng nhập (nút Đăng nhập còn) mà vẫn xem được mục con Xác minh» — trước đây xét phiên Xác minh CŨ (hx-phien) còn
        sót trên laptop. Nay có hệ tài khoản (tai-khoan.js) thì theo nó: đã đăng nhập + có quyền Xác minh mới hiện mục con (kể cả Máy trạm). */
-    var daDN = false; try { daDN = window.TK ? !!(window.TK.nguoi && (typeof window.tkCo !== "function" || window.tkCo("r.xacminh"))) : !!localStorage.getItem("hx-phien"); } catch(e){}
+    var daDN = xmDuocXem();
     HM.forEach(function(grp){
       var its = grp.items.filter(function(x){ return tabs.indexOf(x[0]) >= 0 && (x[0] !== "xacminh" || window.__HX_MAY_CHU); });
       if (!its.length) return;
-      if (grp.hx && !daDN) { html += '<div class="s-sub s-mot"><div class="s-item" data-tab="xacminh"><span class="di"></span>Xác minh</div></div>'; return; }
+      /* 15/10 user: chưa đăng nhập thì «Xác minh» là TIÊU ĐỀ NHÓM như Tồn kho / Hạng mục 5S + biểu tượng khoá sau chữ (không phải 1 mục con); bấm = đăng nhập */
+      if (grp.hx && !daDN) { html += '<div class="s-grp s-khoa" role="button" tabindex="0" title="' + (window.TK && window.TK.nguoi ? 'Tài khoản chưa có quyền Xác minh' : 'Đăng nhập để xem Xác minh') + '">Xác minh<span class="khoa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/></svg></span></div>'; return; }
       if (!grp.g) { html += '<div class="s-sub s-mot s-dau">' + its.map(function(x){ return '<div class="s-item" data-tab="' + x[0] + '"><span class="di"></span>' + x[1] + '<span class="sn"></span></div>'; }).join("") + '</div>'; return; }
       /* 14/10 user «ô Xác minh không thấy Theo tác vụ, Theo máy, Nhật ký»: Edge chặn trang gọi 127.0.0.1 (quyền «mạng cục bộ») ⇒ laptop bị coi
          như điện thoại. Máy đã từng đăng nhập Xác minh (chỉ laptop) mà dò 8591 hỏng → thêm mục «Kết nối máy chủ Xác minh»: bấm = dò lại
@@ -4223,6 +4275,8 @@ document.addEventListener('click', ()=>csDongHet(null));
       var ctl = new AbortController(); setTimeout(function(){ ctl.abort(); }, 1500);
       fetch("http://127.0.0.1:8591/api/ping", { signal: ctl.signal }).then(function(r){ if (r.ok) { window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); build(); } })
         .catch(function(){ var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_CHAN) { window.__HX_CHAN = 1; build(); } }); }
+    nav.querySelectorAll(".s-khoa").forEach(function(el){ el.addEventListener("click", xmMoDangNhap);
+      el.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); xmMoDangNhap(); } }); });
     nav.querySelectorAll(".s-item").forEach(function(el){
       /* Chọn tab KHÔNG tự đóng sidebar — sidebar ghim cố định tới khi bấm ‹ hoặc nền mờ (mobile) */
       if (el.dataset.ketnoi) { el.addEventListener("click", function(){

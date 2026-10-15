@@ -169,6 +169,11 @@ var CSS = [
 "@media(max-width:1024px){#pane-kk .hk-grid2{grid-template-columns:1fr;}}",
 "#pane-kk .hk-panel{background:var(--surface,#fff);border:1px solid var(--border,#e8ecf1);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;min-width:0;}",
 "#pane-kk .hk-span2{grid-column:1/-1;display:block;}",
+"#pane-kk .hk-hang1{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:stretch;}",
+"#pane-kk .hk-hang1 > .hk-panel{margin:0;min-width:0;}",
+"#pane-kk .hk-boloc .hk-locbar{display:block;margin:0;}",
+"#pane-kk .hk-boloc .hk-locbar .lbl{display:none;}",
+"@media(max-width:768px){#pane-kk .hk-hang1{grid-template-columns:minmax(0,1fr);}}",
 "@media(max-width:1024px){#pane-kk .hk-span2{grid-column:auto;}}",
 "#pane-kk .hk-panel h2{margin:0 0 10px;font-size:14px;font-weight:680;color:var(--text,#374151);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}",
 "#pane-kk .hk-scope{background:color-mix(in srgb,var(--accent,#326e51) 14%,transparent);color:var(--accent,#326e51);border-radius:999px;padding:2px 10px;font-size:10.5px;font-weight:750;}",
@@ -335,8 +340,12 @@ var CSS = [
 
 /* ===== KHUNG HTML ===== */
 var KHUNG =
-'<div class="hk-locbar" id="hkWhBar"></div>' +
+/* 15/10 user (Retail + Factory cùng khuôn): HÀNG 1 = [Bộ lọc] [Tiến độ theo kho] · HÀNG 2 = [Kiểm kê theo SKU] [Kiểm kê theo mã vị trí] */
 '<div class="hk-grid2" id="hkGrid" style="display:none">' +
+'  <div class="hk-hang1 hk-span2">' +
+'    <section class="hk-panel hk-boloc"><h2>Bộ lọc</h2><div class="hk-locbar" id="hkWhBar"></div></section>' +
+'    <section class="hk-panel"><h2>Tiến độ theo kho</h2><div class="hk-whlist" id="hkWhList"></div></section>' +
+'  </div>' +
 '  <section class="hk-panel">' +
 '    <h2>Kiểm kê theo SKU <span class="hk-hint">(type SKU)</span> <span class="hk-scope" id="hkScope-sku" hidden></span></h2>' +
 '    <div class="hk-strip" id="hkStrip-sku"></div>' +
@@ -351,7 +360,6 @@ var KHUNG =
 '    <div class="hk-dhead">Đã kiểm theo ngày <span class="hk-legend" id="hkLegend-loc"></span></div>' +
 '    <div class="hk-daily" id="hkHist-loc"></div>' +
 '  </section>' +
-'  <section class="hk-panel hk-span2"><h2>Tiến độ theo kho</h2><div class="hk-whlist" id="hkWhList"></div></section>' +
 '</div>' +
 '<div id="hkState" class="hk-state"><div class="hk-spin"></div>Đang tải dữ liệu kiểm kê…</div>' +
 '<div class="hk-srcfoot">' +
@@ -533,8 +541,7 @@ function render(){
 }
 /* Thanh chip lọc kho đầu tab: "Tất cả kho" + từng kho (chấm màu đồng bộ thẻ kho) */
 function renderWhBar(){
-  /* 12/10 user bỏ hẳn bộ lọc Kho ("xấu quá" · không cần) — lọc kho vẫn bằng bấm thẻ/biểu đồ theo kho */
-  var el0 = $id("hkWhBar"); if (el0) el0.innerHTML = ""; return;
+  /* 12/10 user bỏ bộ lọc Kho ("xấu quá") → 15/10 user muốn lại thẻ «Bộ lọc» đầu hàng 1 (cùng khuôn Factory): ô Kho trong thẻ, không nhãn rời */
   /* 12/10 user: bỏ dải chip "Trạng thái kiểm kê theo kho" — lọc kho chuyển sang Ô CHỌN kiểu bộ lọc chung (nhãn + combo như
      Xác minh › Nhật ký). Số phiếu theo kho nằm ngay trong lựa chọn. */
   var el = $id("hkWhBar"); if (!el) return;

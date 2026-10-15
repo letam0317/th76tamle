@@ -281,7 +281,16 @@
     B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .s{margin-top:4px;font-size:12px;line-height:20px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v{font-size:24px!important;font-weight:600!important;line-height:32px!important;letter-spacing:0!important}",
     B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v b{font-weight:600!important}",
-    "@media(max-width:768px){" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip){grid-template-columns:repeat(2,minmax(0,1fr))}}",
+    /* 15/10 user: HÀNG 2 = [Kiểm kê theo SKU] [Kiểm kê theo mã vị trí] NGANG HÀNG; 6 ô số VẪN 1 hàng ⇒ ô gọn (đệm 8×10, nhãn 12 tối đa 2 dòng, số 20/600).
+       Màn < 1280 (khung nội dung < ~1000px) giữ xếp chồng — 6 ô trong nửa khung sẽ quá hẹp để đọc. */
+    "@media(min-width:1280px){" + B + " #pane-kk .hk-grid2," + B + " #viewKK .grid2.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}" +
+      B + " :is(#pane-kk .hk-grid2 > .hk-panel,#viewKK .grid2.even > .panel){padding:16px!important}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip){gap:8px!important}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{padding:8px 10px!important}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{font-size:12px!important;line-height:18px!important;white-space:normal!important;overflow:visible!important;min-height:36px}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v{font-size:20px!important;line-height:28px!important;white-space:nowrap}" +
+      B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .s{white-space:normal;font-size:12px;line-height:16px}}",
+    "@media(max-width:768px){" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip){grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks{padding:8px 10px!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .t{font-size:12px!important;line-height:18px!important;white-space:normal!important}" + B + " :is(#pane-kk .hk-strip,#viewKK .kkstrip) .ks .v{font-size:20px!important;line-height:28px!important}}",   // 15/10 điện thoại 3 cột × 2 hàng (6 ô 1 hàng không đọc được ở 390px)
     /* 13/10 QC «vừa chiều ngang»: bảng Task vi phạm (Retail) rộng 1.342px trong khung 1.159px ở màn 1440 → phải kéo ngang.
        Tên NV / quản lý được xuống dòng (bỏ min 22ch), nhãn cột «Tần suất vi phạm» xuống dòng — bảng vừa khung, không cuộn ngang */
     "@media(min-width:769px){" + B + " :is(thead th,tbody td):is(.c-nv,.c-ql){min-width:0!important;white-space:normal!important}" + B + " thead th:is(.c-freq,.c-nv,.c-ql){white-space:normal!important}}",

@@ -52,7 +52,7 @@
     (THAO_TAC[APP] || []).forEach(function (x) { if (x[2] ? (cur === x[1] && q[x[1]] !== "lam") : q[x[1]] !== "lam") css.push(x[0] + "{display:none!important}"); });
     stQ.textContent = css.join("\n");
     /* tiêu đề nhóm thanh bên: ẩn khi mọi mục trong nhóm bị ẩn */
-    [].slice.call(document.querySelectorAll("#sideNav .s-grp")).forEach(function (h) {
+    [].slice.call(document.querySelectorAll("#sideNav .s-grp:not(.s-khoa)")).forEach(function (h) {   // 15/10 tiêu đề có khoá (Xác minh chưa đăng nhập) luôn hiện
       var co = false; for (var n = h.nextElementSibling; n && !n.classList.contains("s-grp"); n = n.nextElementSibling) if (n.matches(".s-item,.s-sub") && getComputedStyle(n).display !== "none") co = true;
       h.style.display = co ? "" : "none"; });
     /* đang đứng ở tab bị cấm → về Tổng quan */

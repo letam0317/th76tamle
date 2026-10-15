@@ -27,7 +27,9 @@ const URL = TRANG === "factory" ? "http://localhost:8123/factory/" : "http://loc
 if (ANH) fs.mkdirSync(ANH, { recursive: true });
 const b = await puppeteer.launch({ executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: "new" });
 const p = await b.newPage();
-await p.evaluateOnNewDocument((hx) => { try { localStorage.setItem("hx-phien", hx); } catch (e) {} }, (() => { try { return phienQC(); } catch (e) { return ""; } })());
+await p.evaluateOnNewDocument((hx) => { try { localStorage.setItem("hx-phien", hx);
+  /* 15/10 Xác minh chỉ mở khi ĐĂNG NHẬP TÀI KHOẢN có quyền r.xacminh (không còn chỉ hx-phien) — gắn phiên tài khoản QC giả; lượt kiểm phiên (POST) bị chặn nên phiên giữ nguyên */
+  localStorage.setItem("tk-phien", "qc"); localStorage.setItem("tk-nho", JSON.stringify({ ts: Date.now(), nguoi: { id: "qc", ten: "QC", vaiTro: "quantri" }, quyen: { "r.tong": "lam", "r.task": "lam", "r.hangmuc": "lam", "r.planogram": "lam", "r.htonbat": "lam", "r.kk": "lam", "r.xacminh": "lam" } })); } catch (e) {} }, (() => { try { return phienQC(); } catch (e) { return ""; } })());
 const con = []; p.on("pageerror", (e) => con.push(e.message.slice(0, 120)));
 await p.setRequestInterception(true); p.on("request", (r) => (/^(GET|OPTIONS|HEAD)$/.test(r.method()) ? r.continue() : r.abort()));
 await p.setViewport({ width: W, height: 1000, isMobile: W < 600, hasTouch: W < 600 });
