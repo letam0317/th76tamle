@@ -18,8 +18,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
+import { tenPhieu5S } from "./ten-phieu-5s.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { gasPost } from "./session-rules.js";
+import { gasPost, laTokenGhiDuoc } from "./session-rules.js";
 import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay } from "./truy-vet-vesinh.mjs";
 
@@ -165,7 +166,7 @@ const EXT_THEO_MIME = {
 };
 async function createTask(token, row, type00) {
   const fd = new FormData();
-  const ten = ("[5S] " + (row.viTri || "?") + " - " + row.hangMuc).slice(0, 90);
+  const ten = tenPhieu5S(row.viTri, row.hangMuc);   // 13/10: [5S] A1-503-10 - … (ten-phieu-5s.js)
   // Ngày vi phạm: ưu tiên thời gian từ ảnh/video (client gửi qua thoiGianViPham), thiếu thì dùng lúc gửi form.
   const ngayViPham = row.thoiGianViPham || row.ngay || "";
   fd.set("name", ten);
@@ -202,11 +203,16 @@ async function createTask(token, row, type00) {
     if (laVideo) soVideo++; else soAnh++;
   }
   row._soAnh = soAnh; row._soVideo = soVideo;                 // để log
-  const res = await fetch(API_CREATE, {
-    method: "POST",
-    headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" },
-    body: fd,
-  });
+  /* 12/10: người gửi form (GAS tra từ mã máy, sổ riêng tư) → sổ tác giả trên máy này; KHÔNG ghi lên phiếu */
+  globalThis.__HSK_NGUOI_THAT = row.nguoiGui ? { ...row.nguoiGui, nguon: "Form 5S" } : { ten: "", may: "(form cũ / máy chưa gửi mã)", nguon: "Form 5S" };
+  let res;
+  try {
+    res = await fetch(API_CREATE, {
+      method: "POST",
+      headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" },
+      body: fd,
+    });
+  } finally { delete globalThis.__HSK_NGUOI_THAT; }
   let j = {}; try { j = JSON.parse(await res.text()); } catch {}
   return { ok: res.status === 200 && (j.status === 1 || j.code === 200), code: (j.data && j.data.code) || "", id: (j.data && j.data.id) || "", raw: j, http: res.status };
 }
@@ -406,6 +412,8 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     if (e && e.defer) { log("⏸ " + e.message + " — bỏ lượt này, chờ phiên người thật. Không báo động."); process.exit(0); }
     log("✗ " + e.message); await sendAlert(e.message); process.exit(2);
   }
+  // 16/10: việc chạy được trên máy trạm (dieu-phoi day-bao-cao-5s) — khoá ghi BO-CHUAN §1: chỉ token tamlc được lập phiếu
+  if (!laTokenGhiDuoc(token)) { log("⛔ Token KHÔNG phải tamlc (mượn phiên người khác) — DỪNG để không ghi nhầm danh tính."); process.exit(75); }
 
   const options = await getType00Options(token);
   log("✓ Workflow có " + options.length + " lựa chọn 'Lỗi vi phạm'.");
@@ -476,7 +484,10 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
               const rN = await fetch(V_API + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fdN,
                 headers: { authorization: token, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" }, signal: AbortSignal.timeout(30000) });
               log("    Truy vết vệ sinh: " + (rN.status === 200 ? "đã ghép vào Mô tả (ngày xét " + kq.ngayXet + ")" : "ghi Mô tả trượt HTTP " + rN.status));
-              if (!String(qNV).trim() && kq.suyNV) { qNV = kq.suyNV; log("    (Tự suy truy vết) NV vi phạm = phụ trách " + kq.suyNV + " — đi làm mà KHÔNG báo cáo ngày " + kq.ngayXet); }
+              /* 07/10 (user): ca CÓ BÁO CÁO (vệ sinh chưa đạt / báo cáo trong 8h) KHÔNG tự đóng B1 ở đây — canh-b11 ⑤(2) xét
+                 cửa sổ bụi 8h (VS-06 nhắc anh Tâm) hoặc tra camera đúng giờ báo cáo (VS-07). Chỉ tự suy khi KHÔNG báo cáo. */
+              if (!String(qNV).trim() && kq.suyNV && kq.ketLuan === "khong_bao_cao" && !kq.trongCuaSoBui) { qNV = kq.suyNV; log("    (Tự suy truy vết) NV vi phạm = phụ trách " + kq.suyNV + " — đi làm mà KHÔNG báo cáo ngày " + kq.ngayXet); }
+              else if (!String(qNV).trim() && kq.suyNV) log("    (Truy vết) phụ trách " + kq.suyNV + " CÓ báo cáo (" + (kq.bcPtGanNhat ? kq.bcPtGanNhat.ngay + " " + kq.bcPtGanNhat.gio : "?") + ", cách " + (kq.cachGioBc == null ? "?" : Math.round(kq.cachGioBc * 10) / 10) + "h) — để canh-b11 xét cửa sổ 8h / camera, chưa đóng B1.");
             }
           } catch (e) { log("    ⚠ Truy vết vệ sinh lỗi: " + e.message + " — task vẫn tạo bình thường."); }
         }

@@ -188,6 +188,17 @@
         "APPSCRIPT_URL",
         "APPSCRIPT_KEY"
       ]
+    },
+    {
+      "ten": "day-bao-cao-5s",
+      "_doc": "16/10 user: dua viec Day bao cao 5S (15', form 5S -> phieu WF591 + nt-tu-dinh-dang) ra may tram de laptop tat van lap phieu. Token work = kho/bridge tamlc; khoa ghi laTokenGhiDuoc trong push-5s-to-workflow.js.",
+      "xml": "Day_bao_cao_5S.xml",
+      "vbs": "day-bao-cao-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ]
     }
   ],
   "_motMay": "Viec CHI 1 may tuyet doi (doc Telegram/OTP = 409 neu 2 may): KHONG dua vao day, giu o laptop.",
