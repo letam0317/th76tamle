@@ -64,8 +64,21 @@ async function quyet(bang, now) {
 
 if (process.env.NHUONG_BANG) { const t = JSON.parse(fs.readFileSync(process.env.NHUONG_BANG, "utf8")); await quyet(t.may, t.srvNow || Date.now()); }
 const { gasPost } = await import("./session-rules.js");
-let j;
-try { j = await Promise.race([gasPost({ action: "pcBang", key: process.env.APPSCRIPT_KEY }, () => {}, "pcBang nhường"), new Promise((r) => setTimeout(() => r("__TIMEOUT__"), 10000))]); }
-catch (e) { await ghi(true, "GAS lỗi: " + e.message); }
-if (j === "__TIMEOUT__" || !j || j.status !== "success" || !Array.isArray(j.may)) await ghi(true, "GAS không trả bảng máy");
-await quyet(j.may, j.srvNow || Date.now());
+/* 16/10 16:35 LỖ HỔNG: GAS chập chờn 1 lượt → laptop chạy canh-b11 TRÙNG lúc JE75K38 cũng đang chạy (3 lượt «GAS không trả bảng máy»
+   15:55–16:35). Nay: hỏi GAS tối đa 2 lần; vẫn hỏng thì dùng bảng nhớ lần thành công gần nhất nếu ≤ 5 phút tuổi — đồng hồ được dời theo
+   thời gian đã trôi nên PC mất nhịp vẫn bị coi là chết như thường (sót không xảy ra hơn trước). Bảng nhớ cũ hơn → laptop chạy như cũ. */
+const CACHE = path.join(DIR, ".nhuong-bang-cache.json");
+const hoiGas = async () => { try { return await Promise.race([gasPost({ action: "pcBang", key: process.env.APPSCRIPT_KEY }, () => {}, "pcBang nhường"), new Promise((r) => setTimeout(() => r(null), 10000))]); } catch { return null; } };
+const tot = (x) => x && x.status === "success" && Array.isArray(x.may);
+let j = await hoiGas();
+if (!tot(j)) j = await hoiGas();
+if (tot(j)) {
+  try { fs.writeFileSync(CACHE, JSON.stringify({ luc: Date.now(), srvNow: j.srvNow || Date.now(), may: j.may })); } catch { /* */ }
+  await quyet(j.may, j.srvNow || Date.now());
+}
+let nho = null;
+try { nho = JSON.parse(fs.readFileSync(CACHE, "utf8")); } catch { /* */ }
+const tuoi = nho ? Date.now() - nho.luc : Infinity;
+if (!nho || !Array.isArray(nho.may) || !(tuoi >= 0 && tuoi <= 5 * 6e4)) await ghi(true, "GAS không trả bảng máy");
+nhatKy(`(GAS hỏng 2 lần — dùng bảng nhớ ${Math.round(tuoi / 1000)} giây trước)`);
+await quyet(nho.may, nho.srvNow + tuoi);
