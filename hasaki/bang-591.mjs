@@ -350,6 +350,7 @@ function mayTram() {
       viec: cfg.viec.map((v) => ({ ten: v.ten, nang: !!v.nang, chiLaptop: !!v.chiLaptop, may: giao[v.ten] || null, giu: (j.khoa || {})[v.ten]?.may || null, canKhoa: v.envKeys || [] })),
       chuyen: j.chuyen || [],
       xin: j.xin || [],   // 14/10 PC đang xin khoá (chờ Duyệt)
+      bridge: j.bridge || [],   // 16/10 ai đang cấp phiên qua bridge (email, kênh, tuổi — không có token)
     };
     MT = { at: Date.now(), data }; return data;
   })().finally(() => { MT_DANG = null; });

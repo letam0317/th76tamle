@@ -61,6 +61,9 @@ if (Test-Path "$duAn\va-puppeteer-ho-so.mjs") {
 }
 Pop-Location
 
+# ---- 16/10: ghim extension wms-bridge vao Edge moi user (policy HKLM) - khong con buoc cai tay ----
+if (Test-Path "$kit\ghim-bridge.ps1") { . "$kit\ghim-bridge.ps1"; Write-Host "  - $(Ghim-Bridge $kit)" }
+
 # ---- Dong bo task theo dieu-phoi.json (ham chung) ----
 . "$kit\dong-bo-task.ps1"
 $kq = DongBo-DieuPhoi $kit $cfg $duAn "C:\Users\lechitam\New folder\hasaki"
@@ -133,7 +136,7 @@ Write-Host "CON LAM TAY:" -ForegroundColor Yellow
 if ($trong) { Write-Host "  1. Thieu khoa: chay lai bo cai -> tu xin khoa, bam Duyet tren laptop (muc May tram)." }
 else { Write-Host "  1. .env da du khoa - khong can lam gi." }
 Write-Host "  2. Nen cam DAY LAN + tat ngu. May WiFi/ngu VAN CHAY: ngu = tam nghi, may khac ganh thay; bat lai la chay bu."
-Write-Host "  3. (Neu may lam bridge) mo Edge dang nhap WMS + cai extension wms-bridge."
+Write-Host "  3. Extension wms-bridge DA GHIM san vao Edge (mo lai Edge la co). Nguoi dung may nay dang nhap WMS/work -> may tram muon phien de DOC; viec GHI van chi bang tamlc."
 Write-Host ""
 Write-Host "  [BAO MAT] .env chua khoa GAS (lay duoc token tamlc) -> CHI cai may TIN CAY." -ForegroundColor Red
 Write-Host "            Thu muc da khoa chi SYSTEM+Admin; neu may mat kiem soat -> doi khoa GAS." -ForegroundColor Red

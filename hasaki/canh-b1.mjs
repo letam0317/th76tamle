@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chuanTu, chuanTuSau } from "./tu-ngu.mjs";   // TU-01: "châm hàng" không dùng "cất"
 import { execFileSync } from "node:child_process";
-import { layTokenSongWork, mayDuocChay } from "./session-rules.js";
+import { layTokenSongWork, layTokenGhiWork, mayDuocChay } from "./session-rules.js";
 import { laHangMucVeSinhHangNgay, napNguonTruyVet, traPhanCong } from "./truy-vet-vesinh.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -328,7 +328,8 @@ for (const [id, { qd, gc }] of Object.entries(QD)) {
   if (viec.loai === "hoi") { KQ[id] = { ...(KQ[id] || {}), canBan: viec.lyDo }; continue; }
   if (viec.loai === "camera") { const f = path.join(EXP, "b1-cho-camera.json"), q = docJ(f, {}); q[id] ||= { luc: new Date().toISOString(), camera: KQ[id]?.camera || "" }; ghiJ(f, q); SO.qd[id + "|" + qd] = Date.now(); ghiDaLam(id, "Đã đưa vào hàng chờ cắt clip camera"); continue; }
   if (!LAM) { log("   [thử] chưa làm."); continue; }
-  token ||= await layTokenSongWork(DIR, () => {});
+  token ||= await layTokenGhiWork(DIR, log);   // 16/10 khoá ghi: bình luận/dừng phiếu chỉ bằng phiên tamlc
+  if (!token) { log("   ⛔ không có phiên tamlc — để lượt sau."); break; }
   let xong = false;
   if (viec.loai === "b11") { xong = dongB1(id, viec.nv); if (xong) ghiDaLam(id, "Theo quyết định của bạn: chuyển B1.1 cho " + viec.nv); }
   else if (viec.loai === "dung") {

@@ -41,6 +41,8 @@ try {
       Ghi ("tu chua: nap " + $kq0.nap + $(if ($con.Count) { " · VAN THIEU: " + ($con -join ",") } else { " · du task" }))
     }
   } catch { Ghi "[X] tu chua task loi: $_" }
+  # 16/10 GHIM BRIDGE moi luot (idempotent, truoc buoc cho canary): PC cai truoc 16/10 tu co extension, khong cai lai tay
+  if (Test-Path "$kit\ghim-bridge.ps1") { try { . "$kit\ghim-bridge.ps1"; $gb = Ghim-Bridge $kit; if ($gb -notlike "bridge: da ghim*") { Ghi $gb } } catch { Ghi "[X] ghim bridge: $_" } }
 
   $truoc = (& $GIT -C $gitDir rev-parse HEAD 2>$null)
   $lockTruoc = if (Test-Path "$duAn\package-lock.json") { (Get-FileHash "$duAn\package-lock.json").Hash } else { "" }

@@ -344,7 +344,15 @@
     var hangMay = function (m) { return !m.song ? 3 : (m.dangChay || []).length ? 0 : m.dung ? 2 : 1; };
     var mayXep = MTD.may.slice().sort(function (a, b) { return (hangMay(a) - hangMay(b)) || ((b.diem || 0) - (a.diem || 0)) || String(a.may).localeCompare(String(b.may)); });
     h += MTD.may.length ? '<div class="mt-hang"><div class="mt-tde"><span>Thông tin máy · sức khoẻ</span><span>Việc đảm nhận</span><span>Việc đang làm và kết quả</span></div>' + mayXep.map(the).join("") + "</div>"
-      : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';    if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
+      : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';
+    /* 16/10 user «nên biết được bridge từ mail nào»: mỗi người 1 dòng (gộp kênh — luật không lặp). tamlc = ghi được; người khác = máy trạm chỉ mượn để ĐỌC. */
+    var br = {}, brDs = [];
+    (MTD.bridge || []).forEach(function (b) { var k = b.email || ("mã " + b.sub); if (!br[k]) { br[k] = { email: k, tamlc: b.tamlc, kenh: [], at: 0, song: false }; brDs.push(br[k]); }
+      var o = br[k]; o.kenh.push({ ten: b.kind === "wshr" ? "work/hr" : b.kind === "wms" ? "WMS" : b.kind, song: b.tuoi }); o.at = Math.max(o.at, b.at || 0); o.song = o.song || b.tuoi; });
+    if (brDs.length) h += '<div class="panel"><div class="panel-head"><span>Phiên bridge (từ Edge có cầu nối)</span><span>' + brDs.filter(function (o) { return o.song; }).length + " đang sống</span></div>" +
+      brDs.map(function (o) { return '<div class="hx-mt-v"' + (o.song ? "" : ' style="opacity:.5"') + '><div class="ten"><b>' + e_(o.email) + "</b><small>" +
+        o.kenh.map(function (k) { return e_(k.ten) + (k.song ? "" : " (hết)"); }).join(" · ") + " · đẩy lần cuối " + e_(tuoiChu(Math.round((Date.now() - o.at) / 1000))) + "</small></div>" +
+        '<span class="hx-tag ' + (o.tamlc ? "good" : "info") + '">' + (o.tamlc ? "Ghi + đọc" : "Chỉ đọc") + "</span></div>"; }).join("") + "</div>";    if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
     PANE.innerHTML = h;
     var dx = document.getElementById("mtDangXuat");
     if (dx) dx.onclick = function () { var mp = mtPhien(); try { localStorage.removeItem("mt-phien"); } catch (e) {} MTD = null; CAN_DN = true;

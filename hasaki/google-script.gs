@@ -446,7 +446,8 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeToken') return apiBridgeToken(duLieu);             // extension wms-bridge đẩy token PHIÊN SỐNG của operator — public, validate dạng JWT + throttle
-    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken(duLieu.kind) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken(duLieu.kind, duLieu.chu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'bridgeDs') return keyBodyOK_(duLieu) ? apiBridgeDs() : phanHoiJson({ status: 'error', message: 'Sai key' });   // 16/10: ai đang cấp phiên bridge (email), không trả token
     // Bộ pc_* (PhysicalCountImport.gs — dashboard factory "Tạo lệnh kiểm kê" + "SL điều chỉnh"):
     // khoá RIÊNG PC_KEY (không dùng SECRET 5S — tránh lộ khoá chủ cho operator dashboard public).
     // Các dòng này trước đây chỉ được thêm TAY trên bản deploy (sa.js) — nay nối vào nguồn để dán nguyên file là đủ.
@@ -541,7 +542,7 @@ function doGet(e) {
   //  nhánh appendRow mặc định và ghi rác vào sheet 5S).
   // bridgeWshr: bản này CÓ khe token work/hr riêng (kind='wshr'). Extension PHẢI thấy cờ này mới
   // đẩy token wshr — bản GAS cũ bỏ qua `kind` nên đẩy mù sẽ ghi đè token WMS bằng token wshr.
-  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, bridgeWshr: true, bridgeChat: true, stockFlag: true });
+  if (action === 'bridgeCaps') return phanHoiJson({ status: 'success', bridgeToken: true, bridgeWshr: true, bridgeChat: true, bridgeChu: true, stockFlag: true });
   // GET công khai bằng PIN (không chứa SECRET): dashboard/form gọi qua JSONP <script>
   if (action === 'requestSync') return apiRequestSync(e);           // nút "Cập nhật ngay" (PIN)
   if (action === 'requestTimesheet') return apiRequestTimesheet(e); // nút "Cập nhật chấm công" (PIN)
@@ -1511,32 +1512,105 @@ function khoaBridge_(kind) {
   if (k === 'chatauth') return { tk: 'BRIDGE_CHATAUTH_TOKEN', at: 'BRIDGE_CHATAUTH_TOKEN_AT', exp: 'BRIDGE_CHATAUTH_TOKEN_EXP' };
   return { tk: 'BRIDGE_TOKEN', at: 'BRIDGE_TOKEN_AT', exp: 'BRIDGE_TOKEN_EXP' };
 }
+/* 16/10/2026 — BRIDGE THEO TỪNG NGƯỜI (hướng 3: Edge máy trạm có người khác đăng nhập).
+ * Trước: mỗi khe 1 chỗ → phiên người ở máy trạm ĐÈ phiên tamlc, mọi cò (kể cả cò GHI) xài phiên người đó.
+ * Nay: mỗi (khe, chủ) 1 chỗ riêng BRIDGE_U_<khe>_<sub> = {tk,at,exp,email}; chủ = sub trong JWT,
+ * email lấy từ JWT (WMS/hr có Email) hoặc từ bảng sub→email ghi lúc thấy token WMS (work không có email).
+ * Khe chung cũ (K.tk) GIỮ cho tương thích: tamlc luôn được ghi; người khác chỉ ghi khi tamlc KHÔNG tươi
+ * → đọc mặc định ưu tiên tamlc, vắng tamlc mới mượn người khác (chỉ để ĐỌC — máy trạm có khoá ghi).
+ * getBridgeToken {chu:'tamlc'} = chỉ trả phiên tamlc (cò GHI + luật «có người đang làm»). */
+var BRIDGE_TAMLC_SUB_ = { '18811': 1, '9665': 1 };
+var BRIDGE_TAMLC_MAIL_ = 'tamlc@hasaki.vn';
+function bridgeChu_(tk) {
+  try {
+    var p = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(tk.split('.')[1] + '===='.slice((tk.split('.')[1].length % 4) || 4))).getDataAsString());
+    return { sub: p.sub != null ? String(p.sub) : '', email: String(p.email || p.Email || p.preferred_username || '').toLowerCase() };
+  } catch (e) { return { sub: '', email: '' }; }
+}
+function bridgeLaTamlc_(c) { return !!(c && ((c.sub && BRIDGE_TAMLC_SUB_[c.sub]) || c.email === BRIDGE_TAMLC_MAIL_)); }
+function bridgeTuoi_(at, exp, now) { return (now - at < 30 * 60 * 1000) && (!exp || now < exp - 15000); }
 function apiBridgeToken(duLieu) {
-  var K = khoaBridge_(duLieu.kind);
+  var kind = String(duLieu.kind || 'wms');
+  var K = khoaBridge_(kind);
   var tk = String(duLieu.token || '').replace(/^Bearer\s+/i, '').trim();
   if (tk.length < 100 || !/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(tk)) return phanHoiJson({ status: 'error', message: 'Token không hợp lệ' });
   var P = PropertiesService.getScriptProperties();
-  var truoc = Number(P.getProperty(K.at) || 0), now = new Date().getTime();
-  if (now - truoc < 30 * 1000) return phanHoiJson({ status: 'success', throttled: true });
+  var now = new Date().getTime(), exp = Number(duLieu.exp || 0) || 0;
+  var c = bridgeChu_(tk), tamlc = bridgeLaTamlc_(c);
+  if (c.sub) {
+    if (c.email) P.setProperty('BRIDGE_MAIL_' + c.sub, c.email);
+    var email = c.email || P.getProperty('BRIDGE_MAIL_' + c.sub) || '';
+    var kU = 'BRIDGE_U_' + kind + '_' + c.sub.replace(/[^0-9A-Za-z_-]/g, '').slice(0, 40);
+    var u = null; try { u = JSON.parse(P.getProperty(kU) || 'null'); } catch (e) { u = null; }
+    if (!u || u.tk !== tk || now - Number(u.at || 0) >= 30 * 1000) {
+      P.setProperty(kU, JSON.stringify({ tk: tk, at: now, exp: exp, email: email, sub: c.sub }));
+      var ds = []; try { ds = JSON.parse(P.getProperty('BRIDGE_U_DS') || '[]'); } catch (e) { ds = []; }
+      if (ds.indexOf(kU) < 0) {
+        ds.push(kU);
+        while (ds.length > 40) P.deleteProperty(ds.shift());   // chặn rác (khe public) — giữ 40 chỗ gần nhất
+        P.setProperty('BRIDGE_U_DS', JSON.stringify(ds));
+      }
+    }
+  }
+  // khe chung: tamlc (hoặc token không đọc được chủ = hành vi cũ) luôn ghi; người khác chỉ khi tamlc vắng
+  if (c.sub && !tamlc) {
+    var chuCu = bridgeChu_(P.getProperty(K.tk) || 'x.x');
+    if (bridgeLaTamlc_(chuCu) && bridgeTuoi_(Number(P.getProperty(K.at) || 0), Number(P.getProperty(K.exp) || 0), now))
+      return phanHoiJson({ status: 'success', saved: true, chung: false });
+  }
+  var truoc = Number(P.getProperty(K.at) || 0);
+  if (now - truoc < 30 * 1000 && (P.getProperty(K.tk) || '') === tk) return phanHoiJson({ status: 'success', throttled: true });
   P.setProperty(K.tk, tk);
   P.setProperty(K.at, String(now));
-  P.setProperty(K.exp, String(Number(duLieu.exp || 0) || 0));
+  P.setProperty(K.exp, String(exp));
   return phanHoiJson({ status: 'success', saved: true });
 }
-function apiGetBridgeToken(kind) {
+function apiGetBridgeToken(kind, chu) {
   var K = khoaBridge_(kind);
   var P = PropertiesService.getScriptProperties();
+  var now = new Date().getTime();
+  if (chu === 'tamlc') {   // chỉ phiên tamlc: cò GHI + luật «có người đang làm» (phiên người khác không đá được tamlc)
+    var tot = null, k = String(kind || 'wms');
+    for (var s in BRIDGE_TAMLC_SUB_) {
+      var u = null; try { u = JSON.parse(P.getProperty('BRIDGE_U_' + k + '_' + s) || 'null'); } catch (e) { u = null; }
+      if (u && (!tot || u.at > tot.at)) tot = u;
+    }
+    if (!tot) {   // bản cũ chưa có chỗ riêng → khe chung nếu là tamlc
+      var tkc = P.getProperty(K.tk) || '';
+      if (tkc && bridgeLaTamlc_(bridgeChu_(tkc))) tot = { tk: tkc, at: Number(P.getProperty(K.at) || 0), exp: Number(P.getProperty(K.exp) || 0), email: BRIDGE_TAMLC_MAIL_ };
+    }
+    if (!tot) return phanHoiJson({ status: 'success', token: '', at: 0, coTungCo: false });
+    return phanHoiJson(bridgeTuoi_(Number(tot.at || 0), Number(tot.exp || 0), now)
+      ? { status: 'success', token: tot.tk, at: tot.at, exp: tot.exp, email: tot.email || BRIDGE_TAMLC_MAIL_, tamlc: true }
+      : { status: 'success', token: '', at: tot.at, coTungCo: true });
+  }
   var tk = P.getProperty(K.tk) || '';
   var at = Number(P.getProperty(K.at) || 0);
   var exp = Number(P.getProperty(K.exp) || 0);
-  var now = new Date().getTime();
-  var song = tk && (now - at < 30 * 60 * 1000) && (!exp || now < exp - 15000);   // tươi <30' và chưa quá hạn JWT
+  var song = tk && bridgeTuoi_(at, exp, now);   // tươi <30' và chưa quá hạn JWT
   // `at` LUÔN trả về (kể cả khi hết tươi) — máy trạm cần TUỔI để tính "cửa im lặng" của luật
   // "chỉ login khi không có phiên sống"; bản cũ trả at:0 nên không phân biệt được "chưa từng có
   // bridge" với "bridge vừa im 5 phút" hay "im 3 tiếng".
+  var c = tk ? bridgeChu_(tk) : { sub: '', email: '' };
+  var mail = c.email || (c.sub ? P.getProperty('BRIDGE_MAIL_' + c.sub) || '' : '');
   return phanHoiJson(song
-    ? { status: 'success', token: tk, at: at, exp: exp }
+    ? { status: 'success', token: tk, at: at, exp: exp, email: mail, tamlc: bridgeLaTamlc_(c) }
     : { status: 'success', token: '', at: at, coTungCo: !!tk });
+}
+/** bridgeDs (SECRET): ai đang cấp phiên qua bridge — {kind, sub, email, at, tuoi} (không trả token). Tab Máy trạm cũng nhận (pcBang/pcBangPh). */
+function apiBridgeDs() { return phanHoiJson({ status: 'success', ds: bridgeDs_(), srvNow: new Date().getTime() }); }
+function bridgeDs_() {
+  var P = PropertiesService.getScriptProperties(), now = new Date().getTime();
+  var ds = []; try { ds = JSON.parse(P.getProperty('BRIDGE_U_DS') || '[]'); } catch (e) { ds = []; }
+  var out = [];
+  for (var i = 0; i < ds.length; i++) {
+    var u = null; try { u = JSON.parse(P.getProperty(ds[i]) || 'null'); } catch (e) { u = null; }
+    if (!u) continue;
+    var kind = ds[i].replace(/^BRIDGE_U_/, '').replace(/_[^_]*$/, '');
+    out.push({ kind: kind, sub: u.sub || '', email: u.email || P.getProperty('BRIDGE_MAIL_' + u.sub) || '', at: u.at, tuoi: bridgeTuoi_(Number(u.at || 0), Number(u.exp || 0), now), tamlc: bridgeLaTamlc_({ sub: u.sub, email: u.email }) });
+  }
+  out.sort(function (a, b) { return b.at - a.at; });
+  return out;
 }
 
 /** Kéo trọn 1 công ty từ WMS (phân trang size 5000) + LỌC theo khoGiuLai. Trả {rows} hoặc {code,message}. */
@@ -2492,7 +2566,7 @@ function apiPcBang_() {
     else if (k.indexOf('PCCHUYEN_') === 0) { var c3 = pcJson_(all[k]); if (c3) chuyen.push({ viec: k.slice(9), tu: c3.tu, luc: c3.luc, sanSang: !!c3.sanSang }); }
     else if (k.indexOf('PCXIN_') === 0) { var x5 = pcJson_(all[k]); if (x5 && now - Number(x5.luc || 0) <= 30 * 60000) xin.push({ may: k.slice(6), maXN: x5.maXN, luc: x5.luc, daDuyet: !!x5.goi }); }   // 14/10 PC xin khoá (không trả gói)
   }
-  return phanHoiJson({ status: 'success', may: may, khoa: khoa, chuyen: chuyen, xin: xin, srvNow: now, hetHanPhut: Number(props.getProperty('PCNHIP_HET_HAN_PHUT') || 30) });
+  return phanHoiJson({ status: 'success', may: may, khoa: khoa, chuyen: chuyen, xin: xin, bridge: bridgeDs_(), srvNow: now, hetHanPhut: Number(props.getProperty('PCNHIP_HET_HAN_PHUT') || 30) });
 }
 
 /* 13/10 tối user: «Máy trạm ở mục Xác minh, dưới cùng — BUỘC PHẢI CÓ MẬT KHẨU mới xem được» (cả điện thoại, nơi không có máy chủ 8591).
@@ -2552,7 +2626,7 @@ function apiPcBangPh_(d) {
         coCamera: (v.coKhoa || []).indexOf('TOPREVIEW_USER') >= 0, dangChay: v.dangChay || [], viecGiao: v.viecGiao || [], tatCaViec: v.tatCaViec || [], viecNang: v.viecNang || [], chayLuc: v.chayLuc, congLuc: v.congLuc, taskDP: v.taskDP, coKhoa: v.coKhoa || [], oDia: v.oDia || [], dung: l.dung, dungViec: l.dungViec, lenhBoi: l.dung ? l.boi : '', capNhatYc: l.capNhat, capGan: v.capGan || [] }, now));
     } else if (k.indexOf('PCCHUYEN_') === 0) { var c = pcJson_(all[k]); if (c) chuyen.push({ viec: k.slice(9), tu: c.tu, luc: c.luc, sanSang: !!c.sanSang }); }
   }
-  return phanHoiJson({ status: 'success', may: may, chuyen: chuyen, srvNow: now });
+  return phanHoiJson({ status: 'success', may: may, chuyen: chuyen, bridge: bridgeDs_(), srvNow: now });
 }
 
 /* 14/10 user cài thử trên PC bằng bộ cài tải NGAY TRÊN PC (bản công khai, không khoá) → «.env CON TRONG». Luồng XIN KHOÁ – DUYỆT:

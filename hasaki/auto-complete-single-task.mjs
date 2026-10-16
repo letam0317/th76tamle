@@ -19,7 +19,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { layTokenSongWork } from "./session-rules.js";
+import { layTokenGhiWork } from "./session-rules.js";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -80,8 +80,8 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
 
 (async () => {
   if (!TASK || !QUERY_NV) { console.log("Thiếu tham số. Ví dụ:\n  node auto-complete-single-task.mjs --task=13829903 --nv=trinhhtm3@hasaki.vn --lam"); process.exit(1); }
-  const token = await layTokenSongWork(DIR, log);
-  if (!token) { log("✗ Không lấy được token work.hasaki.vn."); process.exit(2); }
+  const token = await layTokenGhiWork(DIR, log);   // 16/10 khoá ghi: đóng B1 chỉ bằng phiên tamlc
+  if (!token) { log("✗ Không lấy được token work.hasaki.vn của tamlc."); process.exit(2); }
 
   const db = await layDanhBa(token);
   const ds = QUERY_NV.split(",").map((s) => s.trim()).filter(Boolean).map((q) => timNhanVien(q, db)).filter(Boolean);

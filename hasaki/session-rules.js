@@ -459,16 +459,17 @@ async function coBridgeCap() { return (await docBridgeCaps()).wms; }
  * LUẬT 1: lấy token bridge (phiên đang sống của operator) từ GAS, kiểm get-me trước khi dùng.
  * Trả "Bearer <jwt>" hoặc null (không có / hết hạn / get-me chết). Không bao giờ ném lỗi.
  */
-export async function layBridgeToken(log = () => {}) {
+export async function layBridgeToken(log = () => {}, { chu } = {}) {   // chu:"tamlc" = chỉ phiên tamlc (16/10, bridge theo từng người)
   if (!APPSCRIPT_KEY) return null;
   if (!(await coBridgeCap())) return null;   // GAS chưa redeploy bản có bridge → im lặng bỏ qua
   try {
-    const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY }, () => {}, "getBridgeToken").catch(() => null);
+    const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, ...(chu ? { chu } : {}) }, () => {}, "getBridgeToken").catch(() => null);
     if (!j || j.status !== "success" || !j.token) return null;
     const tk = "Bearer " + String(j.token).replace(/^Bearer\s+/i, "");
     const me = await fetch(GET_ME, { headers: { authorization: tk } }).catch(() => null);
     if (!me || !me.ok) { log("  … token bridge có nhưng đã chết (get-me " + (me ? me.status : "lỗi mạng") + ") — bỏ qua."); return null; }
-    log("  ✓ Dùng token BRIDGE (phiên đang sống của operator — không tạo phiên mới, không đá ai).");
+    if (chu === "tamlc" && !laTokenGhiDuoc(tk)) return null;   // GAS bản cũ bỏ qua chu → tự lọc
+    log("  ✓ Dùng token BRIDGE của " + (j.email || chuToken(tk)?.email || "sub " + (chuToken(tk)?.sub || "?")) + " (phiên đang sống — không tạo phiên mới, không đá ai).");
     return tk;
   } catch { return null; }
 }
@@ -556,16 +557,17 @@ export async function layTokenSongWms(DIR, log = () => {}) {
  * Trọng tài sống/chết của wshr là chính API danh bạ (giống pull-timesheet / login-hasaki).
  */
 const WSHR_THU = "https://wshr.hasaki.vn/api/news/staff/search-for-dropdown?limit=1";
-export async function layBridgeTokenWshr(log = () => {}) {
+export async function layBridgeTokenWshr(log = () => {}, { chu } = {}) {
   if (!APPSCRIPT_KEY) return null;
   if (!(await docBridgeCaps()).wshr) return null;
   try {
-    const j = await gasPost({ action: "getBridgeToken", kind: "wshr", key: APPSCRIPT_KEY }, () => {}, "getBridgeToken wshr").catch(() => null);
+    const j = await gasPost({ action: "getBridgeToken", kind: "wshr", key: APPSCRIPT_KEY, ...(chu ? { chu } : {}) }, () => {}, "getBridgeToken wshr").catch(() => null);
     if (!j || j.status !== "success" || !j.token) return null;
     const tk = "Bearer " + String(j.token).replace(/^Bearer\s+/i, "");
     const thu = await fetch(WSHR_THU, { headers: { authorization: tk } }).catch(() => null);
     if (!thu || !thu.ok) { log("  … token bridge work/hr có nhưng wshr từ chối (" + (thu ? thu.status : "lỗi mạng") + ") — bỏ qua."); return null; }
-    log("  ✓ Dùng token BRIDGE work/hr (phiên đang sống của operator — không đăng nhập mới).");
+    if (chu === "tamlc" && !laTokenGhiDuoc(tk)) return null;
+    log("  ✓ Dùng token BRIDGE work/hr của " + (j.email || "sub " + (chuToken(tk)?.sub || "?")) + " (phiên đang sống — không đăng nhập mới).");
     if (_dirCuoi) chungThucKenhWshr(_dirCuoi);   // lần đầu thấy token wshr THẬT → mở luật phiên (xem dưới)
     return tk;
   } catch { return null; }
@@ -603,6 +605,21 @@ export async function layTokenSongWork(DIR, log = () => {}) {
   }
   const bridge = await layBridgeTokenWshr(log);
   if (bridge) { luuToken(DIR, "work", bridge, "bridge"); chamMocBridge(DIR); return bridge; }
+  return null;
+}
+
+/**
+ * TOKEN work ĐỂ GHI (16/10/2026) — cò GHI (đóng B1/B1.1, bình luận, dừng phiếu, lập phiếu) gọi hàm này
+ * thay layTokenSongWork. Token kho là tamlc → dùng; là phiên MƯỢN người khác (bridge máy trạm) → hỏi riêng
+ * chỗ tamlc trên GAS; không có → null (caller DỪNG phần ghi, không ghi nhầm tên người khác).
+ */
+export async function layTokenGhiWork(DIR, log = () => {}) {
+  const t = await layTokenSongWork(DIR, log);
+  if (t && laTokenGhiDuoc(t)) return t;
+  if (t) log("  … token work đang dùng là phiên MƯỢN (" + (chuToken(t)?.email || "sub " + chuToken(t)?.sub) + ") — tìm phiên tamlc để ghi.");
+  const tam = await layBridgeTokenWshr(log, { chu: "tamlc" });
+  if (tam) return tam;
+  log("  ⛔ Không có phiên tamlc sống — bỏ phần GHI lượt này (phiên mượn chỉ được đọc).");
   return null;
 }
 
@@ -661,9 +678,10 @@ export async function trangThaiPhien(DIR, log = () => {}) {
 
   // 1) Bridge còn tươi? = người thật đang làm (extension chỉ đẩy token ĐÃ xác thực).
   //    Xét CẢ HAI cổng: người có thể đang làm trên work/hr mà không mở WMS.
-  const bridge = await layBridgeToken(log).catch(() => null);
+  //    16/10: chỉ phiên TAMLC mới tính — đăng nhập tamlc chỉ đá được phiên tamlc; phiên người khác ở máy trạm không bị đá.
+  const bridge = await layBridgeToken(log, { chu: "tamlc" }).catch(() => null);
   if (bridge) { chamMocBridge(DIR); return goi("nguoi", "bridge WMS còn tươi — có người đang làm", false); }
-  const bridgeWshr = await layBridgeTokenWshr(log).catch(() => null);
+  const bridgeWshr = await layBridgeTokenWshr(log, { chu: "tamlc" }).catch(() => null);
   if (bridgeWshr) { chamMocBridge(DIR); return goi("nguoi", "bridge work/hr còn tươi — có người đang làm (dù không mở WMS)", false); }
 
   // 2) Token trong kho còn sống? get-me là trọng tài; nhãn nguon cho biết của ai.
@@ -672,10 +690,11 @@ export async function trangThaiPhien(DIR, log = () => {}) {
     const me = await fetch(GET_ME, { headers: { authorization: cu.token } }).catch(() => null);
     if (me && me.ok) {
       const ng = nguonToken(DIR, "wms");
-      if (ng === "bridge") { chamMocBridge(DIR); return goi("nguoi", "token kho còn sống và là của phiên NGƯỜI (nguon=bridge)", false); }
+      if (ng === "bridge" && laTokenGhiDuoc(cu.token)) { chamMocBridge(DIR); return goi("nguoi", "token kho còn sống và là của phiên NGƯỜI (nguon=bridge)", false); }
       if (ng === "bot") return goi("bot", "token kho còn sống, của chính bot", false);
+      // 16/10: token kho là phiên MƯỢN người khác (bridge máy trạm) → không chặn tamlc đăng nhập, xuống bước 3.
       // Token cũ chưa có nhãn (lưu trước bản này): còn sống thì cứ dùng, KHÔNG login — an toàn hơn.
-      return goi("khongro", "token kho còn sống nhưng KHÔNG có nhãn nguồn — không login, cứ dùng token này", false);
+      if (ng !== "bridge") return goi("khongro", "token kho còn sống nhưng KHÔNG có nhãn nguồn — không login, cứ dùng token này", false);
     }
     if (!me) return goi("khongro", "không gọi được get-me (mất mạng?) — không kết luận, KHÔNG login", false);
   }

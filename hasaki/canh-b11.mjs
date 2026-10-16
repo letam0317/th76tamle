@@ -47,7 +47,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenSongWork, phutVN, mayDuocChay, laTokenGhiDuoc } from "./session-rules.js";
+import { layTokenGhiWork, phutVN, mayDuocChay, laTokenGhiDuoc } from "./session-rules.js";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET, cauNhacBui, DAU_NHAC_BUI, CUA_SO_BUI_GIO } from "./truy-vet-vesinh.mjs";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
 
@@ -212,8 +212,8 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   // 14/10 «chạy ra sao, của task nào» → tab Máy trạm (lượt thật)
   const TD = THU ? null : await import("./tien-do.mjs");
   TD?.batDau("canh-b11", "Đọc board phiếu 5S");
-  const token = await layTokenSongWork(DIR, log);
-  if (!token) { log("✗ Không có token work sống — dừng."); process.exitCode = 1; return; }
+  const token = await layTokenGhiWork(DIR, log);   // 16/10: phiên mượn người khác → tự tìm phiên tamlc
+  if (!token) { log("✗ Không có token work tamlc sống — dừng."); process.exitCode = 1; return; }
   // KHOÁ GHI: cò này ĐÓNG B1.1 (ghi) → chỉ chạy khi token là tamlc; token mượn người khác → dừng (không ghi nhầm tên).
   if (!laTokenGhiDuoc(token)) { log("⛔ Token KHÔNG phải tamlc (mượn phiên người khác) — DỪNG để không ghi nhầm danh tính."); process.exitCode = 75; return; }
   const db = await layDanhBa(token);

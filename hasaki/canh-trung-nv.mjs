@@ -5,7 +5,7 @@
  *  "Phiếu của NV" = B1 đã đóng có staff = mã NV (đã qua xác minh). Phiếu đã bị CH-05 gộp thì không đếm cho CH-06.
  *  node canh-trung-nv.mjs [--lam]   — 1 lượt board (120 ngày) + sổ .canh-trung-nv.json chống làm lại. */
 import "dotenv/config"; import fs from "node:fs";
-import { layTokenSongWork } from "./session-rules.js";
+import { layTokenSongWork, layTokenGhiWork } from "./session-rules.js";
 const V = "https://wshr.hasaki.vn/api"; const LAM = process.argv.includes("--lam"); const F_SO = ".canh-trung-nv.json";
 /* cửa giờ 07–18 T2–T7 (như canh-b1/canh-b11) + khoá chống chạy chồng */
 { const h = new Date(Date.now() + 7 * 36e5); if (LAM && !process.argv.includes("--force") && (h.getUTCDay() === 0 || h.getUTCHours() < 7 || h.getUTCHours() >= 18)) { console.log("ngoài cửa 07–18 T2–T7 — thôi"); process.exit(0); } }
@@ -13,7 +13,9 @@ const KHOA = ".canh-trung-nv.lock";
 if (fs.existsSync(KHOA) && Date.now() - fs.statSync(KHOA).mtimeMs < 30 * 60e3) { console.log("đang có lượt khác chạy — thôi"); process.exit(0); }
 fs.writeFileSync(KHOA, String(process.pid)); process.on("exit", () => { try { fs.unlinkSync(KHOA); } catch { } });
 const so = (() => { try { return JSON.parse(fs.readFileSync(F_SO, "utf8")); } catch { return { gop: {}, tag06: {} }; } })();
-const t = await layTokenSongWork(process.cwd(), () => {}); const HW = { authorization: t, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" };
+/* 16/10 khoá ghi: --lam (bình luận/dừng phiếu) chỉ bằng phiên tamlc; chạy thử chỉ đọc thì phiên nào cũng được */
+const t = LAM ? await layTokenGhiWork(process.cwd(), () => {}) : await layTokenSongWork(process.cwd(), () => {});
+if (!t) { console.log(LAM ? "không có phiên tamlc sống — bỏ lượt (phiên mượn chỉ được đọc)" : "không có token work"); process.exit(LAM ? 75 : 1); } const HW = { authorization: t, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" };
 const iso = (d) => d.toISOString().slice(0, 10);
 const rows = (((await (await fetch(V + "/hr/workflows/detail-workflow-task/591?from_date=" + iso(new Date(Date.now() - 120 * 864e5)) + "&to_date=" + iso(new Date(Date.now() + 864e5)) + "&search_type=board", { headers: { authorization: t }, signal: AbortSignal.timeout(180000) })).json()).data || {}).rows || []);
 const DB = (JSON.parse(fs.readFileSync(".cache-danhba.json", "utf8")).data || []); const nvMa = (m) => DB.find((d) => String(d.code) === String(m));

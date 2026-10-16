@@ -20,7 +20,7 @@ import { layTokenTuPhucHoi } from "./auto-login.js";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
 import { tenPhieu5S } from "./ten-phieu-5s.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
-import { gasPost, laTokenGhiDuoc } from "./session-rules.js";
+import { gasPost, laTokenGhiDuoc, layBridgeTokenWshr } from "./session-rules.js";
 import { traCuuSanPham, dongMoTaSP } from "./tra-sku-hasaki.mjs";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay } from "./truy-vet-vesinh.mjs";
 
@@ -413,7 +413,8 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
     log("✗ " + e.message); await sendAlert(e.message); process.exit(2);
   }
   // 16/10: việc chạy được trên máy trạm (dieu-phoi day-bao-cao-5s) — khoá ghi BO-CHUAN §1: chỉ token tamlc được lập phiếu
-  if (!laTokenGhiDuoc(token)) { log("⛔ Token KHÔNG phải tamlc (mượn phiên người khác) — DỪNG để không ghi nhầm danh tính."); process.exit(75); }
+  if (!laTokenGhiDuoc(token)) token = await layBridgeTokenWshr(log, { chu: "tamlc" });   // 16/10: phiên mượn → thử phiên tamlc trên GAS
+  if (!token) { log("⛔ Token KHÔNG phải tamlc (mượn phiên người khác) — DỪNG để không ghi nhầm danh tính."); process.exit(75); }
 
   const options = await getType00Options(token);
   log("✓ Workflow có " + options.length + " lựa chọn 'Lỗi vi phạm'.");

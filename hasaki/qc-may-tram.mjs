@@ -21,8 +21,10 @@ const API591 = { srvNow: now, hetHanPhut: 3,
   viec: [{ ten: "canh-b11", nang: true, may: "PC-KHO-01" }, { ten: "canh-bai-xe-sang", nang: true, may: null, canKhoa: ["TOPREVIEW_USER"] },
     { ten: "tim-bang-chung-b1", nang: true, may: "PC-KHO-01" }, { ten: "co-canh-planogram", nang: false, may: "PC-KHO-01" }],
   chuyen: [{ viec: "canh-bai-xe-sang", tu: "PC-KHO-01", luc: now - 30000, sanSang: true }],
-  xin: [{ may: "PC-MOI-03", maXN: "7F3A", luc: now - 60000, daDuyet: false }] };   // 14/10 PC xin khoá chờ duyệt
-const GAS_TB = { status: "success", srvNow: now, may: [{ ...PC1, coCamera: true }, { ...PC2, coCamera: false }], chuyen: API591.chuyen };
+  xin: [{ may: "PC-MOI-03", maXN: "7F3A", luc: now - 60000, daDuyet: false }],   // 14/10 PC xin khoá chờ duyệt
+  bridge: [{ kind: "wshr", sub: "18811", email: "tamlc@hasaki.vn", at: now - 120000, tuoi: true, tamlc: true }, { kind: "wms", sub: "18811", email: "tamlc@hasaki.vn", at: now - 3600000, tuoi: false, tamlc: true },
+    { kind: "wms", sub: "22222", email: "qc-nguoi-khac@hasaki.vn", at: now - 60000, tuoi: true, tamlc: false }] };   // 16/10 phiên bridge theo email
+const GAS_TB = { status: "success", srvNow: now, may: [{ ...PC1, coCamera: true }, { ...PC2, coCamera: false }], chuyen: API591.chuyen, bridge: API591.bridge };
 const CA = [{ ten: "quanly-pc", w: 1366, h: 900, mob: false, quanLy: true }, { ten: "quanly-ip14", w: 390, h: 844, mob: true, quanLy: true },
   { ten: "quanly-chua-dn", w: 1366, h: 900, mob: false, quanLy: true, chuaDN: true },
   { ten: "dienthoai-ip14", w: 390, h: 844, mob: true, quanLy: false }, { ten: "dienthoai-and360", w: 360, h: 740, mob: true, quanLy: false }];
@@ -93,6 +95,10 @@ try {
       r.continue();
     });
     await p.goto(URL0 + "?tab=maytram", { waitUntil: "domcontentloaded", timeout: 60000 });
+    const kiemBridge = async () => { const t = await p.evaluate(() => { const pn = [...document.querySelectorAll("#pane-maytram .panel")].find((x) => /Phiên bridge/.test(x.textContent)); if (!pn) return null;
+      return { dong: pn.querySelectorAll(".hx-mt-v").length, chu: pn.textContent, tran: pn.scrollWidth > pn.clientWidth + 1 }; });
+      if (!t) return; ok(t.dong === 2 && t.chu.includes("tamlc@hasaki.vn") && t.chu.includes("qc-nguoi-khac@") && t.chu.includes("Chỉ đọc") && t.chu.includes("Ghi + đọc") && t.chu.includes("work/hr · WMS (hết)") && !t.tran,
+        "khối Phiên bridge: 2 người (gộp kênh), nhãn Ghi+đọc/Chỉ đọc, không tràn ngang"); };
     const nhom = () => p.evaluate(() => { const g = [...document.querySelectorAll("#sideNav .s-grp")].find((x) => x.textContent.trim() === "Xác minh"); const sub = g && g.nextElementSibling;
       return sub ? [...sub.querySelectorAll(".s-item")].map((x) => x.textContent.trim().replace(/\d.*$/, "")) : []; });
     if (m.chuaDN) {   // máy quản lý CHƯA đăng nhập hệ tài khoản (dù còn sót phiên Xác minh cũ hx-phien)
@@ -162,7 +168,7 @@ try {
       const dgQ = await p.evaluate(() => { const t = [...document.querySelectorAll("#pane-maytram .mt-o")].find((e) => /QLIT/.test(e.querySelector(".mt-dau b").textContent)); return (t.querySelector(".mt-dg") || {}).textContent || ""; });
       ok(/^Sức khoẻ: Kémthiếu 9\/13 task việc/.test(dgQ), "máy thiếu task (QLIT thật 14/10: 4/13) → Sức khoẻ Kém · thiếu 9/13 task việc (" + dgQ + ")");
       ok(hn.tag === "Rảnh" &&/^Hôm nay đã làm 1 việc · gần nhất: Cò canh planogram lúc \d\d:\d\d \(\d+ phút trước\)$/.test(hn.hn), "máy rảnh: nhãn «Rảnh» + dòng «Hôm nay đã làm …» (" + hn.tag + " · " + hn.hn + ")");
-      await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
+      await kiemBridge(); await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
     if (m.data2) { const q = dcMay["HSK-KHO170-QLIT"] || [];
       ok(q.length === 2 && /^Cò canh B1\.1 Soát phiếu 5S \(B1\.1 · B3 · vệ sinh\) · phiếu 14180438 \(40\/120\)/.test(q[0].t) && Math.abs(q[0].thanh - 33) <= 1 && /^Cò canh planogram Đang chạy từ \d\d:\d\d/.test(q[1].t),
@@ -220,7 +226,7 @@ try {
       hoi.length = 0; await p.click('#pane-maytram .mt-x[data-viec="tim-bang-chung-b1"]'); await new Promise((r) => setTimeout(r, 1200));
       const bx = post.filter((x) => /may-tram\/lenh/.test(x.url)).pop(), ox = bx ? JSON.parse(bx.body) : {};
       ok(hoi.length === 1 && /chuyển việc này sang máy khác/.test(hoi[0]) && ox.viec === "tim-bang-chung-b1" && ox.dung === true, "bấm × → hỏi lại rồi gửi lệnh tắt việc trên máy (" + (hoi[0] || "không hỏi") + ")");
-      await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
+      await kiemBridge(); await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
     if (m.data) {   // ca hiển thị: chỉ laptop đang dừng, 13 việc chưa có máy
       const d = await p.evaluate(() => { const pn = document.querySelector("#pane-maytram"), khoi = pn.querySelector(".mt-chua");
@@ -239,7 +245,7 @@ try {
       if (laL) ok(!/điểm \d/.test(d.t) && /dừng bởi bộ cài \(máy quản lý\)/.test(bc.tipPhu[0]), "thẻ gọn: «điểm», «dừng bởi» chỉ trong chú thích rê chuột");
       const tran = (m.mob ? 300 : 220) + (laL ? 0 : 60);   // 15/10 3 lý do = thêm 2 dòng lý do   // 14/10 điện thoại: thêm 2 hàng «Nặng:/Nhẹ:» (user yêu cầu nhãn nặng nhẹ) → 285px, vẫn nửa trên màn
       ok(d.caoKhoi > 0 && d.caoKhoi < tran, "khối chưa nhận gọn (" + d.caoKhoi + "px < " + tran + ")");
-      await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
+      await kiemBridge(); await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true }); await p.close(); continue;
     }
     ok(bc.so === 2, "2 thẻ máy (" + bc.so + ")");
     ok(/PC-KHO-01/.test(bc.chu[0]) && /Đang chạy/.test(bc.chu[0]) && /RAM 62%/.test(bc.chu[0]) && /CPU 72%/.test(bc.chu[0]) && /Ổ C 8 GB/.test(bc.chu[0]), "thẻ 1: trạng thái + RAM 62% + CPU 72% + ổ C 8 GB");
@@ -251,7 +257,7 @@ try {
     ok(/PC-KHO-02/.test(bc.chu[1]) && /Mất nhịp/.test(bc.chu[1]) && /Sức khoẻ: Kém mất nhịp (2 giờ trước|90 phút trước)/.test(bc.chu[1]) && /không có khoá camera/.test(bc.tipPhu[1]), "thẻ 2: mất nhịp → Sức khoẻ Kém + lý do; «không khoá camera» trong chú thích");
     const nb = await nhom();
     ok(nb[nb.length - 1] === "Máy trạm" && (m.quanLy || nb.length === 1), "thanh bên: Máy trạm DƯỚI CÙNG nhóm Xác minh (" + nb.join(" | ") + ")");
-    await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true });
+    await kiemBridge(); await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true });
     if (m.quanLy) {
       ok(bc.nut.some((n) => n.t === "Gỡ") && !/Dừng máy/.test(bc.chu[1]) && bc.nut.some((n) => n.t === "Dừng máy"), "máy quản lý: máy sống có «Dừng máy», máy mất nhịp chỉ có «Gỡ»");
       if (m.mob) ok(bc.nut.every((n) => n.h >= 40), "vùng chạm ≥40px trên điện thoại (" + bc.nut.map((n) => n.h).join(",") + ")");
