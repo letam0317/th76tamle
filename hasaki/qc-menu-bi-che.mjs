@@ -2,6 +2,7 @@
  * nhưng bị thẻ bên dưới đè (thẻ có will-change = lớp vẽ riêng, thẻ sau vẽ đè thẻ trước). Bộ đo cũ chỉ đo TOẠ ĐỘ menu nên lọt.
  *  M1 mọi tab của Audit Retail + Audit Factory, máy tính 1440 + điện thoại 390: bấm/focus từng ô xổ (.combo input, .date-btn)
  *     → phần mới hiện ra phải THẤY RÕ: lấy 4 điểm trong menu, elementFromPoint phải trúng chính menu.
+ *  16/10: thêm nút xổ dạng <button> trong .combo (ô Ngày Planogram Factory bị thẻ Tiến độ/Sơ đồ đè mà bộ đo không bấm tới).
  *  Chặn mọi POST ở tầng mạng (luật qc-khong-ghi-du-lieu-that). Chạy: node qc-menu-bi-che.mjs [--goc=http://localhost:8123]
  */
 import puppeteer from "puppeteer-core";
@@ -27,7 +28,7 @@ for (const app of ["/retail/", "/factory/"]) for (const W of [1440, 390]) {
       const POP = ".combo-menu,.date-pop,.dp-pop,[class*='-menu'],[class*='-pop']";
       const truoc = new Set([...document.querySelectorAll(POP)].filter(hien));
       const o = [];
-      const nut = [...document.querySelectorAll(".wrap .combo input, .wrap .date-btn")].filter(hien).filter((e) => !e.closest(".modal,[class*=modal]"));
+      const nut = [...document.querySelectorAll(".wrap .combo input, .wrap .date-btn, .wrap .combo > button")].filter(hien).filter((e) => !e.closest(".modal,[class*=modal]"));
       for (const el of nut) {
         el.scrollIntoView({ block: "center" }); await nghi(150);
         if (el.tagName === "INPUT") el.focus(); else el.click();

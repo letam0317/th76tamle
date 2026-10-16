@@ -1201,6 +1201,9 @@
     };
   }
   function dangXuat() {
+    /* 16/10 user «đăng xuất rồi nhưng vẫn hiện các mục con cần đăng nhập»: nút Đăng xuất ở đây trước chỉ xoá phiên máy chủ 8591, tài khoản
+       chung (tai-khoan.js) vẫn đăng nhập ⇒ thanh bên vẫn bày Theo tác vụ/Theo máy/Máy trạm/Nhật ký. Có hệ tài khoản ⇒ đăng xuất CẢ hai. */
+    if (window.TK && window.TK.nguoi && typeof window.tkDangXuat === "function") { D = null; GIU = {}; window.tkDangXuat(); return; }
     var ph = PHIEN; datPhien(""); D = null; GIU = {};
     fetch(API + "/api/dang-xuat", { method: "POST", headers: { "x-hx-phien": ph } }).catch(function () {});
     veDangNhap();
@@ -1215,7 +1218,9 @@
   }
   // bộ đo qc-mobile-toan-du-an gọi các hàm này để mở đúng màn (mục 7 bộ chuẩn: phạm vi đo = phạm vi lời hứa)
   window.HXACMINH = { init: init, coDuLieu: function () { return !!D; },
-    sub: function (k) { if (!/^(treo|cam|tg)$/.test(k)) k = "treo"; if (typeof dongMoiPopup === "function") dongMoiPopup(); SUB = k; TIM = ""; if (k === "cam") LOC.tt = "cho"; luu(); ve(); return true; },
+    sub: function (k) { if (!/^(treo|cam|tg)$/.test(k)) k = "treo"; if (typeof dongMoiPopup === "function") dongMoiPopup(); SUB = k; TIM = ""; if (k === "cam") LOC.tt = "cho"; luu(); ve();
+      if (PANE && window.nhipTab) window.nhipTab(PANE);   // 16/10 đổi mục con = cùng nhịp chuyển tab (paneIn), không bật thô
+      return true; },
     moLuotDau: function () { var l = D && (D.luot.find(function (x) { return (x.buocAnh || []).some(function (b) { return (b.hop || []).length; }); }) || D.luot[0]); if (!l) return false; moLuot(l); return true; },
     moPhieuId: function (id) { var p = D && D.phieu.find(function (x) { return String(x.id) === String(id); }); if (!p) return false; moQD(p); return true; },
     moLuotId: function (id) { var l = D && D.luot.find(function (x) { return x.id === id; }); if (!l) return false; moLuot(l); return true; },

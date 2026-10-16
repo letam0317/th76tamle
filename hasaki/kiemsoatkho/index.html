@@ -1119,6 +1119,11 @@ body.side-open #sideNav{transform:none;}
 @media(max-width:768px){#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){padding:0 8px 8px}#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{margin:0 -8px 12px;padding:10px 16px}}
 /* 15/10 user «Cập nhật sao hiển thị 2 lần»: 1 viên chung ở cuối trang (viên của Bất thường) — viên Kiểm kê ẩn, giờ/tooltip/bấm gộp cả 2 nguồn (cnGopVe) */
 #pane-kk .hk-srcfoot{display:none!important}
+/* 16/10 user «thời gian cập nhật là chung mà sao gán riêng vào khung Bất thường»: viên chung nằm NGOÀI 2 khung (#tkcCapNhat, dưới cùng trang —
+   khuôn chân trang Audit Factory); viên riêng của từng module ẩn */
+#pane-kk #hkLoadinfo,#pane-htonbat #htLoadinfo{display:none!important}
+#pane-htonbat .ht-srcfoot:not(:has(.ht-srcbar)){display:none!important}   /* chân khung chỉ còn viên đã dời ra ngoài → bỏ cả vạch ngăn */
+#tkcCapNhat{margin:8px 0 4px} #tkcCapNhat[hidden]{display:none}
 /* 15/10 tiêu đề nhóm «Xác minh» có khoá (chưa đăng nhập) — cùng kiểu .s-grp, bấm được */
 html.ad #sideNav .s-grp.s-khoa{display:flex!important;align-items:center;gap:6px;cursor:pointer;border-radius:8px;margin:0 4px}
 html.ad #sideNav .s-grp.s-khoa:hover{color:var(--text);background:var(--ad-re)}
@@ -1446,8 +1451,8 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261015g"></script>
-<script src="tai-khoan.js?v=20261015b"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
+<script src="hasaki-giaodien-antd.js?v=20261016a"></script>
+<script src="tai-khoan.js?v=20261016a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -1485,7 +1490,7 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
       <!-- (đã bỏ pill "Dữ liệu HH:MM": trùng lặp với timestamp trong menu Dữ liệu — Chỉ thị 1) -->
       <button id="btnNghiemThu" class="an-hdr" type="button" title="Mở form nghiệm thu checklist kiểm kê (tab mới)">Nghiệm thu</button><!-- NÚT TẠM 14/10 nghiệm thu checklist — user yêu cầu thì xoá -->
       <button id="btnGhiNhan" title="Ghi nhận vi phạm 5S (cần PIN)">+ Ghi nhận 5S</button>
-      <button id="hdrDangXuat" class="an-hdr" type="button" title="Đăng xuất phần Xác minh trên máy này">Đăng xuất</button>
+      <button id="hdrDangXuat" class="an-hdr" type="button" title="Đăng xuất tài khoản trên máy này">Đăng xuất</button>
       <div class="settings" id="settingsWrap">
         <button id="btnSettings" title="Cài đặt hiển thị & dữ liệu" aria-label="Mở cài đặt"><span class="bars"></span></button>
         <div class="settings-pop hidden" id="settingsPop">
@@ -1695,6 +1700,7 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
        data tab kiemke-sku-hasaki / kiemke-location-hasaki (push-pc-to-sheet.mjs, cụm 8h40) ===== -->
   <section id="pane-kk" class="pane hidden"></section>
   <section id="pane-htonbat" class="pane hidden"></section>   <!-- 15/10 ngay dưới Kiểm kê: cùng trang «Tồn kho chính xác» -->
+  <div id="tkcCapNhat" class="cn-wrap" hidden></div>   <!-- 16/10 viên Cập nhật CHUNG của trang Tồn kho chính xác (cnGopVe), ngoài 2 khung -->
 </div>
 
 <!-- ===== MODAL CHI TIẾT (HORIZONTAL STEPPER) ===== -->
@@ -3328,6 +3334,7 @@ function setTab(name){
     if(n===name || (name==='kk' && n==='htonbat')){ el.classList.remove('hidden'); el.style.animation='none'; requestAnimationFrame(()=>el.style.animation=''); }
     else el.classList.add('hidden');
   });
+  { const cn=$('tkcCapNhat'); if(cn) cn.hidden = name!=='kk'; }   // 16/10 viên Cập nhật chung chỉ thuộc trang Tồn kho chính xác
   nutDauTrang(name);
   if(name==='home'){ homeRender(); }       // 12/10 trang Tổng quan: số trên thẻ chỉ đọc dữ liệu đã có trong bộ nhớ
   if(name==='hangmuc'){ taiQuyDinh(); }   // đọc lại QUY-DINH mỗi lần mở tab (đồng bộ mới nhất)
@@ -3445,6 +3452,7 @@ function xmMoDangNhap(){
 }
 function xmKhoaPane(pane){
   pane.classList.add("xm-khoa-on");
+  if (document.body.dataset.hxPhien) { document.body.dataset.hxPhien = ""; nutDauTrang(); }   // 16/10: khoá rồi thì nút Đăng xuất đầu trang cũng tắt
   if (!pane.querySelector(":scope > .xm-khoa")) pane.insertAdjacentHTML("afterbegin",
     '<div class="panel xm-khoa"><span class="xm-khoa-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/></svg></span><div class="xm-khoa-t">Xác minh cần đăng nhập</div>' +
     '<div class="xm-khoa-s">Chỉ tài khoản được cấp quyền Xác minh mới xem được.</div>' +
@@ -3461,7 +3469,7 @@ function moHasakiXacMinh(){
   if(!xmDuocXem()){ xmKhoaPane(pane); return; } xmMoKhoa(pane);
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261015a';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261016a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3565,9 +3573,10 @@ document.addEventListener("tq-so",function(){ var p=$('pane-home'); if(p&&!p.cla
 /* 12/10 VIÊN "CẬP NHẬT" DÙNG CHUNG — module gọi hskCapNhat(ms, {id, onclick, tip}) lấy HTML; bấm = làm mới. */
 /* 15/10 «Tồn kho chính xác»: Kiểm kê (hkReload) + Bất thường (htReload) chung 1 viên — hiện mốc CŨ HƠN (dữ liệu chậm nhất), title đủ 2 mốc, bấm làm mới cả 2 */
 window.__cnGop={};
-function cnGopVe(){ var el=document.getElementById("htReload"); if(!el) return; var a=__cnGop.hkReload, b=__cnGop.htReload;
+function cnGopVe(){ var w=document.getElementById("tkcCapNhat"); if(!w) return; var a=__cnGop.hkReload, b=__cnGop.htReload;
   var ds=[a,b].filter(function(x){ return x&&x.ms; }); if(!ds.length) return;
   var ms=Math.min.apply(null, ds.map(function(x){ return x.ms; })), d=new Date(ms), p=function(n){ return String(n).padStart(2,"0"); };
+  if(!w.firstChild) w.innerHTML=hskCapNhat(ms,{id:"tkcReload"}); var el=w.firstChild;
   var f=function(x){ var t=new Date(x.ms); return p(t.getHours())+":"+p(t.getMinutes())+" "+p(t.getDate())+"/"+p(t.getMonth()+1); };
   var g=el.querySelector(".cn-gio"), n=el.querySelector(".cn-ngay");
   if(g) g.textContent=p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds()); if(n) n.textContent=p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();

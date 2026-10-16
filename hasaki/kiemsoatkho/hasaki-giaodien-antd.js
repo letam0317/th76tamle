@@ -29,6 +29,8 @@
   var VONG = "0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)";   // quầng focus của antd, theo màu theme
   var SEG = "#hpWhBar .hp-wb1 .hp-whtab";   // thanh lọc "chọn 1 trong vài" kiểu Segmented (Kiểm kê/Bất thường nay dùng ô chọn)
   var H = "html.ad", B = "html.ad body";
+  /* 16/10 nhịp chuyển dùng chung: khung tab chạy lại paneIn (đổi mục con trong tab — vd Xác minh Theo tác vụ ⇄ Theo máy) */
+  window.nhipTab = function (el) { if (!el) return; el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; };
   function seg(suf) { return SEG.split(",").map(function (x) { return H + " " + x + suf; }).join(","); }
   var W = ":where(html.ad)";                    // chỉ dùng cho luật THẺ GỐC (button/input…) để không đè class riêng của từng mục
   var css = [
@@ -303,7 +305,7 @@
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.panel,.hk-panel,.ht-panel) :is(.panel,.hk-panel,.ht-panel){border-top:0!important;padding:0!important;margin:0!important}",
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-grid2,.hk-hang1,.grid2,.kktop,.kkphai,.ht-grid2){gap:0 32px!important;margin:0!important;align-items:stretch}",
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) .kkphai{gap:0!important}",
-    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.panel,.hk-panel,.ht-panel) > h2{margin:0 0 12px!important}",
+    B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.panel,.hk-panel,.ht-panel) > h2{margin:0 0 12px!important;font-size:14px!important;line-height:22px!important}",   // 16/10 antd: tiêu đề khung 16/600, khối bên trong 14/600 — trước cùng 16 nên không phân cấp
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles){gap:0!important;margin:12px 0!important}",
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile){border:0!important;border-left:1px solid var(--ad-chia)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:4px 16px!important}",
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile):first-child{border-left:0!important;padding-left:0!important}",
@@ -311,6 +313,12 @@
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(#tvtWrap .abntiles > .abntile){padding:4px 16px!important}",
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.whcard,.hk-whcard){border:0!important;background:color-mix(in srgb,var(--text) 3%,var(--surface))!important;box-shadow:none!important}",
     B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.whcard,.hk-whcard).active{box-shadow:inset 0 0 0 1px var(--accent)!important}",
+    /* 16/10 user «animation chuyển sub-tab/hạng mục chưa đồng bộ» (cả 2 dự án): đo được Retail chỉ trượt KHUNG TAB (paneIn .5s), Factory trượt khung
+       rồi từng thẻ con lại fadeUp .32s lệch nhịp (+ ô số, lưới, thẻ kho tự có keyframe riêng). Chuẩn chung: đổi tab / mục con = MỘT nhịp paneIn của
+       khung tab; khối bên trong hiện cùng lúc. Giữ .swap (đổi bộ lọc — kkSwap), xoay chờ, khung xương, menu popIn. */
+    H + " :is(.pane,.vfade) :is(.panel,.card,.cards,.abntile,.ht-tile,.ht-grid2,.kb-tile,#hkWhList,#ndsCards,.nds-tools):not(.swap){animation:none!important;will-change:auto!important}",
+    /* 16/10 user «bộ lọc Planogram/Kiểm kê Factory bị khung khác đè»: thẻ đang mở menu/lịch phải nổi trên thẻ đứng sau (luật chung, không vá từng thẻ) */
+    H + " :is(.panel,.hp-panel,.hk-panel,.ht-panel):has(.combo-menu.show,.date-pop:not(.hidden),.date-pop.show){position:relative;z-index:40}",
     "@media(max-width:768px){" + B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile){padding:4px 10px!important}" + B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile):nth-child(3n+1){border-left:0!important;padding-left:0!important}}",
     /* 13/10 QC «vừa chiều ngang»: bảng Task vi phạm (Retail) rộng 1.342px trong khung 1.159px ở màn 1440 → phải kéo ngang.
        Tên NV / quản lý được xuống dòng (bỏ min 22ch), nhãn cột «Tần suất vi phạm» xuống dòng — bảng vừa khung, không cuộn ngang */

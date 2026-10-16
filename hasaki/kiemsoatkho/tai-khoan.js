@@ -105,10 +105,14 @@
   window.tkMoDangNhap = moDangNhap;
   function dangXuat() {
     var p = TK.phien; if (p) goi("tk_dangxuat", { phien: p }).catch(function () {});
+    /* 16/10 user «đăng xuất rồi mà vẫn thấy mục con Xác minh»: 1 lần đăng xuất = thu hồi CẢ phiên máy chủ Xác minh 8591 (trước chỉ xoá ở máy) */
+    var hx = ls.get("hx-phien"); if (APP === "r" && hx) fetch(API_XM + "/api/dang-xuat", { method: "POST", headers: { "x-hx-phien": hx } }).catch(function () {});
     datNguoi(null, ""); TK.quyen = null; ls.set("tk-nho", null); ls.set("hx-phien", null);
     try { window.dispatchEvent(new Event("hx-phien")); } catch (e) {}
+    apQuyen(); bao();   // dựng lại thanh bên NGAY (không chờ Apps Script trả quyền khách)
     taiKhach().then(function () { apQuyen(); bao(); });
   }
+  window.tkDangXuat = dangXuat;
   function moDoiMk() {
     var o = hop("Đổi mật khẩu", '<form class="tk-f"><label>Mật khẩu hiện tại<input name="cu" type="password" autocomplete="current-password" required></label>' +
       '<label>Mật khẩu mới<input name="moi" type="password" autocomplete="new-password" minlength="4" required></label><button type="submit" class="tk-chinh">Lưu</button><div class="tk-st"></div></form>');
