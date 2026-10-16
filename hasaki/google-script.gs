@@ -447,7 +447,8 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeToken') return apiBridgeToken(duLieu);             // extension wms-bridge đẩy token PHIÊN SỐNG của operator — public, validate dạng JWT + throttle
     if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken(duLieu.kind, duLieu.chu) : phanHoiJson({ status: 'error', message: 'Sai key' });
-    if (duLieu && duLieu.action === 'bridgeDs') return keyBodyOK_(duLieu) ? apiBridgeDs() : phanHoiJson({ status: 'error', message: 'Sai key' });   // 16/10: ai đang cấp phiên bridge (email), không trả token
+    if (duLieu && duLieu.action === 'bridgeDs') return keyBodyOK_(duLieu) ? apiBridgeDs() : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'bridgeDatMail') return keyBodyOK_(duLieu) ? apiBridgeDatMail_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 8591 tra danh bạ sub→email   // 16/10: ai đang cấp phiên bridge (email), không trả token
     // Bộ pc_* (PhysicalCountImport.gs — dashboard factory "Tạo lệnh kiểm kê" + "SL điều chỉnh"):
     // khoá RIÊNG PC_KEY (không dùng SECRET 5S — tránh lộ khoá chủ cho operator dashboard public).
     // Các dòng này trước đây chỉ được thêm TAY trên bản deploy (sa.js) — nay nối vào nguồn để dán nguyên file là đủ.
@@ -1607,10 +1608,18 @@ function bridgeDs_() {
     var u = null; try { u = JSON.parse(P.getProperty(ds[i]) || 'null'); } catch (e) { u = null; }
     if (!u) continue;
     var kind = ds[i].replace(/^BRIDGE_U_/, '').replace(/_[^_]*$/, '');
-    out.push({ kind: kind, sub: u.sub || '', email: u.email || P.getProperty('BRIDGE_MAIL_' + u.sub) || '', at: u.at, tuoi: bridgeTuoi_(Number(u.at || 0), Number(u.exp || 0), now), tamlc: bridgeLaTamlc_({ sub: u.sub, email: u.email }) });
+    var laTam = bridgeLaTamlc_({ sub: u.sub, email: u.email });
+    out.push({ kind: kind, sub: u.sub || '', email: u.email || P.getProperty('BRIDGE_MAIL_' + u.sub) || (laTam ? BRIDGE_TAMLC_MAIL_ : ''), at: u.at, tuoi: bridgeTuoi_(Number(u.at || 0), Number(u.exp || 0), now), tamlc: bridgeLaTamlc_({ sub: u.sub, email: u.email }) });
   }
   out.sort(function (a, b) { return b.at - a.at; });
   return out;
+}
+/** bridgeDatMail (SECRET): token work chỉ có sub → 8591 tra danh bạ (user_id→staff_email) rồi ghi lại để điện thoại cũng thấy email. */
+function apiBridgeDatMail_(d) {
+  var sub = String(d.sub || ''), email = String(d.email || '').toLowerCase().trim();
+  if (!/^\d{1,12}$/.test(sub) || !/^[^@\s]+@[^@\s]+$/.test(email)) return phanHoiJson({ status: 'error', message: 'sub/email sai' });
+  PropertiesService.getScriptProperties().setProperty('BRIDGE_MAIL_' + sub, email);
+  return phanHoiJson({ status: 'success' });
 }
 
 /** Kéo trọn 1 công ty từ WMS (phân trang size 5000) + LỌC theo khoGiuLai. Trả {rows} hoặc {code,message}. */

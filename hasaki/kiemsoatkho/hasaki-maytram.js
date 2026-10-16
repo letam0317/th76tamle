@@ -347,10 +347,10 @@
       : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';
     /* 16/10 user «nên biết được bridge từ mail nào»: mỗi người 1 dòng (gộp kênh — luật không lặp). tamlc = ghi được; người khác = máy trạm chỉ mượn để ĐỌC. */
     var br = {}, brDs = [];
-    (MTD.bridge || []).forEach(function (b) { var k = b.email || ("mã " + b.sub); if (!br[k]) { br[k] = { email: k, tamlc: b.tamlc, kenh: [], at: 0, song: false }; brDs.push(br[k]); }
+    (MTD.bridge || []).forEach(function (b) { var k = b.email || ("mã " + b.sub); if (!br[k]) { br[k] = { email: k, ten: b.ten || "", tamlc: b.tamlc, kenh: [], at: 0, song: false }; brDs.push(br[k]); }
       var o = br[k]; o.kenh.push({ ten: b.kind === "wshr" ? "work/hr" : b.kind === "wms" ? "WMS" : b.kind, song: b.tuoi }); o.at = Math.max(o.at, b.at || 0); o.song = o.song || b.tuoi; });
     if (brDs.length) h += '<div class="panel"><div class="panel-head"><span>Phiên bridge (từ Edge có cầu nối)</span><span>' + brDs.filter(function (o) { return o.song; }).length + " đang sống</span></div>" +
-      brDs.map(function (o) { return '<div class="hx-mt-v"' + (o.song ? "" : ' style="opacity:.5"') + '><div class="ten"><b>' + e_(o.email) + "</b><small>" +
+      brDs.map(function (o) { return '<div class="hx-mt-v"' + (o.song ? "" : ' style="opacity:.5"') + '><div class="ten"><b>' + e_(o.email) + "</b><small>" + (o.ten ? e_(o.ten) + " · " : "") +
         o.kenh.map(function (k) { return e_(k.ten) + (k.song ? "" : " (hết)"); }).join(" · ") + " · đẩy lần cuối " + e_(tuoiChu(Math.round((Date.now() - o.at) / 1000))) + "</small></div>" +
         '<span class="hx-tag ' + (o.tamlc ? "good" : "info") + '">' + (o.tamlc ? "Ghi + đọc" : "Chỉ đọc") + "</span></div>"; }).join("") + "</div>";    if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
     PANE.innerHTML = h;

@@ -51,6 +51,22 @@ function danhBa() {
   DB = { at: Date.now(), theoMa, theoTen }; return DB;
 }
 
+/* 16/10 Máy trạm › Phiên bridge: token work chỉ mang sub (= user_id) → tra danh bạ toàn công ty (.cache-danhba.json) ra email + tên;
+   email mới tra được ghi ngược lên GAS (bridgeDatMail, 1 lần/sub) để điện thoại cũng thấy. */
+const DA_GUI_MAIL = new Set();
+function emailBridge(ds) {
+  let db = null;
+  return ds.map((b) => {
+    db ||= new Map((docJ(path.join(DIR, ".cache-danhba.json"), { data: [] }).data || []).map((x) => [String(x.user_id), x]));
+    const nv = db.get(String(b.sub));
+    if (!b.email && nv?.staff_email && !DA_GUI_MAIL.has(b.sub)) {
+      DA_GUI_MAIL.add(b.sub);
+      import("./session-rules.js").then(({ gasPost }) => gasPost({ action: "bridgeDatMail", key: process.env.APPSCRIPT_KEY, sub: b.sub, email: nv.staff_email }, () => {}, "bridgeDatMail")).catch(() => {});
+    }
+    return { ...b, email: b.email || nv?.staff_email || "", ten: nv?.staff_name || "" };
+  });
+}
+
 // 05/10: lựa chọn quyết định phiếu B1 — GIỐNG HỆT LUA_CHON của sheet-b1-treo.py (canh-b1 QD-01 đọc theo chữ)
 const QD_B1 = ["Gán lỗi cho NV máy nghi", "Gán cho người phụ trách kệ", "Fail - trùng lưu trình", "Fail - không xác định được NV",
   "Fail - đã khắc phục/không vi phạm", "Huỷ phiếu (tạo nhầm)", "Cắt thêm clip camera", "Giữ - chờ xác minh tay", "Khác (ghi ở cột Ghi chú)"];
@@ -350,7 +366,7 @@ function mayTram() {
       viec: cfg.viec.map((v) => ({ ten: v.ten, nang: !!v.nang, chiLaptop: !!v.chiLaptop, may: giao[v.ten] || null, giu: (j.khoa || {})[v.ten]?.may || null, canKhoa: v.envKeys || [] })),
       chuyen: j.chuyen || [],
       xin: j.xin || [],   // 14/10 PC đang xin khoá (chờ Duyệt)
-      bridge: j.bridge || [],   // 16/10 ai đang cấp phiên qua bridge (email, kênh, tuổi — không có token)
+      bridge: emailBridge(j.bridge || []),   // 16/10 ai đang cấp phiên qua bridge (email, kênh, tuổi — không có token)
     };
     MT = { at: Date.now(), data }; return data;
   })().finally(() => { MT_DANG = null; });
