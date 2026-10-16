@@ -540,6 +540,84 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 .modal-head{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); border-radius:16px 16px 0 0; z-index:3;}
 .modal-head h2{font-size:14px; font-weight:700; margin:0;}
 
+/* ===== THANH BÊN PHẢI dùng CHUNG (16/10 user, mẫu khung việc HasakiWork): #modal.hx-ben trượt ra/ẩn vô, KHÔNG phủ nền —
+   đang mở vẫn bấm được dòng khác bên trái. Vỏ ở đây (Vi phạm + Xác minh cùng gọi window.hskThanhBen); NỘI DUNG mỗi mục tự lo. ===== */
+#modal.hx-ben{left:clamp(340px,26vw,420px)!important;backdrop-filter:none;-webkit-backdrop-filter:none;width:auto;background:transparent;padding:0;overflow:visible;pointer-events:none;display:flex;align-items:stretch;opacity:1;visibility:hidden;transition:visibility 0s .3s}
+#modal.hx-ben.show{visibility:visible;transition:none}
+#modal.hx-ben>*{pointer-events:auto}
+#modal.hx-ben .modal-box{pointer-events:auto;margin:0;max-width:none;height:100%;border-radius:0!important;border:0;border-left:1px solid var(--border);overflow-y:auto;overscroll-behavior:contain;container-type:inline-size;
+  box-shadow:-10px 0 28px color-mix(in srgb,#000 16%,transparent);animation:none!important;transform:translate3d(100%,0,0);transition:transform .3s var(--ez-apple);display:flex;flex-direction:column}
+#modal.hx-ben.show .modal-box{transform:none}
+#modal.hx-ben .modal-head{border-radius:0}
+#modal.hx-ben #mBody{flex:1 0 auto;display:flex;flex-direction:column}
+#modal.hx-ben #mBody.hx-doi{animation:paneIn .26s var(--ez-apple)}
+@media(max-width:760px){#modal.hx-ben{left:0!important}}
+@media(min-width:761px){#modal.hx-ben .modal-head{padding:12px 24px;min-height:56px}}
+/* dòng đang xem = nền chọn của Table antd (AD-01 cấm vạch nhấn một cạnh) */
+tr.tb-dangxem>td,.cl-item.tb-dangxem{background:var(--ad-chon,color-mix(in srgb,var(--accent) 10%,var(--surface)))!important}
+
+/* ===== 16/10 KHUNG VIỆC kiểu WF591 (work.hasaki) trong thanh bên Vi phạm — lớp antd: chữ 12/13/14/16, đậm 400/600, 1 tầng khung ===== */
+#modal.hx-ben #mTitle{flex:1 1 auto;min-width:0}#modal.hx-ben .modal-head{gap:8px}
+#mTitle .vp-mt1{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mTitle .vp-mt2{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.vp-motask{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border:1px solid var(--border);border-radius:6px;color:var(--accent);text-decoration:none;font-size:13px;white-space:nowrap;flex:none}
+.vp-motask .ps{display:none}
+@media(max-width:560px){.vp-motask .pt{display:none}.vp-motask .ps{display:inline}.vp-motask{min-height:44px}}
+.vp-wf{display:flex;flex-direction:column;flex:1 0 auto;min-width:0}
+.vp-buoc{display:flex;gap:4px;overflow-x:auto;padding:8px 24px 0;border-bottom:1px solid var(--ad-chia,var(--border));scrollbar-width:thin}
+.vp-tab{flex:none;display:inline-flex;align-items:center;gap:6px;max-width:240px;min-height:40px;padding:0 10px;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
+.vp-tab .vp-ten{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vp-tab .vp-oc{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;border:1px solid var(--border);color:var(--muted)}
+.vp-tab.xong .vp-oc{border-color:var(--good);color:var(--good)}
+.vp-tab.loi .vp-oc{border-color:var(--bad);color:var(--bad)}
+.vp-tab.dang .vp-oc,.vp-tab.cho .vp-oc{border-color:var(--accent);color:var(--accent)}
+.vp-tab.trong{opacity:.6}
+.vp-tab:hover{color:var(--text)}
+.vp-tab.on{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
+.vp-than{display:grid;grid-template-columns:minmax(0,1fr) 300px;flex:1 0 auto}
+.vp-chinh{padding:16px 24px 24px;min-width:0;display:flex;flex-direction:column;gap:20px}
+.vp-ben{padding:16px 24px 24px;border-left:1px solid var(--ad-chia,var(--border));display:flex;flex-direction:column;gap:16px}
+.vp-h3{margin:0 0 8px;font-size:14px;font-weight:600}
+.vp-ds{list-style:none;margin:0;padding:0;border-top:1px solid var(--ad-chia,var(--border))}
+.vp-ds li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:8px;padding:8px 0;border-bottom:1px solid var(--ad-chia,var(--border))}
+.vp-so{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:1px}
+.vp-lb{font-size:12px;color:var(--muted);margin-bottom:2px}
+.vp-v{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
+.vp-v.fld-dai:not(.mo){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.vp-ds .thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.vp-ds .thumb{width:88px;height:88px;object-fit:cover;border-radius:6px;cursor:zoom-in}
+.vp-nhom h4{margin:0 0 6px;font-size:13px;font-weight:600}
+.vp-h{display:grid;grid-template-columns:104px minmax(0,1fr);gap:8px;padding:4px 0;font-size:13px;align-items:baseline}
+.vp-hl{font-size:12px;color:var(--muted)}
+.vp-hv{overflow-wrap:anywhere}
+.vp-tag{display:inline-block;padding:0 7px;border-radius:4px;font-size:12px;line-height:20px;border:1px solid var(--border);color:var(--muted)}
+.vp-tag.xong{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 8%,transparent)}
+.vp-tag.loi{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+.vp-tag.dang,.vp-tag.cho{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+@container (max-width:820px){.vp-than{grid-template-columns:minmax(0,1fr)}.vp-ben{border-left:0;border-top:1px solid var(--ad-chia,var(--border))}.vp-chinh,.vp-ben,.vp-buoc{padding-left:16px;padding-right:16px}}
+@media(max-width:560px){.vp-tab{min-height:44px}}
+/* «Giai đoạn» kiểu work: dòng thời gian dọc — chấm theo trạng thái (xanh lá xong · đỏ thất bại · xanh dương đang chờ), đường nối mảnh */
+#modal.hx-ben .vp-buoc{position:sticky;top:var(--vp-dau,56px);z-index:2;background:var(--surface)}
+.vp-gd{list-style:none;margin:0;padding:0}
+.vp-gd-b{position:relative;padding:0 0 18px 24px;scroll-margin-top:120px;border-radius:6px}
+.vp-gd-b::before{content:"";position:absolute;left:5px;top:16px;bottom:0;width:1px;background:var(--border)}
+.vp-gd-b:last-child::before{display:none}
+.vp-gd-cham{position:absolute;left:0;top:4px;width:11px;height:11px;border-radius:50%;border:2px solid var(--muted);background:var(--surface);box-sizing:border-box}
+.vp-gd-b.xong .vp-gd-cham{border-color:var(--good);background:var(--good)}
+.vp-gd-b.loi .vp-gd-cham{border-color:var(--bad);background:var(--bad)}
+.vp-gd-b.dang .vp-gd-cham,.vp-gd-b.cho .vp-gd-cham{border-color:var(--accent)}
+.vp-gd-dau{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vp-gd-ten{font-size:14px;font-weight:600}
+.vp-gd-phu{font-size:12px;color:var(--muted);margin-top:2px}
+.vp-gd-phu b{font-weight:600;color:var(--text)}
+.vp-gd-tr{margin-top:8px;padding:10px 12px;border-radius:6px;background:var(--ad-nen2,color-mix(in srgb,var(--text) 3%,var(--surface)));display:grid;gap:10px}
+.vp-gd-tr .thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.vp-gd-tr .thumb{width:88px;height:88px;object-fit:cover;border-radius:6px;cursor:zoom-in}
+.vp-gd-b.nhay{animation:vpNhay 1.2s var(--ez-apple)}
+@keyframes vpNhay{0%,30%{background:var(--ad-chon,color-mix(in srgb,var(--accent) 12%,var(--surface)))}100%{background:transparent}}
+/* bình luận trong thanh = vùng phẳng (luật 1 tầng khung), tiêu đề như các mục khác */
+.vp-chinh .cmt-sec{border:0;background:none;margin:0;border-radius:0;box-shadow:none}.vp-chinh .cmt-sec-h{font-size:14px;font-weight:600;color:var(--text);background:none;padding:0 0 8px;border-bottom:1px solid var(--ad-chia,var(--border))}.vp-chinh .cmt-sec-b{padding:8px 0;background:none}
+
 /* ===== HORIZONTAL STEPPER ===== */
 .steps-track{display:flex; flex-direction:row; align-items:stretch; gap:0; overflow-x:auto; padding:18px 8px 22px; scroll-snap-type:x proximity;}
 .step{flex:0 0 268px; width:268px; padding:0 14px; position:relative; scroll-snap-align:start;}
@@ -2783,6 +2861,7 @@ function _render(){
   const dAll=ROWS.slice().sort(cmpNgayDesc);     // Tổng quan: TOÀN BỘ (KHÔNG chịu ảnh hưởng bộ lọc tab Task)
   curD=dAll; rowGal={};
   $('dem').textContent=dTable.length+" task";
+  setTimeout(()=>{ if(window.hskThanhBen) hskThanhBen.toDam(); },0);   // 16/10 bảng vẽ lại → tô lại dòng đang mở ở thanh bên
   renderTk7(dAll);                               // Tổng kết nhanh · kiểm soát 7 ngày (tab Tổng quan)
 
   // Bảng (desktop) — Ngày ghi nhận / Vị trí / Lỗi / NV vi phạm / QL trực tiếp / Hình ảnh / Trạng thái(kiêm link work)
@@ -2932,7 +3011,14 @@ function dongThongKe(){ $('statModal').classList.remove('show'); }
 /* ===== MODAL CHI TIẾT — HORIZONTAL STEPPER ===== */
 function moChiTiet(i){
   const r=ROWS[i];
-  $('mTitle').innerHTML = esc(r[iCode])+' — '+esc(r[iName]) + (safeUrl(r[iLink])?` · <a href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener">mở task</a>`:'');
+  /* 16/10 user «mục Vi phạm làm như WF591 bên work.hasaki.vn» → THANH BÊN PHẢI (vỏ chung hskThanhBen) + bố cục khung việc work:
+     tiêu đề 2 dòng (tên việc / mã) · nút «Mở task trên work.hasaki ↗» cạnh Đóng · dải BƯỚC ngang · trái «Dữ liệu khai báo» + dữ liệu bước
+     · phải «Trạng thái & thời gian» + «Nhân sự». */
+  const TB=hskThanhBen.mo('vp:'+i, `#tbody [data-i="${i}"], #cardList [data-i="${i}"]`);
+  $('mTitle').innerHTML = `<span class="vp-mt1">${esc(r[iName])}</span><span class="vp-mt2">${esc(r[iCode])}</span>`;
+  { const cu=$('hxMoTask'); if(cu) cu.remove(); const lk=safeUrl(r[iLink]);
+    if(lk){ const a=document.createElement('a'); a.id='hxMoTask'; a.className='vp-motask'; a.href=lk; a.target='_blank'; a.rel='noopener';
+      a.innerHTML='<span class="pt">Mở task trên work.hasaki</span><span class="ps">Mở task</span> ↗'; $('mClose').parentNode.insertBefore(a,$('mClose')); } }
 
   /* BA CỘT BỎ HẲN khỏi bước "Thông tin chung" (21/08/2026): chúng lặp lại NGUYÊN VĂN dòng tiêu đề
      của chính pop-up này — tiêu đề đã là `Mã — Tên công việc · mở task`. Người dùng chỉ đúng chỗ
@@ -2954,57 +3040,68 @@ function moChiTiet(i){
   }
 
   galleries={};
-  const html = order.map((g,si)=>{
-    const fields=groups[g];
-    // Media của bước này -> gallery si
-    const media=[];
+  /* phân loại trường của mỗi bước: trạng thái · người · mốc giờ → cột phải; còn lại = «dữ liệu» đánh số 01, 02… như work */
+  const laTT=l=>/trạng thái|status/i.test(l);
+  const laNguoi=l=>/người|^pic\b/i.test(l) && !/vi phạm/i.test(l);
+  const laGio=l=>/thời gian|lúc$|lúc\b|ngày giao|hạn chót|deadline/i.test(l) && !/vi phạm/i.test(l);
+  const muc=v=>{ const t=String(v||'').toLowerCase(); return /fail|cancel/.test(t)?'loi':/finish|done|complet/.test(t)?'xong':/process|progress/.test(t)?'dang':'cho'; };
+  const tag=v=>`<span class="vp-tag ${muc(v)}">${esc(dichStatus(v)||'Chưa xử lý')}</span>`;
+  const giaTri=(f)=>{ let disp=fmtNgay(f.val);
+    if(/^nhân viên vi phạm:?$/i.test(f.label.trim()) && /^[\d\s,]+$/.test(String(f.val))){ const nm=nameVP(r); if(nm && nm!=='Chưa rõ tên') disp=nm+' ('+f.val+')'; }
+    return String(disp); };
+  const B = order.map((g,si)=>{
+    const fields=groups[g], media=[];
     fields.forEach(f=>{ if(isMedia(f.val)) mediaUrls(f.val).forEach(m=>media.push(m)); });
     galleries[si]=media;
-
-    // Các trường text (bỏ media, bỏ ô trống)
-    let fhtml="";
-    fields.forEach(f=>{
-      if(f.val===""||f.val==null || isMedia(f.val)) return;
-      let disp=fmtNgay(f.val);
-      if(/trạng thái|status/i.test(f.label)) disp=dichStatus(f.val);
-      // "Nhân viên vi phạm" / "Nhân viên vi phạm:" trong pop-up: giá trị là mã NV hoặc staff_id
-      // -> đổi sang HỌ TÊN đầy đủ (kèm mã gốc để đối chiếu)
-      if(/^nhân viên vi phạm:?$/i.test(f.label.trim()) && /^[\d\s,]+$/.test(String(f.val))){
-        const nm=nameVP(r);
-        if(nm && nm!=='Chưa rõ tên') disp = nm + ' (' + f.val + ')';
-      }
-      /* Giá trị DÀI (cả đoạn quy định 5S bị vi phạm ~227 ký tự) vỡ 6 dòng trên điện thoại và đẩy
-         mấy trường còn lại xuống dưới màn. Kẹp 4 dòng + bấm để trải — cùng khuôn với ô "Lý do AI"
-         ở tab Planogram. Chỉ trường dài mới thành ô bấm được: gắn cho mọi trường thì trường ngắn
-         cũng có con trỏ tay + chữ "xem thêm" vô nghĩa. */
-      const dai = String(disp).length > 160;
-      fhtml += `<div class="fld${dai ? " fld-dai" : ""}"${dai ? ' onclick="this.classList.toggle(\'mo\')"' : ""}><span class="fld-l">${esc(f.label)}</span><span class="fld-v">${esc(disp)}</span></div>`;
+    const o={ g, si, tt:'', nguoi:[], gio:[], du:[], fail:'' }; let mi=0;
+    fields.forEach(f0=>{ const f={ label:String(f0.label).replace(/\s*:\s*$/,''), val:f0.val };   // «Ngày vi phạm:» → bỏ dấu hai chấm thừa của tên cột gốc
+      if(f.val===""||f.val==null) return;
+      if(isMedia(f.val)){ const n=mediaUrls(f.val).length, tu=mi; mi+=n;
+        o.du.push({ label:f.label, media:galleries[si].slice(tu,tu+n).map((m,k)=>m.type==='vid'
+          ? `<video class="thumb" src="${esc(safeUrl(m.url))}" preload="metadata" data-g="${si}" data-i="${tu+k}"></video>`
+          : `<img class="thumb" loading="lazy" src="${esc(safeUrl(m.url))}" data-g="${si}" data-i="${tu+k}">`).join('') }); return; }
+      if(laTT(f.label)){ if(!o.tt) o.tt=String(f.val); return; }
+      if(laNguoi(f.label)){ o.nguoi.push({label:f.label, v:giaTri(f)}); return; }
+      if(laGio(f.label)){ o.gio.push({label:f.label, v:giaTri(f)}); return; }
+      o.du.push({label:f.label, v:giaTri(f)});
     });
-    // LÝ DO THẤT BẠI/HUỶ: bước có Status Fail/Cancel -> box cảnh báo đỏ, nhìn là nhận ra ngay.
-    // (Cột "Reason" của WMS chỉ chứa MÃ SỐ nên lấy lý do dạng CHỮ từ Giải trình/Ghi chú/Kết quả.)
-    const stB=fields.find(f=>/trạng thái|status/i.test(String(f.label)));
-    const stRaw=stB?String(stB.val||''):'';
-    if(/fail|cancel/i.test(stRaw)){
+    // LÝ DO THẤT BẠI/HUỶ: bước Fail/Cancel → hộp cảnh báo đỏ (Reason của WMS chỉ là MÃ SỐ nên lấy chữ từ Giải trình/Ghi chú/Kết quả)
+    if(/fail|cancel/i.test(o.tt)){
       const laText=v=>{const t=String(v||'').trim(); return t && !/^https?:/i.test(t) && !/^[\d\s.,:-]+$/.test(t) && !isMedia(v);};
       const ly=fields.filter(f=>/reason|lý do|giải trình|ghi chú|kết quả/i.test(String(f.label)) && laText(f.val)).map(f=>String(f.val).trim());
-      // ƯU TIÊN 1: quét log lịch sử bằng regex "Lý do: ..." — có là dùng ngay
       for(const f of fields){ const m=String(f.val||'').match(/Lý do:\s*(.+)/i); if(m){ ly.unshift(m[1].trim()); break; } }
-      fhtml+=`<div class="step-fail"><b>Lý do ${/cancel/i.test(stRaw)?'huỷ':'thất bại'}:</b> ${ly.length?esc(ly.join(' · ')):'Hệ thống không ghi nhận lý do cụ thể ở bước này.'}</div>`;
+      o.fail=`<div class="step-fail"><b>Lý do ${/cancel/i.test(o.tt)?'huỷ':'thất bại'}:</b> ${ly.length?esc(ly.join(' · ')):'Hệ thống không ghi nhận lý do cụ thể ở bước này.'}</div>`;
     }
-    // Khối hình ảnh/clip
-    const mhtml = media.map((m,mi)=> m.type==='vid'
-      ? `<video class="thumb" src="${esc(safeUrl(m.url))}" preload="metadata" data-g="${si}" data-i="${mi}"></video>`
-      : `<img class="thumb" loading="lazy" src="${esc(safeUrl(m.url))}" data-g="${si}" data-i="${mi}">`).join('');
-
-    const hasData = fields.some(f=>f.val!=="" && f.val!=null);
-    const cls = !hasData ? 'empty' : 'done';
-    const body = (fhtml||'<div class="muted">Chưa có dữ liệu</div>') + (mhtml?`<div class="thumbs">${mhtml}</div>`:'');
-    return `<div class="step ${cls}">
-      <div class="step-head"><div class="step-num">${si+1}</div><div class="step-title">${esc(g)}</div></div>
-      <div class="step-body">${body}</div>
-    </div>`;
-  }).join('');
-
+    o.coDL = !!(o.tt || o.nguoi.length || o.gio.length || o.du.length);
+    return o;
+  });
+  const chung = B.find(b=>b.g==="Thông tin chung") || null, buoc = B.filter(b=>b!==chung);
+  // bước đang chọn mặc định = bước ĐANG chờ/làm đầu tiên (như work mở đúng bước hiện tại); xong hết thì bước cuối có dữ liệu
+  let chon = buoc.findIndex(b=>b.coDL && muc(b.tt)!=='xong'); if(chon<0){ chon=buoc.length-1; while(chon>0 && !buoc[chon].coDL) chon--; }
+  const so2=n=>String(n).padStart(2,'0');
+  const dsDL=(ds)=> ds.length ? `<ol class="vp-ds">${ds.map((d,k)=>{ const dai=!d.media && d.v.length>160;
+      return `<li><span class="vp-so">${so2(k+1)}</span><div class="vp-o"><div class="vp-lb">${esc(d.label)}</div>${d.media?`<div class="thumbs">${d.media}</div>`
+        :/^https?:\/\/\S+$/.test(d.v)&&safeUrl(d.v)?`<div class="vp-v"><a href="${esc(safeUrl(d.v))}" target="_blank" rel="noopener">${esc(d.v)} ↗</a></div>`   // link (vd Kết quả công việc) bấm được, không để chữ trần
+        :`<div class="vp-v${dai?' fld-dai':''}"${dai?' onclick="this.classList.toggle(\'mo\')"':''}>${esc(d.v)}</div>`}</div></li>`; }).join('')}</ol>` : '<div class="muted">Chưa có dữ liệu</div>';
+  const hang=(l,v)=>`<div class="vp-h"><span class="vp-hl">${esc(l)}</span><span class="vp-hv">${v}</span></div>`;
+  const tab=buoc.map((b,k)=>{ const m=b.coDL?muc(b.tt):'trong';
+      return `<button type="button" role="tab" class="vp-tab ${m}${k===chon?' on':''}" data-vpb="${k}" aria-selected="${k===chon}" title="${esc(b.g)}${b.tt?' · '+esc(dichStatus(b.tt)):''}"><span class="vp-oc">${m==='xong'?'✓':m==='loi'?'✕':k+1}</span><span class="vp-ten">${esc(b.g)}</span></button>`; }).join('');
+  /* 16/10 (2) user dán khối «Giai đoạn» của work: «hiển thị như này cho dễ nhìn» → DÒNG THỜI GIAN DỌC mọi bước ĐÃ CHẠY TỚI (như work):
+     chấm màu theo trạng thái · tên bước + nhãn · «giờ · người thực hiện · mở bước ↗» · các trường khai báo + ảnh của bước.
+     Dữ liệu xuất KHÔNG có «ai ghi · lúc nào» từng trường (work có) → không bày dòng đó, không gọi thêm API work. */
+  const laKQ=d=>/^kết quả công việc$/i.test(d.label) && /^https?:\/\//.test(d.v||'');
+  const truong=ds=>ds.filter(d=>!laKQ(d)).map(d=>{ const dai=!d.media && d.v.length>160;
+      return `<div class="vp-gd-o"><div class="vp-lb">${esc(d.label)}</div>${d.media?`<div class="thumbs">${d.media}</div>`
+        :/^https?:\/\/\S+$/.test(d.v)&&safeUrl(d.v)?`<div class="vp-v"><a href="${esc(safeUrl(d.v))}" target="_blank" rel="noopener">${esc(d.v)} ↗</a></div>`
+        :`<div class="vp-v${dai?' fld-dai':''}"${dai?' onclick="this.classList.toggle(\'mo\')"':''}>${esc(d.v)}</div>`}</div>`; }).join('');
+  const giaiDoan=buoc.map((b,k)=>{ if(!b.coDL) return '';
+      const gio=(b.gio.find(x=>/deadline|giao việc lúc|hạn chót/i.test(x.label))||b.gio[0]||{}).v||'', ai=(b.nguoi.find(x=>/thực hiện/i.test(x.label))||{}).v||'';
+      const kq=b.du.find(laKQ), con=b.gio.filter(x=>x.v!==gio).concat(b.nguoi.filter(x=>x.v!==ai)).map(x=>({label:x.label, v:x.v}));
+      return `<li class="vp-gd-b ${muc(b.tt)}" data-vpgd="${k}"><span class="vp-gd-cham" aria-hidden="true"></span>
+        <div class="vp-gd-dau"><span class="vp-gd-ten">${esc(b.g)}</span>${b.tt?tag(b.tt):''}</div>
+        <div class="vp-gd-phu">${[gio?esc(gio):'', ai?`<b>${esc(ai)}</b>`:'', kq&&safeUrl(kq.v)?`<a href="${esc(safeUrl(kq.v))}" target="_blank" rel="noopener">mở bước ↗</a>`:''].filter(Boolean).join(' · ')}</div>
+        ${b.fail}${(con.length||b.du.some(d=>!laKQ(d)))?`<div class="vp-gd-tr">${truong(b.du.concat(con))}</div>`:''}</li>`; }).join('');
+  const than = giaiDoan ? `<section class="vp-muc"><h3 class="vp-h3">Giai đoạn</h3><ol class="vp-gd">${giaiDoan}</ol></section>` : '';
   // ---- BÌNH LUẬN: lấy TRỰC TIẾP từ API WMS (/api/v2/task/comment, pipeline gom sẵn vào
   //      data-summary.json) — hiển thị người, mã NV, thời gian, nội dung, ảnh đính kèm.
   const cmtL=(BINH_LUAN&&BINH_LUAN[String(r[iCode])])||[];
@@ -3032,10 +3129,41 @@ function moChiTiet(i){
   const cmtStep=`<div class="cmt-sec">
     <div class="cmt-sec-h">Bình luận${cmtL.length?' ('+cmtL.length+')':''}</div>
     <div class="cmt-sec-b">${cmtBody}</div></div>`;
-  $('mBody').innerHTML = `<div class="steps-track">${html}</div>${cmtStep}`;
-  hienModal('modal');
+  $('mBody').innerHTML = `<div class="vp-wf"><div class="vp-buoc" role="tablist">${tab}</div><div class="vp-than">
+    <div class="vp-chinh">${chung?`<section class="vp-muc"><h3 class="vp-h3">Dữ liệu khai báo</h3>${chung.fail}${dsDL(chung.du)}</section>`:''}${than}${cmtStep}</div>
+    <aside class="vp-ben"><div class="vp-nhom"><h4>Trạng thái &amp; thời gian</h4>${chung&&chung.tt?hang('Trạng thái',tag(chung.tt)):''}${chung?chung.gio.map(x=>hang(x.label,esc(x.v))).join(''):''}</div>
+      <div class="vp-nhom"><h4>Nhân sự</h4>${chung?chung.nguoi.map(x=>hang(x.label,esc(x.v))).join(''):''}</div></aside></div></div>`;
+  // dải bước = thanh tổng quan: bấm → cuộn tới bước đó trong «Giai đoạn» + nháy nền (bước chưa tới thì không có gì để cuộn)
+  $('mBody').querySelectorAll('.vp-tab').forEach(t=>t.onclick=()=>{ const k=t.dataset.vpb, li=$('mBody').querySelector(`.vp-gd-b[data-vpgd="${k}"]`);
+    $('mBody').querySelectorAll('.vp-tab').forEach(e=>{ e.classList.toggle('on',e===t); e.setAttribute('aria-selected',e===t); });
+    if(li){ li.scrollIntoView({block:'start',behavior:'smooth'}); li.classList.remove('nhay'); void li.offsetWidth; li.classList.add('nhay'); } });
+  hskThanhBen.xong(TB);
+  { const hd=$('modal').querySelector('.modal-head'); if(hd) $('mBody').style.setProperty('--vp-dau',hd.offsetHeight+'px');   // dải bước dính ngay dưới đầu thanh (đầu thanh điện thoại cao hơn)
+    const on=$('mBody').querySelector('.vp-tab.on'); if(on) on.scrollIntoView({block:'nearest',inline:'center'}); }
 }
 function dongModal(){ $('modal').classList.remove('show'); }
+/* 16/10 THANH BÊN PHẢI dùng chung — mo(khoá, bộ chọn dòng) gắn lớp hx-ben + thu thanh trái (chỉ lần mở đầu); xong(tb) hiện + tô dòng;
+   đóng (Đóng/Esc/đổi tab) → dừng clip, bỏ tô, trả thanh trái nếu chính thanh này đã thu, 320ms sau gỡ lớp (pop-up khác dùng #modal vẫn là hộp giữa). */
+window.hskThanhBen=(function(){
+  let khoa='', chon='', thuBen=0, hT=0, canh=0, hien=false;
+  const M=()=>$('modal');
+  function toDam(){ document.querySelectorAll('.tb-dangxem').forEach(e=>e.classList.remove('tb-dangxem'));
+    if(!M().classList.contains('hx-ben')||!khoa||!chon) return; try{ document.querySelectorAll(chon).forEach(e=>e.classList.add('tb-dangxem')); }catch(e){} }
+  function ganCanh(){ if(canh) return; canh=1; const m=M(); hien=m.classList.contains('show');
+    new MutationObserver(()=>{ const dang=m.classList.contains('show'), vuaDong=hien&&!dang; hien=dang; if(!vuaDong||!m.classList.contains('hx-ben')) return;
+      m.querySelectorAll('video').forEach(v=>{ try{ v.pause(); }catch(e){} }); khoa=''; chon=''; toDam(); const mt=$('hxMoTask'); if(mt) mt.remove();
+      if(thuBen){ thuBen=0; if(!document.body.classList.contains('side-open')&&$('sideToggle')) $('sideToggle').click(); }
+      clearTimeout(hT); hT=setTimeout(()=>{ if(!m.classList.contains('show')) m.classList.remove('hx-ben'); },320);
+    }).observe(m,{attributes:true,attributeFilter:['class']}); }
+  function mo(k,sel){ const m=M(), dangMo=m.classList.contains('show')&&m.classList.contains('hx-ben'), doi=dangMo&&khoa!==k;
+    ganCanh(); clearTimeout(hT); m.classList.add('hx-ben'); khoa=k; chon=sel||'';
+    if(!dangMo&&!thuBen&&matchMedia('(min-width:769px)').matches&&document.body.classList.contains('side-open')&&$('sideToggle')){ $('sideToggle').click(); thuBen=1; }
+    return {doi}; }
+  function xong(tb){ if(tb&&tb.doi){ const mb=$('mBody'); mb.classList.remove('hx-doi'); void mb.offsetWidth; mb.classList.add('hx-doi'); M().querySelector('.modal-box').scrollTop=0; }
+    hienModal('modal'); toDam(); }
+  function boc(){ clearTimeout(hT); M().classList.remove('hx-ben'); }
+  return {mo, xong, boc, toDam, khoa:()=>khoa};
+})();
 
 /* ===== LIGHTBOX CAROUSEL (Next/Previous) ===== */
 let lbList=[], lbIdx=0;

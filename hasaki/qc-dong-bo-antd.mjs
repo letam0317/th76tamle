@@ -58,7 +58,7 @@ function doLuat() {
     // AD-01
     const bl = parseFloat(s.borderLeftWidth), bt = parseFloat(s.borderTopWidth), br = parseFloat(s.borderRightWidth), bb = parseFloat(s.borderBottomWidth);
     if (r.height > 24 && ((bl >= 2 && bl > br + 0.5 && s.borderLeftStyle !== "none") || (bt >= 2 && bt > bb + 0.5 && s.borderTopStyle !== "none" && r.width > 60))) bao("AD-01", e, chuRieng(e) || e.innerText);
-    if (r.height > 24 && s.boxShadow.replace(/rgba?\([^)]*\)/g, "").split(",").some((x) => /inset/.test(x) && /^\s*([2-9]|\d{2})(\.\d+)?px\s+0px/.test(x.replace("inset", "").trim()))) bao("AD-01", e, (rc || e.innerText || "").trim() + " · vạch inset");
+    if (r.height > 24 && s.boxShadow.replace(/rgba?\([^)]*\)/g, "").split(",").some((x) => /inset/.test(x) && /^\s*([2-9]|\d{2})(\.\d+)?px\s+0px/.test(x.replace("inset", "").trim()))) bao("AD-01", e, (chuRieng(e) || e.innerText || "").trim() + " · vạch inset");
     // AD-02
     const rc = chuRieng(e); if (rc && /[a-zà-ỹ]/i.test(rc) && s.textTransform === "uppercase") bao("AD-02", e, rc);
     // AD-03

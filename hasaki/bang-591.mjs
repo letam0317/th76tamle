@@ -222,6 +222,24 @@ function gom() {
   { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
     const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" };
+    /* 16/10 user «1 cái đó từ đâu — hàng hoàn hay pick dư hay châm/soạn hàng»: sổ nguon-cham-b1.mjs lần ngược lệnh đưa món hàng VÀO XE
+       trước lượt châm (0 lượt gọi ở đây — chỉ đọc sổ). chu = nhãn ngắn trên dòng, chiTiet = chuỗi đầy đủ cho title. */
+    const NG = docJ(path.join(EXP, "nguon-cham-b1.json"), { lan: {} }); NG.lan ||= {};
+    /* nhãn theo KHU NGUỒN (mô tả chính thức trong danh mục vị trí WMS, tra 16/10): F0-IT «Khu vực hàng khi nhận IT» · F0-RT «đơn bị trả về»
+       · F0-PA «giỏ repush» (đơn huỷ/pick trả kệ) · F0-PL «Pallet số N» · F0-NG «đơn trả sản phẩm không phù hợp» · F0-TF xe đẩy · còn lại = ô kệ khác */
+    const KHU = { IT: "Nhận hàng IT", RT: "Hàng hoàn", PA: "Đơn huỷ trả kệ", NG: "Hàng trả không phù hợp", TF: "Từ xe khác" };
+    const oNgan = (b) => String(b || "").replace(/ \(\d+\)$/, "").replace(/^F0-A\d-/, "");
+    const tenEm = (em) => { const v = theoEmail.get(String(em || "").toLowerCase()); return v ? v.ten : String(em || "").replace(/@.*/, ""); };
+    const nhanKhu = (b) => { const z = (String(b).match(/^F0-([A-Z]+)-/) || [])[1] || "";
+      if (KHU[z]) return { chu: KHU[z], tu: "" };
+      if (z === "PL") return { chu: "Từ pallet " + String(b).replace(/^.*-0*(\d+)$/, "$1"), tu: "" };
+      return { chu: "Chuyển từ ô khác", tu: oNgan(b) }; };
+    const nguonLan = (v) => { if (!v) return null;
+      if (v.khongXe) return { ...nhanKhu(v.tu), chiTiet: "Đưa thẳng từ " + v.tu + " vào ô" + (v.sku ? " · SKU " + v.sku : "") };
+      if (v.nguon === undefined) return null;   // sổ chưa lần tới — giao diện giữ nhãn cũ
+      if (!v.nguon) return { chu: v.loaiDay === "REPUSH_ORDER_CANCEL_PUSH" ? "Đơn huỷ trả kệ" : "Chưa rõ nguồn", tu: "", chiTiet: "Không thấy lệnh đưa món hàng vào xe " + v.xe + " trong 48 giờ trước lượt châm" + (v.sku ? " · SKU " + v.sku : "") };
+      const n = v.nguon;
+      return { ...nhanKhu(n.tu), chiTiet: n.at.slice(8, 10) + "/" + n.at.slice(5, 7) + " " + n.at.slice(11, 16) + " " + tenEm(n.email) + " lấy từ " + n.tu.replace(/ \(\d+\)$/, "") + " lên xe " + v.xe + (v.sku ? " · SKU " + v.sku : "") }; };
     /* 12/10 user: "bằng chứng WMS + camera người châm … không có ở bản live" — gợi ý của các lượt cò B1 CŨ không lưu bin/ngay
        (64/100 phiếu mất mục này) ⇒ ghép theo giờ ghi nhận + mã vị trí ngắn (507-03-04-02 ↔ F0-A1-507-03-04-02) với khoá bộ đệm. */
     const theoNgay = new Map(); for (const k of Object.keys(CW)) { const [b0, n0] = k.split("|"); if (!theoNgay.has(n0)) theoNgay.set(n0, []); theoNgay.get(n0).push(b0); }
@@ -233,7 +251,7 @@ function gom() {
       const rec = (CW[bin + "|" + ngay] || {}).rec; if (!rec) continue;
       const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
       const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.at === r.at);
-        return { at: r.at, ten: nv ? nv.ten : r.email, ma: nv ? nv.ma : "", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10,
+        return { at: r.at, ten: nv ? nv.ten : r.email, ma: nv ? nv.ma : "", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
           clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
       p.lsKho = { bin, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
