@@ -39,7 +39,7 @@ const log = (...a) => console.log(new Date().toTimeString().slice(0, 8), ...a);
 // Vùng bãi NCC/bảo vệ trên từng camera (tỉ lệ khung 0–1: x0,y0,x1,y1) — xác minh trên hình 02/10/2026.
 const CAM = [
   { ma: "AIBV", tamDung: "14/10/2026 user: tạm dừng bộ canh bãi xe bảo vệ", ten: "AI Bao Ve", dauGhi: "170 QL1A - 4", host: "172.16.10.16", kenh: 16, roi: [0, 0.10, 0.27, 0.32], nguong: 0.045, vung: "dãy xe góc trên trái (bãi bảo vệ/NCC)" },
-  { ma: "BXM", ten: "Bai Xe May", dauGhi: "170 QL1A - 3", host: "172.16.10.12", kenh: 32, roi: [0.04, 0.60, 0.38, 1.0], nguong: 0.07, vung:   // ngoài trời: nắng/bóng đổi liên tục → ngưỡng cao hơn
+  { ma: "BXM", tamDung: "16/10/2026 user: tắt canh bãi xe máy (giữ khu rác/giấy)", ten: "Bai Xe May", dauGhi: "170 QL1A - 3", host: "172.16.10.12", kenh: 32, roi: [0.04, 0.60, 0.38, 1.0], nguong: 0.07, vung:   // ngoài trời: nắng/bóng đổi liên tục → ngưỡng cao hơn
     "cụm xe sát cột cạnh xe tải (bãi NCC/đối tác)" },
   { ma: "PLR", ten: "Khu phân loại rác", dauGhi: "170 QL1A - 3", host: "172.16.10.12", kenh: 30, loai: "phan-loai", roi: [0.469, 0.028, 0.797, 0.486], nguong: 0.06,
     moc: ["12:00", "18:30"], vung: "vách + bao phân loại MÀNG CO · GIẤY IN NHIỆT · BÓNG VỤN · LÕI BĂNG KEO" },
