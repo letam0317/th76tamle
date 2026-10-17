@@ -21,7 +21,8 @@ const DO = () => {   // số đo 1 thanh đang mở
   const kAnh = anh && anh.closest(".hx-tb-khung"), kClip = clip && clip.closest(".hx-tb-khung");
   const loiNhan = [...document.querySelectorAll("#mBody .lbl")].find((x) => x.textContent.trim() === "Lỗi"), gy = [...document.querySelectorAll("#mBody .lbl")].find((x) => /^(Máy gợi ý|Là ai)$/.test(x.textContent.trim()));
   const ls = q(".hx-qd-ls"), ng = [...document.querySelectorAll("#mBody .hx-qd-nguon button")].filter((x) => x.getBoundingClientRect().width);
-  return { clip: R(clip), kPhai: R(kAnh), anh: R(anh), loi: R(loiNhan), gy: R(gy), qd: R(qd), bx: R(bx), cuon: bx.scrollHeight - bx.clientHeight,
+  const tlh = q(".hx-tl-hang:not([hidden])");
+  return { clip: R(clip), tl: R(tlh), play: R(q("#hxPlay")), toc: R(q(".hx-toc")), kPhai: R(kAnh), anh: R(anh), loi: R(loiNhan), gy: R(gy), qd: R(qd), bx: R(bx), cuon: bx.scrollHeight - bx.clientHeight,
     cungKhungPhai: !!(kAnh && loiNhan && qd && loiNhan.closest(".hx-tb-khung") === kAnh && qd.closest(".hx-tb-khung") === kAnh && kAnh !== kClip),
     ls: R(ls), lsCungClip: !ls || ls.closest(".hx-tb-khung") === kClip, nguonHang: new Set(ng.map((x) => Math.round(x.getBoundingClientRect().top))).size };
 };
@@ -41,20 +42,21 @@ for (const m of MAY) {
   for (const id of await ds("treo", "[data-p]", "data-p")) { if (tv.length >= N) break; const x = await mo("moPhieuId", id); if (x.clip) tv.push([id, x]); }
   ok(may.length && tv.length, m.ten + ": D0 có sự việc Theo máy (" + may.length + ") + phiếu Theo tác vụ (" + tv.length + ") có clip để so");
   const gan = (a, c, k) => a && c && Math.abs(a[k] - c[k]) <= 2;
-  const sai = { D1: [], D2: [], D3: [], D4: [], D5: [], D6: [], D7: [], D8: [] };
+  const sai = { D11: [], D1: [], D2: [], D3: [], D4: [], D5: [], D6: [], D7: [], D8: [] };
   const goc = may[0] && may[0][1];
   for (const [id, x] of [...may, ...tv]) {
     if (!["l", "t", "w", "h"].every((k) => gan(x.clip, goc.clip, k))) sai.D1.push(id + JSON.stringify(x.clip));
     if (!gan(x.kPhai, goc.kPhai, "l")) sai.D2.push(id + JSON.stringify(x.kPhai));
     if (!["l", "t", "w", "h"].every((k) => gan(x.anh, goc.anh, k))) sai.D3.push(id + JSON.stringify(x.anh));
     if (!gan(x.loi, goc.loi, "l")) sai.D4.push(id + JSON.stringify(x.loi));
-    if (!x.qd || x.bx.b - x.qd.b > 16 || x.qd.b > x.bx.b + 1) sai.D5.push(id + " cách đáy " + (x.qd ? x.bx.b - x.qd.b : "?"));
+    if (!x.qd || Math.abs((x.bx.b - x.qd.b) - (goc.bx.b - goc.qd.b)) > 4 || Math.abs((x.bx.b - x.qd.b) - 129) > 16) sai.D5.push(id + " cách đáy " + (x.qd ? x.bx.b - x.qd.b : "?"));   // 17/10 (6) user: Quyết định lên 3 cm (113px + 16px lề)
     if (!x.lsCungClip || (x.ls && x.ls.t < x.clip.b)) sai.D6.push(id);
     if (!x.cungKhungPhai || !(x.loi && x.gy && x.qd && x.loi.t < x.gy.t && x.gy.b <= x.qd.t + 1)) sai.D7.push(id);
     if (x.cuon > 1) sai.D8.push(id + " " + x.cuon + "px");
+    if (!x.tl || !goc.tl || Math.abs((x.tl.t - x.clip.b) - (goc.tl.t - goc.clip.b)) > 2 || !gan(x.tl, goc.tl, "l") || !gan(x.tl, goc.tl, "w") || !gan(x.play, goc.play, "l") || !gan(x.toc, goc.toc, "l")) sai.D11.push(id + JSON.stringify([x.tl, x.clip && x.clip.b]));
   }
-  const TEN = { D1: "clip cùng vị trí + kích thước ở 2 thanh", D2: "khung phải cùng mép trái", D3: "Ảnh ghi nhận cùng vị trí + kích thước", D4: "nhãn Lỗi cùng mép trái",
-    D5: "Quyết định sát đáy thanh", D6: "Ai tác động dưới clip, cùng khung clip", D7: "Lỗi → Máy gợi ý → Quyết định dưới Ảnh ghi nhận, cùng khung", D8: "không cuộn cả thanh" };
+  const TEN = { D11: "thanh thời gian + ▶ giờ · Tự động ×1 ×2 ×3 cùng vị trí ở 2 thanh (17/10 (6))", D1: "clip cùng vị trí + kích thước ở 2 thanh", D2: "khung phải cùng mép trái", D3: "Ảnh ghi nhận cùng vị trí + kích thước", D4: "nhãn Lỗi cùng mép trái",
+    D5: "Quyết định cách đáy 3 cm, 2 thanh như nhau", D6: "Ai tác động dưới clip, cùng khung clip", D7: "Lỗi → Máy gợi ý → Quyết định dưới Ảnh ghi nhận, cùng khung", D8: "không cuộn cả thanh" };
   Object.keys(sai).forEach((k) => ok(!sai[k].length, m.ten + ": " + k + " " + TEN[k] + (sai[k].length ? " — " + sai[k].length + " lệch: " + sai[k].slice(0, 3).join(" | ") : "")));
   ok(!con.length, m.ten + ": D10 không lỗi trang " + con.slice(0, 2).join(" | "));
   if (A.anh) { if (may[0]) { await mo("moLuotId", may[0][0]); await p.screenshot({ path: A.anh + "/dongbo-may-" + m.ten + ".png" }); } if (tv[0]) { await p.evaluate(() => window.HXACMINH.sub("treo")); await ngu(1200); await mo("moPhieuId", tv[0][0]); await p.screenshot({ path: A.anh + "/dongbo-tacvu-" + m.ten + ".png" }); } }

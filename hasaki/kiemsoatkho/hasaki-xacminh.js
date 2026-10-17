@@ -241,6 +241,9 @@
         "#modal.hx-ben .hx-tb-luoi .hx-vwrap>video{width:100%;height:100%;object-fit:contain}" +
         "#modal.hx-ben .hx-tb-luoi #qdKhung{min-height:0;border-radius:8px}#modal.hx-ben .hx-tb-luoi #qdKhung>:is(video,img){width:100%;height:auto;aspect-ratio:16/9;max-height:none!important;object-fit:contain;background:#000}" +
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{margin:8px 0 0!important}#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{width:100%;height:auto;max-height:none;aspect-ratio:16/9;object-fit:contain;background:#000}" +
+        /* 17/10 (6) user «thu hẹp khung Ảnh ghi nhận lại 68%» */
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh{width:68%;min-height:0!important}" +
+        "#modal.hx-ben .hx-pd-duoi{margin-top:6px;border-radius:6px}#modal.hx-ben .hx-tb-luoi .hx-tl-hang[hidden]{display:none!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-tl-hang{margin-top:8px}" +
         /* hàng dưới clip Theo tác vụ: chữ «Máy soi camera…» bên trái, nút nguồn sát phải; thiếu chỗ thì XUỐNG HÀNG (không cắt chữ/nút) */
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{display:flex;flex-wrap:wrap!important;align-items:center;gap:6px 8px}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau>.hx-vl-tt{flex:1 1 200px!important;min-width:0;white-space:normal!important}" +
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau>.hx-qd-nguon{flex:0 1 auto;flex-wrap:wrap!important;overflow:visible;min-width:0;margin-left:auto}#modal.hx-ben .hx-tb-luoi .hx-qd-nguon button{white-space:nowrap}" +
@@ -560,8 +563,9 @@
       tp("trangthai", stLuot(l)) +
       /* 17/10 (2) user: 3 chip Xe ra · Không phải NV · Không rõ NGANG HÀNG, «Lưu · lập phiếu» ở dưới 3 chip */
       tp("quyetdinh", '<div class="hx-qd-o hx-qd-nut"><span class="lbl">Quyết định</span><div class="hx-act">' +
-        '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
-        '<button data-qd="3"' + (khoa ? " disabled" : "") + '>Không rõ – bỏ qua</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") +
+        /* 17/10 (6) user «rút gọn chip» — câu đầy đủ ở title (rê chuột) */
+        '<button data-qd="2" title="' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '"' + (khoa ? " disabled" : "") + '>Không vi phạm</button><button data-qd="1" title="Không phải NV Hasaki"' + (khoa ? " disabled" : "") + '>Không phải NV</button>' +
+        '<button data-qd="3" title="Không rõ – bỏ qua"' + (khoa ? " disabled" : "") + '>Không rõ</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") +
         '<button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button></div></div>') + '</div>';
     $id("mBody").innerHTML = h;
     tbAp();
@@ -875,7 +879,7 @@
   /* 16/10 (6)(7) cột phải: phần DỮ LIỆU dưới ảnh (Ai tác động · Người trong khung đỏ) cuộn RIÊNG, cao vừa chỗ còn lại tới đáy thanh —
      không bắt cuộn cả thanh. «Ai tác động» tối đa 5 dòng (đo thật, đo 2 lần vì thanh cuộn làm dòng hẹp lại). Xếp chồng (hẹp/điện thoại) thì để tự nhiên. */
   function lapCotPhai() { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng");
-    var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
+    var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.style.marginBottom = ""; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
     /* 17/10 (2) «Sẽ ghi nhận» dưới Ảnh ghi nhận, đứng CẠNH clip: nhiều người nghi thì cuộn riêng tới đáy clip — không đẩy cao cả hàng clip (cả thanh phải cuộn) */
     var sg = $id("hxChot"), kc = $id("mBody").querySelector('[data-tp="clip"]');
     if (sg && kc) { sg.style.maxHeight = ""; var rs = sg.getBoundingClientRect(), rc = kc.getBoundingClientRect(); if (rs.left >= rc.right - 1 && rs.bottom > rc.bottom + 1) sg.style.maxHeight = Math.max(72, Math.floor(rc.bottom - rs.top)) + "px"; }
@@ -894,11 +898,16 @@
     qdDay(bx, qdTp); }
   /* 17/10 (4) user «Quyết định chốt cứng phía dưới thanh bên phải»: còn chỗ trống dưới cùng thì đẩy khối Quyết định xuống sát đáy; thanh dài phải cuộn thì
      khối dính đáy (position:sticky) — luôn thấy, không trôi. */
+  var QD_CACH_DAY = 113;   // 3 cm ở 96 dpi
   function qdDay(bx, qd) {
     if (!qd || !bx) return; qd.style.marginTop = "";   // trả về margin-top:auto (CSS) — trong khung cột, Quyết định tự xuống đáy khung
     var L = qd.closest(".hx-tb-luoi"), pb = parseFloat(getComputedStyle($id("mBody")).paddingBottom) || 0; L.style.minHeight = "";
     var rL = L.getBoundingClientRect(), du = bx.getBoundingClientRect().bottom - rL.bottom - pb;
-    if (bx.scrollHeight <= bx.clientHeight + 1 && du > 2) L.style.minHeight = Math.floor(rL.height + du) + "px";   // lưới cao tới đáy thanh → khung giãn → Quyết định sát đáy
+    du -= QD_CACH_DAY;   // 17/10 (6) user «cụm Quyết định di chuyển lên trên 3cm»
+    if (bx.scrollHeight <= bx.clientHeight + 1 && du > 2) L.style.minHeight = Math.floor(rL.height + du) + "px";   // lưới giãn → khung giãn → Quyết định cách đáy thanh QD_CACH_DAY
+    /* cột bên kia dài tới đáy (Theo tác vụ: Ai tác động) → lưới không giãn được; nhấc Quyết định lên bằng phần trống phía trên nó (margin-top:auto) — 2 thanh cùng 1 chỗ */
+    qd.style.marginBottom = ""; var dich = bx.getBoundingClientRect().bottom - QD_CACH_DAY - 16, lo = qd.getBoundingClientRect().bottom - dich, trong = parseFloat(getComputedStyle(qd).marginTop) || 0;
+    if (lo > 1 && trong > 1) qd.style.marginBottom = Math.floor(Math.min(lo, trong)) + "px";
   }
   function xongThanhBen(tb) { khoaAnhGN(); lapCotPhai(); requestAnimationFrame(lapCotPhai); hskThanhBen.xong(tb);
     /* 17/10 (5) đo thật: đổi lượt khi thanh đang mở — lúc dựng xong nội dung cũ/ảnh chưa ổn định nên chưa đẩy được Quyết định xuống đáy → tính lại sau khi lắng */
@@ -1090,7 +1099,8 @@
     a.innerHTML = '<span class="pt">Mở task trên work.hasaki</span><span class="ps">Mở task</span> ↗';
     $id("mClose").parentNode.insertBefore(a, $id("mClose"));
     var md = $id("modal"); if (md && !md.__hxMoTask) { md.__hxMoTask = 1;
-      new MutationObserver(function () { if (!md.classList.contains("show")) { var z = $id("hxMoTask"); if (z) z.remove(); } }).observe(md, { attributes: true, attributeFilter: ["class"] }); }
+      var hien1 = md.classList.contains("show");   // 17/10 như Ghi chú: chỉ gỡ khi vừa đóng thanh, không gỡ lúc đang mở lại
+      new MutationObserver(function () { var dang = md.classList.contains("show"), vuaDong = hien1 && !dang; hien1 = dang; if (!vuaDong) return; var z = $id("hxMoTask"); if (z) z.remove(); }).observe(md, { attributes: true, attributeFilter: ["class"] }); }
   }
   /* 14/10 user: nút «Ghi chú» cạnh nút Đóng (Theo tác vụ + Theo máy) mở POP-UP ghi chú — ghi điều cần cải tiến; máy chủ lưu .exports/ghi-chu-cai-tien.json.
      Mỗi ghi chú có trạng thái: «Chờ Claude đọc» → (Claude đọc đầu phiên, sửa, QC, ghi lại `xong`) → «Đã cải tiến» + dòng «đã sửa gì». */
@@ -1099,7 +1109,10 @@
     var gcN = document.createElement("button"); gcN.type = "button"; gcN.className = "hx-gc-nut"; gcN.id = "gcNut"; gcN.setAttribute("aria-haspopup", "dialog"); gcN.textContent = "Ghi chú";
     $id("mClose").parentNode.insertBefore(gcN, $id("hxMoTask") || $id("mClose"));   // 14/10 user: Ghi chú bên trái, ngang hàng nút Đóng
     var md0 = $id("modal"); if (md0 && !md0.__hxGc) { md0.__hxGc = 1;
-      new MutationObserver(function () { if (!md0.classList.contains("show")) { var z = $id("gcNut"); if (z) z.remove(); dongGC(); } }).observe(md0, { attributes: true, attributeFilter: ["class"] }); }
+      /* 17/10 BẪY user bắt «Ghi chú / Mở task Theo tác vụ không có»: trước đây gỡ nút mỗi khi lớp đổi mà CHƯA có «show» — lúc MỞ LẠI thanh (gắn hx-ben trước, show sau)
+         cũng bị gỡ ⇒ từ lần mở thứ 2 mất nút. Nay chỉ gỡ khi vừa chuyển ĐANG HIỆN → ĐÓNG. */
+      var hien0 = md0.classList.contains("show");
+      new MutationObserver(function () { var dang = md0.classList.contains("show"), vuaDong = hien0 && !dang; hien0 = dang; if (!vuaDong) return; var z = $id("gcNut"); if (z) z.remove(); dongGC(); }).observe(md0, { attributes: true, attributeFilter: ["class"] }); }
     var DS = [];
     var dem = function () { var cho = DS.filter(function (g) { return !g.xong; }).length; gcN.textContent = DS.length ? "Ghi chú (" + DS.length + ")" : "Ghi chú"; gcN.classList.toggle("cho", cho > 0); };
     goi("/api/ghi-chu?id=" + encodeURIComponent(id)).then(function (ds) { DS = ds || []; dem(); }).catch(function () {});
@@ -1162,6 +1175,9 @@
     $id("mBody").innerHTML = '<div class="hx-qd hx-tb-luoi" data-tb="tacvu">' +
       /* 14/10 user: MÁY (xac-minh-tu-dong bước 7+8) ghi người tác động không qua hệ thống; ở đây chỉ báo kết quả máy soi + nút nguồn, DƯỚI clip (16/10 (6)) */
       tp("clip", '<div class="hx-qd-xem"><div id="qdKhung" class="hx-qd-khung" data-khung></div>' +
+        /* 17/10 (6) user «thanh thời gian ở Máy và ở Tác vụ không khớp»: cùng 1 hàng thanh thời gian (mốc số = lượt tác động) + ▶ giờ · Tự động ×1 ×2 ×3 */
+        '<div class="hx-tl-hang" id="qdTlHang" hidden><div class="hx-tl" id="hxTl"></div><div class="hx-xdau"><span class="hx-vbar"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
+        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div></div>' +
         '<div class="hx-xdau">' + vlTT + '<span class="hx-qd-nguon">' + nguon.map(function (n, i) { return n.an ? "" : '<button data-ng="' + i + '"' + (i ? "" : ' class="on"') + '>' + e_(n.ten) + '</button>'; }).join("") + '</span></div></div>') +
       (anhGN ? tp("anh", anhGN) : "") +
       (LS ? tp("aitacdong", '<div class="hx-qd-ls">' + oLsKho(LS, lanIdx, ai) + '</div>') : "") +
@@ -1181,15 +1197,41 @@
     var vs0 = $id("mBody").querySelector(".hx-visao"); if (vs0) vs0.onclick = function () { vs0.classList.toggle("mo"); };
     var loi0 = $id("mBody").querySelector(".hx-qd-loi"); if (loi0) loi0.onclick = function () { loi0.classList.toggle("mo"); };   // 16/10 câu lỗi dài kẹp 2 dòng, bấm mở hết
     var dangXem = null;
+    /* 17/10 (6) thanh thời gian Theo tác vụ: đoạn quanh mỗi lượt tác động tô đỏ, mốc số tròn bấm tua; Tự động = ×1 quanh lượt tác động, ×3 chỗ trống
+       (không có mốc thì ×1); tốc độ đang chạy = nút tô nhạt — cùng khuôn ganVideo của Theo máy. */
+    function tlTacVu(v, bd, sk) {
+      var th = $id("qdTlHang"), tl = $id("hxTl"); if (!th || !tl) return; th.hidden = false;
+      var pd = $id("qdPd"); if (pd) { th.after(pd); pd.classList.add("hx-pd-duoi"); }   // phụ đề xuống DƯỚI thanh thời gian — thanh thời gian sát dưới video như Theo máy
+      var toc = "auto", tocTo = null, gs = function (x) { return (x.t - bd) / 1000; };
+      var moc = bd ? (sk || []).filter(function (x) { return x.t >= bd; }) : [];
+      var hms2 = function (t) { return bd ? new Date(bd + t * 1000 + 7 * 36e5).toISOString().slice(11, 19) : String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(Math.floor(t % 60)).padStart(2, "0"); };
+      var gan = function (t) { return moc.some(function (x) { return t >= gs(x) - 6 && t <= gs(x) + 10; }); };
+      var ve = function () { var D2 = v.duration; if (!isFinite(D2) || !D2) return;
+        moc = moc.filter(function (x) { return gs(x) <= D2; });   // lượt tác động sau đuôi clip thì không vẽ (đo thật 13774186: đoạn đỏ tràn ra ngoài thanh)
+        tl.innerHTML = moc.map(function (x) { var a = Math.max(0, gs(x) - 3), b2 = Math.min(D2, gs(x) + 8); return '<div class="dn" style="left:' + (a / D2 * 100) + '%;width:' + Math.max(0.6, (b2 - a) / D2 * 100) + '%"></div>'; }).join("") +
+          moc.map(function (x, j) { var xx = Math.max(1.5, Math.min(98.5, gs(x) / D2 * 100)); return '<div class="mk" style="left:' + xx + '%"></div><button class="mkn' + (x.vl ? " ng" : "") + '" data-tmk="' + j + '" style="left:' + xx + '%" title="' + e_(x.chu) + ' — bấm để tua tới">' + (j + 1) + '</button>'; }).join("") + '<div class="cur" id="hxCur"></div>';
+        tl.querySelectorAll("[data-tmk]").forEach(function (m) { m.onclick = function (ev) { ev.stopPropagation(); v.currentTime = Math.max(0, gs(moc[Number(m.dataset.tmk)]) - 2); v.play().catch(function () {}); }; }); };
+      var cap = function () { var t = v.currentTime || 0, D2 = v.duration;
+        if (toc === "auto") { var r = !moc.length || gan(t) ? 1 : 3; if (v.playbackRate !== r) v.playbackRate = r; }
+        $id("hxGio").textContent = hms2(t); var cur = $id("hxCur"); if (cur && D2) cur.style.left = (t / D2 * 100) + "%";
+        var dang = toc === "auto" && !v.paused ? String(v.playbackRate) : ""; if (dang !== tocTo) { tocTo = dang; th.querySelectorAll("[data-toc]").forEach(function (x) { x.classList.toggle("dang", x.dataset.toc === dang); }); } };
+      v.addEventListener("loadedmetadata", ve); if (v.readyState >= 1) ve();
+      v.addEventListener("timeupdate", cap); v.addEventListener("seeked", cap);
+      v.addEventListener("play", function () { $id("hxPlay").textContent = "⏸"; cap(); }); v.addEventListener("pause", function () { $id("hxPlay").textContent = "▶"; cap(); });
+      $id("hxPlay").onclick = function () { if (v.paused) v.play().catch(function () {}); else v.pause(); };
+      th.querySelectorAll("[data-toc]").forEach(function (b) { b.onclick = function () { toc = b.dataset.toc; th.querySelectorAll("[data-toc]").forEach(function (x) { x.classList.toggle("on", x === b); }); if (toc !== "auto") v.playbackRate = Number(toc); cap(); }; });
+      tl.onclick = function (ev) { var r = tl.getBoundingClientRect(), D2 = v.duration; if (D2) v.currentTime = Math.max(0, Math.min(D2, (ev.clientX - r.left) / r.width * D2)); };
+      v.onclick = function () { if (v.paused) v.play().catch(function () {}); else v.pause(); };
+    }
     function xem(i) {
-      var n = nguon[i], k = $id("qdKhung"); dangXem = null; k.hidden = false;
+      var n = nguon[i], k = $id("qdKhung"); dangXem = null; k.hidden = false; var th0 = $id("qdTlHang"); if (th0) th0.hidden = true; var pd0 = $id("qdPd"); if (pd0) pd0.remove();
       if (!n) { k.innerHTML = ""; k.hidden = true; khoaAnhGN(); return; }   // không có hình camera: ẩn khung — dòng tình trạng ở cột Quyết định đã nói (không lặp)
       $id("mBody").querySelectorAll(".hx-qd-nguon button").forEach(function (b) { b.classList.toggle("on", Number(b.dataset.ng) === i); });
       if (n.video) {   /* 05/10 user: "nên chạy dạng phụ đề bên dưới clip, chứ xem k hiểu đang xem gì, bạn xác minh bằng cách nhận diện gì" */
         var I = n.info || {}, bd = I.batDau ? Date.parse(I.batDau.replace(" ", "T") + "+07:00") : 0, sk = suKienClip(LS, bd, I.suKien);
-        k.innerHTML = '<video controls autoplay muted playsinline preload="metadata" src="' + e_(n.url) + '"></video>' + (bd ? '<div class="hx-pd" id="qdPd" aria-live="polite"></div>' : "");   // 05/10 user bác dòng "Máy tìm ra bằng cách nào" (không yêu cầu) — chỉ giữ phụ đề
+        k.innerHTML = '<video autoplay muted playsinline preload="metadata" src="' + e_(n.url) + '"></video>' + (bd ? '<div class="hx-pd" id="qdPd" aria-live="polite"></div>' : "");   // 05/10 user bác dòng "Máy tìm ra bằng cách nào" (không yêu cầu) — chỉ giữ phụ đề
         var v = k.querySelector("video"); if (n.tua != null) v.addEventListener("loadedmetadata", function () { v.currentTime = n.tua; }, { once: true });
-        dangXem = { n: n, v: v, bd: bd };
+        dangXem = { n: n, v: v, bd: bd }; tlTacVu(v, bd, sk);
         if (bd) { var pd = $id("qdPd"), hm2 = function (t) { return new Date(t + 7 * 36e5).toISOString().slice(11, 19); };
           var cap = function () { var now = bd + (v.currentTime || 0) * 1000, cur = null, toi = null;
             sk.forEach(function (x) { if (x.t <= now + 500 && now - x.t < 12000) cur = x; if (x.t > now && (!toi || x.t < toi.t)) toi = x; });
