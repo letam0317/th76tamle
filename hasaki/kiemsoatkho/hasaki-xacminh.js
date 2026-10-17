@@ -184,7 +184,7 @@
         "#modal.hx-ben .hx-qd-luot .hx-act{display:flex!important;flex-wrap:wrap;gap:8px}#modal.hx-ben .hx-qd-luot .hx-act button{flex:none;width:auto;min-height:32px;padding:0 12px;border-radius:6px;font-weight:400;grid-column:auto!important}#modal.hx-ben .hx-qd-luot .hx-act button.chinh{font-weight:600}" +
         "@media(max-width:760px){#modal.hx-ben .hx-qd-luot .hx-act button{min-height:44px}}#modal.hx-ben .hx-vwrap{border-radius:8px}@media(min-width:761px){#modal.hx-ben .hx-qd-luot #lvClip{max-width:calc(max(240px,calc(100vh - 470px)) * 16 / 9);margin:0 auto}}#modal.hx-ben .hx-qd-luot .hx-chot{margin:0 0 8px!important;padding:6px 10px;border:0;border-radius:6px}#modal.hx-ben .hx-qd-luot .hx-hoi{font-size:13px!important;font-weight:400;padding:6px 10px;margin:0 0 8px;border:0;border-radius:6px}#modal.hx-ben .hx-qd-luot .hx-tl{margin:8px 0 0}#modal.hx-ben .hx-qd-luot .hx-mocs{margin:8px 0 0}" +
         "#modal.hx-ben .hx-chia{border-top:1px solid var(--ad-chia,var(--border));padding-top:10px}#modal.hx-ben .hx-qd-luot .hx-chot{margin:0}" +
-        "#modal.hx-ben .hx-ds-ng{overflow-y:auto;overscroll-behavior:contain}#modal.hx-ben .hx-qd-luot .hx-qd-nut{display:block}#modal.hx-ben .hx-qd-luot .hx-qd-nut>.lbl{margin-bottom:4px}" +
+        "#modal.hx-ben .hx-ds-ng{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}#modal.hx-ben .hx-qd-luot .hx-qd-nut{display:block}#modal.hx-ben .hx-qd-luot .hx-qd-nut>.lbl{margin-bottom:4px}" +
         /* Segmented chọn nguồn xem (chọn 1 trong vài — đúng khuôn SEG của lớp antd, KHÔNG phải điều hướng) */
         "#modal.hx-ben .hx-xdau{margin-bottom:12px;gap:12px}#modal.hx-ben .hx-qd-nguon{margin:0;gap:2px;padding:2px;border-radius:6px;background:color-mix(in srgb,var(--text) 7%,var(--surface));flex-wrap:wrap}" +
         "#modal.hx-ben .hx-qd-nguon button{border:0;background:transparent;border-radius:4px!important;padding:0 12px;color:var(--muted);box-shadow:none;font-weight:400}" +
@@ -228,12 +228,12 @@
         "#modal.hx-ben .hx-ng-gon{display:flex!important;flex-direction:column;gap:6px;padding:0;border:0;background:transparent;grid-template-columns:none}#modal.hx-ben .hx-ng-gon+.hx-ng-gon{border-top:1px solid var(--ad-chia,var(--border));padding-top:10px;margin-top:4px}" +
         "#modal.hx-ben .hx-ng-gon>.ten{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:13px;font-weight:600}#modal.hx-ben .hx-ng-gon>.ten .hx-chk{margin:0;font-weight:400}" +
         "#modal.hx-ben .hx-o-an{margin:0;align-items:start!important}#modal.hx-ben .hx-o-an>.lbl{padding-top:4px}#modal.hx-ben .hx-o-an .hx-cb{min-width:0}" +
-        "#modal.hx-ben .hx-o-an :is(input,textarea){display:block;width:100%;min-height:28px!important;padding:3px 6px!important;margin:0 0 0 -6px;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;resize:none;font:inherit;font-size:13px!important;color:var(--text);cursor:pointer;overflow:hidden;box-sizing:border-box;max-width:calc(100% + 6px)}#modal.hx-ben .hx-o-an textarea{width:calc(100% + 6px)}" +
+        "#modal.hx-ben .hx-o-an :is(input,textarea){display:block;width:100%;min-height:28px!important;padding:3px 6px!important;margin:0;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;resize:none;font:inherit;font-size:13px!important;color:var(--text);cursor:pointer;overflow:hidden;box-sizing:border-box;max-width:100%}#modal.hx-ben .hx-o-an textarea{width:100%}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea):hover{background:var(--ad-nen2,#f5f5f5)!important}#modal.hx-ben .hx-o-an :is(input,textarea):focus{border-color:var(--accent)!important;background:var(--surface)!important;cursor:text;outline:0;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)!important}" +
         "#modal.hx-ben .hx-o-an .hx-cb{position:relative}#modal.hx-ben .hx-o-an .hx-cb:has(>input){width:fit-content;max-width:100%}#modal.hx-ben .hx-o-an:has(.hx-cb-xoa) :is(input,textarea){padding-right:26px!important}" +
-        "#modal.hx-ben .hx-cb-xoa{position:absolute;top:3px;right:-6px;z-index:2;width:22px;height:22px;min-height:0!important;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:12px;line-height:22px;cursor:pointer}" +
+        "#modal.hx-ben .hx-cb-xoa{position:absolute;top:3px;right:0;z-index:2;width:22px;height:22px;min-height:0!important;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:12px;line-height:22px;cursor:pointer}" +
         "#modal.hx-ben .hx-cb-xoa:hover{background:var(--hover,var(--ad-nen2));color:var(--text)}#modal.hx-ben .hx-cb:has(>:is(input,textarea):placeholder-shown)>.hx-cb-xoa{display:none}" +
-        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:120px;width:auto}#modal.hx-ben .hx-ai-phu{grid-column:2;margin-top:-6px}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
+        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:120px;width:auto}#modal.hx-ben .hx-ai-phu{grid-column:2;margin-top:-6px;min-height:16px}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:block}" +
         /* 17/10 (4) Quyết định dính đáy thanh · Sẽ ghi nhận canh giữa phần còn lại của khung Ảnh ghi nhận · Theo tác vụ trong khung */
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=quyetdinh]{position:sticky;bottom:0;z-index:6;background:var(--surface);padding:12px 0 4px;box-shadow:0 -1px 0 var(--ad-chia,var(--border))}" +
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=quyetdinh]){padding-bottom:12px}" +
@@ -610,10 +610,19 @@
   }
   function veChot() {
     var el = $id("hxChot"); if (!el || !EV) return;
+    var cao0 = el.getBoundingClientRect().height;   // 17/10 (10) chống nhảy: «Sẽ ghi nhận» không co lại khi chữ ngắn đi (chỉ giữ trong lượt đang mở)
     EV.ng.forEach(function (n) { var nh = $id("mBody").querySelector('[data-nhan-ai="' + n.so + '"]'), ph = $id("mBody").querySelector('[data-ai-phu="' + n.so + '"]'); if (!nh) return;
       var c = n.ma ? (EV.l.cong || []).find(function (x) { return x.code === n.ma; }) : null, laGY = !!n.ma && n.ma === EV.l.goiY;
       nh.textContent = laGY ? "Máy gợi ý" : "Là ai"; if (ph) ph.textContent = c ? "vào cổng " + hm(c.gio) : ""; });
     var l = EV.l, mucTen = function (m) { var x = (QDL || []).find(function (y) { return y.muc === m; }); return x ? "mục " + m + " «" + x.cau.slice(0, 60) + (x.cau.length > 60 ? "…" : "") + "»" : "mục " + m; };
+    /* lần đầu vẽ của lượt: giữ sẵn chỗ bằng câu DÀI NHẤT có thể (tên dài + câu mục 60 ký tự) ⇒ chọn người/lỗi sau đó không đẩy hàng dưới; chỉ khi 1 người nghi
+       (≥2 người thì khối này cuộn riêng — lapCotPhai) */
+    if (el._luot !== EV.l.id || (QDL && !el._coQDL)) { el._luot = EV.l.id; el._coQDL = !!QDL; el.style.minHeight = ""; cao0 = 0;   // danh mục quy định nạp sau → giữ chỗ lại 1 lần theo câu thật
+      if (EV.ng.length === 1) { var n0 = EV.ng[0], gm = n0.ma, gt = n0.ten, gc = n0.muc, gk = n0.khong; n0.ma = "000000"; n0.ten = "Nguyễn Thị Ngọc Huyền Trang"; n0.khong = false;
+        n0.muc = (QDL || []).reduce(function (a, y) { return !a || String(y.cau).length > String(a.cau).length ? y : a; }, null); n0.muc = n0.muc ? n0.muc.muc : gc; veChot();
+        cao0 = el.getBoundingClientRect().height; n0.ma = gm; n0.ten = gt; n0.muc = gc; n0.khong = gk; el._luot = EV.l.id; el.style.minHeight = Math.ceil(cao0) + "px";
+        veChot(); return; } }   // vẽ lại bằng dữ liệu THẬT (nhãn Máy gợi ý/Là ai + «vào cổng» — lượt đo giữ chỗ vừa ghi đè)
+    else if (EV.ng.length === 1) setTimeout(function () { if (cao0 > el.getBoundingClientRect().height) el.style.minHeight = Math.ceil(cao0) + "px"; }, 0);
     el.innerHTML = '<div class="lbl" style="font-size:11px;color:var(--muted);margin-bottom:4px">Sẽ ghi nhận</div>' + EV.ng.map(function (n) {
       var ai = n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so;
       if (n.khong) return '<div class="r">' + ai + ': <b>không vi phạm</b></div>';
@@ -671,7 +680,7 @@
     var bo = function (t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d"); };
     var cauCua = function (m) { var x = ds.find(function (y) { return y.muc === m; }); return x ? x.cau : "Mục " + m; };
     var dat = function () { inp.value = n.muc ? cauCua(n.muc) + " (mục " + n.muc + ")" : ""; inp.title = n.muc ? "Mục " + n.muc + " — bấm để đổi hạng mục" : "Chưa chọn hạng mục";
-      inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight + 2, document.activeElement === inp ? 120 : 44) + "px"; };   // 17/10 (9) chưa bấm vào: tối đa 2 dòng (không đẩy dài cột)
+      inp.style.height = "44px"; };   // 17/10 (10) chống nhảy: ô Lỗi LUÔN cao đúng 2 dòng (mục ngắn/dài, đang gõ hay không)   // 17/10 (10) user «chọn thông tin thì các hàng bị nhảy»: ô Lỗi CỐ ĐỊNH ≤ 2 dòng — bấm/gõ không giãn
     inp._xoa = function () { n.muc = 0; inp.value = ""; veChot(); ve(""); };   // 17/10 (9) user «bấm ✕ ở Lỗi không xoá dữ liệu đã chọn cũ»
     var item = function (x) { return '<div class="hx-it" data-m="' + x.muc + '"><div style="min-width:0"><div class="t">' + (x.muc === gy ? '<span class="star">★ </span>' : "") + e_(x.cau) + '</div>' +
       '<div class="s">Mục ' + x.muc + (x.tru ? " · trừ " + e_(x.tru) + "%" : "") + (x.muc === gy ? " · máy gợi ý" : "") + '</div></div></div>'; };
@@ -680,7 +689,7 @@
       menu.querySelectorAll("[data-m]").forEach(function (it) { it.onmousedown = function (ev) { ev.preventDefault(); n.muc = Number(it.dataset.m); dat(); box.classList.remove("show"); boMenu(box); inp.blur(); veChot(); }; }); datMenu(box); };
     dat();
     inp.addEventListener("focus", function () { box.classList.add("show"); inp.select(); ve(""); });   // ve() gọi datMenu — menu thả lên
-    inp.addEventListener("input", function () { ve(inp.value); inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight + 2, 120) + "px"; });
+    inp.addEventListener("input", function () { ve(inp.value); });
     inp.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); var a = menu.querySelector("[data-m]"); if (a) a.dispatchEvent(new MouseEvent("mousedown")); } });
     inp.addEventListener("blur", function () { setTimeout(function () { box.classList.remove("show"); boMenu(box); dat(); }, 150); });
   }
@@ -919,7 +928,11 @@
       if (rcl && rC.left >= rcl.right - 1 && rC.top < rcl.bottom) con = Math.min(con, rcl.bottom - rC.top);
       var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; }
     /* 17/10 (4) đo thật: cả thanh vẫn tràn (vd phiếu không có camera — Ai tác động 5 dòng + ảnh cao hơn hàng trên) → bớt đúng phần tràn ở danh sách (sàn 120px) */
-    var tran = bx.scrollHeight - bx.clientHeight; if (kh && tran > 1 && window.innerWidth > 760 && C.clientHeight > 100) C.style.maxHeight = Math.max(100, Math.floor(C.clientHeight - tran)) + "px";
+    var tran = bx.scrollHeight - bx.clientHeight;
+    /* 17/10 (10) 1 người nghi: thiếu chỗ thì bớt phần GIỮ CHỖ dư của «Sẽ ghi nhận» trước (về sát chữ thật) — không bắt vùng người nghi cuộn (đo thật 13/10 BXM 13:50) */
+    if (sg && tran > 1 && EV && EV.ng && EV.ng.length === 1 && sg.style.minHeight) { var mh0 = parseFloat(sg.style.minHeight) || 0; sg.style.minHeight = ""; var tu = sg.getBoundingClientRect().height;
+      sg.style.minHeight = Math.max(tu, mh0 - tran) + "px"; C.style.maxHeight = ""; tran = bx.scrollHeight - bx.clientHeight; }
+    if (kh && tran > 1 && window.innerWidth > 760 && C.clientHeight > 100 && !(EV && EV.ng && EV.ng.length === 1 && C.scrollHeight - C.clientHeight <= tran + 4 && tran <= 8)) C.style.maxHeight = Math.max(100, Math.floor(C.clientHeight - tran)) + "px";
     /* 17/10 (7) cột trái hẹp: 4–5 người nghi thì «Sẽ ghi nhận» cao ~450px → còn tràn thì bớt nốt ở đây (cuộn riêng, sàn 72px) */
     tran = bx.scrollHeight - bx.clientHeight; if (sg && kh && tran > 1 && window.innerWidth > 760 && sg.clientHeight > 72 && EV && EV.ng && EV.ng.length >= 2) sg.style.maxHeight = Math.max(72, Math.floor(sg.clientHeight - tran)) + "px";   // 17/10 (9) user «không làm cuộn khung này»: 1 người thì không bao giờ cuộn
     qdDay(bx, qdTp); }

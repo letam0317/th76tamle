@@ -135,6 +135,8 @@ for (const m of MAY) {
       if (!x.khung && x.nguon.length) sai.push("khung ẩn mà còn nút nguồn");
       if (x.tran) sai.push("tràn " + x.tran);
       if (ngang > 1) sai.push("kéo ngang " + ngang);
+      const ngTrong = await p.evaluate(() => [...document.querySelectorAll("#mBody *")].filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 1).map((e) => e.className || e.tagName));   // H1 Theo tác vụ
+      if (ngTrong.length) sai.push("cuộn ngang trong thanh: " + ngTrong.slice(0, 2).join(","));
       if (!x.ben || (x.anh && x.ben.t < x.anh.b - 1)) sai.push("quyết định không dưới ảnh ghi nhận");
       if (x.ls && x.xem && (Math.abs(x.ls.l - x.xem.l) > 2 || x.ls.t < x.xem.b - 1)) sai.push("ai tác động không dưới clip");
       /* T18 16/10 nguồn hàng từng lượt: dòng có sổ phải ghi nguồn + title chuỗi đầy đủ; ca mẫu user dán (06/10 06:43 Trương Thanh Bình) */
@@ -234,6 +236,16 @@ for (const m of MAY) {
         const m21 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), d = R(document.getElementById("mClose")), g = R(document.getElementById("gcNut")), t = R(document.getElementById("mTitle")), bx = R(document.querySelector("#modal .modal-box"));
           if (!(d && g && t)) return { thieu: [!d && "mClose", !g && "gcNut", !t && "mTitle"].filter(Boolean).join(","), show: document.getElementById("modal").className }; return { dongTrai: d.right <= g.left + 1, ngang: Math.abs(d.top - g.top) <= 3, sat: Math.round(d.left - bx.left), tdPhai: t.left > g.right }; });
         ok(m21 && !m21.thieu && m21.dongTrai && m21.ngang && m21.sat <= 32 && m21.tdPhai, m.ten + ": M21 Đóng ngoài cùng trái ngang hàng Ghi chú, tiêu đề bên phải " + JSON.stringify(m21));
+        /* J1 17/10 (10) user «khi chọn thông tin thì các hàng bị nhảy»: chọn Lỗi + chọn Là ai (chỉ trên trình duyệt, POST bị chặn) — các hàng không xê dịch */
+        const viTri = () => p.evaluate(() => ["[data-mcb]", "[data-cb]", '[data-tp="quyetdinh"]', "#hxChot"].map((q) => { const e = document.querySelector("#mBody " + q); return e ? Math.round(e.getBoundingClientRect().top) : null; }));
+        const v0 = await viTri(), lech = [];
+        for (const [o, it] of [["[data-mcb]", "[data-m]"], ["[data-cb]", "[data-ma]"]]) {
+          const d = await p.evaluate((o) => { const e = document.querySelector("#mBody " + o); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + 20, y: r.top + 8 }; }, o); if (!d) continue;
+          await p.mouse.click(d.x, d.y); await ngu(350); lech.push(["mở " + o, await viTri()]);
+          await p.evaluate((o, it) => { const m = document.querySelector("#mBody " + o).parentNode.querySelector(".menu " + it); if (m) m.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })); }, o, it); await ngu(300);
+          await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(400); lech.push(["chọn " + o, await viTri()]); }
+        const nhay = lech.filter(([, v]) => v.some((y, k) => y != null && v0[k] != null && Math.abs(y - v0[k]) > 1)).map(([t, v]) => t + " " + JSON.stringify(v));
+        ok(!nhay.length, m.ten + ": J1 chọn Lỗi / Là ai không làm hàng nhảy " + JSON.stringify(v0) + (nhay.length ? " — " + nhay.join(" | ") : ""));
         /* M19 ô Là ai: có ✕ khi đang có tên; bấm ✕ → ô trống, «Sẽ ghi nhận» báo chưa chọn NV, danh sách mở xuống. Chỉ trên trình duyệt (POST bị chặn) — không lưu gì. */
         const x19 = await p.evaluate(() => { const i = document.querySelector("#mBody [data-cb]"), x = i && i.parentNode.querySelector(".hx-cb-xoa"); if (!i || !x) return null;
           const r = x.getBoundingClientRect(); return { co: !!i.value && getComputedStyle(x).display !== "none" && r.width > 0, x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
@@ -259,6 +271,12 @@ for (const m of MAY) {
         const x = await boCuc(), ng = await p.evaluate(() => document.documentElement.scrollWidth - innerWidth), sai = [];
         if (x.anh && x.khung && x.anh.l >= x.khung.r - 1) { demL.khoa++; if (Math.abs(x.anh.t - x.khung.t) > 2) sai.push("ảnh lệch mép trên clip"); }
         if (x.tran) sai.push("tràn " + x.tran); if (ng > 1) sai.push("kéo ngang " + ng);
+        /* H1 17/10 (10) user chụp thanh cuộn NGANG trong vùng Lỗi/Máy gợi ý (✕ thò ra ngoài khung) — bộ đo cũ chỉ đo tràn ra ngoài THANH nên lọt */
+        const ngTrong = await p.evaluate(() => [...document.querySelectorAll("#mBody *")].filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 1).map((e) => e.className || e.tagName));
+        if (ngTrong.length) sai.push("cuộn ngang trong thanh: " + ngTrong.slice(0, 2).join(","));
+        const docTrong = await p.evaluate(() => { const n = (window.HXACMINH && document.querySelectorAll("#mBody .hx-ng").length) || 0, C = document.querySelector("#mBody .hx-ds-ng"), S = document.getElementById("hxChot");
+          return n === 1 ? [C, S].filter((e) => e && e.scrollHeight > e.clientHeight + 1).map((e) => e.className || e.id) : []; });
+        if (docTrong.length) sai.push("1 người nghi mà khung vẫn cuộn dọc: " + docTrong.join(","));
         const lech = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap"), t = document.getElementById("hxTl"); if (!v || !t) return 0; const a = v.getBoundingClientRect(), c = t.getBoundingClientRect(); return Math.abs(a.left - c.left); });
         if (lech > 1) sai.push("clip lệch dải thời gian " + Math.round(lech) + "px");
         if (x.thanCuon > 2) { const ct = await p.evaluate(() => { const C = document.querySelector("#mBody .hx-ds-ng"); if (!C) return null; const r = C.getBoundingClientRect();

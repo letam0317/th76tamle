@@ -1,0 +1,19 @@
+/* thanh-cuon.css — THANH CUỘN CHUNG toàn dự án (Audit Retail + Audit Factory + trang lẻ) — 17/10/2026, user «thiết kế thanh cuộn cần đồng bộ theo theme,
+ * hiện tại thô thiển — QC và áp dụng thanh cuộn ngang/dọc toàn bộ hạng mục, toàn bộ dự án». BẢN GỐC ở hasaki/kiemsoatkho/ — factory/thanh-cuon.css là bản CHÉP
+ * (sửa ở đây rồi chép sang; trang không cùng nguồn như bang-591 mang khối y hệt trong <style>).
+ *  · mảnh (thin ≈ 8px), ray TRONG SUỐT, không mũi tên; con trượt = màu chữ phụ của theme (--muted, trang không có thì màu chữ) pha trong suốt
+ *    ⇒ tự đổi theo mọi theme sáng/tối (antd · hasaki · latte · solar · nord · tokyo · mocha · dracula), không mã màu cứng.
+ *  · rê chuột vào vùng cuộn thì con trượt đậm lên (thấy rõ chỗ kéo được).
+ *  · chuẩn scrollbar-color / scrollbar-width (Chromium ≥ 121, Firefox); trình duyệt cũ chỉ hiểu ::-webkit-scrollbar → khối dự phòng.
+ *  · khối CỐ Ý ẩn thanh cuộn (dải chip, thanh tab: scrollbar-width:none bằng class/id) vẫn ẩn — luật class/id thắng «*».
+ * Bộ đo: hasaki/qc-thanh-cuon.mjs. */
+:root{--tc-con:color-mix(in srgb,var(--muted,currentColor) 45%,transparent);--tc-con-dam:color-mix(in srgb,var(--muted,currentColor) 85%,transparent)}
+*{scrollbar-width:thin;scrollbar-color:var(--tc-con) transparent}
+*:hover{scrollbar-color:var(--tc-con-dam) transparent}
+@supports not (scrollbar-color:auto){
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--tc-con);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--tc-con-dam);background-clip:padding-box}
+  ::-webkit-scrollbar-button{display:none}
+}

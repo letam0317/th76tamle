@@ -10,6 +10,18 @@
     @media (max-width: 639px){ #filterGrid.collapsed{ display:none; } }
     .line-clamp-2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   </style>
+<style>/* THANH CUỘN CHUNG — chép y hệt hasaki/kiemsoatkho/thanh-cuon.css (trang khác nguồn, không nạp được tệp chung) */
+:root{--tc-con:color-mix(in srgb,var(--muted,currentColor) 45%,transparent);--tc-con-dam:color-mix(in srgb,var(--muted,currentColor) 85%,transparent)}
+*{scrollbar-width:thin;scrollbar-color:var(--tc-con) transparent}
+*:hover{scrollbar-color:var(--tc-con-dam) transparent}
+@supports not (scrollbar-color:auto){
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--tc-con);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--tc-con-dam);background-clip:padding-box}
+  ::-webkit-scrollbar-button{display:none}
+}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800">
   <div class="max-w-7xl mx-auto p-3 sm:p-4">
