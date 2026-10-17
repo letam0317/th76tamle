@@ -46,7 +46,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenSongWms, DeferError, thoatTheoLoi, fetchThuLai, ghiMocBuoc, boQuaNeuDaTuoi, hashTab, tabKhongDoi, luuHashTab, chamMocTabs, docTabGas, gasPhucVuTab, hamCacheTabs, gasPost } from "./session-rules.js";
 import { baoChuaVeSinh } from "./bao-vesinh-telegram.mjs";
-import { tinhSoViPham, gopGhiNhanKpi, docAuditGviz, chuoiCot, COT_VP, COT_GHI } from "./vipham-vesinh.mjs";   // sổ vi phạm luỹ tiến (17/09/2026)
+import { tinhSoViPham, gopGhiNhanKpi, docAuditGviz, chuoiCot, COT_VP, COT_GHI, napCameraVaPacker } from "./vipham-vesinh.mjs";   // sổ vi phạm luỹ tiến (17/09/2026)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const APPSCRIPT_URL = process.env.APPSCRIPT_URL || "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
@@ -629,13 +629,17 @@ async function ghiTab(tab, header, rows){
   for (const kk in pcBy){ const c = pcBy[kk]; themCode(c.code); themCode((byEmail[c.em] || {}).code); }
   for (const k in team) themCode((byEmail[k] || {}).code);
   for (const idk in byCode) themCode(byCode[idk].code);
+  /* 17/10/2026: quy trách nhiệm theo CAMERA (vipham-vesinh) — người đứng bàn A8 có thể ngoài bảng phân công → thêm mã
+     của mọi packer trong cửa sổ lấy lại để họ có dòng trong tab (nút Ghi nhận + cò luỹ tiến đọc sổ ở đây). */
+  const { camBan, packer } = await napCameraVaPacker(DIR, docTabGas);
+  for (const d in packer) if (d >= mocLay) for (const x of packer[d]) themCode((byEmail[String(x[1]).toLowerCase()] || {}).code);
   const cc = await gopChamCong(attNgay, nvTS, byCodeDir, mocGiuCC, mocLay, codeVS);
   /* 4f-bis) SỔ VI PHẠM LUỸ TIẾN "đi làm mà không báo cáo" (17/09/2026 — xem vipham-vesinh.mjs): một lần = một
      NGÀY đã khép mà người phụ trách có chấm công nhưng ≥1 ô của mình có yêu cầu không ai báo cáo. Đi kèm mốc
      "đã ghi nhận KPI" đọc từ WMS-5S-AUDIT (gviz công khai, 0 lượt GAS/WMS) để dashboard đếm chu kỳ 3 lần.
      Ghi thành 2 cột của CHÍNH tab này — không tab mới, không đụng whitelist GAS. Lỗi đọc audit → giữ mốc lượt trước. */
   let vpCu = null; try { vpCu = JSON.parse(fs.readFileSync(FILE_VP, "utf8")); } catch { vpCu = null; }
-  const vp = tinhSoViPham({ reqNgay, pcBy, ccNv: cc.nv, byEmail, today, mocLay, vpCu, giuNgay: CC_NGAY });
+  const vp = tinhSoViPham({ reqNgay, pcBy, ccNv: cc.nv, byEmail, today, mocLay, vpCu, giuNgay: CC_NGAY, packer, camBan });
   let ghiKpi = (vpCu && vpCu.ghi) || {}, nguonGhi = "sổ lượt trước";
   try {
     const audit = await docAuditGviz(SHEET_HASAKI, "WMS-5S-AUDIT");
@@ -654,6 +658,7 @@ async function ghiTab(tab, header, rows){
     try { fs.writeFileSync(FILE_VP, JSON.stringify({ at: Date.now(), today, nv: vp.nv, ghi: ghiKpi })); }
     catch (e) { log("  ⚠ Không lưu được " + path.basename(FILE_VP) + " (" + e.message + ") — lượt sau tính lại từ lượt quét."); }
   }
+  if (DRY) try { fs.writeFileSync(path.join(DIR, ".exports", "vipham-vesinh-dry.json"), JSON.stringify({ today, nv: vp.nv, ghi: ghiKpi }, null, 1)); } catch { /* chỉ để soát */ }
   log("→ VI PHẠM LUỸ TIẾN: " + vp.thongKe.nguoi + " NV · " + vp.thongKe.lan + " lần (ngày) · tính lại " + vp.thongKe.ngayTinhLai +
     " ngày, giữ " + vp.thongKe.ngayGiu + " ngày đã chốt, -" + vp.thongKe.xoaQuaHan + " quá hạn · mốc KPI đã ghi nhận: " +
     Object.keys(ghiKpi).length + " NV (" + nguonGhi + ").");

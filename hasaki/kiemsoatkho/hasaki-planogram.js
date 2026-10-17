@@ -3959,6 +3959,30 @@ function ngayDuVN(iso){ var m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2}
    trong ngày (yêu cầu của ngày → lịch sử 60 ngày) · caseA = "CÓ đi làm mà KHÔNG ai báo cáo ô này" = đúng lỗi của
    hạng mục "Bàn làm việc và khu vực phụ trách…" — chỉ ca này mới đếm luỹ tiến, tự chọn hạng mục và tự chụp pop-up.
    Ô do người khác làm thay thì ô sạch → không phải caseA (khớp luật màu đỏ của sơ đồ). ---- */
+/* NGƯỜI CHỊU của ô `loc` ngày d — CÙNG LUẬT với vipham-vesinh.tinhSoViPham (17/10/2026, user):
+     · bàn A8 có camera mà hôm đó có người đóng gói → người đóng NHIỀU PHIẾU NHẤT (đứng bàn thật), coi như có đi làm;
+     · còn lại → người phụ trách; MIỄN nếu hôm đó người này đóng ở bàn A8 khác ĐÃ được báo cáo. */
+function nguoiChiuNgay(loc, d, pc){
+  var kO = khoaO(loc), cam = CAMERA_BAN[kO] ? String(CAMERA_BAN[kO]).replace(/\s*\(dự đoán\)$/, "") : "";
+  var ds = (cam && S.pk.ok) ? (S.pk.by[d + "|" + cam] || []) : [];
+  if (ds.length){
+    var p = ds[0], o = S.ccn.ok ? S.ccn.em[p.em] : null;
+    return { em: p.em, ten: p.ten || (o && o.ten) || tenNm(p.em) || p.em, code: (o && o.code) || "", camera: cam, nPk: p.n,
+      laPT: !!(pc && pc.em && String(pc.em).toLowerCase() === p.em) };
+  }
+  if (!pc || !pc.em) return pc;
+  var nc = Object.assign({}, pc);
+  if (S.pk.ok){
+    var em = String(pc.em).toLowerCase(), hd = hoatDongNgay(em, d);
+    hd.dg.forEach(function(g){
+      if (!g.ban || khoaO(g.ban) === kO || nc.mien) return;
+      var daLam = S.yc.rows.some(function(x){ return x.ngay === d && khoaO(x.loc) === khoaO(g.ban) && (x.bk === "da" || x.email); }) ||
+        (S.ls.ev || []).some(function(v){ return v.ngay === d && khoaO(v.loc) === khoaO(g.ban); });
+      if (daLam) nc.mien = g.ban;
+    });
+  }
+  return nc;
+}
 function tinhTrangPT(pc, d, r, lsAll){
   var lam = null;
   if (r && r.email) lam = { em: r.email, gio: String(r.at || "").slice(11, 16), ten: tenNm(r.email) || r.email };
@@ -3967,7 +3991,8 @@ function tinhTrangPT(pc, d, r, lsAll){
   var diLam = null, cn = ccNgayCua(pc.em, pc.code, d);
   if (cn && !cn.ngoaiTam) diLam = !!cn.co;
   else if (d === isoToday() && S.cc.ok){ var x = ccCua(pc.em, pc.code); if (x) diLam = x.bk !== "nghi"; }
-  return { diLam: diLam, cn: cn, lam: lam, laMinh: laMinh, caseA: !!(r && r.bk !== "da" && !lam && diLam === true) };
+  if (pc.camera) diLam = true;   // đứng bàn theo camera = có mặt
+  return { diLam: diLam, cn: cn, lam: lam, laMinh: laMinh, caseA: !!(r && r.bk !== "da" && !lam && diLam === true && !pc.mien) };
 }
 /* Chu kỳ luỹ tiến của người phụ trách tính tới ngày d. `co` = sổ đã có (tab chấm công theo ngày mang cột Vi phạm);
    caseA hôm nay chưa nằm trong sổ (sổ chỉ ghi ngày đã khép) → cộng trực tiếp; soi ngày cũ mà sổ chưa kịp có ngày
@@ -3993,6 +4018,7 @@ function luyTien(pc, d, caseA){
      mọi ca khác         → nút "Ghi nhận 5S" như thường (hạng mục + ảnh người dùng tự chọn) */
 function capNhatNutGhi(loc, d, r, pc, lsAll){
   var b = $id("hpVtGhi"), tx = $id("hpVtLt"); if (!b || !tx) return;
+  pc = nguoiChiuNgay(loc, d, pc);   // 17/10: bàn A8 có camera → người đứng bàn chịu, không phải người phân công
   var tt = (pc && pc.em) ? tinhTrangPT(pc, d, r, lsAll) : null;
   var A = !!(tt && tt.caseA);
   tx.textContent = ""; tx.title = "";
@@ -4044,7 +4070,8 @@ function soanGhiNhan5S(loc, d){
   var byNgay = {}; S.yc.rows.forEach(function(r){ if (khoaO(r.loc) !== kO) return;
     var cur = byNgay[r.ngay]; if (!cur || (cur.bk !== "da" && r.bk === "da")) byNgay[r.ngay] = r; });
   var r = byNgay[d] || null;
-  var pc = pcCua(loc), lsAll = lsCua(loc);
+  var pcGoc = pcCua(loc), lsAll = lsCua(loc);
+  var pc = nguoiChiuNgay(loc, d, pcGoc);   // 17/10: cùng luật người chịu với nút + sổ vi phạm
   var tt = (pc && pc.em) ? tinhTrangPT(pc, d, r, lsAll) : null;
   var A = !!(tt && tt.caseA);
   var L = [];
@@ -4080,6 +4107,8 @@ function soanGhiNhan5S(loc, d){
       L.push("Vi phạm luỹ tiến: lần " + lt.n + "/" + MOI_LAN + (lt.n ? " (" + lt.ngay.map(ngayDuVN).join(" · ") + ")" : "") + " — chưa đủ để trừ KPI");
     }
   }
+  if (A && pc.camera) L.push("Người đứng bàn theo " + pc.camera + ": " + pc.nPk + " phiếu đóng gói ngày " + ngayDuVN(d) +
+    (pcGoc && pcGoc.em && !pc.laPT ? " (bảng phân công: " + (pcGoc.ten || pcGoc.em) + ")" : ""));
   var nd = nguoiDangNhap();
   if (nd) L.push("Người ghi nhận: " + (nd.ten || nd.em || nd.code) + ((nd.code && nd.ten) ? " (" + nd.code + ")" : ""));
   /* Thư viện ảnh báo cáo của NGÀY cho form (ca không phải A): ảnh của ô này + ảnh khác cùng ngày của cùng người báo cáo.

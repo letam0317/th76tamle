@@ -143,5 +143,30 @@ console.log("⑥ CỬA SỔ " + CUA_SO_NGAY + " NGÀY (user 17/10/2026) — lầ
   ca("tối đa 7 lần / 7 ngày = 2 phiếu, lẻ 1", k7.n === 7 && k7.soPhieu === 2 && k7.duLai === 1);
 }
 
+console.log("⑦ QUY TRÁCH NHIỆM THEO CAMERA (user 17/10/2026)");
+{
+  const D = "2026-10-15", T7 = "2026-10-17";
+  const pcB = { "F0-A8-510-05-01-01": { em: "gh@x.vn", code: "535", ten: "Gia Hân" }, "F0-A8-510-06-01-01": { em: "tt@x.vn", code: "301", ten: "Thanh Trúc" },
+    "F0-A8-504-07-01-01": { em: "ht@x.vn", code: "965", ten: "Huyền Trang" } };
+  const cam = { "F0-A8-510-05-01-01": "camera_00052", "F0-A8-510-06-01-01": "camera_00053", "F0-A8-504-07-01-01": "camera_00040", "F0-A8-504-08-01-01": "camera_00041" };
+  const ccN = { "535": { em: "gh@x.vn", ten: "Gia Hân", d: { [D]: "08:00-17:00" } }, "301": { em: "tt@x.vn", ten: "Thanh Trúc", d: { [D]: "08:00-17:00" } },
+    "965": { em: "ht@x.vn", ten: "Huyền Trang", d: { [D]: "08:00-17:00" } } };
+  const bE = { "nh@x.vn": { code: "219", name: "Huỳnh Như" } };
+  const rq = [
+    { n: D, l: "F0-A8-510-05-01-01", e: "", st: 1 },     // không ai báo cáo · camera 52 có Như đóng → Như chịu, Gia Hân không
+    { n: D, l: "F0-A8-510-06-01-01", e: "", st: 1 },     // camera 53 không ai đóng → Thanh Trúc (phân công) chịu
+    { n: D, l: "F0-A8-504-07-01-01", e: "", st: 1 },     // Huyền Trang đóng ở bàn 504-08 ĐÃ báo cáo → miễn
+    { n: D, l: "F0-A8-504-08-01-01", e: "x@x.vn", st: 3 }
+  ];
+  const pk = { [D]: [["camera_00052", "nh@x.vn", "09:17", "17:04", 221], ["camera_00052", "gh@x.vn", "10:00", "10:30", 5], ["camera_00041", "ht@x.vn", "08:10", "16:00", 300]] };
+  const kc = tinhSoViPham({ reqNgay: rq, pcBy: pcB, ccNv: ccN, byEmail: bE, today: T7, mocLay: lechNgay(T7, -6), vpCu: null, packer: pk, camBan: cam });
+  ca("bàn có người đóng theo camera → người đóng NHIỀU PHIẾU NHẤT chịu (Như, không cần chấm công)", kc.nv["219"] && kc.nv["219"].d[D] && kc.nv["219"].d[D].o[0] === "F0-A8-510-05-01-01", JSON.stringify(kc.nv["219"]));
+  ca("phụ trách bàn đó (Gia Hân) KHÔNG bị tính khi camera cho thấy người khác đứng bàn", !kc.nv["535"], JSON.stringify(kc.nv["535"]));
+  ca("bàn không ai đóng → phụ trách đi làm chịu (Thanh Trúc)", kc.nv["301"] && kc.nv["301"].d[D].o[0] === "F0-A8-510-06-01-01");
+  ca("phụ trách đóng ở bàn KHÁC đã báo cáo → miễn (Huyền Trang)", !kc.nv["965"], JSON.stringify(kc.nv["965"]));
+  const kk = tinhSoViPham({ reqNgay: rq, pcBy: pcB, ccNv: ccN, byEmail: bE, today: T7, mocLay: lechNgay(T7, -6), vpCu: null });
+  ca("không truyền packer/camBan → hành vi cũ (theo bảng phân công)", kk.nv["535"] && kk.nv["965"] && !kk.nv["219"]);
+}
+
 console.log("\n" + (loi ?"✗ " + loi + "/" + n + " ca hỏng" : "✓ " + n + "/" + n + " ca đạt"));
 process.exit(loi ? 1 : 0);

@@ -46,8 +46,20 @@ export function khoaO(loc){ const m = String(loc || "").match(/^F0-A1-(\d{3})-(\
  *  ccNv    : { code: { em, ten, d: { 'yyyy-mm-dd': 'hh:mm-hh:mm' } } }   (kho chấm công 60 ngày)
  *  byEmail : { emailLower: { code, name } }            (danh bạ — vá mã khi phân công thiếu)
  *  vpCu    : sổ cũ { nv: { code: { em, ten, d: { ngày: { so, o:[] } } } } } hoặc null
+ *  packer  : { 'yyyy-mm-dd': [[camera, email, đầu, cuối, số phiếu], …] }   (PACKER-A8-NGAY) — tuỳ chọn
+ *  camBan  : { 'F0-A8-…': 'camera_000xx' }                                 (CAMERA_BAN của dashboard) — tuỳ chọn
+ *
+ *  QUY TRÁCH NHIỆM THEO CAMERA (user 17/10/2026 — «có đi làm, có đóng gói tại vị trí đó mà không báo cáo → ghi nhận;
+ *  đóng gói tại vị trí khác (có báo cáo) → không»):
+ *    · ô A8 có camera và hôm đó có người đóng gói ở camera đó → lần thuộc về NGƯỜI ĐÓNG NHIỀU PHIẾU NHẤT ở bàn
+ *      (người thật đứng bàn), không phải người trong bảng phân công. Đã đóng gói = có đi làm, không cần chấm công.
+ *    · còn lại → người phụ trách (bảng phân công) nếu có chấm công; MIỄN nếu hôm đó người này đóng gói ở bàn A8 KHÁC
+ *      và bàn đó ĐÃ được báo cáo (khớp luật 3 ngày 29/09).
  */
-export function tinhSoViPham({ reqNgay, pcBy, ccNv, byEmail = {}, today, mocLay, vpCu, giuNgay = 60 }){
+export function tinhSoViPham({ reqNgay, pcBy, ccNv, byEmail = {}, today, mocLay, vpCu, giuNgay = 60, packer = {}, camBan = {} }){
+  const banCuaCam = {}; for (const b in camBan) if (!banCuaCam[camBan[b]]) banCuaCam[camBan[b]] = b;
+  const maCuaEm = (em) => { em = String(em || "").toLowerCase(); const b = byEmail[em]; if (b && b.code) return String(b.code).replace(/\.0$/, "");
+    for (const c in ccNv) if (String(ccNv[c].em || "").toLowerCase() === em) return c; return ""; };
   const nv = {};
   if (vpCu && vpCu.nv) for (const code in vpCu.nv){ const o = vpCu.nv[code]; nv[code] = { em: o.em || "", ten: o.ten || "", d: Object.assign({}, o.d || {}) }; }
   const reqByDay = {};
@@ -60,18 +72,29 @@ export function tinhSoViPham({ reqNgay, pcBy, ccNv, byEmail = {}, today, mocLay,
     for (const code in nv) delete nv[code].d[d];
     const chuaBC = {};   // khoá ô -> location: có yêu cầu mà KHÔNG AI báo cáo
     for (const q of reqByDay[d]){ if (q.e || q.st === 3 || q.st === 4) continue; chuaBC[khoaO(q.l)] = q.l; }
+    const daBC = new Set(); for (const q of reqByDay[d]) if (q.e || q.st === 3 || q.st === 4) daBC.add(khoaO(q.l));
+    const pkNgay = packer[d] || [];
     const theoNV = {};
     for (const kk in chuaBC){
+      const cam = camBan[kk] || camBan[chuaBC[kk]];
+      const dung = cam ? pkNgay.filter(x => x[0] === cam).sort((a, b) => b[4] - a[4])[0] : null;
+      if (dung){   // NGƯỜI ĐỨNG BÀN theo camera
+        const em = String(dung[1]).toLowerCase(), code = maCuaEm(em); if (!code) continue;
+        (theoNV[code] || (theoNV[code] = { em, ten: (byEmail[em] || {}).name || "", o: [], cam: true })).o.push(kk);
+        continue;
+      }
       const p = pcBy[kk]; if (!p || !p.em) continue;
       const code = String(p.code || (byEmail[String(p.em).toLowerCase()] || {}).code || "").replace(/\.0$/, "").trim();
       if (!code) continue;
+      const emP = String(p.em).toLowerCase();
+      if (pkNgay.some(x => String(x[1]).toLowerCase() === emP && banCuaCam[x[0]] && banCuaCam[x[0]] !== kk && daBC.has(khoaO(banCuaCam[x[0]])))) continue;   // đóng ở bàn khác ĐÃ báo cáo → miễn
       (theoNV[code] || (theoNV[code] = { em: p.em, ten: p.ten || (byEmail[p.em] || {}).name || "", o: [] })).o.push(kk);
     }
     for (const code in theoNV){
       const cc = ccNv[code];
-      if (!cc || !cc.d || !cc.d[d]) continue;                  // hôm đó không chấm công → lỗi bố trí, không phải lỗi người
+      if (!theoNV[code].cam && (!cc || !cc.d || !cc.d[d])) continue;   // hôm đó không chấm công → lỗi bố trí, không phải lỗi người (người đứng bàn theo camera thì đã có mặt)
       const o = nv[code] || (nv[code] = { em: theoNV[code].em, ten: theoNV[code].ten, d: {} });
-      if (!o.em) o.em = theoNV[code].em; if (!o.ten) o.ten = theoNV[code].ten || cc.ten || "";
+      if (!o.em) o.em = theoNV[code].em; if (!o.ten) o.ten = theoNV[code].ten || (cc && cc.ten) || "";
       o.d[d] = { so: theoNV[code].o.length, o: theoNV[code].o.sort() };
       nMoi++;
     }
@@ -189,4 +212,34 @@ export function chuKy(vpD, ghiDates, den, cuaSo = CUA_SO_NGAY){
   const ngay = conHan.filter(d => d >= tu);
   const n = ngay.length, soPhieu = Math.floor(n / MOI_LAN);
   return { n, ngay, moc, tu, hetHan: conHan.length - n, soPhieu, keNay: soPhieu ? ngay.slice(0, MOI_LAN) : [], duLai: n - soPhieu * MOI_LAN, du: soPhieu >= 1 };
+}
+
+/** Nạp dữ liệu QUY TRÁCH NHIỆM THEO CAMERA cho tinhSoViPham (17/10/2026):
+ *   camBan = CAMERA_BAN của dashboard (kiemsoatkho/hasaki-planogram.js — nguồn duy nhất, bỏ hậu tố "(dự đoán)")
+ *   packer = tab PACKER-A8-NGAY (máy trạm nào chạy sync-packer cũng ghi vào) GỘP sổ máy .packer-a8-ngay.json (tab thắng).
+ *  docTab = docTabGas của session-rules (truyền vào để module này không phụ thuộc mạng khi chạy QC). Lỗi → {} (hành vi cũ). */
+export async function napCameraVaPacker(DIR, docTab){
+  const fs = await import("node:fs"), path = await import("node:path");
+  const camBan = {};
+  try {
+    const s = fs.readFileSync(path.join(DIR, "kiemsoatkho", "hasaki-planogram.js"), "utf8");
+    const i = s.indexOf("var CAMERA_BAN = {"), j = s.indexOf("};", i);
+    for (const m of s.slice(i, j).matchAll(/"(F0-A8-[^"]+)":\s*"(camera_\d+)/g)) camBan[m[1]] = m[2];
+  } catch { /* không có map → không quy theo camera */ }
+  let packer = {};
+  try { const cu = JSON.parse(fs.readFileSync(path.join(DIR, ".packer-a8-ngay.json"), "utf8")).days || {}; for (const d in cu) packer[d] = cu[d].rows || []; } catch { /* */ }
+  try {
+    const tab = docTab ? await docTab("PACKER-A8-NGAY", () => {}) : null;
+    if (tab && tab.rows && tab.rows.length) {
+      const H = tab.header.map((h) => String(h).trim().toLowerCase()), c = (t) => H.indexOf(t);
+      const iNg = c("ngày"), iCam = c("camera"), iEm = c("email"), iDau = c("phiếu đầu"), iCuoi = c("phiếu cuối"), iSo = c("số phiếu");
+      const tuTab = {};
+      for (const r of tab.rows) {
+        const d = String(r[iNg]).slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+        (tuTab[d] || (tuTab[d] = [])).push([String(r[iCam]), String(r[iEm]).toLowerCase(), String(r[iDau] || ""), String(r[iCuoi] || ""), Number(r[iSo]) || 0]);
+      }
+      Object.assign(packer, tuTab);
+    }
+  } catch { /* giữ sổ máy */ }
+  return { camBan, packer };
 }

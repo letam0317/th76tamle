@@ -168,6 +168,9 @@ const BANG = "Hà Trọng Thúc Bằng", POOL_DG = ["Hồ Ngọc Tú Uyên", "L�
 const nhom = new Map();
 for (const x of kq) {
   if (CHI.length && !CHI.includes(x.k)) continue;
+  /* 17/10/2026 user chốt: phần ghi nhận NHÂN VIÊN (có người có mặt ≥3 ngày) chỉ do co-luy-tien.mjs làm — đếm 3 lần
+     liên tiếp hay rải rác đều tính, cùng sổ với nút Ghi nhận ⇒ không trừ trùng. Luật 3 ngày giữ phần theo VỊ TRÍ. */
+  if (x.loai === "task" && !process.argv.includes("--ca-task")) { log("  → " + x.k + ": có người có mặt — để cò luỹ tiến ghi nhận NV"); continue; }
   const ptX = nguon.pc.get(x.k); const ptOk = ptX && ptX.code && ptX.ten ? ptX : null;
   let khoa, loai = x.loai, nguoi = null;
   if (loai === "task") { const c = x.ngayTheo.find((t) => t.chiu).chiu; nguoi = c; khoa = "task|" + (c.code || c.ten); }
