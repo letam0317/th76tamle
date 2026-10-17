@@ -912,13 +912,15 @@
   function moThanhBen(khoa) { return hskThanhBen.mo(khoa, '#hxBody [data-p="' + CSSe(khoa) + '"], #hxBody [data-lid="' + CSSe(khoa) + '"]'); }
   /* 16/10 (6)(7) cột phải: phần DỮ LIỆU dưới ảnh (Ai tác động · Người trong khung đỏ) cuộn RIÊNG, cao vừa chỗ còn lại tới đáy thanh —
      không bắt cuộn cả thanh. «Ai tác động» tối đa 5 dòng (đo thật, đo 2 lần vì thanh cuộn làm dòng hẹp lại). Xếp chồng (hẹp/điện thoại) thì để tự nhiên. */
-  function lapCotPhai() { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng");
+  function lapCotPhai(daLang) { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng");
+    var imA0 = $id("mBody").querySelector(".hx-tb-luoi .hx-qd-anh img"); if (imA0) imA0.style.removeProperty("max-height");
     var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.style.marginBottom = ""; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
     /* 17/10 (2) «Sẽ ghi nhận» dưới Ảnh ghi nhận, đứng CẠNH clip: nhiều người nghi thì cuộn riêng tới đáy clip — không đẩy cao cả hàng clip (cả thanh phải cuộn) */
     var sg = $id("hxChot"), kc = $id("mBody").querySelector('[data-tp="clip"]');
     if (sg && kc) { sg.style.maxHeight = ""; var rs = sg.getBoundingClientRect(), rc = kc.getBoundingClientRect(); if (rs.left >= rc.right - 1 && rs.bottom > rc.bottom + 1) sg.style.maxHeight = Math.max(72, Math.floor(rc.bottom - rs.top)) + "px"; }
     if (!C) { qdDay(bx, qdTp); return; }
     var cot = C.closest(".hx-cot-phai"), kh = C.closest(".hx-tb-khung"), haiCot = kh ? kh.getBoundingClientRect().width < kh.parentNode.getBoundingClientRect().width - 20 : cot && getComputedStyle(cot).display !== "contents";   // 17/10 khung thanh bên: khung đứng cạnh khung khác = cuộn riêng
+    var mot1 = C.classList.contains("hx-ds-ng") && EV && EV.ng && EV.ng.length === 1;   // 17/10 (10) user «không làm cuộn khung này»
     for (var k = 0; k < 2; k++) { C.style.maxHeight = "";
       var c = C.children, nam = C.classList.contains("hx-lans") && c.length > 5 ? c[5].getBoundingClientRect().top - c[0].getBoundingClientRect().top : Infinity;
       /* 17/10 (3) khung thanh bên (cả khi rộng hết thanh): vùng người nghi cuộn riêng, chừa chỗ cho phần đứng SAU nó trong khung (trạng thái, Quyết định) */
@@ -926,13 +928,14 @@
       var con = haiCot || (kh && window.innerWidth > 760) ? bx.getBoundingClientRect().bottom - C.getBoundingClientRect().top - 24 - sau : Infinity;
       var kcl = kh && $id("mBody").querySelector('[data-tp="clip"]'), rcl = kcl && kcl.getBoundingClientRect(), rC = C.getBoundingClientRect();   // 17/10 (4) danh sách đứng CẠNH clip: không dài quá đáy clip
       if (rcl && rC.left >= rcl.right - 1 && rC.top < rcl.bottom) con = Math.min(con, rcl.bottom - rC.top);
-      var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; }
+      var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = mot1 ? "" : isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; }   // 1 người nghi: KHÔNG giới hạn (không cuộn)
     /* 17/10 (4) đo thật: cả thanh vẫn tràn (vd phiếu không có camera — Ai tác động 5 dòng + ảnh cao hơn hàng trên) → bớt đúng phần tràn ở danh sách (sàn 120px) */
     var tran = bx.scrollHeight - bx.clientHeight;
-    /* 17/10 (10) 1 người nghi: thiếu chỗ thì bớt phần GIỮ CHỖ dư của «Sẽ ghi nhận» trước (về sát chữ thật) — không bắt vùng người nghi cuộn (đo thật 13/10 BXM 13:50) */
-    if (sg && tran > 1 && EV && EV.ng && EV.ng.length === 1 && sg.style.minHeight) { var mh0 = parseFloat(sg.style.minHeight) || 0; sg.style.minHeight = ""; var tu = sg.getBoundingClientRect().height;
-      sg.style.minHeight = Math.max(tu, mh0 - tran) + "px"; C.style.maxHeight = ""; tran = bx.scrollHeight - bx.clientHeight; }
-    if (kh && tran > 1 && window.innerWidth > 760 && C.clientHeight > 100 && !(EV && EV.ng && EV.ng.length === 1 && C.scrollHeight - C.clientHeight <= tran + 4 && tran <= 8)) C.style.maxHeight = Math.max(100, Math.floor(C.clientHeight - tran)) + "px";
+    /* 17/10 (10) 1 người nghi mà vẫn thiếu vài px (vd lượt đã có dòng trạng thái — đo thật 13/10 BXM 13:50): thu CHIỀU CAO ẢNH ghi nhận (ảnh cắt giữa, bấm xem đủ)
+       — không cuộn vùng người nghi, không đụng chỗ giữ của «Sẽ ghi nhận» (chọn Lỗi/người sau đó không làm hàng nhảy — J1) */
+    var imA = $id("mBody").querySelector(".hx-tb-luoi .hx-qd-anh img");
+    if (imA && tran > 1 && mot1) { imA.style.setProperty("max-height", Math.max(100, Math.floor(imA.getBoundingClientRect().height - tran)) + "px", "important"); tran = bx.scrollHeight - bx.clientHeight; }
+    if (kh && tran > 1 && window.innerWidth > 760 && C.clientHeight > 100 && !mot1) C.style.maxHeight = Math.max(100, Math.floor(C.clientHeight - tran)) + "px";
     /* 17/10 (7) cột trái hẹp: 4–5 người nghi thì «Sẽ ghi nhận» cao ~450px → còn tràn thì bớt nốt ở đây (cuộn riêng, sàn 72px) */
     tran = bx.scrollHeight - bx.clientHeight; if (sg && kh && tran > 1 && window.innerWidth > 760 && sg.clientHeight > 72 && EV && EV.ng && EV.ng.length >= 2) sg.style.maxHeight = Math.max(72, Math.floor(sg.clientHeight - tran)) + "px";   // 17/10 (9) user «không làm cuộn khung này»: 1 người thì không bao giờ cuộn
     qdDay(bx, qdTp); }
@@ -951,7 +954,7 @@
   }
   function xongThanhBen(tb) { khoaAnhGN(); lapCotPhai(); requestAnimationFrame(lapCotPhai); hskThanhBen.xong(tb);
     /* 17/10 (5) đo thật: đổi lượt khi thanh đang mở — lúc dựng xong nội dung cũ/ảnh chưa ổn định nên chưa đẩy được Quyết định xuống đáy → tính lại sau khi lắng */
-    var M0 = $id("modal"); clearTimeout(M0._henLap); clearTimeout(M0._henLap2); M0._henLap = setTimeout(lapCotPhai, 350); M0._henLap2 = setTimeout(lapCotPhai, 1200); }
+    var M0 = $id("modal"); clearTimeout(M0._henLap); clearTimeout(M0._henLap2); M0._henLap = setTimeout(lapCotPhai, 350); M0._henLap2 = setTimeout(function () { lapCotPhai(true); }, 1200); }
   /* 16/10 (7) user «kích thước ảnh ghi nhận buộc bằng chiều cao khung camera — khoá cứng, bên dưới là dữ liệu»: khung camera đánh dấu [data-khung];
      ảnh cột phải lấy ĐÚNG chiều cao đó (bám theo khi khung đổi cỡ). Chỉ khi 2 cột đứng cạnh nhau — xếp chồng (hẹp/điện thoại) thì trả về cỡ tự nhiên. */
   function khoaAnhGN() { var M0 = $id("modal"); if (M0._roAnh) { M0._roAnh.disconnect(); M0._roAnh = null; }
