@@ -230,6 +230,9 @@
         "#modal.hx-ben .hx-o-an{margin:0;align-items:start!important}#modal.hx-ben .hx-o-an>.lbl{padding-top:4px}#modal.hx-ben .hx-o-an .hx-cb{min-width:0}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea){display:block;width:100%;min-height:28px!important;padding:3px 6px!important;margin:0 0 0 -6px;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;resize:none;font:inherit;font-size:13px!important;color:var(--text);cursor:pointer;overflow:hidden;box-sizing:border-box;max-width:calc(100% + 6px)}#modal.hx-ben .hx-o-an textarea{width:calc(100% + 6px)}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea):hover{background:var(--ad-nen2,#f5f5f5)!important}#modal.hx-ben .hx-o-an :is(input,textarea):focus{border-color:var(--accent)!important;background:var(--surface)!important;cursor:text;outline:0;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)!important}" +
+        "#modal.hx-ben .hx-o-an .hx-cb{position:relative}#modal.hx-ben .hx-o-an .hx-cb:has(>input){width:fit-content;max-width:100%}#modal.hx-ben .hx-o-an:has(.hx-cb-xoa) :is(input,textarea){padding-right:26px!important}" +
+        "#modal.hx-ben .hx-cb-xoa{position:absolute;top:3px;right:-6px;z-index:2;width:22px;height:22px;min-height:0!important;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:12px;line-height:22px;cursor:pointer}" +
+        "#modal.hx-ben .hx-cb-xoa:hover{background:var(--hover,var(--ad-nen2));color:var(--text)}#modal.hx-ben .hx-cb:has(input:placeholder-shown)>.hx-cb-xoa{display:none}" +
         "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:120px;width:auto}#modal.hx-ben .hx-ai-phu{grid-column:2;margin-top:-6px}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
         /* 17/10 (4) Quyết định dính đáy thanh · Sẽ ghi nhận canh giữa phần còn lại của khung Ảnh ghi nhận · Theo tác vụ trong khung */
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=quyetdinh]{position:sticky;bottom:0;z-index:6;background:var(--surface);padding:12px 0 4px;box-shadow:0 -1px 0 var(--ad-chia,var(--border))}" +
@@ -243,8 +246,10 @@
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{margin:8px 0 0!important}#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{width:100%;height:auto;max-height:none;aspect-ratio:16/9;object-fit:contain;background:#000}" +
         /* 17/10 (6) user «thu hẹp khung Ảnh ghi nhận lại 68%» */
         /* 17/10 (7) «ảnh ghi nhận phải vừa với khung»: khung ÔM tấm ảnh theo đúng tỉ lệ ảnh (ảnh ngang/dọc đều không còn viền đen) — rộng ≤ 68% cột, cao ≤ min(300px, 36vh) */
-        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh{width:fit-content;max-width:68%;min-height:0!important;background:transparent!important;line-height:0}" +
-        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{width:auto!important;height:auto!important;max-width:100%;max-height:min(300px,36vh)!important;aspect-ratio:auto!important;object-fit:contain;background:transparent!important;border-radius:8px}" +
+        /* 17/10 (8) user «ảnh ghi nhận vẫn chưa khít với khung»: khung = KÍN bề rộng cột (thẳng mép với «Sẽ ghi nhận», Lỗi…), ảnh phủ kín khung không viền;
+           ảnh ngang hiện đủ, ảnh dọc cao quá min(300px,36vh) thì cắt giữa (bấm ảnh xem đủ) */
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh{width:100%;max-width:none;min-height:0!important;background:transparent!important;line-height:0;border-radius:8px;overflow:hidden}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{display:block;width:100%!important;height:auto!important;max-width:none;max-height:min(300px,36vh)!important;aspect-ratio:auto!important;object-fit:cover;background:transparent!important;border-radius:0}" +
         /* đầu thanh đảo: nút (Ghi chú · Mở task · Đóng) bên TRÁI, tiêu đề bên PHẢI — chỉ thanh Xác minh */
         "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mTitle{order:1;flex:1 1 auto;min-width:0;margin-left:auto!important;text-align:right;justify-content:flex-end;align-items:flex-end}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>:not(#mTitle){margin-left:0!important;margin-right:0!important}" +
         "#modal.hx-ben .hx-pd-duoi{margin-top:6px;border-radius:6px}#modal.hx-ben .hx-tb-luoi .hx-tl-hang[hidden]{display:none!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-tl-hang{margin-top:8px}" +
@@ -560,8 +565,8 @@
       tp("dsnguoi", '<div class="hx-qd-nguoi"><div class="hx-ds-ng">' + EV.ng.map(function (n) { return '<div class="hx-ng hx-ng-gon' + (n.khong ? " khong" : "") + '" data-so="' + n.so + '">' +
         (nhieu ? '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span>' +
           '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label></div>' : "") +
-        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl">Lỗi</span><div class="hx-cb"><textarea rows="1" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Bấm để chọn hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea><div class="menu"></div></div></label>' +
-        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl" data-nhan-ai="' + n.so + '">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="' + (n.so === EV.ng[0].so && !gy0 ? ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") + " — bấm để chọn" : "Chưa có ứng viên — bấm để chọn / gõ tên, mã NV") : "Bấm để chọn ứng viên hoặc gõ tên / mã NV") + '" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '><div class="menu"></div></div>' +
+        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl">Lỗi</span><div class="hx-cb"><textarea rows="1" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Bấm để chọn hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea>' + (khoa ? "" : '<button type="button" class="hx-cb-xoa" data-xoa-muc="' + n.so + '" title="Xoá để chọn lại hạng mục" aria-label="Xoá để chọn lại hạng mục">✕</button>') + '<div class="menu"></div></div></label>' +
+        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl" data-nhan-ai="' + n.so + '">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="' + (n.so === EV.ng[0].so && !gy0 ? ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") + " — bấm để chọn" : "Chưa có ứng viên — bấm để chọn / gõ tên, mã NV") : "Bấm để chọn ứng viên hoặc gõ tên / mã NV") + '" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '>' + (khoa ? "" : '<button type="button" class="hx-cb-xoa" data-xoa-ai="' + n.so + '" title="Xoá để chọn lại người" aria-label="Xoá để chọn lại người">✕</button>') + '<div class="menu"></div></div>' +
           '<span class="hx-ai-phu" data-ai-phu="' + n.so + '"></span></label>' +
         '</div>'; }).join("") + '</div></div>') +
       tp("trangthai", stLuot(l)) +
@@ -585,6 +590,12 @@
     $id("mBody").querySelectorAll("[data-vt]").forEach(function (i) { i.addEventListener("input", function () { EV.ng.find(function (n) { return n.so === Number(i.dataset.vt); }).viTri = i.value; veChot(); }); });
     $id("mBody").querySelectorAll("[data-kh]").forEach(function (c) { c.addEventListener("change", function () { var n = EV.ng.find(function (x) { return x.so === Number(c.dataset.kh); }); n.khong = c.checked; c.closest(".hx-ng").classList.toggle("khong", c.checked); veChot(); }); });
     $id("mBody").querySelectorAll("[data-cb]").forEach(function (i) { ganCombo(i, l); });
+    /* 17/10 (8) user «đã chọn NV thì không có dấu xoá ra để chọn lại»: ✕ xoá lựa chọn rồi mở lại danh sách để chọn */
+    $id("mBody").querySelectorAll("[data-xoa-ai]").forEach(function (x) { x.onmousedown = function (ev) { ev.preventDefault(); };
+      x.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); var n = EV.ng.find(function (y) { return y.so === Number(x.dataset.xoaAi); }), i = $id("mBody").querySelector('[data-cb="' + x.dataset.xoaAi + '"]');
+        n.ma = ""; n.ten = ""; i.value = ""; veChot(); i.focus(); }; });
+    $id("mBody").querySelectorAll("[data-xoa-muc]").forEach(function (x) { x.onmousedown = function (ev) { ev.preventDefault(); };
+      x.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); var t = $id("mBody").querySelector('[data-mcb="' + x.dataset.xoaMuc + '"]'); t.focus(); t.value = ""; t.dispatchEvent(new Event("input")); }; });
     $id("mBody").querySelectorAll("[data-zoom]").forEach(function (z) { z.onclick = function () { var n = EV.ng[Number(z.dataset.zoom) - 1]; openLB([{ url: n.anh, title: (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so), sub: l.camera + " · " + n.luc }], 0); }; });
     $id("mBody").querySelectorAll(".hx-mocs [data-b]").forEach(function (f) { f.onclick = function () { var b = l.buocAnh[Number(f.dataset.b)]; lvXem("clip"); tuaToi(giay(b.luc)); }; });
     $id("mBody").querySelectorAll("[data-qd]").forEach(function (b) { b.onclick = function () { luuQD(l, Number(b.dataset.qd)); }; });
@@ -614,14 +625,20 @@
      menu đang mở thì lăn chuột / vuốt ở chỗ khác trong thanh bị chặn — không khung nào trôi. */
   function datMenu(box) {
     var M = $id("modal"), menu = box.querySelector(".menu"); if (!menu || !M.classList.contains("hx-ben") || !box.classList.contains("show")) return;
+    /* 17/10 (8) user «dưới còn khoảng trống thì thả lên làm gì · hiệu ứng thả xuống tao nói bao nhiêu lần rồi»: theo khuôn ô chọn của dự án (.cs-list) —
+       MỞ XUỐNG ngay dưới ô (cách 6px); chỉ lật LÊN khi phía dưới không đủ chỗ cho menu (dưới < min(menu, 240px)) mà phía trên rộng hơn; hiệu ứng popIn sẵn có. */
     var bx = M.querySelector(".modal-box").getBoundingClientRect(), r = box.getBoundingClientRect(), tren = r.top - bx.top - 12, duoi = bx.bottom - r.bottom - 12;
-    var len = tren >= 160 || tren >= duoi, h = Math.max(120, Math.min(360, len ? tren : duoi));
-    menu.style.cssText = "position:fixed;left:0;top:0;right:auto;bottom:auto;animation:none;overscroll-behavior:contain;width:" + Math.round(Math.min(Math.max(r.width, 360), bx.right - r.left - 12)) + "px;max-height:" + Math.floor(h) + "px";
+    var dauMo = !box._daMo; box._daMo = 1;
+    menu.style.cssText = "position:fixed;left:0;top:0;right:auto;bottom:auto;animation:none;overscroll-behavior:contain;max-height:none;width:" + Math.round(Math.min(Math.max(r.width, 360), bx.right - r.left - 12)) + "px";
+    var can = Math.min(menu.scrollHeight, 360), len = duoi < Math.min(can, 240) && tren > duoi, h = Math.max(120, Math.min(360, len ? tren : duoi));
+    menu.style.maxHeight = Math.floor(h) + "px";
     var o = menu.getBoundingClientRect(), mh = Math.min(menu.scrollHeight, h);   // o = gốc toạ độ thật (hộp thanh bên trượt bằng transform)
-    menu.style.left = Math.round(r.left - o.left) + "px"; menu.style.top = Math.round((len ? r.top - 4 - mh : r.bottom + 4) - o.top) + "px";
+    menu.style.left = Math.round(r.left - o.left) + "px"; menu.style.top = Math.round((len ? r.top - 6 - mh : r.bottom + 6) - o.top) + "px";
+    menu.style.transformOrigin = len ? "bottom" : "top";
+    menu.style.animation = dauMo ? "popIn .18s var(--ez-spring,ease)" : "none";   // chỉ lần MỞ mới chạy hiệu ứng — gõ lọc không nháy lại
     khoaCuon(true);
   }
-  function boMenu(box) { var menu = box.querySelector(".menu"); if (menu) menu.style.cssText = ""; if (!document.querySelector("#modal .hx-cb.show")) khoaCuon(false); }
+  function boMenu(box) { var menu = box.querySelector(".menu"); if (menu) menu.style.cssText = ""; box._daMo = 0; if (!document.querySelector("#modal .hx-cb.show")) khoaCuon(false); }
   function khoaCuon(bat) {
     var M = $id("modal"); if (!!M._khoaCuon === bat) return;
     if (!bat) { ["wheel", "touchmove"].forEach(function (k) { M.removeEventListener(k, M._khoaCuon, true); }); M._khoaCuon = null; return; }
@@ -904,7 +921,7 @@
     qdDay(bx, qdTp); }
   /* 17/10 (4) user «Quyết định chốt cứng phía dưới thanh bên phải»: còn chỗ trống dưới cùng thì đẩy khối Quyết định xuống sát đáy; thanh dài phải cuộn thì
      khối dính đáy (position:sticky) — luôn thấy, không trôi. */
-  var QD_CACH_DAY = 113;   // 3 cm ở 96 dpi
+  var QD_CACH_DAY = 37;   // 17/10 (6) lên 3 cm (113px) → 17/10 (8) user «di chuyển xuống 2cm» (−76px) ⇒ cách đáy ~1 cm
   function qdDay(bx, qd) {
     if (!qd || !bx) return; qd.style.marginTop = "";   // trả về margin-top:auto (CSS) — trong khung cột, Quyết định tự xuống đáy khung
     var L = qd.closest(".hx-tb-luoi"), pb = parseFloat(getComputedStyle($id("mBody")).paddingBottom) || 0; L.style.minHeight = "";

@@ -210,18 +210,29 @@ for (const m of MAY) {
       ok(m14.seghi !== null && m14.seghi >= 0 && m14.sgL <= 2, m.ten + ": M14 Sẽ ghi nhận dưới Ảnh ghi nhận, cùng khung (canh giữa phần còn lại — 17/10 (4)) " + JSON.stringify(m14));
       ok(m14.qdDuoi !== null && m14.qdDuoi >= 0 && m14.chipN === 3 && m14.chipHang === 1 && m14.luuDuoi >= 0, m.ten + ": M15 Quyết định dưới Máy gợi ý, 3 chip ngang hàng, Lưu ở dưới " + JSON.stringify(m14));
       ok(m14.mkn === m14.buoc && !m14.hangMoc && !/×/.test(m14.gio), m.ten + ": M16 mốc là số trên thanh thời gian, bỏ hàng mốc riêng, giờ không kèm ×N " + JSON.stringify(m14));
-      /* M17 ô «Vi phạm gì»: menu mở LÊN trên ô, nằm trong thanh, lăn chuột ngoài menu không cuộn khung nào */
+      /* M17 (17/10 (8) user «dưới còn chỗ thì thả lên làm gì · hiệu ứng thả xuống»): ô Lỗi + ô Là ai — dưới đủ chỗ thì MỞ XUỐNG ngay dưới ô, có hiệu ứng popIn,
+         nằm trong thanh; lăn chuột ngoài menu không cuộn khung nào · M19 có ✕ khi đã chọn, bấm ✕ thì xoá thật + mở lại danh sách */
       const vt = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"); if (!t) return null; const r = t.getBoundingClientRect(); return { x: r.left + 20, y: r.top + 10 }; });
       if (vt) { await p.mouse.click(vt.x, vt.y); await ngu(400);
-        const m17a = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"), mn = t.parentNode.querySelector(".menu"), r = t.getBoundingClientRect(), rm = mn.getBoundingClientRect(), bx = document.querySelector("#modal .modal-box").getBoundingClientRect();
-          const C = document.querySelector("#mBody .hx-ds-ng"); return { mo: getComputedStyle(mn).display !== "none", len: Math.round(r.top - rm.bottom), trong: rm.top >= bx.top - 1 && rm.left >= bx.left - 1 && rm.right <= bx.right + 1, cuon: mn.scrollHeight > mn.clientHeight, c0: C ? C.scrollTop : 0, b0: document.querySelector("#modal .modal-box").scrollTop }; });
+        const m17a = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"), mn = t.parentNode.querySelector(".menu"), r = t.parentNode.getBoundingClientRect(), rm = mn.getBoundingClientRect(), bx = document.querySelector("#modal .modal-box").getBoundingClientRect();
+          const C = document.querySelector("#mBody .hx-ds-ng"), duoi = bx.bottom - r.bottom - 12, can = Math.min(mn.scrollHeight, 240);
+          return { mo: getComputedStyle(mn).display !== "none", xuong: Math.round(rm.top - r.bottom), duoi: Math.round(duoi), canXuong: duoi >= can, anim: getComputedStyle(mn).animationName,
+            trong: rm.top >= bx.top - 1 && rm.left >= bx.left - 1 && rm.right <= bx.right + 1 && rm.bottom <= bx.bottom + 1, c0: C ? C.scrollTop : 0, b0: document.querySelector("#modal .modal-box").scrollTop }; });
         const giua = await p.evaluate(() => { const r = document.querySelector("#mBody .hx-ds-ng").getBoundingClientRect(); return { x: r.left + 10, y: r.bottom - 10 }; });
         await p.mouse.move(giua.x, giua.y); await p.mouse.wheel({ deltaY: 400 }); await ngu(300);
         const m17b = await p.evaluate(() => { const C = document.querySelector("#mBody .hx-ds-ng"); return { c1: C ? C.scrollTop : 0, b1: document.querySelector("#modal .modal-box").scrollTop }; });
-        ok(m17a.mo && m17a.len >= 0 && m17a.len <= 8 && m17a.trong, m.ten + ": M17 menu Vi phạm gì thả LÊN, trong thanh " + JSON.stringify(m17a));
+        ok(m17a.mo && (!m17a.canXuong || (m17a.xuong >= 0 && m17a.xuong <= 8)) && m17a.anim === "popIn" && m17a.trong, m.ten + ": M17 menu Lỗi MỞ XUỐNG khi dưới đủ chỗ, hiệu ứng popIn, trong thanh " + JSON.stringify(m17a));
         ok(m17b.c1 === m17a.c0 && m17b.b1 === m17a.b0, m.ten + ": M18 menu đang mở thì các khung không cuộn " + JSON.stringify([m17a, m17b]));
         await p.keyboard.press("Escape").catch(() => {}); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(300);
-        if (A.anh) {} }
+        /* M19 ô Là ai: có ✕ khi đang có tên; bấm ✕ → ô trống, «Sẽ ghi nhận» báo chưa chọn NV, danh sách mở xuống. Chỉ trên trình duyệt (POST bị chặn) — không lưu gì. */
+        const x19 = await p.evaluate(() => { const i = document.querySelector("#mBody [data-cb]"), x = i && i.parentNode.querySelector(".hx-cb-xoa"); if (!i || !x) return null;
+          const r = x.getBoundingClientRect(); return { co: !!i.value && getComputedStyle(x).display !== "none" && r.width > 0, x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+        if (x19 && x19.co) { await p.mouse.click(x19.x, x19.y); await ngu(400);
+          const m19 = await p.evaluate(() => { const i = document.querySelector("#mBody [data-cb]"), mn = i.parentNode.querySelector(".menu"), r = i.parentNode.getBoundingClientRect(), rm = mn.getBoundingClientRect();
+            return { trong: i.value === "", mo: getComputedStyle(mn).display !== "none", xuong: Math.round(rm.top - r.bottom), chot: /chưa chọn NV/.test(document.getElementById("hxChot").textContent) }; });
+          ok(m19.trong && m19.mo && m19.chot, m.ten + ": M19 bấm ✕ ở Là ai → xoá chọn, mở lại danh sách " + JSON.stringify(m19));
+          await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(300); }
+        else console.log("  M19 " + m.ten + ": Là ai đang trống ở sự việc này — chưa thử ✕"); }
       const d2 = await dL(lids[1]); const trung = await p.evaluate((x, y, id) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest('[data-lid="' + id + '"]')); }, d2.x, d2.y, lids[1]);
       ok(trung, m.ten + ": M2 điểm bấm sự việc 2 không bị che");
       await p.mouse.click(d2.x, d2.y); await ngu(700);
