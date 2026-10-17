@@ -190,7 +190,7 @@ async function doDesktop(b){
     }, { l: PL.A, soLan });
     let nut3 = null, du3 = null;
     /* 17/10 user: chỉ đếm trong 7 ngày — 9 lần rải 9 ngày liền ⇒ chỉ 6 lần còn hạn (2 phiếu), 3 lần cũ hết hạn */
-    for (const [soTiem, soLan] of [[3, 3], [6, 6], [9, 6]]){
+    for (const [soTiem, soLan] of [[3, 3], [6, 6], [9, 9]]){   // 17/10 chiều: bỏ cửa sổ 7 ngày (user bác «hết hạn»)
       const k = await tiem(soTiem);
       if (soTiem !== soLan) ca("[A·tiêm " + soTiem + " lần / 9 ngày] cửa sổ 7 ngày: còn " + soLan + " lần, " + (soTiem - soLan) + " lần cũ HẾT HẠN", k.n === soLan && k.het === soTiem - soLan, JSON.stringify(k));
       await new Promise(r => setTimeout(r, 350));
@@ -222,7 +222,7 @@ async function doDesktop(b){
       }
       return buoc;
     }, PL.A);
-    ca("[A] 6 lần trong 7 ngày → lập LIÊN TIẾP đúng 2 phiếu (−4%), hết thì dừng", tiep.length === 3 && tiep[0].phieu === 2 && tiep[1].phieu === 1 && tiep[2].phieu === 0 && tiep[2].n === 0, JSON.stringify(tiep.map(b => b.n + "→" + b.phieu)));
+    ca("[A] 9 lần → lập LIÊN TIẾP đúng 3 phiếu (−6%), hết thì dừng", tiep.length === 4 && tiep[0].phieu === 3 && tiep[1].phieu === 2 && tiep[2].phieu === 1 && tiep[3].phieu === 0 && tiep[3].n === 0, JSON.stringify(tiep.map(b => b.n + "→" + b.phieu)));
     await tiem(3); await new Promise(r => setTimeout(r, 350));   // về lại kịch bản 1 phiếu để chụp + PIN
     nut3 = await docNut(page);
     du3 = await page.evaluate(l => { const S = HPLANOGRAM._S; return HPLANOGRAM._soan5S(l, S.dDen || S.yc.ngay); }, PL.A);

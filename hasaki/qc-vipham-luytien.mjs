@@ -130,15 +130,16 @@ ca("chuỗi rác không làm hỏng (bỏ qua phần không khớp)", Object.key
 console.log("⑥ CỬA SỔ " + CUA_SO_NGAY + " NGÀY (user 17/10/2026) — lần chưa ghi nhận cũ hơn 7 ngày HẾT HẠN (③④⑤ ở trên tắt cửa sổ: tham số 0)");
 {
   const vp = {}; for (let i = 0; i < 21; i++) vp[lechNgay("2026-10-16", -i * 2)] = { so: 1, o: ["F0-A8-510-05"] };   // 21 lần rải 41 ngày (ca Gia Hân)
-  const k = chuKy(vp, [], "2026-10-16");
-  ca("mặc định cửa sổ 7 ngày: 16/10 → chỉ đếm 10/10…16/10 = 4 lần, 17 lần cũ hết hạn", k.n === 4 && k.hetHan === 17 && k.tu === "2026-10-10" && k.ngay[0] === "2026-10-10", JSON.stringify({ n: k.n, het: k.hetHan, tu: k.tu }));
+  const k = chuKy(vp, [], "2026-10-16", 7);
+  ca("cửa sổ 7 ngày: 16/10 → chỉ đếm 10/10…16/10 = 4 lần, 17 lần cũ hết hạn", k.n === 4 && k.hetHan === 17 && k.tu === "2026-10-10" && k.ngay[0] === "2026-10-10", JSON.stringify({ n: k.n, het: k.hetHan, tu: k.tu }));
   ca("4 lần trong 7 ngày → 1 phiếu, kê 3 ngày cũ nhất TRONG cửa sổ, lẻ 1", k.soPhieu === 1 && k.keNay.join() === "2026-10-10,2026-10-12,2026-10-14" && k.duLai === 1, k.keNay.join());
   const k0 = chuKy(vp, [], "2026-10-16", 0);
+  ca("MẶC ĐỊNH (17/10 chiều user bác hết hạn) = không giới hạn", chuKy(vp, [], "2026-10-16").n === 21 && CUA_SO_NGAY === 0);
   ca("cuaSo = 0 → không giới hạn (21 lần = 7 phiếu, như luật cũ)", k0.n === 21 && k0.soPhieu === 7 && k0.hetHan === 0);
-  const km = chuKy(vp, ["2026-10-12"], "2026-10-16");
+  const km = chuKy(vp, ["2026-10-12"], "2026-10-16", 7);
   ca("mốc ghi nhận nằm TRONG cửa sổ vẫn cắt chu kỳ: sau 12/10 còn 14, 16 = 2 lần", km.n === 2 && !km.du && km.hetHan === 0, JSON.stringify({ n: km.n, het: km.hetHan }));
   const d7 = {}; for (let i = 0; i < 7; i++) d7[lechNgay("2026-10-16", -i)] = { so: 1, o: [] };
-  const k7 = chuKy(d7, [], "2026-10-16");
+  const k7 = chuKy(d7, [], "2026-10-16", 7);
   ca("tối đa 7 lần / 7 ngày = 2 phiếu, lẻ 1", k7.n === 7 && k7.soPhieu === 2 && k7.duLai === 1);
 }
 

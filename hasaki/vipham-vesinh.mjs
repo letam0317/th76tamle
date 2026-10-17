@@ -36,7 +36,7 @@ export const MOI_LAN = 3;   // đủ 3 lần mới hiện nút
 /* CỬA SỔ 7 NGÀY (user 17/10/2026 — ca Gia Hân bị kê lần 21/08 trên phiếu lập 17/10): chỉ đếm các lần trong 7 ngày
    tính tới ngày đang xét; lần chưa ghi nhận CŨ HƠN 7 ngày = HẾT HẠN, không truy thu (ai không bấm kịp thì thôi —
    phạt chậm 2 tháng thì NV không còn nhớ để giải trình). Khớp LUẬT 7 NGÀY của luat-3-ngay / canh-b11. 0 = không giới hạn. */
-export const CUA_SO_NGAY = 7;
+export const CUA_SO_NGAY = 0;   // 17/10 chiều user: «sao lại bỏ — hết hạn» → TẮT hạn (0). Lần cũ giữ tới khi được ghi nhận.
 
 export function khoaO(loc){ const m = String(loc || "").match(/^F0-A1-(\d{3})-(\d{2})-/); return m ? `F0-A1-${m[1]}-${m[2]}` : String(loc || "").trim().toUpperCase(); }
 

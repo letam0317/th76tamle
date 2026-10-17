@@ -3918,7 +3918,7 @@ function docCotVp(s){
 }
 function docCotGhi(s){ return String(s || "").split("|").map(function(x){ return x.trim(); }).filter(function(x){ return /^\d{4}-\d{2}-\d{2}$/.test(x); }).sort().reverse(); }
 /* CỬA SỔ 7 NGÀY (user 17/10/2026): chỉ đếm lần trong 7 ngày tính tới ngày đang xét; lần chưa ghi nhận cũ hơn = HẾT HẠN. */
-var CUA_SO_NGAY = 7;
+var CUA_SO_NGAY = 0;   // 17/10 chiều user bác «hết hạn» → 0 = không giới hạn, lần cũ giữ tới khi được ghi nhận
 function lechNgayLT(iso, n){
   var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return iso;
   return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n)).toISOString().slice(0, 10);
@@ -4007,7 +4007,7 @@ function capNhatNutGhi(loc, d, r, pc, lsAll){
   napH2C()["catch"](function(){ /* im lặng — lúc bấm sẽ thử lại và báo lỗi tử tế ở form */ });
   var k = luyTien(pc, d, true), ds = k.ngay.map(ngayVN).join(" · ");
   var nenNgay = (k.moc && k.moc >= k.tu ? " (chu kỳ tính từ sau lần ghi nhận " + ngayVN(k.moc) + ")" : "") +
-    " — chỉ đếm " + CUA_SO_NGAY + " ngày từ " + ngayVN(k.tu) + (k.hetHan ? "; " + k.hetHan + " lần cũ hơn đã hết hạn, không tính" : "");
+    (CUA_SO_NGAY > 0 ? " — chỉ đếm " + CUA_SO_NGAY + " ngày từ " + ngayVN(k.tu) + (k.hetHan ? "; " + k.hetHan + " lần cũ hơn đã hết hạn, không tính" : "") : "");
   if (!k.co){
     b.style.display = "none";
     tx.textContent = "Đi làm không báo cáo · chưa đếm được luỹ tiến";
@@ -4074,7 +4074,7 @@ function soanGhiNhan5S(loc, d){
     if (lt.du){
       L.push("Vi phạm luỹ tiến: đủ " + MOI_LAN + " lần (" + lt.keNay.map(ngayDuVN).join(" · ") + ") → KPI -2%");
       if (lt.soPhieu > 1 || lt.duLai)
-        L.push("Tồn đọng: " + lt.n + " lần chưa ghi nhận trong " + CUA_SO_NGAY + " ngày" + (lt.moc ? " kể từ sau lần ghi nhận " + ngayDuVN(lt.moc) : "") +
+        L.push("Tồn đọng: " + lt.n + " lần chưa ghi nhận" + (CUA_SO_NGAY > 0 ? " trong " + CUA_SO_NGAY + " ngày" : "") + (lt.moc ? " kể từ sau lần ghi nhận " + ngayDuVN(lt.moc) : "") +
           " ⇒ còn " + (lt.soPhieu - 1) + " phiếu -2% nữa" + (lt.duLai ? " và " + lt.duLai + " lần lẻ chờ đủ " + MOI_LAN : ""));
     } else {
       L.push("Vi phạm luỹ tiến: lần " + lt.n + "/" + MOI_LAN + (lt.n ? " (" + lt.ngay.map(ngayDuVN).join(" · ") + ")" : "") + " — chưa đủ để trừ KPI");
@@ -4642,8 +4642,11 @@ function renderNkRight(){
     var cc = ccO && ccO.d[d], coBc = AREAS.some(function(a){ return khu[a.k] && khu[a.k].length; });
     var gioCC = cc ? '<span class="hp-hint" style="font-weight:500">đi làm ' + esc(cc.vao === GIO_TRONG ? "?" : cc.vao) + "–" + esc(cc.ra === GIO_TRONG ? "?" : cc.ra) + '</span>' : "";
     var hd = hoatDongNgay(o.email, d);
+    /* 17/10 chiều: ngày đi làm mà KHÔNG có phiếu đóng gói cũng phải nói rõ (user hỏi «03/10 bạn Như làm gì nếu không đóng gói») —
+       tách "không đóng ở bàn camera nào" với "chưa có dữ liệu đóng gói ngày này" (03/10 từng trống cả kho). */
     var dongDG = hd.dg.length ? '<div class="hp-nk-khu" style="font-size:11px">Đóng gói: ' + hd.dg.slice(0, 3).map(function(p){
-      return '<b>' + esc(p.ban ? p.ban.replace(/^F0-/, "") : p.cam) + '</b> <span class="hp-hint">' + p.n + ' phiếu</span>'; }).join(" · ") + '</div>' : "";
+      return '<b>' + esc(p.ban ? p.ban.replace(/^F0-/, "") : p.cam) + '</b> <span class="hp-hint">' + p.n + ' phiếu</span>'; }).join(" · ") + '</div>'
+      : cc ? '<div class="hp-nk-khu hp-hint" style="font-size:11px">' + (!S.pk.ok ? "đang đọc phiếu đóng gói…" : S.pk.ngay[d] ? "Không đóng gói ở bàn A8 có camera nào" : "Chưa có dữ liệu đóng gói ngày này") + '</div>' : "";
     var dongKbc = (!coBc && cc) ? '<div class="hp-nk-khu" style="font-size:11px;color:#dc2626;font-weight:650">' +
       (d === homNay ? "Hôm nay chưa báo cáo ô nào" : "Đi làm, KHÔNG báo cáo vệ sinh ô nào") + '</div>' : "";
     return '<div class="hp-nk-day"' + (dongKbc && d !== homNay ? ' style="border-left-color:#dc2626"' : "") + '><div class="d">' + thuVN(d) + ' ' + ngayVN(d) + (d === homNay ? ' <span class="today">Hôm nay</span>' : '') + gioCC + '</div>' +
