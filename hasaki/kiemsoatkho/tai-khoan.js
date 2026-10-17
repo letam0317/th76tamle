@@ -91,7 +91,12 @@
   function trangThai(o, cls, txt) { var s = o.querySelector(".tk-st"); s.className = "tk-st " + cls; s.textContent = txt; }
 
   function dangNhap(id, mk) {
-    return goi("tk_dangnhap", { id: id, mk: mk }).then(function (j) { datNguoi(j.nguoi, j.phien); TK.quyen = j.nguoi.quyen; nho(); apQuyen(); doiPhienXm(); bao(); return j.nguoi; });
+    /* 17/10 user điện thoại «Cannot read properties of undefined (reading 'quyen')»: Apps Script chập chờn từng trả «success» mà THIẾU nguoi
+       (cùng họ lỗi gas-chap-chon-404) → thử lại 1 lần; vẫn thiếu thì báo câu dễ hiểu, không để lỗi kỹ thuật rơi ra ô đăng nhập. */
+    var lan = function (k) { return goi("tk_dangnhap", { id: id, mk: mk }).then(function (j) {
+      if (!j.nguoi || !j.phien) { if (k) return lan(0); throw new Error("Máy chủ trả thiếu thông tin tài khoản — bấm Đăng nhập lại"); }
+      datNguoi(j.nguoi, j.phien); TK.quyen = j.nguoi.quyen || {}; nho(); apQuyen(); doiPhienXm(); bao(); return j.nguoi; }); };
+    return lan(1);
   }
   window.tkDangNhap = dangNhap;
   function moDangNhap(sau) {
@@ -181,7 +186,7 @@
   function taiKhach() { return goi("tk_khach").then(function (j) { if (!TK.nguoi) { TK.quyen = j.quyen; nho(); } }).catch(function () {}); }
   function kiem() {
     if (!TK.phien) return taiKhach().then(function () { datNguoi(null); apQuyen(); bao(); });
-    return goi("tk_toi", { phien: TK.phien }).then(function (j) { datNguoi(j.nguoi); TK.quyen = j.nguoi.quyen; nho(); apQuyen(); bao(); if (!ls.get("hx-phien")) doiPhienXm(); })
+    return goi("tk_toi", { phien: TK.phien }).then(function (j) { if (!j.nguoi) return; datNguoi(j.nguoi); TK.quyen = j.nguoi.quyen || {}; nho(); apQuyen(); bao(); if (!ls.get("hx-phien")) doiPhienXm(); })
       .catch(function (e) { if (e.code === 401) { datNguoi(null, ""); TK.quyen = null; return taiKhach().then(function () { apQuyen(); bao(); }); } });
   }
 
