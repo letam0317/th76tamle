@@ -45,7 +45,7 @@ ok(k3 && k3.ds.indexOf("trangthai") === k3.ds.indexOf("seghi") + 1, "C3 kéo Tr�
 /* C4 kéo mép phải khung trái sang trái ~2 cột */
 const mep = await p.evaluate(() => { const f = document.querySelector('#mBody .hx-tb-khung:nth-child(2)>.dash-mep.p'), r = f.getBoundingClientRect(), L = document.querySelector("#mBody .hx-tb-luoi").getBoundingClientRect(); return { x: r.left + 3, y: r.top + 60, cot: L.width / 12 }; });
 await keo(mep, { x: mep.x - mep.cot * 2, y: mep.y });
-let s2 = await tt(); ok(s2.khung[1].rong === "3", "C4 kéo mép phải khung phải → " + s2.khung[1].rong + "/12 cột (mong 3)");
+let s2 = await tt(); ok(s2.khung[1].rong === "6", "C4 kéo mép phải khung clip → " + s2.khung[1].rong + "/12 cột (mong 6)");
 /* C5 + Khung mới → khung trống, thả «Lỗi» vào */
 await p.evaluate(() => [...document.querySelectorAll("#dashBang button")].find((x) => x.dataset.a === "tbmoi").click()); await ngu(500);
 let s3 = await tt(); const moi = s3.khung[s3.khung.length - 1];
@@ -56,13 +56,13 @@ s3 = await tt(); ok(s3.khung[2].ds.join() === "quyetdinh", "C5 thả Quyết đ�
 if (A.anh) await p.screenshot({ path: A.anh + "/chinh-thanh-ben-1.png" });
 /* C6 Ctrl+Z 1 lần → Lỗi về khung cũ, khung 4 trống */
 await p.mouse.click(5, 450); await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await ngu(600);
-let s4 = await tt(); ok(s4.khung.length === 3 && !s4.khung[2].ds.length && s4.khung[1].ds.includes("quyetdinh"), "C6 Hoàn tác trả Quyết định về khung phải " + JSON.stringify(s4.khung.map((k) => k.ds)));
+let s4 = await tt(); ok(s4.khung.length === 3 && !s4.khung[2].ds.length && s4.khung[0].ds.includes("quyetdinh"), "C6 Hoàn tác trả Quyết định về khung Ảnh ghi nhận " + JSON.stringify(s4.khung.map((k) => k.ds)));
 /* C8 gói lưu */
 await ngu(1000); const j = goi.length ? JSON.parse(goi[goi.length - 1]) : null;
 ok(j && j.thanhBen && j.thanhBen.may && j.thanhBen.may.khung.length === 3 && j.tab && j.khoi, "C8 lưu gửi thanhBen.may (" + goi.length + " lượt, chặn tại trình duyệt)");
 /* C7 Về mặc định */
 await p.evaluate(() => [...document.querySelectorAll("#dashBang button")].find((x) => x.dataset.a === "tbgoc").click()); await ngu(600);
-let s5 = await tt(); ok(JSON.stringify(s5.khung.map((k) => k.ds)) === JSON.stringify([["clip"], ["anh", "seghi", "dsnguoi", "trangthai", "quyetdinh"]]) && s5.khung[1].rong === "5", "C7 Về mặc định " + JSON.stringify(s5.khung.map((k) => k.ds)));
+let s5 = await tt(); ok(JSON.stringify(s5.khung.map((k) => k.ds)) === JSON.stringify([["anh", "seghi", "dsnguoi", "trangthai", "quyetdinh"], ["clip"]]) && s5.khung[0].rong === "4", "C7 Về mặc định " + JSON.stringify(s5.khung.map((k) => k.ds)));
 /* tắt chỉnh → không còn tay nắm, khung trống ẩn */
 await p.evaluate(() => [...document.querySelectorAll("#dashBang button")].find((x) => x.dataset.a === "xong").click()); await ngu(500);
 const het = await p.evaluate(() => document.querySelectorAll("#mBody .dash-sua-ui").length); ok(het === 0, "C10 Xong chỉnh → không còn tay nắm (" + het + ")");

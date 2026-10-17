@@ -212,7 +212,7 @@
         /* 17/10 (2) Quyết định: nhãn trên, 3 chip ngang hàng chia đều, «Lưu · lập phiếu» cả hàng ở dưới; thanh thời gian cao hơn, đoạn có người đỏ rõ, mốc số tròn */
         "#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-qd-nut{display:block!important}#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-qd-nut>.lbl{display:block;margin:0 0 6px!important}" +
         "#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}" +
-        "#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button{width:100%;min-width:0;padding:4px 4px;line-height:1.25;white-space:normal;font-size:12.5px}#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button.chinh,#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button[data-qd='-1']{grid-column:1/-1!important}" +
+        "#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button{width:100%;min-width:0;padding:4px 2px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px!important}#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button.chinh,#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button[data-qd='-1']{grid-column:1/-1!important}" +
         "#modal.hx-ben .hx-qd-luot.hx-tb-luoi .hx-act button.chinh{min-height:36px}" +
         "#modal.hx-ben .hx-tb-luoi .hx-tl{height:22px!important;overflow:visible}#modal.hx-ben .hx-tb-luoi .hx-tl .dn{background:color-mix(in srgb,var(--bad) 55%,transparent);border-left:0;border-radius:2px}" +
         "#modal.hx-ben .hx-tb-luoi .hx-tl .mk{top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--text) 45%,transparent)}" +
@@ -230,7 +230,7 @@
         "#modal.hx-ben .hx-o-an{margin:0;align-items:start!important}#modal.hx-ben .hx-o-an>.lbl{padding-top:4px}#modal.hx-ben .hx-o-an .hx-cb{min-width:0}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea){display:block;width:100%;min-height:28px!important;padding:3px 6px!important;margin:0 0 0 -6px;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;resize:none;font:inherit;font-size:13px!important;color:var(--text);cursor:pointer;overflow:hidden;box-sizing:border-box;max-width:calc(100% + 6px)}#modal.hx-ben .hx-o-an textarea{width:calc(100% + 6px)}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea):hover{background:var(--ad-nen2,#f5f5f5)!important}#modal.hx-ben .hx-o-an :is(input,textarea):focus{border-color:var(--accent)!important;background:var(--surface)!important;cursor:text;outline:0;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)!important}" +
-        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:120px;width:auto}#modal.hx-ben .hx-o-an:has(.hx-ai-phu:not(:empty)){grid-template-columns:80px auto minmax(0,1fr)}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
+        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:120px;width:auto}#modal.hx-ben .hx-ai-phu{grid-column:2;margin-top:-6px}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
         /* 17/10 (4) Quyết định dính đáy thanh · Sẽ ghi nhận canh giữa phần còn lại của khung Ảnh ghi nhận · Theo tác vụ trong khung */
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=quyetdinh]{position:sticky;bottom:0;z-index:6;background:var(--surface);padding:12px 0 4px;box-shadow:0 -1px 0 var(--ad-chia,var(--border))}" +
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=quyetdinh]){padding-bottom:12px}" +
@@ -242,7 +242,11 @@
         "#modal.hx-ben .hx-tb-luoi #qdKhung{min-height:0;border-radius:8px}#modal.hx-ben .hx-tb-luoi #qdKhung>:is(video,img){width:100%;height:auto;aspect-ratio:16/9;max-height:none!important;object-fit:contain;background:#000}" +
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{margin:8px 0 0!important}#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{width:100%;height:auto;max-height:none;aspect-ratio:16/9;object-fit:contain;background:#000}" +
         /* 17/10 (6) user «thu hẹp khung Ảnh ghi nhận lại 68%» */
-        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh{width:68%;min-height:0!important}" +
+        /* 17/10 (7) «ảnh ghi nhận phải vừa với khung»: khung ÔM tấm ảnh theo đúng tỉ lệ ảnh (ảnh ngang/dọc đều không còn viền đen) — rộng ≤ 68% cột, cao ≤ min(300px, 36vh) */
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh{width:fit-content;max-width:68%;min-height:0!important;background:transparent!important;line-height:0}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{width:auto!important;height:auto!important;max-width:100%;max-height:min(300px,36vh)!important;aspect-ratio:auto!important;object-fit:contain;background:transparent!important;border-radius:8px}" +
+        /* đầu thanh đảo: nút (Ghi chú · Mở task · Đóng) bên TRÁI, tiêu đề bên PHẢI — chỉ thanh Xác minh */
+        "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mTitle{order:1;flex:1 1 auto;min-width:0;margin-left:auto!important;text-align:right;justify-content:flex-end;align-items:flex-end}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>:not(#mTitle){margin-left:0!important;margin-right:0!important}" +
         "#modal.hx-ben .hx-pd-duoi{margin-top:6px;border-radius:6px}#modal.hx-ben .hx-tb-luoi .hx-tl-hang[hidden]{display:none!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-tl-hang{margin-top:8px}" +
         /* hàng dưới clip Theo tác vụ: chữ «Máy soi camera…» bên trái, nút nguồn sát phải; thiếu chỗ thì XUỐNG HÀNG (không cắt chữ/nút) */
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{display:flex;flex-wrap:wrap!important;align-items:center;gap:6px 8px}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau>.hx-vl-tt{flex:1 1 200px!important;min-width:0;white-space:normal!important}" +
@@ -252,7 +256,7 @@
         "#modal.hx-ben .hx-tb-luoi :is(.hx-qd-xem,.hx-qd-ls){padding:0}#modal.hx-ben .hx-tb-luoi .hx-qd-ben{padding:0}#modal.hx-ben .hx-tb-luoi .hx-qd-anh{margin:0}" +
         "#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu+#qdMsg:empty+*,#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu+#qdMsg:not(:empty)+*{border-top:0;padding-top:0}" +
         "#modal.hx-ben .hx-toc button.dang:not(.on){background:color-mix(in srgb,var(--accent) 16%,var(--surface));color:var(--accent)}#modal.hx-ben .hx-tb-luoi .hx-chot{margin:0!important;overflow-y:auto;overscroll-behavior:contain}" +
-        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-tb-khung,#modal.hx-ben .hx-tb-luoi .hx-tb-tp{grid-column:1/-1}#modal.hx-ben .hx-tb-khung{padding:12px 16px}}" +
+        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=clip]){order:-1}#modal.hx-ben .hx-tb-luoi .hx-tb-khung,#modal.hx-ben .hx-tb-luoi .hx-tb-tp{grid-column:1/-1}#modal.hx-ben .hx-tb-khung{padding:12px 16px}}" +
       /* 1 cột (thanh hẹp / điện thoại): bỏ vỏ cột, xếp video → ảnh ghi nhận → quyết định → ai tác động */
       "@container (max-width:820px){#modal.hx-ben .hx-qd{display:flex;flex-direction:column}#modal.hx-ben .hx-cot{display:contents}" +
         "#modal.hx-ben .hx-qd-xem{order:1}#modal.hx-ben .hx-qd-anh{order:2}#modal.hx-ben .hx-qd-ben{order:3;grid-template-columns:minmax(0,1fr)}#modal.hx-ben .hx-qd-ls{order:4}" +
@@ -895,6 +899,8 @@
       var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; }
     /* 17/10 (4) đo thật: cả thanh vẫn tràn (vd phiếu không có camera — Ai tác động 5 dòng + ảnh cao hơn hàng trên) → bớt đúng phần tràn ở danh sách (sàn 120px) */
     var tran = bx.scrollHeight - bx.clientHeight; if (kh && tran > 1 && window.innerWidth > 760 && C.clientHeight > 100) C.style.maxHeight = Math.max(100, Math.floor(C.clientHeight - tran)) + "px";
+    /* 17/10 (7) cột trái hẹp: 4–5 người nghi thì «Sẽ ghi nhận» cao ~450px → còn tràn thì bớt nốt ở đây (cuộn riêng, sàn 72px) */
+    tran = bx.scrollHeight - bx.clientHeight; if (sg && kh && tran > 1 && window.innerWidth > 760 && sg.clientHeight > 72) sg.style.maxHeight = Math.max(72, Math.floor(sg.clientHeight - tran)) + "px";
     qdDay(bx, qdTp); }
   /* 17/10 (4) user «Quyết định chốt cứng phía dưới thanh bên phải»: còn chỗ trống dưới cùng thì đẩy khối Quyết định xuống sát đáy; thanh dài phải cuộn thì
      khối dính đáy (position:sticky) — luôn thấy, không trôi. */
@@ -927,8 +933,10 @@
   /* 17/10 (2) user: «Sẽ ghi nhận» dưới Ảnh ghi nhận · Quyết định xuống dưới Máy gợi ý · mốc ①②③ nằm trên thanh thời gian clip (bỏ hàng mốc riêng) */
   /* 17/10 (5) user «làm lại thanh bên: dưới clip là Ai tác động ô (Theo máy không có thì để trống) · Lỗi / Máy gợi ý / Quyết định chuyển xuống dưới
      Ảnh ghi nhận · đồng bộ vị trí/kích thước clip và các khung ở CẢ 2 thanh Theo máy + Theo tác vụ»: 2 khung y hệt nhau — trái 7/12 · phải 5/12. */
-  var TB_MAC = { may: [{ id: "k1", rong: 7, ds: [{ id: "clip" }] }, { id: "k2", rong: 5, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }],
-    tacvu: [{ id: "k1", rong: 7, ds: [{ id: "clip" }, { id: "aitacdong" }] }, { id: "k2", rong: 5, ds: [{ id: "anh" }, { id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }] };
+  /* 17/10 (7) user «khung Ảnh ghi nhận và clip đổi vị trí cho nhau (kể cả Ghi chú/Đóng ⇄ tiêu đề) · clip tăng kích thước cho vừa thanh»:
+     TRÁI 4/12 = Ảnh ghi nhận → … → Lỗi → Máy gợi ý → Quyết định · PHẢI 8/12 = clip (+ Ai tác động dưới clip) */
+  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }] }],
+    tacvu: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "aitacdong" }] }] };
   var TB_TEN = { clip: "Camera / clip", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }

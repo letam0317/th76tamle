@@ -71,9 +71,9 @@ for (const m of MAY) {
   const bc = await boCuc();
   if (!m.mob) {
     /* 17/10 (5) user: dưới clip là «Ai tác động» (cột trái) · Lỗi / Máy gợi ý / Quyết định dưới Ảnh ghi nhận (cột phải) */
-    ok(bc.ben && bc.ben.l >= bc.xem.r - 1 && (!bc.anh || bc.ben.t >= bc.anh.b - 1), m.ten + ": T10 Quyết định cột phải, DƯỚI Ảnh ghi nhận " + JSON.stringify([bc.xem, bc.anh, bc.ben]));
+    ok(bc.ben && bc.ben.r <= bc.xem.l + 1 && (!bc.anh || bc.ben.t >= bc.anh.b - 1), m.ten + ": T10 Quyết định cột TRÁI (17/10 (7) đổi bên), DƯỚI Ảnh ghi nhận " + JSON.stringify([bc.xem, bc.anh, bc.ben]));
     ok(!bc.ls || (Math.abs(bc.ls.l - bc.xem.l) <= 2 && bc.ls.t >= bc.xem.b - 1), m.ten + ": T11 «Ai tác động» dưới clip, cùng cột trái " + JSON.stringify([bc.xem, bc.ls]));
-    ok(!bc.anh || (bc.anh.l >= bc.xem.r - 1 && Math.abs(bc.anh.t - bc.xem.t) <= 2), m.ten + ": T11 Ảnh ghi nhận cột phải, cùng mép trên clip " + JSON.stringify([bc.anh, bc.xem]));
+    ok(!bc.anh || (bc.anh.r <= bc.xem.l + 1 && Math.abs(bc.anh.t - bc.xem.t) <= 2), m.ten + ": T11 Ảnh ghi nhận cột TRÁI, cùng mép trên clip " + JSON.stringify([bc.anh, bc.xem]));
     ok(!bc.anh || !bc.khung || (bc.anh.t < bc.vh && bc.khung.t < bc.vh && bc.anhTai), m.ten + ": T13 video + ảnh ghi nhận cùng hiện một màn (ảnh tải được=" + bc.anhTai + ")");
     ok(bc.luu && bc.gc && Math.abs(bc.luu.b - bc.gc.b) <= 4 && bc.qd && bc.qd.b <= bc.gc.t + 1, m.ten + ": T14 Quyết định trên · Gán người khác + Lưu cùng một hàng (cột phải hẹp)");
   } else {
