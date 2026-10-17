@@ -181,7 +181,7 @@ for (const m of MAY) {
       /* 16/10 (8) user: Theo máy ảnh camera ngang → khối ảnh vừa khít tấm ảnh (không dải xám), «Người trong khung đỏ» sát ngay dưới; điều khiển + mốc 1 hàng; nút quyết cỡ theo chữ */
       const m6 = await p.evaluate(() => { const a = document.querySelector("#mBody .hx-qd-anh"), im = document.getElementById("lvAnhGN"), ng = document.querySelector("#mBody .hx-qd-nguoi .lbl");
         const ra = a.getBoundingClientRect(), ri = im.getBoundingClientRect(), xd = document.querySelector("#mBody .hx-xdau"), mc = document.querySelector("#mBody .hx-mocs");
-        const nut = [...document.querySelectorAll("#mBody .hx-act button")].map((b) => b.getBoundingClientRect());
+        const nut = [...document.querySelectorAll("#mBody .hx-act button:not(.chinh)")].map((b) => b.getBoundingClientRect());   // 17/10 (2) «Lưu · lập phiếu» cả hàng dưới 3 chip — không tính
         return { xam: Math.round(ra.height - ri.height), cach: Math.round(ng.getBoundingClientRect().top - ra.bottom), motHang: !mc || Math.abs(xd.getBoundingClientRect().top - mc.getBoundingClientRect().top) <= 6 || mc.scrollWidth <= mc.clientWidth + 1, mocCat: mc ? mc.scrollWidth - mc.clientWidth : 0,
           nutRong: Math.round(Math.max(...nut.map((r) => r.width))), nutHang: new Set(nut.map((r) => Math.round(r.top))).size }; });
       ok(b1.anh && Math.abs(b1.anh.t - b1.khung.t) <= 2 && m6.xam <= 2, m.ten + ": M6 ảnh ghi nhận cùng mép trên clip, vừa khít ảnh " + JSON.stringify(m6));
@@ -197,6 +197,28 @@ for (const m of MAY) {
       ok(m7 && m7.khac && m7.duoiHang >= 0 && m7.trai <= 0, m.ten + ": M7 Quyết định ở khung trái, dưới cả hàng clip " + JSON.stringify(m7));
       ok(m7 && m7.ngang <= 2 && m7.phai >= 0 && Math.abs(m7.vach) <= 2, m.ten + ": M8 Người trong khung đỏ ở khung phải ngang hàng, vạch ngăn giữa thanh " + JSON.stringify(m7));
       ok(!b1.nguon.length, m.ten + ": M9 không còn cụm nút nguồn (ảnh đã đứng riêng)");
+      /* 17/10 (2) user: Sẽ ghi nhận dưới Ảnh ghi nhận · Quyết định dưới Máy gợi ý, 3 chip ngang hàng + Lưu ở dưới · mốc trên thanh thời gian · giờ không kèm «×3» */
+      const m14 = await p.evaluate(() => { const R = (q) => { const e = document.querySelector(q); return e ? e.getBoundingClientRect() : null; };
+        const an = R("#mBody .hx-qd-anh"), sg = R("#hxChot"), gy = R('#mBody [data-tp="goiy"]'), qd = R('#mBody [data-tp="quyetdinh"]');
+        const chip = [...document.querySelectorAll('#mBody .hx-act button:not(.chinh):not([data-qd="-1"])')].map((b) => b.getBoundingClientRect()), luu = R('#mBody .hx-act button.chinh');
+        return { seghi: sg && an ? Math.round(sg.top - an.bottom) : null, sgL: sg && an ? Math.round(Math.abs(sg.left - an.left)) : null, qdDuoi: qd && gy ? Math.round(qd.top - gy.bottom) : null,
+          chipHang: new Set(chip.map((r) => Math.round(r.top))).size, chipN: chip.length, luuDuoi: luu && chip.length ? Math.round(luu.top - Math.max(...chip.map((r) => r.bottom))) : null,
+          mkn: document.querySelectorAll("#hxTl .mkn").length, buoc: document.querySelectorAll("#hxTl .mk").length, hangMoc: document.querySelectorAll("#mBody .hx-mocs").length, gio: document.getElementById("hxGio").textContent }; });
+      ok(m14.seghi !== null && m14.seghi >= 0 && m14.seghi <= 16 && m14.sgL <= 2, m.ten + ": M14 Sẽ ghi nhận ngay dưới Ảnh ghi nhận " + JSON.stringify(m14));
+      ok(m14.qdDuoi !== null && m14.qdDuoi >= 0 && m14.chipN === 3 && m14.chipHang === 1 && m14.luuDuoi >= 0, m.ten + ": M15 Quyết định dưới Máy gợi ý, 3 chip ngang hàng, Lưu ở dưới " + JSON.stringify(m14));
+      ok(m14.mkn === m14.buoc && !m14.hangMoc && !/×/.test(m14.gio), m.ten + ": M16 mốc là số trên thanh thời gian, bỏ hàng mốc riêng, giờ không kèm ×N " + JSON.stringify(m14));
+      /* M17 ô «Vi phạm gì»: menu mở LÊN trên ô, nằm trong thanh, lăn chuột ngoài menu không cuộn khung nào */
+      const vt = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"); if (!t) return null; const r = t.getBoundingClientRect(); return { x: r.left + 20, y: r.top + 10 }; });
+      if (vt) { await p.mouse.click(vt.x, vt.y); await ngu(400);
+        const m17a = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"), mn = t.parentNode.querySelector(".menu"), r = t.getBoundingClientRect(), rm = mn.getBoundingClientRect(), bx = document.querySelector("#modal .modal-box").getBoundingClientRect();
+          const C = document.querySelector("#mBody .hx-ds-ng"); return { mo: getComputedStyle(mn).display !== "none", len: Math.round(r.top - rm.bottom), trong: rm.top >= bx.top - 1 && rm.left >= bx.left - 1 && rm.right <= bx.right + 1, cuon: mn.scrollHeight > mn.clientHeight, c0: C ? C.scrollTop : 0, b0: document.querySelector("#modal .modal-box").scrollTop }; });
+        const giua = await p.evaluate(() => { const r = document.querySelector("#mBody .hx-ds-ng").getBoundingClientRect(); return { x: r.left + 10, y: r.bottom - 10 }; });
+        await p.mouse.move(giua.x, giua.y); await p.mouse.wheel({ deltaY: 400 }); await ngu(300);
+        const m17b = await p.evaluate(() => { const C = document.querySelector("#mBody .hx-ds-ng"); return { c1: C ? C.scrollTop : 0, b1: document.querySelector("#modal .modal-box").scrollTop }; });
+        ok(m17a.mo && m17a.len >= 0 && m17a.len <= 8 && m17a.trong, m.ten + ": M17 menu Vi phạm gì thả LÊN, trong thanh " + JSON.stringify(m17a));
+        ok(m17b.c1 === m17a.c0 && m17b.b1 === m17a.b0, m.ten + ": M18 menu đang mở thì các khung không cuộn " + JSON.stringify([m17a, m17b]));
+        await p.keyboard.press("Escape").catch(() => {}); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(300);
+        if (A.anh) {} }
       const d2 = await dL(lids[1]); const trung = await p.evaluate((x, y, id) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest('[data-lid="' + id + '"]')); }, d2.x, d2.y, lids[1]);
       ok(trung, m.ten + ": M2 điểm bấm sự việc 2 không bị che");
       await p.mouse.click(d2.x, d2.y); await ngu(700);
