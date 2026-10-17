@@ -223,7 +223,17 @@ for (const m of MAY) {
         const m17b = await p.evaluate(() => { const C = document.querySelector("#mBody .hx-ds-ng"); return { c1: C ? C.scrollTop : 0, b1: document.querySelector("#modal .modal-box").scrollTop }; });
         ok(m17a.mo && (!m17a.canXuong || (m17a.xuong >= 0 && m17a.xuong <= 8)) && m17a.anim === "popIn" && m17a.trong, m.ten + ": M17 menu Lỗi MỞ XUỐNG khi dưới đủ chỗ, hiệu ứng popIn, trong thanh " + JSON.stringify(m17a));
         ok(m17b.c1 === m17a.c0 && m17b.b1 === m17a.b0, m.ten + ": M18 menu đang mở thì các khung không cuộn " + JSON.stringify([m17a, m17b]));
-        await p.keyboard.press("Escape").catch(() => {}); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(300);
+        await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(400);   // KHÔNG bấm Esc — Esc đóng cả thanh (M19–M21 từng chạy lúc thanh đã đóng)
+        /* M20 (17/10 (9) user «bấm ✕ ở Lỗi không xoá dữ liệu đã chọn cũ»): ✕ ở Lỗi → rời ô vẫn trống, Sẽ ghi nhận báo «chưa chọn lỗi», ✕ ẩn khi trống
+           · M21 đầu thanh: Đóng ngoài cùng bên trái, ngang hàng Ghi chú, tiêu đề bên phải */
+        const xm = await p.evaluate(() => { const x = document.querySelector("#mBody [data-xoa-muc]"); if (!x) return null; const r = x.getBoundingClientRect(); return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; });
+        if (xm) { await p.mouse.click(xm.x, xm.y); await ngu(300); await p.evaluate(() => document.activeElement && document.activeElement.blur()); await ngu(500);
+          const m20 = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"), x = t.parentNode.querySelector(".hx-cb-xoa");
+            return { trong: t.value === "", chot: /chưa chọn lỗi/.test(document.getElementById("hxChot").textContent), anX: getComputedStyle(x).display === "none" }; });
+          ok(m20.trong && m20.chot && m20.anX, m.ten + ": M20 ✕ ở Lỗi xoá thật hạng mục, rời ô vẫn trống " + JSON.stringify(m20)); }
+        const m21 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), d = R(document.getElementById("mClose")), g = R(document.getElementById("gcNut")), t = R(document.getElementById("mTitle")), bx = R(document.querySelector("#modal .modal-box"));
+          if (!(d && g && t)) return { thieu: [!d && "mClose", !g && "gcNut", !t && "mTitle"].filter(Boolean).join(","), show: document.getElementById("modal").className }; return { dongTrai: d.right <= g.left + 1, ngang: Math.abs(d.top - g.top) <= 3, sat: Math.round(d.left - bx.left), tdPhai: t.left > g.right }; });
+        ok(m21 && !m21.thieu && m21.dongTrai && m21.ngang && m21.sat <= 32 && m21.tdPhai, m.ten + ": M21 Đóng ngoài cùng trái ngang hàng Ghi chú, tiêu đề bên phải " + JSON.stringify(m21));
         /* M19 ô Là ai: có ✕ khi đang có tên; bấm ✕ → ô trống, «Sẽ ghi nhận» báo chưa chọn NV, danh sách mở xuống. Chỉ trên trình duyệt (POST bị chặn) — không lưu gì. */
         const x19 = await p.evaluate(() => { const i = document.querySelector("#mBody [data-cb]"), x = i && i.parentNode.querySelector(".hx-cb-xoa"); if (!i || !x) return null;
           const r = x.getBoundingClientRect(); return { co: !!i.value && getComputedStyle(x).display !== "none" && r.width > 0, x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
