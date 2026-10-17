@@ -93,7 +93,9 @@ function ghiBoCucDash(app, j, chot) {
   Object.keys(j.khoi).forEach((k) => { if (!Array.isArray(j.khoi[k])) throw new Error("khối của " + k + " phải là danh sách");
     j.khoi[k].forEach((b) => { if (!b || typeof b.id !== "string") throw new Error("khối thiếu id"); if (b.rong != null && !(b.rong >= 1 && b.rong <= 12)) throw new Error("khối " + b.id + " rộng ngoài 1–12"); }); });
   const cu = docBoCucDash(K.tep);
-  const o = { ver: (cu.ver | 0) + 1, ngay: new Date().toISOString(), tab: j.tab, khoi: j.khoi, chot: chot ? { ngay: new Date().toISOString(), ver: (cu.ver | 0) + 1 } : (cu.chot || null) };
+  const tb = j.thanhBen && typeof j.thanhBen === "object" && !Array.isArray(j.thanhBen) ? j.thanhBen : (cu.thanhBen || {});   // 17/10 bố cục thanh bên theo khung (Xác minh)
+  Object.keys(tb).forEach((k) => { if (!tb[k] || !Array.isArray(tb[k].khung)) throw new Error("thanh bên " + k + " thiếu danh sách khung"); });
+  const o = { ver: (cu.ver | 0) + 1, ngay: new Date().toISOString(), tab: j.tab, khoi: j.khoi, thanhBen: tb, chot: chot ? { ngay: new Date().toISOString(), ver: (cu.ver | 0) + 1 } : (cu.chot || null) };
   try {
     const dem = (x) => (x.tab || []).filter((t) => !t.an).length + Object.values(x.khoi || {}).reduce((a, d) => a + d.filter((b) => !b.an).length, 0);
     const giam = dem(o) < dem(cu);

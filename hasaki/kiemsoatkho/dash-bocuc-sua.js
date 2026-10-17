@@ -49,16 +49,24 @@
     ".dash-tbk .keo{cursor:grab}.dash-tbk .ten{align-self:center;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);padding:0 4px}",
     ".dash-mep{position:absolute;z-index:19;background:color-mix(in srgb,var(--accent) 35%,transparent)}",
     ".dash-mep.p{top:0;right:0;width:8px;height:100%;cursor:ew-resize}.dash-mep.d{left:0;bottom:0;height:8px;width:100%;cursor:ns-resize}",
-    ".dash-cho{outline:3px solid var(--accent)!important}"
+    ".dash-cho{outline:3px solid var(--accent)!important}",
+    /* 17/10 thanh bên kiểu khung: khung chừa đầu 52px cho thanh «⠿ Khung», thành phần chừa đầu 40px cho «⠿ tên» — không che nội dung */
+    "body.dash-sua .hx-tb-khung{position:relative;padding-top:52px!important;outline:2px dashed color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:-4px}",
+    "body.dash-sua #modal.hx-ben .hx-tb-khung[data-trong]{display:grid;min-height:140px}",
+    "body.dash-sua .hx-tb-tp{position:relative;padding-top:40px;min-height:64px;outline:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}",
+    "body.dash-sua #modal.hx-ben .hx-tb-tp[data-tb-an]{display:block;opacity:.4}",
+    ".dash-tb-k{top:8px!important;left:8px;right:auto!important}.dash-tb-p{top:0!important;left:0;right:auto!important}",
+    ".dash-tb-dangkeo{opacity:.45}.dash-cho-truoc{box-shadow:inset 4px 0 0 var(--accent),inset 0 4px 0 var(--accent)!important}.dash-cho-sau{box-shadow:inset -4px 0 0 var(--accent),inset 0 -4px 0 var(--accent)!important}",
+    ".dash-tb-bong{position:fixed;z-index:200;pointer-events:none;padding:4px 10px;border-radius:6px;background:var(--accent);color:var(--accent-text,#fff);font-size:12px;box-shadow:0 6px 16px rgba(0,0,0,.18)}"
   ].join("\n"); document.head.appendChild(css);
 
   /* ---------- trạng thái ---------- */
   function chup() { LUI.push(JSON.stringify(CFG)); if (LUI.length > 80) LUI.shift(); TOI = []; }
-  function doi() { window.DASH_BOCUC = CFG; if (window.DASH_AP) window.DASH_AP.apDung(); veBang(); veKhoi(); luuSau(); }
+  function doi() { window.DASH_BOCUC = CFG; if (window.DASH_AP) window.DASH_AP.apDung(); if (window.hxTB) window.hxTB.ap(); veBang(); veKhoi(); luuSau(); }
   function luuSau() { trangThai("Đang lưu…"); clearTimeout(hLuu); hLuu = setTimeout(luu, 700); }
   function luu() {
     if (!MAY_CHU) { trangThai("Máy chủ QC không trả lời — CHƯA lưu"); return; }
-    fetch(API + "bocuc", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tab: CFG.tab, khoi: CFG.khoi }) })
+    fetch(API + "bocuc", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tab: CFG.tab, khoi: CFG.khoi, thanhBen: CFG.thanhBen || {} }) })
       .then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.loi); CFG.ver = j.ver; trangThai("Đã lưu bản QC v" + j.ver + " · " + new Date().toTimeString().slice(0, 5)); })
       .catch(function (e) { trangThai("Lỗi lưu: " + e.message); });
   }
@@ -104,7 +112,7 @@
   function themTab() { chup(); var k = "moi:" + Date.now().toString(36); CFG.tab.push({ k: k, ten: "Tab mới", nhom: "", moi: true }); doi(); }
 
   /* ---------- KHỐI theo VÙNG (13/10 chiều: chỉnh cả pop-up + mục BÊN TRONG khối — «Vào trong» / «Ra ngoài») ---------- */
-  var TANG = [], GOC_CU = "";   // TANG = đường đi từ vùng gốc vào vùng con (id khối)
+  var TANG = [], GOC_CU = "", GOC_TB = false;   // TANG = đường đi từ vùng gốc vào vùng con (id khối)
   function vungHienTai() {
     var g = window.DASH_AP.vungGoc(); if (!g) return null;
     if (g.key !== GOC_CU) { GOC_CU = g.key; TANG = []; }   // đổi tab / mở-đóng pop-up → về vùng gốc
@@ -130,6 +138,7 @@
   function veKhoi() {
     $$(".dash-sua-ui").forEach(function (x) { x.remove(); }); $$(".dash-vung").forEach(function (x) { x.classList.remove("dash-vung"); });
     if (!BAT) return;
+    var tl = tbLuoi(); if (tl) { veTB(tl); return; }   // 17/10 thanh bên kiểu khung: chỉnh riêng (veTB)
     var v = vungHienTai(); veDuong(v); if (!v) return;
     v.el.classList.add("dash-vung");
     var tabs = v.laGocTab ? CFG.tab.filter(function (t) { return t.k !== v.key; }) : [];
@@ -197,6 +206,79 @@
     });
   }
 
+  /* ---------- THANH BÊN theo KHUNG (17/10 user «mục chỉnh sửa ở bản QC không kéo được các chi tiết khung nhỏ bên trong — rã tất cả thành phần để t tự di chuyển») ----------
+     Thanh bên có .hx-tb-luoi[data-tb] (Xác minh) thì chỉnh RIÊNG kiểu khung: kéo «⠿» thành phần thả vào BẤT KỲ khung nào (trước/sau thành phần khác, hoặc chỗ trống của khung),
+     kéo «⠿ Khung» đổi chỗ khung, kéo mép phải đổi rộng (12 cột — của thanh với khung, của khung với thành phần), Ẩn/Hiện, + Khung mới, Xoá khung trống, Về mặc định.
+     Lưu vào CFG.thanhBen[<khoá>] = {khung:[{id, rong, ds:[{id, rong, an}]}]}; hxTB.ap() (hasaki-xacminh.js) xếp lại tại chỗ. */
+  var TB_TEN_KHOA = { may: "Theo máy", tacvu: "Theo tác vụ" };
+  function tbLuoi() { var x = $("#modal.show .hx-tb-luoi[data-tb]"); return x && x.getBoundingClientRect().width ? x : null; }
+  function tbRong(el) { return Math.max(1, Math.min(12, parseInt(el.style.getPropertyValue("--tb-rong"), 10) || 12)); }
+  function tbDoc(luoi) {   // bố cục ĐANG HIỆN → cấu hình
+    return $$(".hx-tb-khung", luoi).filter(function (f) { return f.parentNode === luoi; }).map(function (f) {
+      return { id: f.dataset.tbk, rong: tbRong(f), ds: $$(".hx-tb-tp", f).map(function (x) { var b = { id: x.dataset.tp, rong: tbRong(x) }; if (x.hasAttribute("data-tb-an")) b.an = true; return b; }) };
+    });
+  }
+  function tbGhi(luoi, khung) { chup(); CFG.thanhBen = CFG.thanhBen || {}; CFG.thanhBen[luoi.dataset.tb] = { khung: khung }; doi(); }
+  function veTB(luoi) {
+    var k = luoi.dataset.tb, ten = (window.hxTB && window.hxTB.ten) || {}, d = $("#dashBang .dd");
+    if (d) d.innerHTML = '<span>Đang chỉnh: <b>Thanh bên · ' + esc(TB_TEN_KHOA[k] || k) + '</b></span><button data-a="tbmoi">+ Khung mới</button><button data-a="tbgoc" title="Bỏ bố cục riêng, về bố cục máy đặt sẵn">Về mặc định</button>';
+    luoi.classList.add("dash-vung");
+    $$(".hx-tb-khung", luoi).forEach(function (f, i) {
+      var trong = !$(".hx-tb-tp", f);
+      var tb = document.createElement("div"); tb.className = "dash-tbk dash-tb-k dash-sua-ui";
+      tb.innerHTML = '<button class="keo" data-a="keo" title="Giữ rồi kéo để đổi chỗ khung">⠿ Khung ' + (i + 1) + '</button><span class="ten">' + tbRong(f) + '/12 cột</span>' + (trong ? '<button data-a="xoa">Xoá khung</button>' : "");
+      var p = document.createElement("div"); p.className = "dash-mep p dash-sua-ui"; p.title = "Kéo để đổi bề rộng khung (12 cột của thanh)";
+      f.appendChild(tb); f.appendChild(p);
+      tb.addEventListener("click", function (e) { if (e.target.dataset.a !== "xoa") return; e.stopPropagation(); tbGhi(luoi, tbDoc(luoi).filter(function (x) { return x.id !== f.dataset.tbk; })); });
+      tbKeo(tb.querySelector(".keo"), f, luoi, "khung"); tbMep(p, f, luoi);
+    });
+    $$(".hx-tb-tp", luoi).forEach(function (x) {
+      var tb = document.createElement("div"); tb.className = "dash-tbk dash-tb-p dash-sua-ui";
+      tb.innerHTML = '<button class="keo" data-a="keo" title="Giữ rồi kéo sang chỗ khác — thả vào bất kỳ khung nào">⠿ ' + esc(ten[x.dataset.tp] || x.dataset.tp) + '</button><span class="ten">' + tbRong(x) + '/12</span>' +
+        '<button data-a="an">' + (x.hasAttribute("data-tb-an") ? "Hiện" : "Ẩn") + '</button>';
+      var p = document.createElement("div"); p.className = "dash-mep p dash-sua-ui"; p.title = "Kéo để đổi bề rộng trong khung (12 cột của khung)";
+      x.insertBefore(tb, x.firstChild); x.appendChild(p);
+      tb.addEventListener("click", function (e) { if (e.target.dataset.a !== "an") return; e.stopPropagation(); x.toggleAttribute("data-tb-an"); tbGhi(luoi, tbDoc(luoi)); });
+      tbKeo(tb.querySelector(".keo"), x, luoi, "tp"); tbMep(p, x, x.parentNode);
+    });
+  }
+  function tbKeo(tay, el, luoi, loai) {
+    tay.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); var dich = null, sau = false, vao = null;
+      var bong = document.createElement("div"); bong.className = "dash-tb-bong"; bong.textContent = tay.textContent; document.body.appendChild(bong);
+      el.classList.add("dash-tb-dangkeo");
+      var xoaCho = function () { $$(".dash-cho,.dash-cho-truoc,.dash-cho-sau").forEach(function (x) { x.classList.remove("dash-cho", "dash-cho-truoc", "dash-cho-sau"); }); };
+      function di(ev) {
+        bong.style.left = ev.clientX + 12 + "px"; bong.style.top = ev.clientY + 12 + "px"; xoaCho();
+        var t = document.elementFromPoint(ev.clientX, ev.clientY); dich = null; vao = null; if (!t || !t.closest || !luoi.contains(t)) return;
+        if (loai === "tp") {
+          var c = t.closest(".hx-tb-tp"), f = t.closest(".hx-tb-khung");
+          if (c && c !== el && !el.contains(c)) { dich = c; var r = c.getBoundingClientRect(), rf = c.parentNode.getBoundingClientRect();
+            sau = r.width >= rf.width * 0.8 ? ev.clientY > r.top + r.height / 2 : ev.clientX > r.left + r.width / 2; c.classList.add(sau ? "dash-cho-sau" : "dash-cho-truoc"); }
+          else if (f && !c) { vao = f; f.classList.add("dash-cho"); }   // chỗ trống của khung → thả vào cuối khung
+        } else {
+          var g = t.closest(".hx-tb-khung"); if (g && g !== el) { dich = g; var r2 = g.getBoundingClientRect(), rl = luoi.getBoundingClientRect();
+            sau = r2.width >= rl.width * 0.8 ? ev.clientY > r2.top + r2.height / 2 : ev.clientX > r2.left + r2.width / 2; g.classList.add(sau ? "dash-cho-sau" : "dash-cho-truoc"); }
+        }
+      }
+      function tha() {
+        document.removeEventListener("pointermove", di); document.removeEventListener("pointerup", tha); bong.remove(); el.classList.remove("dash-tb-dangkeo"); xoaCho();
+        if (dich) dich.parentNode.insertBefore(el, sau ? dich.nextSibling : dich); else if (vao) vao.appendChild(el); else return;
+        tbGhi(luoi, tbDoc(luoi));
+      }
+      document.addEventListener("pointermove", di); document.addEventListener("pointerup", tha);
+    });
+  }
+  function tbMep(m, el, cha) {   // đổi rộng theo 12 cột của phần tử cha (thanh với khung, khung với thành phần)
+    m.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); e.stopPropagation(); var luoi = el.closest(".hx-tb-luoi"), rc = cha.getBoundingClientRect(), r0 = el.getBoundingClientRect();
+      var cs = getComputedStyle(cha), trong = rc.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      function di(ev) { var cot = Math.max(1, Math.min(12, Math.round((ev.clientX - r0.left) / (trong / 12)))); el.style.setProperty("--tb-rong", cot); }
+      function tha() { document.removeEventListener("pointermove", di); document.removeEventListener("pointerup", tha); tbGhi(luoi, tbDoc(luoi)); }
+      document.addEventListener("pointermove", di); document.addEventListener("pointerup", tha);
+    });
+  }
+
   /* ---------- chốt phát hành ---------- */
   function chot() {
     if (!confirm("Chốt bố cục và phát hành?\nMáy sẽ chạy QC (đồng bộ antd · điều hướng · điện thoại) — ĐẠT hết mới đẩy lên link thật.")) return;
@@ -228,6 +310,9 @@
     b.addEventListener("click", function (e) { var a = e.target.dataset.a; if (!a) return; var tr = e.target.closest(".tr");
       if (tr) return hanhDongTab(+tr.dataset.i, a);
       if (a === "ra") { TANG.pop(); veKhoi(); return; }
+      if (a === "tbmoi" || a === "tbgoc") { var tl = tbLuoi(); if (!tl) return;
+        if (a === "tbgoc") { chup(); if (CFG.thanhBen) delete CFG.thanhBen[tl.dataset.tb]; doi(); return; }
+        var c = tbDoc(tl); c.push({ id: "k" + Date.now().toString(36), rong: 6, ds: [] }); tbGhi(tl, c); return; }
       if (a === "mtab") { var dt = $("#dashBang .dt"); dt.hidden = !dt.hidden; e.target.classList.toggle("on", !dt.hidden); e.target.setAttribute("aria-expanded", String(!dt.hidden)); return; }
       if (a === "xong") { $("#dashNut").click(); return; }
       if (a === "them") themTab(); else if (a === "lui") hoanTac(true); else if (a === "toi") hoanTac(false); else if (a === "chot") chot(); });
@@ -236,7 +321,7 @@
       if (e.ctrlKey && e.key.toLowerCase() === "z") { e.preventDefault(); hoanTac(true); } else if (e.ctrlKey && e.key.toLowerCase() === "y") { e.preventDefault(); hoanTac(false); } });
     /* đổi tab khi đang chỉnh → vẽ lại tay nắm khối + đánh dấu tab đang mở */
     var n = $("#sideNav"); if (n) n.addEventListener("click", function () { if (BAT) setTimeout(function () { veBang(); veKhoi(); }, 500); });
-    setInterval(function () { if (!BAT || !window.DASH_AP) return; var g = window.DASH_AP.vungGoc(); if (g && g.key !== GOC_CU) veKhoi(); }, 600);   // mở / đóng pop-up, đổi tab bằng cách khác
+    setInterval(function () { if (!BAT || !window.DASH_AP) return; var tl = tbLuoi(); if (tl ? !$(".dash-sua-ui", tl) : GOC_TB) { GOC_TB = !!tl; veKhoi(); return; } var g = window.DASH_AP.vungGoc(); if (g && g.key !== GOC_CU) veKhoi(); }, 600);   // thanh bên dựng lại (đổi lượt) → vẽ lại tay nắm   // mở / đóng pop-up, đổi tab bằng cách khác
     fetch(API + "ping").then(function (r) { return r.json(); }).then(function (j) { MAY_CHU = !!j.ok; trangThai("Bản QC v" + (j.ver || 0) + (j.chay ? " · đang chốt" : "")); if (j.chay) hoiChot(); })
       .catch(function () { trangThai("Máy chủ QC không trả lời — sẽ KHÔNG lưu"); });
   }

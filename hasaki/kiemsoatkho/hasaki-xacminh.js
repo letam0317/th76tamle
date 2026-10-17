@@ -201,6 +201,15 @@
         "#modal.hx-ben #qdMsg{min-height:0;margin-top:-4px}#modal.hx-ben #qdMsg:empty{display:none}" +
         "#modal.hx-ben .hx-qd-ben>#qdLuu+#qdMsg:empty+*,#modal.hx-ben .hx-qd-ben>#qdLuu+#qdMsg:not(:empty)+*{border-top:1px solid var(--ad-chia,var(--border));padding-top:16px}" +
         "#modal.hx-ben .hx-qd-tt{font-weight:400;border-radius:8px}" +
+      /* 17/10 bố cục thanh bên theo KHUNG (tbAp): lưới 12 cột khung, vạch ngăn giữa khung; trong khung lưới 12 cột thành phần */
+      "#modal.hx-ben .hx-tb-luoi{display:grid!important;grid-template-columns:repeat(12,minmax(0,1fr));gap:0;padding:0!important;align-items:stretch}" +
+        "#modal.hx-ben .hx-tb-khung{grid-column:span var(--tb-rong,12);min-width:0;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px 12px;align-content:start;align-items:start;padding:16px 24px}" +
+        "#modal.hx-ben .hx-tb-khung.tb-trai{border-left:1px solid var(--ad-chia,var(--border))}#modal.hx-ben .hx-tb-khung.tb-tren{border-top:1px solid var(--ad-chia,var(--border))}#modal.hx-ben .hx-tb-khung[data-trong]{display:none}" +
+        "#modal.hx-ben .hx-tb-tp{grid-column:span var(--tb-rong,12);min-width:0}#modal.hx-ben .hx-tb-tp:empty,#modal.hx-ben .hx-tb-tp[data-tb-an]{display:none}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-anh{margin:0}#modal.hx-ben .hx-tb-luoi .hx-qd-nguoi{padding:0}#modal.hx-ben .hx-tb-luoi .hx-xdau{margin:0!important}#modal.hx-ben .hx-tb-luoi .hx-mocs{flex-wrap:wrap;overflow:visible;margin:0!important;padding:0}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-tb-mt{display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px;align-items:baseline}#modal.hx-ben .hx-tb-luoi .hx-tb-mt>.lbl{margin:0}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-nguoi>.lbl{font-size:14px!important;font-weight:600;color:var(--text);margin-bottom:8px}#modal.hx-ben .hx-tb-luoi .hx-st{margin:0}" +
+        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-tb-khung,#modal.hx-ben .hx-tb-luoi .hx-tb-tp{grid-column:1/-1}#modal.hx-ben .hx-tb-khung{padding:12px 16px}}" +
       /* 1 cột (thanh hẹp / điện thoại): bỏ vỏ cột, xếp video → ảnh ghi nhận → quyết định → ai tác động */
       "@container (max-width:820px){#modal.hx-ben .hx-qd{display:flex;flex-direction:column}#modal.hx-ben .hx-cot{display:contents}" +
         "#modal.hx-ben .hx-qd-xem{order:1}#modal.hx-ben .hx-qd-anh{order:2}#modal.hx-ben .hx-qd-ben{order:3;grid-template-columns:minmax(0,1fr)}#modal.hx-ben .hx-qd-ls{order:4}" +
@@ -486,39 +495,37 @@
     var goiYChu = gy ? '<b>' + e_(gy.ten) + '</b> <span class="muted">' + e_(gy.code) + ' · vào cổng ' + hm(gy.gio) + '</span>'
       : '<b>' + ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") : "Chưa có ứng viên") + '</b>';
     var dn = (l.doanNguoi || []).map(function (d) { return [giay(d[0]), giay(d[1])]; });
-    /* 16/10 (7) bố cục thanh bên ĐỒNG BỘ Theo tác vụ: TRÁI = clip (khung camera) → dải thời gian → hàng điều khiển → mốc, dưới là Quyết định
-       (Sẽ ghi nhận · nút quyết · trạng thái) + Lỗi / Máy gợi ý; PHẢI = Ảnh ghi nhận (cao bằng khung camera) + Người trong khung đỏ.
-       Ảnh ghi nhận lôi khỏi thanh nguồn ⇒ chỉ còn 1 nguồn (clip) nên bỏ cả cụm nút nguồn. */
-    var h = '<div class="hx-qd hx-qd-luot"><div class="hx-cot hx-cot-trai"><div class="hx-qd-xem"><div id="lvClip">' +
-      '<div class="hx-vwrap" data-khung><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div>' +
-      '<div class="hx-tl" id="hxTl"></div>' +
-      '<div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
-        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div>' +
-      ((l.buocAnh || []).length ? '<div class="hx-mocs">' + l.buocAnh.map(function (b, i) { var p2 = String(b.nhan || "").split(" · "), nh = p2[0].charAt(0) + p2[0].slice(1).toLowerCase();
-        return '<button class="' + (b.doNguoi ? "ng" : "") + '" data-b="' + i + '" title="' + e_(b.nhan) + '">' + e_(nh) + (p2[1] ? ' <b>' + e_(p2[1]) + '</b>' : "") + '</button>'; }).join("") + '</div>' : "") +
-      '</div></div>' +
-      '<div class="hx-qd-ben">' +
-      /* 14/10 user: khối Quyết định xuống DƯỚI thẻ người (chọn Là ai / Vi phạm gì xong mới bấm) — thẻ người nay ở cột phải, ngang hàng */
-      '<div class="hx-qd-o hx-qd-nut"><span class="lbl">Quyết định</span><div class="hx-act"><button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button>' +
-      '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
-      '<button data-qd="3"' + (khoa ? " disabled" : "") + '>Không rõ – bỏ qua</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") + '</div></div>' +
-      stLuot(l) +
-      '<div class="hx-qd-o hx-chia"><span class="lbl">Lỗi</span><div class="hx-qd-loi" title="' + e_(loiCam(l)) + '">' + e_(loiCam(l)) + '</div></div>' +
-      '<div class="hx-qd-o"><span class="lbl">Máy gợi ý</span><div>' + goiYChu + '</div></div>' +
-      '</div></div>' +
-      '<div class="hx-cot hx-cot-phai"><div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" loading="lazy" decoding="async"></div>' +
-      '<div class="hx-qd-ls hx-qd-nguoi"><div class="hx-qd-o"><span class="lbl">Người trong khung đỏ · ' + (soNg ? soNg + " người nghi" : "có cử động") + '</span>' +
-      '<div class="hx-hoi">' + (PL ? "Người trong khung đỏ có bỏ rác sai bao / đổ cả xe không tách màng co không?" : "Người trong khung đỏ có phải NV Hasaki (chính thức / part-time) gửi xe sai bãi không?") + '</div>' +
-      /* «Sẽ ghi nhận» đầu vùng cuộn thẻ người (cột phải): 4–5 người nghi thì khối này cao ~450px — phải cuộn cùng thẻ, không đẩy dài cả thanh */
-      '<div class="hx-ds-ng"><div class="hx-chot" id="hxChot"></div>' + EV.ng.map(function (n) { return '<div class="hx-ng' + (n.khong ? " khong" : "") + '" data-so="' + n.so + '">' +
+    /* 17/10 user «rã tất cả thành phần/khung ở thanh bên phải để t tự di chuyển ở bản QC»: mỗi thành phần 1 khối rời [data-tp],
+       hxTB.ap() xếp vào các KHUNG theo bố cục (DASH_BOCUC.thanhBen.may — bộ Chỉnh bố cục ghi; chưa có thì TB_MAC).
+       Mặc định: hàng trên = clip + Ảnh ghi nhận; DƯỚI cả hàng clip = 2 khung chia đôi thanh: điều khiển/mốc/Quyết định/Lỗi/Gợi ý | Người trong khung đỏ. */
+    var tp = function (id, noi) { return '<div class="hx-tb-tp" data-tp="' + id + '">' + noi + '</div>'; };
+    var h = '<div class="hx-qd hx-qd-luot hx-tb-luoi" data-tb="may">' +
+      tp("clip", '<div id="lvClip"><div class="hx-vwrap" data-khung><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div>' +
+        '<div class="hx-tl" id="hxTl"></div></div>') +
+      tp("anh", '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" loading="lazy" decoding="async"></div>') +
+      tp("dieukhien", '<div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
+        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div>') +
+      ((l.buocAnh || []).length ? tp("moc", '<div class="hx-mocs">' + l.buocAnh.map(function (b, i) { var p2 = String(b.nhan || "").split(" · "), nh = p2[0].charAt(0) + p2[0].slice(1).toLowerCase();
+        return '<button class="' + (b.doNguoi ? "ng" : "") + '" data-b="' + i + '" title="' + e_(b.nhan) + '">' + e_(nh) + (p2[1] ? ' <b>' + e_(p2[1]) + '</b>' : "") + '</button>'; }).join("") + '</div>') : "") +
+      tp("quyetdinh", '<div class="hx-qd-o hx-qd-nut"><span class="lbl">Quyết định</span><div class="hx-act"><button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button>' +
+        '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
+        '<button data-qd="3"' + (khoa ? " disabled" : "") + '>Không rõ – bỏ qua</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") + '</div></div>') +
+      tp("trangthai", stLuot(l)) +
+      tp("loi", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Lỗi</span><div class="hx-qd-loi" title="' + e_(loiCam(l)) + '">' + e_(loiCam(l)) + '</div></div>') +
+      tp("goiy", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Máy gợi ý</span><div>' + goiYChu + '</div></div>') +
+      tp("cauhoi", '<div class="hx-qd-o hx-qd-nguoi"><span class="lbl">Người trong khung đỏ · ' + (soNg ? soNg + " người nghi" : "có cử động") + '</span>' +
+        '<div class="hx-hoi">' + (PL ? "Người trong khung đỏ có bỏ rác sai bao / đổ cả xe không tách màng co không?" : "Người trong khung đỏ có phải NV Hasaki (chính thức / part-time) gửi xe sai bãi không?") + '</div></div>') +
+      /* «Sẽ ghi nhận» đầu vùng cuộn thẻ người: 4–5 người nghi thì khối này cao ~450px — cuộn riêng (lapCotPhai), không đẩy dài cả thanh */
+      tp("dsnguoi", '<div class="hx-qd-nguoi"><div class="hx-ds-ng"><div class="hx-chot" id="hxChot"></div>' + EV.ng.map(function (n) { return '<div class="hx-ng' + (n.khong ? " khong" : "") + '" data-so="' + n.so + '">' +
         '<div class="hx-crop" style="' + cropStyle(n.anh, n.hop) + '" data-zoom="' + n.so + '" title="Bấm xem ảnh to"></div><div style="min-width:0">' +
         '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span></div>' +
         '<label class="hx-f"><span class="lbl">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="Chọn ứng viên hoặc gõ tên / mã NV" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '><div class="menu"></div></div></label>' +
         '<label class="hx-f"><span class="lbl">Vi phạm gì (QUY-ĐỊNH)</span><div class="hx-cb"><textarea rows="2" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Gõ để tìm hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea><div class="menu"></div></div></label>' +
         /* 14/10 user «ẩn»: ô «Ở đâu» lặp tiêu đề → bỏ (máy vẫn ghi chỗ theo camera lên phiếu) · ô tích chỉ khi ≥2 người (1 người thì trùng nút «Không phải NV Hasaki») */
         (EV.ng.length >= 2 ? '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label>' : "") +
-        '</div></div>'; }).join("") + '</div></div></div></div></div>';
+        '</div></div>'; }).join("") + '</div></div>') + '</div>';
     $id("mBody").innerHTML = h;
+    tbAp();
     ganGhiChu("luot", String(l.id), tenLoai(l.loai) + " · " + l.camera + " · " + (nd.length === 3 ? nd[2] + "/" + nd[1] + "/" + nd[0] : l.ngay) + " " + gioL);
     var lvXem = function () {};   // 16/10 (7) ảnh ghi nhận đứng riêng ở cột phải — không còn đổi qua lại clip/ảnh
     $id("lvAnhGN").onclick = function () { openLB([{ url: anhNguoi(l), title: "Ảnh ghi nhận", sub: l.camera }], 0); };
@@ -803,7 +810,7 @@
   /* 16/10 (6)(7) cột phải: phần DỮ LIỆU dưới ảnh (Ai tác động · Người trong khung đỏ) cuộn RIÊNG, cao vừa chỗ còn lại tới đáy thanh —
      không bắt cuộn cả thanh. «Ai tác động» tối đa 5 dòng (đo thật, đo 2 lần vì thanh cuộn làm dòng hẹp lại). Xếp chồng (hẹp/điện thoại) thì để tự nhiên. */
   function lapCotPhai() { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng"); if (!C) return;
-    var cot = C.closest(".hx-cot-phai"), haiCot = cot && getComputedStyle(cot).display !== "contents";
+    var cot = C.closest(".hx-cot-phai"), kh = C.closest(".hx-tb-khung"), haiCot = kh ? kh.getBoundingClientRect().width < kh.parentNode.getBoundingClientRect().width - 20 : cot && getComputedStyle(cot).display !== "contents";   // 17/10 khung thanh bên: khung đứng cạnh khung khác = cuộn riêng
     for (var k = 0; k < 2; k++) { C.style.maxHeight = "";
       var c = C.children, nam = C.classList.contains("hx-lans") && c.length > 5 ? c[5].getBoundingClientRect().top - c[0].getBoundingClientRect().top : Infinity;
       var con = haiCot ? bx.getBoundingClientRect().bottom - C.getBoundingClientRect().top - 24 : Infinity;
@@ -817,6 +824,40 @@
     var dat = function () { var rk = k && !k.hidden ? k.getBoundingClientRect() : null, ra = a.getBoundingClientRect();
       a.style.height = rk && rk.height > 40 && ra.left >= rk.right - 1 ? Math.round(rk.height) + "px" : ""; a.classList.toggle("khoa", !!a.style.height); lapCotPhai(); };
     dat(); if (k && window.ResizeObserver) { M0._roAnh = new ResizeObserver(dat); M0._roAnh.observe(k); M0._roAnh.observe(a.parentNode); } }
+  /* 17/10 BỐ CỤC THANH BÊN theo khung (user «rã tất cả thành phần/khung ở thanh bên phải để t tự di chuyển ở bản QC»):
+     thanh = lưới 12 cột các KHUNG (vạch ngăn giữa khung), mỗi khung = lưới 12 cột các THÀNH PHẦN [data-tp].
+     Bố cục = DASH_BOCUC.thanhBen[<khoá>].khung = [{id, rong, ds:[{id, rong, an}]}] — bộ Chỉnh bố cục (dash-bocuc-sua.js, chỉ bản QC) ghi.
+     Thành phần chưa có trong bố cục (thêm về sau) rơi vào khung cuối; khung không còn thành phần nào thì ẩn (bản chỉnh vẫn hiện để thả vào). */
+  var TB_MAC = { may: [{ id: "k1", rong: 12, ds: [{ id: "clip", rong: 8 }, { id: "anh", rong: 4 }] },
+    { id: "k2", rong: 6, ds: [{ id: "dieukhien" }, { id: "moc" }, { id: "quyetdinh" }, { id: "trangthai" }, { id: "loi" }, { id: "goiy" }] },
+    { id: "k3", rong: 6, ds: [{ id: "cauhoi" }, { id: "dsnguoi" }] }] };
+  var TB_TEN = { clip: "Clip camera", anh: "Ảnh ghi nhận", dieukhien: "Điều khiển clip", moc: "Mốc thời gian", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu",
+    loi: "Lỗi", goiy: "Máy gợi ý", cauhoi: "Câu hỏi người trong khung đỏ", dsnguoi: "Sẽ ghi nhận + thẻ người" };
+  var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
+  function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
+  function tbAp(luoi) {
+    luoi = luoi || ($id("mBody") && $id("mBody").querySelector(".hx-tb-luoi")); if (!luoi) return;
+    var tps = {}, dung = {}, khung = [];
+    luoi.querySelectorAll(".hx-tb-tp").forEach(function (x) { tps[x.dataset.tp] = x; });
+    var cu = [].slice.call(luoi.children).filter(function (x) { return x.classList.contains("hx-tb-khung"); });
+    tbCfg(luoi.dataset.tb).forEach(function (kh) {
+      var f = document.createElement("div"); f.className = "hx-tb-khung"; f.dataset.tbk = kh.id || ("k" + khung.length); f.style.setProperty("--tb-rong", tbCot(kh.rong));
+      (kh.ds || []).forEach(function (b) { var x = tps[b.id]; if (!x || dung[b.id]) return; dung[b.id] = 1; x.style.setProperty("--tb-rong", tbCot(b.rong)); x.toggleAttribute("data-tb-an", !!b.an); f.appendChild(x); });
+      khung.push(f);
+    });
+    if (!khung.length) { var f0 = document.createElement("div"); f0.className = "hx-tb-khung"; f0.dataset.tbk = "k1"; khung.push(f0); }
+    Object.keys(tps).forEach(function (id) { if (dung[id]) return; var x = tps[id]; x.style.setProperty("--tb-rong", 12); x.removeAttribute("data-tb-an"); khung[khung.length - 1].appendChild(x); });
+    khung.forEach(function (f) { f.toggleAttribute("data-trong", ![].slice.call(f.children).some(function (x) { return x.classList.contains("hx-tb-tp") && !x.hasAttribute("data-tb-an") && x.childElementCount; })); luoi.appendChild(f); });
+    cu.forEach(function (x) { x.remove(); });
+    tbVach(luoi);
+    var M0 = $id("modal"); if (M0._roTb) M0._roTb.disconnect(); if (window.ResizeObserver) { M0._roTb = new ResizeObserver(function () { tbVach(luoi); }); M0._roTb.observe(luoi); }
+  }
+  function tbVach(luoi) {   // vạch ngăn: khung không đứng đầu hàng có vạch trái, khung không ở hàng đầu có vạch trên (đo thật vị trí, không đoán theo số cột)
+    var r0 = luoi.getBoundingClientRect();
+    [].slice.call(luoi.children).forEach(function (f) { if (!f.classList.contains("hx-tb-khung")) return; var r = f.getBoundingClientRect(); if (!r.width) return;
+      f.classList.toggle("tb-trai", r.left > r0.left + 4); f.classList.toggle("tb-tren", r.top > r0.top + 4); });
+  }
+  window.hxTB = { ap: function () { tbAp(); lapCotPhai(); }, ten: TB_TEN, mac: TB_MAC };
   function boThanhBen() { if (window.hskThanhBen) hskThanhBen.boc(); }
   /* ---- dùng chung cho Theo phiếu + Máy tự bắt ---- */
   var COT_CHUNG = '<th class="c-o">Ở đâu · lúc</th><th class="c-loi">Lỗi</th><th class="c-bc">Bằng chứng</th><th class="c-ai">Máy gợi ý là ai</th><th class="c-viec">Việc tiếp theo</th>';

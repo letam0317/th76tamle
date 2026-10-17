@@ -180,17 +180,22 @@ for (const m of MAY) {
     if (!m.mob) {
       /* 16/10 (8) user: Theo máy ảnh camera ngang → khối ảnh vừa khít tấm ảnh (không dải xám), «Người trong khung đỏ» sát ngay dưới; điều khiển + mốc 1 hàng; nút quyết cỡ theo chữ */
       const m6 = await p.evaluate(() => { const a = document.querySelector("#mBody .hx-qd-anh"), im = document.getElementById("lvAnhGN"), ng = document.querySelector("#mBody .hx-qd-nguoi .lbl");
-        const ra = a.getBoundingClientRect(), ri = im.getBoundingClientRect(), xd = document.querySelector("#lvClip>.hx-xdau"), mc = document.querySelector("#lvClip>.hx-mocs");
+        const ra = a.getBoundingClientRect(), ri = im.getBoundingClientRect(), xd = document.querySelector("#mBody .hx-xdau"), mc = document.querySelector("#mBody .hx-mocs");
         const nut = [...document.querySelectorAll("#mBody .hx-act button")].map((b) => b.getBoundingClientRect());
         return { xam: Math.round(ra.height - ri.height), cach: Math.round(ng.getBoundingClientRect().top - ra.bottom), motHang: !mc || Math.abs(xd.getBoundingClientRect().top - mc.getBoundingClientRect().top) <= 6 || mc.scrollWidth <= mc.clientWidth + 1, mocCat: mc ? mc.scrollWidth - mc.clientWidth : 0,
           nutRong: Math.round(Math.max(...nut.map((r) => r.width))), nutHang: new Set(nut.map((r) => Math.round(r.top))).size }; });
-      ok(b1.anh && b1.anh.t <= b1.khung.t + 2 && m6.xam <= 2 && m6.cach <= 16, m.ten + ": M6 ảnh ghi nhận cùng mép trên clip, vừa khít ảnh, mục người sát dưới " + JSON.stringify(m6));
+      ok(b1.anh && Math.abs(b1.anh.t - b1.khung.t) <= 2 && m6.xam <= 2, m.ten + ": M6 ảnh ghi nhận cùng mép trên clip, vừa khít ảnh " + JSON.stringify(m6));
       /* 16/10 (10) user «kích thước camera lệch so với thanh thời gian»: video và dải thời gian phải cùng mép trái/phải */
       const m13 = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap").getBoundingClientRect(), t = document.getElementById("hxTl").getBoundingClientRect(); return [Math.round(v.left - t.left), Math.round(v.right - t.right)]; });
       ok(Math.abs(m13[0]) <= 1 && Math.abs(m13[1]) <= 1, m.ten + ": M13 clip thẳng mép với dải thời gian " + JSON.stringify(m13));
-      ok(m6.motHang && m6.mocCat <= 1 && m6.nutRong <= 260 && m6.nutHang <= 2, m.ten + ": M12 điều khiển + mốc 1 hàng, nút quyết cỡ theo chữ " + JSON.stringify(m6));
-      ok(b1.ben && Math.abs(b1.ben.l - b1.xem.l) <= 2 && b1.ben.t >= b1.xem.b - 1, m.ten + ": M7 Quyết định dưới clip, cột trái");
-      ok(b1.ls && b1.ls.l >= b1.xem.r - 1 && b1.ls.t >= b1.anh.b - 1, m.ten + ": M8 Người trong khung đỏ ở cột phải, dưới ảnh");
+      ok(m6.mocCat <= 1 && m6.nutRong <= 260 && m6.nutHang <= 2, m.ten + ": M12 mốc không bị cắt, nút quyết cỡ theo chữ " + JSON.stringify(m6));
+      /* 17/10 user: «Người trong khung đỏ» và cụm điều khiển/Quyết định/Lỗi/Gợi ý = 2 KHUNG ngang hàng, vạch ngăn ở GIỮA thanh, nằm DƯỚI cả hàng clip (không phải ngay dưới clip) */
+      const m7 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), L = R(document.querySelector("#mBody .hx-tb-luoi")), cl = R(document.querySelector("#mBody [data-khung]")), an = R(document.querySelector("#mBody .hx-qd-anh"));
+        const qd = document.querySelector("#mBody .hx-qd-nut"), ng = document.querySelector("#mBody .hx-qd-nguoi>.lbl"); if (!L || !qd || !ng) return null;
+        const kq = R(qd.closest(".hx-tb-khung")), kn = R(ng.closest(".hx-tb-khung")), day = Math.max(cl.bottom, an.bottom), giua = L.left + L.width / 2;
+        return { duoiHang: Math.round(Math.min(kq.top, kn.top) - day), ngang: Math.round(Math.abs(kq.top - kn.top)), trai: Math.round(R(qd).right - giua), phai: Math.round(R(ng).left - giua), vach: Math.round(kn.left - giua), khac: qd.closest(".hx-tb-khung") !== ng.closest(".hx-tb-khung") }; });
+      ok(m7 && m7.khac && m7.duoiHang >= 0 && m7.trai <= 0, m.ten + ": M7 Quyết định ở khung trái, dưới cả hàng clip " + JSON.stringify(m7));
+      ok(m7 && m7.ngang <= 2 && m7.phai >= 0 && Math.abs(m7.vach) <= 2, m.ten + ": M8 Người trong khung đỏ ở khung phải ngang hàng, vạch ngăn giữa thanh " + JSON.stringify(m7));
       ok(!b1.nguon.length, m.ten + ": M9 không còn cụm nút nguồn (ảnh đã đứng riêng)");
       const d2 = await dL(lids[1]); const trung = await p.evaluate((x, y, id) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest('[data-lid="' + id + '"]')); }, d2.x, d2.y, lids[1]);
       ok(trung, m.ten + ": M2 điểm bấm sự việc 2 không bị che");
