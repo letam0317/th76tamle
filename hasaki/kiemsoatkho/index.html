@@ -97,7 +97,7 @@ html[data-embed="1"] nav.tabs{display:none !important;}
 html[data-embed="1"] .cty-switch{display:none !important;}
 html[data-embed="1"] .brand-title{display:none !important;}
 html[data-embed="1"] #dataFresh{display:none !important;}
-html[data-embed="1"] #btnGhiNhan,html[data-embed="1"] #btnNghiemThu{display:none !important;}   /* #btnNghiemThu: NÚT TẠM 14/10 */
+html[data-embed="1"] #btnGhiNhan{display:none !important;}
 html[data-embed="1"] header{min-height:0 !important;}
 html[data-embed="1"] .wrap{padding-top:14px;}
 /* ĐẠI PHẪU UI Factory: nền xám nhạt sạch (xoá nền vàng kem theo theme) + tab tầng-1 tối giản */
@@ -355,7 +355,7 @@ label{display:flex; flex-direction:column; gap:4px;}
   header>div:first-child{flex:1 1 auto; min-width:0; overflow:hidden;}
   .head-right{flex:0 0 auto; gap:6px;}                      /* nhóm nút KHÔNG co, không biến dạng */
   .head-right>*{flex-shrink:0;}
-  #btnGhiNhan,#btnNghiemThu{padding:8px 10px; font-size:12px; white-space:nowrap;}   /* #btnNghiemThu: NÚT TẠM 14/10 */
+  #btnGhiNhan{padding:8px 10px; font-size:12px; white-space:nowrap;}
   #btnSettings{padding:8px 9px;}
   /* Tiêu đề thương hiệu: thu nhỏ, mỗi dòng dàn NGANG trọn vẹn — hết cảnh rơi từng chữ theo chiều dọc */
   .tt-wrap{gap:6px;}
@@ -1567,7 +1567,6 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);</script>
         <button class="cty-opt" data-cty="hasaki" role="tab"><span class="dot"></span>Hasaki</button>
       </div>
       <!-- (đã bỏ pill "Dữ liệu HH:MM": trùng lặp với timestamp trong menu Dữ liệu — Chỉ thị 1) -->
-      <button id="btnNghiemThu" class="an-hdr" type="button" title="Mở form nghiệm thu checklist kiểm kê (tab mới)">Nghiệm thu</button><!-- NÚT TẠM 14/10 nghiệm thu checklist — user yêu cầu thì xoá -->
       <button id="btnGhiNhan" title="Ghi nhận vi phạm 5S (cần PIN)">+ Ghi nhận 5S</button>
       <button id="hdrDangXuat" class="an-hdr" type="button" title="Đăng xuất tài khoản trên máy này">Đăng xuất</button>
       <div class="settings" id="settingsWrap">
@@ -3449,7 +3448,6 @@ function nutDauTrang(name){
   name=name||(document.querySelector('.tab.active')||{dataset:{}}).dataset.tab;
   const g=$('btnGhiNhan'), d=$('hdrDangXuat');
   if(g) g.classList.toggle('an-hdr', name!=='home');
-  const nt=$('btnNghiemThu'); if(nt) nt.classList.toggle('an-hdr', name!=='home');   // NÚT TẠM 14/10 nghiệm thu checklist (user duyệt 14/10)
   if(d) d.classList.toggle('an-hdr', !(name==='xacminh' && document.body.dataset.hxPhien==='1'));
 }
 window.nutDauTrang=nutDauTrang;
@@ -4244,7 +4242,6 @@ $('hmTim').addEventListener('input',renderQuyDinh);
   [0,800,2500].forEach(ms=>setTimeout(quet,ms)); window.addEventListener('pageshow',()=>setTimeout(quet,300));
 })();
 $('btnGhiNhan').addEventListener('click',moGhiNhan);
-$('btnNghiemThu').addEventListener('click',function(){ window.open('nghiem-thu.html','_blank','noopener'); });   // NÚT TẠM 14/10 nghiệm thu checklist
 $('gmClose').addEventListener('click',dongGhiNhan);
 $('ghiModal').addEventListener('click',e=>{ if(e.target.id==='ghiModal') dongGhiNhan(); });
 $('hmmClose').addEventListener('click',dongHinhHangMuc);
