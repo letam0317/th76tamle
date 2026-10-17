@@ -1543,8 +1543,11 @@ function apiBridgeToken(duLieu) {
     var email = c.email || P.getProperty('BRIDGE_MAIL_' + c.sub) || '';
     var kU = 'BRIDGE_U_' + kind + '_' + c.sub.replace(/[^0-9A-Za-z_-]/g, '').slice(0, 40);
     var u = null; try { u = JSON.parse(P.getProperty(kU) || 'null'); } catch (e) { u = null; }
-    if (!u || u.tk !== tk || now - Number(u.at || 0) >= 30 * 1000) {
-      P.setProperty(kU, JSON.stringify({ tk: tk, at: now, exp: exp, email: email, sub: c.sub }));
+    // 17/10: extension 1.6.5 kèm may (tên máy trạm, policy ghim-bridge.ps1; laptop = '') + trình duyệt → bảng Máy trạm ghi phiên vào đúng thẻ máy
+    var may = String(duLieu.may || '').replace(/[^0-9A-Za-z_.-]/g, '').slice(0, 60);
+    var tdu = String(duLieu.trinhDuyet || '').replace(/[^A-Za-z]/g, '').slice(0, 12);
+    if (!u || u.tk !== tk || now - Number(u.at || 0) >= 30 * 1000 || (u.may || '') !== may) {
+      P.setProperty(kU, JSON.stringify({ tk: tk, at: now, exp: exp, email: email, sub: c.sub, may: may, td: tdu }));
       var ds = []; try { ds = JSON.parse(P.getProperty('BRIDGE_U_DS') || '[]'); } catch (e) { ds = []; }
       if (ds.indexOf(kU) < 0) {
         ds.push(kU);
@@ -1609,7 +1612,7 @@ function bridgeDs_() {
     if (!u) continue;
     var kind = ds[i].replace(/^BRIDGE_U_/, '').replace(/_[^_]*$/, '');
     var laTam = bridgeLaTamlc_({ sub: u.sub, email: u.email });
-    out.push({ kind: kind, sub: u.sub || '', email: u.email || P.getProperty('BRIDGE_MAIL_' + u.sub) || (laTam ? BRIDGE_TAMLC_MAIL_ : ''), at: u.at, tuoi: bridgeTuoi_(Number(u.at || 0), Number(u.exp || 0), now), tamlc: bridgeLaTamlc_({ sub: u.sub, email: u.email }) });
+    out.push({ kind: kind, sub: u.sub || '', email: u.email || P.getProperty('BRIDGE_MAIL_' + u.sub) || (laTam ? BRIDGE_TAMLC_MAIL_ : ''), at: u.at, may: u.may || '', td: u.td || '', tuoi: bridgeTuoi_(Number(u.at || 0), Number(u.exp || 0), now), tamlc: bridgeLaTamlc_({ sub: u.sub, email: u.email }) });
   }
   out.sort(function (a, b) { return b.at - a.at; });
   return out;

@@ -265,6 +265,13 @@
       if (m.song && !m.duPhong && !("chayLuc" in m)) chuY.push("bản mã cũ, chưa nhận cập nhật");
       return kem.length ? { muc: "kem", chu: "Kém", ly: kem.concat(chuY) } : chuY.length ? { muc: "chu-y", chu: "Cần chú ý", ly: chuY } : { muc: "tot", chu: "Tốt", ly: [] };
     };
+    /* 17/10 user «ở máy nào thì điền vào máy đó luôn»: phiên bridge ghi vào đúng thẻ máy — extension 1.6.5 kèm tên máy (policy ghim-bridge.ps1); không có tên = laptop (ghim HKCU) */
+    var phienCua = function (m) { var g = {}, ds = [];
+      (MTD.bridge || []).forEach(function (b) { if (!(b.may ? b.may === m.may : m.duPhong)) return; var k = b.email || ("mã " + b.sub);
+        if (!g[k]) { g[k] = { k: k, ten: b.ten || "", td: b.td || "", kenh: [], at: 0, song: false }; ds.push(g[k]); }
+        g[k].kenh.push(b.kind === "wshr" ? "work/hr" : b.kind === "wms" ? "WMS" : b.kind); g[k].at = Math.max(g[k].at, b.at || 0); g[k].song = g[k].song || b.tuoi; });
+      return ds.filter(function (o) { return o.song; }).map(function (o) { return '<div class="mt-dg"><span>Phiên: <b>' + e_(o.ten || o.k) + "</b></span><small>" +
+        e_((o.ten ? o.k + " · " : "") + (o.td ? o.td + " · " : "") + o.kenh.join(" · ") + " · " + tuoiChu(Math.round((Date.now() - o.at) / 1000)) + " trước") + "</small></div>"; }).join(""); };
     var the = function (m) {
       /* 14/10 laptop = MÁY DỰ PHÒNG (bị «Dừng» trong điều phối nhưng vẫn chạy cò gốc khi PC chưa nhận — GAS PCPHU gộp vào dangChay/duPhong) */
       var lamThay = m.dung && m.duPhong && (m.dangChay || []).length > 0;
@@ -301,7 +308,7 @@
       var tip = (m.nhan || "?") + " nhân · " + (m.ramTongGB || "?") + " GB RAM · điểm " + (m.diem || 0) + (m.ban ? " · bản " + m.ban : "") + " · nhịp tim " + tuoiChu(m.tuoiGiay) +
         ((m.coKhoa || []).indexOf("TOPREVIEW_USER") < 0 ? " · không có khoá camera" : "") + (m.dung && m.lenhBoi ? " · dừng bởi " + tenBoi(m.lenhBoi) : "");
       return '<div class="mt-o' + (m.song ? "" : " cu") + (!m.song || (m.dung && !lamThay) ? " mo" : "") + '"><div class="mt-trai"><div class="mt-dau"><b title="' + e_(tip) + '">' + e_(m.may) + '</b><span class="hx-tag ' + tt[1] + '">' + tt[0] + "</span></div>" +
-        '<div class="mt-dg ' + dg.muc + '"><span>Sức khoẻ: <b>' + dg.chu + "</b></span>" + (dg.ly.length ? "<small>" + e_(dg.ly.join(" · ")) + "</small>" : "") + "</div>" +
+        '<div class="mt-dg ' + dg.muc + '"><span>Sức khoẻ: <b>' + dg.chu + "</b></span>" + (dg.ly.length ? "<small>" + e_(dg.ly.join(" · ")) + "</small>" : "") + "</div>" + phienCua(m) +
         '<div class="mt-sk"><div class="r2">' + dong("RAM", ramDung + "%", ramDung, mucDo(ramDung, 70, 85)) + dong("CPU", cpu + "%", cpu, mucDo(cpu, 70, 90)) + "</div>" +
         /* 14/10 user «ổ C ít quá, cần liệt kê thêm ổ mà máy trạm có»: mỗi ổ 1 dòng — thanh = phần ĐÃ DÙNG, số = còn trống. PC bản cũ (chưa gửi oDia) → ổ C như trước */
         ((m.oDia && m.oDia.length) ? '<div class="r2">' + m.oDia.map(function (x) { var dung = x.tong ? Math.round((x.tong - x.trong) / x.tong * 100) : 0;
@@ -348,10 +355,10 @@
     /* 16/10 user «nên biết được bridge từ mail nào»: mỗi người 1 dòng (gộp kênh — luật không lặp). tamlc = ghi được; người khác = máy trạm chỉ mượn để ĐỌC. */
     var br = {}, brDs = [];
     (MTD.bridge || []).forEach(function (b) { var k = b.email || ("mã " + b.sub); if (!br[k]) { br[k] = { email: k, ten: b.ten || "", tamlc: b.tamlc, kenh: [], at: 0, song: false }; brDs.push(br[k]); }
-      var o = br[k]; o.kenh.push({ ten: b.kind === "wshr" ? "work/hr" : b.kind === "wms" ? "WMS" : b.kind, song: b.tuoi }); o.at = Math.max(o.at, b.at || 0); o.song = o.song || b.tuoi; });
-    if (brDs.length) h += '<div class="panel"><div class="panel-head"><span>Phiên bridge (từ Edge có cầu nối)</span><span>' + brDs.filter(function (o) { return o.song; }).length + " đang sống</span></div>" +
+      var o = br[k]; var nm = (b.may || "laptop") + (b.td ? " (" + b.td + ")" : ""); (o.may = o.may || []).indexOf(nm) < 0 && o.may.push(nm); o.kenh.push({ ten: b.kind === "wshr" ? "work/hr" : b.kind === "wms" ? "WMS" : b.kind, song: b.tuoi }); o.at = Math.max(o.at, b.at || 0); o.song = o.song || b.tuoi; });
+    if (brDs.length) h += '<div class="panel"><div class="panel-head"><span>Phiên bridge (từ trình duyệt có cầu nối)</span><span>' + brDs.filter(function (o) { return o.song; }).length + " đang sống</span></div>" +
       brDs.map(function (o) { return '<div class="hx-mt-v"' + (o.song ? "" : ' style="opacity:.5"') + '><div class="ten"><b>' + e_(o.email) + "</b><small>" + (o.ten ? e_(o.ten) + " · " : "") +
-        o.kenh.map(function (k) { return e_(k.ten) + (k.song ? "" : " (hết)"); }).join(" · ") + " · đẩy lần cuối " + e_(tuoiChu(Math.round((Date.now() - o.at) / 1000))) + "</small></div>" +
+        e_(o.may.join(", ")) + " · " + o.kenh.map(function (k) { return e_(k.ten) + (k.song ? "" : " (hết)"); }).join(" · ") + " · đẩy lần cuối " + e_(tuoiChu(Math.round((Date.now() - o.at) / 1000))) + "</small></div>" +
         '<span class="hx-tag ' + (o.tamlc ? "good" : "info") + '">' + (o.tamlc ? "Ghi + đọc" : "Chỉ đọc") + "</span></div>"; }).join("") + "</div>";    if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
     PANE.innerHTML = h;
     var dx = document.getElementById("mtDangXuat");

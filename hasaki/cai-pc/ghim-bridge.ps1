@@ -25,20 +25,30 @@ function Ghim-Bridge([string]$kit) {
     if (-not (Test-Path $xmlF) -or (Get-Content $xmlF -Raw) -ne $xml) { [IO.File]::WriteAllText($xmlF, $xml, (New-Object Text.UTF8Encoding $false)) }
     # moi user (ke ca nguoi dang nhap thuong) doc duoc
     & icacls $dich /grant "*S-1-5-32-545:(OI)(CI)RX" /T /Q 2>&1 | Out-Null
-    $khoa = "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist"
-    # BAY (QC 16/10): New-Item -Force tren khoa registry DA CO = tao lai khoa, XOA SACH gia tri cu (extension khac bi go) -> chi tao khi chua co
-    if (-not (Test-Path $khoa)) { New-Item -Path $khoa -Force | Out-Null }
+    # 17/10 user "may QLIT dang nhap o Chrome": ghim CA Edge LAN Chrome (cung goi crx/update.xml) + ghi ten may vao policy 3rdparty
+    #   (extension 1.6.5 doc chrome.storage.managed.may, kem khi day phien -> bang May tram ghi phien vao dung the may).
     $giaTri = "$id;$url/update.xml"
-    $k = Get-Item -Path $khoa
-    $ten = $null; $max = 0
-    foreach ($n in $k.GetValueNames()) {
-      if ($n -notmatch '^\d+$') { continue }
-      if ([int]$n -gt $max) { $max = [int]$n }
-      if ([string]$k.GetValue($n) -like "$id;*") { $ten = $n }
+    $kq = @()
+    foreach ($td in @(@{ ten = "Edge"; goc = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; dl = "Microsoft\Edge" }, @{ ten = "Chrome"; goc = "HKLM:\SOFTWARE\Policies\Google\Chrome"; dl = "Google\Chrome" })) {
+      $khoa = "$($td.goc)\ExtensionInstallForcelist"
+      # BAY (QC 16/10): New-Item -Force tren khoa registry DA CO = tao lai khoa, XOA SACH gia tri cu (extension khac bi go) -> chi tao khi chua co
+      if (-not (Test-Path $khoa)) { New-Item -Path $khoa -Force | Out-Null }
+      $k = Get-Item -Path $khoa
+      $ten = $null; $max = 0
+      foreach ($n in $k.GetValueNames()) {
+        if ($n -notmatch '^\d+$') { continue }
+        if ([int]$n -gt $max) { $max = [int]$n }
+        if ([string]$k.GetValue($n) -like "$id;*") { $ten = $n }
+      }
+      $moi = -not ($ten -and [string]$k.GetValue($ten) -eq $giaTri)
+      if ($moi) { if (-not $ten) { $ten = [string]($max + 1) }; New-ItemProperty -Path $khoa -Name $ten -PropertyType String -Value $giaTri -Force | Out-Null }
+      $kp = "$($td.goc)\3rdparty\extensions\$id\policy"
+      foreach ($b in @("$($td.goc)\3rdparty", "$($td.goc)\3rdparty\extensions", "$($td.goc)\3rdparty\extensions\$id", $kp)) { if (-not (Test-Path $b)) { New-Item -Path $b | Out-Null } }
+      if ((Get-ItemProperty -Path $kp -Name may -ErrorAction SilentlyContinue).may -ne $env:COMPUTERNAME) { New-ItemProperty -Path $kp -Name may -PropertyType String -Value $env:COMPUTERNAME -Force | Out-Null }
+      # Da CAI THAT chua: dem ho so trinh duyet co thu muc Extensions\<id> (Chrome may khong vao mien co the CHAN goi ngoai cua hang)
+      $cai = @(Get-ChildItem "C:\Users\*\AppData\Local\$($td.dl)\User Data\*\Extensions\$id" -Directory -ErrorAction SilentlyContinue).Count
+      $kq += "$($td.ten) $(if($moi){'GHIM MOI'}else{'da ghim'}), cai $cai ho so"
     }
-    if ($ten -and [string]$k.GetValue($ten) -eq $giaTri) { return "bridge: da ghim $ver$(if($doi){' (goi moi)'})" }
-    if (-not $ten) { $ten = [string]($max + 1) }
-    New-ItemProperty -Path $khoa -Name $ten -PropertyType String -Value $giaTri -Force | Out-Null
-    return "bridge: GHIM MOI $ver (policy so $ten) - Edge tu cai khi mo lai"
+    return "bridge: $ver$(if($doi){' (goi moi)'}) - " + ($kq -join " | ")
   } catch { return "bridge: [X] $_" }
 }

@@ -42,7 +42,7 @@ try {
     }
   } catch { Ghi "[X] tu chua task loi: $_" }
   # 16/10 GHIM BRIDGE moi luot (idempotent, truoc buoc cho canary): PC cai truoc 16/10 tu co extension, khong cai lai tay
-  if (Test-Path "$kit\ghim-bridge.ps1") { try { . "$kit\ghim-bridge.ps1"; $gb = Ghim-Bridge $kit; if ($gb -notlike "bridge: da ghim*") { Ghi $gb } } catch { Ghi "[X] ghim bridge: $_" } }
+  if (Test-Path "$kit\ghim-bridge.ps1") { try { . "$kit\ghim-bridge.ps1"; $gb = Ghim-Bridge $kit; $gbF = "$kit\.ghim-bridge-gan.txt"; if (-not (Test-Path $gbF) -or (Get-Content $gbF -Raw).Trim() -ne $gb) { Ghi $gb; Set-Content $gbF $gb } } catch { Ghi "[X] ghim bridge: $_" } }
 
   $truoc = (& $GIT -C $gitDir rev-parse HEAD 2>$null)
   $lockTruoc = if (Test-Path "$duAn\package-lock.json") { (Get-FileHash "$duAn\package-lock.json").Hash } else { "" }
@@ -85,6 +85,8 @@ try {
   else {
     Ghi "cap nhat $($truoc.Substring(0,7)) -> $sha"
     $cfg = Get-Content "$kit\dieu-phoi.json" -Raw -Encoding UTF8 | ConvertFrom-Json   # doc lai ban moi
+    # 17/10: ghim bridge lai bang ban VUA KEO (goi crx/luat ghim moi co hieu luc ngay, khong cho them 1 luot 2h)
+    if (Test-Path "$kit\ghim-bridge.ps1") { try { . "$kit\ghim-bridge.ps1"; $gb = Ghim-Bridge $kit; $gbF = "$kit\.ghim-bridge-gan.txt"; if (-not (Test-Path $gbF) -or (Get-Content $gbF -Raw).Trim() -ne $gb) { Ghi $gb; Set-Content $gbF $gb } } catch { Ghi "[X] ghim bridge: $_" } }
     $lockSau = if (Test-Path "$duAn\package-lock.json") { (Get-FileHash "$duAn\package-lock.json").Hash } else { "" }
     $NPM = if (Test-Path "$duAn\.npm-exe") { (Get-Content "$duAn\.npm-exe" -Raw).Trim() } else { "npm" }   # 14/10: SYSTEM co the khong thay npm tren PATH
     if ($lockSau -ne $lockTruoc) { Ghi "lock doi -> npm install"; Push-Location $duAn; $env:PUPPETEER_SKIP_DOWNLOAD="true"; $env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"; & $NPM install --omit=dev --no-audit --no-fund --loglevel=error 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { Ghi "[X] npm install loi (ma $LASTEXITCODE)" }; Pop-Location }
