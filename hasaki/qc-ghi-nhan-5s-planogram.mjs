@@ -182,15 +182,17 @@ async function doDesktop(b){
       if (!o){ o = { code: pc.code, em: em, ten: pc.ten, d: {}, n: 0, vp: {}, ghi: [] }; S.ccn.em[em] = o; }
       if (!window.__qcVpCu) window.__qcVpCu = { vp: o.vp, ghi: o.ghi, coVp: S.ccn.coVp, em };
       const lui = (n) => { const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/); return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] - n)).toISOString().slice(0, 10); };
-      const vp = {}; for (let k = 1; k <= soLan; k++) vp[lui(k + 10)] = { so: 1, o: [l] };   // toàn ngày ĐÃ KHÉP
+      const vp = {}; for (let k = 1; k <= soLan; k++) vp[lui(k)] = { so: 1, o: [l] };   // toàn ngày ĐÃ KHÉP, sát ngày xem (17/10: cửa sổ 7 ngày)
       o.vp = vp; o.ghi = []; S.ccn.coVp = true;
       HPLANOGRAM.openViTri(l);
       const k = HPLANOGRAM._luyTien(pc, d, true);
-      return { n: k.n, phieu: k.soPhieu, le: k.duLai, ke: k.keNay };
+      return { n: k.n, phieu: k.soPhieu, le: k.duLai, ke: k.keNay, het: k.hetHan };
     }, { l: PL.A, soLan });
     let nut3 = null, du3 = null;
-    for (const soLan of [3, 6, 9]){
-      const k = await tiem(soLan);
+    /* 17/10 user: chỉ đếm trong 7 ngày — 9 lần rải 9 ngày liền ⇒ chỉ 6 lần còn hạn (2 phiếu), 3 lần cũ hết hạn */
+    for (const [soTiem, soLan] of [[3, 3], [6, 6], [9, 6]]){
+      const k = await tiem(soTiem);
+      if (soTiem !== soLan) ca("[A·tiêm " + soTiem + " lần / 9 ngày] cửa sổ 7 ngày: còn " + soLan + " lần, " + (soTiem - soLan) + " lần cũ HẾT HẠN", k.n === soLan && k.het === soTiem - soLan, JSON.stringify(k));
       await new Promise(r => setTimeout(r, 350));
       const nut = await docNut(page);
       const phieu = Math.floor(soLan / 3);
@@ -220,7 +222,7 @@ async function doDesktop(b){
       }
       return buoc;
     }, PL.A);
-    ca("[A] 9 lần → lập LIÊN TIẾP đúng 3 phiếu (−6%), hết thì dừng", tiep.length === 4 && tiep[0].phieu === 3 && tiep[1].phieu === 2 && tiep[2].phieu === 1 && tiep[3].phieu === 0 && tiep[3].n === 0, JSON.stringify(tiep.map(b => b.n + "→" + b.phieu)));
+    ca("[A] 6 lần trong 7 ngày → lập LIÊN TIẾP đúng 2 phiếu (−4%), hết thì dừng", tiep.length === 3 && tiep[0].phieu === 2 && tiep[1].phieu === 1 && tiep[2].phieu === 0 && tiep[2].n === 0, JSON.stringify(tiep.map(b => b.n + "→" + b.phieu)));
     await tiem(3); await new Promise(r => setTimeout(r, 350));   // về lại kịch bản 1 phiếu để chụp + PIN
     nut3 = await docNut(page);
     du3 = await page.evaluate(l => { const S = HPLANOGRAM._S; return HPLANOGRAM._soan5S(l, S.dDen || S.yc.ngay); }, PL.A);
@@ -231,6 +233,10 @@ async function doDesktop(b){
     const pin = await choDen(page, () => { const m = document.querySelector("#pinModal.show"); if (!m) return null; return { desc: document.getElementById("pinDesc").textContent, disabled: document.getElementById("hpVtGhi").disabled }; }, 40000, "chờ chụp + PIN");
     ca("[A] Bấm nút ⇒ chụp pop-up rồi hỏi PIN (không mở form trần)", !!pin, pin && pin.desc);
     ca("[A] Trong lúc hỏi PIN, nút tạm khoá", pin && pin.disabled === true);
+    /* 17/10 user: pop-up ô từng ĐÈ lên hộp PIN (giao diện antd hạ #pinModal về z 90) — ô mật khẩu phải là phần tử trên cùng */
+    const pinTren = await page.evaluate(() => { const i = document.getElementById("pinInput"); const r = i.getBoundingClientRect();
+      const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { ok: e === i || i.contains(e), z: getComputedStyle(document.getElementById("pinModal")).zIndex, zVt: getComputedStyle(document.getElementById("hpVtModal")).zIndex }; });
+    ca("[A] Hộp PIN nổi TRÊN pop-up ô (bấm gõ được ngay, không phải tắt pop-up ô)", pinTren.ok && +pinTren.z > +pinTren.zVt, JSON.stringify(pinTren));
     await page.evaluate(() => document.getElementById("pinCancel").click());
     const sauHuy = await choDen(page, (nhan) => !document.querySelector("#pinModal.show") && !document.getElementById("hpVtGhi").disabled && document.getElementById("hpVtGhi").textContent.trim() === nhan ? 1 : null, 5000, "chờ huỷ PIN", nut3.text);
     ca("[A] Huỷ PIN ⇒ đóng PIN, nút mở lại đúng nhãn, form không mở", !!sauHuy && !(await page.evaluate(() => !!document.querySelector("#ghiModal.show"))));

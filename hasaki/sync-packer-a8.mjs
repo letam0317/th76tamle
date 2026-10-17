@@ -30,7 +30,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
-import { layTokenSongWms, gasPost, gasPhucVuTab, hashTab, tabKhongDoi, luuHashTab, hamCacheTabs } from "./session-rules.js";
+import { layTokenSongWms, gasPost, gasPhucVuTab, hashTab, tabKhongDoi, luuHashTab, hamCacheTabs, docTabGas } from "./session-rules.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const TAB = "PACKER-A8-NGAY";
@@ -114,6 +114,23 @@ async function keoNgay(tk, iso) {
   let so = { days: {} };
   try { so = JSON.parse(fs.readFileSync(F_SO, "utf8")); } catch { /* lần đầu */ }
   const homNay = ngayVN();
+  /* NẠP BÙ TỪ TAB (17/10/2026): máy trạm mới nhận việc này có sổ cái rỗng → lượt đầu ghi ĐÈ tab chỉ còn 1-2 ngày, mất
+     cả cửa sổ 30 ngày (đo 17/10: tab chỉ còn 14/10→17/10; luật 3 ngày + pop-up ô A8 mất camera 11-13/10). Ngày nào sổ
+     cái không có mà tab có thì lấy từ tab (đã chốt nếu < hôm nay) — 1 lượt đọc GAS, 0 lượt WMS. */
+  try {
+    const tab = await docTabGas(TAB, () => {});
+    if (tab && tab.rows && tab.rows.length) {
+      const H = tab.header.map((h) => String(h).trim().toLowerCase()), c = (t) => H.indexOf(t);
+      const iNg = c("ngày"), iCam = c("camera"), iEm = c("email"), iDau = c("phiếu đầu"), iCuoi = c("phiếu cuối"), iSo = c("số phiếu");
+      const tuTab = {};
+      for (const r of tab.rows) {
+        const d = String(r[iNg]).slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || so.days[d]) continue;
+        (tuTab[d] || (tuTab[d] = [])).push([String(r[iCam]), String(r[iEm]).toLowerCase(), String(r[iDau] || ""), String(r[iCuoi] || ""), Number(r[iSo]) || 0]);
+      }
+      for (const d in tuTab) so.days[d] = { final: d < homNay, at: 0, rows: tuTab[d], tuTab: true };
+      if (Object.keys(tuTab).length) log(`  ↺ nạp bù ${Object.keys(tuTab).length} ngày từ tab ${TAB} (sổ cái máy này thiếu): ${Object.keys(tuTab).sort().join(", ")}`);
+    }
+  } catch (e) { log("  ⚠ không đọc được tab để nạp bù: " + e.message); }
 
   /* danh sách ngày cần kéo */
   const can = [];

@@ -12,11 +12,15 @@
  *  sổ máy .packer-a8-ngay.json. BẢN NÀY CHỈ LIỆT KÊ — không tạo task, không bình luận.
  *
  *  node luat-3-ngay.mjs            → in bảng + ghi .exports/luat-3-ngay-dien-tap.md
+ *  node luat-3-ngay.mjs --lam      → LẬP PHIẾU THẬT. Task «5S Luat 3 ngay» chạy mỗi sáng 09:45 (17/10/2026 —
+ *                                    user: "3 ngày liên tiếp đi làm không báo cáo sao chưa tự ghi nhận"; trước đó
+ *                                    script chỉ chạy tay 1 lần 29/09, chưa từng lên lịch).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { docTabGas } from "./session-rules.js";
+import { tenPhieu5S } from "./ten-phieu-5s.js";
 import { napNguonTruyVet } from "./truy-vet-vesinh.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -33,7 +37,25 @@ const CAMERA_BAN = (() => {
   const o = {}; for (const m of s.slice(i, j).matchAll(/"(F0-A8-[^"]+)":\s*"(camera_\d+)/g)) o[m[1]] = m[2];
   return o;
 })();
-const packer = (() => { try { return JSON.parse(fs.readFileSync(path.join(DIR, ".packer-a8-ngay.json"), "utf8")).days || {}; } catch { return {}; } })();
+/* 17/10: packer đọc TAB PACKER-A8-NGAY (máy trạm nào chạy sync-packer cũng ghi vào đó) — sổ máy .packer-a8-ngay.json
+   chỉ tươi trên máy đang chạy sync-packer; laptop nhường việc đó cho PC từ 14/10 nên sổ máy đứng ở 14/10 và luật
+   rớt oan xuống "phụ trách nghỉ" (ca F0-A8-510-05 15/10: camera có Huỳnh Như 221 phiếu). Tab lỗi → rơi về sổ máy. */
+const packer = await (async () => {
+  const tab = await docTabGas("PACKER-A8-NGAY", () => {}).catch(() => null);
+  if (tab && tab.rows && tab.rows.length) {
+    const H = tab.header, c = (t) => H.findIndex((h) => String(h).trim().toLowerCase() === t);
+    const iNg = c("ngày"), iCam = c("camera"), iEm = c("email"), iDau = c("phiếu đầu"), iCuoi = c("phiếu cuối"), iSo = c("số phiếu");
+    const days = {};
+    for (const r of tab.rows) {
+      const d = String(r[iNg]).slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+      (days[d] || (days[d] = { rows: [] })).rows.push([String(r[iCam]), String(r[iEm]), String(r[iDau] || ""), String(r[iCuoi] || ""), Number(r[iSo]) || 0]);
+    }
+    /* GỘP với sổ máy: tab có ngày nào thì tab thắng; ngày tab không có (17/10 đo: tab chỉ còn từ 14/10) lấy sổ máy. */
+    let cu = {}; try { cu = JSON.parse(fs.readFileSync(path.join(DIR, ".packer-a8-ngay.json"), "utf8")).days || {}; } catch { /* */ }
+    return Object.assign({}, cu, days);
+  }
+  try { return JSON.parse(fs.readFileSync(path.join(DIR, ".packer-a8-ngay.json"), "utf8")).days || {}; } catch { return {}; }
+})();
 const danhBa = (() => { try { return JSON.parse(fs.readFileSync(path.join(DIR, ".cache-danhba.json"), "utf8")).data || []; } catch { return []; } })();
 const theoEmail = new Map(danhBa.map((x) => [String(x.staff_email || "").toLowerCase(), x]));
 
@@ -160,8 +182,9 @@ const daCo = (x) => so.phieu[x.k + "|" + x.tu];
 // 2) Phiếu 5S còn mở cùng vị trí (board 14 ngày, 1 lượt gọi) — có rồi thì KHÔNG lập thêm
 let tokenW = null, board = [];
 {
-  const { layTokenSongWork } = await import("./session-rules.js");
-  tokenW = await layTokenSongWork(DIR, () => {});
+  /* LÀM THẬT chỉ ghi bằng phiên tamlc (layTokenGhiWork — phiên mượn của người khác chỉ được đọc, 16/10). */
+  const { layTokenSongWork, layTokenGhiWork } = await import("./session-rules.js");
+  tokenW = process.argv.includes("--lam") ? await layTokenGhiWork(DIR, log) : await layTokenSongWork(DIR, () => {});
   if (tokenW) {
     const iso = (d) => d.toISOString().slice(0, 10);
     const r = await fetch(V + "/hr/workflows/detail-workflow-task/591?from_date=" + iso(new Date(Date.now() - 14 * 864e5)) + "&to_date=" + iso(new Date(Date.now() + 864e5)) + "&search_type=board", { headers: { authorization: tokenW }, signal: AbortSignal.timeout(120000) }).catch(() => null);
@@ -237,7 +260,7 @@ for (const p of KH) {
     .concat(p.moi.map((x) => "<p>• <b>" + esc(x.k) + "</b>: " + x.n + " ngày yêu cầu liên tiếp không có báo cáo (" + dm(x.tu) + " → " + dm(x.den) + ")</p>" + x.ngayTheo.map((t) => "<p>&nbsp;&nbsp;&nbsp;&nbsp;" + dm(t.d) + " · " + esc(t.nguon + ": " + t.ai) + "</p>").join(""))).join("");
   const png = await anhBangChung(p);
   const fd = new FormData();
-  fd.set("name", ("[5S] " + bin + " - " + TYPE00).slice(0, 90)); fd.set("amount_of_work", "0"); fd.set("type", "2");
+  fd.set("name", tenPhieu5S(bin, TYPE00)); fd.set("amount_of_work", "0"); fd.set("type", "2");
   fd.set("staff_id", process.env.STAFF_ID || "17312"); fd.set("date_start", homNay); fd.set("date_end", homNay + " 23:59:00");
   fd.set("planned_hours", "0"); fd.set("piority", "0"); fd.set("workflow_id", "591");
   fd.set("data[configs][DATE00]", homNay + " 07:00:00"); fd.set("data[configs][TYPE00]", TYPE00); fd.set("data[configs][BIN00]", bin);

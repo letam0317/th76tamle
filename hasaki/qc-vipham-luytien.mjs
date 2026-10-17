@@ -15,7 +15,7 @@
  *   ④ Lập phiếu LIÊN TIẾP — 9 lần phải ra đúng 3 phiếu (−6%), không nuốt phần dư
  *   ⑤ Hôm nay không tính · ngày cũ vẫn tính · chuỗi cột đi vòng không mất dữ liệu
  */
-import { tinhSoViPham, gopGhiNhanKpi, chuKy, chuoiCot, docCotVp, docCotGhi, lechNgay, ngayIso, MOI_LAN, HM_VESINH } from "./vipham-vesinh.mjs";
+import { tinhSoViPham, gopGhiNhanKpi, chuKy, chuoiCot, docCotVp, docCotGhi, lechNgay, ngayIso, MOI_LAN, HM_VESINH, CUA_SO_NGAY } from "./vipham-vesinh.mjs";
 
 let loi = 0, n = 0;
 const ca = (ten, ok, ghi) => { n++; if (!ok) loi++; console.log((ok ? "  ✓ " : "  ✗ ") + ten + (ghi ? "  — " + ghi : "")); };
@@ -81,7 +81,7 @@ const soVp = (so) => { const d = {}; for (let i = 1; i <= so; i++) d[ngay(i)] = 
 const DEN = "2026-09-30";
 console.log("   n  | phiếu nợ | % tổng | phiếu này kê | lẻ giữ lại | nút");
 for (const so of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]) {
-  const k = chuKy(soVp(so), [], DEN);
+  const k = chuKy(soVp(so), [], DEN, 0);
   const phieuDung = Math.floor(so / MOI_LAN), leDung = so % MOI_LAN;
   const nut = k.du ? (k.soPhieu > 1 ? "Ghi nhận 5S · còn " + k.soPhieu + " phiếu" : "Ghi nhận 5S · lần 3/3") : (so ? "(chữ) lần " + so + "/3" : "nút thường");
   console.log("   " + String(so).padEnd(3) + "| " + String(k.soPhieu).padEnd(9) + "| " + String(k.soPhieu * 2 + "%").padEnd(7) + "| " +
@@ -94,13 +94,13 @@ console.log("④ Lập phiếu LIÊN TIẾP — mốc = ngày thứ 3 của phi�
 for (const tong of [3, 6, 7, 9, 11]) {
   const vp = soVp(tong); let ghiD = [], phieu = 0, veta = [];
   for (let i = 0; i < 10; i++) {
-    const k = chuKy(vp, ghiD, DEN);
+    const k = chuKy(vp, ghiD, DEN, 0);
     if (!k.du) break;
     veta.push(k.keNay.map(x => x.slice(-2)).join(","));
     ghiD = [...ghiD, k.keNay[k.keNay.length - 1]];   // biên bản kê 3 ngày → gopGhiNhanKpi lấy ngày cuối = ngày thứ 3
     phieu++;
   }
-  const conLai = chuKy(vp, ghiD, DEN);
+  const conLai = chuKy(vp, ghiD, DEN, 0);
   const dung = Math.floor(tong / MOI_LAN);
   ca(tong + " lần → lập được " + phieu + " phiếu = −" + phieu * 2 + "% (đúng: " + dung + " phiếu, −" + dung * 2 + "%), còn lẻ " + conLai.n,
     phieu === dung && conLai.n === tong % MOI_LAN && !conLai.du, "phiếu kê: " + veta.join(" | "));
@@ -108,18 +108,18 @@ for (const tong of [3, 6, 7, 9, 11]) {
 
 console.log("⑤ Mốc ghi nhận · hôm nay · chuỗi cột");
 const vp9 = soVp(9);
-let k5 = chuKy(vp9, [ngay(3)], DEN);
+let k5 = chuKy(vp9, [ngay(3)], DEN, 0);
 ca("Đã ghi nhận mốc 03/09 → chu kỳ mới đếm từ 04/09: còn 6 lần = 2 phiếu", k5.n === 6 && k5.soPhieu === 2 && k5.ngay[0] === ngay(4), JSON.stringify({ n: k5.n, phieu: k5.soPhieu, dau: k5.ngay[0] }));
-k5 = chuKy(vp9, [ngay(9)], DEN);
+k5 = chuKy(vp9, [ngay(9)], DEN, 0);
 ca("Ghi nhận mốc = ngày cuối cùng → chu kỳ mới rỗng", k5.n === 0 && !k5.du);
-k5 = chuKy(vp9, [ngay(3), ngay(6)], DEN);
+k5 = chuKy(vp9, [ngay(3), ngay(6)], DEN, 0);
 ca("Hai mốc → lấy mốc GẦN NHẤT (06/09): còn 3 lần = 1 phiếu", k5.n === 3 && k5.soPhieu === 1);
-k5 = chuKy(vp9, [DEN], ngay(5));
+k5 = chuKy(vp9, [DEN], ngay(5), 0);
 ca("Soi NGÀY CŨ 05/09: mốc 30/09 nằm SAU ngày xem nên không tính, còn 5 lần", k5.n === 5 && k5.moc === "", JSON.stringify({ n: k5.n, moc: k5.moc }));
-k5 = chuKy(soVp(2), [], DEN);
+k5 = chuKy(soVp(2), [], DEN, 0);
 ca("2 lần → KHÔNG phiếu, không kê ngày nào, giữ đủ 2 lần", !k5.du && k5.soPhieu === 0 && k5.keNay.length === 0 && k5.duLai === 2);
 const vpHomNay = Object.assign(soVp(2), { [T]: { so: 1, o: [] } });
-ca("chuKy KHÔNG tự thêm hôm nay (sổ có sao đếm vậy)", chuKy(soVp(2), [], T).n === 2 && chuKy(vpHomNay, [], T).n === 3);
+ca("chuKy KHÔNG tự thêm hôm nay (sổ có sao đếm vậy)", chuKy(soVp(2), [], T, 0).n === 2 && chuKy(vpHomNay, [], T, 0).n === 3);
 const s = chuoiCot(A, ghi["111"]);
 ca("cột vi phạm mới nhất trước, đủ ô", /^2026-09-16:2:F0-A1-501-01,F0-A1-501-02 \| 2026-09-12:1:F0-A1-501-01 \| 2026-09-10:1:F0-A1-501-01$/.test(s.vp), s.vp);
 const d2 = docCotVp(s.vp), g2 = docCotGhi(s.ghi);
@@ -127,5 +127,20 @@ ca("đọc lại đúng số ngày/số ô/ô", Object.keys(d2).length === 3 && 
 ca("đọc lại mốc ghi nhận", g2[0] === "2026-09-16", JSON.stringify(g2));
 ca("chuỗi rác không làm hỏng (bỏ qua phần không khớp)", Object.keys(docCotVp("abc | 2026-09-01:x | 2026-09-02:1")).length === 1 && docCotGhi("| 2026 | 2026-09-02 |")[0] === "2026-09-02");
 
-console.log("\n" + (loi ? "✗ " + loi + "/" + n + " ca hỏng" : "✓ " + n + "/" + n + " ca đạt"));
+console.log("⑥ CỬA SỔ " + CUA_SO_NGAY + " NGÀY (user 17/10/2026) — lần chưa ghi nhận cũ hơn 7 ngày HẾT HẠN (③④⑤ ở trên tắt cửa sổ: tham số 0)");
+{
+  const vp = {}; for (let i = 0; i < 21; i++) vp[lechNgay("2026-10-16", -i * 2)] = { so: 1, o: ["F0-A8-510-05"] };   // 21 lần rải 41 ngày (ca Gia Hân)
+  const k = chuKy(vp, [], "2026-10-16");
+  ca("mặc định cửa sổ 7 ngày: 16/10 → chỉ đếm 10/10…16/10 = 4 lần, 17 lần cũ hết hạn", k.n === 4 && k.hetHan === 17 && k.tu === "2026-10-10" && k.ngay[0] === "2026-10-10", JSON.stringify({ n: k.n, het: k.hetHan, tu: k.tu }));
+  ca("4 lần trong 7 ngày → 1 phiếu, kê 3 ngày cũ nhất TRONG cửa sổ, lẻ 1", k.soPhieu === 1 && k.keNay.join() === "2026-10-10,2026-10-12,2026-10-14" && k.duLai === 1, k.keNay.join());
+  const k0 = chuKy(vp, [], "2026-10-16", 0);
+  ca("cuaSo = 0 → không giới hạn (21 lần = 7 phiếu, như luật cũ)", k0.n === 21 && k0.soPhieu === 7 && k0.hetHan === 0);
+  const km = chuKy(vp, ["2026-10-12"], "2026-10-16");
+  ca("mốc ghi nhận nằm TRONG cửa sổ vẫn cắt chu kỳ: sau 12/10 còn 14, 16 = 2 lần", km.n === 2 && !km.du && km.hetHan === 0, JSON.stringify({ n: km.n, het: km.hetHan }));
+  const d7 = {}; for (let i = 0; i < 7; i++) d7[lechNgay("2026-10-16", -i)] = { so: 1, o: [] };
+  const k7 = chuKy(d7, [], "2026-10-16");
+  ca("tối đa 7 lần / 7 ngày = 2 phiếu, lẻ 1", k7.n === 7 && k7.soPhieu === 2 && k7.duLai === 1);
+}
+
+console.log("\n" + (loi ?"✗ " + loi + "/" + n + " ca hỏng" : "✓ " + n + "/" + n + " ca đạt"));
 process.exit(loi ? 1 : 0);

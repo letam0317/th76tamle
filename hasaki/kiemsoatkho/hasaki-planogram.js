@@ -2211,6 +2211,7 @@ function buildCCN(H, rows2d){
   /* 03/08/2026: tab này nay còn quyết định MÀU Ô + 3 thẻ KPI + panel "cần nhắc" khi soi NGÀY CŨ
      (trước chỉ pop-up dùng nó) → về tới là phải vẽ lại cả màn hình, không chỉ pop-up. */
   if (!laHomNay() && la1Ngay()){ renderToday(); render(); }
+  veLaiNk();   // nhật ký NV có giờ đi làm từng ngày (17/10)
 }
 /* ===== PACKER-A8-NGAY — dựng chỉ mục "ngày|camera" → danh sách packer (nhiều n phiếu trước) ===== */
 function buildPK(H, rows2d){
@@ -2231,6 +2232,7 @@ function buildPK(H, rows2d){
   Object.keys(by).forEach(function(k){ by[k].sort(function(a, b){ return b.n - a.n; }); });
   S.pk.ok = true; S.pk.by = by; S.pk.ngay = ngay;
   veLaiVt();   // pop-up đang mở thì vẽ lại để thẻ "Báo cáo đóng gói" có dữ liệu
+  veLaiNk();   // nhật ký NV: dòng "Đóng gói tại …" từng ngày (17/10)
 }
 /* Phiếu đóng gói theo ngày: chỉ cần khi mở pop-up ô A8 có camera — vẽ ngay từ cache phiên rồi mới gọi bản mới. */
 function canPK(){ if (S.pk.ok || S.pk.dang) return; S.pk.dang = true; tuCache(TAB_PK); goiNguon(TAB_PK); }
@@ -3548,6 +3550,7 @@ function openViTri(loc){
   canCC();   // pop-up cần chấm công hôm nay của phụ trách — nguồn bậc 3, nạp lúc mở (buildCC vẽ lại)
   canLS();   // + lịch sử báo cáo 60 ngày của ô (bậc 3 — chỉ pop-up này dùng, buildLS vẽ lại)
   canCCN();  // + chấm công THEO NGÀY 60 ngày (thẻ Phụ trách cần giờ vào/ra của đúng ngày đang chọn)
+  canPK();   // + phiếu đóng gói 30 ngày (17/10: thẻ Phụ trách nói hôm đó đóng ở bàn nào) — nạp NGAY lúc mở, đừng để về giữa lúc chụp
   renderVt();
   /* HUỶ hẹn-đóng còn treo (17/09/2026 — bắt được khi đo tốc độ): closeVt hẹn 240 ms mới ẩn hẳn cho kịp
      animation; đóng rồi bấm ô khác NGAY trong 0,24 s thì cái hẹn cũ bắn sau, ẩn luôn pop-up vừa mở —
@@ -3599,7 +3602,52 @@ function ccNgayVeThe(pc, d, r, lsAll){
        mà hôm đó họ không đi làm thì lỗi thuộc về bố trí, không thuộc về họ. */
     sub2: subLam, sub2C: (lam && !laMinh) ? "#d97706" : "" };
   var gio = (cn.vao ? "vào " + cn.vao : "vào —") + " · " + (cn.ra ? "ra " + cn.ra : (homNay ? "chưa chấm ra" : "không chấm ra"));
-  return { c: "#059669", lb: nhan + " · ĐI LÀM: " + gio, sub: subLam, subC: subLamC };
+  /* kbc = đi làm mà KHÔNG ai báo cáo ô này → thẻ kê thêm hôm đó người này báo cáo ô nào / đóng gói bàn nào (17/10) */
+  return { c: "#059669", lb: nhan + " · ĐI LÀM: " + gio, sub: subLam, subC: subLamC, kbc: subLamC === "#dc2626" };
+}
+/* ===== HÔM ĐÓ NGƯỜI NÀY LÀM GÌ (17/10/2026 — user: "không báo cáo ô này nhưng có báo cáo ô nào không,
+ * đóng gói ở vị trí nào") — gom 3 nguồn ĐÃ NẠP, 0 lượt gọi thêm:
+ *   · báo cáo vệ sinh: VESINH-LICHSU (60 ngày) + yêu cầu 7 ngày (bù lượt hôm nay chưa vào lịch sử)
+ *   · đóng gói: PACKER-A8-NGAY (camera × ngày) → đổi camera ra mã bàn bằng CAMERA_BAN */
+var _banCuaCam = null;
+function banCuaCam(cam){
+  if (!_banCuaCam){
+    _banCuaCam = {};
+    Object.keys(CAMERA_BAN).forEach(function(b){ var c = String(CAMERA_BAN[b]).replace(/\s*\(dự đoán\)$/, ""); if (!_banCuaCam[c]) _banCuaCam[c] = b; });
+  }
+  return _banCuaCam[cam] || "";
+}
+function hoatDongNgay(em, d){
+  em = String(em || "").toLowerCase();
+  var bc = {}, dg = [];
+  (S.ls.ev || []).forEach(function(v){ if (v.ngay === d && String(v.email || "").toLowerCase() === em) bc[v.loc] = v.gio || bc[v.loc] || ""; });
+  S.yc.rows.forEach(function(r){ if (r.ngay === d && r.email && String(r.email).toLowerCase() === em && !(r.loc in bc)) bc[r.loc] = String(r.at || "").slice(11, 16); });
+  if (S.pk.ok) Object.keys(S.pk.by).forEach(function(k){
+    if (k.slice(0, 10) !== d) return;
+    var cam = k.slice(11);
+    S.pk.by[k].forEach(function(p){ if (p.em === em) dg.push({ cam: cam, ban: banCuaCam(cam), n: p.n, dau: p.dau, cuoi: p.cuoi }); });
+  });
+  dg.sort(function(a, b){ return b.n - a.n; });
+  return { bc: Object.keys(bc).sort().map(function(l){ return { loc: l, gio: bc[l] }; }), dg: dg };
+}
+/* 2 dòng HTML cho thẻ Phụ trách / nhật ký NV: "Báo cáo ô khác …" + "Đóng gói tại …". boQua = khoá ô đang xem. */
+function dongHoatDong(em, d, boQua){
+  var hd = hoatDongNgay(em, d), out = "";
+  var bcKhac = hd.bc.filter(function(x){ return !boQua || khoaO(x.loc) !== boQua; });
+  var ngan = function(l){ return String(l).replace(/^F0-/, ""); };
+  if (bcKhac.length)
+    out += '<div class="ln">Báo cáo vệ sinh ô khác: <b>' + bcKhac.slice(0, 6).map(function(x){ return '<span style="white-space:nowrap">' + esc(ngan(x.loc)) + (x.gio ? " " + esc(x.gio) : "") + '</span>'; }).join(" · ") + '</b>' +
+      (bcKhac.length > 6 ? " +" + (bcKhac.length - 6) : "") + '</div>';
+  else out += '<div class="ln" style="color:#dc2626">' + (S.ls.ok ? "Hôm đó KHÔNG báo cáo vệ sinh ô nào" : "đang đọc lịch sử báo cáo…") + '</div>';
+  if (hd.dg.length)
+    out += '<div class="ln">Đóng gói tại: ' + hd.dg.slice(0, 3).map(function(p){
+      return '<b>' + esc(p.ban ? ngan(p.ban) : p.cam) + '</b> <span class="hp-hint">' + esc(p.cam) + " · " + p.n + " phiếu" + (p.dau ? " " + esc(p.dau) + "→" + esc(p.cuoi || "?") : "") + '</span>';
+    }).join(" · ") + '</div>';
+  else out += '<div class="ln mut">' + (S.pk.dang ? "đang đọc phiếu đóng gói…"
+    : !S.pk.ok ? "chưa đọc được phiếu đóng gói"
+    : S.pk.ngay[d] ? "Hôm đó không đóng gói ở bàn A8 nào"
+    : "ngày ngoài cửa sổ phiếu đóng gói 30 ngày") + '</div>';
+  return out;
 }
 function renderVt(){
   var loc = VT.loc, d = VT.ngay, kO = khoaO(loc);
@@ -3712,6 +3760,7 @@ function renderVt(){
         /* sub2 = tình hình BÁO CÁO của ô trong ngày đó, chỉ dùng khi dòng phụ đã bị chiếm bởi lý do
            nghỉ/ngoài tầm — vẫn cần biết ô có ai làm thay hay bỏ trống hẳn. */
         (cc.sub2 ? '<small' + (cc.sub2C ? ' style="color:' + cc.sub2C + ';font-weight:650"' : "") + '>' + esc(cc.sub2) + '</small>' : "") + '</div></div>' +
+      (cc.kbc ? (canPK(), dongHoatDong(pc.em, d, kO)) : "") +
       (tuGS ? "" : '<div class="ln mut">g-sheet chưa phân công vị trí này' + (pc.bc ? " — bằng chứng " + esc(ngayVN(pc.bc)) : "") + '</div>') +
       /* Ghi chú của dòng BÙ trong bảng phân công vốn mở đầu đúng bằng câu "g-sheet chưa phân công
          vị trí này" (sync-phancong ghi vậy) → in tiếp cả ghi chú là lặp nguyên câu vừa đọc. Cắt vế trùng. */
@@ -3868,11 +3917,20 @@ function docCotVp(s){
   return d;
 }
 function docCotGhi(s){ return String(s || "").split("|").map(function(x){ return x.trim(); }).filter(function(x){ return /^\d{4}-\d{2}-\d{2}$/.test(x); }).sort().reverse(); }
-function chuKy(vpD, ghiDates, den){
+/* CỬA SỔ 7 NGÀY (user 17/10/2026): chỉ đếm lần trong 7 ngày tính tới ngày đang xét; lần chưa ghi nhận cũ hơn = HẾT HẠN. */
+var CUA_SO_NGAY = 7;
+function lechNgayLT(iso, n){
+  var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return iso;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n)).toISOString().slice(0, 10);
+}
+function chuKy(vpD, ghiDates, den, cuaSo){
+  if (cuaSo == null) cuaSo = CUA_SO_NGAY;
   var moc = (ghiDates || []).filter(function(g){ return g <= den; }).sort().pop() || "";
-  var ngay = Object.keys(vpD || {}).filter(function(d){ return d > moc && d <= den; }).sort();
+  var tu = cuaSo > 0 ? lechNgayLT(den, -(cuaSo - 1)) : "";
+  var conHan = Object.keys(vpD || {}).filter(function(d){ return d > moc && d <= den; }).sort();
+  var ngay = conHan.filter(function(d){ return d >= tu; });
   var n = ngay.length, soPhieu = Math.floor(n / MOI_LAN);
-  return { n: n, ngay: ngay, moc: moc, soPhieu: soPhieu, keNay: soPhieu ? ngay.slice(0, MOI_LAN) : [], duLai: n - soPhieu * MOI_LAN, du: soPhieu >= 1 };
+  return { n: n, ngay: ngay, moc: moc, tu: tu, hetHan: conHan.length - n, soPhieu: soPhieu, keNay: soPhieu ? ngay.slice(0, MOI_LAN) : [], duLai: n - soPhieu * MOI_LAN, du: soPhieu >= 1 };
 }
 /* Tài khoản đang đăng nhập trên dashboard — HỢP ĐỒNG với chức năng "đăng nhập tài khoản" (đang làm ở
    phiên khác): host đặt `window.HSK_NGUOI_DUNG = {ten, code, email}` hoặc lưu JSON cùng khuôn ở
@@ -3948,7 +4006,8 @@ function capNhatNutGhi(loc, d, r, pc, lsAll){
      người dùng phải chờ đúng 5 s đó; nạp trước trong lúc họ đang đọc pop-up thì coi như không mất gì. */
   napH2C()["catch"](function(){ /* im lặng — lúc bấm sẽ thử lại và báo lỗi tử tế ở form */ });
   var k = luyTien(pc, d, true), ds = k.ngay.map(ngayVN).join(" · ");
-  var nenNgay = k.moc ? " (chu kỳ tính từ sau lần ghi nhận " + ngayVN(k.moc) + ")" : "";
+  var nenNgay = (k.moc && k.moc >= k.tu ? " (chu kỳ tính từ sau lần ghi nhận " + ngayVN(k.moc) + ")" : "") +
+    " — chỉ đếm " + CUA_SO_NGAY + " ngày từ " + ngayVN(k.tu) + (k.hetHan ? "; " + k.hetHan + " lần cũ hơn đã hết hạn, không tính" : "");
   if (!k.co){
     b.style.display = "none";
     tx.textContent = "Đi làm không báo cáo · chưa đếm được luỹ tiến";
@@ -4015,7 +4074,7 @@ function soanGhiNhan5S(loc, d){
     if (lt.du){
       L.push("Vi phạm luỹ tiến: đủ " + MOI_LAN + " lần (" + lt.keNay.map(ngayDuVN).join(" · ") + ") → KPI -2%");
       if (lt.soPhieu > 1 || lt.duLai)
-        L.push("Tồn đọng: " + lt.n + " lần chưa ghi nhận" + (lt.moc ? " kể từ sau lần ghi nhận " + ngayDuVN(lt.moc) : "") +
+        L.push("Tồn đọng: " + lt.n + " lần chưa ghi nhận trong " + CUA_SO_NGAY + " ngày" + (lt.moc ? " kể từ sau lần ghi nhận " + ngayDuVN(lt.moc) : "") +
           " ⇒ còn " + (lt.soPhieu - 1) + " phiếu -2% nữa" + (lt.duLai ? " và " + lt.duLai + " lần lẻ chờ đủ " + MOI_LAN : ""));
     } else {
       L.push("Vi phạm luỹ tiến: lần " + lt.n + "/" + MOI_LAN + (lt.n ? " (" + lt.ngay.map(ngayDuVN).join(" · ") + ")" : "") + " — chưa đủ để trừ KPI");
@@ -4107,7 +4166,9 @@ function suaMauH2C(A, ban){
    nhưng bộ đo bấm ngay sau khi mở là dính 100% — nên thử lại một nhịp thay vì báo hỏng. */
 function chupPopup(){
   return chupPopup_()["catch"](function(e){
-    if (!/rỗng/.test(String(e && e.message))) throw e;
+    /* 17/10: nguồn bậc 3 về đúng lúc chụp → pop-up vẽ lại, bản sao mất dấu data-h2c nên màu color() lọt sang html2canvas
+       ("unsupported color function") — cùng bệnh với canvas rỗng, cùng cách chữa: chờ một nhịp rồi chụp lại. */
+    if (!/rỗng|color function/.test(String(e && e.message))) throw e;
     return new Promise(function(res){ setTimeout(res, 450); }).then(chupPopup_);
   });
 }
@@ -4508,12 +4569,20 @@ function nkStaff(){
     if (r.ngay > o.last) o.last = r.ngay;
     if (!o.name && r.name) o.name = r.name;
   });
+  /* 17/10: thêm người CÓ chấm công (đội vệ sinh) mà 60 ngày KHÔNG báo cáo lượt nào — chính nhóm cần soi nhất,
+     trước đây không hiện trong danh sách vì danh sách chỉ dựng từ lượt báo cáo. Xếp cuối (last rỗng). */
+  if (S.ccn.ok) Object.keys(S.ccn.em).forEach(function(k){
+    if (by[k]) return;
+    var c = S.ccn.em[k]; by[k] = { email: c.em, code: c.code, name: c.ten || tenNm(c.em) || c.em, nLoc: 0, days: {}, last: "" };
+  });
   return Object.keys(by).map(function(k){ var o = by[k]; o.nDay = Object.keys(o.days).length; return o; })
     .sort(function(a, b){ return b.last < a.last ? -1 : b.last > a.last ? 1 : (b.nLoc - a.nLoc); });
 }
+function veLaiNk(){ var m = $id("hpNkModal"); if (m && m.classList.contains("show")){ renderNkList(); renderNkRight(); } }
 function openNk(email){
   NK.email = String(email || "").toLowerCase(); NK.q = "";
   var inp = $id("hpNkQ"); if (inp) inp.value = "";
+  canCCN(); canPK();   // 17/10: mỗi ngày kèm giờ đi làm + bàn đóng gói (bậc 3, thường đã nạp trước)
   canLS();   // bậc 3: nhật ký lấy từ lịch sử 60 ngày (thường đã nạp trước xong)
   if (S.ls.ok){
     var list = nkStaff();
@@ -4546,8 +4615,10 @@ function renderNkRight(){
   var el = $id("hpNkRight"); if (!el) return;
   if (!S.ls.ok && S.ls.dang){ el.innerHTML = '<div class="hp-nk-empty">Đang tải nhật ký vệ sinh ' + LS_NGAY + ' ngày…</div>'; return; }
   var rows = nkRows().filter(function(r){ return r.email.toLowerCase() === NK.email; });
-  if (!rows.length){ el.innerHTML = '<div class="hp-nk-empty">Chọn 1 nhân viên bên trái để xem nhật ký vệ sinh theo ngày.</div>'; return; }
-  var o = { name: rows[0].name || tenNm(rows[0].email) || rows[0].email, code: rows[0].code, email: rows[0].email };
+  var ccO = S.ccn.ok ? S.ccn.em[NK.email] : null;
+  if (!rows.length && !ccO){ el.innerHTML = '<div class="hp-nk-empty">Chọn 1 nhân viên bên trái để xem nhật ký vệ sinh theo ngày.</div>'; return; }
+  var o = rows.length ? { name: rows[0].name || tenNm(rows[0].email) || rows[0].email, code: rows[0].code, email: rows[0].email }
+    : { name: ccO.ten || tenNm(ccO.em) || ccO.em, code: ccO.code, email: ccO.em };
   /* gom theo ngày (giảm dần) → từng khu vực */
   var byDay = {};
   rows.forEach(function(r){
@@ -4555,14 +4626,28 @@ function renderNkRight(){
     var arr = d[r.area] || (d[r.area] = []);
     arr.push.apply(arr, r.locs);
   });
+  var nBc = Object.keys(byDay).length;
+  /* 17/10 user: ngày CÓ ĐI LÀM mà không báo cáo ô nào cũng phải hiện (đỏ) + hôm đó đóng gói ở bàn nào. */
+  if (ccO) Object.keys(ccO.d).forEach(function(d){ if (!byDay[d]) byDay[d] = {}; });
   var days = Object.keys(byDay).sort().reverse();
   var homNay = isoToday();
   var nLoc = 0; rows.forEach(function(r){ nLoc += r.locs.length; });
+  var nKbc = days.filter(function(d){ return d < homNay && ccO && ccO.d[d] && !AREAS.some(function(a){ return byDay[d][a.k] && byDay[d][a.k].length; }); }).length;
   var html = '<div class="hd">' + esc(o.name) + (o.code ? ' <span class="hp-hint">' + esc(o.code) + '</span>' : '') + '</div>' +
-    '<div class="sub">' + esc(o.email) + ' · ' + nf(nLoc) + ' lượt vị trí / ' + nf(days.length) + ' ngày (' + LS_NGAY + ' ngày gần nhất). Quầy kệ F0-A1 thường giữ theo tuần · không gian F0-A8 đổi theo ngày.</div>';
+    '<div class="sub">' + esc(o.email) + ' · ' + nf(nLoc) + ' lượt vị trí / ' + nf(nBc) + ' ngày báo cáo' +
+      (ccO ? ' · <b style="color:' + (nKbc ? "#dc2626" : "inherit") + '">' + nf(nKbc) + ' ngày đi làm không báo cáo</b>' : '') +
+      ' (' + LS_NGAY + ' ngày gần nhất). Quầy kệ F0-A1 thường giữ theo tuần · không gian F0-A8 đổi theo ngày.</div>';
   html += days.map(function(d){
     var khu = byDay[d];
-    return '<div class="hp-nk-day"><div class="d">' + thuVN(d) + ' ' + ngayVN(d) + (d === homNay ? ' <span class="today">Hôm nay</span>' : '') + '</div>' +
+    var cc = ccO && ccO.d[d], coBc = AREAS.some(function(a){ return khu[a.k] && khu[a.k].length; });
+    var gioCC = cc ? '<span class="hp-hint" style="font-weight:500">đi làm ' + esc(cc.vao === GIO_TRONG ? "?" : cc.vao) + "–" + esc(cc.ra === GIO_TRONG ? "?" : cc.ra) + '</span>' : "";
+    var hd = hoatDongNgay(o.email, d);
+    var dongDG = hd.dg.length ? '<div class="hp-nk-khu" style="font-size:11px">Đóng gói: ' + hd.dg.slice(0, 3).map(function(p){
+      return '<b>' + esc(p.ban ? p.ban.replace(/^F0-/, "") : p.cam) + '</b> <span class="hp-hint">' + p.n + ' phiếu</span>'; }).join(" · ") + '</div>' : "";
+    var dongKbc = (!coBc && cc) ? '<div class="hp-nk-khu" style="font-size:11px;color:#dc2626;font-weight:650">' +
+      (d === homNay ? "Hôm nay chưa báo cáo ô nào" : "Đi làm, KHÔNG báo cáo vệ sinh ô nào") + '</div>' : "";
+    return '<div class="hp-nk-day"' + (dongKbc && d !== homNay ? ' style="border-left-color:#dc2626"' : "") + '><div class="d">' + thuVN(d) + ' ' + ngayVN(d) + (d === homNay ? ' <span class="today">Hôm nay</span>' : '') + gioCC + '</div>' +
+      dongKbc + dongDG +
       AREAS.filter(function(a){ return khu[a.k] && khu[a.k].length; }).map(function(a){
         return '<div class="hp-nk-khu"><span class="hp-dot kdot" title="' + esc(a.short) + '" style="background:' + a.c + '"></span><span>' +
           khu[a.k].sort().map(function(L){

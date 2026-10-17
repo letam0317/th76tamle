@@ -33,6 +33,10 @@ export const HM_VESINH_RE = /^\s*Bàn làm việc và khu vực phụ trách/i;
 export const COT_VP = "Vi phạm (ngày:số ô:ô)";
 export const COT_GHI = "Đã ghi nhận KPI (ngày)";
 export const MOI_LAN = 3;   // đủ 3 lần mới hiện nút
+/* CỬA SỔ 7 NGÀY (user 17/10/2026 — ca Gia Hân bị kê lần 21/08 trên phiếu lập 17/10): chỉ đếm các lần trong 7 ngày
+   tính tới ngày đang xét; lần chưa ghi nhận CŨ HƠN 7 ngày = HẾT HẠN, không truy thu (ai không bấm kịp thì thôi —
+   phạt chậm 2 tháng thì NV không còn nhớ để giải trình). Khớp LUẬT 7 NGÀY của luat-3-ngay / canh-b11. 0 = không giới hạn. */
+export const CUA_SO_NGAY = 7;
 
 export function khoaO(loc){ const m = String(loc || "").match(/^F0-A1-(\d{3})-(\d{2})-/); return m ? `F0-A1-${m[1]}-${m[2]}` : String(loc || "").trim().toUpperCase(); }
 
@@ -171,13 +175,18 @@ export function docCotGhi(s){ return String(s || "").split("|").map(x => x.trim(
  *  `den` = hôm nay thì HÔM NAY KHÔNG được tính (user chốt: chỉ tính ngày đã khép) — sổ vốn chỉ ghi
  *  ngày đã khép nên điều kiện này tự thoả; hàm không tự thêm ngày nào.
  *
- *  → { n, ngay, moc, soPhieu, keNay, duLai, du }
- *     n = số lần chưa ghi nhận · ngay = các ngày đó · moc = mốc ghi nhận gần nhất
+ *  CỬA SỔ (17/10/2026): chỉ đếm lần trong `cuaSo` ngày tính tới `den` (mặc định CUA_SO_NGAY = 7); cũ hơn = hết hạn.
+ *
+ *  → { n, ngay, moc, tu, hetHan, soPhieu, keNay, duLai, du }
+ *     n = số lần chưa ghi nhận (trong cửa sổ) · ngay = các ngày đó · moc = mốc ghi nhận gần nhất
+ *     tu = ngày đầu cửa sổ · hetHan = số lần chưa ghi nhận nhưng đã rơi khỏi cửa sổ
  *     soPhieu = số phiếu CÒN NỢ (floor(n/3)) · keNay = 3 ngày của phiếu sắp lập · duLai = lần lẻ còn giữ
  */
-export function chuKy(vpD, ghiDates, den){
+export function chuKy(vpD, ghiDates, den, cuaSo = CUA_SO_NGAY){
   const moc = (ghiDates || []).filter(g => g <= den).sort().pop() || "";
-  const ngay = Object.keys(vpD || {}).filter(d => d > moc && d <= den).sort();
+  const tu = cuaSo > 0 ? lechNgay(den, -(cuaSo - 1)) : "";   // 7 ngày tính tới `den` (gồm cả `den`)
+  const conHan = Object.keys(vpD || {}).filter(d => d > moc && d <= den).sort();
+  const ngay = conHan.filter(d => d >= tu);
   const n = ngay.length, soPhieu = Math.floor(n / MOI_LAN);
-  return { n, ngay, moc, soPhieu, keNay: soPhieu ? ngay.slice(0, MOI_LAN) : [], duLai: n - soPhieu * MOI_LAN, du: soPhieu >= 1 };
+  return { n, ngay, moc, tu, hetHan: conHan.length - n, soPhieu, keNay: soPhieu ? ngay.slice(0, MOI_LAN) : [], duLai: n - soPhieu * MOI_LAN, du: soPhieu >= 1 };
 }

@@ -156,7 +156,10 @@
     H + " .set-h{font-size:12px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--muted)}",
     H + " .modal-box{border:0;border-radius:8px;box-shadow:" + BONG2 + "}",
     /* 12/10 user: pop-up bị thanh bên đè — mọi pop-up (host z 50, module z 1200) phải NẰM TRÊN thanh bên (60/61) */
-    H + " :is(#modal,#statModal,#hmModal,#ghiModal,#pinModal){z-index:90}" + H + " #lightbox{z-index:95}",   // ảnh phóng mở TỪ pop-up thì phải nằm trên pop-up
+    H + " :is(#modal,#statModal,#hmModal){z-index:90}" + H + " #lightbox{z-index:1400}",   // ảnh phóng mở TỪ pop-up (kể cả pop-up module z 1200) thì phải nằm trên pop-up
+    /* 17/10 user: form Ghi nhận + hộp PIN mở TỪ pop-up ô Planogram (module z 1200) — hạ về 90 ở đây (độ ưu tiên html.ad cao hơn
+       luật #ghiModal 1250 / #pinModal 1260 của module) làm pop-up ô ĐÈ lên hộp PIN, phải tắt pop-up ô mới gõ được mật khẩu. */
+    H + " #ghiModal{z-index:1250}" + H + " #pinModal{z-index:1260}",
     H + " #btnSettings{border-color:transparent;box-shadow:none;width:32px;height:32px;padding:0}",
     H + " #btnSettings:hover{background:var(--ad-re);border-color:transparent}",
     H + " #btnSettings .bars," + H + " #btnSettings .bars::before," + H + " #btnSettings .bars::after{background:var(--text);width:16px}",
