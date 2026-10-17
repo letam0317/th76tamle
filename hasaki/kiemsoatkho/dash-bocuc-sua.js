@@ -55,6 +55,7 @@
     "body.dash-sua #modal.hx-ben .hx-tb-khung[data-trong]{display:grid;min-height:140px}",
     "body.dash-sua .hx-tb-tp{position:relative;padding-top:40px;min-height:64px;outline:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}",
     "body.dash-sua #modal.hx-ben .hx-tb-tp[data-tb-an]{display:block;opacity:.4}",
+    "body.dash-sua #modal.hx-ben .hx-tb-luoi>.hx-tb-khung>.hx-tb-tp{padding-top:40px!important;position:relative!important}",   // Quyết định dính đáy (sticky) — lúc chỉnh thì thôi dính, chừa đầu cho tay nắm
     ".dash-tb-k{top:8px!important;left:8px;right:auto!important}.dash-tb-p{top:0!important;left:0;right:auto!important}",
     ".dash-tb-dangkeo{opacity:.45}.dash-cho-truoc{box-shadow:inset 4px 0 0 var(--accent),inset 0 4px 0 var(--accent)!important}.dash-cho-sau{box-shadow:inset -4px 0 0 var(--accent),inset 0 -4px 0 var(--accent)!important}",
     ".dash-tb-bong{position:fixed;z-index:200;pointer-events:none;padding:4px 10px;border-radius:6px;background:var(--accent);color:var(--accent-text,#fff);font-size:12px;box-shadow:0 6px 16px rgba(0,0,0,.18)}"

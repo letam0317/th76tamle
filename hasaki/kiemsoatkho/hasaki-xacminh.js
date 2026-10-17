@@ -230,7 +230,24 @@
         "#modal.hx-ben .hx-o-an{margin:0;align-items:start!important}#modal.hx-ben .hx-o-an>.lbl{padding-top:4px}#modal.hx-ben .hx-o-an .hx-cb{min-width:0}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea){display:block;width:100%;min-height:28px!important;padding:3px 6px!important;margin:0 0 0 -6px;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;resize:none;font:inherit;font-size:13px!important;color:var(--text);cursor:pointer;overflow:hidden;box-sizing:border-box;max-width:calc(100% + 6px)}#modal.hx-ben .hx-o-an textarea{width:calc(100% + 6px)}" +
         "#modal.hx-ben .hx-o-an :is(input,textarea):hover{background:var(--ad-nen2,#f5f5f5)!important}#modal.hx-ben .hx-o-an :is(input,textarea):focus{border-color:var(--accent)!important;background:var(--surface)!important;cursor:text;outline:0;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)!important}" +
-        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:180px;width:auto}#modal.hx-ben .hx-o-an:has(.hx-ai-phu:not(:empty)){grid-template-columns:80px auto minmax(0,1fr)}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
+        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:120px;width:auto}#modal.hx-ben .hx-o-an:has(.hx-ai-phu:not(:empty)){grid-template-columns:80px auto minmax(0,1fr)}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
+        /* 17/10 (4) Quyết định dính đáy thanh · Sẽ ghi nhận canh giữa phần còn lại của khung Ảnh ghi nhận · Theo tác vụ trong khung */
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=quyetdinh]{position:sticky;bottom:0;z-index:6;background:var(--surface);padding:12px 0 4px;box-shadow:0 -1px 0 var(--ad-chia,var(--border))}" +
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=quyetdinh]){padding-bottom:12px}" +
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=quyetdinh]){display:flex;flex-direction:column;align-items:stretch;gap:10px}" +
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=quyetdinh])>.hx-tb-tp{width:calc(var(--tb-rong,12) * 100% / 12);align-self:flex-start}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=quyetdinh]{margin-top:auto}" +
+        /* clip: ô 16:9 kín bề rộng khung, cùng 1 cỡ ở Theo máy (video + lớp khung đỏ) và Theo tác vụ (video / ảnh camera) */
+        "#modal.hx-ben .hx-qd-luot.hx-tb-luoi #lvClip{max-width:none!important;margin:0!important}#modal.hx-ben .hx-tb-luoi .hx-vwrap{width:100%;aspect-ratio:16/9;background:#000}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-vwrap>video{width:100%;height:100%;object-fit:contain}" +
+        "#modal.hx-ben .hx-tb-luoi #qdKhung{min-height:0;border-radius:8px}#modal.hx-ben .hx-tb-luoi #qdKhung>:is(video,img){width:100%;height:auto;aspect-ratio:16/9;max-height:none!important;object-fit:contain;background:#000}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{margin:8px 0 0!important}#modal.hx-ben .hx-tb-luoi .hx-qd-anh img{width:100%;height:auto;max-height:none;aspect-ratio:16/9;object-fit:contain;background:#000}" +
+        /* hàng dưới clip Theo tác vụ: chữ «Máy soi camera…» bên trái, nút nguồn sát phải; thiếu chỗ thì XUỐNG HÀNG (không cắt chữ/nút) */
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{display:flex;flex-wrap:wrap!important;align-items:center;gap:6px 8px}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau>.hx-vl-tt{flex:1 1 200px!important;min-width:0;white-space:normal!important}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau>.hx-qd-nguon{flex:0 1 auto;flex-wrap:wrap!important;overflow:visible;min-width:0;margin-left:auto}#modal.hx-ben .hx-tb-luoi .hx-qd-nguon button{white-space:nowrap}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-ben{grid-template-columns:minmax(0,1fr) auto!important}#modal.hx-ben .hx-tb-luoi .hx-qd-form>.hx-qd-o:first-child{grid-column:1/-1!important}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-form>.hx-qd-o:nth-child(2){grid-column:1!important}#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu{grid-column:2!important;align-self:end}" +
+        "#modal.hx-ben .hx-tb-luoi :is(.hx-qd-xem,.hx-qd-ls){padding:0}#modal.hx-ben .hx-tb-luoi .hx-qd-ben{padding:0}#modal.hx-ben .hx-tb-luoi .hx-qd-anh{margin:0}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu+#qdMsg:empty+*,#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu+#qdMsg:not(:empty)+*{border-top:0;padding-top:0}" +
         "#modal.hx-ben .hx-toc button.dang:not(.on){background:color-mix(in srgb,var(--accent) 16%,var(--surface));color:var(--accent)}#modal.hx-ben .hx-tb-luoi .hx-chot{margin:0!important;overflow-y:auto;overscroll-behavior:contain}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-tb-khung,#modal.hx-ben .hx-tb-luoi .hx-tb-tp{grid-column:1/-1}#modal.hx-ben .hx-tb-khung{padding:12px 16px}}" +
       /* 1 cột (thanh hẹp / điện thoại): bỏ vỏ cột, xếp video → ảnh ghi nhận → quyết định → ai tác động */
@@ -858,23 +875,39 @@
   /* 16/10 (6)(7) cột phải: phần DỮ LIỆU dưới ảnh (Ai tác động · Người trong khung đỏ) cuộn RIÊNG, cao vừa chỗ còn lại tới đáy thanh —
      không bắt cuộn cả thanh. «Ai tác động» tối đa 5 dòng (đo thật, đo 2 lần vì thanh cuộn làm dòng hẹp lại). Xếp chồng (hẹp/điện thoại) thì để tự nhiên. */
   function lapCotPhai() { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng");
+    var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
     /* 17/10 (2) «Sẽ ghi nhận» dưới Ảnh ghi nhận, đứng CẠNH clip: nhiều người nghi thì cuộn riêng tới đáy clip — không đẩy cao cả hàng clip (cả thanh phải cuộn) */
     var sg = $id("hxChot"), kc = $id("mBody").querySelector('[data-tp="clip"]');
     if (sg && kc) { sg.style.maxHeight = ""; var rs = sg.getBoundingClientRect(), rc = kc.getBoundingClientRect(); if (rs.left >= rc.right - 1 && rs.bottom > rc.bottom + 1) sg.style.maxHeight = Math.max(72, Math.floor(rc.bottom - rs.top)) + "px"; }
-    if (!C) return;
+    if (!C) { qdDay(bx, qdTp); return; }
     var cot = C.closest(".hx-cot-phai"), kh = C.closest(".hx-tb-khung"), haiCot = kh ? kh.getBoundingClientRect().width < kh.parentNode.getBoundingClientRect().width - 20 : cot && getComputedStyle(cot).display !== "contents";   // 17/10 khung thanh bên: khung đứng cạnh khung khác = cuộn riêng
     for (var k = 0; k < 2; k++) { C.style.maxHeight = "";
       var c = C.children, nam = C.classList.contains("hx-lans") && c.length > 5 ? c[5].getBoundingClientRect().top - c[0].getBoundingClientRect().top : Infinity;
       /* 17/10 (3) khung thanh bên (cả khi rộng hết thanh): vùng người nghi cuộn riêng, chừa chỗ cho phần đứng SAU nó trong khung (trạng thái, Quyết định) */
       var tpC = kh && C.closest(".hx-tb-tp"), sau = tpC ? kh.getBoundingClientRect().bottom - tpC.getBoundingClientRect().bottom : 0;
       var con = haiCot || (kh && window.innerWidth > 760) ? bx.getBoundingClientRect().bottom - C.getBoundingClientRect().top - 24 - sau : Infinity;
-      var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; } }
-  function xongThanhBen(tb) { khoaAnhGN(); lapCotPhai(); requestAnimationFrame(lapCotPhai); hskThanhBen.xong(tb); }
+      var kcl = kh && $id("mBody").querySelector('[data-tp="clip"]'), rcl = kcl && kcl.getBoundingClientRect(), rC = C.getBoundingClientRect();   // 17/10 (4) danh sách đứng CẠNH clip: không dài quá đáy clip
+      if (rcl && rC.left >= rcl.right - 1 && rC.top < rcl.bottom) con = Math.min(con, rcl.bottom - rC.top);
+      var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; }
+    /* 17/10 (4) đo thật: cả thanh vẫn tràn (vd phiếu không có camera — Ai tác động 5 dòng + ảnh cao hơn hàng trên) → bớt đúng phần tràn ở danh sách (sàn 120px) */
+    var tran = bx.scrollHeight - bx.clientHeight; if (kh && tran > 1 && window.innerWidth > 760 && C.clientHeight > 100) C.style.maxHeight = Math.max(100, Math.floor(C.clientHeight - tran)) + "px";
+    qdDay(bx, qdTp); }
+  /* 17/10 (4) user «Quyết định chốt cứng phía dưới thanh bên phải»: còn chỗ trống dưới cùng thì đẩy khối Quyết định xuống sát đáy; thanh dài phải cuộn thì
+     khối dính đáy (position:sticky) — luôn thấy, không trôi. */
+  function qdDay(bx, qd) {
+    if (!qd || !bx) return; qd.style.marginTop = "";   // trả về margin-top:auto (CSS) — trong khung cột, Quyết định tự xuống đáy khung
+    var L = qd.closest(".hx-tb-luoi"), pb = parseFloat(getComputedStyle($id("mBody")).paddingBottom) || 0; L.style.minHeight = "";
+    var rL = L.getBoundingClientRect(), du = bx.getBoundingClientRect().bottom - rL.bottom - pb;
+    if (bx.scrollHeight <= bx.clientHeight + 1 && du > 2) L.style.minHeight = Math.floor(rL.height + du) + "px";   // lưới cao tới đáy thanh → khung giãn → Quyết định sát đáy
+  }
+  function xongThanhBen(tb) { khoaAnhGN(); lapCotPhai(); requestAnimationFrame(lapCotPhai); hskThanhBen.xong(tb);
+    /* 17/10 (5) đo thật: đổi lượt khi thanh đang mở — lúc dựng xong nội dung cũ/ảnh chưa ổn định nên chưa đẩy được Quyết định xuống đáy → tính lại sau khi lắng */
+    var M0 = $id("modal"); clearTimeout(M0._henLap); clearTimeout(M0._henLap2); M0._henLap = setTimeout(lapCotPhai, 350); M0._henLap2 = setTimeout(lapCotPhai, 1200); }
   /* 16/10 (7) user «kích thước ảnh ghi nhận buộc bằng chiều cao khung camera — khoá cứng, bên dưới là dữ liệu»: khung camera đánh dấu [data-khung];
      ảnh cột phải lấy ĐÚNG chiều cao đó (bám theo khi khung đổi cỡ). Chỉ khi 2 cột đứng cạnh nhau — xếp chồng (hẹp/điện thoại) thì trả về cỡ tự nhiên. */
   function khoaAnhGN() { var M0 = $id("modal"); if (M0._roAnh) { M0._roAnh.disconnect(); M0._roAnh = null; }
     var a = $id("mBody").querySelector(".hx-qd-anh"), k = $id("mBody").querySelector("[data-khung]"); if (!a) return;
-    if (a.closest(".hx-qd-luot")) { a.style.height = ""; a.classList.remove("khoa"); var im = a.querySelector("img"); if (im && !im.complete) im.addEventListener("load", lapCotPhai, { once: true }); return; }   // 16/10 (8) Theo máy: ảnh camera NGANG → khối vừa khít ảnh, không dải xám; mục người sát dưới
+    if (a.closest(".hx-qd-luot,.hx-tb-luoi")) { a.style.height = ""; a.classList.remove("khoa"); var im = a.querySelector("img"); if (im && !im.complete) im.addEventListener("load", lapCotPhai, { once: true }); return; }   // 16/10 (8) Theo máy: ảnh camera NGANG → khối vừa khít ảnh, không dải xám; mục người sát dưới
     var dat = function () { var rk = k && !k.hidden ? k.getBoundingClientRect() : null, ra = a.getBoundingClientRect();
       a.style.height = rk && rk.height > 40 && ra.left >= rk.right - 1 ? Math.round(rk.height) + "px" : ""; a.classList.toggle("khoa", !!a.style.height); lapCotPhai(); };
     dat(); if (k && window.ResizeObserver) { M0._roAnh = new ResizeObserver(dat); M0._roAnh.observe(k); M0._roAnh.observe(a.parentNode); } }
@@ -883,10 +916,11 @@
      Bố cục = DASH_BOCUC.thanhBen[<khoá>].khung = [{id, rong, ds:[{id, rong, an}]}] — bộ Chỉnh bố cục (dash-bocuc-sua.js, chỉ bản QC) ghi.
      Thành phần chưa có trong bố cục (thêm về sau) rơi vào khung cuối; khung không còn thành phần nào thì ẩn (bản chỉnh vẫn hiện để thả vào). */
   /* 17/10 (2) user: «Sẽ ghi nhận» dưới Ảnh ghi nhận · Quyết định xuống dưới Máy gợi ý · mốc ①②③ nằm trên thanh thời gian clip (bỏ hàng mốc riêng) */
-  /* 17/10 (3) user: gộp 2 khung dưới làm 1 — Lỗi → Máy gợi ý (cụm người nghi) → trạng thái → Quyết định; điều khiển clip vào chung hàng thanh thời gian */
-  var TB_MAC = { may: [{ id: "k1", rong: 8, ds: [{ id: "clip" }] }, { id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }] },
-    { id: "k3", rong: 12, ds: [{ id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }] };
-  var TB_TEN = { clip: "Clip camera + điều khiển", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)" };
+  /* 17/10 (5) user «làm lại thanh bên: dưới clip là Ai tác động ô (Theo máy không có thì để trống) · Lỗi / Máy gợi ý / Quyết định chuyển xuống dưới
+     Ảnh ghi nhận · đồng bộ vị trí/kích thước clip và các khung ở CẢ 2 thanh Theo máy + Theo tác vụ»: 2 khung y hệt nhau — trái 7/12 · phải 5/12. */
+  var TB_MAC = { may: [{ id: "k1", rong: 7, ds: [{ id: "clip" }] }, { id: "k2", rong: 5, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }],
+    tacvu: [{ id: "k1", rong: 7, ds: [{ id: "clip" }, { id: "aitacdong" }] }, { id: "k2", rong: 5, ds: [{ id: "anh" }, { id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }] };
+  var TB_TEN = { clip: "Camera / clip", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
   function tbAp(luoi) {
@@ -1122,24 +1156,26 @@
       : '<span class="hx-vl-tt muted">' + (p.xmSoi ? "Máy soi camera: không thấy tác động ngoài hệ thống" : "Máy chưa soi camera phiếu này") + '</span>';
     var anhGN = bc.anh ? '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="qdAnhGN" src="' + e_(bc.anh) + '" alt="Ảnh ghi nhận" loading="lazy" decoding="async"></div>' : "";
     /* 16/10 (4) user: Quyết định ⇄ «Ai tác động ô…» đổi chỗ — cột TRÁI = bằng chứng camera + Quyết định; cột PHẢI = Ảnh ghi nhận + Ai tác động */
-    $id("mBody").innerHTML = '<div class="hx-qd"><div class="hx-cot hx-cot-trai">' +
-      /* 14/10 user: «Ghi người tác động không qua hệ thống — là bạn xem xác minh qua cam thấy thì ghi lại, k phải t làm» → bỏ nút ghi tay;
-         MÁY (xac-minh-tu-dong bước 7+8) ghi; ở đây chỉ báo kết quả máy soi, bên TRÁI cùng hàng nút nguồn — bấm để phát lượt máy bắt */
-      /* 16/10 (6) user: hàng «Không qua hệ thống · nguồn xem» xuống DƯỚI clip */
-      '<div class="hx-qd-xem"><div id="qdKhung" class="hx-qd-khung" data-khung></div>' +
-        '<div class="hx-xdau">' + vlTT + '<span class="hx-qd-nguon">' + nguon.map(function (n, i) { return n.an ? "" : '<button data-ng="' + i + '"' + (i ? "" : ' class="on"') + '>' + e_(n.ten) + '</button>'; }).join("") + '</span></div>' +
-      '</div>' +
-      '<div class="hx-qd-ben">' +
+    /* 17/10 (4) user «làm thử cho Theo tác vụ»: rã thành phần + KHUNG như Theo máy (bộ Chỉnh bố cục kéo được) — mặc định TB_MAC.tacvu:
+       [camera + nguồn xem 8] [Ảnh ghi nhận + Ai tác động 4] · [12: tình trạng → Lỗi → Máy gợi ý → Quyết định (chốt cứng đáy thanh)] */
+    var tp = function (id, noi) { return '<div class="hx-tb-tp" data-tp="' + id + '">' + noi + '</div>'; };
+    $id("mBody").innerHTML = '<div class="hx-qd hx-tb-luoi" data-tb="tacvu">' +
+      /* 14/10 user: MÁY (xac-minh-tu-dong bước 7+8) ghi người tác động không qua hệ thống; ở đây chỉ báo kết quả máy soi + nút nguồn, DƯỚI clip (16/10 (6)) */
+      tp("clip", '<div class="hx-qd-xem"><div id="qdKhung" class="hx-qd-khung" data-khung></div>' +
+        '<div class="hx-xdau">' + vlTT + '<span class="hx-qd-nguon">' + nguon.map(function (n, i) { return n.an ? "" : '<button data-ng="' + i + '"' + (i ? "" : ' class="on"') + '>' + e_(n.ten) + '</button>'; }).join("") + '</span></div></div>') +
+      (anhGN ? tp("anh", anhGN) : "") +
+      (LS ? tp("aitacdong", '<div class="hx-qd-ls">' + oLsKho(LS, lanIdx, ai) + '</div>') : "") +
+      tp("tinhtrang", tt ? '<div class="hx-qd-tt">' + e_(tt) + '</div>' : "") +
+      tp("loi", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Lỗi</span><div class="hx-qd-loi" title="' + e_(p.loi) + '">' + e_(p.loi) + '</div></div>') +
+      tp("goiy", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Máy gợi ý</span><div><b>' + e_(ai || "Chưa có ứng viên") + '</b>' + (p.goiY ? ' <span class="hx-tag ' + (MUC_MAY[mucMay(p)] || ["", ""])[1] + '">' + e_(String((MUC_MAY[mucMay(p)] || [""])[0]).replace(/^Máy gợi ý · /, "")) + '</span>' : "") + '</div></div>' +
+        /* 13/10 user: đã có dữ liệu camera thì KHÔNG hiện đoạn «Vì sao» — ai/lúc nào/làm gì đã chạy thành phụ đề dưới clip từng người */
+        (!coCam && p.goiY && p.goiY.lyDo ? '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Vì sao · luật ' + e_(p.goiY.luat || "") + '</span><div class="hx-visao" title="Bấm để xem hết">' + e_(ngayChu(p.goiY.lyDo)) + '</div></div>' : "")) +
+      tp("quyetdinh", '<div class="hx-qd-ben">' +
         '<div class="hx-qd-form"><label class="hx-qd-o"><span class="lbl">Quyết định</span><select id="qdSel"><option value="">— chưa quyết —</option>' +
           ds.map(function (o) { return '<option' + (o === q.qd ? " selected" : "") + '>' + e_(o) + '</option>'; }).join("") + '</select></label>' +
           '<label class="hx-qd-o"><span class="lbl">Gán người khác (mã NV)</span><input id="qdGc" inputmode="numeric" autocomplete="off" value="' + e_(q.gc || "") + '" placeholder="vd 260189"></label></div>' +
-        '<button class="hx-nut" id="qdLuu" style="width:100%">Lưu quyết định</button><div id="qdMsg" class="muted" style="font-size:12px;min-height:16px"></div>' +
-        (tt ? '<div class="hx-qd-tt">' + e_(tt) + '</div>' : "") +
-        '<div class="hx-qd-o"><span class="lbl">Lỗi</span><div class="hx-qd-loi" title="' + e_(p.loi) + '">' + e_(p.loi) + '</div></div>' +
-        '<div class="hx-qd-o"><span class="lbl">Máy gợi ý</span><div><b>' + e_(ai || "Chưa có ứng viên") + '</b>' + (p.goiY ? ' <span class="hx-tag ' + (MUC_MAY[mucMay(p)] || ["", ""])[1] + '">' + e_(String((MUC_MAY[mucMay(p)] || [""])[0]).replace(/^Máy gợi ý · /, "")) + '</span>' : "") + '</div></div>' +
-        /* 13/10 user: đã có dữ liệu camera thì KHÔNG hiện đoạn «Vì sao» — ai/lúc nào/làm gì đã chạy thành phụ đề dưới clip từng người */
-        (!coCam && p.goiY && p.goiY.lyDo ? '<div class="hx-qd-o"><span class="lbl">Vì sao · luật ' + e_(p.goiY.luat || "") + '</span><div class="hx-visao" title="Bấm để xem hết">' + e_(ngayChu(p.goiY.lyDo)) + '</div></div>' : "") +
-      '</div></div><div class="hx-cot hx-cot-phai">' + anhGN + (LS ? '<div class="hx-qd-ls">' + oLsKho(LS, lanIdx, ai) + '</div>' : "") + '</div></div>';
+        '<button class="hx-nut" id="qdLuu" style="width:100%">Lưu quyết định</button><div id="qdMsg" class="muted" style="font-size:12px;min-height:16px"></div></div>') + '</div>';
+    tbAp();
     var aGN = $id("qdAnhGN"); if (aGN) aGN.onclick = function () { if (typeof openLB === "function") openLB([{ url: bc.anh, title: "Ảnh ghi nhận" }], 0); };
     ganGhiChu("phieu", String(p.id), ((LS && LS.bin) || p.viTri || "") + " · " + (nvp.length >= 16 ? nvp.slice(8, 10) + "/" + nvp.slice(5, 7) + "/" + nvp.slice(0, 4) + " " + nvp.slice(11, 16) : nvp));
     var vs0 = $id("mBody").querySelector(".hx-visao"); if (vs0) vs0.onclick = function () { vs0.classList.toggle("mo"); };

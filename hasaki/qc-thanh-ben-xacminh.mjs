@@ -34,7 +34,7 @@ for (const m of MAY) {
   const benTrai0 = await p.evaluate(() => document.body.classList.contains("side-open"));
   const boCuc = () => p.evaluate(() => { const R = (s) => { const e = document.querySelector(s); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return r.width && r.height ? { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom) } : null; };
     const img = document.getElementById("qdAnhGN");
-    return { vh: innerHeight, xem: R("#mBody .hx-qd-xem"), khung: R("#mBody [data-khung]"), anh: R("#mBody .hx-qd-anh"), ben: R("#mBody .hx-qd-ben"), ls: R("#mBody .hx-qd-ls"), luu: R("#qdLuu"), qd: R("#mBody .hx-qd-form>.hx-qd-o"),
+    return { vh: innerHeight, xem: R("#mBody .hx-qd-xem"), khung: R("#mBody [data-khung]"), anh: R("#mBody .hx-qd-anh"), ben: R("#mBody .hx-qd-ben"), ls: R("#mBody .hx-qd-ls"), luu: R("#qdLuu"), qd: R("#mBody .hx-qd-form>.hx-qd-o"), gc: R("#mBody .hx-qd-form>.hx-qd-o:nth-child(2)"),
       lans: (() => { const L = document.querySelector("#mBody .hx-qd-ls .hx-lans"); if (!L) return null; const c = L.children;
         return { n: c.length, cao: Math.round(L.clientHeight), cuon: L.scrollHeight - L.clientHeight, nam: c.length > 5 ? Math.round(c[5].getBoundingClientRect().top - c[0].getBoundingClientRect().top) : null }; })(),
       thanCuon: (() => { const bx = document.querySelector("#modal .modal-box"); return bx.scrollHeight - bx.clientHeight; })(),
@@ -70,14 +70,15 @@ for (const m of MAY) {
   await p.waitForFunction(() => { const i = document.getElementById("qdAnhGN"); return !i || (i.complete && i.naturalWidth); }, { timeout: 15000 }).catch(() => {});   // chờ ảnh ghi nhận tải xong rồi mới đo T13
   const bc = await boCuc();
   if (!m.mob) {
-    ok(bc.ben && Math.abs(bc.ben.l - bc.xem.l) <= 2 && bc.ben.t >= bc.xem.b - 1, m.ten + ": T10 Quyết định nằm DƯỚI video, cùng cột trái " + JSON.stringify([bc.xem, bc.ben]));
-    ok(!bc.ls || bc.ls.l >= bc.xem.r - 1, m.ten + ": T11 «Ai tác động» ở cột phải");
-    ok(!bc.anh || (bc.anh.l >= bc.xem.r - 1 && (!bc.ls || (bc.anh.b <= bc.ls.t + 1 && bc.anh.l - bc.ls.l >= 0 && bc.anh.l - bc.ls.l <= 26))), m.ten + ": T11 Ảnh ghi nhận cột phải, TRÊN «Ai tác động» " + JSON.stringify([bc.anh, bc.ls, bc.xem]));
+    /* 17/10 (5) user: dưới clip là «Ai tác động» (cột trái) · Lỗi / Máy gợi ý / Quyết định dưới Ảnh ghi nhận (cột phải) */
+    ok(bc.ben && bc.ben.l >= bc.xem.r - 1 && (!bc.anh || bc.ben.t >= bc.anh.b - 1), m.ten + ": T10 Quyết định cột phải, DƯỚI Ảnh ghi nhận " + JSON.stringify([bc.xem, bc.anh, bc.ben]));
+    ok(!bc.ls || (Math.abs(bc.ls.l - bc.xem.l) <= 2 && bc.ls.t >= bc.xem.b - 1), m.ten + ": T11 «Ai tác động» dưới clip, cùng cột trái " + JSON.stringify([bc.xem, bc.ls]));
+    ok(!bc.anh || (bc.anh.l >= bc.xem.r - 1 && Math.abs(bc.anh.t - bc.xem.t) <= 2), m.ten + ": T11 Ảnh ghi nhận cột phải, cùng mép trên clip " + JSON.stringify([bc.anh, bc.xem]));
     ok(!bc.anh || !bc.khung || (bc.anh.t < bc.vh && bc.khung.t < bc.vh && bc.anhTai), m.ten + ": T13 video + ảnh ghi nhận cùng hiện một màn (ảnh tải được=" + bc.anhTai + ")");
-    ok(bc.luu && bc.qd && Math.abs(bc.luu.b - bc.qd.b) <= 4, m.ten + ": T14 Quyết định · Gán người khác · Lưu cùng một hàng");
+    ok(bc.luu && bc.gc && Math.abs(bc.luu.b - bc.gc.b) <= 4 && bc.qd && bc.qd.b <= bc.gc.t + 1, m.ten + ": T14 Quyết định trên · Gán người khác + Lưu cùng một hàng (cột phải hẹp)");
   } else {
-    const thu = ["xem", "anh", "ben", "ls"].filter((k) => bc[k]).map((k) => bc[k].t);
-    ok(thu.every((t, i) => !i || t > thu[i - 1]), m.ten + ": T16 điện thoại xếp video → ảnh ghi nhận → quyết định → ai tác động " + JSON.stringify(thu));
+    const thu = ["xem", "ls", "anh", "ben"].filter((k) => bc[k]).map((k) => bc[k].t);   // 17/10 (5) xếp chồng theo khung: trái (clip, ai tác động) → phải (ảnh … quyết định)
+    ok(thu.every((t, i) => !i || t > thu[i - 1]), m.ten + ": T16 điện thoại xếp video → ai tác động → ảnh ghi nhận → quyết định " + JSON.stringify(thu));
   }
   ok(!bc.nguon.includes("Ảnh ghi nhận"), m.ten + ": T12 thanh nguồn không còn nút «Ảnh ghi nhận» trùng (" + bc.nguon.join(", ") + ")");
   if (bc.anh) {   // T15 bấm ảnh → phóng to; Esc đóng phóng to, thanh vẫn mở
@@ -123,7 +124,7 @@ for (const m of MAY) {
       if (x.luiChu === false) sai.push("Dải 72 giờ thiếu chú thích");
       if (x.luiChu) dem.dai72 = (dem.dai72 || 0) + 1;
       if (x.anh && x.khung && x.anh.l >= x.khung.r - 1) { dem.khoaAnh = (dem.khoaAnh || 0) + 1;   // T22 ảnh ghi nhận khoá = khung camera
-        if (Math.abs(x.anh.t - x.khung.t) > 2 || Math.abs((x.anh.b - x.anh.t) - (x.khung.b - x.khung.t)) > 2) sai.push("ảnh ghi nhận lệch khung camera " + JSON.stringify([x.anh, x.khung])); }
+        if (Math.abs(x.anh.t - x.khung.t) > 2) sai.push("ảnh ghi nhận lệch mép trên khung camera " + JSON.stringify([x.anh, x.khung])); }   // 17/10 (5) ảnh 16:9 riêng, không còn khoá cao = camera
       if (x.luiChu && !dem.thuKhung) {   // T21 lưới 72 giờ: không dấu phẩy rơi, 9 khung bấm được, bấm → dòng báo thu hẹp hiện (POST bị chặn ở tầng mạng)
         const t21 = await p.evaluate(() => { const k = document.getElementById("qdKhung"), nut = k.querySelectorAll(".hx-lui button[data-o]");
           const phay = [...k.childNodes].concat([...(k.querySelector(".hx-lui") || k).childNodes]).some((n) => n.nodeType === 3 && /,/.test(n.textContent));
@@ -134,9 +135,8 @@ for (const m of MAY) {
       if (!x.khung && x.nguon.length) sai.push("khung ẩn mà còn nút nguồn");
       if (x.tran) sai.push("tràn " + x.tran);
       if (ngang > 1) sai.push("kéo ngang " + ngang);
-      if (!x.ben || x.ben.t < (x.xem ? x.xem.b - 1 : 0)) sai.push("quyết định không dưới video");
-      if (x.ls && x.xem && x.ls.l < x.xem.r - 1) sai.push("ai tác động không ở cột phải");
-      if (x.anh && x.ls && x.anh.b > x.ls.t + 1) sai.push("ảnh không trên ai tác động");
+      if (!x.ben || (x.anh && x.ben.t < x.anh.b - 1)) sai.push("quyết định không dưới ảnh ghi nhận");
+      if (x.ls && x.xem && (Math.abs(x.ls.l - x.xem.l) > 2 || x.ls.t < x.xem.b - 1)) sai.push("ai tác động không dưới clip");
       /* T18 16/10 nguồn hàng từng lượt: dòng có sổ phải ghi nguồn + title chuỗi đầy đủ; ca mẫu user dán (06/10 06:43 Trương Thanh Bình) */
       const ng = await p.evaluate(() => { const rows = [...document.querySelectorAll("#mBody .hx-lan:not(.vl)")];
         const chung = (document.querySelector("#mBody .hx-ng-chung") || {}).textContent || "";
@@ -195,9 +195,9 @@ for (const m of MAY) {
       const m7 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), cl = R(document.querySelector("#mBody [data-khung]")), an = R(document.querySelector("#mBody .hx-qd-anh"));
         const loi = document.querySelector("#mBody [data-mcb]"), ai = document.querySelector("#mBody [data-cb]"), qd = document.querySelector("#mBody .hx-qd-nut"); if (!loi || !ai || !qd) return null;
         const k = [loi, ai, qd].map((e) => e.closest(".hx-tb-khung"));
-        return { motKhung: k[0] === k[1] && k[1] === k[2], thuTu: R(loi).bottom <= R(ai).top + 1 && R(ai).bottom <= R(qd).top + 1, duoiHang: Math.round(R(k[0]).top - Math.max(cl.bottom, an.bottom)),
+        return { motKhung: k[0] === k[1] && k[1] === k[2] && k[0] === document.querySelector("#mBody .hx-qd-anh").closest(".hx-tb-khung"), thuTu: R(loi).bottom <= R(ai).top + 1 && R(ai).bottom <= R(qd).top + 1, duoiHang: Math.round(R(loi).top - an.bottom),
           cauHoi: document.querySelectorAll("#mBody .hx-hoi").length, crop: document.querySelectorAll("#mBody .hx-crop").length, tieuDe: /Người trong khung đỏ/.test(document.getElementById("mBody").textContent) }; });
-      ok(m7 && m7.motKhung && m7.thuTu && m7.duoiHang >= -1, m.ten + ": M7 Lỗi → Là ai → Quyết định 1 khung dưới hàng clip " + JSON.stringify(m7));
+      ok(m7 && m7.motKhung && m7.thuTu && m7.duoiHang >= -1, m.ten + ": M7 Lỗi → Là ai → Quyết định dưới Ảnh ghi nhận, cùng khung (cột phải) " + JSON.stringify(m7));
       ok(m7 && !m7.cauHoi && !m7.crop && !m7.tieuDe, m.ten + ": M8 bỏ tiêu đề Người trong khung đỏ, câu hỏi, ảnh cắt " + JSON.stringify(m7));
       ok(!b1.nguon.length, m.ten + ": M9 không còn cụm nút nguồn (ảnh đã đứng riêng)");
       /* 17/10 (2) user: Sẽ ghi nhận dưới Ảnh ghi nhận · Quyết định dưới Máy gợi ý, 3 chip ngang hàng + Lưu ở dưới · mốc trên thanh thời gian · giờ không kèm «×3» */
@@ -207,7 +207,7 @@ for (const m of MAY) {
         return { seghi: sg && an ? Math.round(sg.top - an.bottom) : null, sgL: sg && an ? Math.round(Math.abs(sg.left - an.left)) : null, qdDuoi: qd && gy ? Math.round(qd.top - gy.bottom) : null,
           chipHang: new Set(chip.map((r) => Math.round(r.top))).size, chipN: chip.length, luuDuoi: luu && chip.length ? Math.round(luu.top - Math.max(...chip.map((r) => r.bottom))) : null,
           mkn: document.querySelectorAll("#hxTl .mkn").length, buoc: document.querySelectorAll("#hxTl .mk").length, hangMoc: document.querySelectorAll("#mBody .hx-mocs").length, gio: document.getElementById("hxGio").textContent }; });
-      ok(m14.seghi !== null && m14.seghi >= 0 && m14.seghi <= 16 && m14.sgL <= 2, m.ten + ": M14 Sẽ ghi nhận ngay dưới Ảnh ghi nhận " + JSON.stringify(m14));
+      ok(m14.seghi !== null && m14.seghi >= 0 && m14.sgL <= 2, m.ten + ": M14 Sẽ ghi nhận dưới Ảnh ghi nhận, cùng khung (canh giữa phần còn lại — 17/10 (4)) " + JSON.stringify(m14));
       ok(m14.qdDuoi !== null && m14.qdDuoi >= 0 && m14.chipN === 3 && m14.chipHang === 1 && m14.luuDuoi >= 0, m.ten + ": M15 Quyết định dưới Máy gợi ý, 3 chip ngang hàng, Lưu ở dưới " + JSON.stringify(m14));
       ok(m14.mkn === m14.buoc && !m14.hangMoc && !/×/.test(m14.gio), m.ten + ": M16 mốc là số trên thanh thời gian, bỏ hàng mốc riêng, giờ không kèm ×N " + JSON.stringify(m14));
       /* M17 ô «Vi phạm gì»: menu mở LÊN trên ô, nằm trong thanh, lăn chuột ngoài menu không cuộn khung nào */

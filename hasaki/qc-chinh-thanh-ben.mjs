@@ -32,7 +32,7 @@ const tt = () => p.evaluate(() => { const L = document.querySelector("#mBody .hx
   che: [...L.querySelectorAll(".hx-tb-tp")].filter((x) => { const t = x.querySelector(":scope>.dash-tb-p"); if (!t) return false; const r = t.getBoundingClientRect(), c = [...x.children].find((y) => !y.classList.contains("dash-sua-ui")); return c && c.getBoundingClientRect().top < r.bottom - 1; }).map((x) => x.dataset.tp),
   duong: (document.querySelector("#dashBang .dd") || {}).textContent }; });
 const s0 = await tt();
-ok(s0.khung.length === 3 && s0.khung.every((k) => k.tay) && s0.tayTp === s0.tp && s0.tp >= 5, "C1 3 khung + " + s0.tp + " thành phần đều có tay nắm · " + s0.duong);
+ok(s0.khung.length === 2 && s0.khung.every((k) => k.tay) && s0.tayTp === s0.tp && s0.tp >= 5, "C1 2 khung + " + s0.tp + " thành phần đều có tay nắm · " + s0.duong);
 ok(!s0.che.length, "C2 tay nắm không che nội dung " + JSON.stringify(s0.che));
 if (A.anh) await p.screenshot({ path: A.anh + "/chinh-thanh-ben-0.png" });
 const tam = (q) => p.evaluate((q) => { const e = document.querySelector(q); let r = e.getBoundingClientRect(); if (r.top < 60 || r.bottom > innerHeight) { e.scrollIntoView({ block: "center" }); r = e.getBoundingClientRect(); } return { x: r.left + Math.min(30, r.width / 2), y: r.top + r.height / 2, r: r.right, b: r.bottom, l: r.left, t: r.top, w: r.width, h: r.height }; }, q);
@@ -41,28 +41,28 @@ const keo = async (tu, den) => { await p.mouse.move(tu.x, tu.y); await p.mouse.d
 let d = await tam('[data-tp="seghi"]'), a = await tam('[data-tp="trangthai"]>.dash-tb-p .keo'); d = await tam('[data-tp="seghi"]');
 await keo(a, { x: d.l + d.w / 2, y: d.t + d.h * 0.8 });
 let s1 = await tt(); const k3 = s1.khung.find((k) => k.ds.includes("seghi"));
-ok(k3 && k3.ds.indexOf("trangthai") === k3.ds.indexOf("seghi") + 1, "C3 kéo Trạng thái lên khung ảnh, sau Sẽ ghi nhận " + JSON.stringify(s1.khung.map((k) => k.ds)));
+ok(k3 && k3.ds.indexOf("trangthai") === k3.ds.indexOf("seghi") + 1, "C3 kéo Trạng thái lên ngay sau Sẽ ghi nhận " + JSON.stringify(s1.khung.map((k) => k.ds)));
 /* C4 kéo mép phải khung trái sang trái ~2 cột */
-const mep = await p.evaluate(() => { const f = document.querySelector('#mBody .hx-tb-khung:nth-child(3)>.dash-mep.p'), r = f.getBoundingClientRect(), L = document.querySelector("#mBody .hx-tb-luoi").getBoundingClientRect(); return { x: r.left + 3, y: r.top + 60, cot: L.width / 12 }; });
+const mep = await p.evaluate(() => { const f = document.querySelector('#mBody .hx-tb-khung:nth-child(2)>.dash-mep.p'), r = f.getBoundingClientRect(), L = document.querySelector("#mBody .hx-tb-luoi").getBoundingClientRect(); return { x: r.left + 3, y: r.top + 60, cot: L.width / 12 }; });
 await keo(mep, { x: mep.x - mep.cot * 2, y: mep.y });
-let s2 = await tt(); ok(s2.khung[2].rong === "10", "C4 kéo mép phải khung dưới → " + s2.khung[2].rong + "/12 cột (mong 10)");
+let s2 = await tt(); ok(s2.khung[1].rong === "3", "C4 kéo mép phải khung phải → " + s2.khung[1].rong + "/12 cột (mong 3)");
 /* C5 + Khung mới → khung trống, thả «Lỗi» vào */
 await p.evaluate(() => [...document.querySelectorAll("#dashBang button")].find((x) => x.dataset.a === "tbmoi").click()); await ngu(500);
 let s3 = await tt(); const moi = s3.khung[s3.khung.length - 1];
-ok(s3.khung.length === 4 && !moi.ds.length, "C5 + Khung mới → khung trống thứ 4");
+ok(s3.khung.length === 3 && !moi.ds.length, "C5 + Khung mới → khung trống thứ 3");
 d = await tam("#mBody .hx-tb-khung:last-child"); a = await tam('[data-tp="quyetdinh"]>.dash-tb-p .keo'); d = await tam("#mBody .hx-tb-khung:last-child");
 await keo(a, { x: d.l + d.w / 2, y: d.t + d.h - 20 });
-s3 = await tt(); ok(s3.khung[3].ds.join() === "quyetdinh", "C5 thả Quyết định vào khung trống " + JSON.stringify(s3.khung.map((k) => k.ds)));
+s3 = await tt(); ok(s3.khung[2].ds.join() === "quyetdinh", "C5 thả Quyết định vào khung trống " + JSON.stringify(s3.khung.map((k) => k.ds)));
 if (A.anh) await p.screenshot({ path: A.anh + "/chinh-thanh-ben-1.png" });
 /* C6 Ctrl+Z 1 lần → Lỗi về khung cũ, khung 4 trống */
 await p.mouse.click(5, 450); await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await ngu(600);
-let s4 = await tt(); ok(s4.khung.length === 4 && !s4.khung[3].ds.length && s4.khung[2].ds.includes("quyetdinh"), "C6 Hoàn tác trả Quyết định về khung dưới " + JSON.stringify(s4.khung.map((k) => k.ds)));
+let s4 = await tt(); ok(s4.khung.length === 3 && !s4.khung[2].ds.length && s4.khung[1].ds.includes("quyetdinh"), "C6 Hoàn tác trả Quyết định về khung phải " + JSON.stringify(s4.khung.map((k) => k.ds)));
 /* C8 gói lưu */
 await ngu(1000); const j = goi.length ? JSON.parse(goi[goi.length - 1]) : null;
-ok(j && j.thanhBen && j.thanhBen.may && j.thanhBen.may.khung.length === 4 && j.tab && j.khoi, "C8 lưu gửi thanhBen.may (" + goi.length + " lượt, chặn tại trình duyệt)");
+ok(j && j.thanhBen && j.thanhBen.may && j.thanhBen.may.khung.length === 3 && j.tab && j.khoi, "C8 lưu gửi thanhBen.may (" + goi.length + " lượt, chặn tại trình duyệt)");
 /* C7 Về mặc định */
 await p.evaluate(() => [...document.querySelectorAll("#dashBang button")].find((x) => x.dataset.a === "tbgoc").click()); await ngu(600);
-let s5 = await tt(); ok(JSON.stringify(s5.khung.map((k) => k.ds)) === JSON.stringify([["clip"], ["anh", "seghi"], ["dsnguoi", "trangthai", "quyetdinh"]]) && s5.khung[2].rong === "12", "C7 Về mặc định " + JSON.stringify(s5.khung.map((k) => k.ds)));
+let s5 = await tt(); ok(JSON.stringify(s5.khung.map((k) => k.ds)) === JSON.stringify([["clip"], ["anh", "seghi", "dsnguoi", "trangthai", "quyetdinh"]]) && s5.khung[1].rong === "5", "C7 Về mặc định " + JSON.stringify(s5.khung.map((k) => k.ds)));
 /* tắt chỉnh → không còn tay nắm, khung trống ẩn */
 await p.evaluate(() => [...document.querySelectorAll("#dashBang button")].find((x) => x.dataset.a === "xong").click()); await ngu(500);
 const het = await p.evaluate(() => document.querySelectorAll("#mBody .dash-sua-ui").length); ok(het === 0, "C10 Xong chỉnh → không còn tay nắm (" + het + ")");
