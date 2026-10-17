@@ -65,7 +65,7 @@ window.GOC_DL=/\.pages\.dev$/.test(location.hostname)?'https://letam0317.github.
   try{
     var tb=null; try{ tb=new URLSearchParams(location.search).get('tab'); }catch(e){}
     if(tb!=='planogram' || /khoa=/.test(location.hash||'')) return;
-    var V='20261017lv';   // PHẢI khớp s.src trong moHasakiPlanogram()
+    var V='20261017lx';   // PHẢI khớp s.src trong moHasakiPlanogram()
     var l=document.createElement('link'); l.rel='preload'; l.as='script'; l.href='hasaki-planogram.js?v='+V; document.head.appendChild(l);
     var GAS='https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
     var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||''; }catch(e){}
@@ -1529,8 +1529,9 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261017a"></script>
+<script src="hasaki-giaodien-antd.js?v=20261017b"></script>
 <script src="tai-khoan.js?v=20261016a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
+<link rel="stylesheet" href="thanh-cuon.css?v=20261017a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -3547,7 +3548,7 @@ function moHasakiMayTram(){
   if(!xmDuocXem()){ xmKhoaPane(pane); return; } xmMoKhoa(pane);
   if(!_mtNap){
     _mtNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261015b';
+      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261017a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-maytram.js'));
       document.body.appendChild(s);
     });
@@ -3563,7 +3564,7 @@ function moHasakiPlanogram(){
       '<div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:54%"></div>'+
       '<div class="sk sk-line" style="width:62%"></div></div>';
     _hpNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20261017lv';   // khớp V ở <head>
+      const s=document.createElement('script'); s.src='hasaki-planogram.js?v=20261017lx';   // khớp V ở <head>
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-planogram.js'));
       document.body.appendChild(s);
     });
@@ -3576,7 +3577,9 @@ function moHasakiPlanogram(){
 function xmDuocXem(){ try { return window.TK ? !!(window.TK.nguoi && (typeof window.tkCo !== "function" || window.tkCo("r.xacminh"))) : !!localStorage.getItem("hx-phien"); } catch(e){ return false; } }
 function xmMoDangNhap(){
   if (window.TK && window.TK.nguoi) { if (typeof toast === "function") toast("Tài khoản " + window.TK.nguoi.id + " chưa có quyền Xác minh — nhờ quản trị cấp quyền.", "loi"); return; }
-  if (typeof window.tkMoDangNhap === "function") window.tkMoDangNhap(function(){ if (xmDuocXem()) setTab("xacminh"); });
+  /* 17/10 user «đăng nhập ở pop-up xong lại chuyển sang màn hình đăng nhập»: điện thoại không có máy chủ Xác minh (8591) → tab xacminh rơi vào ô
+     đăng nhập riêng của nó. Máy không có máy chủ: đăng nhập xong mở Máy trạm (mục Xác minh duy nhất xem được ở đó). */
+  if (typeof window.tkMoDangNhap === "function") window.tkMoDangNhap(function(){ if (xmDuocXem()) setTab(window.__HX_MAY_CHU ? "xacminh" : "maytram"); });
 }
 function xmKhoaPane(pane){
   pane.classList.add("xm-khoa-on");
@@ -3595,9 +3598,10 @@ let _hxNap=null;
 function moHasakiXacMinh(){
   const pane=$('pane-xacminh');
   if(!xmDuocXem()){ xmKhoaPane(pane); return; } xmMoKhoa(pane);
+  if(window.__HX_KHONG_MAY){ setTimeout(()=>setTab("maytram"),0); return; }   // 17/10: điện thoại (tab nhớ/đường dẫn ?tab=xacminh) — không có máy chủ, tránh ô đăng nhập lặp
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261017x';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261018b';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });

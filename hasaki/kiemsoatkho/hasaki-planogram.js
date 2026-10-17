@@ -1197,7 +1197,7 @@ var CSS = [
 /* Dòng đếm luỹ tiến thay chỗ nút khi CHƯA đủ 3 lần ("Đi làm không báo cáo · lần 2/3") — cùng màu đỏ, nhỏ hơn, không bấm được */
 ".hp-vtlt{font-size:11px;font-weight:700;color:#dc2626;white-space:nowrap;line-height:1.3;padding:2px 0;cursor:help;}",
 ".hp-vtlt:empty{display:none;}",
-"@media(max-width:768px){.hp-vtghi{min-height:40px;padding:6px 0;}}",
+"@media(max-width:768px){.hp-vtghi{min-height:44px;min-width:44px;padding:6px 0;}}",   // 17/10 QC: pop-up khác đè lên thì pop-up vị trí thu nhỏ nhẹ → 40px còn 39 ⇒ 44 cho dư
 
 /* ===== KHUÔN THẺ DI ĐỘNG `table.mbcard` + dọn thanh điều khiển (21/08/2026) =====================
  * NGÒI NỔ: người dùng gửi lại chính màn này từ điện thoại — "Danh sách theo dõi › AI xét duyệt ảnh"
