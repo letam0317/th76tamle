@@ -186,20 +186,23 @@ for (const m of MAY) {
           nutRong: Math.round(Math.max(...nut.map((r) => r.width))), nutHang: new Set(nut.map((r) => Math.round(r.top))).size }; });
       ok(b1.anh && Math.abs(b1.anh.t - b1.khung.t) <= 2 && m6.xam <= 2, m.ten + ": M6 ảnh ghi nhận cùng mép trên clip, vừa khít ảnh " + JSON.stringify(m6));
       /* 16/10 (10) user «kích thước camera lệch so với thanh thời gian»: video và dải thời gian phải cùng mép trái/phải */
-      const m13 = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap").getBoundingClientRect(), t = document.getElementById("hxTl").getBoundingClientRect(); return [Math.round(v.left - t.left), Math.round(v.right - t.right)]; });
-      ok(Math.abs(m13[0]) <= 1 && Math.abs(m13[1]) <= 1, m.ten + ": M13 clip thẳng mép với dải thời gian " + JSON.stringify(m13));
-      ok(m6.mocCat <= 1 && m6.nutRong <= 260 && m6.nutHang <= 2, m.ten + ": M12 mốc không bị cắt, nút quyết cỡ theo chữ " + JSON.stringify(m6));
-      /* 17/10 user: «Người trong khung đỏ» và cụm điều khiển/Quyết định/Lỗi/Gợi ý = 2 KHUNG ngang hàng, vạch ngăn ở GIỮA thanh, nằm DƯỚI cả hàng clip (không phải ngay dưới clip) */
-      const m7 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), L = R(document.querySelector("#mBody .hx-tb-luoi")), cl = R(document.querySelector("#mBody [data-khung]")), an = R(document.querySelector("#mBody .hx-qd-anh"));
-        const qd = document.querySelector("#mBody .hx-qd-nut"), ng = document.querySelector("#mBody .hx-qd-nguoi>.lbl"); if (!L || !qd || !ng) return null;
-        const kq = R(qd.closest(".hx-tb-khung")), kn = R(ng.closest(".hx-tb-khung")), day = Math.max(cl.bottom, an.bottom), giua = L.left + L.width / 2;
-        return { duoiHang: Math.round(Math.min(kq.top, kn.top) - day), ngang: Math.round(Math.abs(kq.top - kn.top)), trai: Math.round(R(qd).right - giua), phai: Math.round(R(ng).left - giua), vach: Math.round(kn.left - giua), khac: qd.closest(".hx-tb-khung") !== ng.closest(".hx-tb-khung") }; });
-      ok(m7 && m7.khac && m7.duoiHang >= 0 && m7.trai <= 0, m.ten + ": M7 Quyết định ở khung trái, dưới cả hàng clip " + JSON.stringify(m7));
-      ok(m7 && m7.ngang <= 2 && m7.phai >= 0 && Math.abs(m7.vach) <= 2, m.ten + ": M8 Người trong khung đỏ ở khung phải ngang hàng, vạch ngăn giữa thanh " + JSON.stringify(m7));
+      /* 17/10 (3) user: điều khiển clip gọn, bên PHẢI ngang hàng thanh thời gian — thanh thời gian thẳng mép trái clip, điều khiển thẳng mép phải clip */
+      const m13 = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap").getBoundingClientRect(), t = document.getElementById("hxTl").getBoundingClientRect(), c = document.querySelector("#lvClip .hx-xdau").getBoundingClientRect();
+        return { trai: Math.round(v.left - t.left), phai: Math.round(v.right - c.right), hang: Math.round(Math.abs((t.top + t.bottom) / 2 - (c.top + c.bottom) / 2)), cao: Math.round(c.height) }; });
+      ok(Math.abs(m13.trai) <= 1 && Math.abs(m13.phai) <= 1 && m13.hang <= 3 && m13.cao <= 28, m.ten + ": M13 điều khiển gọn ngang hàng thanh thời gian, thẳng mép clip " + JSON.stringify(m13));
+      ok(m6.mocCat <= 1 && m6.nutHang <= 2, m.ten + ": M12 nút quyết không quá 2 hàng " + JSON.stringify(m6));
+      /* 17/10 (3) user: gộp làm 1 khung DƯỚI cả hàng clip, trên xuống: Lỗi → Máy gợi ý/Là ai → Quyết định; bỏ «Người trong khung đỏ», câu hỏi, ảnh cắt nhỏ */
+      const m7 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), cl = R(document.querySelector("#mBody [data-khung]")), an = R(document.querySelector("#mBody .hx-qd-anh"));
+        const loi = document.querySelector("#mBody [data-mcb]"), ai = document.querySelector("#mBody [data-cb]"), qd = document.querySelector("#mBody .hx-qd-nut"); if (!loi || !ai || !qd) return null;
+        const k = [loi, ai, qd].map((e) => e.closest(".hx-tb-khung"));
+        return { motKhung: k[0] === k[1] && k[1] === k[2], thuTu: R(loi).bottom <= R(ai).top + 1 && R(ai).bottom <= R(qd).top + 1, duoiHang: Math.round(R(k[0]).top - Math.max(cl.bottom, an.bottom)),
+          cauHoi: document.querySelectorAll("#mBody .hx-hoi").length, crop: document.querySelectorAll("#mBody .hx-crop").length, tieuDe: /Người trong khung đỏ/.test(document.getElementById("mBody").textContent) }; });
+      ok(m7 && m7.motKhung && m7.thuTu && m7.duoiHang >= -1, m.ten + ": M7 Lỗi → Là ai → Quyết định 1 khung dưới hàng clip " + JSON.stringify(m7));
+      ok(m7 && !m7.cauHoi && !m7.crop && !m7.tieuDe, m.ten + ": M8 bỏ tiêu đề Người trong khung đỏ, câu hỏi, ảnh cắt " + JSON.stringify(m7));
       ok(!b1.nguon.length, m.ten + ": M9 không còn cụm nút nguồn (ảnh đã đứng riêng)");
       /* 17/10 (2) user: Sẽ ghi nhận dưới Ảnh ghi nhận · Quyết định dưới Máy gợi ý, 3 chip ngang hàng + Lưu ở dưới · mốc trên thanh thời gian · giờ không kèm «×3» */
       const m14 = await p.evaluate(() => { const R = (q) => { const e = document.querySelector(q); return e ? e.getBoundingClientRect() : null; };
-        const an = R("#mBody .hx-qd-anh"), sg = R("#hxChot"), gy = R('#mBody [data-tp="goiy"]'), qd = R('#mBody [data-tp="quyetdinh"]');
+        const an = R("#mBody .hx-qd-anh"), sg = R("#hxChot"), gy = R('#mBody [data-tp="dsnguoi"]'), qd = R('#mBody [data-tp="quyetdinh"]');
         const chip = [...document.querySelectorAll('#mBody .hx-act button:not(.chinh):not([data-qd="-1"])')].map((b) => b.getBoundingClientRect()), luu = R('#mBody .hx-act button.chinh');
         return { seghi: sg && an ? Math.round(sg.top - an.bottom) : null, sgL: sg && an ? Math.round(Math.abs(sg.left - an.left)) : null, qdDuoi: qd && gy ? Math.round(qd.top - gy.bottom) : null,
           chipHang: new Set(chip.map((r) => Math.round(r.top))).size, chipN: chip.length, luuDuoi: luu && chip.length ? Math.round(luu.top - Math.max(...chip.map((r) => r.bottom))) : null,
@@ -235,7 +238,7 @@ for (const m of MAY) {
         const x = await boCuc(), ng = await p.evaluate(() => document.documentElement.scrollWidth - innerWidth), sai = [];
         if (x.anh && x.khung && x.anh.l >= x.khung.r - 1) { demL.khoa++; if (Math.abs(x.anh.t - x.khung.t) > 2) sai.push("ảnh lệch mép trên clip"); }
         if (x.tran) sai.push("tràn " + x.tran); if (ng > 1) sai.push("kéo ngang " + ng);
-        const lech = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap"), t = document.getElementById("hxTl"); if (!v || !t) return 0; const a = v.getBoundingClientRect(), c = t.getBoundingClientRect(); return Math.max(Math.abs(a.left - c.left), Math.abs(a.right - c.right)); });
+        const lech = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap"), t = document.getElementById("hxTl"); if (!v || !t) return 0; const a = v.getBoundingClientRect(), c = t.getBoundingClientRect(); return Math.abs(a.left - c.left); });
         if (lech > 1) sai.push("clip lệch dải thời gian " + Math.round(lech) + "px");
         if (x.thanCuon > 2) { const ct = await p.evaluate(() => { const C = document.querySelector("#mBody .hx-ds-ng"); if (!C) return null; const r = C.getBoundingClientRect();
             return { top: Math.round(r.top), cao: Math.round(r.height), max: C.style.maxHeight, sh: C.scrollHeight, the: C.children.length, chot: Math.round(document.getElementById("hxChot").getBoundingClientRect().height), anh: Math.round(document.querySelector("#mBody .hx-qd-anh").getBoundingClientRect().height) }; });

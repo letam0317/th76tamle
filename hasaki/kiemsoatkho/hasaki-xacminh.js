@@ -218,6 +218,19 @@
         "#modal.hx-ben .hx-tb-luoi .hx-tl .mk{top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--text) 45%,transparent)}" +
         "#modal.hx-ben .hx-tb-luoi .hx-tl .mkn{position:absolute;top:50%;z-index:2;transform:translate(-50%,-50%);width:18px;height:18px;min-height:0!important;padding:0;border-radius:50%;border:1px solid var(--surface);background:var(--text);color:var(--surface);font-size:11px;line-height:16px;font-weight:600;cursor:pointer}" +
         "#modal.hx-ben .hx-tb-luoi .hx-tl .mkn.ng{background:var(--bad);color:#fff}#modal.hx-ben .hx-tb-luoi .hx-tl .cur{z-index:1}" +
+        /* 17/10 (3) thanh thời gian + điều khiển GỌN cùng 1 hàng (điều khiển bên phải) */
+        "#modal.hx-ben .hx-tb-luoi .hx-tl-hang{flex:0 0 100%;display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}#modal.hx-ben .hx-tb-luoi .hx-tl-hang>.hx-tl{flex:1 1 160px;margin:0!important;min-width:120px}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-xdau{flex:none;margin:0!important;gap:0}#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-vbar{gap:6px;padding:0;border:0;background:transparent}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-vbar button,#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-toc button{min-height:24px!important;height:24px;padding:0 6px!important;font-size:12px!important;line-height:22px}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-tl-hang #hxPlay{width:24px;padding:0!important;border-radius:4px}#modal.hx-ben .hx-tb-luoi .hx-tl-hang .gio{font-size:12px!important;font-variant-numeric:tabular-nums;min-width:56px}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-toc{border-radius:4px}" +
+        /* 17/10 (3) Lỗi / Máy gợi ý hiện như chữ thường, bấm vào mới thành ô chọn (khung + menu) */
+        "#modal.hx-ben .hx-ng-gon{display:flex!important;flex-direction:column;gap:6px;padding:0;border:0;background:transparent;grid-template-columns:none}#modal.hx-ben .hx-ng-gon+.hx-ng-gon{border-top:1px solid var(--ad-chia,var(--border));padding-top:10px;margin-top:4px}" +
+        "#modal.hx-ben .hx-ng-gon>.ten{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:13px;font-weight:600}#modal.hx-ben .hx-ng-gon>.ten .hx-chk{margin:0;font-weight:400}" +
+        "#modal.hx-ben .hx-o-an{margin:0;align-items:start!important}#modal.hx-ben .hx-o-an>.lbl{padding-top:4px}#modal.hx-ben .hx-o-an .hx-cb{min-width:0}" +
+        "#modal.hx-ben .hx-o-an :is(input,textarea){display:block;width:100%;min-height:28px!important;padding:3px 6px!important;margin:0 0 0 -6px;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;resize:none;font:inherit;font-size:13px!important;color:var(--text);cursor:pointer;overflow:hidden;box-sizing:border-box;max-width:calc(100% + 6px)}#modal.hx-ben .hx-o-an textarea{width:calc(100% + 6px)}" +
+        "#modal.hx-ben .hx-o-an :is(input,textarea):hover{background:var(--ad-nen2,#f5f5f5)!important}#modal.hx-ben .hx-o-an :is(input,textarea):focus{border-color:var(--accent)!important;background:var(--surface)!important;cursor:text;outline:0;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)!important}" +
+        "#modal.hx-ben .hx-o-an input{font-weight:600;field-sizing:content;min-width:180px;width:auto}#modal.hx-ben .hx-o-an:has(.hx-ai-phu:not(:empty)){grid-template-columns:80px auto minmax(0,1fr)}#modal.hx-ben .hx-ai-phu{align-self:center;font-size:12px;color:var(--muted)}#modal.hx-ben .hx-ai-phu:empty{display:none}" +
         "#modal.hx-ben .hx-toc button.dang:not(.on){background:color-mix(in srgb,var(--accent) 16%,var(--surface));color:var(--accent)}#modal.hx-ben .hx-tb-luoi .hx-chot{margin:0!important;overflow-y:auto;overscroll-behavior:contain}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-tb-khung,#modal.hx-ben .hx-tb-luoi .hx-tb-tp{grid-column:1/-1}#modal.hx-ben .hx-tb-khung{padding:12px 16px}}" +
       /* 1 cột (thanh hẹp / điện thoại): bỏ vỏ cột, xếp video → ảnh ghi nhận → quyết định → ai tác động */
@@ -495,52 +508,49 @@
       n.ma = c ? c.ma : ""; n.ten = c ? (c.ten || "") : ""; n.khong = c ? !!c.khong : false; n.muc = c && c.muc ? c.muc : mucMacDinh(l); n.viTri = c && c.viTri ? c.viTri : (l.loai === "phan-loai" ? l.camera : "Bãi xe NCC/bảo vệ · " + l.camera); });
     var khoa = l.may && l.may.trangThai && l.may.trangThai !== "lỗi";
     var PL = l.loai === "phan-loai";
+    /* 17/10 (3) user «Máy gợi ý … nhấn vào thì chọn được người khác như ô Là ai»: người máy gợi ý = lựa chọn SẴN của người nghi 1 (chưa ai chọn thì điền), đổi được */
+    var gy0 = (l.cong || []).find(function (c) { return c.code === l.goiY; });
+    if (gy0 && EV.ng[0] && !EV.ng[0].ma && !cu.length && !q.ma) { EV.ng[0].ma = gy0.code; EV.ng[0].ten = gy0.ten; }
     /* 14/10 user: pop-up Theo máy ĐỒNG BỘ vị trí với Theo tác vụ — tiêu đề 2 dòng (chỗ / ngày giờ) + Ghi chú · trái: nguồn + khung xem ·
        phải: Quyết định → Lỗi → Máy gợi ý → danh sách người (như «Ai tác động ô») */
     var nd = String(l.ngay || "").split("-"), gioL = hm(l.gioNguoi || l.tu);
     $id("mTitle").innerHTML = '<span class="hx-mt1">' + e_(tenLoai(l.loai)) + " · " + e_(l.camera) + '</span><span class="hx-mt2">' + (nd.length === 3 ? nd[2] + "/" + nd[1] + "/" + nd[0] : e_(l.ngay)) + " " + gioL + '</span>';
     if (l.may && l.may.phieu) ganMoTask("https://work.hasaki.vn/tasks?task_id=" + encodeURIComponent(l.may.phieu)); else { var mt0 = $id("hxMoTask"); if (mt0) mt0.remove(); }
     var gy = (l.cong || []).find(function (c) { return c.code === l.goiY; });
-    var soNg = (l.buocAnh || []).reduce(function (m, b) { return Math.max(m, (b.hop || []).length); }, 0);
-    var goiYChu = gy ? '<b>' + e_(gy.ten) + '</b> <span class="muted">' + e_(gy.code) + ' · vào cổng ' + hm(gy.gio) + '</span>'
-      : '<b>' + ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") : "Chưa có ứng viên") + '</b>';
     var dn = (l.doanNguoi || []).map(function (d) { return [giay(d[0]), giay(d[1])]; });
     /* 17/10 user «rã tất cả thành phần/khung ở thanh bên phải để t tự di chuyển ở bản QC»: mỗi thành phần 1 khối rời [data-tp],
        hxTB.ap() xếp vào các KHUNG theo bố cục (DASH_BOCUC.thanhBen.may — bộ Chỉnh bố cục ghi; chưa có thì TB_MAC).
        Mặc định: hàng trên = clip + Ảnh ghi nhận; DƯỚI cả hàng clip = 2 khung chia đôi thanh: điều khiển/mốc/Quyết định/Lỗi/Gợi ý | Người trong khung đỏ. */
     var tp = function (id, noi) { return '<div class="hx-tb-tp" data-tp="' + id + '">' + noi + '</div>'; };
+    /* 17/10 (3) user: điều khiển clip GỌN, nằm bên phải NGANG HÀNG thanh thời gian · gộp Lỗi / Máy gợi ý / Quyết định / người nghi thành 1 khung:
+       Lỗi (bấm = ô chọn hạng mục như «Vi phạm gì») → Máy gợi ý (bấm = chọn người khác như «Là ai») → Quyết định; bỏ tiêu đề «Người trong khung đỏ», câu hỏi, ảnh cắt nhỏ.
+       ≥2 người nghi: mỗi người 1 cụm Lỗi / Là ai có dòng tên «Người nghi N · giờ» + ô tích không vi phạm. */
+    var nhieu = EV.ng.length >= 2;
     var h = '<div class="hx-qd hx-qd-luot hx-tb-luoi" data-tb="may">' +
       tp("clip", '<div id="lvClip"><div class="hx-vwrap" data-khung><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div>' +
-        '<div class="hx-tl" id="hxTl"></div></div>') +
+        '<div class="hx-tl-hang"><div class="hx-tl" id="hxTl"></div><div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
+        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div></div></div>') +
       tp("anh", '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" loading="lazy" decoding="async"></div>') +
-      tp("dieukhien", '<div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
-        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div>') +
+      tp("seghi", '<div class="hx-chot" id="hxChot"></div>') +
+      /* người nghi: 4–5 người thì khối này cao — cuộn riêng (lapCotPhai), không đẩy dài cả thanh */
+      tp("dsnguoi", '<div class="hx-qd-nguoi"><div class="hx-ds-ng">' + EV.ng.map(function (n) { return '<div class="hx-ng hx-ng-gon' + (n.khong ? " khong" : "") + '" data-so="' + n.so + '">' +
+        (nhieu ? '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span>' +
+          '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label></div>' : "") +
+        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl">Lỗi</span><div class="hx-cb"><textarea rows="1" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Bấm để chọn hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea><div class="menu"></div></div></label>' +
+        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl" data-nhan-ai="' + n.so + '">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="' + (n.so === EV.ng[0].so && !gy0 ? ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") + " — bấm để chọn" : "Chưa có ứng viên — bấm để chọn / gõ tên, mã NV") : "Bấm để chọn ứng viên hoặc gõ tên / mã NV") + '" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '><div class="menu"></div></div>' +
+          '<span class="hx-ai-phu" data-ai-phu="' + n.so + '"></span></label>' +
+        '</div>'; }).join("") + '</div></div>') +
+      tp("trangthai", stLuot(l)) +
       /* 17/10 (2) user: 3 chip Xe ra · Không phải NV · Không rõ NGANG HÀNG, «Lưu · lập phiếu» ở dưới 3 chip */
       tp("quyetdinh", '<div class="hx-qd-o hx-qd-nut"><span class="lbl">Quyết định</span><div class="hx-act">' +
         '<button data-qd="2"' + (khoa ? " disabled" : "") + '>' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '</button><button data-qd="1"' + (khoa ? " disabled" : "") + '>Không phải NV Hasaki</button>' +
         '<button data-qd="3"' + (khoa ? " disabled" : "") + '>Không rõ – bỏ qua</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") +
-        '<button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button></div></div>') +
-      tp("trangthai", stLuot(l)) +
-      tp("loi", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Lỗi</span><div class="hx-qd-loi" title="' + e_(loiCam(l)) + '">' + e_(loiCam(l)) + '</div></div>') +
-      tp("goiy", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Máy gợi ý</span><div>' + goiYChu + '</div></div>') +
-      tp("seghi", '<div class="hx-chot" id="hxChot"></div>') +
-      tp("cauhoi", '<div class="hx-qd-o hx-qd-nguoi"><span class="lbl">Người trong khung đỏ · ' + (soNg ? soNg + " người nghi" : "có cử động") + '</span>' +
-        '<div class="hx-hoi">' + (PL ? "Người trong khung đỏ có bỏ rác sai bao / đổ cả xe không tách màng co không?" : "Người trong khung đỏ có phải NV Hasaki (chính thức / part-time) gửi xe sai bãi không?") + '</div></div>') +
-      /* thẻ người: 4–5 người nghi thì khối này cao ~450px — cuộn riêng (lapCotPhai), không đẩy dài cả thanh */
-      tp("dsnguoi", '<div class="hx-qd-nguoi"><div class="hx-ds-ng">' + EV.ng.map(function (n) { return '<div class="hx-ng' + (n.khong ? " khong" : "") + '" data-so="' + n.so + '">' +
-        '<div class="hx-crop" style="' + cropStyle(n.anh, n.hop) + '" data-zoom="' + n.so + '" title="Bấm xem ảnh to"></div><div style="min-width:0">' +
-        '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span></div>' +
-        '<label class="hx-f"><span class="lbl">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="Chọn ứng viên hoặc gõ tên / mã NV" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '><div class="menu"></div></div></label>' +
-        '<label class="hx-f"><span class="lbl">Vi phạm gì (QUY-ĐỊNH)</span><div class="hx-cb"><textarea rows="2" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Gõ để tìm hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea><div class="menu"></div></div></label>' +
-        /* 14/10 user «ẩn»: ô «Ở đâu» lặp tiêu đề → bỏ (máy vẫn ghi chỗ theo camera lên phiếu) · ô tích chỉ khi ≥2 người (1 người thì trùng nút «Không phải NV Hasaki») */
-        (EV.ng.length >= 2 ? '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label>' : "") +
-        '</div></div>'; }).join("") + '</div></div>') + '</div>';
+        '<button class="chinh" data-qd="0"' + (khoa ? " disabled" : "") + '>Lưu · lập phiếu & chuyển B1.1</button></div></div>') + '</div>';
     $id("mBody").innerHTML = h;
     tbAp();
     ganGhiChu("luot", String(l.id), tenLoai(l.loai) + " · " + l.camera + " · " + (nd.length === 3 ? nd[2] + "/" + nd[1] + "/" + nd[0] : l.ngay) + " " + gioL);
     var lvXem = function () {};   // 16/10 (7) ảnh ghi nhận đứng riêng ở cột phải — không còn đổi qua lại clip/ảnh
     $id("lvAnhGN").onclick = function () { openLB([{ url: anhNguoi(l), title: "Ảnh ghi nhận", sub: l.camera }], 0); };
-    var loi1 = $id("mBody").querySelector(".hx-qd-loi"); if (loi1) loi1.onclick = function () { loi1.classList.toggle("mo"); };
     xongThanhBen(TB);
     var huy = function () { var v = $id("hxV"); if (v) { v.pause(); v.removeAttribute("src"); v.load(); } };
     $id("mClose").addEventListener("click", huy, { once: true });
@@ -564,6 +574,9 @@
   }
   function veChot() {
     var el = $id("hxChot"); if (!el || !EV) return;
+    EV.ng.forEach(function (n) { var nh = $id("mBody").querySelector('[data-nhan-ai="' + n.so + '"]'), ph = $id("mBody").querySelector('[data-ai-phu="' + n.so + '"]'); if (!nh) return;
+      var c = n.ma ? (EV.l.cong || []).find(function (x) { return x.code === n.ma; }) : null, laGY = !!n.ma && n.ma === EV.l.goiY;
+      nh.textContent = laGY ? "Máy gợi ý" : "Là ai"; if (ph) ph.textContent = c ? "vào cổng " + hm(c.gio) : ""; });
     var l = EV.l, mucTen = function (m) { var x = (QDL || []).find(function (y) { return y.muc === m; }); return x ? "mục " + m + " «" + x.cau.slice(0, 60) + (x.cau.length > 60 ? "…" : "") + "»" : "mục " + m; };
     el.innerHTML = '<div class="lbl" style="font-size:11px;color:var(--muted);margin-bottom:4px">Sẽ ghi nhận</div>' + EV.ng.map(function (n) {
       var ai = n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so;
@@ -578,7 +591,7 @@
     var M = $id("modal"), menu = box.querySelector(".menu"); if (!menu || !M.classList.contains("hx-ben") || !box.classList.contains("show")) return;
     var bx = M.querySelector(".modal-box").getBoundingClientRect(), r = box.getBoundingClientRect(), tren = r.top - bx.top - 12, duoi = bx.bottom - r.bottom - 12;
     var len = tren >= 160 || tren >= duoi, h = Math.max(120, Math.min(360, len ? tren : duoi));
-    menu.style.cssText = "position:fixed;left:0;top:0;right:auto;bottom:auto;animation:none;overscroll-behavior:contain;width:" + Math.round(r.width) + "px;max-height:" + Math.floor(h) + "px";
+    menu.style.cssText = "position:fixed;left:0;top:0;right:auto;bottom:auto;animation:none;overscroll-behavior:contain;width:" + Math.round(Math.min(Math.max(r.width, 360), bx.right - r.left - 12)) + "px;max-height:" + Math.floor(h) + "px";
     var o = menu.getBoundingClientRect(), mh = Math.min(menu.scrollHeight, h);   // o = gốc toạ độ thật (hộp thanh bên trượt bằng transform)
     menu.style.left = Math.round(r.left - o.left) + "px"; menu.style.top = Math.round((len ? r.top - 4 - mh : r.bottom + 4) - o.top) + "px";
     khoaCuon(true);
@@ -591,11 +604,11 @@
     ["wheel", "touchmove"].forEach(function (k) { M.addEventListener(k, M._khoaCuon, { capture: true, passive: false }); });
   }
   function ganCombo(inp, l) {
-    var so = Number(inp.dataset.cb), n = EV.ng.find(function (x) { return x.so === so; }), box = inp.parentNode, menu = box.querySelector(".menu"), hT;
+    var so = Number(inp.dataset.cb), n = EV.ng.find(function (x) { return x.so === so; }), box = inp.parentNode, menu = box.querySelector(".menu"), hT, boLoc = false;
     var item = function (c, nhom) { return '<div class="hx-it" data-ma="' + e_(c.ma || c.code) + '" data-ten="' + e_(c.ten) + '">' + (c.anh ? '<img src="' + e_(c.anh) + '" alt="" referrerpolicy="no-referrer">' : "") +
       '<div><div class="t">' + (c.sao ? '<span class="star">★ </span>' : "") + e_(c.ten) + '</div><div class="s">' + e_(c.ma || c.code) + (c.s ? " · " + e_(c.s) : "") + '</div></div></div>'; };
     var ve2 = function (ds2) {
-      var k = inp.value.trim().toLowerCase(), h = "";
+      var k = boLoc ? "" : inp.value.trim().toLowerCase(), h = "";   // vừa bấm vào (ô đang mang tên đã chọn) → hiện đủ ứng viên, chưa lọc
       var cong = (l.cong || []).filter(function (c) { return !k || (c.ten + " " + c.code).toLowerCase().indexOf(k) >= 0; });
       var cc = (l.chamCong || []).filter(function (c) { return !(l.cong || []).some(function (x) { return x.code === c.code; }) && (!k || (c.ten + " " + c.code).toLowerCase().indexOf(k) >= 0); });
       if (cong.length) h += '<div class="hx-it h">Vào cổng bảo vệ ngay sau (so trang phục)</div>' + cong.map(function (c) { return item({ ma: c.code, ten: c.ten, anh: c.anh, sao: c.code === l.goiY, s: "vào cổng " + hm(c.gio) + (c.phut != null ? " · " + (c.phut >= 0 ? "+" : "") + c.phut + " phút" : "") }); }).join("");
@@ -606,16 +619,16 @@
       menu.querySelectorAll("[data-ma]").forEach(function (it) { it.onmousedown = function (ev) { ev.preventDefault(); n.ma = it.dataset.ma; n.ten = it.dataset.ten; inp.value = n.ten + " · " + n.ma; box.classList.remove("show"); boMenu(box); veChot(); }; });
       datMenu(box);
     };
-    inp.addEventListener("focus", function () { box.classList.add("show"); ve2(); });   // ve2() gọi datMenu — menu thả lên
+    inp.addEventListener("focus", function () { box.classList.add("show"); boLoc = !!inp.value.trim(); inp.select(); ve2(); });   // ve2() gọi datMenu — menu thả lên
     inp.addEventListener("blur", function () { setTimeout(function () { box.classList.remove("show"); boMenu(box); }, 150);
       var m = inp.value.match(/(?:^|[^\d:])(\d{5,7})(?![\d:])/); if (m && m[1] !== n.ma) { n.ma = m[1]; n.ten = ""; veChot(); } if (!inp.value.trim()) { n.ma = ""; n.ten = ""; veChot(); } });
-    inp.addEventListener("input", function () { ve2(); clearTimeout(hT); var k = inp.value.trim(); if (k.length >= 2) hT = setTimeout(function () { goi("/api/nv?q=" + encodeURIComponent(k)).then(ve2).catch(function () {}); }, 220); });
+    inp.addEventListener("input", function () { boLoc = false; ve2(); clearTimeout(hT); var k = inp.value.trim(); if (k.length >= 2) hT = setTimeout(function () { goi("/api/nv?q=" + encodeURIComponent(k)).then(ve2).catch(function () {}); }, 220); });
   }
   function ganMucCombo(inp, ds, l) {
     var n = EV.ng.find(function (x) { return x.so === Number(inp.dataset.mcb); }), box = inp.parentNode, menu = box.querySelector(".menu"), gy = mucMacDinh(l);
     var bo = function (t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d"); };
     var cauCua = function (m) { var x = ds.find(function (y) { return y.muc === m; }); return x ? x.cau : "Mục " + m; };
-    var dat = function () { inp.value = cauCua(n.muc); inp.title = "Mục " + n.muc; inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight + 2, 120) + "px"; };
+    var dat = function () { inp.value = cauCua(n.muc) + " (mục " + n.muc + ")"; inp.title = "Mục " + n.muc + " — bấm để đổi hạng mục"; inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight + 2, 120) + "px"; };
     var item = function (x) { return '<div class="hx-it" data-m="' + x.muc + '"><div style="min-width:0"><div class="t">' + (x.muc === gy ? '<span class="star">★ </span>' : "") + e_(x.cau) + '</div>' +
       '<div class="s">Mục ' + x.muc + (x.tru ? " · trừ " + e_(x.tru) + "%" : "") + (x.muc === gy ? " · máy gợi ý" : "") + '</div></div></div>'; };
     var ve = function (k) { k = bo(k); var hop = ds.filter(function (x) { return !k || bo(x.cau + " muc " + x.muc).indexOf(k) >= 0; }), g = hop.filter(function (x) { return x.muc === gy; }), con = hop.filter(function (x) { return x.muc !== gy; });
@@ -852,7 +865,9 @@
     var cot = C.closest(".hx-cot-phai"), kh = C.closest(".hx-tb-khung"), haiCot = kh ? kh.getBoundingClientRect().width < kh.parentNode.getBoundingClientRect().width - 20 : cot && getComputedStyle(cot).display !== "contents";   // 17/10 khung thanh bên: khung đứng cạnh khung khác = cuộn riêng
     for (var k = 0; k < 2; k++) { C.style.maxHeight = "";
       var c = C.children, nam = C.classList.contains("hx-lans") && c.length > 5 ? c[5].getBoundingClientRect().top - c[0].getBoundingClientRect().top : Infinity;
-      var con = haiCot ? bx.getBoundingClientRect().bottom - C.getBoundingClientRect().top - 24 : Infinity;
+      /* 17/10 (3) khung thanh bên (cả khi rộng hết thanh): vùng người nghi cuộn riêng, chừa chỗ cho phần đứng SAU nó trong khung (trạng thái, Quyết định) */
+      var tpC = kh && C.closest(".hx-tb-tp"), sau = tpC ? kh.getBoundingClientRect().bottom - tpC.getBoundingClientRect().bottom : 0;
+      var con = haiCot || (kh && window.innerWidth > 760) ? bx.getBoundingClientRect().bottom - C.getBoundingClientRect().top - 24 - sau : Infinity;
       var h = Math.min(nam, Math.max(120, con)); C.style.maxHeight = isFinite(h) && C.scrollHeight > h + 1 ? Math.floor(h) + "px" : ""; } }
   function xongThanhBen(tb) { khoaAnhGN(); lapCotPhai(); requestAnimationFrame(lapCotPhai); hskThanhBen.xong(tb); }
   /* 16/10 (7) user «kích thước ảnh ghi nhận buộc bằng chiều cao khung camera — khoá cứng, bên dưới là dữ liệu»: khung camera đánh dấu [data-khung];
@@ -868,11 +883,10 @@
      Bố cục = DASH_BOCUC.thanhBen[<khoá>].khung = [{id, rong, ds:[{id, rong, an}]}] — bộ Chỉnh bố cục (dash-bocuc-sua.js, chỉ bản QC) ghi.
      Thành phần chưa có trong bố cục (thêm về sau) rơi vào khung cuối; khung không còn thành phần nào thì ẩn (bản chỉnh vẫn hiện để thả vào). */
   /* 17/10 (2) user: «Sẽ ghi nhận» dưới Ảnh ghi nhận · Quyết định xuống dưới Máy gợi ý · mốc ①②③ nằm trên thanh thời gian clip (bỏ hàng mốc riêng) */
+  /* 17/10 (3) user: gộp 2 khung dưới làm 1 — Lỗi → Máy gợi ý (cụm người nghi) → trạng thái → Quyết định; điều khiển clip vào chung hàng thanh thời gian */
   var TB_MAC = { may: [{ id: "k1", rong: 8, ds: [{ id: "clip" }] }, { id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }] },
-    { id: "k3", rong: 6, ds: [{ id: "dieukhien" }, { id: "trangthai" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] },
-    { id: "k4", rong: 6, ds: [{ id: "cauhoi" }, { id: "dsnguoi" }] }] };
-  var TB_TEN = { clip: "Clip camera", anh: "Ảnh ghi nhận", dieukhien: "Điều khiển clip", moc: "Mốc thời gian", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu",
-    loi: "Lỗi", goiy: "Máy gợi ý", seghi: "Sẽ ghi nhận", cauhoi: "Câu hỏi người trong khung đỏ", dsnguoi: "Thẻ người nghi" };
+    { id: "k3", rong: 12, ds: [{ id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }] };
+  var TB_TEN = { clip: "Clip camera + điều khiển", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
   function tbAp(luoi) {
