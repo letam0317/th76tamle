@@ -2494,7 +2494,7 @@ function apiPcNhip_(duLieu) {
       viecGiao: pcMang_(nhip.viecGiao, 30), tatCaViec: pcMang_(nhip.tatCaViec, 40), viecNang: pcMang_(nhip.viecNang, 40),
       congLuc: ('congLuc' in nhip) ? (isNaN(Date.parse(nhip.congLuc)) ? null : new Date(Date.parse(nhip.congLuc)).toISOString()) : undefined,   // 14/10 cổng gác còn sống (null = chưa từng chạy) → điều phối bỏ máy cổng chết
       capGan: nhip.capGan instanceof Array ? nhip.capGan.slice(-6).map(function (s) { return String(s).slice(0, 160); }) : undefined,   // 14/10 nhật ký bộ cập nhật PC (xem từ xa: đã nhận bản chưa, tự chữa task)
-      taskDP: nhip.taskDP instanceof Array ? nhip.taskDP.slice(0, 20).map(function (s) { return String(s).slice(0, 120); }) : undefined,   // 14/10 trạng thái task việc (xem từ xa)
+      taskDP: nhip.taskDP instanceof Array ? nhip.taskDP.slice(0, 40).map(function (s) { return String(s).slice(0, 120); }) : undefined,   // 14/10 trạng thái task việc (xem từ xa) · 19/10 20 → 40 (máy FOQ đã 19 lịch)
       congGan: nhip.congGan instanceof Array ? nhip.congGan.slice(-8).map(function (s) { return String(s).slice(0, 180); }) : undefined,   // 14/10 nhật ký cổng gác (xem từ xa)
       chayLuc: nhip.chayLuc ? pcChayLuc_(nhip.chayLuc) : undefined,   // PC bản cũ không gửi → bỏ trường (đừng báo sai «chưa chạy»). 14/10 { viec: ISO } lần chạy gần nhất (cổng gác cho CHẠY) → «chạy lúc …» trên Máy trạm
       oDia: (nhip.oDia instanceof Array ? nhip.oDia.slice(0, 8).map(function (x) { return { o: String(x && x.o || '').slice(0, 1).toUpperCase(), trong: Number(x && x.trong) || 0, tong: Number(x && x.tong) || 0 }; }).filter(function (x) { return /^[A-Z]$/.test(x.o); }) : []),   // 14/10 mọi ổ đĩa

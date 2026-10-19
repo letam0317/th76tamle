@@ -104,7 +104,7 @@ async function trangThaiTask() {
   const ps = "Get-ScheduledTask | Where-Object { $_.TaskName -like '5S DP *' -or $_.TaskName -like 'Audit *' } | ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; " +
     "$_.TaskName + '|' + $_.State + '|' + $(if ($i.LastRunTime) { $i.LastRunTime.ToString('dd/MM HH:mm') } else { '-' }) + '|' + $i.LastTaskResult + '|' + $(if ($i.NextRunTime) { $i.NextRunTime.ToString('dd/MM HH:mm') } else { '-' }) }";
   const out = await new Promise((r) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { windowsHide: true, timeout: 30000 }, (e, so) => r(e ? "" : String(so))));
-  const ds = out.split(/\r?\n/).map((d) => d.trim()).filter(Boolean).slice(0, 20).map((d) => d.slice(0, 120));
+  const ds = out.split(/\r?\n/).map((d) => d.trim()).filter(Boolean).slice(0, 40).map((d) => d.slice(0, 120));   // 19/10: 20 → 40 — máy FOQ đã 19 lịch, lịch thứ 21 bị cắt = «thiếu task» → không được giao việc
   try { fs.writeFileSync(TASK_F, JSON.stringify({ luc: Date.now(), ds })); } catch { /* */ }
   return ds;
 }
