@@ -233,8 +233,20 @@ const puppeteer = (await import("puppeteer")).default;
 const { docSoQLTT, chonQLTTCanBang, chonItLuot, ghiLuot } = await import("./qltt.js");
 const { execFileSync } = await import("node:child_process");
 const HW = { authorization: tokenW, origin: "https://work.hasaki.vn", referer: "https://work.hasaki.vn/" };
-const byTen = (ten) => danhBa.find((d) => String(d.staff_name || "").trim().toLowerCase() === String(ten).trim().toLowerCase());
-const tag = (ten) => { const d = byTen(ten); return d && d.user_id ? "@[" + d.staff_name + "](user_id:" + d.user_id + ")" : ten; };
+/* 19/10/2026 BẪY TRÙNG TÊN: danh bạ toàn công ty có 4 «Nguyễn Huỳnh Như» — tra theo TÊN lấy nhầm NV cửa hàng (loc 94)
+   ⇒ phiếu 14229031 tag sai NV + sai quản lý (Phi Oanh, QL cửa hàng). Nay: NV tra theo MÃ; tên chỉ dùng khi DUY NHẤT
+   (ưu tiên kho 170, loc 398); vẫn trùng → không tag (để chữ thường), không đoán quản lý. */
+const LOC_KHO = 398;
+const byTen = (ten) => {
+  const k = String(ten || "").trim().toLowerCase();
+  const ds = danhBa.filter((d) => String(d.staff_name || "").trim().toLowerCase() === k);
+  if (ds.length <= 1) return ds[0];
+  const kho = ds.filter((d) => Number(d.working_loc_id || d.staff_loc_id) === LOC_KHO);
+  return kho.length === 1 ? kho[0] : undefined;
+};
+const timNV = (ng) => (ng && ng.code && danhBa.find((d) => String(d.code) === String(ng.code))) || (ng && byTen(ng.ten));
+const tagD = (d, ten) => d && d.user_id ? "@[" + d.staff_name + "](user_id:" + d.user_id + ")" : ten;
+const tag = (ten) => tagD(byTen(ten), ten);
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
 async function anhBangChung(p) {
@@ -293,13 +305,15 @@ for (const p of KH) {
       }
     } catch (e) { log("  ⚠ giao lại B1.1 lỗi: " + String(e.message).slice(0, 80)); }
     if (nMax >= NGUONG + 1) {
-      const nv = byTen(p.nguoi.ten) || { staff_name: p.nguoi.ten, code: p.nguoi.code };
-      const q = chonQLTTCanBang(nv, danhBa, SO_QL, DIR, false);
-      await binhLuan(id, tag(q.ten) + " " + tag(BANG) + " Nhờ anh/chị nhắc " + tag(p.nguoi.ten) + ": vị trí " + p.moi.map((x) => x.k).join(", ") + " đã " + nMax + " ngày yêu cầu liên tiếp không có báo cáo vệ sinh (NV có đi làm / đóng gói tại vị trí).");
+      const nv = timNV(p.nguoi);
+      const q = nv ? chonQLTTCanBang(nv, danhBa, SO_QL, DIR, false) : null;
+      if (!q || q.nguon === "đoán") log("  ⚠ không xác định chắc QLTT của " + p.nguoi.ten + " (" + p.nguoi.code + ") — bỏ bình luận nhắc, chờ người xác nhận");
+      else await binhLuan(id, tag(q.ten) + " " + tag(BANG) + " Nhờ anh/chị nhắc " + tagD(nv, p.nguoi.ten) + ": vị trí " + p.moi.map((x) => x.k).join(", ") + " đã " + nMax + " ngày yêu cầu liên tiếp không có báo cáo vệ sinh (NV có đi làm / đóng gói tại vị trí).");
     }
   } else if (p.loai === "bao_ql" || p.loai === "khong_nguoi") {
-    const ql = p.nguoi ? chonQLTTCanBang(byTen(p.nguoi.ten) || { staff_name: p.nguoi.ten, code: p.nguoi.code }, danhBa, SO_QL, DIR, false).ten : chonItLuot(POOL_DG, DIR, "tru");
-    await binhLuan(id, tag(ql) + " " + tag(BANG) + " Thông báo: " + (p.loai === "khong_nguoi" ? p.moi.length + " bàn A8 chưa có người phụ trách trong bảng phân công và " : "vị trí ") +
+    const nvQ = p.nguoi && timNV(p.nguoi), qQ = nvQ && chonQLTTCanBang(nvQ, danhBa, SO_QL, DIR, false);
+    const ql = !p.nguoi ? chonItLuot(POOL_DG, DIR, "tru") : qQ && qQ.nguon !== "đoán" ? qQ.ten : BANG; // không chắc → chỉ báo Leader đóng gói
+    await binhLuan(id, (ql === BANG ? "" : tag(ql) + " ") + tag(BANG) + " Thông báo: " + (p.loai === "khong_nguoi" ? p.moi.length + " bàn A8 chưa có người phụ trách trong bảng phân công và " : "vị trí ") +
       "không có báo cáo vệ sinh " + nMax + " ngày yêu cầu liên tiếp: " + p.moi.map((x) => x.k.replace("F0-", "")).join(", ") + ". Nhờ anh/chị chia người vệ sinh và cập nhật bảng phân công.");
     if (!p.nguoi) ghiLuot(DIR, ql, "tru");
   } // nghi_dai: để B1 mở — canh-b11 luật ⑤(4) tự nhắc ngày 4-5 và trừ QLTT ngày 6.
