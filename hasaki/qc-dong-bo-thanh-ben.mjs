@@ -22,8 +22,8 @@ const DO = () => {   // số đo 1 thanh đang mở
   const loiNhan = [...document.querySelectorAll("#mBody .lbl")].find((x) => x.textContent.trim() === "Lỗi"), gy = [...document.querySelectorAll("#mBody .lbl")].find((x) => /^(Máy gợi ý|Là ai)$/.test(x.textContent.trim()));
   const ls = q(".hx-qd-ls"), ng = [...document.querySelectorAll("#mBody .hx-qd-nguon button")].filter((x) => x.getBoundingClientRect().width);
   const tlh = q(".hx-tl-hang:not([hidden])");
-  return { khungAnh: R(q(".hx-qd-anh")), clip: R(clip), tl: R(tlh), play: R(q("#hxPlay")), toc: R(q(".hx-toc")), kPhai: R(kAnh), anh: R(anh), loi: R(loiNhan), gy: R(gy), qd: R(qd), bx: R(bx), cuon: bx.scrollHeight - bx.clientHeight,
-    cungKhungPhai: !!(kAnh && loiNhan && qd && loiNhan.closest(".hx-tb-khung") === kAnh && qd.closest(".hx-tb-khung") === kAnh && kAnh !== kClip),
+  return { khungAnh: R(q(".hx-qd-anh")), clip: R(clip), tl: R(tlh), play: R(q("#hxPlay")), toc: R(q(".hx-toc")), kPhai: R(loiNhan && loiNhan.closest(".hx-tb-khung")), anh: R(anh), tv: !!document.querySelector("#mBody [data-tb=tacvu]"), loi: R(loiNhan), gy: R(gy), qd: R(qd), bx: R(bx), cuon: bx.scrollHeight - bx.clientHeight,
+    cungKhungPhai: !!(loiNhan && qd && qd.closest(".hx-tb-khung") === loiNhan.closest(".hx-tb-khung") && loiNhan.closest(".hx-tb-khung") !== kClip && (!R(anh) || kAnh === loiNhan.closest(".hx-tb-khung") || kAnh === kClip)),   /* 19/10 (4) Theo tác vụ: Ảnh ghi nhận bật bằng nút, nằm DƯỚI clip */
     ls: R(ls), lsCungClip: !ls || ls.closest(".hx-tb-khung") === kClip, nguonHang: new Set(ng.map((x) => Math.round(x.getBoundingClientRect().top))).size };
 };
 for (const m of MAY) {
@@ -47,7 +47,7 @@ for (const m of MAY) {
   for (const [id, x] of [...may, ...tv]) {
     if (!["l", "t", "w", "h"].every((k) => gan(x.clip, goc.clip, k))) sai.D1.push(id + JSON.stringify(x.clip));
     if (!gan(x.kPhai, goc.kPhai, "l")) sai.D2.push(id + JSON.stringify(x.kPhai));
-    if (!["l", "t"].every((k) => gan(x.anh, goc.anh, k)) || !x.khungAnh || Math.abs(x.khungAnh.w - x.anh.w) > 1 || Math.abs(x.khungAnh.h - x.anh.h) > 1 || x.khungAnh.w < x.kPhai.w - 52) sai.D3.push(id + JSON.stringify([x.anh, x.khungAnh, x.kPhai.w]));   // 17/10 (8) user «ảnh chưa khít khung»: ảnh phủ kín khung, khung kín bề rộng cột (trừ lề 24×2)
+    if (!["l", "t"].every((k) => gan(x.anh, goc.anh, k)) || !x.khungAnh || Math.abs(x.khungAnh.w - x.anh.w) > 1 || Math.abs(x.khungAnh.h - x.anh.h) > 1 || x.khungAnh.w < x.kPhai.w - 52) { if (!x.tv) sai.D3.push(id + JSON.stringify([x.anh, x.khungAnh, x.kPhai && x.kPhai.w])); }   /* 19/10 (4) Theo tác vụ: ảnh ẩn tới khi bấm nút — chỉ so Theo máy */   // 17/10 (8) user «ảnh chưa khít khung»: ảnh phủ kín khung, khung kín bề rộng cột (trừ lề 24×2)
     if (!gan(x.loi, goc.loi, "l")) sai.D4.push(id + JSON.stringify(x.loi));
     if (!x.qd || Math.abs((x.bx.b - x.qd.b) - (goc.bx.b - goc.qd.b)) > 4 || Math.abs((x.bx.b - x.qd.b) - 53) > 16) sai.D5.push(id + " cách đáy " + (x.qd ? x.bx.b - x.qd.b : "?"));   // 17/10 (8) user: lên 3 cm rồi xuống 2 cm ⇒ cách đáy 37px + 16px lề
     if (!x.lsCungClip || (x.ls && x.ls.t < x.clip.b)) sai.D6.push(id);

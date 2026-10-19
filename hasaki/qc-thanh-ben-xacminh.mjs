@@ -83,7 +83,9 @@ for (const m of MAY) {
     const thu = ["xem", "ls", "anh", "ben"].filter((k) => bc[k]).map((k) => bc[k].t);   // 17/10 (5) xếp chồng theo khung: trái (clip, ai tác động) → phải (ảnh … quyết định)
     ok(thu.every((t, i) => !i || t > thu[i - 1]), m.ten + ": T16 điện thoại xếp video → ai tác động → ảnh ghi nhận → quyết định " + JSON.stringify(thu));
   }
-  ok(!bc.nguon.includes("Ảnh ghi nhận"), m.ten + ": T12 thanh nguồn không còn nút «Ảnh ghi nhận» trùng (" + bc.nguon.join(", ") + ")");
+  /* 19/10 (4) user: 1 hàng trái→phải «Tác động WMS» · «Không qua WMS» · «Ảnh ghi nhận» (bật/tắt ảnh dưới clip); không còn «Khung camera N» */
+  { const ng = bc.nguon.map((t) => t.replace(/\s*\d+$/, "")), iW = ng.indexOf("Tác động WMS"), iV = ng.indexOf("Không qua WMS"), iA = ng.indexOf("Ảnh ghi nhận");
+    ok(!ng.some((t) => /^Khung camera/.test(t)) && iV >= 0 && (iW < 0 || iW < iV) && (iA < 0 || iV < iA), m.ten + ": T12 hàng nguồn Tác động WMS → Không qua WMS → Ảnh ghi nhận, không «Khung camera» (" + bc.nguon.join(", ") + ")"); }
   if (bc.anh) {   // T15 bấm ảnh → phóng to; Esc đóng phóng to, thanh vẫn mở
     await p.evaluate(() => document.getElementById("qdAnhGN").click()); await ngu(500);
     const lb = await p.evaluate(() => document.getElementById("lightbox").classList.contains("show"));
@@ -134,15 +136,25 @@ for (const m of MAY) {
           if (nut[1]) nut[1].click(); const c = document.getElementById("qdLuiChu"); return { n: nut.length, phay, chu: c && !c.hidden ? c.textContent.trim() : "" }; });
         dem.thuKhung = t21.n + " khung · " + (t21.chu || "không hiện chữ").slice(0, 40);
         if (t21.phay || t21.n < 2 || !t21.chu) sai.push("lưới 72 giờ hỏng " + JSON.stringify(t21)); }
-      if (x.nguon.includes("Ảnh ghi nhận")) sai.push("nút ảnh trùng");
-      if (!x.khung && x.nguon.length) sai.push("khung ẩn mà còn nút nguồn");
+      if (x.nguon.some((t) => /^Khung camera|^Clip camera giờ kho/.test(t))) sai.push("còn nút nguồn cũ");
+      if (await p.evaluate(() => !!document.querySelector('#mBody [data-tp="aitacdong"], #mBody .hx-qd-ls'))) sai.push("còn khối Ai tác động ô");
+      /* 19/10 (4) bấm «Ảnh ghi nhận» → ảnh hiện NGAY DƯỚI khung clip, clip vẫn là nguồn cũ (không thay chỗ); bấm lại → ẩn */
+      const a4 = await p.evaluate(async () => { const n = document.querySelector("#mBody [data-anhgn]"); if (!n || document.getElementById("qdKhung").hidden) return null; const k0 = document.querySelector("#qdKhung").innerHTML.slice(0, 120);
+        n.click(); await new Promise((r) => setTimeout(r, 150)); const a = document.querySelector('#mBody [data-tp="anh"]'), c = document.querySelector('#mBody [data-tp="clip"]');
+        const ra = a.getBoundingClientRect(), rc = c.getBoundingClientRect(), hien = !a.hidden && ra.height > 0, duoi = ra.top >= rc.bottom - 1 && Math.abs(ra.left - rc.left) <= 2, giu = document.querySelector("#qdKhung").innerHTML.slice(0, 120) === k0;
+        n.click(); await new Promise((r) => setTimeout(r, 100)); return { hien, duoi, giu, tat: a.hidden }; });
+      if (a4) { dem.anhNut = (dem.anhNut || 0) + 1; if (!(a4.hien && a4.duoi && a4.giu && a4.tat)) sai.push("nút Ảnh ghi nhận sai " + JSON.stringify(a4)); }
+      if (!x.khung && x.nguon.some((t) => t !== "Ảnh ghi nhận")) sai.push("khung ẩn mà còn nút nguồn");   // 19/10 (4) chỉ còn nút bật/tắt Ảnh ghi nhận
       if (x.tran) sai.push("tràn " + x.tran);
       if (ngang > 1) sai.push("kéo ngang " + ngang);
       const ngTrong = await p.evaluate(() => [...document.querySelectorAll("#mBody *")].filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 1).map((e) => e.className || e.tagName));   // H1 Theo tác vụ
       if (ngTrong.length) sai.push("cuộn ngang trong thanh: " + ngTrong.slice(0, 2).join(","));
       if (!x.ben || (x.anh && x.ben.t < x.anh.b - 1)) sai.push("quyết định không dưới ảnh ghi nhận");
       if (x.ls && x.xem && (Math.abs(x.ls.l - x.xem.l) > 2 || x.ls.t < x.xem.b - 1)) sai.push("ai tác động không dưới clip");
-      /* T18 16/10 nguồn hàng từng lượt: dòng có sổ phải ghi nguồn + title chuỗi đầy đủ; ca mẫu user dán (06/10 06:43 Trương Thanh Bình) */
+      /* T18 19/10 (4) user D: phụ đề lượt WMS ghi «N cái · loại tác động» (châm hàng / soạn hàng / hàng hoàn / hàng dư) — không còn «châm N» trơn */
+      const pdLoai = await p.evaluate(() => { const v = document.querySelector("#qdKhung video"), pd = document.getElementById("qdPd"); return pd ? pd.textContent : ""; });
+      if (/\d+ cái · (châm hàng|soạn hàng|hàng hoàn|hàng dư)/.test(pdLoai)) dem.pdLoai = (dem.pdLoai || 0) + 1;
+      if (/ châm \d+ lúc/.test(pdLoai)) sai.push("phụ đề còn «châm N» không có loại: " + pdLoai.slice(0, 80));
       const ng = await p.evaluate(() => { const rows = [...document.querySelectorAll("#mBody .hx-lan:not(.vl)")];
         const chung = (document.querySelector("#mBody .hx-ng-chung") || {}).textContent || "";
         return { n: rows.length, co: rows.filter((r) => r.querySelector(".hx-nguon-lan[title]")).length, thieuChu: rows.filter((r) => { const s = r.querySelector(".hx-nguon-lan"); return s && !chung && !/^\d+ cái · ./.test(s.textContent.trim()); }).length,
@@ -155,8 +167,7 @@ for (const m of MAY) {
       if (sai.length) hong.push(id + ": " + sai.join(", "));
     }
     ok(!hong.length, m.ten + ": T17 quét " + tatCa.length + " phiếu " + JSON.stringify(dem) + (hong.length ? " — " + hong.slice(0, 4).join(" | ") : ""));
-    ok(!!dem.mau, m.ten + ": T18 có ca mẫu 06/10 06:43 Trương Thanh Bình trong các phiếu đang mở (" + (dem.mau || "không thấy") + ")");
-    ok(dem.coNguon >= dem.dong * 0.9, m.ten + ": T18 ≥90% dòng lượt có nguồn hàng (" + dem.coNguon + "/" + dem.dong + ")");
+    ok((dem.pdLoai || 0) >= 1, m.ten + ": T18 phụ đề có «N cái · loại tác động» (" + (dem.pdLoai || 0) + " phiếu) · nút Ảnh ghi nhận đúng ở " + (dem.anhNut || 0) + " phiếu");
     console.log("  T17 " + tatCa.length + " phiếu: " + JSON.stringify(dem));
     ok(!dem.thanCuon, m.ten + ": T20 cả thanh bên không phải cuộn (" + (dem.thanCuon || 0) + "/" + tatCa.length + " phiếu phải cuộn cả thanh)");
   }
@@ -236,9 +247,10 @@ for (const m of MAY) {
           const m20 = await p.evaluate(() => { const t = document.querySelector("#mBody [data-mcb]"), x = t.parentNode.querySelector(".hx-cb-xoa");
             return { trong: t.value === "", chot: /chưa chọn lỗi/.test(document.getElementById("hxChot").textContent), anX: getComputedStyle(x).display === "none" }; });
           ok(m20.trong && m20.chot && m20.anX, m.ten + ": M20 ✕ ở Lỗi xoá thật hạng mục, rời ô vẫn trống " + JSON.stringify(m20)); }
-        const m21 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), d = R(document.getElementById("mClose")), g = R(document.getElementById("gcNut")), t = R(document.getElementById("mTitle")), bx = R(document.querySelector("#modal .modal-box"));
-          if (!(d && g && t)) return { thieu: [!d && "mClose", !g && "gcNut", !t && "mTitle"].filter(Boolean).join(","), show: document.getElementById("modal").className }; return { dongTrai: d.right <= g.left + 1, ngang: Math.abs(d.top - g.top) <= 3, sat: Math.round(d.left - bx.left), tdPhai: t.left > g.right }; });
-        ok(m21 && !m21.thieu && m21.dongTrai && m21.ngang && m21.sat <= 32 && m21.tdPhai, m.ten + ": M21 Đóng ngoài cùng trái ngang hàng Ghi chú, tiêu đề bên phải " + JSON.stringify(m21));
+        /* M21 19/10 (4) user đổi ý: TRÁI tiêu đề + giờ, PHẢI Ghi chú rồi Đóng (Đóng ngoài cùng phải), 1 hàng */
+        const m21 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), d = R(document.getElementById("mClose")), g = R(document.getElementById("gcNut")), t = R(document.querySelector("#mTitle .hx-mt1")), bx = R(document.querySelector("#modal .modal-box"));
+          if (!(d && g && t)) return { thieu: [!d && "mClose", !g && "gcNut", !t && "mTitle"].filter(Boolean).join(","), show: document.getElementById("modal").className }; return { dongPhai: d.left >= g.right - 1, ngang: Math.abs(d.top - g.top) <= 3, sat: Math.round(bx.right - d.right), tdTrai: t.right <= g.left + 1 && t.left - bx.left <= 32 }; });
+        ok(m21 && !m21.thieu && m21.dongPhai && m21.ngang && m21.sat <= 32 && m21.tdTrai, m.ten + ": M21 tiêu đề bên trái, Ghi chú · Đóng bên phải (Đóng ngoài cùng), 1 hàng " + JSON.stringify(m21));
         /* J1 17/10 (10) user «khi chọn thông tin thì các hàng bị nhảy»: chọn Lỗi + chọn Là ai (chỉ trên trình duyệt, POST bị chặn) — các hàng không xê dịch */
         const viTri = () => p.evaluate(() => ["[data-mcb]", "[data-cb]", '[data-tp="quyetdinh"]', "#hxChot"].map((q) => { const e = document.querySelector("#mBody " + q); return e ? Math.round(e.getBoundingClientRect().top) : null; }));
         const v0 = await viTri(), lech = [];
