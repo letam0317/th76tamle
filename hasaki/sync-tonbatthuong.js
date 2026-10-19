@@ -274,12 +274,19 @@ async function ghiTonViTri(token, apiAt) {
     }
   } catch { /* chưa có memo → dò như cũ */ }
   if (!API) {
-    // Chốt endpoint: thử từng ứng viên trên trang 1 của bộ đầu tiên
-    for (const cand of API_CANDS) {
-      const u = cand + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=5";
-      const r = await fetchThuLai(u, { headers: { authorization: token } }).catch(() => null);
-      if (r && r.ok) { const j = await r.json().catch(() => null); const recs = j && (j.records || (j.data && j.data.records)); if (Array.isArray(recs)) { API = cand; log("✓ Endpoint: " + cand + " (mẫu " + recs.length + " dòng)"); if (recs[0]) log("  keys mẫu: " + Object.keys(recs[0]).slice(0, 24).join(",")); break; } }
-      log("  … " + cand + " -> " + (r ? "HTTP " + r.status : "không gọi được"));
+    // Chốt endpoint: thử từng ứng viên trên trang 1, lần lượt từng bộ.
+    // 19/10: trước chỉ dò trên BO[0] (Mastige). Token mượn bridge (haidq ở QLIT) KHÔNG có quyền kho
+    // Mastige → 400 «không có quyền kho» → kết luận nhầm «không có endpoint», thoát trước khi tới
+    // Hasaki 170 (token CÓ quyền) ⇒ tab stock-inventory-hasaki đứng ở 17/10 14:13 suốt 2 ngày.
+    let boDo = BO[0];
+    do_ep: for (const cand of API_CANDS) {
+      for (const bo of BO) {
+        const u = cand + "?company_ids=" + bo.company + "&warehouse_ids=" + encodeURIComponent(bo.warehouses) + "&page=1&size=5";
+        const r = await fetchThuLai(u, { headers: { authorization: token } }).catch(() => null);
+        if (r && r.ok) { const j = await r.json().catch(() => null); const recs = j && (j.records || (j.data && j.data.records)); if (Array.isArray(recs)) { API = cand; boDo = bo; log("✓ Endpoint: " + cand + " (mẫu " + recs.length + " dòng, dò trên " + bo.ten + ")"); if (recs[0]) log("  keys mẫu: " + Object.keys(recs[0]).slice(0, 24).join(",")); break do_ep; } }
+        log("  … " + cand + " · " + bo.ten + " -> " + (r ? "HTTP " + r.status : "không gọi được"));
+        if (r && r.status === 404) break;   // endpoint không tồn tại — khỏi thử bộ khác
+      }
     }
     if (!API) { log("✗ Không tìm được endpoint stock-inventories — cần capture lại API từ trang WMS."); process.exit(2); }
 
@@ -287,7 +294,7 @@ async function ghiTonViTri(token, apiAt) {
     // Chỉ nhận size lớn khi trang 1 trả về NHIỀU HƠN 500 dòng thật — server âm thầm cap thì giữ 500
     // (nếu nhận nhầm, điều kiện dừng recs.length < SIZE sẽ cắt cụt dữ liệu ngay trang đầu).
     for (const thu of [2000, 1000]) {
-      const r = await fetchThuLai(API + "?company_ids=" + BO[0].company + "&warehouse_ids=" + encodeURIComponent(BO[0].warehouses) + "&page=1&size=" + thu, { headers: { authorization: token } }).catch(() => null);
+      const r = await fetchThuLai(API + "?company_ids=" + boDo.company + "&warehouse_ids=" + encodeURIComponent(boDo.warehouses) + "&page=1&size=" + thu, { headers: { authorization: token } }).catch(() => null);
       if (r && r.ok) { const j = await r.json().catch(() => null); const recs = (j && (j.records || (j.data && j.data.records))) || []; if (recs.length > 500) { size = thu; break; } }
     }
     log("✓ Cỡ trang: " + size + " dòng/lần.");
@@ -321,7 +328,8 @@ async function ghiTonViTri(token, apiAt) {
       if (!r.ok) {
         // Trang 1 đã !ok (không phải 401 vì fetchTrang đã tự làm mới token) → endpoint nhớ có thể
         // đã chết: xoá memo để lượt sau dò lại từ danh sách ứng viên.
-        if (page === 1) { try { fs.rmSync(TBT_MEMO, { force: true }); } catch { /* best-effort */ } }
+        // 19/10: chỉ 404 mới là endpoint chết; 400 «không có quyền kho» là do token mượn — giữ memo.
+        if (page === 1 && r.status === 404) { try { fs.rmSync(TBT_MEMO, { force: true }); } catch { /* best-effort */ } }
         log("  ⚠ " + cfg.ten + " trang " + page + " HTTP " + r.status); break;
       }
       const j = await r.json().catch(() => null); if (!j) break;
