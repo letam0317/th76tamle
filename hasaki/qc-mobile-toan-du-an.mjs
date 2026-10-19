@@ -432,7 +432,7 @@ const TRANG = [
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; HXACMINH.sub('tg'); return document.querySelectorAll('#pane-xacminh .cl-item, #pane-xacminh tbody tr').length > 0; }" },
       { ten: "Tab Máy trạm",   // 13/10 tối: tách khỏi Xác minh thành tab riêng (điện thoại xem qua GAS pcBangTb; máy quản lý có nút qua 8591)
         mo: "() => { setTab('maytram'); return true; }",
-        sanSangMan: "() => { if(!window.HMAYTRAM||!HMAYTRAM.coDuLieu()) return false; return document.querySelectorAll('#pane-maytram .hx-mt-v, #pane-maytram .hx-mt .hx-trong').length > 0; }" },
+        sanSangMan: "() => { if(!window.HMAYTRAM||!HMAYTRAM.coDuLieu()) return false; return document.querySelectorAll('#pane-maytram .mt-o, #pane-maytram .mt-chua, #pane-maytram .hx-mt-v, #pane-maytram .hx-trong').length > 0;   /* 19/10: thẻ máy nay là .mt-o */ }" },
       { ten: "Pop-up Quyết định phiếu B1 (Xác minh)",   // 05/10 thêm cùng lúc dựng pop-up
         mo: "() => { setTab('xacminh'); return true; }",
         sanSangMan: "() => { if(!window.HXACMINH||!HXACMINH.coDuLieu()) return false; if(!document.querySelector('#modal.show #qdLuu')){ HXACMINH.sub('treo'); var b=document.querySelector('#pane-xacminh [data-qd]'); if(b) b.click(); return false; } return true; }",

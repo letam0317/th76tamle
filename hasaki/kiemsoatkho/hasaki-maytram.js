@@ -99,7 +99,38 @@
       "@media(max-width:560px){.hx-mt-v .hx-nut,.hx-mt-dau .hx-nut,#mtDangXuat{min-height:44px}}",   // 14/10: bỏ xếp dọc panel-head (số «13» rơi xuống dòng riêng, phí chỗ)
       /* form đăng nhập — cùng khuôn .hx-dn của Xác minh */
       ".mt-dn{max-width:400px;margin:24px auto}.mt-dn form{display:flex;flex-direction:column;gap:12px;padding:16px}.mt-dn label{display:flex;flex-direction:column;gap:4px}.mt-dn input{min-height:44px;font-size:16px}",
-      ".mt-st.loi{margin-top:4px;font-size:13px;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--bad) 10%,transparent);color:var(--bad)}"
+      ".mt-st.loi{margin-top:4px;font-size:13px;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--bad) 10%,transparent);color:var(--bad)}",
+      /* 19/10 user «nhìn vào là biết khung nào ở máy nào»: khung riêng từng máy — viền rõ, vạch màu SỨC KHOẺ bên trái, THANH TÊN MÁY ngang đầu khung
+         (nền riêng, chữ 15px đậm, chấm màu), mọi khung CAO BẰNG NHAU (grid-auto-rows:1fr) + cách nhau 12px. Hàng tiêu đề cột đặt NGOÀI lưới
+         (để không bị kéo cao theo 1fr) và lề trái/phải khớp lề nội dung khung (viền 4 + đệm 12 · đệm 12 + viền 1). */
+      ".mt-hang{display:grid;grid-template-columns:minmax(0,1fr);grid-auto-rows:1fr;gap:12px}" +
+        ".mt-o{position:relative;grid-template-rows:auto 1fr;padding:0 12px 10px;border:1px solid color-mix(in srgb,var(--text) 16%,var(--border));border-left:4px solid var(--muted);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}" +
+        ".mt-o.sk-tot{border-left-color:var(--good)}.mt-o.sk-chu-y{border-left-color:var(--warn)}.mt-o.sk-kem{border-left-color:var(--bad,#dc2626)}" +
+        ".mt-o>.mt-trai{padding-left:0}.mt-tde{padding:0 13px 0 16px;margin-bottom:6px}" +
+        ".mt-o>.mt-tieu{position:static;z-index:auto;backdrop-filter:none;-webkit-backdrop-filter:none;grid-column:1/-1;display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:8px;margin:0 -12px 10px;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);border-radius:0 9px 0 0}" +
+        ".mt-o>.mt-tieu b{font-size:15px;font-weight:700;line-height:20px;color:var(--text)}.mt-o>.mt-tieu .mt-the{margin-left:auto}" +
+        ".mt-den{flex:none;width:10px;height:10px;border-radius:50%;background:var(--muted)}.sk-tot .mt-den{background:var(--good)}.sk-chu-y .mt-den{background:var(--warn)}.sk-kem .mt-den{background:var(--bad,#dc2626)}",
+      /* 19/10 user «chip việc nặng/nhẹ to cả web/điện thoại»: 1 dòng tóm tắt (mọi cỡ màn) + bảng chip NỔI khi bấm — khung máy không đổi cỡ.
+         Vị trí tĩnh của phần tử absolute = ngay dưới nút (không đặt top) → bảng nổi mở XUỐNG sát nút.
+         BẪY: cột đang là flex → vị trí tĩnh của con absolute = ĐẦU cột (đè lên nút) ⇒ cột có nút xổ chuyển display:block. */
+      ".mt-phai{position:relative}.mt-phai:has(>.mt-xo){display:block}.mt-phai>.mt-xo{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;width:100%;min-height:32px;margin:0;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;font-size:12px;text-align:left;cursor:pointer}" +
+        ".mt-phai>.mt-xo:hover{border-color:var(--accent)}.mt-phai>.mt-xo .nhan{display:none}.mt-phai>.mt-xo .so{margin:0;font-size:12.5px;font-weight:600;color:var(--text)}" +
+        ".mt-xo .phu{font-size:11px;font-weight:500;color:var(--muted)}.mt-xo .phu.chay{color:var(--good)}.mt-xo .phu.tat{color:var(--warn)}.mt-phai>.mt-xo .mt-xo-mui{margin-left:auto}" +
+        ".mt-xo-mui{flex:none;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--muted);transition:transform .25s cubic-bezier(.4,0,.2,1)}.mt-phai.mo .mt-xo-mui,.mt-chua.mo .mt-xo-mui{transform:rotate(180deg)}" +
+        ".mt-phai>.mt-xo:focus-visible,.mt-chua-dau:focus-visible{outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}" +
+        ".mt-phai:has(>.mt-xo)>.mt-xo-ct{display:none;position:absolute;left:8px;right:8px;z-index:40;margin-top:4px;padding:6px 10px 10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.16);max-height:min(60vh,420px);overflow:auto}" +
+        ".mt-phai.mo:has(>.mt-xo)>.mt-xo-ct{display:block;transform-origin:top;animation:popIn .18s var(--ez-spring,ease)}.mt-o.mo .mt-phai.mo{opacity:1}" +
+        ".mt-xo-dau{display:flex;align-items:center;gap:8px;margin-bottom:6px}.mt-xo-dau b{flex:1;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+        ".mt-xo-dong{flex:none;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:transparent;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}.mt-xo-dong:hover{background:var(--surface2);color:var(--bad,#dc2626)}" +
+        ".mt-xo-ct .mt-luoi{gap:4px}.mt-xo-ct .mt-luoi>.mt-c{height:24px;padding:0 8px;font-size:11.5px}.mt-xo-ct .mt-nh{line-height:24px}.mt-o .mt-xo-ct .mt-nn{gap:6px}",
+      /* 19/10 «Việc chưa có máy nhận» gọn: 1 dòng (tên · Nặng N · Nhẹ M · lý do chung ▾), bấm mới xổ chip */
+      ".mt-chua-dau{display:flex!important;align-items:center;flex-wrap:wrap;gap:4px 10px;width:100%;margin:0;font:inherit;text-align:left;cursor:pointer;background:transparent;border:0;border-radius:inherit;color:var(--text)}" +
+        ".mt-chua .mt-chua-dau{padding:10px 16px;min-height:40px;height:auto;font-size:14px;line-height:20px;box-shadow:none;transform:none;border-bottom:1px solid var(--border)}.mt-chua .mt-chua-dau:hover{background:var(--hover)}.mt-chua:not(.mo) .mt-chua-dau{border-bottom:0}.mt-chua-dau .ten{font-weight:600}.mt-chua-dau .so{font-size:13px;font-weight:600;color:var(--bad,#dc2626)}.mt-chua-dau .ly1{font-size:12px;color:var(--muted)}.mt-chua-dau .mt-xo-mui{margin-left:auto}" +
+        ".mt-chua:not(.mo)>.hx-mt-ly{display:none}.mt-chua.mo>.hx-mt-ly{transform-origin:top;animation:popIn .18s var(--ez-spring,ease)}.mt-chua{margin-bottom:12px}",
+      "@media(max-width:560px){.mt-hang{gap:10px;grid-auto-rows:auto}.mt-xo-ct .mt-nhom{flex-direction:column;gap:4px}.mt-xo-ct .mt-nh{line-height:18px!important}.mt-tde{display:none}.mt-o{padding:0 10px 10px}.mt-o>.mt-tieu{margin:0 -10px 8px;padding:8px 10px}.mt-o>.mt-tieu b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}" +
+        ".mt-phai>.mt-xo{min-height:44px;padding:4px 10px}.mt-phai>.mt-xo .nhan{display:inline;font-size:11px;font-weight:600;color:var(--muted)}.mt-phai:has(>.mt-xo)>.mt-xo-ct{left:0;right:0}" +
+        ".mt-xo-dong{width:44px;height:44px;margin:-8px -8px -8px 0}.mt-xo-ct .mt-luoi{gap:8px 6px}.mt-xo-ct .mt-luoi>.mt-c{height:32px;min-height:0;font-size:12px}.mt-xo-ct .mt-nh{line-height:32px}" +
+        ".mt-xo-ct .mt-luoi .mt-x{min-width:40px;min-height:40px;margin:-4px -10px -4px -6px}.mt-chua .mt-chua-dau{min-height:44px;padding:8px 12px}.mt-chua{margin-bottom:10px}}"
     ].join("\n");
     var st = document.createElement("style"); st.id = "mt-css"; st.textContent = c; document.head.appendChild(st);
   }
@@ -324,8 +355,12 @@
       /* 17/10 user «thay chip Rảnh bằng Sức khoẻ»: chip đầu thẻ = kết luận sức khoẻ (lý do dòng nhỏ dưới); Đang làm việc/Rảnh đã thấy ở cột «Việc đang làm»;
          chỉ giữ thêm nhãn khi máy bị Dừng/Dự phòng (mất nhịp đã nằm trong lý do «Kém»). */
       var chipSk = { tot: ["Sức khoẻ tốt", "good"], "chu-y": ["Cần chú ý", "warn"], kem: ["Sức khoẻ kém", "bad"] }[dg.muc];
-      return '<div class="mt-o' + (m.song ? "" : " cu") + (!m.song || (m.dung && !lamThay) ? " mo" : "") + '"><div class="mt-trai"><div class="mt-dau"><b title="' + e_(tip) + '">' + e_(m.may) + "</b>" +
-        '<span class="mt-the"><span class="hx-tag ' + chipSk[1] + '">' + chipSk[0] + "</span>" + (m.dung ? '<span class="hx-tag ' + (m.duPhong ? 'info">Dự phòng' : 'warn">Đã dừng') + "</span>" : "") + "</span></div>" +
+      /* 19/10 user «nhìn trang Máy trạm chưa phân biệt máy nào là máy nào — khung chưa tách biệt, chưa chốt kích thước»: mỗi máy 1 KHUNG riêng
+         (viền + vạch màu sức khoẻ bên trái), THANH TÊN MÁY chạy ngang đầu khung (chữ to, nền riêng), mọi khung cao bằng nhau (.mt-hang grid 1fr) */
+      var nangSo = viec.filter(function (t) { return nangCua[t] === true; }).length, tatSo = viec.filter(function (t) { return (m.dungViec || []).indexOf(t) >= 0; }).length,
+        chaySo = viec.filter(function (t) { return (m.dangChay || []).indexOf(t) >= 0; }).length;
+      return '<div class="mt-o sk-' + dg.muc + (m.song ? "" : " cu") + (!m.song || (m.dung && !lamThay) ? " mo" : "") + '"><header class="mt-dau mt-tieu"><i class="mt-den" aria-hidden="true"></i><b title="' + e_(tip) + '">' + e_(m.may) + "</b>" +
+        '<span class="mt-the"><span class="hx-tag ' + chipSk[1] + '">' + chipSk[0] + "</span>" + (m.dung ? '<span class="hx-tag ' + (m.duPhong ? 'info">Dự phòng' : 'warn">Đã dừng') + "</span>" : "") + "</span></header><div class=\"mt-trai\">" +
         (dg.ly.length ? '<div class="mt-ly ' + dg.muc + '">' + e_(dg.ly.join(" · ")) + "</div>" : "") + phienCua(m) +
         /* 17/10 user «làm rộng cột thông tin máy để giảm chiều dọc»: RAM · CPU · các ổ chung 1 hàng (chữ trên, thanh dưới) thay vì 2 hàng */
         '<div class="mt-sk">' + dong("RAM", ramDung + "%", ramDung, mucDo(ramDung, 70, 85)) + dong("CPU", cpu + "%", cpu, mucDo(cpu, 70, 90)) +
@@ -336,9 +371,13 @@
         (nutMay ? '<div class="mt-nut">' + nutMay + "</div>" : "") + "</div>" +
         /* 17/10 user «chỉ ở điện thoại: việc nặng nhẹ mặc định ghi SỐ LƯỢNG việc, ẩn chi tiết; cần xem thì ấn mũi tên bên cạnh — xổ xuống»:
            nút đầu cột (chỉ hiện ≤560px, máy tính giữ nguyên chip) · trạng thái mở nhớ theo máy qua lượt làm mới 30 s (MT_MO) */
-        '<div class="mt-phai' + (MT_MO[m.may] ? " mo" : "") + '">' + (viec.length ? '<button type="button" class="mt-ct mt-xo" data-xo="' + e_(m.may) + '" aria-expanded="' + !!MT_MO[m.may] + '"><span>Việc đảm nhận</span>' +
-          '<span class="so">' + [[viec.filter(function (t) { return nangCua[t] === true; }).length, "Nặng"], [viec.filter(function (t) { return nangCua[t] !== true; }).length, "Nhẹ"]].filter(function (x) { return x[0]; }).map(function (x) { return x[1] + " " + x[0]; }).join(" · ") +
-          '</span><span class="mt-xo-mui" aria-hidden="true"></span></button>' : '<span class="mt-ct">Việc đảm nhận</span>') + '<div class="mt-xo-ct">' + chip + "</div></div>" +
+        /* 19/10 user «chip việc nặng/nhẹ hiển thị to cả web/điện thoại — làm cách khác»: CẢ web lẫn điện thoại chỉ 1 dòng «Nặng N · Nhẹ M ▾»
+           (+ đang chạy / đã tắt nếu có); bấm → bảng chip NỔI (popIn, có ✕, bấm ra ngoài đóng) đè lên trang — khung máy không đổi cỡ */
+        '<div class="mt-phai' + (MT_MO[m.may] ? " mo" : "") + '">' + (viec.length ? '<button type="button" class="mt-ct mt-xo" data-xo="' + e_(m.may) + '" aria-expanded="' + !!MT_MO[m.may] + '"><span class="nhan">Việc đảm nhận</span>' +
+          '<span class="so">' + [[nangSo, "Nặng"], [viec.length - nangSo, "Nhẹ"]].filter(function (x) { return x[0]; }).map(function (x) { return x[1] + " " + x[0]; }).join(" · ") + "</span>" +
+          (chaySo ? '<span class="phu chay">' + chaySo + " đang chạy</span>" : "") + (tatSo ? '<span class="phu tat">' + tatSo + " đã tắt</span>" : "") +
+          '<span class="mt-xo-mui" aria-hidden="true"></span></button>' : '<span class="mt-ct">Việc đảm nhận</span>') +
+          (viec.length ? '<div class="mt-xo-ct" role="dialog" aria-label="' + e_("Việc đảm nhận — " + m.may) + '"><div class="mt-xo-dau"><b>' + e_(m.may) + '</b><button type="button" class="mt-xo-dong" data-xo-dong="' + e_(m.may) + '" aria-label="Đóng">✕</button></div>' + chip + "</div>" : '<div class="mt-xo-ct">' + chip + "</div>") + "</div>" +
         '<div class="mt-ket"><span class="mt-ct">Việc đang làm và kết quả</span>' + ((dangChayMay(m) + homNay(m)) || '<div class="mt-trong">Chưa ghi nhận lượt chạy nào.</div>') + "</div></div>";
     };
     var chuaCo = (MTD.viec || []).filter(function (v) { return !v.may && !v.chiLaptop; });   // 14/10: việc ghim laptop (cần dữ liệu .exports) không phải «chưa có máy»
@@ -356,7 +395,12 @@
         var ly = c ? "Bị dừng giữa chừng ở " + c.tu + " — chờ máy khác chạy bù" : !conMay ? "Chưa có PC nào đang chạy"
           : k.indexOf("TOPREVIEW_USER") >= 0 ? "Cần PC có khoá camera" + (k.indexOf("GEMINI_API_KEY") >= 0 ? " và khoá AI" : "") : "Cần PC đang chạy";
         if (!theo[ly]) { theo[ly] = []; nhom.push(ly); } theo[ly].push(v.ten); });
-      h += '<div class="panel mt-chua"><div class="panel-head"><span>Việc chưa có máy nhận</span><span>' + chuaCo.length + "</span></div>" +
+      /* 19/10 user «khi chưa có máy nào nhận việc cũng cần gọn — trên điện thoại bảng này chiếm phần lớn khung trang»: mặc định 1 DÒNG
+         «Việc chưa có máy nhận · Nặng N · Nhẹ M ▾» (+ lý do khi chỉ 1 lý do); bấm mới xổ chip (popIn), nhớ trạng thái qua lượt làm mới */
+      var nChua = chuaCo.filter(function (v) { return nangCua[v.ten] === true; }).length, moChua = !!MT_MO["_chua_"];
+      h += '<div class="panel mt-chua' + (moChua ? " mo" : "") + '"><button type="button" class="mt-chua-dau" data-xo-chua="1" aria-expanded="' + moChua + '"><span class="ten">Việc chưa có máy nhận</span>' +
+        '<span class="so">' + [[nChua, "Nặng"], [chuaCo.length - nChua, "Nhẹ"]].filter(function (x) { return x[0]; }).map(function (x) { return x[1] + " " + x[0]; }).join(" · ") + "</span>" +
+        (nhom.length === 1 ? '<span class="ly1">' + e_(nhom[0]) + "</span>" : "") + '<span class="mt-xo-mui" aria-hidden="true"></span></button>' +
         /* 15/10 user: Nặng chốt TRÁI, Nhẹ chốt PHẢI NGANG HÀNG — dữ liệu thật chia nhiều lý do (khoá camera / khoá AI / cần PC) nên trước đây
            Nhẹ rơi xuống hàng riêng. Nay 2 CỘT: Nặng (mọi lý do) trái · Nhẹ (mọi lý do) phải; lý do ghi nhỏ trong cột, nhãn Nặng/Nhẹ 1 lần. */
         (function () {
@@ -367,21 +411,26 @@
               if (!ds.length) return ""; var h1 = (mot ? "" : '<div class="ly">' + e_(ly) + "</div>") + '<div class="mt-luoi">' + (dau ? nhan : "") + ds.map(tag).join("") + "</div>"; dau = false; return h1; }).join("");
             return phan ? '<div class="mt-cot' + (laNang ? "" : " phai") + '">' + phan + "</div>" : ""; };
           var n = cot(true), l = cot(false);
-          return '<div class="hx-mt-ly">' + (mot ? '<div class="ly">' + e_(nhom[0]) + "</div>" : "") + '<div class="mt-nn">' + n + (n ? l : l.replace("mt-cot phai", "mt-cot")) + "</div></div>"; })() + "</div>";
+          return '<div class="hx-mt-ly">' + '<div class="mt-nn">' + n + (n ? l : l.replace("mt-cot phai", "mt-cot")) + "</div></div>"; })() + "</div>";
     }
     /* 15/10 user «máy nào không chạy đưa xuống dưới, ủn máy đang chạy/còn sống lên trên»: đang làm việc → sống chờ việc → sống nhưng Dừng → mất nhịp; cùng hạng theo điểm */
     // 15/10 chiều: laptop Dừng nhưng ĐANG LÀM THAY từng bị xếp dưới 2 máy rảnh → hạng theo ĐÚNG nhãn trên thẻ: «Đang làm việc» (kể cả làm thay) lên đầu
     var hangMay = function (m) { return !m.song ? 3 : (m.dangChay || []).length ? 0 : m.dung ? 2 : 1; };
     var mayXep = MTD.may.slice().sort(function (a, b) { return (hangMay(a) - hangMay(b)) || ((b.diem || 0) - (a.diem || 0)) || String(a.may).localeCompare(String(b.may)); });
-    h += MTD.may.length ? '<div class="mt-hang"><div class="mt-tde"><span>Thông tin máy · sức khoẻ</span><span>Việc đảm nhận</span><span>Việc đang làm và kết quả</span></div>' + mayXep.map(the).join("") + "</div>"
+    h += MTD.may.length ? '<div class="mt-tde"><span>Thông tin máy · sức khoẻ</span><span>Việc đảm nhận</span><span>Việc đang làm và kết quả</span></div><div class="mt-hang">' + mayXep.map(the).join("") + "</div>"
       : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';
     if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
     PANE.innerHTML = h;
     var dx = document.getElementById("mtDangXuat");
     if (dx) dx.onclick = function () { var mp = mtPhien(); try { localStorage.removeItem("mt-phien"); } catch (e) {} MTD = null; CAN_DN = true;
       if (mp) postGas({ action: "pcDangXuat", ph: mp.ph }).catch(function () {}); veDangNhap(); };
+    /* 19/10 bảng việc nổi: mở 1 máy thì đóng máy khác; ✕ / bấm ra ngoài / Esc đóng (bắt ở document, gắn 1 lần — xem init) */
+    var datMo = function (o, mo) { var n = o.querySelector(":scope > .mt-xo"); o.classList.toggle("mo", mo); if (n) { n.setAttribute("aria-expanded", String(mo)); if (mo) MT_MO[n.dataset.xo] = 1; else delete MT_MO[n.dataset.xo]; } };
     PANE.querySelectorAll("button[data-xo]").forEach(function (n) { n.onclick = function () { var o = n.closest(".mt-phai"), mo = !o.classList.contains("mo");
-      o.classList.toggle("mo", mo); n.setAttribute("aria-expanded", String(mo)); if (mo) MT_MO[n.dataset.xo] = 1; else delete MT_MO[n.dataset.xo]; }; });
+      PANE.querySelectorAll(".mt-phai.mo").forEach(function (k) { if (k !== o) datMo(k, false); }); datMo(o, mo); }; });
+    PANE.querySelectorAll("button[data-xo-dong]").forEach(function (n) { n.onclick = function () { var o = n.closest(".mt-phai"); datMo(o, false); var b = o.querySelector(":scope > .mt-xo"); if (b) b.focus(); }; });
+    var dc = PANE.querySelector("button[data-xo-chua]");
+    if (dc) dc.onclick = function () { var o = dc.closest(".mt-chua"), mo = !o.classList.contains("mo"); o.classList.toggle("mo", mo); dc.setAttribute("aria-expanded", String(mo)); if (mo) MT_MO["_chua_"] = 1; else delete MT_MO["_chua_"]; };
     if (!DIEU_KHIEN) return;
     PANE.querySelectorAll("button[data-xin]").forEach(function (n) {
       n.onclick = function () {
@@ -410,6 +459,13 @@
     });
   }
 
+  function dongNoi(ev) {   // 19/10: bấm ra ngoài bảng việc nổi / Esc → đóng
+    if (!PANE) return;
+    PANE.querySelectorAll(".mt-phai.mo").forEach(function (o) {
+      if (ev.type === "keydown" ? ev.key !== "Escape" : o.contains(ev.target)) return;
+      o.classList.remove("mo"); var n = o.querySelector(":scope > .mt-xo"); if (n) { n.setAttribute("aria-expanded", "false"); delete MT_MO[n.dataset.xo]; if (ev.type === "keydown") n.focus(); } });
+  }
+  document.addEventListener("click", dongNoi, true); document.addEventListener("keydown", dongNoi);
   function init(pane) {
     PANE = pane; napCss();
     if (!MTD || CAN_DN) pane.innerHTML = '<div class="hx-mt">' + '<div class="panel"><div style="padding:18px 16px"><div class="sk sk-line" style="width:60%"></div><div class="sk sk-line" style="width:86%"></div><div class="sk sk-line" style="width:70%"></div></div></div>'.repeat(2) + "</div>";
