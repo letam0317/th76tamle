@@ -82,7 +82,7 @@ for (const m of MAY) {
       }
       if (x.ngang > 0) sai.G7.push(nh + " " + x.ngang + "px");
       if (!(x.dau.traiSat && x.dau.phaiSat && x.dau.thuTu && x.dau.motHang && x.dau.tieuDeTrongKhung)) sai.G9.push(nh + JSON.stringify(x.dau));
-      if (x.nguonHang && (x.nguonHang.n < 2 || x.nguonHang.lech > 1 || x.nguonHang.tran > 1 || x.nguonHang.phai > 1)) sai.G10.push(nh + JSON.stringify(x.nguonHang));
+      if (x.nguonHang && (x.nguonHang.n < 1 || x.nguonHang.lech > 1 || x.nguonHang.tran > 1 || x.nguonHang.phai > 1)) sai.G10.push(nh + JSON.stringify(x.nguonHang));
       /* G3: cuộn thanh xuống tối đa → clip vẫn dính ngay dưới đầu thanh, thấy trọn */
       const c3 = await p.evaluate(() => { const bx = document.querySelector("#modal .modal-box"); const tran = bx.scrollHeight - bx.clientHeight; bx.scrollTop = bx.scrollHeight; return tran; });
       await ngu(250);

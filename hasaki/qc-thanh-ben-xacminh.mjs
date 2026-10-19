@@ -38,7 +38,7 @@ for (const m of MAY) {
   const boCuc = () => p.evaluate(() => { const R = (s) => { const e = document.querySelector(s); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return r.width && r.height ? { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom) } : null; };
     const img = document.getElementById("qdAnhGN");
     return { vh: innerHeight, xem: R("#mBody .hx-qd-xem"), khung: R("#mBody [data-khung]"), anh: R("#mBody .hx-qd-anh"), ben: R("#mBody .hx-qd-ben"), ls: R("#mBody .hx-qd-ls"), luu: R("#qdLuu"), qd: R("#mBody .hx-qd-form>.hx-qd-o"), gc: R("#mBody .hx-qd-form>.hx-qd-o:nth-child(2)"),
-      lans: (() => { const L = document.querySelector("#mBody .hx-qd-ls .hx-lans"); if (!L) return null; const c = L.children;
+      lans: (() => { const L = document.querySelector("#mBody .hx-qd-ls .hx-lans"); if (!L) return null; const c = [...L.children].filter((z) => z.offsetParent !== null);   // 19/10 (6) chỉ dòng đang hiện theo chip
         return { n: c.length, cao: Math.round(L.clientHeight), cuon: L.scrollHeight - L.clientHeight, nam: c.length > 5 ? Math.round(c[5].getBoundingClientRect().top - c[0].getBoundingClientRect().top) : null }; })(),
       thanCuon: (() => { const bx = document.querySelector("#modal .modal-box"); return bx.scrollHeight - bx.clientHeight; })(),
       xdau: R("#mBody .hx-xdau"),
@@ -85,7 +85,7 @@ for (const m of MAY) {
   }
   /* 19/10 (4) user: 1 hàng trái→phải «Tác động WMS» · «Không qua WMS» · «Ảnh ghi nhận» (bật/tắt ảnh dưới clip); không còn «Khung camera N» */
   { const ng = bc.nguon.map((t) => t.replace(/\s*\d+$/, "")), iW = ng.indexOf("Tác động WMS"), iV = ng.indexOf("Không qua WMS"), iA = ng.indexOf("Ảnh ghi nhận");
-    ok(!ng.some((t) => /^Khung camera/.test(t)) && (iV >= 0 || !bc.khung) && (iW < 0 || iV < 0 || iW < iV) && (iA < 0 || iV < iA), m.ten + ": T12 hàng nguồn Tác động WMS → Không qua WMS → Ảnh ghi nhận, không «Khung camera» (" + bc.nguon.join(", ") + ")"); }
+    ok(!ng.some((t) => /^Khung camera/.test(t)) && (iW < 0 || iV < 0 || iW < iV) && (iA < 0 || iV < iA), m.ten + ": T12 hàng nguồn Tác động WMS → Không qua WMS → Ảnh ghi nhận, không «Khung camera» (" + bc.nguon.join(", ") + ")"); }
   if (bc.anh) {   // T15 bấm ảnh → phóng to; Esc đóng phóng to, thanh vẫn mở
     await p.evaluate(() => document.getElementById("qdAnhGN").click()); await ngu(500);
     const lb = await p.evaluate(() => document.getElementById("lightbox").classList.contains("show"));
@@ -142,6 +142,18 @@ for (const m of MAY) {
       if (ls5.tieuDe) sai.push("còn dòng chữ «Ai tác động ô trước giờ ghi nhận»");
       const thieuLoai = ls5.dong.filter((t) => !/^[0-9]+ cái · (châm hàng|soạn hàng|hàng hoàn|hàng dư)/.test(t)); if (thieuLoai.length) sai.push(thieuLoai.length + " dòng thiếu loại tác động: " + thieuLoai[0]);
       dem.dongLoai = (dem.dongLoai || 0) + ls5.dong.length;
+      /* 19/10 (6) user: danh sách lọc theo chip — Tác động WMS chỉ lượt WMS; Không qua WMS chỉ lượt ngoài hệ thống (+ Gỡ); không có lượt ngoài hệ thống thì ẨN chip */
+      const c6 = await p.evaluate(async () => { const hien = (s) => [...document.querySelectorAll("#mBody " + s)].filter((e) => e.getBoundingClientRect().height).length;
+        const tongVL = document.querySelectorAll("#mBody .hx-lan.vl").length, tongW = document.querySelectorAll("#mBody .hx-lan:not(.vl)").length, chip = document.querySelector("#mBody [data-vlchip]"), mo = !!document.querySelector("#mBody .hx-ng-vl:disabled");
+        const r = { tongVL, tongW, chip: !!chip, mo, wmsHien: hien(".hx-lan:not(.vl)"), vlHienLucWMS: hien(".hx-lan.vl") };
+        if (chip) { chip.click(); await new Promise((x) => setTimeout(x, 80)); r.vlHien = hien(".hx-lan.vl"); r.wmsHienLucVL = hien(".hx-lan:not(.vl)"); r.goHien = hien("[data-vlgo]") === document.querySelectorAll("#mBody [data-vlgo]").length;
+          const w = document.querySelector("#mBody .hx-qd-nguon [data-ng]"); if (w) { w.click(); await new Promise((x) => setTimeout(x, 80)); r.veWMS = hien(".hx-lan.vl") === 0; } else { const ls = document.querySelector("#mBody .hx-qd-ls"); if (ls) ls.dataset.che = "wms"; r.veWMS = true; } }
+        return r; });
+      dem.coVL = (dem.coVL || 0) + (c6.tongVL ? 1 : 0);
+      if (c6.mo) sai.push("chip Không qua WMS còn làm mờ");
+      if (!!c6.tongVL !== c6.chip) sai.push("chip Không qua WMS " + (c6.chip ? "hiện khi không có lượt" : "thiếu khi có lượt") + " " + JSON.stringify(c6));
+      if (c6.vlHienLucWMS || c6.wmsHien !== c6.tongW) sai.push("Tác động WMS lọc sai " + JSON.stringify(c6));
+      if (c6.chip && (c6.vlHien !== c6.tongVL || c6.wmsHienLucVL || !c6.goHien || !c6.veWMS)) sai.push("Không qua WMS lọc sai " + JSON.stringify(c6));
       /* 19/10 (4) bấm «Ảnh ghi nhận» → ảnh hiện NGAY DƯỚI khung clip, clip vẫn là nguồn cũ (không thay chỗ); bấm lại → ẩn */
       const a4 = await p.evaluate(async () => { const n = document.querySelector("#mBody [data-anhgn]"); if (!n || document.getElementById("qdKhung").hidden) return null; const k0 = document.querySelector("#qdKhung").innerHTML.slice(0, 120);
         n.click(); await new Promise((r) => setTimeout(r, 150)); const a = document.querySelector('#mBody [data-tp="anh"]'), c = document.querySelector('#mBody [data-tp="clip"]');
