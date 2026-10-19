@@ -226,7 +226,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
 
   let so = { nhac: {}, nhom: {}, b31: {}, b32: {}, tv: {}, dgB1: {}, fail: {}, qltt: {}, b3huy: {}, khop11: {}, tay11: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
-  for (const k of ["tv", "dgB1", "b32", "b33", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho", "bui", "cam"]) if (!so[k]) so[k] = {};
+  for (const k of ["tv", "dgB1", "b32", "b33", "tay3", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho", "bui", "cam"]) if (!so[k]) so[k] = {};
   let nguonTV = null;   // 4 tab GAS — chỉ nạp khi thật sự có task cần truy vết
 
   const iso = (d) => d.toISOString().slice(0, 10);
@@ -482,7 +482,17 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
        không chỉ lưu. Căn cứ khác (quản lý chốt ③b / xác nhận hộ ③c) vẫn chỉ lưu như cũ. */
     const laDongGoi = /^\[ĐG\]/.test(String(t.name || "")) || /đóng gói sai/i.test(String(cfgCha.TYPE00 || ""));
     let cacB3 = [[b31, "NVVP04", "b31", "B3.1"], [b32, "staff32", "b32", "B3.2"], [b33, "staff33", "b33", "B3.3"]]
-      .filter(([b, , sk]) => b && b.status === 0 && !so[sk][t.id]);
+      /* 19/10: sổ khoá theo task — B3 bị huỷ rồi engine mở LƯỢT MỚI (B1.1 làm lại) thì sổ cũ làm ③ câm mãi
+         (13800385: B3.1 mới mở 06/10 trống NV, sổ b31 ghi 26/09). Lượt B3 tạo SAU mốc sổ → xét lại. */
+      .filter(([b, , sk]) => b && b.status === 0 && (!so[sk][t.id] || Date.parse(String(b.created_at || "").replace(" ", "T") + "+07:00") > so[sk][t.id]));
+    /* 19/10 QD-02 (user «để ý việc t thay đổi tay»): B2.1 (7383) có người NGOÀI danh sách NV ở B1 = người xác minh đã
+       đổi tay NV (13800385: «thay Thanh Ngân = Nguyễn Thị Kim Ngân» chỉ sửa ở B2.1) → không tự điền theo B1, báo người. */
+    const nguoiLa = [...new Set((t.subtasks || []).filter((s) => Number(s.workflow_step_id) === 7383 && Number(s.status) !== 4)
+      .flatMap((s) => (s.staff || []).map((x) => String((x.info && x.info.code) || ""))).filter((c) => c && !codes.includes(c)))];
+    if (cacB3.length && nguoiLa.length) {
+      if (!so.tay3[t.id]) log("③ " + t.code + " (task " + t.id + "): B2.1 có NV ngoài danh sách B1 (" + nguoiLa.join(",") + ") — dấu sửa tay, KHÔNG tự điền B3.x; người xác minh chốt danh sách.");
+      so.tay3[t.id] = Date.now(); cacB3 = [];
+    }
     /* NHÁNH ĐÚP (đo thật 25/09 — task 13162758 bị trừ 2+5 cho 1 lỗi 2%): vài hạng mục (STT06)
        làm engine mở CẢ B3.1 lẫn B3.2. User chốt 25/09 (đã báo quản trị wf, đây là lưới đỡ tạm):
        chọn nhánh ĐÚNG theo % tab QUY-DINH — lỗi 2% → điền B3.1, lỗi 5% → điền B3.2 — và HUỶ nhánh
