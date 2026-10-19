@@ -34,9 +34,18 @@ const X = await import("./dong-bo-xm.mjs");
 const nk = (s) => X.log(`[${tenViec}] ${s}`);
 const ttl = Math.max(3600, Number(viec.giuTTL) || 3600) + 1800;
 
-let k;
-try { k = await X.khoa(tenViec, ttl); } catch (e) { nk("không giữ được khoá chung (" + e.message + ") — bỏ lượt"); process.exit(0); }
-if (k.kq !== "giu") { nk(`${k.may} đang chạy «${k.viec}» — bỏ lượt (lịch sau chạy)`); process.exit(0); }
+/* 19/10 user «tập trung máy trạm chia việc xác minh B1»: 2 máy B1 tranh khoá → máy đến sau BỎ CẢ LƯỢT (canh-b11 trễ 1 giờ vì máy kia
+   đang tìm bằng chứng). Nay XẾP HÀNG: hỏi lại mỗi 30 s, tối đa XM_CHO_PHUT (15') rồi mới bỏ lượt. GAS hỏng vẫn bỏ lượt ngay. */
+const CHO_MS = (Number(process.env.XM_CHO_PHUT) || 15) * 60e3, tCho = Date.now();
+let k, baoCho = false;
+for (;;) {
+  try { k = await X.khoa(tenViec, ttl); } catch (e) { nk("không giữ được khoá chung (" + e.message + ") — bỏ lượt"); process.exit(0); }
+  if (k.kq === "giu") break;
+  if (Date.now() - tCho >= CHO_MS) { nk(`${k.may} vẫn chạy «${k.viec}» sau ${Math.round(CHO_MS / 60e3)}' chờ — bỏ lượt (lịch sau chạy)`); process.exit(0); }
+  if (!baoCho) { nk(`${k.may} đang chạy «${k.viec}» — xếp hàng chờ tối đa ${Math.round(CHO_MS / 60e3)}'`); baoCho = true; }
+  await new Promise((r) => setTimeout(r, 30e3));
+}
+if (baoCho) nk(`tới lượt sau ${Math.round((Date.now() - tCho) / 60e3)}' chờ`);
 
 let ma = 0;
 try {
