@@ -294,7 +294,8 @@ try {
     ok(/dung:Canh bãi xe sáng→ chờ máy chạy bù/.test(c1), "thẻ 1: việc nặng đã dừng, đang chuyển → «chờ máy chạy bù» (" + c1 + ")");
     ok(/PC-KHO-02/.test(bc.chu[1]) && /Sức khoẻ kém[\s\S]*mất nhịp (2 giờ trước|90 phút trước)/.test(bc.chu[1]) && /không có khoá camera/.test(bc.tipPhu[1]), "thẻ 2: mất nhịp → Sức khoẻ Kém + lý do; «không khoá camera» trong chú thích");
     const nb = await nhom();
-    ok(m.quanLy ? nb.join("|") === "Theo tác vụ|Theo máy|Máy trạm|Nhật ký" : nb.join("|") === "Máy trạm", "thanh bên nhóm Xác minh: máy quản lý Theo tác vụ|Theo máy|Máy trạm|Nhật ký (15/10 Nhật ký xuống dưới) · điện thoại chỉ Máy trạm (" + nb.join(" | ") + ")");
+    const coHam = m.quanLy ? 0 : await p.evaluate(() => !!window.__HX_QUA_HAM);   // 19/10 user duyệt đường hầm: điện thoại thấy đủ 4 mục khi đường hầm sống
+    ok(m.quanLy || coHam ? nb.join("|") === "Theo tác vụ|Theo máy|Máy trạm|Nhật ký" : nb.join("|") === "Máy trạm", "thanh bên nhóm Xác minh: máy quản lý (và điện thoại khi có đường hầm) Theo tác vụ|Theo máy|Máy trạm|Nhật ký · điện thoại không đường hầm chỉ Máy trạm (" + nb.join(" | ") + ")");
     await kiemBridge(); await p.screenshot({ path: path.join(RA, m.ten + ".png"), fullPage: true });
     if (m.quanLy) {
       ok(bc.nut.some((n) => n.t === "Gỡ") && !/Dừng máy/.test(bc.chu[1]) && bc.nut.some((n) => n.t === "Dừng máy"), "máy quản lý: máy sống có «Dừng máy», máy mất nhịp chỉ có «Gỡ»");

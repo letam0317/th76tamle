@@ -419,8 +419,13 @@ const sv = http.createServer(async (q, s) => {
        Script chạy trên chính máy này (node fetch: không Origin/Referer, không UA Mozilla) được miễn — tiến trình nội bộ vốn đọc
        thẳng được .exports trên đĩa, chặn nó không thêm an toàn mà làm gãy tim-bang-chung-b1 (task theo lịch). Từ LAN luôn phải đăng nhập. */
     const trinhDuyet = !!(q.headers.origin || q.headers.referer || /Mozilla/.test(q.headers["user-agent"] || ""));
-    const noiBo = q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.socket.remoteAddress === "::ffff:127.0.0.1";
+    /* 19/10 user duyệt mở 8591 ra internet qua Cloudflare tunnel (duong-ham-591.mjs) cho điện thoại — CHỈ người đã đăng nhập. Yêu cầu qua
+       đường hầm cũng tới từ 127.0.0.1 nhưng mang tiêu đề Cloudflare (cf-connecting-ip/cf-ray) ⇒ KHÔNG coi là nội bộ; ngoài ping/đăng nhập/
+       mô hình dò người (/m/, tệp công khai) thì mọi đường (api, ảnh, clip, trang cũ…) phải có phiên hợp lệ, thiếu → 401. */
+    const quaHam = !!(q.headers["cf-connecting-ip"] || q.headers["cf-ray"]);
+    const noiBo = !quaHam && (q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.socket.remoteAddress === "::ffff:127.0.0.1");
     const phien = String(q.headers["x-hx-phien"] || u.searchParams.get("phien") || "");
+    if (quaHam && !/^\/(api\/(ping|dang-nhap|dang-nhap-tk|dang-xuat)|m\/[\w.-]+)$/.test(p) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
     if (p === "/api/dang-nhap" && q.method === "POST") {
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
       let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
@@ -461,6 +466,7 @@ const sv = http.createServer(async (q, s) => {
         MT = null; return guiJ(s, 200, { ok: 1 });
       } catch (e) { return guiJ(s, 502, { loi: e.message }); }
     }
+    if (p === "/api/bo-cai-pc" && quaHam) return guiJ(s, 403, { loi: "Bộ cài PC có khoá chỉ tải trên chính laptop" });   // 19/10: khoá bí mật không đi qua đường hầm
     if (p === "/api/bo-cai-pc") {   // 13/10 user: "cần có sẵn khoá trong .bat cài 1 lần". Dựng TẠI CHỖ từ .env laptop — không bao giờ lên GitHub/Pages (repo PUBLIC)
       const { b64, so } = goiKhoaB64(), dong = { length: so };
       const goc = fs.readFileSync(path.join(DIR, "cai-pc", "CAI-PC-1LAN.bat"), "utf8").replace(/\r?\n/g, "\r\n");

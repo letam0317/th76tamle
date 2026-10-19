@@ -13,7 +13,7 @@
  */
 (function () {
   "use strict";
-  var API = (function () { try { return localStorage.getItem("hx-api") || "http://127.0.0.1:8591"; } catch (e) { return "http://127.0.0.1:8591"; } })();
+  var API = (function () { try { return localStorage.getItem("hx-api") || window.HX_API || "http://127.0.0.1:8591"; } catch (e) { return window.HX_API || "http://127.0.0.1:8591"; } })();   // 19/10 HX_API = laptop hoặc đường hầm (index.html hxDoMayChu)
   var D = null, QDL = null, PANE = null, SUB = "nv", TIM = "", LOC = { khu: "", tt: "cho", ngay: "", buoc: "", treo: "" }, EV = null;
   try { var l0 = JSON.parse(localStorage.getItem("hx-loc") || "null"); if (l0) { SUB = l0.SUB || SUB; Object.assign(LOC, l0.LOC || {}); } } catch (e) {}
   if (!/^(treo|cam|tg)$/.test(SUB)) SUB = "treo";   // 12/10 user bỏ Khu giấy · rác, Nhắc QLTT, Nhân viên — máy còn nhớ mục cũ thì về Theo tác vụ
@@ -356,6 +356,11 @@
   /* 10/10 QC: máy bận → gói 420 KB quá 8 s → báo nhầm «chỉ mở được trên máy quản lý». Thử lại 2 lần (3 s, 6 s) trước khi báo. */
   function tai(im, lan) {
     lan = lan || 0;
+    /* 19/10: đã đăng nhập tài khoản audit-dc (điện thoại qua đường hầm) mà chưa có phiên máy chủ → đổi phiên trước, khỏi hiện ô đăng nhập riêng */
+    if (!PHIEN && window.TK && window.TK.phien && typeof window.tkDoiPhienXm === "function" && !tai._doi) { tai._doi = 1;
+      return window.tkDoiPhienXm().then(function (ok) { if (ok) { PHIEN = localStorage.getItem("hx-phien") || ""; return tai(im, lan); }
+        if (window.__HX_KHONG_MAY && typeof setTab === "function") { tai._doi = 0; if (typeof toast === "function") toast("Chưa mở được Xác minh cho tài khoản này — thử đăng xuất rồi đăng nhập lại.", "loi"); setTab("maytram"); return; }   // điện thoại: không bày ô đăng nhập riêng (lặp 17/10)
+        veDangNhap(); }); }
     if (!PHIEN) { veDangNhap(); return Promise.resolve(); }
     if (lan < 2) return taiMot(im).catch(function (e) { if (e && e.dangNhap) return; return new Promise(function (r) { setTimeout(r, 3000 * (lan + 1)); }).then(function () { return tai(im, lan + 1); }); });
     return taiMot(im, true);
@@ -1527,7 +1532,7 @@
 
   function init(pane) {
     PANE = pane; napCss();
-    if (!PHIEN) { veDangNhap(); return; }
+    if (!PHIEN && !(window.TK && window.TK.phien && typeof window.tkDoiPhienXm === "function")) { veDangNhap(); return; }   // 19/10: có tài khoản audit-dc → tai() đổi phiên trước
     if (!D) pane.innerHTML = '<div class="kpi-band">' + '<div class="kb-tile"><div class="sk sk-line" style="width:60%"></div></div>'.repeat(4) + '</div><div class="panel" style="margin-top:14px"><div style="padding:18px 16px"><div class="sk sk-line" style="width:86%"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:78%"></div></div></div>';
     tai(); clearInterval(init._h); init._h = setInterval(function () { if (!document.hidden && PANE && !PANE.classList.contains("hidden") && !document.querySelector("#modal.show")) tai(); }, 120e3);
   }

@@ -10,7 +10,7 @@
   var GAS = location.port === "8123" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "/api/tk-thu"   // bản QC: qua máy chủ nội bộ → HEAD
     : "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
   var APP = /factory|stocklocation/.test(location.pathname) ? "f" : "r";
-  var API_XM = (function () { try { return localStorage.getItem("hx-api") || "http://127.0.0.1:8591"; } catch (e) { return "http://127.0.0.1:8591"; } })();
+  var API_XM = function () { try { return localStorage.getItem("hx-api") || window.HX_API || "http://127.0.0.1:8591"; } catch (e) { return window.HX_API || "http://127.0.0.1:8591"; } };   // 19/10 hàm: HX_API đổi sau khi dò đường hầm
   var NHOM = [
     ["Audit Retail", [["r.tong", "Tổng kết"], ["r.task", "Vi phạm"], ["r.hangmuc", "Quy định"], ["r.planogram", "Planogram"], ["r.htonbat", "Bất thường"], ["r.kk", "Kiểm kê"], ["r.xacminh", "Xác minh"]]],
     ["Audit Factory", [["f.stock", "Trạng thái lưu trữ"], ["f.kk", "Kiểm kê"], ["f.abn", "Tồn kho bất thường"], ["f.plg", "Planogram"], ["f.sku", "Nhận diện SKU"], ["f.cd", "Chuyển đổi cân"], ["f.tem", "Tem vị trí"]]]
@@ -111,7 +111,7 @@
   function dangXuat() {
     var p = TK.phien; if (p) goi("tk_dangxuat", { phien: p }).catch(function () {});
     /* 16/10 user «đăng xuất rồi mà vẫn thấy mục con Xác minh»: 1 lần đăng xuất = thu hồi CẢ phiên máy chủ Xác minh 8591 (trước chỉ xoá ở máy) */
-    var hx = ls.get("hx-phien"); if (APP === "r" && hx) fetch(API_XM + "/api/dang-xuat", { method: "POST", headers: { "x-hx-phien": hx } }).catch(function () {});
+    var hx = ls.get("hx-phien"); if (APP === "r" && hx) fetch(API_XM() + "/api/dang-xuat", { method: "POST", headers: { "x-hx-phien": hx } }).catch(function () {});
     datNguoi(null, ""); TK.quyen = null; ls.set("tk-nho", null); ls.set("hx-phien", null);
     try { window.dispatchEvent(new Event("hx-phien")); } catch (e) {}
     apQuyen(); bao();   // dựng lại thanh bên NGAY (không chờ Apps Script trả quyền khách)
@@ -174,8 +174,13 @@
 
   /* ---------- Xác minh: đổi phiên tài khoản → phiên máy chủ 8591 (chỉ Retail, chỉ khi có quyền) ---------- */
   function doiPhienXm() {
-    if (APP !== "r" || !TK.phien || !window.tkCo("r.xacminh") || window.__HX_KHONG_MAY) return Promise.resolve(false);   // 15/10: điện thoại không có máy chủ 8591
-    return fetch(API_XM + "/api/dang-nhap-tk", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phienTk: TK.phien }) })
+    if (APP !== "r" || !TK.phien || !window.tkCo("r.xacminh")) return Promise.resolve(false);
+    /* 19/10: điện thoại đi qua đường hầm — chờ dò máy chủ (index.html hxDoMayChu); không có máy chủ thì thôi */
+    var do_ = typeof window.hxDoMayChu === "function" ? window.hxDoMayChu() : Promise.resolve(!window.__HX_KHONG_MAY);
+    return do_.then(function (co) { if (!co) return false; return doiPhienXm_(); });
+  }
+  function doiPhienXm_() {
+    return fetch(API_XM() + "/api/dang-nhap-tk", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phienTk: TK.phien }) })
       .then(function (r) { return r.json(); }).then(function (j) { if (!j.phien) return false; ls.set("hx-phien", j.phien); try { window.dispatchEvent(new Event("hx-phien")); } catch (e) {} return true; })
       .catch(function () { return false; });
   }
