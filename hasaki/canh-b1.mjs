@@ -73,13 +73,13 @@ const choTuLam = (ma) => (DUYET[ma] || BO.mucTuDong[LUAT[ma]?.macDinh] || "") ==
 /* ---- phiếu B1 đang mở từ tasks-cache (0 lượt gọi) ---- */
 const C = JSON.parse(fs.readFileSync(path.join(EXP, "tasks-cache.json"), "utf8"));
 const H = C.header, iH = (k) => H.indexOf(k);
-const I = { link: 1, st: 3, ngay: iH("Ngày vi phạm:"), loi: iH("Lỗi vi phạm"), bin: iH("Vị trí ghi nhận"),
+const I = { link: 1, ten: 2, st: 3, ngay: iH("Ngày vi phạm:"), loi: iH("Lỗi vi phạm"), bin: iH("Vị trí ghi nhận"),
   b1: iH("B1. Xác minh lỗi vi phạm ▸ Status"), b1giao: iH("B1. Xác minh lỗi vi phạm ▸ Ngày giao") };
 const phieu = [];
 for (const v of Object.values(C.rows)) {
   const m = /task_id=(\d+)/.exec(v[I.link] || ""); if (!m) continue;
   if (v[I.st] !== "None" || v[I.b1] !== "None") continue;            // chỉ phiếu đang treo ở B1
-  phieu.push({ id: m[1], ngay: String(v[I.ngay] || ""), loi: String(v[I.loi] || ""), bin: String(v[I.bin] || "").trim(), giao: v[I.b1giao] });
+  phieu.push({ id: m[1], ten: String(v[I.ten] || ""), ngay: String(v[I.ngay] || ""), loi: String(v[I.loi] || ""), bin: String(v[I.bin] || "").trim(), giao: v[I.b1giao] });
 }
 
 /* ---- danh bạ (cache sẵn của canh-b11, 0 lượt) ---- */
@@ -164,10 +164,34 @@ async function lichSuCat(bin, pt) {
 }
 const nguoi = (em) => { const x = nvTheoEmail(em); return x ? { ten: x.staff_name, code: String(x.code), email: em } : { ten: em, code: "", email: em }; };
 
+/* ---- DG-01 (19/10 user): phiếu lỗi đóng gói «[ĐG] …» có dòng «Nhân viên đóng gói: <Tên> (<email>)» trong Mô tả →
+   người chịu = người đó; QLTT để auto-complete-single-task chia đều Uyên/Huyền. Mô tả không có trong tasks-cache →
+   1 GET task-input/phiếu [ĐG], cache vĩnh viễn khi đã đọc ra người (Mô tả máy ghi lúc tạo phiếu, không đổi). */
+let wshrToken = null;
+async function nvDongGoi(id) {
+  const k = "dg|" + id;
+  if (CACHE[k]) return CACHE[k];
+  wshrToken ||= await layTokenSongWork(DIR, () => {});
+  const d = await docTask(/^Bearer /.test(wshrToken) ? wshrToken : "Bearer " + wshrToken, id); if (!d) return null;
+  const chu = String(d.note || "").replace(/<[^>]+>/g, "\n");
+  const m = /Nhân viên đóng gói:\s*([^(\n]+?)\s*\(([^()\s]+@[^()\s]+)\)/.exec(chu);
+  const kq = m ? { ten: m[1].trim(), email: m[2].toLowerCase() } : { khong: true };
+  if (m) { CACHE[k] = kq; ghiJ(F_CACHE, CACHE); }
+  return kq;
+}
+
 /* ---- xét 1 phiếu → kết quả ---- */
 async function xet(p) {
   const loai = phanLoai(p.loi), bin = chuanMa(p.bin), cam = kenhCamera(bin);
   if (loai === "VS") return { luat: "VS", ketLuan: "canh-b11", lyDo: "Lỗi vệ sinh hằng ngày — canh-b11 luật ⑤ xử" };
+  if (/^\[ĐG\]/.test(p.ten || "") && daDuyet("DG-01")) {
+    const dg = await nvDongGoi(p.id);
+    if (!dg) return { luat: "DG-01", ketLuan: "cho-wms", lyDo: "Chưa đọc được Mô tả phiếu (lỗi mạng) — lượt sau" };
+    if (dg.khong) return { luat: "DG-01", ketLuan: "nghi-ngo", camera: p.bin, lyDo: "Phiếu đóng gói nhưng Mô tả không có dòng «Nhân viên đóng gói: Tên (email)» — bạn nhận người" };
+    const g = nguoi(dg.email);
+    if (!g.code) return { luat: "DG-01", ketLuan: "nghi-ngo", nv: [g], lyDo: "Nhân viên đóng gói " + dg.ten + " (" + dg.email + ") không có trong danh bạ — bạn kiểm" };
+    return { luat: "DG-01", ketLuan: "B1.1", nv: [g], doChac: "CAO", lyDo: "Lỗi đóng gói: người đóng đơn theo Mô tả phiếu = " + g.ten + " (" + g.code + ")" };
+  }
   if ((loai === "CAM-04" || !bin) && daDuyet("CAM-04") && /^\d{4}-\d\d-\d\d \d\d:\d\d/.test(p.ngay)) {   // 10/10 user: DL-01 khu vực xử như CAM-04
     const kc = cam || kenhKhu(p.bin);
     return { luat: "CAM-04", ketLuan: "nghi-ngo", camera: kc, lyDo: "Lỗi hành vi tại «" + p.bin + "» — không có lệnh WMS; người chịu = người camera thấy làm ở đó lúc/trước giờ ghi nhận " + String(p.ngay).slice(5, 16) + (kc ? " (" + kc + ")" : " (chưa khớp được kênh camera theo tên khu)") + ". Máy cắt khung camera giờ ghi nhận ở tab Xác minh; bạn nhận người" };
@@ -275,7 +299,7 @@ if (QC) {
     if (!a.ketLuan || typeof a.ketLuan !== "object") continue;
     const v = Object.values(C.rows).find((r) => (r[I.link] || "").includes("task_id=" + a.phieu));
     if (!v) { log("QC " + l.ma + " " + a.phieu + ": không có trong tasks-cache — bỏ"); continue; }
-    const kq = await xet({ id: a.phieu, ngay: String(v[I.ngay]), loi: String(v[I.loi]), bin: String(v[I.bin]).trim() });
+    const kq = await xet({ id: a.phieu, ten: String(v[I.ten] || ""), ngay: String(v[I.ngay]), loi: String(v[I.loi]), bin: String(v[I.bin]).trim() });
     const ma = (kq.nv || []).map((n) => n.code).sort().join(","), muon = [...a.ketLuan.nv].sort().join(",");
     const dung = kq.luat === l.ma && kq.ketLuan === a.ketLuan.loai && ma === muon;
     dung ? ok++ : sai++;

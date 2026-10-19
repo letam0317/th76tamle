@@ -26,6 +26,7 @@ Bạn chọn ở cột vàng «Quyết định» trên tab PHIẾU B1 TREO (lu�
 | Vệ sinh hằng ngày cuối ca | `canh-b11.mjs` luật ⑤ (mỗi giờ :35) | VS-01…VS-04, VS-06, VS-07 | **Có** (VS-05 thì chờ bạn) |
 | Không báo cáo vệ sinh 3 lần (cò luỹ tiến) | `co-luy-tien.mjs` → form → push-5s | — | **Có** |
 | Trưng bày / châm hàng / soạn hàng / lệch hệ thống | `canh-b1.mjs` (2 giờ/lần) | TB-01, TB-02, TB-03, SH-01, A1-01 | **Chưa** — chỉ ghi sheet (TB-01/02 có camera xác nhận «chắc» thì ra «B1.1 · CAO» nhưng vẫn theo cột duyệt) |
+| Lỗi đóng gói `[ĐG]` có dòng «Nhân viên đóng gói: Tên (email)» trong Mô tả | `canh-b1.mjs` | DG-01 | **Có** — QLTT chia đều Uyên/Huyền |
 | Lỗi hành vi tại chỗ (ăn uống, CCDC, chắn lối, đùa giỡn, tập trung) và **vị trí không phải mã ô** | `canh-b1.mjs` | CAM-04 | **Chưa** — chỉ ghi sheet, máy cắt khung camera giờ ghi nhận, bạn nhận người |
 | Phiếu thiếu giờ/mã ô, ảnh trùng | `canh-b1.mjs` | DL-01, DL-02 | **Không** |
 | 2 phiếu trùng hoàn toàn / cùng NV·cùng lỗi·cùng ngày | `canh-b1.mjs`, `canh-trung-nv.mjs` | DL-03, CH-05 | Không chuyển — **dừng phiếu sau** |
@@ -56,17 +57,15 @@ Chạy tay 1 phiếu: `node auto-complete-single-task.mjs --task=<id> --nv=<mã|
 ### Ví dụ: [HSK-74Q3LNF2 — task 14230295](https://work.hasaki.vn/tasks?task_id=14230295)
 
 «[ĐG] Đóng sai sản phẩm — Máy 31 · camera_00031 — đơn 261012CUFUPAFG», ghi nhận 12/10 11:15, tạo 17/10.
-- B1 chưa có NV vi phạm, chưa có QLTT → **KHÔNG tự chuyển**, B1 vẫn mở (Lâm Thanh Tú cầm).
-- Cò `canh-b1` (lượt 19/10 07:50) xếp **CAM-04 · nghi-ngo**: «Máy 31» không phải mã ô nên rơi nhánh lùi `!bin` → CAM-04, mà CAM-04 bạn duyệt «Chỉ ghi sheet».
-- **Lỗ hổng:** lỗi đóng gói không phải lỗi hành vi tại chỗ — người chịu lỗi tra được từ **tài khoản đóng đơn** của mã đơn (WMS packing). Chưa có luật riêng → xem mục 6.
+- Trước 19/10: cò xếp **CAM-04 · nghi-ngo** («Máy 31» không phải mã ô → nhánh lùi `!bin`) → không tự chuyển.
+- Mô tả phiếu có sẵn «Nhân viên đóng gói: Nguyễn Thị Thu Thủy (thuyntt23@hasaki.vn)» → user chốt luật **DG-01**.
+- 19/10 09:06 đã chuyển: B1 `staff` = 260612, QLBP02 = Hồ Ngọc Tú Uyên (lượt chia đều) → B1.1 đứng tên Nguyễn Thị Thu Thủy. Phiếu này là án lệ của DG-01.
 
-## 6. Luật ĐỀ XUẤT — chờ bạn duyệt
+## 6. DG-01 — lỗi đóng gói (chốt 19/10/2026)
 
-| Mã | Nội dung | Khác luật cũ |
-|---|---|---|
-| **ĐG-01** | Lỗi đóng gói (tên phiếu `[ĐG]`, có mã đơn) → người chịu = tài khoản **đóng đơn** của mã đơn trên WMS packing; 1 người → B1.1, không tra được → nghi ngờ | Hiện phiếu `[ĐG]` rơi vào CAM-04 (nhờ camera, bạn nhận người) chỉ vì vị trí là «Máy xx» |
-
-Duyệt thì: thêm luật vào `quy-tac-xac-minh-b1.json` (có `khacCu` + án lệ) → `node canh-b1.mjs --qc` đúng hết án lệ → chọn «Cho máy tự làm» trên sheet.
+- Nhận phiếu: tên bắt đầu `[ĐG]`. Đọc **Mô tả** (1 lượt GET/phiếu, lưu vĩnh viễn ở `.cache-canh-b1.json` khoá `dg|<id>`), lấy dòng `Nhân viên đóng gói: <Tên> (<email>)`.
+- Có người + có trong danh bạ → đóng B1 → B1.1 cho người đó. **QLTT = luật chia đều 0,2%** Hồ Ngọc Tú Uyên / Lê Thị Ngọc Huyền (`qltt.js`, cộng lượt chỉ khi B1 đóng thật).
+- Mô tả thiếu dòng / email không có trong danh bạ → nghi ngờ, ghi sheet.
 
 ## 7. Thêm / sửa luật (quy trình bắt buộc)
 

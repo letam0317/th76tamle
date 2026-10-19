@@ -716,6 +716,29 @@
    ]
   },
   {
+   "ma": "DG-01",
+   "nhom": "Đóng gói",
+   "ten": "Lỗi đóng gói [ĐG] → người đóng đơn ghi trong Mô tả phiếu",
+   "dieuKien": "Tên phiếu bắt đầu «[ĐG]» và Mô tả có dòng «Nhân viên đóng gói: <Tên> (<email>)» (máy ghi lúc tạo phiếu từ video đóng gói)",
+   "mayLam": "canh-b1: người chịu = nhân viên đóng gói trong Mô tả (tra mã theo danh bạ) → đóng B1 → B1.1 qua auto-complete-single-task; QLTT (QLBP02) theo luật chia đều 0,2% Hồ Ngọc Tú Uyên / Lê Thị Ngọc Huyền (qltt.js). Mô tả thiếu dòng hoặc email không có trong danh bạ → nghi ngờ, ghi sheet.",
+   "macDinh": "tu-lam",
+   "chay": "canh-b1",
+   "tu": "19/10/2026",
+   "khacCu": "Mới — trước đây phiếu [ĐG] vị trí «Máy xx» không phải mã ô nên rơi nhánh lùi CAM-04 (nhờ camera, bạn nhận người). User 19/10: phiếu đã có nhân viên đóng gói, QLTT vẫn chia đều Huyền/Uyên.",
+   "anLe": [
+    {
+     "phieu": "14230295",
+     "ghiChu": "19/10 user: Nguyễn Thị Thu Thủy (thuyntt23) đóng đơn 261012CUFUPAFG, QLTT chia đều → Uyên",
+     "ketLuan": {
+      "loai": "B1.1",
+      "nv": [
+       "260612"
+      ]
+     }
+    }
+   ]
+  },
+  {
    "ma": "CH-04",
    "nhom": "Chung",
    "ten": "Chối mà không có bằng chứng → không đổi kết quả",
@@ -985,6 +1008,10 @@
   {
    "luc": "2026-10-15",
    "viec": "Thêm QD-02: tôn trọng sửa tay — máy không ghi đè trường user đã chỉnh (canh-b11 ②b khop11/tay11, commit 8a41036)."
+  },
+  {
+   "luc": "2026-10-19",
+   "viec": "Thêm DG-01 (lỗi đóng gói theo người đóng đơn trong Mô tả)"
   }
  ]
 }
