@@ -72,9 +72,11 @@ for (const w of viec.slice(0, MAX)) {
   const chay = (lech) => execFileSync(process.execPath, ["_kenh-luc-chup.mjs", w.id, "--luc=" + new Date(Date.parse(w.luc.replace(" ", "T") + "+07:00") + lech * 1000 + 7 * 36e5).toISOString().slice(0, 19)].concat(them ? ["--them=" + them] : []), { encoding: "utf8", windowsHide: true, timeout: 20 * 60e3 });
   try { let loiCuoi = null; for (const lech of [0, -30, 25]) { try { out = chay(lech); loiCuoi = null; break; } catch (e1) { if (e1.status !== 4) throw e1; loiCuoi = e1; log(`  … 0 kênh ra hình (lệch ${lech} s) — thử mốc khác`); await new Promise((r) => setTimeout(r, 8000)); } } if (loiCuoi) throw loiCuoi; }
   catch (e) {
-    if (e.status === 2) { so[w.id] = { luc: w.luc, hong: 3, khongKenh: true, anh: [], taiLuc: new Date().toISOString() }; fs.writeFileSync(F_RA, JSON.stringify(so, null, 1)); log("  ✗ không đoán được camera cho vị trí này — cần khai kênh (ban-do-camera-o.json)"); continue; }
+    /* 19/10 user (13740905 «7 người châm mà không có clip»): nhánh hỏng từng GHI ĐÈ cả bản ghi → mất anh/clip/lanKho đã cắt (PC không có khung
+       f0 của laptop nên chụp lại hỏng rồi gộp về laptop xoá luôn 16 phiếu). Nay nhánh hỏng chỉ cập nhật hong/taiLuc, GIỮ mọi thứ đã có. */
+    if (e.status === 2) { so[w.id] = { ...(so[w.id] || {}), luc: w.luc, hong: 3, khongKenh: true, anh: (so[w.id] || {}).anh || [], taiLuc: new Date().toISOString() }; fs.writeFileSync(F_RA, JSON.stringify(so, null, 1)); log("  ✗ không đoán được camera cho vị trí này — cần khai kênh (ban-do-camera-o.json)"); continue; }
     if (e.status === 4) {   // _kenh-luc-chup exit 4 = không kênh nào ra hình (phiên WF591 thêm 05/10) → tính 1 lần hỏng, tối đa 3
-      const lan = ((so[w.id] || {}).hong || 0) + 1; so[w.id] = { luc: w.luc, hong: lan, anh: [], taiLuc: new Date().toISOString() };
+      const lan = ((so[w.id] || {}).hong || 0) + 1; so[w.id] = { ...(so[w.id] || {}), luc: w.luc, hong: lan, anh: (so[w.id] || {}).anh || [], taiLuc: new Date().toISOString() };
       fs.writeFileSync(F_RA, JSON.stringify(so, null, 1)); log(`  ✗ không kênh nào ra hình (lần ${lan}/3)`); continue; }
     log("  ✗ chụp khung lỗi:", String(e.stdout || e.message).split("\n").filter(Boolean).slice(-1)[0]); continue; }
   const f = (/→\s*(.+\.jpg)\s*$/m.exec(out) || [])[1];
@@ -84,12 +86,13 @@ for (const w of viec.slice(0, MAX)) {
      có khung MỚI chụp trong lượt này (_kenh-luc-chup giữ <id>_<kênh>_<đuôi IP>_f0.jpg); hỏng thì thử lại ở lượt sau, tối đa 3 lần. */
   const coHinh = (kj.kenh || []).filter((k) => { const [h, c] = k.split("/"); const fj = path.join(DIR, ".exports", "kenh-luc-chup", `${w.id}_${c}_${h.split(".").pop()}_f0.jpg`);
     try { return fs.statSync(fj).mtimeMs >= batDau - 5e3; } catch { return false; } }).length;
-  if (!coHinh) { const lan = ((so[w.id] || {}).hong || 0) + 1; so[w.id] = { luc: w.luc, hong: lan, anh: [], taiLuc: new Date().toISOString() }; fs.writeFileSync(F_RA, JSON.stringify(so, null, 1));
+  if (!coHinh) { const lan = ((so[w.id] || {}).hong || 0) + 1; so[w.id] = { ...(so[w.id] || {}), luc: w.luc, hong: lan, anh: (so[w.id] || {}).anh || [], taiLuc: new Date().toISOString() }; fs.writeFileSync(F_RA, JSON.stringify(so, null, 1));
     log(`  ✗ không kênh nào ra hình (lần ${lan}/3) — ${lan < 3 ? "thử lại lượt sau" : "bỏ, cần chọn kênh tay (--them=)"}`); continue; }
   const ten = `${w.id}_${w.loai === "kho" ? "KHO" : "CHUP"}-${w.luc.replace(/[^0-9]/g, "").slice(4, 12)}.jpg`;
   fs.copyFileSync(path.resolve(DIR, f.trim()), path.join(GOC_BC, ten));
   const cuXm = so[w.id] && so[w.id].nguon === "xac-minh-tu-dong" ? so[w.id] : null;   // 10/10: giữ ảnh + kết luận xác minh máy (trước đây bị ghi đè)
-  so[w.id] = { ...(cuXm || {}), anh: [...((cuXm && cuXm.anh) || []).filter((a) => /_XM-/.test(a)), ten], luc: w.luc, loai: cuXm ? cuXm.loai : w.loai, coHinh, kenh: (kj.kenh || []).map((k) => "kênh " + k.split("/")[1]).slice(0, 4).join(", "),
+  const cu = so[w.id] || {};   // 19/10: giữ clip từng lượt châm (lanKho) — không phụ thuộc mốc; clip mốc chỉ giữ khi cùng mốc
+  so[w.id] = { ...(cu.lanKho ? { lanKho: cu.lanKho } : {}), ...(cu.clip && cu.luc === w.luc ? { clip: cu.clip, clipKenh: cu.clipKenh } : {}), ...(cuXm || {}), anh: [...((cuXm && cuXm.anh) || []).filter((a) => /_XM-/.test(a)), ten], luc: w.luc, loai: cuXm ? cuXm.loai : w.loai, coHinh, kenh: (kj.kenh || []).map((k) => "kênh " + k.split("/")[1]).slice(0, 4).join(", "),
     chu: w.loai === "kho" ? `Khung camera đúng giờ hệ thống kho: ${w.v.ten} (${w.v.code}) châm ${w.v.qty ?? "?"} lúc ${w.luc.slice(5, 16)}` : `Khung camera lúc người kiểm chụp ảnh ${w.luc.slice(5, 16)} — xác định góc nhìn, chưa thấy người làm`, taiLuc: new Date().toISOString() };
   if (cuXm) { const k = so[w.id].chu; so[w.id].chuKho = k; so[w.id].chu = String(cuXm.chu || "").split(" ‖ ")[0] + " ‖ " + k; so[w.id].nguon = "xac-minh-tu-dong"; }
   fs.writeFileSync(F_RA, JSON.stringify(so, null, 1)); lam++;
