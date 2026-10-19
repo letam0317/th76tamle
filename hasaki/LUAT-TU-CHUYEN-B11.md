@@ -47,6 +47,9 @@ Chạy tay 1 phiếu: `node auto-complete-single-task.mjs --task=<id> --nv=<mã|
 - Treo >48h → bình luận tag QLTT nhắc; quá 72h sau nhắc vẫn im → tự ghi lỗi cá nhân (CH-03).
 - Xong đủ từng thành viên VÀ «Xác nhận lỗi» = **Lỗi cá nhân** → điền NV vi phạm vào B3.1/B3.2, chỉ lưu.
 - **Lỗi đóng gói (19/10):** nhánh là **B3.3** (bước 7827, ô `staff33`). NV **tự** xác nhận «Lỗi cá nhân» → máy điền NV rồi **ĐÓNG LUÔN** bước B3 (kể cả B3.1/B3.2 nếu engine mở), đọc lại để chốt. Quản lý chốt thay / xác nhận hộ thì vẫn chỉ lưu. Án lệ: 14230295 (B3.3 đóng 19/10 09:47).
+- **Đóng B3 phải đặt `reality_hours` (phút) trước**, thiếu là 422 «Vui lòng cập nhật giờ thực tế!» (đo 19/10 trên B3.1/B3.2).
+- **Sửa tay (QD-02, 19/10):** B2.1 có NV ngoài danh sách ở B1 = người xác minh đã đổi NV → máy KHÔNG gán B1.1 theo B1 (②/②b) và KHÔNG tự điền B3 (③), chỉ báo. Đổi NV thì sửa luôn ô NV ở B1 để máy theo đúng. Án lệ 13800385 (Kim Ngân thay Thanh Ngân; máy từng gán lại Thanh Ngân vào B1.1 lượt 2).
+- **B3 mở lượt mới** (B3 cũ bị huỷ, B1.1 làm lại) sau mốc sổ → máy xét lại (trước 19/10 sổ theo mã phiếu làm ③ bỏ qua mãi).
 - «Không phải lỗi cá nhân» mà không có bằng chứng mới → không đổi kết quả (CH-04, chờ bạn).
 
 ## 5. Tra 1 phiếu: có tự chuyển không, vì sao

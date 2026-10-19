@@ -355,9 +355,14 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     const cfgB1 = (b1 && b1.data && b1.data.configs) || {};
     const codes =String(cfgB1.staff || "").split(",").map((s) => s.trim()).filter(Boolean);
     const nvs = codes.map((c) => byCode.get(c)).filter(Boolean);
+    /* 19/10 QD-02 (user «để ý việc t thay đổi tay»): B2.1 (7383) có người NGOÀI danh sách NV ở B1 = người xác minh đã
+       đổi tay NV (13800385: «thay Thanh Ngân = Nguyễn Thị Kim Ngân» chỉ sửa ở B2.1; ② sau đó GÁN LẠI Thanh Ngân vào
+       B1.1 lượt 2) → ②/②b không gán theo B1, ③ không tự điền; báo người. */
+    const nguoiLa = [...new Set((t.subtasks || []).filter((s) => Number(s.workflow_step_id) === 7383 && Number(s.status) !== 4)
+      .flatMap((s) => (s.staff || []).map((x) => String((x.info && x.info.code) || ""))).filter((c) => c && !codes.includes(c)))];
 
     /* ═══ ② ≥2 NV → B1.1 "mỗi thành viên" + gán đủ người (chỉ khi B1.1 còn mở) ═══ */
-    if (b11 && b11.status === 0 && codes.length >= 2 && !so.nhom[t.id]) {
+    if (b11 && b11.status === 0 && codes.length >= 2 && !so.nhom[t.id] && !nguoiLa.length) {
       const dangCam = (b11.staff || []).map((x) => String((x.info && x.info.code) || "")).filter(Boolean);
       const thieu = codes.filter((c) => !dangCam.includes(c));
       const canMode = Number(b11.sub_type) !== 1;
@@ -381,7 +386,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
        Engine work giao B1.1 cho QUẢN LÝ của NV (đo thật: 13889960 NV Phương → B1.1 ở tay Huyền).
        B1.1 còn mở mà người cầm ≠ danh sách NV vi phạm ở B1 → giao lại đúng NV (assign_staff THAY
        danh sách, đã đo 28/09), đọc lại chốt. Mốc phạt 72h (nếu có) tính lại từ lúc giao đúng. */
-    if (b11 && b11.status === 0 && codes.length && nvs.length === codes.length) {
+    if (b11 && b11.status === 0 && codes.length && nvs.length === codes.length && !nguoiLa.length) {
       const dangCam = (b11.staff || []).map((x) => String((x.info && x.info.code) || "")).filter(Boolean);
       const lech = dangCam.some((c) => !codes.includes(c)) || codes.some((c) => !dangCam.includes(c));
       /* 15/10 user «tại sao lại gỡ dữ liệu t đã tự chỉnh tay» (B1.1 14055993: 15:57 user giao Kim Ngân gỡ Thanh Ngân → 16:35 ②b giao lại).
@@ -485,10 +490,6 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
       /* 19/10: sổ khoá theo task — B3 bị huỷ rồi engine mở LƯỢT MỚI (B1.1 làm lại) thì sổ cũ làm ③ câm mãi
          (13800385: B3.1 mới mở 06/10 trống NV, sổ b31 ghi 26/09). Lượt B3 tạo SAU mốc sổ → xét lại. */
       .filter(([b, , sk]) => b && b.status === 0 && (!so[sk][t.id] || Date.parse(String(b.created_at || "").replace(" ", "T") + "+07:00") > so[sk][t.id]));
-    /* 19/10 QD-02 (user «để ý việc t thay đổi tay»): B2.1 (7383) có người NGOÀI danh sách NV ở B1 = người xác minh đã
-       đổi tay NV (13800385: «thay Thanh Ngân = Nguyễn Thị Kim Ngân» chỉ sửa ở B2.1) → không tự điền theo B1, báo người. */
-    const nguoiLa = [...new Set((t.subtasks || []).filter((s) => Number(s.workflow_step_id) === 7383 && Number(s.status) !== 4)
-      .flatMap((s) => (s.staff || []).map((x) => String((x.info && x.info.code) || ""))).filter((c) => c && !codes.includes(c)))];
     if (cacB3.length && nguoiLa.length) {
       if (!so.tay3[t.id]) log("③ " + t.code + " (task " + t.id + "): B2.1 có NV ngoài danh sách B1 (" + nguoiLa.join(",") + ") — dấu sửa tay, KHÔNG tự điền B3.x; người xác minh chốt danh sách.");
       so.tay3[t.id] = Date.now(); cacB3 = [];
@@ -595,6 +596,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
             /* phiếu bug 2 nhánh: nhánh đúng TỰ ĐÓNG luôn để khép luồng, khỏi chờ người
                (user chốt 25/09 chiều: "đã biết lỗi này rồi thì để nó tự đóng"); 19/10: + lỗi đóng gói NV tự nhận. */
             if (dongLuon) {
+              await capNhat(token, b3.id, "reality_hours", { value: "5" });   // thiếu → 422 «Vui lòng cập nhật giờ thực tế!» (đo 19/10 trên B3.1/B3.2; PHÚT)
               await capNhat(token, b3.id, "status", { value: "2" });
               const d3 = await docTask(token, b3.id);
               if (d3 && Number(d3.status) === 2) log("   ✓ đã TỰ ĐÓNG " + ten + (laDongGoi ? " (lỗi đóng gói — NV tự nhận lỗi cá nhân)." : " (phiếu 2 nhánh — đã biết lỗi)."));
