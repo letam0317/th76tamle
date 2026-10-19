@@ -50,6 +50,8 @@ const FILES = [
   ["kiemsoatkho/tai-khoan.js", "tai-khoan.js"],             // 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory, Apps Script tk_*)
   ["kiemsoatkho/dash-bocuc.js", "dash-bocuc.js"],           // 13/10 bố cục dashboard (bộ Chỉnh bố cục ở bản QC ghi, «Chốt phát hành» đẩy)
   ["kiemsoatkho/thanh-cuon.css", "thanh-cuon.css"],       // 17/10 thanh cuộn chung theo theme (mọi trang)
+  ["kiemsoatkho/bo-loc-ngay.js", "bo-loc-ngay.js"],       // 19/10 BỘ LỌC NGÀY CHUẨN toàn dự án (taoBoLocNgay) — index.html nạp ở <head>
+  ["kiemsoatkho/bo-loc-ngay.css", "bo-loc-ngay.css"],
   ["kiemsoatkho/dash-bocuc-ap.js", "dash-bocuc-ap.js"],     // 13/10 bộ áp bố cục — dash-bocuc-sua.js (bộ chỉnh) KHÔNG đẩy: chỉ bản QC dùng
   ["kiemsoatkho/taisan-vitri.js", "taisan-vitri.js"],       // sổ tài sản theo mã vị trí — pop-up ô Planogram nạp lười (29/09)     // bố cục đồ đạc dời được của trang 3D (chế độ Chỉnh sửa bố cục, 29/09)
 ];

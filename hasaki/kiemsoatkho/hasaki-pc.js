@@ -89,6 +89,8 @@ var CSS = [
 ".hpc-filters label{font-size:10px;font-weight:650;color:var(--muted,#9ca3af);text-transform:uppercase;letter-spacing:.04em;}",
 ".hpc-filters input{padding:9px 10px;border:1px solid var(--border,#d5dbe4);border-radius:9px;font-size:12.5px;background:var(--surface,#fff);color:var(--text,#1f2937);width:100%;min-height:38px;}",
 ".hpc-filters input:focus{outline:0;border-color:var(--accent,#326e51);}",
+/* 19/10 Plan date = BỘ LỌC NGÀY CHUẨN (bo-loc-ngay.js/.css) thay ô ngày gốc của trình duyệt — chỉ chỉnh cỡ nút cho bằng các ô cạnh bên */
+".hpc-filters .hpc-ngay .date-btn{min-height:38px;padding:9px 10px;font-size:12.5px;border-radius:9px;}",
 ".hpc-combo{position:relative;}",
 ".hpc-combo-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:40;background:var(--surface,#fff);border:1px solid var(--border,#e8ecf1);border-radius:11px;box-shadow:0 24px 60px rgba(16,24,40,.28);max-height:280px;overflow-y:auto;padding:5px;opacity:0;visibility:hidden;transform:translateY(-6px);transition:.16s;}",
 ".hpc-combo-menu.show{opacity:1;visibility:visible;transform:none;}",
@@ -144,7 +146,7 @@ var HTML =
 '      <button class="hpc-close" onclick="HPC.closeModal()">&times;</button></div>' +
 '    <div class="hpc-filters" id="hpcFilters">' +
 '      <div class="fld"><label>Kho kiểm</label><div class="hpc-combo"><input id="hpcWh" autocomplete="off" placeholder="Tất cả kho nguồn…" oninput="HPC.whInput(this)" onfocus="HPC.whMenu()"><div class="hpc-combo-menu" id="hpcWhMenu"></div></div></div>' +
-'      <div class="fld"><label>Plan date</label><input type="date" id="hpcDate" onchange="HPC.render()"></div>' +
+'      <div class="fld"><label>Plan date</label><div class="hpc-ngay" id="hpcDateLoc"></div><input type="hidden" id="hpcDate"></div>' +
 '      <div class="fld"><label>Executed By</label><div class="hpc-combo"><input id="hpcBy" autocomplete="off" placeholder="— Để trống —" oninput="HPC.byInput(this)" onfocus="HPC.byMenu()"><div class="hpc-combo-menu" id="hpcByMenu"></div></div></div>' +
 '    </div>' +
 '    <div class="hpc-warn" id="hpcWarn"></div>' +
@@ -300,13 +302,21 @@ function open(){
   document.body.classList.add("hpcm-open");
   var m = $id("hpcmodal"); m.style.display = "flex";
   requestAnimationFrame(function(){ m.classList.add("show"); });
-  var d = $id("hpcDate");
-  if (!d.value){ var t = new Date(); t.setDate(t.getDate() + 1); d.value = t.getFullYear() + "-" + p2(t.getMonth() + 1) + "-" + p2(t.getDate()); }
+  var d = $id("hpcDate"), t = new Date(); t.setDate(t.getDate() + 1);
+  var mai = t.getFullYear() + "-" + p2(t.getMonth() + 1) + "-" + p2(t.getDate());
+  if (!d.value) d.value = mai;
+  if (!PC.locNgay && typeof window.taoBoLocNgay === "function")   // 19/10 Plan date = bộ lọc ngày chuẩn, chọn 1 ngày
+    PC.locNgay = window.taoBoLocNgay({ root: $id("hpcDateLoc"), motNgay: true, khongRong: true,
+      presets: [{ k: "today", lb: "Hôm nay" }, { k: "mai", lb: "Ngày mai" }],
+      tinhPreset: function(k){ return k === "mai" ? [mai, mai] : null; },
+      macDinh: function(){ return [mai, mai]; },
+      onApply: function(a){ d.value = a || mai; render(); } });
+  if (PC.locNgay) PC.locNgay.dat(d.value, d.value);
   render();
   fetchWhcode().then(function(){ render(); });
   PC.mails = loadMails();
 }
-function closeModal(){ document.body.classList.remove("hpcm-open"); closeCombos(); var m = $id("hpcmodal"); m.classList.remove("show"); setTimeout(function(){ m.style.display = "none"; }, 240); }
+function closeModal(){ document.body.classList.remove("hpcm-open"); closeCombos(); if (PC.locNgay) PC.locNgay.dong(); var m = $id("hpcmodal"); m.classList.remove("show"); setTimeout(function(){ m.style.display = "none"; }, 240); }
 function whInput(inp){ inp.removeAttribute("data-wh"); whMenu(); render(); }
 function whMenu(){
   var menu = $id("hpcWhMenu"), inp = $id("hpcWh");

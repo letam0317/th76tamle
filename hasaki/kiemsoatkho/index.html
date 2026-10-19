@@ -686,35 +686,8 @@ tr.tb-dangxem>td,.cl-item.tb-dangxem{background:var(--ad-chon,color-mix(in srgb,
 /* mượt khi mở/chuyển báo cáo */
 .steps-track{animation:fadeUp .28s ease both;}
 
-/* ===== DATE FILTER — KHUÔN DÙNG CHUNG taoBoLocNgay (Task vi phạm "Ngày ghi nhận" + Planogram "Ngày"): 1 ô, chọn đơn hoặc khoảng ===== */
-.date-filter{display:flex; flex-direction:column; gap:4px; min-width:0; position:relative;}
-.date-btn{width:100%; text-align:left; cursor:pointer;}   /* font/viền/focus-ring dùng chuẩn chung ở khối .date-btn,.cs-trigger,.filters input */
-.date-pop{position:absolute; top:calc(100% + 6px); left:0; z-index:45; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:12px; width:max-content; max-width:94vw;
-  transform-origin:top left; animation:popIn .16s cubic-bezier(.16,1,.3,1); will-change:opacity,transform;}
+/* ===== BỘ LỌC NGÀY: kiểu ở bo-loc-ngay.css (khuôn chuẩn toàn dự án, 19/10) — giữ keyframe popIn ở đây vì combo/menu khác cũng dùng =====
 @keyframes popIn{from{opacity:0; transform:translate3d(0,-6px,0) scale(.98);} to{opacity:1; transform:none;}}
-.dp-presets{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
-.dp-presets button{padding:5px 10px; font-size:12px; border-radius:16px;}
-.dp-nav{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px;}
-.dp-nav button{padding:5px 12px; font-size:12px;}
-.dp-months{display:flex; gap:20px;}
-.dp-mtitle{text-align:center; font-size:12.5px; font-weight:700; margin-bottom:6px;}
-.dp-grid{display:grid; grid-template-columns:repeat(7,32px); gap:2px; touch-action:none;}
-.dp-dow{font-size:10px; color:var(--muted); text-align:center; height:22px; line-height:22px; font-weight:600;}
-.dp-day{height:32px; display:flex; align-items:center; justify-content:center; font-size:12px; border-radius:7px; cursor:pointer; user-select:none;
-  transition:background-color .12s ease, color .12s ease;}
-.dp-day:hover{background:var(--hover);}
-.dp-day.out{opacity:.35;}
-.dp-day.in-range{background:color-mix(in srgb, var(--accent) 14%, transparent);}
-.dp-day.edge{background:var(--accent); color:var(--accent-text); font-weight:700;}
-.dp-day.today{box-shadow:inset 0 0 0 1px var(--accent);}
-/* CHẤM "có dữ liệu" dưới số ngày (08/09/2026) — chỉ vẽ khi tab khai o.coDuLieu (Planogram: cửa sổ 7 ngày; không
-   chấm thì người dùng chọn một ngày trắng rồi tưởng mất dữ liệu). Ngày đầu/cuối dải đổi màu chấm cho nổi trên nền accent. */
-.dp-day{position:relative;}
-.dp-day.has::after{content:""; position:absolute; left:50%; bottom:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--accent);}
-.dp-day.edge.has::after{background:var(--accent-text);}
-.dp-foot{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;}
-.dp-foot .dp-sel{font-size:12px; color:var(--muted);}
-.dp-foot button{margin-left:6px;}
 
 /* ===== POP-UP THỐNG KÊ (danh sách task theo loại) ===== */
 #statModal{position:fixed; inset:0; background:var(--overlay); z-index:48; display:none; align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto;
@@ -1052,7 +1025,6 @@ table.vdoc{border-collapse:separate; border-spacing:0;}
 @media (max-width:820px){
   .cards{grid-template-columns:repeat(2,1fr);}
   .filters{grid-template-columns:1fr 1fr;}
-  .dp-months{flex-direction:column; gap:14px;}
   .btn-filter{display:block; width:100%; text-align:left; margin-bottom:8px;}
   .filters.collapsed{display:none;}
   .table-wrap{display:none;}
@@ -1259,20 +1231,6 @@ html.ad #sideNav .s-grp.s-khoa:focus-visible{outline:none;box-shadow:0 0 0 2px c
 .cn-ngay{font-variant-numeric:tabular-nums;color:var(--muted)}
 .cn-wrap{display:flex;justify-content:center;margin:22px 0 4px}
 @media(prefers-reduced-motion:reduce){ .cn-dot::after{animation:none;opacity:0} }
-
-/* ===== 12/10 LỊCH CHỌN NGÀY TRÊN ĐIỆN THOẠI (user: "quá to, không chọn được nút Áp dụng/Xoá") — thành tấm trượt từ đáy:
-   1 tháng (‹ Trước / Sau › đổi tháng), ô ngày 40px, cuộn trong tấm, chân Xoá/Áp dụng GHIM đáy luôn bấm được. */
-@media (max-width:768px){
-  .date-pop.dp-sheet{position:fixed;left:8px;right:8px;bottom:8px;top:auto;width:auto;max-width:none;max-height:calc(100dvh - 16px);overflow-y:auto;
-    overscroll-behavior:contain;z-index:75;padding:12px 12px 0;transform-origin:bottom center;animation:sheetIn .28s var(--ez-apple,ease);
-    box-shadow:0 0 0 100vmax rgba(0,0,0,.35),0 -8px 40px rgba(0,0,0,.25)}   /* bóng 100vmax = nền mờ sau tấm */
-  .dp-months .dp-month+.dp-month{display:none}
-  .dp-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
-  .dp-day{height:40px;font-size:14px}
-  .dp-presets button{min-height:36px}
-  .dp-foot{position:sticky;bottom:0;background:var(--surface);margin:8px -12px 0;padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
-  .dp-foot button{min-height:44px;padding:0 18px}
-}
 
 #sideNav .s-item{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text);opacity:.72;cursor:pointer;border-left:3px solid transparent;margin-left:-2px;transition:background .16s ease,opacity .16s ease,color .16s ease;}
 #sideNav .s-item:hover{background:var(--hover);opacity:1;}
@@ -1532,6 +1490,7 @@ body.side-anim{overflow-x:clip;}
 <script src="hasaki-giaodien-antd.js?v=20261017b"></script>
 <script src="tai-khoan.js?v=20261019a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 <link rel="stylesheet" href="thanh-cuon.css?v=20261017a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->
+<link rel="stylesheet" href="bo-loc-ngay.css?v=20261019a"><script src="bo-loc-ngay.js?v=20261019a"></script><!-- 19/10 BỘ LỌC NGÀY CHUẨN toàn dự án (taoBoLocNgay) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -3248,122 +3207,7 @@ function dongLB(){
   const cap=$('lbCaption'); if(cap){ cap.innerHTML=''; cap.style.display='none'; }
 }
 
-/* ===== DATE PICKER — KHUÔN DÙNG CHUNG taoBoLocNgay (08/09/2026) =====
- * MỘT khuôn cho mọi chỗ cần lọc theo ngày: Task vi phạm ("Ngày ghi nhận") và Planogram ("Ngày" — module lazy
- * hasaki-planogram.js gọi qua window.taoBoLocNgay). Trước đây Planogram tự dựng menu xổ riêng (Hôm nay / Hôm qua /
- * 3 ngày / 7 ngày lẻ): hai tab cùng một việc mà hai bộ mặt. Người dùng yêu cầu 08/09/2026 đưa về đúng khuôn của Task
- * vi phạm: nút hiện khoảng đang lọc + pop-up lịch 2 tháng, nút nhanh, chạm 1 = ngày bắt đầu, chạm 2 = ngày kết thúc,
- * Xoá / Áp dụng. Mọi phần tử bám CLASS (.dp-prev/.dp-months/.dp-sel…) để nhiều bản cùng sống trên một trang.
- *   o.root        phần tử .date-filter (có thể đã chứa nhãn .lbl) — nút .date-btn + pop-up .date-pop dựng vào đây
- *   o.onApply     function(tu, den) ISO yyyy-mm-dd — gọi khi Áp dụng / Xoá / nút nhanh "Tất cả" (rỗng = không lọc)
- *   o.presets     [{k, lb}] nút nhanh — k chuẩn: today · yesterday · 3 · 7 · 30 · month · all (số = N ngày gần nhất)
- *   o.tinhPreset  function(k) -> [tu, den] | null — tab tự định nghĩa 1 nút nhanh (Planogram: "all" = trọn cửa sổ 7 ngày)
- *   o.coDuLieu    function(iso) -> bool — vẽ CHẤM dưới ngày có dữ liệu (tab cửa sổ ngắn: nhìn là biết ngày nào trắng)
- *   o.khongRong   true → không có trạng thái "không lọc": Xoá = về o.macDinh() (Planogram luôn cần 1 khoảng để vẽ sơ đồ)
- *   o.nhan        function(tu, den) -> chữ trên nút (mặc định dd/mm/yyyy → dd/mm/yyyy · "Tất cả")
- *   o.idNut/idPop id gán cho nút / pop-up (Task vi phạm giữ #btnDate / #datePop cho bộ đo qc-mobile)
- * Trả về { el, dat(tu, den), lay(), mo(), dong(), veNhan() } — dat() chỉ đổi nhãn, KHÔNG gọi onApply (dùng khi trạng
- * thái đổi từ ngoài: Planogram nạp xong tự về ngày mới nhất, script gọi HPLANOGRAM.setNgay). */
-function taoBoLocNgay(o){
-  const isoOf=(y,m,d)=>y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-  const parseISO=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
-  const fmtVN=iso=>{const[y,m,d]=iso.split('-');return d+'/'+m+'/'+y;};
-  const isoD=d=>isoOf(d.getFullYear(),d.getMonth(),d.getDate());
-  const homNay=()=>isoD(new Date());
-  const PRESETS = o.presets || [{k:'today',lb:'Hôm nay'},{k:'7',lb:'7 ngày'},{k:'30',lb:'30 ngày'},{k:'month',lb:'Tháng này'},{k:'all',lb:'Tất cả'}];
-  let tu='', den='', selA='', selB='', view={y:0,m:0};
-  const root=o.root; root.classList.add('date-filter');
-  const nut=document.createElement('button'); nut.type='button'; nut.className='date-btn'; if(o.idNut) nut.id=o.idNut;
-  const pop=document.createElement('div'); pop.className='date-pop hidden'; if(o.idPop) pop.id=o.idPop;
-  pop.innerHTML =
-    '<div class="dp-presets">'+PRESETS.map(p=>'<button type="button" data-preset="'+esc(p.k)+'">'+esc(p.lb)+'</button>').join('')+'</div>'+
-    '<div class="dp-nav"><button type="button" class="dp-prev">‹ Trước</button><span></span><button type="button" class="dp-next">Sau ›</button></div>'+
-    '<div class="dp-months"></div>'+
-    '<div class="dp-foot"><span class="dp-sel">Chưa chọn</span><div><button type="button" class="dp-clear">Xoá</button><button type="button" class="primary dp-apply">Áp dụng</button></div></div>';
-  root.appendChild(nut); root.appendChild(pop);
-  const q=s=>pop.querySelector(s);
-  const khoang=()=>{ let a=selA||tu, b=selB||den||a; if(a&&b&&a>b){const t=a;a=b;b=t;} return [a,b]; };
-  const nhan=(a,b)=> o.nhan ? o.nhan(a,b) : (a ? (b&&b!==a ? fmtVN(a)+' → '+fmtVN(b) : fmtVN(a)) : 'Tất cả');
-  function monthHTML(y,m){
-    const first=new Date(y,m,1), startDow=(first.getDay()+6)%7, start=new Date(y,m,1-startDow);
-    let g='';
-    for(let i=0;i<42;i++){ const dt=new Date(start); dt.setDate(start.getDate()+i);
-      const iso=isoD(dt), has=o.coDuLieu && o.coDuLieu(iso);
-      g+='<div class="dp-day'+(dt.getMonth()!==m?' out':'')+(has?' has':'')+'" data-iso="'+iso+'"'+(has?' title="Có dữ liệu"':'')+'>'+dt.getDate()+'</div>'; }
-    const T=['Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12'];
-    const dow=['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<div class="dp-dow">'+x+'</div>').join('');
-    return '<div class="dp-month"><div class="dp-mtitle">'+T[m]+' '+y+'</div><div class="dp-grid">'+dow+g+'</div></div>';
-  }
-  function veLich(){ const y=view.y,m=view.m, y2=m===11?y+1:y, m2=(m+1)%12; q('.dp-months').innerHTML=monthHTML(y,m)+monthHTML(y2,m2); toSel(); }
-  function toSel(){
-    const [a,b]=khoang(), T=homNay();
-    q('.dp-months').querySelectorAll('.dp-day').forEach(el=>{
-      const iso=el.dataset.iso; el.classList.remove('in-range','edge');
-      el.classList.toggle('today', iso===T);
-      if(a&&b){ if(iso===a||iso===b) el.classList.add('edge'); else if(iso>a&&iso<b) el.classList.add('in-range'); }
-      else if(a&&iso===a) el.classList.add('edge');
-    });
-    q('.dp-sel').textContent = a ? (b&&b!==a ? fmtVN(a)+' → '+fmtVN(b) : fmtVN(a)) : 'Chưa chọn';
-  }
-  function veNhan(){ nut.textContent = nhan(tu,den); }
-  /* GHIM POP-UP TRONG MÀN: pop neo left:0 theo ô lọc, mà ô lọc nằm sâu trong lề (wrap 12 + filters 12) nên trên 375px
-     lịch rộng 94vw vẫn lòi 2-3px mép phải → trang kéo ngang (bộ đo bắt 08/09/2026). Đo thật rồi dịch trái vừa đủ.
-     Dùng offsetWidth + left của root (không dùng rect của pop: popIn đang scale(.98) lúc này, đo sẽ hụt ~7px). */
-  function canhPop(){
-    pop.style.left='0px';
-    const W=document.documentElement.clientWidth, le=8, l0=root.getBoundingClientRect().left, r0=l0+pop.offsetWidth;
-    let dx=0; if(r0>W-le) dx=W-le-r0; if(l0+dx<le) dx=le-l0;
-    if(dx) pop.style.left=dx+'px';
-  }
-  /* 12/10 ĐIỆN THOẠI (user: lịch "quá to, không chọn được Áp dụng/Xoá"): lịch thành TẤM TRƯỢT ĐÁY. Phải dời pop ra <body> lúc mở —
-     khung .pane có will-change:transform nên position:fixed bên trong bám theo khung tab chứ không theo màn hình (nút Áp dụng rơi
-     xuống y≈1.800px), thẻ Planogram còn cắt mất lịch. Đóng thì trả pop về chỗ cũ. */
-  const laDT=()=>window.matchMedia('(max-width:768px)').matches;
-  function mo(){ const base=tu?parseISO(tu):new Date(); view={y:base.getFullYear(), m:base.getMonth()}; selA=tu; selB=den; veLich();
-    if(laDT()){ pop.classList.add('dp-sheet'); document.body.appendChild(pop); pop.classList.remove('hidden'); pop.style.left=''; }
-    else { pop.classList.remove('hidden'); canhPop(); } }
-  function dong(){ pop.classList.add('hidden'); pop.style.left=''; if(pop.parentNode!==root){ pop.classList.remove('dp-sheet'); root.appendChild(pop); } }
-  function chot(a,b){ tu=a||''; den=b||''; veNhan(); dong(); o.onApply(tu,den); }
-  function xoa(){ selA=selB=''; if(o.khongRong){ const d=(o.macDinh&&o.macDinh())||[homNay(),homNay()]; chot(d[0],d[1]); } else chot('',''); }
-  function tinhPreset(k){
-    const r = o.tinhPreset && o.tinhPreset(k); if(r) return r;
-    const t=new Date(), lui=n=>{const s=new Date(t); s.setDate(t.getDate()-n); return isoD(s);};
-    if(k==='today') return [isoD(t), isoD(t)];
-    if(k==='yesterday') return [lui(1), lui(1)];
-    if(k==='month') return [isoOf(t.getFullYear(),t.getMonth(),1), isoD(t)];
-    if(/^\d+$/.test(k)) return [lui(Number(k)-1), isoD(t)];
-    return null;   // 'all' không tự định nghĩa = bỏ lọc
-  }
-  function nutNhanh(k){
-    const r=tinhPreset(k);
-    if(!r){ xoa(); return; }
-    // Nút nhanh: tự tính [bắt đầu, kết thúc] -> NHẢY lịch tới tháng bắt đầu + TÔ dải; KHÔNG đóng để người dùng thấy trước khi Áp dụng
-    selA=r[0]; selB=r[1];
-    const base=parseISO(selA); view={y:base.getFullYear(), m:base.getMonth()}; veLich();
-  }
-  function shift(n){ let m=view.m+n, y=view.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} view={y,m}; veLich(); }
-  nut.addEventListener('click', e=>{ e.stopPropagation(); pop.classList.contains('hidden')?mo():dong(); });
-  pop.addEventListener('click', e=>e.stopPropagation());
-  q('.dp-prev').addEventListener('click', ()=>shift(-1));
-  q('.dp-next').addEventListener('click', ()=>shift(1));
-  q('.dp-apply').addEventListener('click', ()=>{ const[a,b]=khoang(); if(o.khongRong && !a){ dong(); return; } chot(a,b); });
-  q('.dp-clear').addEventListener('click', xoa);
-  q('.dp-presets').addEventListener('click', e=>{ const b=e.target.closest('button[data-preset]'); if(b) nutNhanh(b.dataset.preset); });
-  // CHỌN KHOẢNG bằng CHẠM/CLICK (chạy đều Web + Mobile): chạm 1 = ngày bắt đầu, chạm 2 = ngày kết thúc.
-  q('.dp-months').addEventListener('click', e=>{
-    const c=e.target.closest('.dp-day'); if(!c) return;
-    const iso=c.dataset.iso;
-    if(!selA || (selA && selB)){ selA=iso; selB=''; }        // chưa có / đã đủ cặp -> bắt đầu dải MỚI
-    else if(iso < selA){ selB=selA; selA=iso; }              // chốt 2 trước ngày 1 -> hoán đổi
-    else { selB=iso; }                                       // chốt ngày kết thúc
-    toSel();
-  });
-  // đóng pop-up khi bấm ra ngoài — bám chính root nên nhiều bản trên 1 trang không đóng nhầm nhau
-  document.addEventListener('click', e=>{ if(!pop.classList.contains('hidden') && !root.contains(e.target) && !pop.contains(e.target)) dong(); });
-  veNhan();
-  return { el: root, dat(a,b){ tu=a||''; den=b||''; veNhan(); }, lay:()=>[tu,den], mo, dong, veNhan };
-}
-window.taoBoLocNgay = taoBoLocNgay;   // module lazy (hasaki-planogram.js) dùng chung khuôn
+/* ===== DATE PICKER — taoBoLocNgay đã TÁCH ra bo-loc-ngay.js (19/10/2026, khuôn chuẩn toàn dự án — nạp ở <head>) ===== */
 
 /* ===== THEME ===== */
 function setTheme(t){
@@ -3535,7 +3379,7 @@ function moFactoryKiemke(){
       '<div class="sk sk-line" style="width:66%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _fkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='factory-kiemke.js?v=20260716f';
+      const s=document.createElement('script'); s.src='factory-kiemke.js?v=20261019n';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module factory-kiemke.js'));
       document.body.appendChild(s);
     });
@@ -3549,7 +3393,7 @@ let _hpcNap=null;
 function napHasakiPC(){
   if(!_hpcNap){
     _hpcNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-pc.js?v=20260726b';
+      const s=document.createElement('script'); s.src='hasaki-pc.js?v=20261019n';
       s.onload=res; s.onerror=()=>rej(new Error('hasaki-pc.js'));
       document.body.appendChild(s);
     }).then(()=>{ if(window.HPC) window.HPC.init(); }).catch(()=>{});
@@ -3631,7 +3475,7 @@ function moHasakiXacMinh(){
   if(!window.__HX_MAY_CHU){ window.hxDoMayChu().then(co=>{ if(co) moHasakiXacMinh(); else setTab("maytram"); }); return; }   // 19/10: chờ dò máy chủ (laptop hoặc đường hầm); không có thì về Máy trạm (tránh ô đăng nhập lặp)
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261019b';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261019n';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3647,7 +3491,7 @@ function moHasakiKiemke(){
       '<div class="sk sk-line" style="width:68%"></div><div class="sk sk-line" style="width:52%"></div>'+
       '<div class="sk sk-line" style="width:60%"></div></div>';
     _hkNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261015a';
+      const s=document.createElement('script'); s.src='hasaki-kiemke.js?v=20261019n';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-kiemke.js'));
       document.body.appendChild(s);
     });

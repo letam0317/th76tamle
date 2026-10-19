@@ -146,6 +146,17 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
   `null/undefined/false`; giá trị là CHUỖI RỖNG `` (rất hay gặp vì cờ trạng thái hay là chuỗi, ví dụ `dangTaiBC`)
   thì nó set `disabled="disabled"` và nút CHẾT CỨNG, chạm không có phản hồi. Nút "đã xong/đã thêm" thì đừng dùng
   `disabled` — làm mờ bằng class và chặn trong chính hàm xử lý, để cú chạm vẫn tới nơi.
+- **BỘ LỌC NGÀY CHUẨN (19/10/2026 — user: «dùng bộ lọc ngày ở Hạng mục 5S / Planogram làm chuẩn cho toàn dự án, cả Retail và
+  Factory, cả web và điện thoại; tương lai có bộ lọc ngày thì thiết kế như vậy»):** MỌI chỗ chọn ngày / khoảng ngày = 1 bản của
+  `taoBoLocNgay(o)` trong `kiemsoatkho/bo-loc-ngay.js` + `.css` (NGUỒN DUY NHẤT; `factory/bo-loc-ngay.*` là bản CHÉP Y HỆT — sửa bản
+  gốc rồi chép). Mặt chuẩn: nút `.date-btn` hiện khoảng đang lọc → lịch 2 tháng (popIn) / điện thoại tấm trượt đáy 1 tháng (sheetIn),
+  hàng nút nhanh, chạm 1 = bắt đầu, chạm 2 = kết thúc, ‹ Trước / Sau ›, Xoá / Áp dụng. Tuỳ biến CHỈ qua tham số: `presets` +
+  `tinhPreset` (nút nhanh, kể cả tính TỚI như +7 ngày), `coDuLieu` (chấm ngày có dữ liệu), `chanNgay`, `motNgay` (chọn 1 ngày —
+  Plan date), `khongRong`/`macDinh`, `nhan`/`nhanChon`, `homNay` (giờ VN). Được chỉnh CỠ NÚT cho bằng ô lọc cạnh bên (như
+  `#hpWhBar .hp-ngayloc .date-btn`); KHÔNG đổi lịch. **CẤM** `<input type=date>`, thư viện lịch ngoài, menu "Hôm nay/7 ngày" kiểu
+  danh sách, lưới `dp-day` tự dựng. Bộ lọc ngày đặt trong `<div>`, KHÔNG bọc trong `<label>` (label chuyển cú bấm trong lịch về nút
+  → lịch tự đóng). Lịch nằm trong khung tự cắt / pop-up cố định thì khuôn tự dời ra `<body>` (`.dp-noi`, chân ghim đáy) — đừng tự định
+  vị. QC: `qc-bo-loc-ngay.mjs` (bộ lọc ngày mới → thêm 1 dòng vào `DS`).
 - Dropdown/bộ lọc → khuôn `.combo`+`.combo-menu` (popIn); animation chỉ dùng bộ sẵn có
   (`fadeUp/paneIn/popIn/sheetIn/menuIn`, easing `--ez-apple`/`--ez-spring`); modal `sheetIn`+blur;
   focus ring `--accent` + box-shadow 3px color-mix.
@@ -230,6 +241,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 | `qc-vesinh-muctieu.mjs` (≈34 ca × 4 máy; `--url` `--may=pc\|ip14\|ipse\|and`) | Mọi lần sửa tab Planogram › Vệ sinh — đo MỤC TIÊU chứ không chỉ luật bố cục: màn đầu có Tiến độ + Cần xử lý, các con số giữa các khối KHỚP nhau, xem ngày cũ ra đúng ngày, không chữ rác, sơ đồ vừa màn điện thoại, giả lập 25 khu |
 | `qc-tvt-mobile.mjs` (18 ca) | Mẫu bộ đo SÂU cho 1 mục — mục mới có pop-up thì viết `qc-<mục>-mobile.mjs` theo mẫu này |
 | `qc-lienanh-3d.mjs` (≈40 ca, `--url`) + `kiem-dxf-lienanh.mjs <tep.dxf>` (AutoCAD nền) | Mọi lần sửa công cụ bố trí kho Liên Anh (`lienanh-3d.html`, `lienanh-xuat.js`, `xem-noi-bo.mjs`); kiểm DXF sau mỗi lần đổi hàm xuất — AutoCAD từ chối DXF im lặng (05/10/2026: thiếu từ điển PlotStyleName) |
+| `qc-bo-loc-ngay.mjs` (≈120 ca: mọi bộ lọc ngày × 1440/390; `--chi=regex`) | Thêm/sửa bất kỳ bộ lọc ngày nào, hoặc sửa `bo-loc-ngay.js/.css` — so CÙNG MẶT với ô Ngày Retail › Planogram, lịch trọn màn + bấm được Áp dụng, chạm chọn khoảng, lọc dữ liệu giữ đúng |
 | `node --check` | Mọi file JS/MJS vừa sửa |
 
 Nguyên tắc:
@@ -385,6 +397,10 @@ Nguyên tắc:
     tạo chưa trước khi gửi lại (tránh trùng).
 
 ## NHẬT KÝ RULE
+
+- **19/10/2026** — Mục 6: BỘ LỌC NGÀY CHUẨN toàn dự án = `taoBoLocNgay` tách khỏi kiemsoatkho/index.html thành `bo-loc-ngay.js/.css`
+  (bản chép ở factory). Đổi theo chuẩn: Retail › Xác minh (Theo máy, Nhật ký), Kiểm kê › Dự báo, Tạo lệnh kiểm kê (Plan date), tab
+  Kiểm kê Factory cũ; Factory › Planogram, Kiểm kê (Ngày kiểm), Dự báo, Tạo lệnh (Plan date). QC `qc-bo-loc-ngay.mjs` 122/122.
 
 - **12/10/2026** — Mục 6 luật 14: mở rộng thành luật CHUNG "không lặp lại thông tin đã có" (user: "ghét nhất là lặp lại") + bộ tự động `anCotDonTri()` cho bảng trong pop-up.
 - **12/10/2026** — Mục 11 (xác minh B1): pop-up phiếu có khối «Ai tác động ô … trước giờ ghi nhận»: phụ trách kệ + MỌI lượt châm vào ô

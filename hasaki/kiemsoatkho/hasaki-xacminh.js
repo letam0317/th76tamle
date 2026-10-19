@@ -412,11 +412,16 @@
 
     if (SUB === "cam") veCam(); else if (SUB === "treo") veTreo(); else if (SUB === "nhac") veNhac(); else if (SUB === "khu") veKhu(); else if (SUB === "tg") veTG(); else veNV();
   }
+  /* 19/10 user: «bộ lọc ngày ở Planogram làm CHUẨN toàn dự án» — trường {ngay:1} trong boLoc dựng 1 bản taoBoLocNgay (bo-loc-ngay.js)
+     thay ô chọn "Ngày" kiểu danh sách; giá trị = [từ, đến] ISO ("" = không lọc). Cấu hình giữ ở NGAY_CFG cho ganLoc dựng sau. */
+  var NGAY_CFG = {};
+  var trongKhoang = function (iso, v) { if (typeof v === "string") v = v ? [v, v] : ""; return !v || !v[0] || (iso >= v[0] && iso <= (v[1] || v[0])); };
   function boLoc(o) {   // .filters + label.lbl + select → enhanceSelect (khuôn host)
     // khuôn host (tab Task vi phạm): điện thoại gấp bộ lọc sau nút "Bộ lọc — chạm để mở" (luật ⑨ cụm control răng cưa)
-    var coLoc = o.some(function (f) { return f.k === "khuNgay" ? false : f.input ? f.v : f.v && f.v !== (f.opt[0] || [])[0]; });
+    var coLoc = o.some(function (f) { return f.k === "khuNgay" ? false : f.ngay ? !!(f.v && f.v[0]) : f.input ? f.v : f.v && f.v !== (f.opt[0] || [])[0]; });
     var h = '<button class="btn-filter" id="hxBtnLoc">' + (coLoc ? "Bộ lọc · đang lọc ▾" : "Bộ lọc ▾") + '</button>' +
       '<div class="filters collapsed" id="hxFilters" data-mb-rangcua="luoi-1-cot-gap-mac-dinh">' + o.map(function (f) {
+      if (f.ngay) { NGAY_CFG[f.k] = f; return '<div class="date-filter" data-ngay="' + f.k + '"><span class="lbl">' + f.lbl + '</span></div>'; }
       if (f.input) return '<label><span class="lbl">' + f.lbl + '</span><input type="text" data-k="' + f.k + '" placeholder="' + e_(f.ph || "") + '" value="' + e_(f.v || "") + '"></label>';
       return '<label><span class="lbl">' + f.lbl + '</span><select data-k="' + f.k + '">' + f.opt.map(function (x) { return '<option value="' + e_(x[0]) + '"' + (String(f.v) === String(x[0]) ? " selected" : "") + '>' + e_(x[1]) + '</option>'; }).join("") + '</select></label>';
     }).join("") + '</div>';
@@ -424,8 +429,13 @@
   }
   function ganLoc(cb) {
     var f = $id("hxFilters"); if (!f) return;
-    var bt = $id("hxBtnLoc"); if (bt) bt.onclick = function () { var dong = f.classList.toggle("collapsed"); bt.textContent = (coLoc ? "Bộ lọc · đang lọc " : "Bộ lọc ") + (dong ? "▾" : "▴"); };
+    var bt = $id("hxBtnLoc"), coLoc = !!(bt && /đang lọc/.test(bt.textContent));   // 19/10: coLoc chỉ có trong boLoc — thiếu ở đây làm ganLoc văng lỗi khi giữ bộ lọc mở (điện thoại)
+    if (bt) bt.onclick = function () { var dong = f.classList.toggle("collapsed"); bt.textContent = (coLoc ? "Bộ lọc · đang lọc " : "Bộ lọc ") + (dong ? "▾" : "▴"); };
     if (ganLoc.mo) { f.classList.remove("collapsed"); if (bt) bt.textContent = (coLoc ? "Bộ lọc · đang lọc " : "Bộ lọc ") + "▴"; }
+    f.querySelectorAll("[data-ngay]").forEach(function (r) { var c = NGAY_CFG[r.dataset.ngay]; if (!c || typeof window.taoBoLocNgay !== "function") return;
+      var v = typeof c.v === "string" ? (c.v ? [c.v, c.v] : []) : (c.v || []);
+      window.taoBoLocNgay({ root: r, presets: c.presets, coDuLieu: c.coDuLieu, nhan: c.nhan,
+        onApply: function (a, b) { ganLoc.mo = !f.classList.contains("collapsed"); cb(r.dataset.ngay, a ? [a, b || a] : ""); ganLoc.mo = false; } }).dat(v[0] || "", v[1] || ""); });
     f.querySelectorAll("select").forEach(function (s) { if (typeof enhanceSelect === "function") enhanceSelect(s); s.addEventListener("change", function () { ganLoc.mo = !f.classList.contains("collapsed"); cb(s.dataset.k, s.value); ganLoc.mo = false; }); });
     f.querySelectorAll("input").forEach(function (i) { var h; i.addEventListener("input", function () { clearTimeout(h); h = setTimeout(function () { ganLoc.mo = !f.classList.contains("collapsed"); cb(i.dataset.k, i.value, true); ganLoc.mo = false; }, 160); }); });
   }
@@ -475,12 +485,13 @@
   function anhNguoi(l) { var b = (l.buocAnh || []).find(function (x) { return x.doNguoi && x.kieu; }) || (l.buocAnh || []).find(function (x) { return x.doNguoi; }) || (l.buocAnh || [])[0]; return b ? u_(b.anh) : u_(l.anh); }
   function veCam() {
     var ngays = Array.from(new Set(D.luot.map(function (l) { return l.ngay; }))).sort().reverse();
-    var ds = D.luot.filter(function (l) { return (!LOC.khu || l.loai === LOC.khu) && (!LOC.ngay || l.ngay === LOC.ngay) && (!LOC.tt || ttLuot(l) === LOC.tt) &&
+    var ds = D.luot.filter(function (l) { return (!LOC.khu || l.loai === LOC.khu) && trongKhoang(l.ngay, LOC.ngay) && (!LOC.tt || ttLuot(l) === LOC.tt) &&
       (!TIM || (l.camera + " " + nguoiChot(l) + " " + (l.chamCong || []).concat(l.cong || []).map(function (c) { return c.code + " " + c.ten; }).join(" ")).toLowerCase().indexOf(TIM.toLowerCase()) >= 0); });
     var h = boLoc([
       { k: "tt", lbl: "Trạng thái", v: LOC.tt, opt: [["cho", "Chờ bạn quyết"], ["da", "Đã quyết · máy đang làm"], ["xong", "Đã lập phiếu"], ["luu", "Chỉ lưu vết (khu phân loại)"], ["", "Tất cả"]] },
       { k: "khu", lbl: "Khu", v: LOC.khu, opt: [["", "Mọi khu"], ["bai-xe", "Bãi xe NCC / bảo vệ"], ["phan-loai", "Khu phân loại giấy"]] },
-      { k: "ngay", lbl: "Ngày", v: LOC.ngay, opt: [["", "14 ngày gần nhất"]].concat(ngays.map(function (n) { return [n, ngayVN(n) + "/" + n.slice(0, 4)]; })) },
+      { k: "ngay", lbl: "Ngày", ngay: 1, v: LOC.ngay, coDuLieu: function (iso) { return ngays.indexOf(iso) >= 0; }, nhan: function (a, b) { return a ? "" : "14 ngày gần nhất"; },
+        presets: [{ k: "today", lb: "Hôm nay" }, { k: "yesterday", lb: "Hôm qua" }, { k: "3", lb: "3 ngày" }, { k: "7", lb: "7 ngày" }, { k: "all", lb: "Tất cả" }] },
       { k: "tim", lbl: "Tìm (camera / tên / mã NV)", input: 1, v: TIM, ph: "AI Bao Ve / 2519…" }]);
     var cot = function (l) {
       var ng = (l.buocAnh || []).reduce(function (m, b) { return Math.max(m, (b.hop || []).length); }, 0);
@@ -1396,13 +1407,14 @@
     all.forEach(function (x) { demB[x.ten] = (demB[x.ten] || 0) + 1; demH[x.hd] = (demH[x.hd] || 0) + 1; });
     var q = (TIM || "").toLowerCase();
     /* 12/10 user: bỏ mục Nhắc QLTT vì "ở Nhật ký có lưu rồi — chỉ cần thêm trường lọc" ⇒ thêm lọc Ngày (lượt nhắc = Bộ «Cò canh B1.1» · Làm gì «Bình luận») */
-    var homNay = new Date(), tuNgay = "";
-    if (LOC.tgNgay) { var d0 = new Date(homNay.getFullYear(), homNay.getMonth(), homNay.getDate() - Number(LOC.tgNgay)); tuNgay = d0.getFullYear() + "-" + ("0" + (d0.getMonth() + 1)).slice(-2) + "-" + ("0" + d0.getDate()).slice(-2); }
-    var ds = all.filter(function (x) { return (!LOC.tgBo || x.ten === LOC.tgBo) && (!LOC.tgHd || x.hd === LOC.tgHd) && (!tuNgay || String(x.t).slice(0, 10) >= tuNgay) &&
+    if (LOC.tgNgay && !Array.isArray(LOC.tgNgay)) LOC.tgNgay = "";   // 19/10 bộ lọc ngày chuẩn: bỏ giá trị cũ kiểu "số ngày lùi"
+    var ngayCo = {}; all.forEach(function (x) { ngayCo[String(x.t).slice(0, 10)] = 1; });
+    var ds = all.filter(function (x) { return (!LOC.tgBo || x.ten === LOC.tgBo) && (!LOC.tgHd || x.hd === LOC.tgHd) && trongKhoang(String(x.t).slice(0, 10), LOC.tgNgay) &&
       (!q || (x.phieu + " " + x.ten + " " + x.chuoi + " " + (x.nguoi || "") + " " + x.nd + " " + x.tep.join(" ")).toLowerCase().indexOf(q) >= 0); });
     var h = boLoc([{ k: "tgBo", lbl: "Bộ nào làm", v: LOC.tgBo || "", opt: [["", "Tất cả (" + all.length + ")"]].concat(Object.keys(demB).sort(function (a, b) { return demB[b] - demB[a]; }).map(function (k) { return [k, k + " (" + demB[k] + ")"]; })) },
       { k: "tgHd", lbl: "Làm gì", v: LOC.tgHd || "", opt: [["", "Tất cả"]].concat(Object.keys(demH).sort(function (a, b) { return demH[b] - demH[a]; }).map(function (k) { return [k, k + " (" + demH[k] + ")"]; })) },
-      { k: "tgNgay", lbl: "Ngày", v: LOC.tgNgay || "", opt: [["", "14 ngày"], ["0", "Hôm nay"], ["2", "3 ngày"], ["6", "7 ngày"]] },
+      { k: "tgNgay", lbl: "Ngày", ngay: 1, v: LOC.tgNgay || "", coDuLieu: function (iso) { return !!ngayCo[iso]; }, nhan: function (a, b) { return a ? "" : "14 ngày"; },
+        presets: [{ k: "today", lb: "Hôm nay" }, { k: "yesterday", lb: "Hôm qua" }, { k: "3", lb: "3 ngày" }, { k: "7", lb: "7 ngày" }, { k: "all", lb: "Tất cả" }] },
       { k: "tim", lbl: "Tìm (mã phiếu / người gửi / tên ảnh)", input: 1, v: TIM, ph: "14082801 / Nguyễn… / bang-chung…" }]);
     var link = function (id) { return "https://work.hasaki.vn/tasks?task_id=" + id; };
     var oPhieu = function (x) { return x.phieu ? '<a class="status-link" href="' + e_(link(x.phieu)) + '" target="_blank" rel="noopener">' + e_(x.phieu) + '</a>' + (x.doan ? ' <span class="muted" title="Máy suy ra từ phiếu vừa đọc trước đó">(suy ra)</span>' : "") : '<span class="muted">—</span>'; };
