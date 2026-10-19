@@ -49,7 +49,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenGhiWork, phutVN, mayDuocChay, laTokenGhiDuoc } from "./session-rules.js";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET, cauNhacBui, DAU_NHAC_BUI, CUA_SO_BUI_GIO } from "./truy-vet-vesinh.mjs";
-import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
+import { docSoQLTT, chonQLTTCanBang, ghiLuot, mapTenAnToan } from "./qltt.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -217,8 +217,10 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
   // KHOÁ GHI: cò này ĐÓNG B1.1 (ghi) → chỉ chạy khi token là tamlc; token mượn người khác → dừng (không ghi nhầm tên).
   if (!laTokenGhiDuoc(token)) { log("⛔ Token KHÔNG phải tamlc (mượn phiên người khác) — DỪNG để không ghi nhầm danh tính."); process.exitCode = 75; return; }
   const db = await layDanhBa(token);
-  const byCode = new Map(), byTen = new Map();
-  for (const x of db) { if (x.code) byCode.set(String(x.code), x); if (x.staff_name) byTen.set(boDau(x.staff_name), x); }
+  const byCode = new Map();
+  for (const x of db) if (x.code) byCode.set(String(x.code), x);
+  /* 19/10 bẫy trùng tên (qltt.js): tên trùng không phân giải được thì KHÔNG có trong map → không tag nhầm. */
+  const byTen = new Map([...mapTenAnToan(db).values()].map((x) => [boDau(x.staff_name), x]));
 
   let so = { nhac: {}, nhom: {}, b31: {}, b32: {}, tv: {}, dgB1: {}, fail: {}, qltt: {}, b3huy: {}, khop11: {}, tay11: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
@@ -861,7 +863,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
           const ngayThu = cachNgay(S, homNay) + 1;
           const nvPT = byCode.get(String(kq.phuTrach.code)) || { code: kq.phuTrach.code, staff_name: kq.phuTrach.ten };
           let q = ch.ql ? { ten: ch.qten, pool: ch.chia ? [1, 2] : [] } : chonQLTTCanBang(nvPT, db, soQL, DIR, false, "tru");   // chốt QLTT từ lần nhắc 1 — sổ lượt RIÊNG cho trừ QLTT
-          let ql = ch.ql ? byCode.get(String(ch.ql)) : q && q.ten ? byTen.get(boDau(q.ten)) : null;
+          let ql = ch.ql ? byCode.get(String(ch.ql)) : q && q.ten && q.nguon !== "đoán" ? byTen.get(boDau(q.ten)) : null;   // đoán theo chức danh → không @
           if (!ch.ql && (!ql || !ql.code)) {
             /* NV nghỉ việc thường rơi khỏi sổ/danh bạ → MƯỢN QLTT của các phụ trách CÙNG DÃY KỆ
                (vd F0-A1-502-*) khi mọi hàng xóm map được đều về CHUNG 1 tổ quản lý. */

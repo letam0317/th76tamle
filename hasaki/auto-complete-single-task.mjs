@@ -20,7 +20,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { layTokenGhiWork } from "./session-rules.js";
-import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
+import { docSoQLTT, chonQLTTCanBang, ghiLuot, timTheoTenAnToan } from "./qltt.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -60,9 +60,8 @@ function timNhanVien(q, db) {
   return db.find((x) => {
     const em = String(x.staff_email || "").toLowerCase();
     return em === s || (em.includes("@") ? em.split("@")[0] : em) === user ||
-      String(x.code || "").toLowerCase() === s || String(x.staff_id || "") === s ||
-      String(x.staff_name || "").toLowerCase() === s;
-  }) || null;
+      String(x.code || "").toLowerCase() === s || String(x.staff_id || "") === s;
+  }) || timTheoTenAnToan(q, db);   // tên: chỉ khi duy nhất (bẫy trùng tên 19/10 — qltt.js)
 }
 
 /* Quản lý trực tiếp: sổ tra (phiếu người đã điền) trước, đoán theo danh bạ sau — xem qltt.js. */
@@ -89,6 +88,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   const nv = ds[0], codes = ds.map((x) => String(x.code || x.staff_id)).join(",");
   const q = chonQLTTCanBang(nv, db, docSoQLTT(DIR), DIR, false);   // peek — cộng lượt sau khi đóng B1
   const qltt = QLTT_EP || q.ten;
+  if (!QLTT_EP && q.nguon === "đoán") log("⚠ QLTT của " + nv.staff_name + " (" + nv.code + ") chỉ là ĐOÁN theo chức danh: «" + q.ten + "» — nên kiểm lại.");
 
   const d = await docTask(token, TASK);
   if (!d || !Array.isArray(d.subtasks)) { log("✗ Không đọc được task " + TASK); process.exit(4); }

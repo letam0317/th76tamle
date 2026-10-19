@@ -17,7 +17,7 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { layTokenTuPhucHoi } from "./auto-login.js";
-import { docSoQLTT, chonQLTTCanBang, ghiLuot } from "./qltt.js";
+import { docSoQLTT, chonQLTTCanBang, ghiLuot, timTheoTenAnToan } from "./qltt.js";
 import { tenPhieu5S } from "./ten-phieu-5s.js";
 import { EDGE_PATH, duongDanProfile } from "./token-store.js";
 import { gasPost, laTokenGhiDuoc, layBridgeTokenWshr } from "./session-rules.js";
@@ -246,10 +246,9 @@ function timNhanVien(query, danhBa) {
     const email = String(s.staff_email || "").toLowerCase();
     const emailUser = email.includes("@") ? email.split("@")[0] : email;
     const code = String(s.code || "").toLowerCase();
-    const name = String(s.staff_name || "").toLowerCase();
     const staffId = String(s.staff_id || "");
-    return email === q || emailUser === qUser || code === q || staffId === q || name === q;
-  }) || null;
+    return email === q || emailUser === qUser || code === q || staffId === q;
+  }) || timTheoTenAnToan(query, danhBa);   // tên: chỉ khi duy nhất (bẫy trùng tên 19/10 — qltt.js)
 }
 
 /* ---- Hoàn thành bước B1 rồi để engine tự mở B1.1 (khuôn API đo thật 22/09/2026) ----------------
@@ -316,7 +315,7 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
 
     const q = chonQLTTCanBang(nv, danhBa, SO_QLTT, DIR, false);   // peek: chưa cộng lượt
     const qltt = q.ten;
-    log("    · QLTT: " + qltt + " (" + q.nguon + " — " + q.ghiChu + ")");
+    log("    · QLTT: " + qltt + " (" + q.nguon + " — " + q.ghiChu + ")" + (q.nguon === "đoán" ? " ⚠ chỉ là ĐOÁN — nên kiểm lại" : ""));
 
     /* 1) Ảnh bằng chứng PIC02 = chính ảnh vi phạm đã nạp ở task cha (không tải lại từ Drive).
           Xoá trước rồi nạp để chạy lại không nhân đôi. Ảnh lỗi thì BỎ QUA — không chặn việc đóng B1. */

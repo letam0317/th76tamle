@@ -84,6 +84,25 @@ export function docSoQLTT(DIR) {
   return so;
 }
 
+/* 19/10/2026 BẪY TRÙNG TÊN: danh bạ toàn công ty có nhiều người cùng họ tên (4 «Nguyễn Huỳnh Như») — tra
+ * theo tên lấy người ĐẦU TIÊN ⇒ phiếu 14229031 tag nhầm NV cửa hàng + quản lý cửa hàng. Luôn tra theo MÃ;
+ * tên chỉ nhận khi DUY NHẤT (hoặc duy nhất ở kho 170, loc 398); vẫn trùng → null (không tag, không đoán). */
+export const LOC_KHO170 = 398;
+export function timTheoTenAnToan(ten, danhBa) {
+  const k = kd(ten);
+  if (!k || !danhBa) return null;
+  const ds = danhBa.filter((d) => kd(d.staff_name) === k);
+  if (ds.length <= 1) return ds[0] || null;
+  const kho = ds.filter((d) => Number(d.working_loc_id || d.staff_loc_id) === LOC_KHO170);
+  return kho.length === 1 ? kho[0] : null;
+}
+/** Map tên(không dấu) → người, BỎ các tên trùng không phân giải được (thay cho Map ghi-đè-người-sau). */
+export function mapTenAnToan(danhBa) {
+  const m = new Map();
+  for (const d of danhBa || []) { const k = kd(d.staff_name); if (k && !m.has(k)) { const x = timTheoTenAnToan(d.staff_name, danhBa); if (x) m.set(k, x); } }
+  return m;
+}
+
 /** Tìm chính xác Sub Leader / Leader / Supervisor theo cơ cấu danh bạ thực tế. */
 export function timNguoiQuanLyChucDanh(nv, danhBa) {
   if (!nv || !danhBa || !danhBa.length) return null;
