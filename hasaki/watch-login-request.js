@@ -110,7 +110,21 @@ if (caps && caps.stockFlag && !daChayGuard) {
 // tươi 15-30' trong ngày + 2 slot trưa/chiều cho tồn kho. Poller TỰ quyết có việc hay không
 // (đọc mốc .sync-ok-*, ping rẻ), CHỈ chạy khi có token phiên sống, tự né cụm đang chạy —
 // nên gọi mỗi tick 2' là an toàn, đa số tick nó thoát ngay không tốn gì.
-await new Promise((res) => { const c = spawn("cmd.exe", ["/c", "node sync-poller.js >> poller.log 2>&1"], { cwd: DIR, stdio: "ignore", windowsHide: true }); c.on("exit", res); c.on("error", res); });
+// 19/10: việc «lam-tuoi-vesinh» đã giao PC (ghim QLIT, dự phòng FOQ5T89 — cai-pc/dieu-phoi.json) để laptop tắt vẫn tươi.
+// Laptop chỉ là dự phòng: hỏi nhuong-pc.mjs (exit 75 = PC đang nhận) — nhớ kết luận 6' để khỏi hỏi GAS mỗi tick 2'.
+// Ngoài khung poller (08:45–18:00) khỏi hỏi: poller tự thoát ngay, không gọi upstream.
+const NHUONG_POLLER = path.join(DIR, ".nhuong-poller.json");
+const nhuongPoller = async () => {
+  const p = (new Date().getUTCHours() + 7) % 24 * 60 + new Date().getUTCMinutes();
+  if (p < 8 * 60 + 40 || p > 18 * 60 + 5) return false;
+  try { const n = JSON.parse(fs.readFileSync(NHUONG_POLLER, "utf8")); if (Date.now() - n.luc < 6 * 60e3) return !!n.nhuong; } catch { /* chưa có */ }
+  const ma = await new Promise((res) => { const c = spawn(process.execPath, ["nhuong-pc.mjs", "lam-tuoi-vesinh"], { cwd: DIR, stdio: "ignore", windowsHide: true }); c.on("exit", res); c.on("error", () => res(0)); });
+  try { fs.writeFileSync(NHUONG_POLLER, JSON.stringify({ luc: Date.now(), nhuong: ma === 75 })); } catch { /* */ }
+  return ma === 75;
+};
+if (!(await nhuongPoller())) {
+  await new Promise((res) => { const c = spawn("cmd.exe", ["/c", "node sync-poller.js >> poller.log 2>&1"], { cwd: DIR, stdio: "ignore", windowsHide: true }); c.on("exit", res); c.on("error", res); });
+}
 
 // 1e) SỔ NHẬT KÝ PHIÊN WMS (25/07/2026 — điều tra "bị đá văng phiên"): mỗi tick 2' kiểm
 // get-me trên token wms trong kho, ghi session-ledger.log khi phiên ĐỔI (jti mới) hoặc CHẾT.

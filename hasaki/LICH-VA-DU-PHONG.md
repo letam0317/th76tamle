@@ -179,6 +179,14 @@ không ghi mốc, không chiếm lock) — 3 kịch bản đã chạy thật 09:
 
 ### A3. Nhịp trong ngày — `sync-poller.js`, chỉ trong khung **08:45–18:00**
 
+> **19/10/2026 — CHẠY Ở PC, laptop dự phòng.** Việc điều phối `lam-tuoi-vesinh` (`cai-pc/dieu-phoi.json`,
+> ghim **HSK-KHO170-QLIT**, dự phòng **DESKTOP-FOQ5T89**): task SYSTEM **«5S DP lam-tuoi-vesinh»** mỗi **5'**
+> (chạy cả khi dùng pin) → `_DP-CHAY.vbs` → `sync-poller-hidden.vbs` → `poller.log` trên PC.
+> Laptop vẫn gọi poller từ `watch-login-request.js` nhưng hỏi `nhuong-pc.mjs lam-tuoi-vesinh` trước
+> (nhớ 6' trong `.nhuong-poller.json`, chỉ hỏi trong 08:40–18:05): PC đang nhận → laptop bỏ lượt; PC chết /
+> chưa có task / lệch phiên bản → laptop chạy như cũ. Một nơi chạy tại một lúc ⇒ không tăng lượt gọi upstream.
+> Lý do: 18/10 laptop tắt, vệ sinh đứng ở 09:08 (PC chỉ có cụm 8h40 + guard).
+
 | Nguồn | Nhịp | Cơ chế tiết kiệm |
 |---|---|---|
 | Vệ sinh (`sync-vesinh-all.js`) | ≥ **15'** | bản thân rẻ (~7 call), 1 lượt quét sinh 4 tab. Từ 24/08/2026 kèm **báo Telegram 17h** "đi làm mà CHƯA báo cáo vệ sinh" (loại người vào ca từ 13:00) — `bao-vesinh-telegram.mjs` tự gác 1 tin/ngày ở lượt sync đầu tiên từ 17:00, dùng chính dữ liệu lượt quét nên **0 lượt gọi thêm** |

@@ -140,6 +140,21 @@
       ]
     },
     {
+      "ten": "lam-tuoi-vesinh",
+      "_doc": "19/10 user duyet: nhip phan tang sync-poller.js (ve sinh 15', AI 30', kiem ke ping 30', 5S 45', ton 12:15/17:00) chuyen tu laptop sang PC de laptop tat van tuoi. Ghim QLIT, du phong FOQ5T89. Laptop (watch-login-request) hoi nhuong-pc truoc khi chay -> khong chay trung.",
+      "xml": "5S_Lam_tuoi_ve_sinh.xml",
+      "vbs": "sync-poller-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ],
+      "uuTien": [
+        "HSK-KHO170-QLIT",
+        "DESKTOP-FOQ5T89"
+      ]
+    },
+    {
       "ten": "dong-bo-dashboard",
       "xml": "5S_Dong_bo_dashboard.xml",
       "vbs": "auto-export-hidden.vbs",

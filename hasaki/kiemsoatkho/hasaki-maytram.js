@@ -21,7 +21,7 @@
   var TEN_VIEC = { "canh-b11": "Cò canh B1.1", "canh-xac-minh-b1": "Cò xác minh B1", "tim-bang-chung-b1": "Tìm bằng chứng B1",
     "canh-bai-xe-sang": "Canh bãi xe sáng", "canh-bai-xe-chieu": "Canh bãi xe chiều", "canh-bai-xe-toi": "Canh bãi xe tối", "xac-minh-camera": "Xác minh camera tối",
     "co-canh-planogram": "Cò canh planogram", "dong-bo-dashboard": "Đồng bộ dashboard", "packer-a8-sang": "Packer A8 sáng", "packer-a8-chieu": "Packer A8 chiều",
-    "cham-cong": "Chấm công", "watchdog-ton-kho": "Canh tồn kho" };
+    "cham-cong": "Chấm công", "watchdog-ton-kho": "Canh tồn kho", "lam-tuoi-vesinh": "Làm tươi vệ sinh 15'" };   // 19/10 nhịp sync-poller sang PC
   var tenV = function (t) { return TEN_VIEC[t] || t; };
   var e_ = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var phien = function () { try { return localStorage.getItem("hx-phien") || ""; } catch (e) { return ""; } };
