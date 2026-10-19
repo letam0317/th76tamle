@@ -87,8 +87,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   if (!ds.length) { log("✗ Không tìm thấy NV nào khớp «" + QUERY_NV + "» trong danh bạ " + db.length + " người."); process.exit(3); }
   const nv = ds[0], codes = ds.map((x) => String(x.code || x.staff_id)).join(",");
   const q = chonQLTTCanBang(nv, db, docSoQLTT(DIR), DIR, false);   // peek — cộng lượt sau khi đóng B1
-  const qltt = QLTT_EP || q.ten;
-  if (!QLTT_EP && q.nguon === "đoán") log("⚠ QLTT của " + nv.staff_name + " (" + nv.code + ") chỉ là ĐOÁN theo chức danh: «" + q.ten + "» — nên kiểm lại.");
+  const qltt = QLTT_EP || q.ten;
 
   const d = await docTask(token, TASK);
   if (!d || !Array.isArray(d.subtasks)) { log("✗ Không đọc được task " + TASK); process.exit(4); }

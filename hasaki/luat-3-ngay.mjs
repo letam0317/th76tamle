@@ -305,14 +305,16 @@ for (const p of KH) {
       }
     } catch (e) { log("  ⚠ giao lại B1.1 lỗi: " + String(e.message).slice(0, 80)); }
     if (nMax >= NGUONG + 1) {
+      // 19/10 luật pool (qltt.js): QLTT luôn ra 1 người trong nhóm QL đóng gói/PTCH kho 170, không bao giờ trống.
       const nv = timNV(p.nguoi);
-      const q = nv ? chonQLTTCanBang(nv, danhBa, SO_QL, DIR, false) : null;
-      if (!q || q.nguon === "đoán") log("  ⚠ không xác định chắc QLTT của " + p.nguoi.ten + " (" + p.nguoi.code + ") — bỏ bình luận nhắc, chờ người xác nhận");
-      else await binhLuan(id, tag(q.ten) + " " + tag(BANG) + " Nhờ anh/chị nhắc " + tagD(nv, p.nguoi.ten) + ": vị trí " + p.moi.map((x) => x.k).join(", ") + " đã " + nMax + " ngày yêu cầu liên tiếp không có báo cáo vệ sinh (NV có đi làm / đóng gói tại vị trí).");
+      const q = chonQLTTCanBang(nv || { staff_name: p.nguoi.ten, code: p.nguoi.code }, danhBa, SO_QL, DIR, false);
+      await binhLuan(id, tag(q.ten) + " " + tag(BANG) + " Nhờ anh/chị nhắc " + tagD(nv, p.nguoi.ten) + ": vị trí " + p.moi.map((x) => x.k).join(", ") + " đã " + nMax + " ngày yêu cầu liên tiếp không có báo cáo vệ sinh (NV có đi làm / đóng gói tại vị trí).");
     }
   } else if (p.loai === "bao_ql" || p.loai === "khong_nguoi") {
-    const nvQ = p.nguoi && timNV(p.nguoi), qQ = nvQ && chonQLTTCanBang(nvQ, danhBa, SO_QL, DIR, false);
-    const ql = !p.nguoi ? chonItLuot(POOL_DG, DIR, "tru") : qQ && qQ.nguon !== "đoán" ? qQ.ten : BANG; // không chắc → chỉ báo Leader đóng gói
+    /* Vị trí A1/A8 kho 170 thuộc tổ đóng gói ⇒ không có phụ trách thì chia đều QL đóng gói nữ; có phụ trách thì
+       QLTT của người đó — luôn trong nhóm QL kho 170 (qltt.js luật pool 19/10). */
+    const ql = !p.nguoi ? chonItLuot(POOL_DG, DIR, "tru")
+      : chonQLTTCanBang(timNV(p.nguoi) || { staff_name: p.nguoi.ten, code: p.nguoi.code }, danhBa, SO_QL, DIR, false).ten;
     await binhLuan(id, (ql === BANG ? "" : tag(ql) + " ") + tag(BANG) + " Thông báo: " + (p.loai === "khong_nguoi" ? p.moi.length + " bàn A8 chưa có người phụ trách trong bảng phân công và " : "vị trí ") +
       "không có báo cáo vệ sinh " + nMax + " ngày yêu cầu liên tiếp: " + p.moi.map((x) => x.k.replace("F0-", "")).join(", ") + ". Nhờ anh/chị chia người vệ sinh và cập nhật bảng phân công.");
     if (!p.nguoi) ghiLuot(DIR, ql, "tru");

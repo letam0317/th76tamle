@@ -49,7 +49,7 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { layTokenGhiWork, phutVN, mayDuocChay, laTokenGhiDuoc } from "./session-rules.js";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET, cauNhacBui, DAU_NHAC_BUI, CUA_SO_BUI_GIO } from "./truy-vet-vesinh.mjs";
-import { docSoQLTT, chonQLTTCanBang, ghiLuot, mapTenAnToan } from "./qltt.js";
+import { docSoQLTT, chonQLTTCanBang, ghiLuot, mapTenAnToan, laQLKho170 } from "./qltt.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -412,7 +412,9 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         if (!nvs.length) { /* B1 không ghi NV — không biết nhắc ai, để yên */ }
         else if (!nvOk.length) log("① " + t.code + ": treo " + Math.round(tuoiH) + "h nhưng NV (" + nvs.map((x) => x.staff_major).join(",") + ") KHÔNG thuộc PTCH/Đóng gói kho 170 — không tag.");
         else {
-          const qlttTen = String(cfgB1.QLBP02 || "").trim();
+          /* 19/10 luật pool: ô QLBP02 ghi người ngoài nhóm QL đóng gói/PTCH kho 170 → tag QLTT tính lại trong pool. */
+          let qlttTen = String(cfgB1.QLBP02 || "").trim();
+          if (!laQLKho170(qlttTen)) qlttTen = chonQLTTCanBang(nvOk[0], db, docSoQLTT(DIR), DIR, false).ten;
           const ql = qlttTen ? byTen.get(boDau(qlttTen)) : null;
           if (!ql || !ql.user_id) log("① " + t.code + ": treo " + Math.round(tuoiH) + "h, QLTT «" + (qlttTen || "trống") + "» không tra được user_id — không tag, cần xem tay.");
           else {
@@ -863,7 +865,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
           const ngayThu = cachNgay(S, homNay) + 1;
           const nvPT = byCode.get(String(kq.phuTrach.code)) || { code: kq.phuTrach.code, staff_name: kq.phuTrach.ten };
           let q = ch.ql ? { ten: ch.qten, pool: ch.chia ? [1, 2] : [] } : chonQLTTCanBang(nvPT, db, soQL, DIR, false, "tru");   // chốt QLTT từ lần nhắc 1 — sổ lượt RIÊNG cho trừ QLTT
-          let ql = ch.ql ? byCode.get(String(ch.ql)) : q && q.ten && q.nguon !== "đoán" ? byTen.get(boDau(q.ten)) : null;   // đoán theo chức danh → không @
+          let ql = ch.ql ? byCode.get(String(ch.ql)) : q && q.ten ? byTen.get(boDau(q.ten)) : null;   // q luôn trong nhóm QL kho 170 (qltt.js luật pool 19/10)
           if (!ch.ql && (!ql || !ql.code)) {
             /* NV nghỉ việc thường rơi khỏi sổ/danh bạ → MƯỢN QLTT của các phụ trách CÙNG DÃY KỆ
                (vd F0-A1-502-*) khi mọi hàng xóm map được đều về CHUNG 1 tổ quản lý. */

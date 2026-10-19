@@ -315,7 +315,7 @@ async function tuDongHoanThanhB1(token, taskId, queryNV, danhBa, log, row) {
 
     const q = chonQLTTCanBang(nv, danhBa, SO_QLTT, DIR, false);   // peek: chưa cộng lượt
     const qltt = q.ten;
-    log("    · QLTT: " + qltt + " (" + q.nguon + " — " + q.ghiChu + ")" + (q.nguon === "đoán" ? " ⚠ chỉ là ĐOÁN — nên kiểm lại" : ""));
+    log("    · QLTT: " + qltt + " (" + q.nguon + " — " + q.ghiChu + ")");
 
     /* 1) Ảnh bằng chứng PIC02 = chính ảnh vi phạm đã nạp ở task cha (không tải lại từ Drive).
           Xoá trước rồi nạp để chạy lại không nhân đôi. Ảnh lỗi thì BỎ QUA — không chặn việc đóng B1. */

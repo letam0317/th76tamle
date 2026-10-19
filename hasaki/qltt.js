@@ -268,8 +268,30 @@ export function giaiTo(nv, danhBa, so, DIR) {
 
 /** DÙNG KHI GHI BIÊN BẢN THẬT: trả tên QLTT đã CÂN BẰNG. ghi=true thì cộng 1 lượt cho người được chọn.
  *  Trả {ten, pool, nhom, nguon, ghiChu}. Dry-run gọi ghi=false để xem ai SẼ bị tính mà không đụng sổ. */
+/* ═══ LUẬT 19/10/2026 (user): QLTT PHẢI tìm ra, không để trống, nhưng CHỈ lấy trong nhóm quản lý đóng gói /
+ * quản lý phát triển cửa hàng ở kho 170 Quốc lộ 1A (loc 398) — tuyệt đối không lấy quản lý cửa hàng nơi khác
+ * (lỗi 14229031 Phi Oanh loc 94, 14246125 Thuỳ Dương factory loc 444). Ứng viên ngoài nhóm → về pool mặc định
+ * theo nghiệp vụ NV (PTCH → Đức/Hải; còn lại = đóng gói: nam → Bằng, nữ/không rõ → Uyên/Huyền). */
+const POOL_KHO170 = new Set(TO_QUANLY.flatMap((t) => t.pool));
+export const laQLKho170 = (ten) => POOL_KHO170.has(String(ten || "").trim());
+export function poolMacDinh(nv, DIR) {
+  const ma = String((nv && (nv.code || nv.staff_id)) || "");
+  const to = (t) => TO_QUANLY.find((x) => x.ten === t);
+  if (kd(nv && nv.staff_major).includes("phat trien cua hang")) return { ...to("phát triển cửa hàng"), nguon: "pool kho 170 (PTCH)" };
+  let gioi = DIR && ma ? docGioiTinh(DIR)[ma] : undefined;
+  if (NU_XAC_NHAN.has(ma)) gioi = 2;
+  if (NAM_DONG_GOI.has(ma) || gioi === 1) return { ...to("đóng gói nam"), nguon: "pool kho 170 (đóng gói nam)" };
+  return { ...to("đóng gói nữ"), nguon: "pool kho 170 (đóng gói)" };
+}
+
 export function chonQLTTCanBang(nv, danhBa, so, DIR, ghi = false, loai = "") {
-  const g = giaiTo(nv, danhBa, so, DIR);
+  let g = nv ? giaiTo(nv, danhBa, so, DIR) : { pool: [] };
+  const trongPool = g.pool.filter(laQLKho170);
+  if (!trongPool.length) {
+    const m = poolMacDinh(nv, DIR);
+    g = { pool: m.pool, nhom: m.ten, nguon: m.nguon,
+      ghiChu: "Ngoài nhóm QL kho 170" + (g.pool.length ? " («" + g.pool.join(", ") + "» bị loại)" : "") + " → " + m.pool.join(", ") };
+  } else if (trongPool.length < g.pool.length) g = { ...g, pool: trongPool };
   const ten = chonItLuot(g.pool, DIR, loai);
   if (ghi) ghiLuot(DIR, ten, loai);
   const chia = g.pool.length > 1;
