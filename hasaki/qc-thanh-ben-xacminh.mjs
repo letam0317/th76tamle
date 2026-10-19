@@ -140,7 +140,7 @@ for (const m of MAY) {
       /* 19/10 (5) user: chỉ BỎ dòng chữ «Ai tác động ô trước giờ ghi nhận…» — danh sách giữ; mỗi dòng WMS ghi «N cái · loại tác động» */
       const ls5 = await p.evaluate(() => ({ tieuDe: /Ai tác động ô trước giờ ghi nhận/.test(document.getElementById("mBody").textContent), dong: [...document.querySelectorAll("#mBody .hx-lan:not(.vl) .hx-nguon-lan")].map((e) => e.textContent.trim()) }));
       if (ls5.tieuDe) sai.push("còn dòng chữ «Ai tác động ô trước giờ ghi nhận»");
-      const thieuLoai = ls5.dong.filter((t) => !/^[0-9]+ cái · (châm hàng|soạn hàng|hàng hoàn|hàng dư)/.test(t)); if (thieuLoai.length) sai.push(thieuLoai.length + " dòng thiếu loại tác động: " + thieuLoai[0]);
+      const thieuLoai = ls5.dong.filter((t) => !/^[0-9]+ cái · (châm hàng|trả hàng đơn huỷ|soạn hàng|hàng hoàn|hàng dư)/.test(t)); if (thieuLoai.length) sai.push(thieuLoai.length + " dòng thiếu loại tác động: " + thieuLoai[0]);
       dem.dongLoai = (dem.dongLoai || 0) + ls5.dong.length;
       /* 19/10 (6) user: danh sách lọc theo chip — Tác động WMS chỉ lượt WMS; Không qua WMS chỉ lượt ngoài hệ thống (+ Gỡ); không có lượt ngoài hệ thống thì ẨN chip */
       const c6 = await p.evaluate(async () => { const hien = (s) => [...document.querySelectorAll("#mBody " + s)].filter((e) => e.getBoundingClientRect().height).length;
@@ -150,6 +150,10 @@ for (const m of MAY) {
           const w = document.querySelector("#mBody .hx-qd-nguon [data-ng]"); if (w) { w.click(); await new Promise((x) => setTimeout(x, 80)); r.veWMS = hien(".hx-lan.vl") === 0; } else { const ls = document.querySelector("#mBody .hx-qd-ls"); if (ls) ls.dataset.che = "wms"; r.veWMS = true; } }
         return r; });
       dem.coVL = (dem.coVL || 0) + (c6.tongVL ? 1 : 0);
+      /* 19/10 (7) user DUYỆT: tách «trả hàng đơn huỷ» khỏi châm hàng — 13740905 phải ra 3 châm hàng + 4 trả hàng đơn huỷ (dòng + thẻ phiếu) */
+      if (id === "13740905") { const d7 = await p.evaluate(() => { const d = {}; document.querySelectorAll("#mBody .hx-lan:not(.vl) .hx-nguon-lan").forEach((e) => { const k = e.textContent.replace(/^[0-9]+ cái · /, "").replace(/ [(].*$/, ""); d[k] = (d[k] || 0) + 1; });
+          const the = [...document.querySelectorAll("#hxBody [data-p=\"13740905\"]")].map((e) => e.textContent).join(" "); return { d, the }; });
+        dem.ca13740905 = JSON.stringify(d7); if (d7.d["châm hàng"] !== 3 || d7.d["trả hàng đơn huỷ"] !== 4 || !/3 châm hàng/.test(d7.the) || !/4 trả hàng đơn huỷ/.test(d7.the)) sai.push("13740905 sai loại " + JSON.stringify(d7)); }
       if (c6.mo) sai.push("chip Không qua WMS còn làm mờ");
       if (!!c6.tongVL !== c6.chip) sai.push("chip Không qua WMS " + (c6.chip ? "hiện khi không có lượt" : "thiếu khi có lượt") + " " + JSON.stringify(c6));
       if (c6.vlHienLucWMS || c6.wmsHien !== c6.tongW) sai.push("Tác động WMS lọc sai " + JSON.stringify(c6));
@@ -169,7 +173,7 @@ for (const m of MAY) {
       if (x.ls && x.xem && (Math.abs(x.ls.l - x.xem.l) > 2 || x.ls.t < x.xem.b - 1)) sai.push("ai tác động không dưới clip");
       /* T18 19/10 (4) user D: phụ đề lượt WMS ghi «N cái · loại tác động» (châm hàng / soạn hàng / hàng hoàn / hàng dư) — không còn «châm N» trơn */
       const pdLoai = await p.evaluate(() => { const v = document.querySelector("#qdKhung video"), pd = document.getElementById("qdPd"); return pd ? pd.textContent : ""; });
-      if (/\d+ cái · (châm hàng|soạn hàng|hàng hoàn|hàng dư)/.test(pdLoai)) dem.pdLoai = (dem.pdLoai || 0) + 1;
+      if (/\d+ cái · (châm hàng|trả hàng đơn huỷ|soạn hàng|hàng hoàn|hàng dư)/.test(pdLoai)) dem.pdLoai = (dem.pdLoai || 0) + 1;
       if (/ châm \d+ lúc/.test(pdLoai)) sai.push("phụ đề còn «châm N» không có loại: " + pdLoai.slice(0, 80));
       const ng = await p.evaluate(() => { const rows = [...document.querySelectorAll("#mBody .hx-lan:not(.vl)")];
         const chung = (document.querySelector("#mBody .hx-ng-chung") || {}).textContent || "";
@@ -208,7 +212,9 @@ for (const m of MAY) {
     const m1 = await tt(), b1 = await boCuc();
     ok(m1.show && m1.ben && m1.vis === "visible" && /rgba\(0, 0, 0, 0\)|transparent/.test(m1.nen), m.ten + ": M1 Theo máy mở thanh bên, không phủ nền");
     ok(m1.to.length === 1 && m1.to[0] === lids[0], m.ten + ": M3 tô sự việc đang xem (" + m1.to + ")");
-    ok(!!b1.anh && !!b1.khung, m.ten + ": M5 có khung camera + ảnh ghi nhận riêng");
+    /* 19/10 (7) user: Theo máy «Ảnh ghi nhận» thành CHIP dưới clip — ảnh mặc định ẨN */
+    const m5 = await p.evaluate(() => { const n = document.querySelector("#mBody .hx-ng-hang [data-anhgn]"), a = document.querySelector("#mBody [data-tp=anh]"); return { chip: !!n, an: !!(a && a.hidden), ten: n ? n.textContent.trim() : "" }; });
+    ok(!!b1.khung && m5.chip && m5.an && m5.ten === "Ảnh ghi nhận", m.ten + ": M5 có khung camera + chip «Ảnh ghi nhận», ảnh mặc định ẩn " + JSON.stringify(m5));
     if (!m.mob) {
       /* 16/10 (8) user: Theo máy ảnh camera ngang → khối ảnh vừa khít tấm ảnh (không dải xám), «Người trong khung đỏ» sát ngay dưới; điều khiển + mốc 1 hàng; nút quyết cỡ theo chữ */
       const m6 = await p.evaluate(() => { const a = document.querySelector("#mBody .hx-qd-anh"), im = document.getElementById("lvAnhGN"), ng = document.querySelector("#mBody .hx-qd-nguoi .lbl");
@@ -216,7 +222,9 @@ for (const m of MAY) {
         const nut = [...document.querySelectorAll("#mBody .hx-act button:not(.chinh)")].map((b) => b.getBoundingClientRect());   // 17/10 (2) «Lưu · lập phiếu» cả hàng dưới 3 chip — không tính
         return { xam: Math.round(ra.height - ri.height), cach: Math.round(ng.getBoundingClientRect().top - ra.bottom), motHang: !mc || Math.abs(xd.getBoundingClientRect().top - mc.getBoundingClientRect().top) <= 6 || mc.scrollWidth <= mc.clientWidth + 1, mocCat: mc ? mc.scrollWidth - mc.clientWidth : 0,
           nutRong: Math.round(Math.max(...nut.map((r) => r.width))), nutHang: new Set(nut.map((r) => Math.round(r.top))).size }; });
-      ok(b1.anh && Math.abs(b1.anh.t - b1.khung.t) <= 2 && m6.xam <= 2, m.ten + ": M6 ảnh ghi nhận cùng mép trên clip, vừa khít ảnh " + JSON.stringify(m6));
+      const m6b = await p.evaluate(async () => { const n = document.querySelector("#mBody [data-anhgn]"); n.click(); await new Promise((r) => setTimeout(r, 400)); const a = document.querySelector("#mBody .hx-qd-anh").getBoundingClientRect(), c = document.querySelector("#mBody [data-tp=clip]").getBoundingClientRect(), im = document.getElementById("lvAnhGN").getBoundingClientRect();
+        const r = { duoi: Math.round(a.top - c.bottom), trai: Math.round(a.left - c.left), xam: Math.round(a.height - im.height), vid: !document.getElementById("hxV").paused || document.getElementById("hxV").readyState < 2 }; n.click(); await new Promise((x) => setTimeout(x, 100)); r.an = document.querySelector("#mBody [data-tp=anh]").hidden; return r; });
+      ok(m6b.duoi >= -1 && Math.abs(m6b.trai) <= 2 && m6b.xam <= 2 && m6b.an, m.ten + ": M6 bấm chip → ảnh ngay dưới clip, vừa khít ảnh; bấm lại → ẩn " + JSON.stringify(m6b));
       /* 16/10 (10) user «kích thước camera lệch so với thanh thời gian»: video và dải thời gian phải cùng mép trái/phải */
       /* 17/10 (3) user: điều khiển clip gọn, bên PHẢI ngang hàng thanh thời gian — thanh thời gian thẳng mép trái clip, điều khiển thẳng mép phải clip */
       const m13 = await p.evaluate(() => { const v = document.querySelector("#lvClip .hx-vwrap").getBoundingClientRect(), t = document.getElementById("hxTl").getBoundingClientRect(), c = document.querySelector("#lvClip .hx-xdau").getBoundingClientRect();
@@ -227,19 +235,20 @@ for (const m of MAY) {
       const m7 = await p.evaluate(() => { const R = (e) => e && e.getBoundingClientRect(), cl = R(document.querySelector("#mBody [data-khung]")), an = R(document.querySelector("#mBody .hx-qd-anh"));
         const loi = document.querySelector("#mBody [data-mcb]"), ai = document.querySelector("#mBody [data-cb]"), qd = document.querySelector("#mBody .hx-qd-nut"); if (!loi || !ai || !qd) return null;
         const k = [loi, ai, qd].map((e) => e.closest(".hx-tb-khung"));
-        return { motKhung: k[0] === k[1] && k[1] === k[2] && k[0] === document.querySelector("#mBody .hx-qd-anh").closest(".hx-tb-khung"), thuTu: R(loi).bottom <= R(ai).top + 1 && R(ai).bottom <= R(qd).top + 1, duoiHang: Math.round(R(loi).top - an.bottom),
+        return { motKhung: k[0] === k[1] && k[1] === k[2] && k[0] === document.getElementById("hxChot").closest(".hx-tb-khung") && k[0] !== document.querySelector("#mBody [data-tp=clip]").closest(".hx-tb-khung"), thuTu: R(loi).bottom <= R(ai).top + 1 && R(ai).bottom <= R(qd).top + 1, duoiHang: Math.round(R(loi).top - R(document.getElementById("hxChot")).bottom),
           cauHoi: document.querySelectorAll("#mBody .hx-hoi").length, crop: document.querySelectorAll("#mBody .hx-crop").length, tieuDe: /Người trong khung đỏ/.test(document.getElementById("mBody").textContent) }; });
-      ok(m7 && m7.motKhung && m7.thuTu && m7.duoiHang >= -1, m.ten + ": M7 Lỗi → Là ai → Quyết định dưới Ảnh ghi nhận, cùng khung (cột phải) " + JSON.stringify(m7));
+      ok(m7 && m7.motKhung && m7.thuTu && m7.duoiHang >= -1, m.ten + ": M7 Lỗi → Là ai → Quyết định dưới Sẽ ghi nhận, cùng khung cột phải (19/10 (7) ảnh đã thành chip) " + JSON.stringify(m7));
       ok(m7 && !m7.cauHoi && !m7.crop && !m7.tieuDe, m.ten + ": M8 bỏ tiêu đề Người trong khung đỏ, câu hỏi, ảnh cắt " + JSON.stringify(m7));
-      ok(!b1.nguon.length, m.ten + ": M9 không còn cụm nút nguồn (ảnh đã đứng riêng)");
+      ok(b1.nguon.join(",") === "Ảnh ghi nhận", m.ten + ": M9 hàng chip dưới clip chỉ có «Ảnh ghi nhận» (" + b1.nguon.join(", ") + ")");
       /* 17/10 (2) user: Sẽ ghi nhận dưới Ảnh ghi nhận · Quyết định dưới Máy gợi ý, 3 chip ngang hàng + Lưu ở dưới · mốc trên thanh thời gian · giờ không kèm «×3» */
       const m14 = await p.evaluate(() => { const R = (q) => { const e = document.querySelector(q); return e ? e.getBoundingClientRect() : null; };
         const an = R("#mBody .hx-qd-anh"), sg = R("#hxChot"), gy = R('#mBody [data-tp="dsnguoi"]'), qd = R('#mBody [data-tp="quyetdinh"]');
         const chip = [...document.querySelectorAll('#mBody .hx-act button:not(.chinh):not([data-qd="-1"])')].map((b) => b.getBoundingClientRect()), luu = R('#mBody .hx-act button.chinh');
-        return { seghi: sg && an ? Math.round(sg.top - an.bottom) : null, sgL: sg && an ? Math.round(Math.abs(sg.left - an.left)) : null, qdDuoi: qd && gy ? Math.round(qd.top - gy.bottom) : null,
+        const kp = document.getElementById("hxChot") && document.getElementById("hxChot").closest(".hx-tb-khung"), rk = kp && kp.getBoundingClientRect();
+        return { seghi: sg && rk ? Math.round(sg.top - rk.top) : null, sgL: sg && rk ? Math.round(Math.abs(sg.left - rk.left) - parseFloat(getComputedStyle(kp).paddingLeft)) : null, qdDuoi: qd && gy ? Math.round(qd.top - gy.bottom) : null,
           chipHang: new Set(chip.map((r) => Math.round(r.top))).size, chipN: chip.length, luuDuoi: luu && chip.length ? Math.round(luu.top - Math.max(...chip.map((r) => r.bottom))) : null,
           mkn: document.querySelectorAll("#hxTl .mkn").length, buoc: document.querySelectorAll("#hxTl .mk").length, hangMoc: document.querySelectorAll("#mBody .hx-mocs").length, gio: document.getElementById("hxGio").textContent }; });
-      ok(m14.seghi !== null && m14.seghi >= 0 && m14.sgL <= 2, m.ten + ": M14 Sẽ ghi nhận dưới Ảnh ghi nhận, cùng khung (canh giữa phần còn lại — 17/10 (4)) " + JSON.stringify(m14));
+      ok(m14.seghi !== null && m14.seghi >= 0 && m14.seghi <= 40 && Math.abs(m14.sgL) <= 2, m.ten + ": M14 Sẽ ghi nhận đầu khung cột phải (19/10 (7) ảnh thành chip) " + JSON.stringify(m14));
       ok(m14.qdDuoi !== null && m14.qdDuoi >= 0 && m14.chipN === 3 && m14.chipHang === 1 && m14.luuDuoi >= 0, m.ten + ": M15 Quyết định dưới Máy gợi ý, 3 chip ngang hàng, Lưu ở dưới " + JSON.stringify(m14));
       ok(m14.mkn === m14.buoc && !m14.hangMoc && !/×/.test(m14.gio), m.ten + ": M16 mốc là số trên thanh thời gian, bỏ hàng mốc riêng, giờ không kèm ×N " + JSON.stringify(m14));
       /* M17 (17/10 (8) user «dưới còn chỗ thì thả lên làm gì · hiệu ứng thả xuống»): ô Lỗi + ô Là ai — dưới đủ chỗ thì MỞ XUỐNG ngay dưới ô, có hiệu ứng popIn,

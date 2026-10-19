@@ -36,18 +36,24 @@ for (const m of MAY) {
   await p.waitForFunction(() => window.HXACMINH && window.__HX_MUC, { timeout: 30000 });
   const ds = async (sub, sel, at) => { await p.evaluate((s) => window.HXACMINH.sub(s), sub); await ngu(1500); return p.evaluate((sel, at) => [...new Set([...document.querySelectorAll("#hxBody " + sel)].map((e) => e.getAttribute(at)))], sel, at); };
   const mo = async (fn, id) => { await p.evaluate((fn, id) => window.HXACMINH[fn](id), fn, id); await ngu(900);
-    await p.waitForFunction(() => { const i = document.querySelector("#mBody .hx-qd-anh img"); return !i || i.complete; }, { timeout: 8000 }).catch(() => {}); await ngu(300); return p.evaluate(DO); };
+    await p.waitForFunction(() => { const i = document.querySelector("#mBody .hx-qd-anh img"); return !i || i.complete; }, { timeout: 8000 }).catch(() => {}); await ngu(300); const x = await p.evaluate(DO);
+    /* 19/10 (7) chip «Ảnh ghi nhận» ở CẢ 2 thanh: mặc định ẩn; bấm → ảnh hiện ngay dưới clip, cùng mép trái + bề rộng khung clip; bấm lại → ẩn */
+    x.chipAnh = await p.evaluate(async () => { const n = document.querySelector("#mBody [data-anhgn]"), a = document.querySelector("#mBody [data-tp=anh]"), c = document.querySelector("#mBody [data-tp=clip]"); if (!n || !a) return null;
+      const an0 = a.hidden; n.click(); await new Promise((r) => setTimeout(r, 120)); const ra = a.getBoundingClientRect(), rc = c.getBoundingClientRect();
+      const r = { an0, hien: !a.hidden && ra.height > 20, duoi: ra.top >= rc.bottom - 1, trai: Math.abs(ra.left - rc.left) <= 2, rong: Math.abs(ra.width - rc.width) <= 2 }; n.click(); await new Promise((r2) => setTimeout(r2, 80)); r.an1 = a.hidden; return r; });
+    return x; };
   const may = [], tv = [];
   for (const id of await ds("cam", "[data-lid]", "data-lid")) { if (may.length >= N) break; const x = await mo("moLuotId", id); if (x.clip) may.push([id, x]); }
   for (const id of await ds("treo", "[data-p]", "data-p")) { if (tv.length >= N) break; const x = await mo("moPhieuId", id); if (x.clip) tv.push([id, x]); }
   ok(may.length && tv.length, m.ten + ": D0 có sự việc Theo máy (" + may.length + ") + phiếu Theo tác vụ (" + tv.length + ") có clip để so");
   const gan = (a, c, k) => a && c && Math.abs(a[k] - c[k]) <= 2;
-  const sai = { D11: [], D1: [], D2: [], D3: [], D4: [], D5: [], D6: [], D7: [], D8: [] };
+  const sai = { D11: [], D1: [], D2: [], D3: [], D4: [], D5: [], D6: [], D7: [], D8: [] };   // D3 (19/10 (7)): chip Ảnh ghi nhận — mặc định ẩn, bấm hiện dưới clip
   const goc = may[0] && may[0][1];
   for (const [id, x] of [...may, ...tv]) {
     if (!["l", "t", "w", "h"].every((k) => gan(x.clip, goc.clip, k))) sai.D1.push(id + JSON.stringify(x.clip));
     if (!gan(x.kPhai, goc.kPhai, "l")) sai.D2.push(id + JSON.stringify(x.kPhai));
-    if (!["l", "t"].every((k) => gan(x.anh, goc.anh, k)) || !x.khungAnh || Math.abs(x.khungAnh.w - x.anh.w) > 1 || Math.abs(x.khungAnh.h - x.anh.h) > 1 || x.khungAnh.w < x.kPhai.w - 52) { if (!x.tv) sai.D3.push(id + JSON.stringify([x.anh, x.khungAnh, x.kPhai && x.kPhai.w])); }   /* 19/10 (4) Theo tác vụ: ảnh ẩn tới khi bấm nút — chỉ so Theo máy */   // 17/10 (8) user «ảnh chưa khít khung»: ảnh phủ kín khung, khung kín bề rộng cột (trừ lề 24×2)
+    if (!["l", "t"].every((k) => gan(x.anh, goc.anh, k)) || !x.khungAnh || Math.abs(x.khungAnh.w - x.anh.w) > 1 || Math.abs(x.khungAnh.h - x.anh.h) > 1 || x.khungAnh.w < x.kPhai.w - 52) { if (false) sai.D3.push(id + JSON.stringify([x.anh, x.khungAnh, x.kPhai && x.kPhai.w])); }   /* 19/10 (4) Theo tác vụ: ảnh ẩn tới khi bấm nút — chỉ so Theo máy */   // 17/10 (8) user «ảnh chưa khít khung»: ảnh phủ kín khung, khung kín bề rộng cột (trừ lề 24×2)
+    { const ca = x.chipAnh; if (!ca || !ca.an0 || !ca.hien || !ca.duoi || !ca.trai || !ca.rong || !ca.an1) sai.D3.push(id + " " + JSON.stringify(ca)); }
     if (!gan(x.loi, goc.loi, "l")) sai.D4.push(id + JSON.stringify(x.loi));
     if (!x.qd || Math.abs((x.bx.b - x.qd.b) - (goc.bx.b - goc.qd.b)) > 4 || Math.abs((x.bx.b - x.qd.b) - 53) > 16) sai.D5.push(id + " cách đáy " + (x.qd ? x.bx.b - x.qd.b : "?"));   // 17/10 (8) user: lên 3 cm rồi xuống 2 cm ⇒ cách đáy 37px + 16px lề
     if (!x.lsCungClip || (x.ls && x.ls.t < x.clip.b)) sai.D6.push(id);
@@ -55,7 +61,7 @@ for (const m of MAY) {
     if (x.cuon > 1) sai.D8.push(id + " " + x.cuon + "px");
     if (!x.tl || !goc.tl || Math.abs((x.tl.t - x.clip.b) - (goc.tl.t - goc.clip.b)) > 2 || !gan(x.tl, goc.tl, "l") || !gan(x.tl, goc.tl, "w") || !gan(x.play, goc.play, "l") || !gan(x.toc, goc.toc, "l")) sai.D11.push(id + JSON.stringify([x.tl, x.clip && x.clip.b]));
   }
-  const TEN = { D11: "thanh thời gian + ▶ giờ · Tự động ×1 ×2 ×3 cùng vị trí ở 2 thanh (17/10 (6))", D1: "clip cùng vị trí + kích thước ở 2 thanh", D2: "khung Ảnh ghi nhận cùng mép trái", D3: "Ảnh ghi nhận cùng mép trái/trên, kín bề rộng cột, ảnh phủ khít khung", D4: "nhãn Lỗi cùng mép trái",
+  const TEN = { D11: "thanh thời gian + ▶ giờ · Tự động ×1 ×2 ×3 cùng vị trí ở 2 thanh (17/10 (6))", D1: "clip cùng vị trí + kích thước ở 2 thanh", D2: "khung Ảnh ghi nhận cùng mép trái", D3: "chip Ảnh ghi nhận (2 thanh): mặc định ẩn, bấm → ảnh ngay dưới clip, cùng mép trái + bề rộng clip, bấm lại → ẩn", D4: "nhãn Lỗi cùng mép trái",
     D5: "Quyết định cách đáy ~1 cm (lên 3 cm, xuống 2 cm), 2 thanh như nhau", D6: "Ai tác động dưới clip, cùng khung clip", D7: "Lỗi → Máy gợi ý → Quyết định dưới Ảnh ghi nhận, cùng khung", D8: "không cuộn cả thanh" };
   Object.keys(sai).forEach((k) => ok(!sai[k].length, m.ten + ": " + k + " " + TEN[k] + (sai[k].length ? " — " + sai[k].length + " lệch: " + sai[k].slice(0, 3).join(" | ") : "")));
   ok(!con.length, m.ten + ": D10 không lỗi trang " + con.slice(0, 2).join(" | "));

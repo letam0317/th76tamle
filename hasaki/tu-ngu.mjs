@@ -29,3 +29,12 @@ export function chuanTuSau(o) {
   return o;
 }
 export const CAM = /cất|CẤT|Cất|không ai lấy hàng ở thùng/;
+/* TU-01 · tên LOẠI TÁC ĐỘNG vào ô (dòng ai tác động, phụ đề clip, thẻ phiếu — hasaki-xacminh.js loaiTD). 19/10 user DUYỆT tách «trả hàng đơn huỷ»
+ * khỏi «châm hàng»: phân theo LOẠI LỆNH WMS trước, rồi mới tới khu nguồn (KHÔNG gộp chung thành «lượt châm»). */
+export const LOAI_TAC_DONG = [
+  { ten: "châm hàng", nhan: "lệnh PUSH_MASTER (Châm từ kho tổng) — nguồn IT, PO/kho tổng, pallet, ô khác" },
+  { ten: "trả hàng đơn huỷ", nhan: "lệnh REPUSH_ORDER_CANCEL_PUSH (Trả hàng đơn huỷ) — đưa thẳng từ giỏ F0-PA vào ô" },
+  { ten: "soạn hàng", nhan: "lấy hàng ra khỏi ô để soạn đơn (pick)" },
+  { ten: "hàng hoàn", nhan: "nguồn bin F0-RT (đơn bị trả về) / F0-NG (trả sản phẩm không phù hợp)" },
+  { ten: "hàng dư", nhan: "nguồn giỏ F0-PA nhưng KHÔNG phải lệnh trả đơn huỷ (pick dư trả kệ)" },
+];

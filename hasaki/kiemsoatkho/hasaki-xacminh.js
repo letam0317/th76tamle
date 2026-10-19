@@ -292,9 +292,11 @@
           "body:has(#modal.hx-ben.show #mBody .hx-tb-luoi) #sideToggle{translate:0 -72px!important;opacity:0!important;pointer-events:none!important}}" +
         /* 19/10 (4) A: hàng nguồn Theo tác vụ 1 hàng trái→phải; «Không qua WMS» xám khi máy không thấy lượt nào; Ảnh ghi nhận (bật/tắt) ngay dưới clip */
         "#modal.hx-ben .hx-tb-luoi .hx-tb-tp[hidden]{display:none!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{justify-content:flex-start}" +
-        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang>.hx-qd-nguon{margin-left:0!important;flex:1 1 auto;min-width:0;flex-wrap:nowrap!important;overflow:visible!important;gap:6px;justify-content:flex-start}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:clip;overflow-clip-margin:8px;text-overflow:ellipsis}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{margin-top:14px!important}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon{gap:4px}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{padding:0 7px!important;font-size:12px!important}#modal.hx-ben .hx-lan .ai small{white-space:normal!important;overflow:visible;text-overflow:clip}}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang>.hx-qd-nguon{margin-left:0!important;flex:0 1 auto;width:auto!important;max-width:100%;min-width:0;flex-wrap:nowrap!important;overflow:visible!important;gap:6px;justify-content:flex-start}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:clip;overflow-clip-margin:8px;text-overflow:ellipsis}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{margin-top:14px!important}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon{gap:4px}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{padding:0 7px!important;font-size:12px!important}#modal.hx-ben .hx-lan .ai small{white-space:normal!important;overflow:visible;text-overflow:clip}}" +
         "#modal.hx-ben .hx-ng-hang button:disabled{opacity:.5;cursor:default}#modal.hx-ben .hx-ng-so{display:inline-block;min-width:16px;margin-left:4px;padding:0 4px;border-radius:8px;background:#d46b08;color:#fff;font-size:11px;line-height:16px;text-align:center}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}}" +
+        /* 19/10 (7) ảnh ghi nhận bật bằng chip: hiện ra bằng hiệu ứng paneIn sẵn có; hàng chip Theo máy cùng kiểu Theo tác vụ */
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]:not([hidden]){animation:paneIn .26s var(--ez-apple)}#modal.hx-ben .hx-tb-luoi .hx-xem-may{padding:0!important;margin:0}#modal.hx-ben .hx-tb-luoi .hx-xem-may>.hx-xdau.hx-ng-hang{margin-top:8px}" +
         /* 19/10 (6) lọc danh sách ai tác động theo chip đang chọn */
         "#modal.hx-ben .hx-qd-ls[data-che=wms] .hx-lan.vl,#modal.hx-ben .hx-qd-ls[data-che=vl] .hx-lan:not(.vl),#modal.hx-ben .hx-qd-ls:not([data-che=wms]) [data-trong=wms]{display:none!important}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
         "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:8px 12px!important;gap:6px!important;flex-shrink:0;min-height:0!important}" +
@@ -614,8 +616,10 @@
     var h = '<div class="hx-qd hx-qd-luot hx-tb-luoi" data-tb="may">' +
       tp("clip", '<div id="lvClip"><div class="hx-vwrap" data-khung><video id="hxV" playsinline muted preload="auto"></video><canvas id="hxOv" width="1280" height="720"></canvas></div>' +
         '<div class="hx-tl-hang"><div class="hx-tl" id="hxTl"></div><div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
-        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div></div></div>') +
-      tp("anh", '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" loading="lazy" decoding="async"></div>') +
+        '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div></div></div>' +
+        /* 19/10 (7) user: «Ảnh ghi nhận» thành CHIP cùng hàng/kiểu với Theo tác vụ, ngay dưới clip — ảnh mặc định ẩn, bấm hiện DƯỚI clip (clip vẫn chạy) */
+        '<div class="hx-qd-xem hx-xem-may"><div class="hx-xdau hx-ng-hang"><span class="hx-qd-nguon"><button type="button" class="hx-ng-anh" data-anhgn aria-pressed="false">Ảnh ghi nhận</button></span></div></div>') +
+      tp("anh", '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" decoding="async"></div>') +
       tp("seghi", '<div class="hx-chot" id="hxChot"></div>') +
       /* người nghi: 4–5 người thì khối này cao — cuộn riêng (lapCotPhai), không đẩy dài cả thanh */
       tp("dsnguoi", '<div class="hx-qd-nguoi"><div class="hx-ds-ng">' + EV.ng.map(function (n) { return '<div class="hx-ng hx-ng-gon' + (n.khong ? " khong" : "") + '" data-so="' + n.so + '">' +
@@ -637,6 +641,7 @@
     ganGhiChu("luot", String(l.id), tenLoai(l.loai) + " · " + l.camera + " · " + (nd.length === 3 ? nd[2] + "/" + nd[1] + "/" + nd[0] : l.ngay) + " " + gioL);
     var lvXem = function () {};   // 16/10 (7) ảnh ghi nhận đứng riêng ở cột phải — không còn đổi qua lại clip/ảnh
     $id("lvAnhGN").onclick = function () { openLB([{ url: anhNguoi(l), title: "Ảnh ghi nhận", sub: l.camera }], 0); };
+    ganNutAnh();   // 19/10 (7) chip Ảnh ghi nhận (mặc định ẩn ảnh)
     xongThanhBen(TB);
     var huy = function () { var v = $id("hxV"); if (v) { v.pause(); v.removeAttribute("src"); v.load(); } };
     $id("mClose").addEventListener("click", huy, { once: true });
@@ -1034,11 +1039,15 @@
      Ảnh ghi nhận · đồng bộ vị trí/kích thước clip và các khung ở CẢ 2 thanh Theo máy + Theo tác vụ»: 2 khung y hệt nhau — trái 7/12 · phải 5/12. */
   /* 17/10 (7) user «khung Ảnh ghi nhận và clip đổi vị trí cho nhau (kể cả Ghi chú/Đóng ⇄ tiêu đề) · clip tăng kích thước cho vừa thanh»:
      TRÁI 4/12 = Ảnh ghi nhận → … → Lỗi → Máy gợi ý → Quyết định · PHẢI 8/12 = clip (+ Ai tác động dưới clip) */
-  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }] }],
+  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "anh" }] }],   // 19/10 (7) Theo máy: Ảnh ghi nhận DƯỚI clip (bật bằng chip) như Theo tác vụ
     tacvu: [{ id: "k2", rong: 4, ds: [{ id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "anh" }, { id: "aitacdong" }] }] };   // 19/10 (4) Ảnh ghi nhận DƯỚI clip (bật bằng nút) · (5) danh sách ai tác động giữ, chỉ bỏ dòng tiêu đề
   var TB_TEN = { clip: "Camera / clip", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
+  /* 19/10 (7) chip «Ảnh ghi nhận» dùng chung 2 thanh: ảnh mặc định ẨN, bấm hiện ngay DƯỚI clip (hiệu ứng paneIn sẵn có), bấm lại ẩn; clip giữ nguyên chỗ, vẫn chạy */
+  function ganNutAnh(hienSan) { var a = $id("mBody").querySelector(".hx-tb-luoi [data-tp=\"anh\"]"), n = $id("mBody").querySelector("[data-anhgn]"); if (!a || !n) return;
+    var dat = function (mo) { a.hidden = !mo; n.classList.toggle("on", mo); n.setAttribute("aria-pressed", String(mo)); };
+    dat(!!hienSan); n.onclick = function () { dat(a.hidden); lapCotPhai(); }; }
   function tbAp(luoi) {
     luoi = luoi || ($id("mBody") && $id("mBody").querySelector(".hx-tb-luoi")); if (!luoi) return;
     var tps = {}, dung = {}, khung = [];
@@ -1053,7 +1062,7 @@
     Object.keys(tps).forEach(function (id) { if (dung[id]) return; var x = tps[id]; x.style.setProperty("--tb-rong", 12); x.removeAttribute("data-tb-an"); khung[khung.length - 1].appendChild(x); });
     khung.forEach(function (f) { f.toggleAttribute("data-trong", ![].slice.call(f.children).some(function (x) { return x.classList.contains("hx-tb-tp") && !x.hasAttribute("data-tb-an") && x.childElementCount; })); luoi.appendChild(f); });
     cu.forEach(function (x) { x.remove(); });
-    if (luoi.dataset.tb === "tacvu" && tps.anh && tps.clip) tps.clip.after(tps.anh);   // 19/10 (4) user: Ảnh ghi nhận luôn ngay DƯỚI clip, kể cả bố cục đã chỉnh tay
+    if (tps.anh && tps.clip) tps.clip.after(tps.anh);   // 19/10 (4) user: Ảnh ghi nhận luôn ngay DƯỚI clip, kể cả bố cục đã chỉnh tay
     tbVach(luoi);
     var M0 = $id("modal"); if (M0._roTb) M0._roTb.disconnect(); if (window.ResizeObserver) { M0._roTb = new ResizeObserver(function (ds) { tbVach(luoi); if (ds.some(function (d) { return d.target !== luoi; })) lapCotPhai(); }); M0._roTb.observe(luoi);
       var kc = luoi.querySelector('[data-tp="clip"]'); if (kc) M0._roTb.observe(kc); }   // clip nạp xong mới đủ cao → tính lại chỗ cuộn
@@ -1101,7 +1110,8 @@
     var c = [];
     if (!b.clip && b.chupClip) c.push('<span class="hx-tag">Camera lúc chụp (chưa thấy người làm)</span>');
     var lsW = b.ls ? b.ls.ds.filter(function (x) { return !x.vatLy; }) : [], lsV = b.ls ? b.ls.ds.length - lsW.length : 0;   // 19/10 (6) đếm riêng lượt WMS / lượt không qua WMS (khớp 2 chip ở thanh bên)
-    if (lsW.length) c.push('<span class="hx-tag info" title="Lịch sử châm vào ô trên WMS — mở phiếu để xem từng lượt, gần giờ ghi nhận nhất trước">WMS ' + lsW.length + ' lượt · ' + b.ls.nguoi + ' người' + (lsW.filter(function (x) { return x.clip; }).length ? " · có clip" : "") + '</span>');
+    var demLoai = {}; lsW.forEach(function (x) { var k = loaiGon(x); demLoai[k] = (demLoai[k] || 0) + 1; });   // 19/10 (7) đếm THEO LOẠI (vd 3 châm hàng · 4 trả hàng đơn huỷ), không gộp thành «lượt châm»
+    if (lsW.length) c.push('<span class="hx-tag info" title="Lịch sử tác động vào ô trên WMS — mở phiếu để xem từng lượt, gần giờ ghi nhận nhất trước">WMS ' + Object.keys(demLoai).sort(function (a, z) { return demLoai[z] - demLoai[a]; }).map(function (k) { return demLoai[k] + ' ' + k; }).join(' · ') + ' · ' + b.ls.nguoi + ' người' + (lsW.filter(function (x) { return x.clip; }).length ? " · có clip" : "") + '</span>');
     if (lsV) c.push('<span class="hx-tag vl">Không qua WMS ' + lsV + ' lượt</span>');
     if (b.chupLui) c.push('<span class="hx-tag info">Dải 72 giờ</span>');
     if (b.clip) c.push('<span class="hx-tag good">' + (b.truy ? "Clip lúc đồ vật xuất hiện" : "Tác động WMS")   /* 19/10 (6) cùng tên chip ở thanh bên */ + '</span>');
@@ -1197,17 +1207,20 @@
       (pt ? '<div style="margin:2px 0 6px">Phụ trách kệ: <b>' + pt + '</b></div>' : "") +
       (LS.ds.length ? '<div class="hx-lans">' + dong + '</div>' : "") +
       /* 19/10 (6) danh sách lọc theo chip (data-che trên .hx-qd-ls): không có lượt WMS nào thì báo ở chế độ «Tác động WMS» */
-      (thuong.length ? "" : '<div class="muted hx-lan-trong" data-trong="wms">Không có lượt châm nào vào ô trong ' + LS.gioCuaSo + ' giờ trước giờ ghi nhận.</div>') + '</div>';
+      (thuong.length ? "" : '<div class="muted hx-lan-trong" data-trong="wms">Không có lượt WMS nào vào ô trong ' + LS.gioCuaSo + ' giờ trước giờ ghi nhận.</div>') + '</div>';
   }
   /* phụ đề «giờ · ai · làm gì» cho MỌI clip: gom mọi lượt (hệ thống kho + vật lý) rơi trong khung clip, bỏ mốc trùng ±90 s */
   /* 19/10 (4) user D «điện thoại không thấy loại tác động cạnh số lượng»: gọi đúng tên nghiệp vụ (TU-01: châm hàng, không «cất») theo khu nguồn WMS —
-     châm hàng (IT, PO/kho tổng, pallet, ô khác) · soạn hàng (pick) · hàng hoàn (bin RT) · hàng dư (bin PA) */
+     châm hàng (IT, PO/kho tổng, pallet, ô khác) · soạn hàng (pick) · hàng hoàn (bin RT) · hàng dư (bin PA)
+     19/10 (7) user DUYỆT tách «trả hàng đơn huỷ» (lệnh WMS REPUSH_ORDER_CANCEL_PUSH = loai «Trả hàng đơn huỷ», đưa thẳng từ giỏ F0-PA) khỏi châm hàng / hàng dư —
+     xét LOẠI LỆNH trước khu nguồn (13740905: 3 châm hàng + 4 trả hàng đơn huỷ). Tên chuẩn ở sổ từ ngữ tu-ngu.mjs (LOAI_TAC_DONG). */
   function loaiTD(x) {
     var c = (x.nguon && x.nguon.chu) || "", l = String(x.loai || "");
+    if (/trả hàng đơn (huỷ|hủy)|REPUSH_ORDER_CANCEL/i.test(l)) return "trả hàng đơn huỷ";
     if (/^Nhận hàng IT/.test(c)) return "châm hàng (IT)";
     if (/^Hàng hoàn/.test(c)) return "hàng hoàn (bin RT)";
     if (/^Hàng trả không phù hợp/.test(c)) return "hàng hoàn (bin NG)";
-    if (/^Đơn huỷ trả kệ/.test(c) || /đơn huỷ|đơn hủy/i.test(l)) return "hàng dư (bin PA)";
+    if (/^Đơn huỷ trả kệ/.test(c)) return "hàng dư (bin PA)";   // giỏ F0-PA nhưng KHÔNG phải lệnh trả đơn huỷ (pick dư trả kệ)
     if (/^Từ pallet/.test(c)) return "châm hàng (" + c.replace(/^Từ /, "") + ")";
     if (/^Chuyển từ ô khác/.test(c)) return "châm hàng (từ ô " + (x.nguon.tu || "khác") + ")";
     if (/^Từ xe khác/.test(c)) return "châm hàng (từ xe khác)";
@@ -1215,6 +1228,7 @@
     if (/kho tổng|PUSH_MASTER/i.test(l)) return "châm hàng (PO/kho tổng)";
     return "châm hàng";
   }
+  function loaiGon(x) { return loaiTD(x).replace(/ \(.*\)$/, ""); }   // tên loại không kèm ngoặc — để đếm theo loại
   function suKienClip(LS, bdMs, goc) {   // 19/10 suKien của clip có lúc không phải mảng (dữ liệu 8591) ⇒ trước đây văng lỗi, mở phiếu hỏng
     var sk = (Array.isArray(goc) ? goc : []).map(function (x) { return { t: Date.parse(String(x.t).replace(" ", "T") + "+07:00"), chu: ngayChu(x.chu), vl: !!x.vl }; });
     /* phụ đề máy chủ ghi «… châm 40 lúc …» → thay bằng «40 cái · <loại tác động>» của đúng lượt WMS đó (±90 s); không khớp lượt nào thì «40 cái · châm hàng» */
@@ -1405,8 +1419,7 @@
     $id("mBody").querySelectorAll(".hx-qd-nguon [data-ng]").forEach(function (b) { b.onclick = function () { xem(Number(b.dataset.ng)); che("wms"); }; });
     /* 19/10 (4) «Ảnh ghi nhận»: bật/tắt ảnh ngay DƯỚI clip — clip vẫn chạy nguồn đang chọn, không thay chỗ */
     var anhTp = $id("mBody").querySelector('.hx-tb-luoi [data-tp="anh"]'), nutA = $id("mBody").querySelector("[data-anhgn]");
-    if (anhTp) anhTp.hidden = true;
-    if (nutA && anhTp) nutA.onclick = function () { var mo = anhTp.hidden; anhTp.hidden = !mo; nutA.classList.toggle("on", mo); nutA.setAttribute("aria-pressed", String(mo)); lapCotPhai(); };
+    ganNutAnh();
     $id("mBody").querySelectorAll("[data-lan]").forEach(function (b) { var chay = function (ev) { if (ev.target.closest("[data-vlgo]")) return; var i = Number(b.dataset.lan); if (i < 0) return;
       $id("mBody").querySelectorAll("[data-lan]").forEach(function (z) { z.classList.toggle("on", z === b); }); xem(i); $id("qdKhung").scrollIntoView({ block: "nearest", behavior: "smooth" }); };
       b.onclick = chay; b.onkeydown = function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); chay(ev); } }; });
