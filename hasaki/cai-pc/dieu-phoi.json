@@ -155,6 +155,21 @@
       ]
     },
     {
+      "ten": "may-chu-xm-du-phong",
+      "_doc": "19/10 user: laptop tat thi dien thoai van phai xem duoc Theo tac vu / Theo may / Nhat ky. May chu 8591 ban CHI XEM + duong ham Cloudflare + keo du lieu kho Drive 15'. Ghim QLIT, du phong FOQ5T89. Ghi quyet dinh chi o laptop.",
+      "xml": "5S_May_chu_Xac_minh_du_phong.xml",
+      "vbs": "may-chu-du-phong-hidden.vbs",
+      "nang": false,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY"
+      ],
+      "uuTien": [
+        "HSK-KHO170-QLIT",
+        "DESKTOP-FOQ5T89"
+      ]
+    },
+    {
       "ten": "dong-bo-dashboard",
       "xml": "5S_Dong_bo_dashboard.xml",
       "vbs": "auto-export-hidden.vbs",

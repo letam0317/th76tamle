@@ -1550,13 +1550,28 @@ window.HX_API = "http://127.0.0.1:8591";
 window.hxDoMayChu = function(){
   if (window.__HX_DO) return window.__HX_DO;
   var ping = function(u, ms){ var c = new AbortController(); setTimeout(function(){ c.abort(); }, ms);
-    return fetch(u + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return u; }); };
+    return fetch(u + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return r.json().catch(function(){ return {}; }); })
+      .then(function(j){ if (j && j.duPhong) window.__HX_DU_PHONG = 1; return u; }); };
   var docTep = function(goc){ return fetch(goc + "summary/xm-may-chu.json?t=" + Date.now(), { cache: "no-store" }).then(function(r){ return r.json(); })
     .then(function(j){ if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(j.url || "")) throw 0; return ping(j.url, 8000); }); };
+  /* 19/10 user «laptop tắt thì điện thoại phải xem được»: laptop không trả lời → hỏi Apps Script (pcBangPh, cần phiên tài khoản) địa chỉ
+     máy chủ DỰ PHÒNG trên PC (may-chu-du-phong.mjs, gửi kèm nhịp tim) — bản đó CHỈ CHO XEM. Không nhớ địa chỉ dự phòng (laptop bật lại thì về laptop). */
+  var duPhong = function(){ var T = window.TK, ph = T && T.phien; if (!ph) return Promise.reject(0);
+    return fetch("https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec",
+      { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "pcBangPh", ph: ph }) })
+      .then(function(r){ return r.json(); }).then(function(j){ var now = j.srvNow || Date.now();
+        var ds = (j.may || []).filter(function(m){ return m.xmHam && now - Date.parse(m.luc) < 6 * 60e3; });
+        if (!ds.length) throw 0;
+        return new Promise(function(ok, hong){ var con = ds.length; ds.forEach(function(m){ ping(m.xmHam, 8000).then(ok, function(){ if (!--con) hong(0); }); }); }); })
+      .then(function(u){ window.__HX_DU_PHONG = 1; return u; }); };
   var ham = function(){ var cu = ""; try { cu = localStorage.getItem("hx-ham") || ""; } catch(e){}
-    return (cu ? ping(cu, 6000) : Promise.reject(0)).catch(function(){ return docTep(window.GOC_DL || ""); })
+    return (cu ? ping(cu, 6000).then(function(u){ if (window.__HX_DU_PHONG) { window.__HX_DU_PHONG = 0; throw 0; } return u; }) : Promise.reject(0))
+      .catch(function(){ return docTep(window.GOC_DL || ""); })
       .catch(function(){ return docTep("https://raw.githubusercontent.com/letam0317/kiemsoatkho/main/"); })
-      .then(function(u){ try { localStorage.setItem("hx-ham", u); } catch(e){} window.__HX_QUA_HAM = 1; return u; }); };
+      .then(function(u){ if (!window.__HX_DU_PHONG) try { localStorage.setItem("hx-ham", u); } catch(e){} return u; }, duPhong)
+      .then(function(u){ window.__HX_QUA_HAM = 1;
+        if (window.__HX_DU_PHONG && typeof toast === "function") setTimeout(function(){ toast("Laptop đang tắt — đang xem bản dự phòng (chỉ xem, quyết định làm khi laptop bật)", "loi"); }, 600);
+        return u; }); };
   var p = window.__HX_KHONG_MAY ? ham() : ping("http://127.0.0.1:8591", 1500).catch(function(){ return ham(); });
   return window.__HX_DO = p.then(function(u){ window.HX_API = u; window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); return true; },
     function(){ var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_KHONG_MAY) window.__HX_CHAN = 1; return false; });

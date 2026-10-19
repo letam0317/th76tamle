@@ -22,6 +22,10 @@ const GOC = "http://127.0.0.1:" + (process.env.BANG591_PORT || 8591);
 const KHOA = path.join(DIR, ".duong-ham-591.pid");
 const TEP = "summary/xm-may-chu.json";
 const LOG = path.join(DIR, "duong-ham-591.log");
+/* 19/10 bản DỰ PHÒNG trên PC (XM_DU_PHONG=1, may-chu-du-phong.mjs): KHÔNG ghi summary/xm-may-chu.json (đó là địa chỉ laptop — laptop luôn ưu tiên);
+   địa chỉ ghi ra .duong-ham-591.url → nhip-pc.mjs gửi kèm nhịp tim (xmHam) → trang tìm qua Apps Script pcBangPh khi laptop tắt. */
+const DU_PHONG = process.env.XM_DU_PHONG === "1";
+const TEP_URL = path.join(DIR, ".duong-ham-591.url");
 const log = (...a) => { const d = new Date().toLocaleString("vi-VN", { hour12: false }) + " " + a.join(" "); console.log(d); try { fs.appendFileSync(LOG, d + "\n"); } catch { /* */ } };
 
 // ---- chỉ 1 bản ----
@@ -57,12 +61,14 @@ function chay() {
     const m = String(b).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (!m || URLH) return;
     URLH = m[0]; log("địa chỉ:", URLH);
+    try { fs.writeFileSync(TEP_URL, JSON.stringify({ url: URLH, pid: process.pid, luc: new Date().toISOString() })); } catch { /* */ }
     for (let i = 0; i < 24 && !(await pingQuaHam(URLH)); i++) await new Promise((r) => setTimeout(r, 5000));   // DNS mới cần vài giây
+    if (DU_PHONG) return log("bản dự phòng — địa chỉ gửi kèm nhịp tim, không ghi GitHub");
     let cu = {}; try { cu = JSON.parse(fs.readFileSync(path.join(DIR, "kiemsoatkho", TEP), "utf8")); } catch { /* */ }
     if (cu.url !== URLH) await ghiGithub({ url: URLH, luc: new Date().toISOString() });
   };
   CF.stdout.on("data", doc); CF.stderr.on("data", doc);
-  CF.on("exit", (c) => { log("cloudflared thoát, mã", c, "— chạy lại sau 10 s"); CF = null; setTimeout(chay, 10000); });
+  CF.on("exit", (c) => { try { fs.unlinkSync(TEP_URL); } catch { /* */ } log("cloudflared thoát, mã", c, "— chạy lại sau 10 s"); CF = null; setTimeout(chay, 10000); });
 }
 setInterval(async () => {
   if (!CF || !URLH) return;

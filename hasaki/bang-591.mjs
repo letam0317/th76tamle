@@ -32,6 +32,10 @@ const WEB = path.join(DIR, "bang-591");
 const SO_QD = path.join(EXP, "bang-591-quyet-dinh.json");
 const PORT = Number(process.env.BANG591_PORT || 8591);
 const LAN = process.argv.includes("--lan");
+/* 19/10 user «laptop tắt thì điện thoại phải xem được»: PC luôn bật chạy bản DỰ PHÒNG (may-chu-du-phong.mjs, XM_DU_PHONG=1) với dữ liệu kéo từ kho Drive.
+   Bản dự phòng CHỈ CHO XEM: mọi lệnh ghi (POST, trừ đăng nhập/đăng xuất) trả 503 ⇒ quyết định chỉ ghi ở 1 nguồn (laptop), không trùng/không mất.
+   Không gửi gói khoá lên GAS (gói phải luôn theo .env laptop). */
+const DU_PHONG = process.env.XM_DU_PHONG === "1";
 const KHOA = process.env.BANG591_KHOA || "";
 const QD = ["Lập phiếu (NV Hasaki)", "Không phải NV Hasaki", "Xe ra / không vi phạm", "Không rõ – bỏ qua"];
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
@@ -431,7 +435,7 @@ const sv = http.createServer(async (q, s) => {
       let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
       const kq = dangNhap(o.email, o.matKhau);
       log(kq.phien ? "đăng nhập Xác minh: " + kq.email : "đăng nhập Xác minh SAI: " + String(o.email || "").slice(0, 60));
-      if (kq.phien) dongBoMkGas(kq.email, String(o.matKhau || ""));   // 13/10: cùng mật khẩu mở tab Máy trạm trên điện thoại (GAS chỉ giữ băm)
+      if (kq.phien && !DU_PHONG) dongBoMkGas(kq.email, String(o.matKhau || ""));   // 13/10: cùng mật khẩu mở tab Máy trạm trên điện thoại (GAS chỉ giữ băm)
       return kq.phien ? guiJ(s, 200, kq) : guiJ(s, kq.code, { loi: kq.loi });
     }
     if (p === "/api/dang-xuat" && q.method === "POST") { dangXuat(phien); return guiJ(s, 200, { ok: 1 }); }
@@ -450,8 +454,9 @@ const sv = http.createServer(async (q, s) => {
     if (canPhien && (trinhDuyet || !noiBo) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
     /* 14/10: phiên «chỉ xem» (quyền Xác minh = xem) không được gọi lệnh ghi */
     if (canPhien && q.method === "POST" && (kiemPhien(phien) || {}).chiXem) return guiJ(s, 403, { loi: "Tài khoản chỉ có quyền xem phần Xác minh" });
+    if (DU_PHONG && q.method === "POST" && p.startsWith("/api/")) return guiJ(s, 503, { loi: "Laptop đang tắt — đang xem bản dự phòng (chỉ xem). Quyết định / ghi chú làm khi laptop bật lại.", duPhong: 1 });
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
-    if (p === "/api/ping") return guiJ(s, 200, { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
+    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1 } : { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
     if (p === "/api/may-tram/duyet-khoa" && q.method === "POST") {   // 14/10: duyệt / từ chối PC xin khoá (bộ cài tải trên PC, không khoá) → GAS pcDuyetKhoa
@@ -632,6 +637,6 @@ const sv = http.createServer(async (q, s) => {
 });
 sv.listen(PORT, LAN ? "0.0.0.0" : "127.0.0.1", () => {
   log(`Bảng WF591: http://127.0.0.1:${PORT}/`);
-  setTimeout(dayGoiGas, 5000);   // 14/10: gói khoá cho nút «Tải bộ cài PC» trên máy bất kỳ (sau đăng nhập) — luôn theo .env laptop
+  if (!DU_PHONG) setTimeout(dayGoiGas, 5000);   // 14/10: gói khoá cho nút «Tải bộ cài PC» trên máy bất kỳ (sau đăng nhập) — luôn theo .env laptop
   if (LAN) for (const a of Object.values(os.networkInterfaces()).flat()) if (a.family === "IPv4" && !a.internal) log(`  LAN: http://${a.address}:${PORT}/${KHOA ? "#khoa=" + KHOA : ""}`);
 });
