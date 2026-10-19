@@ -14,7 +14,10 @@ const ngu = (ms) => new Promise((r) => setTimeout(r, ms));
 const b = await puppeteer.launch({ executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: "new" });
 const loi = []; let dat = 0; const ok = (dk, ten) => { if (dk) dat++; else loi.push(ten); };
 for (const m of MAY) {
-  const p = await b.newPage(); await p.evaluateOnNewDocument((hx) => { try { if (hx) localStorage.setItem("hx-phien", hx); localStorage.removeItem("hx-loc");
+  const p = await b.newPage(); await p.evaluateOnNewDocument(() => {   // 19/10 vùng chạm THẬT: đo bằng elementFromPoint dọc trục giữa (nút gọn + ::after nới vùng chạm vẫn tính đúng)
+    window.__qcCham = (e) => { if (e.id !== "mClose") e.scrollIntoView({ block: "end" }); const r = e.getBoundingClientRect(); if (!r.height) return 0; const x = r.left + r.width / 2; let n = 0;
+      for (let y = Math.floor(r.top - 12); y <= Math.ceil(r.bottom + 12); y++) { const h = document.elementFromPoint(x, y); if (h && (h === e || e.contains(h))) n++; } return n; }; });
+  await p.evaluateOnNewDocument((hx) => { try { if (hx) localStorage.setItem("hx-phien", hx); localStorage.removeItem("hx-loc");
     /* Xác minh chỉ mở với tài khoản có quyền r.xacminh — phiên tài khoản QC giả như qc-dong-bo-antd (lượt kiểm phiên là POST, bị chặn) */
     localStorage.setItem("tk-phien", "qc"); localStorage.setItem("tk-nho", JSON.stringify({ ts: Date.now(), nguoi: { id: "qc", ten: "QC", vaiTro: "quantri" }, quyen: { "r.xacminh": "lam" } })); } catch (e) {} }, PHIEN_QC);
   await p.setViewport({ width: m.w, height: m.h, deviceScaleFactor: 1, isMobile: m.mob, hasTouch: m.mob });
@@ -30,7 +33,7 @@ for (const m of MAY) {
   const tt = () => p.evaluate(() => { const M = document.getElementById("modal"), bx = M.querySelector(".modal-box").getBoundingClientRect();
     return { show: M.classList.contains("show"), ben: M.classList.contains("hx-ben"), vis: getComputedStyle(M).visibility, trai: Math.round(bx.left), phai: Math.round(bx.right), mep: document.documentElement.clientWidth, rong: Math.round(bx.width),
       nen: getComputedStyle(M).backgroundColor, hien: getComputedStyle(M).display !== "none" && getComputedStyle(M).visibility === "visible", tieuDe: document.getElementById("mTitle").textContent, to: [...document.querySelectorAll(".tb-dangxem")].filter((e) => e.getBoundingClientRect().height > 0).map((e) => e.dataset.p || e.dataset.lid),
-      ngang: document.documentElement.scrollWidth - innerWidth, dong: Math.round(document.getElementById("mClose").getBoundingClientRect().height) }; });
+      ngang: document.documentElement.scrollWidth - innerWidth, dong: window.__qcCham(document.getElementById("mClose")) }; });
   const benTrai0 = await p.evaluate(() => document.body.classList.contains("side-open"));
   const boCuc = () => p.evaluate(() => { const R = (s) => { const e = document.querySelector(s); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return r.width && r.height ? { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom) } : null; };
     const img = document.getElementById("qdAnhGN");
@@ -51,7 +54,7 @@ for (const m of MAY) {
   ok(/rgba\(0, 0, 0, 0\)|transparent/.test(t1.nen), m.ten + ": T1 không phủ nền (" + t1.nen + ")");
   if (!m.mob) ok(t1.trai > 300, m.ten + ": T1 còn chỗ bên trái để bấm dòng (trái=" + t1.trai + ")");
   else ok(t1.rong >= m.w - 1 && t1.dong >= 44, m.ten + ": T6 điện thoại phủ ngang, nút Đóng " + t1.dong + "px");
-  if (m.mob) { const thap = await p.evaluate(() => [...document.querySelectorAll("#mBody .hx-qd-nguon button, #mBody .hx-lan, #qdLuu")].filter((e) => e.getBoundingClientRect().height && e.getBoundingClientRect().height < 40).map((e) => e.textContent.trim().slice(0, 20)));
+  if (m.mob) { const thap = await p.evaluate(() => [...document.querySelectorAll("#mBody .hx-qd-nguon button, #mBody .hx-lan, #qdLuu")].filter((e) => e.getBoundingClientRect().height && window.__qcCham(e) < 40).map((e) => e.textContent.trim().slice(0, 20)));
     ok(!thap.length, m.ten + ": T6 vùng chạm ≥40px " + thap); }
   ok(t1.to.length === 1 && t1.to[0] === ids[0], m.ten + ": T3 tô dòng đang xem " + t1.to);
   if (A.anh) await p.screenshot({ path: A.anh + "/thanh-ben-" + m.ten + "-1.png" });

@@ -262,6 +262,29 @@
         "#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu+#qdMsg:empty+*,#modal.hx-ben .hx-tb-luoi .hx-qd-ben>#qdLuu+#qdMsg:not(:empty)+*{border-top:0;padding-top:0}" +
         "#modal.hx-ben .hx-toc button.dang:not(.on){background:color-mix(in srgb,var(--accent) 16%,var(--surface));color:var(--accent)}#modal.hx-ben .hx-tb-luoi .hx-chot{margin:0!important;overflow-y:auto;overscroll-behavior:contain}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung:has(>[data-tp=clip]){order:-1}#modal.hx-ben .hx-tb-luoi .hx-tb-khung,#modal.hx-ben .hx-tb-luoi .hx-tb-tp{grid-column:1/-1}#modal.hx-ben .hx-tb-khung{padding:12px 16px}}" +
+        /* 19/10 user (video điện thoại): Quyết định BỎ dính đáy — cuộn theo nội dung, 2 thanh như nhau · khung clip DÍNH TRÊN (dưới đầu thanh), mục khác cuộn bên dưới */
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=quyetdinh]{position:static!important;box-shadow:none!important}" +
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=clip]{position:sticky;top:var(--hx-dau,0px);z-index:5;background:var(--surface);padding-bottom:6px}" +
+        /* điện thoại / thanh hẹp: bỏ vỏ khung để clip dính suốt cả thanh (không chỉ trong khung của nó); thứ tự clip → ai tác động → phần còn lại */
+        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi{row-gap:10px;padding-bottom:16px!important}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung{display:contents!important}" +
+          "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>.hx-tb-tp{grid-column:1/-1!important;width:auto!important;align-self:stretch;padding-left:16px;padding-right:16px;margin:0!important}" +
+          "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=clip]{order:-2;padding-top:8px;padding-bottom:8px;box-shadow:0 1px 0 var(--ad-chia,var(--border))}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=aitacdong]{order:-1}" +
+          /* thanh thời gian + ▶ giờ + Tự động/×1/×2/×3 CÙNG 1 HÀNG như web; nút gọn 24px, vùng chạm nới bằng ::after (≥40px thật) */
+          "#modal.hx-ben .hx-tb-luoi .hx-tl-hang{flex-wrap:nowrap!important;gap:6px}#modal.hx-ben .hx-tb-luoi .hx-tl-hang>.hx-tl{flex:1 1 auto!important;min-width:48px!important}" +
+          "#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-vbar{gap:4px}#modal.hx-ben .hx-tb-luoi .hx-tl-hang .gio{min-width:50px;font-size:11px!important}" +
+          "#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-toc{overflow:visible}#modal.hx-ben .hx-tb-luoi .hx-tl-hang .hx-toc button{padding:0 5px!important;font-size:11px!important}" +
+          "#modal.hx-ben .hx-tb-luoi .hx-tl-hang :is(.hx-toc button,#hxPlay){position:relative}#modal.hx-ben .hx-tb-luoi .hx-tl-hang :is(.hx-toc button,#hxPlay)::after{content:'';position:absolute;left:0;right:0;top:-8px;bottom:-8px}" +
+          /* phụ đề theo thời gian + hàng «Máy soi camera…» + nút Clip camera giờ kho / Khung camera: chữ 12px, nút 28px (chạm 40px) */
+          "#modal.hx-ben .hx-tb-luoi .hx-pd{font-size:12px!important;line-height:1.4;padding:6px 8px!important}#modal.hx-ben .hx-tb-luoi .hx-pd :is(span,.gio,b){font-size:12px!important}" +
+          "#modal.hx-ben .hx-tb-luoi .hx-vl-tt{font-size:12px!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau{gap:4px 8px}" +
+          "#modal.hx-ben .hx-tb-luoi .hx-qd-nguon button{position:relative;min-height:28px!important;height:28px;padding:0 10px!important;font-size:12px!important}#modal.hx-ben .hx-tb-luoi .hx-qd-nguon button::after{content:'';position:absolute;left:0;right:0;top:-6px;bottom:-6px}}" +
+        /* đầu thanh trên điện thoại: Đóng / Ghi chú / Mở task gọn 30px (chạm 44px), tiêu đề 2 dòng nhỏ không bẻ vụn */
+        "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{z-index:8}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
+        "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:11px 12px 9px!important;gap:6px!important;flex-shrink:0}" +
+          "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head :is(#mClose,.hx-gc-nut,.hx-motask){position:relative;min-height:30px!important;height:30px;padding:0 8px!important;font-size:13px!important;border-radius:6px}" +
+          "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head :is(#mClose,.hx-gc-nut,.hx-motask)::after{content:'';position:absolute;left:0;right:0;top:-8px;bottom:-8px}" +
+          "#modal.hx-ben:has(#mBody .hx-tb-luoi) #mTitle{display:flex;flex-direction:column;align-items:flex-end;gap:0}#modal.hx-ben:has(#mBody .hx-tb-luoi) #mTitle .hx-mt1{font-size:13px!important;line-height:16px;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;max-width:100%}" +
+          "#modal.hx-ben:has(#mBody .hx-tb-luoi) #mTitle .hx-mt2{font-size:11px!important;line-height:14px;white-space:nowrap}}" +
       /* 1 cột (thanh hẹp / điện thoại): bỏ vỏ cột, xếp video → ảnh ghi nhận → quyết định → ai tác động */
       "@container (max-width:820px){#modal.hx-ben .hx-qd{display:flex;flex-direction:column}#modal.hx-ben .hx-cot{display:contents}" +
         "#modal.hx-ben .hx-qd-xem{order:1}#modal.hx-ben .hx-qd-anh{order:2}#modal.hx-ben .hx-qd-ben{order:3;grid-template-columns:minmax(0,1fr)}#modal.hx-ben .hx-qd-ls{order:4}" +
@@ -929,6 +952,8 @@
   /* 16/10 (6)(7) cột phải: phần DỮ LIỆU dưới ảnh (Ai tác động · Người trong khung đỏ) cuộn RIÊNG, cao vừa chỗ còn lại tới đáy thanh —
      không bắt cuộn cả thanh. «Ai tác động» tối đa 5 dòng (đo thật, đo 2 lần vì thanh cuộn làm dòng hẹp lại). Xếp chồng (hẹp/điện thoại) thì để tự nhiên. */
   function lapCotPhai(daLang) { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng");
+    var hd0 = bx && bx.querySelector(".modal-head"), M1 = $id("modal");   // 19/10 clip dính ngay dưới đầu thanh (đầu thanh cũng dính) — bám cao đầu thanh khi tiêu đề đổi
+    if (hd0) { M1.style.setProperty("--hx-dau", hd0.offsetHeight + "px"); if (!M1._roDau && window.ResizeObserver) { M1._roDau = new ResizeObserver(function () { M1.style.setProperty("--hx-dau", hd0.offsetHeight + "px"); }); M1._roDau.observe(hd0); } }
     var imA0 = $id("mBody").querySelector(".hx-tb-luoi .hx-qd-anh img"); if (imA0) imA0.style.removeProperty("max-height");
     var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.style.marginBottom = ""; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
     /* 17/10 (2) «Sẽ ghi nhận» dưới Ảnh ghi nhận, đứng CẠNH clip: nhiều người nghi thì cuộn riêng tới đáy clip — không đẩy cao cả hàng clip (cả thanh phải cuộn) */
@@ -956,11 +981,12 @@
     tran = bx.scrollHeight - bx.clientHeight; if (sg && kh && tran > 1 && window.innerWidth > 760 && sg.clientHeight > 72 && EV && EV.ng && EV.ng.length >= 2) sg.style.maxHeight = Math.max(72, Math.floor(sg.clientHeight - tran)) + "px";   // 17/10 (9) user «không làm cuộn khung này»: 1 người thì không bao giờ cuộn
     qdDay(bx, qdTp); }
   /* 17/10 (4) user «Quyết định chốt cứng phía dưới thanh bên phải»: còn chỗ trống dưới cùng thì đẩy khối Quyết định xuống sát đáy; thanh dài phải cuộn thì
-     khối dính đáy (position:sticky) — luôn thấy, không trôi. */
+     khối dính đáy (position:sticky) — luôn thấy, không trôi. 19/10 user BỎ dính đáy (cuộn theo nội dung, 2 thanh như nhau); thanh hẹp/điện thoại không kéo xuống đáy. */
   var QD_CACH_DAY = 37;   // 17/10 (6) lên 3 cm (113px) → 17/10 (8) user «di chuyển xuống 2cm» (−76px) ⇒ cách đáy ~1 cm
   function qdDay(bx, qd) {
     if (!qd || !bx) return; qd.style.marginTop = "";   // trả về margin-top:auto (CSS) — trong khung cột, Quyết định tự xuống đáy khung
     var L = qd.closest(".hx-tb-luoi"), pb = parseFloat(getComputedStyle($id("mBody")).paddingBottom) || 0; L.style.minHeight = "";
+    if (bx.clientWidth <= 820) { qd.style.marginBottom = ""; return; }   // 19/10 thanh hẹp/điện thoại: Quyết định nằm ngay sau nội dung, không kéo xuống đáy
     var rL = L.getBoundingClientRect(), du = bx.getBoundingClientRect().bottom - rL.bottom - pb;
     du -= QD_CACH_DAY;   // 17/10 (6) user «cụm Quyết định di chuyển lên trên 3cm»
     if (bx.scrollHeight <= bx.clientHeight + 1 && du > 2) L.style.minHeight = Math.floor(rL.height + du) + "px";   // lưới giãn → khung giãn → Quyết định cách đáy thanh QD_CACH_DAY
