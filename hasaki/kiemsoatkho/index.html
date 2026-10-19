@@ -7,7 +7,7 @@
    github.io/stocklocationfactory/… → audit-dc.pages.dev/factory/… (giữ ?tab= / tệp con / #). localStorage là theo TỪNG tên miền ⇒ mang theo các khoá
    của máy (khoá thiết bị tb-khoa, phiên tài khoản tk-phien, phiên Xác minh hx-phien, theme…) qua #mang=… ; bên audit-dc chỉ GHI KHOÁ CHƯA CÓ (không đè).
    Ở lại github.io để soát lỗi: thêm ?o-lai=1. Khối này của phiên chuyển tên miền — phiên khác đừng sửa. */
-(function(){var BAT=false;/* 14/10 user «tạm thời ngưng trỏ» — bật lại: true */try{var H=location.hostname,ls=window.localStorage;
+(function(){var BAT=true;/* 14/10 user «tạm thời ngưng trỏ» (false) — 19/10 user BẬT LẠI: github.io trỏ sang audit-dc */try{var H=location.hostname,ls=window.localStorage;
 if(H==='letam0317.github.io'){if(!BAT||/[?&]o-lai=1/.test(location.search))return;
 var ap=/^\/stocklocationfactory/.test(location.pathname)?'factory':'retail',tep=location.pathname.replace(/^\/(kiemsoatkho|stocklocationfactory)\/?/,'').replace(/^index\.html$/,'');
 var m={},n=0;for(var i=0;i<ls.length;i++){var k=ls.key(i),v=ls.getItem(k);if(v!=null&&v.length<4000&&n<30000){m[k]=v;n+=v.length+k.length;}}
@@ -3475,7 +3475,7 @@ function moHasakiXacMinh(){
   if(!window.__HX_MAY_CHU){ window.hxDoMayChu().then(co=>{ if(co) moHasakiXacMinh(); else setTab("maytram"); }); return; }   // 19/10: chờ dò máy chủ (laptop hoặc đường hầm); không có thì về Máy trạm (tránh ô đăng nhập lặp)
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261019q';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261019r';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });

@@ -292,7 +292,7 @@
           "body:has(#modal.hx-ben.show #mBody .hx-tb-luoi) #sideToggle{translate:0 -72px!important;opacity:0!important;pointer-events:none!important}}" +
         /* 19/10 (4) A: hàng nguồn Theo tác vụ 1 hàng trái→phải; «Không qua WMS» xám khi máy không thấy lượt nào; Ảnh ghi nhận (bật/tắt) ngay dưới clip */
         "#modal.hx-ben .hx-tb-luoi .hx-tb-tp[hidden]{display:none!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{justify-content:flex-start}" +
-        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang>.hx-qd-nguon{margin-left:0!important;flex:1 1 auto;flex-wrap:wrap!important;gap:6px;justify-content:flex-start}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang>.hx-qd-nguon{margin-left:0!important;flex:1 1 auto;min-width:0;flex-wrap:nowrap!important;overflow:visible!important;gap:6px;justify-content:flex-start}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:clip;overflow-clip-margin:8px;text-overflow:ellipsis}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{margin-top:14px!important}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon{gap:4px}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{padding:0 7px!important;font-size:12px!important}#modal.hx-ben .hx-lan .ai small{white-space:normal!important;overflow:visible;text-overflow:clip}}" +
         "#modal.hx-ben .hx-ng-hang button:disabled{opacity:.5;cursor:default}#modal.hx-ben .hx-ng-so{display:inline-block;min-width:16px;margin-left:4px;padding:0 4px;border-radius:8px;background:#d46b08;color:#fff;font-size:11px;line-height:16px;text-align:center}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
         "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:8px 12px!important;gap:6px!important;flex-shrink:0;min-height:0!important}" +
@@ -1033,7 +1033,7 @@
   /* 17/10 (7) user «khung Ảnh ghi nhận và clip đổi vị trí cho nhau (kể cả Ghi chú/Đóng ⇄ tiêu đề) · clip tăng kích thước cho vừa thanh»:
      TRÁI 4/12 = Ảnh ghi nhận → … → Lỗi → Máy gợi ý → Quyết định · PHẢI 8/12 = clip (+ Ai tác động dưới clip) */
   var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }] }],
-    tacvu: [{ id: "k2", rong: 4, ds: [{ id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "anh" }] }] };   // 19/10 (4) Ảnh ghi nhận DƯỚI clip (bật bằng nút), bỏ «Ai tác động ô»
+    tacvu: [{ id: "k2", rong: 4, ds: [{ id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "anh" }, { id: "aitacdong" }] }] };   // 19/10 (4) Ảnh ghi nhận DƯỚI clip (bật bằng nút) · (5) danh sách ai tác động giữ, chỉ bỏ dòng tiêu đề
   var TB_TEN = { clip: "Camera / clip", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
@@ -1185,11 +1185,12 @@
         '<span class="gio">' + e_(x.at.slice(8, 10) + "/" + x.at.slice(5, 7) + " " + x.at.slice(11, 16)) + '<small>trước ' + e_(x.truocGio < 24 ? soVN(x.truocGio) + " giờ" : soVN(Math.round(x.truocGio / 24 * 10) / 10) + " ngày") + '</small></span>' +
         '<span class="ai"><b>' + e_(x.ten) + '</b>' + (x.ma ? ' <span class="muted">' + e_(x.ma) + '</span>' : "") +
           (vl ? '<small><span class="hx-tag vl">Không qua hệ thống</span> ' + e_(x.loai) + (x.nguonVL === "may" ? " · máy soi camera" + (x.moTa ? " · " + e_(x.moTa.slice(0, 90)) + (x.moTa.length > 90 ? "…" : "") : "") : "") + '</small>'
-            : x.nguon ? '<small class="hx-nguon-lan" title="' + e_(x.nguon.chiTiet) + '">' + e_(x.qty) + ' cái' + (ngChung ? "" : ' · ' + e_(chuNg(x))) + '</small>'   /* số lượng đứng ĐẦU — dòng hẹp cắt «…» ở đuôi không mất số */
-            : '<small>' + (x.loai !== loaiChinh ? e_(x.loai) + ' · ' : "") + e_(x.qty) + ' cái</small>') + '</span>' +
+            /* 19/10 (5) user D: MỌI dòng ghi «N cái · loại tác động» (châm hàng / soạn hàng / hàng hoàn / hàng dư) — bỏ dòng tiêu đề khối nên không dồn loại chung lên đó nữa */
+            : '<small class="hx-nguon-lan"' + (x.nguon ? ' title="' + e_(x.nguon.chiTiet) + '"' : "") + '>' + e_(x.qty) + ' cái · ' + e_(loaiTD(x)) + '</small>') + '</span>' +
         (vl && x.nguonVL !== "may" ? '<button class="hx-vl-go" data-vlgo="' + e_(x.at) + '|' + e_(x.ma) + '" aria-label="Gỡ ghi nhận">Gỡ</button>' : "") +
         '<span class="pl">' + (co ? "▶" : "–") + '</span></div>'; }).join("");
-    return '<div class="hx-qd-o"><span class="lbl">Ai tác động ô trước giờ ghi nhận · WMS ' + LS.gioCuaSo + ' giờ' + (ngChung ? '<span class="hx-ng-chung"> · hàng: ' + e_(ngChung) + '</span>' : "") + '</span>' +
+    /* 19/10 (5) user: BỎ dòng chữ «Ai tác động ô trước giờ ghi nhận · WMS 72 giờ» — danh sách ai tác động (bấm phát clip, nút Gỡ) giữ nguyên */
+    return '<div class="hx-qd-o">' +
       (pt ? '<div style="margin:2px 0 6px">Phụ trách kệ: <b>' + pt + '</b></div>' : "") +
       (LS.ds.length ? '<div class="hx-lans">' + dong + '</div>' : '<div class="muted">Không có lượt châm nào vào ô trong ' + LS.gioCuaSo + ' giờ trước giờ ghi nhận.</div>') + '</div>';
   }
@@ -1211,10 +1212,10 @@
   }
   function suKienClip(LS, bdMs, goc) {   // 19/10 suKien của clip có lúc không phải mảng (dữ liệu 8591) ⇒ trước đây văng lỗi, mở phiếu hỏng
     var sk = (Array.isArray(goc) ? goc : []).map(function (x) { return { t: Date.parse(String(x.t).replace(" ", "T") + "+07:00"), chu: ngayChu(x.chu), vl: !!x.vl }; });
+    /* phụ đề máy chủ ghi «… châm 40 lúc …» → thay bằng «40 cái · <loại tác động>» của đúng lượt WMS đó (±90 s); không khớp lượt nào thì «40 cái · châm hàng» */
+    sk.forEach(function (y) { if (y.vl) return; var x = LS && LS.ds.find(function (z) { return !z.vatLy && Math.abs(Date.parse(String(z.at).replace(" ", "T") + "+07:00") - y.t) < 9e4; });
+      y.chu = String(y.chu).replace(/châm (\d+)( cái)?/, function (m0, so) { return so + " cái · " + (x ? loaiTD(x) : "châm hàng"); }); });
     if (!LS || !bdMs) return sk;
-    /* phụ đề máy chủ ghi «… châm 40 lúc …» → thay bằng «40 cái · <loại tác động>» của đúng lượt WMS đó (±90 s) */
-    sk.forEach(function (y) { if (y.vl) return; var x = LS.ds.find(function (z) { return !z.vatLy && Math.abs(Date.parse(String(z.at).replace(" ", "T") + "+07:00") - y.t) < 9e4; });
-      if (x) y.chu = String(y.chu).replace(/châm (\d+)( cái)?/, function (m0, so) { return so + " cái · " + loaiTD(x); }); });
     LS.ds.forEach(function (x) { var t = Date.parse(String(x.at).replace(" ", "T") + "+07:00"); if (!(t >= bdMs - 5e3 && t <= bdMs + 6e5)) return;
       if (!x.vatLy && sk.some(function (y) { return !y.vl && Math.abs(y.t - t) < 9e4; })) return;
       sk.push({ t: t, vl: !!x.vatLy, chu: x.at.slice(11, 16) + " · " + x.ten + (x.ma ? " (" + x.ma + ")" : "") + " · " + (x.vatLy ? x.loai.charAt(0).toLowerCase() + x.loai.slice(1) + " — không qua WMS" : x.qty + " cái · " + loaiTD(x) + " (WMS)") }); });
@@ -1313,6 +1314,7 @@
           (anhGN ? '<button type="button" class="hx-ng-anh" data-anhgn aria-pressed="false">Ảnh ghi nhận</button>' : "") +
           nguon.map(function (n, i) { return n.an || n.k === "clip" ? "" : '<button data-ng="' + i + '">' + e_(n.ten) + '</button>'; }).join("") + '</span></div></div>') +
       (anhGN ? tp("anh", anhGN) : "") +
+      (LS ? tp("aitacdong", '<div class="hx-qd-ls">' + oLsKho(LS, lanIdx, ai) + '</div>') : "") +   // 19/10 (5) user: khôi phục danh sách ai tác động (chỉ bỏ dòng tiêu đề)
       tp("tinhtrang", tt ? '<div class="hx-qd-tt">' + e_(tt) + '</div>' : "") +
       tp("loi", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Lỗi</span><div class="hx-qd-loi" title="' + e_(p.loi) + '">' + e_(p.loi) + '</div></div>') +
       tp("goiy", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Máy gợi ý</span><div><b>' + e_(ai || "Chưa có ứng viên") + '</b>' + (p.goiY ? ' <span class="hx-tag ' + (MUC_MAY[mucMay(p)] || ["", ""])[1] + '">' + e_(String((MUC_MAY[mucMay(p)] || [""])[0]).replace(/^Máy gợi ý · /, "")) + '</span>' : "") + '</div></div>' +

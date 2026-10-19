@@ -76,16 +76,16 @@ for (const m of MAY) {
     /* 17/10 (5) user: dưới clip là «Ai tác động» (cột trái) · Lỗi / Máy gợi ý / Quyết định dưới Ảnh ghi nhận (cột phải) */
     ok(bc.ben && bc.ben.r <= bc.xem.l + 1 && (!bc.anh || bc.ben.t >= bc.anh.b - 1), m.ten + ": T10 Quyết định cột TRÁI (17/10 (7) đổi bên), DƯỚI Ảnh ghi nhận " + JSON.stringify([bc.xem, bc.anh, bc.ben]));
     ok(!bc.ls || (Math.abs(bc.ls.l - bc.xem.l) <= 2 && bc.ls.t >= bc.xem.b - 1), m.ten + ": T11 «Ai tác động» dưới clip, cùng cột trái " + JSON.stringify([bc.xem, bc.ls]));
-    ok(!bc.anh || (bc.anh.r <= bc.xem.l + 1 && Math.abs(bc.anh.t - bc.xem.t) <= 2), m.ten + ": T11 Ảnh ghi nhận cột TRÁI, cùng mép trên clip " + JSON.stringify([bc.anh, bc.xem]));
+    ok(!bc.anh || (Math.abs(bc.anh.l - bc.xem.l) <= 2 && bc.anh.t >= bc.xem.b - 1), m.ten + ": T11 Ảnh ghi nhận (khi bật) ngay DƯỚI clip, cùng cột (19/10 (4)) " + JSON.stringify([bc.anh, bc.xem]));
     ok(!bc.anh || !bc.khung || (bc.anh.t < bc.vh && bc.khung.t < bc.vh && bc.anhTai), m.ten + ": T13 video + ảnh ghi nhận cùng hiện một màn (ảnh tải được=" + bc.anhTai + ")");
     ok(bc.luu && bc.gc && Math.abs(bc.luu.b - bc.gc.b) <= 4 && bc.qd && bc.qd.b <= bc.gc.t + 1, m.ten + ": T14 Quyết định trên · Gán người khác + Lưu cùng một hàng (cột phải hẹp)");
   } else {
-    const thu = ["xem", "ls", "anh", "ben"].filter((k) => bc[k]).map((k) => bc[k].t);   // 17/10 (5) xếp chồng theo khung: trái (clip, ai tác động) → phải (ảnh … quyết định)
-    ok(thu.every((t, i) => !i || t > thu[i - 1]), m.ten + ": T16 điện thoại xếp video → ai tác động → ảnh ghi nhận → quyết định " + JSON.stringify(thu));
+    const thu = ["xem", "anh", "ls", "ben"].filter((k) => bc[k]).map((k) => bc[k].t);   // 17/10 (5) xếp chồng theo khung: trái (clip, ai tác động) → phải (ảnh … quyết định)
+    ok(thu.every((t, i) => !i || t > thu[i - 1]), m.ten + ": T16 điện thoại xếp video → ảnh ghi nhận (khi bật, 19/10 (4)) → ai tác động → quyết định " + JSON.stringify(thu));
   }
   /* 19/10 (4) user: 1 hàng trái→phải «Tác động WMS» · «Không qua WMS» · «Ảnh ghi nhận» (bật/tắt ảnh dưới clip); không còn «Khung camera N» */
   { const ng = bc.nguon.map((t) => t.replace(/\s*\d+$/, "")), iW = ng.indexOf("Tác động WMS"), iV = ng.indexOf("Không qua WMS"), iA = ng.indexOf("Ảnh ghi nhận");
-    ok(!ng.some((t) => /^Khung camera/.test(t)) && iV >= 0 && (iW < 0 || iW < iV) && (iA < 0 || iV < iA), m.ten + ": T12 hàng nguồn Tác động WMS → Không qua WMS → Ảnh ghi nhận, không «Khung camera» (" + bc.nguon.join(", ") + ")"); }
+    ok(!ng.some((t) => /^Khung camera/.test(t)) && (iV >= 0 || !bc.khung) && (iW < 0 || iV < 0 || iW < iV) && (iA < 0 || iV < iA), m.ten + ": T12 hàng nguồn Tác động WMS → Không qua WMS → Ảnh ghi nhận, không «Khung camera» (" + bc.nguon.join(", ") + ")"); }
   if (bc.anh) {   // T15 bấm ảnh → phóng to; Esc đóng phóng to, thanh vẫn mở
     await p.evaluate(() => document.getElementById("qdAnhGN").click()); await ngu(500);
     const lb = await p.evaluate(() => document.getElementById("lightbox").classList.contains("show"));
@@ -137,7 +137,11 @@ for (const m of MAY) {
         dem.thuKhung = t21.n + " khung · " + (t21.chu || "không hiện chữ").slice(0, 40);
         if (t21.phay || t21.n < 2 || !t21.chu) sai.push("lưới 72 giờ hỏng " + JSON.stringify(t21)); }
       if (x.nguon.some((t) => /^Khung camera|^Clip camera giờ kho/.test(t))) sai.push("còn nút nguồn cũ");
-      if (await p.evaluate(() => !!document.querySelector('#mBody [data-tp="aitacdong"], #mBody .hx-qd-ls'))) sai.push("còn khối Ai tác động ô");
+      /* 19/10 (5) user: chỉ BỎ dòng chữ «Ai tác động ô trước giờ ghi nhận…» — danh sách giữ; mỗi dòng WMS ghi «N cái · loại tác động» */
+      const ls5 = await p.evaluate(() => ({ tieuDe: /Ai tác động ô trước giờ ghi nhận/.test(document.getElementById("mBody").textContent), dong: [...document.querySelectorAll("#mBody .hx-lan:not(.vl) .hx-nguon-lan")].map((e) => e.textContent.trim()) }));
+      if (ls5.tieuDe) sai.push("còn dòng chữ «Ai tác động ô trước giờ ghi nhận»");
+      const thieuLoai = ls5.dong.filter((t) => !/^[0-9]+ cái · (châm hàng|soạn hàng|hàng hoàn|hàng dư)/.test(t)); if (thieuLoai.length) sai.push(thieuLoai.length + " dòng thiếu loại tác động: " + thieuLoai[0]);
+      dem.dongLoai = (dem.dongLoai || 0) + ls5.dong.length;
       /* 19/10 (4) bấm «Ảnh ghi nhận» → ảnh hiện NGAY DƯỚI khung clip, clip vẫn là nguồn cũ (không thay chỗ); bấm lại → ẩn */
       const a4 = await p.evaluate(async () => { const n = document.querySelector("#mBody [data-anhgn]"); if (!n || document.getElementById("qdKhung").hidden) return null; const k0 = document.querySelector("#qdKhung").innerHTML.slice(0, 120);
         n.click(); await new Promise((r) => setTimeout(r, 150)); const a = document.querySelector('#mBody [data-tp="anh"]'), c = document.querySelector('#mBody [data-tp="clip"]');
@@ -163,7 +167,7 @@ for (const m of MAY) {
       if (khung) sai.push(khung + " dòng nguồn bị đóng khung (đụng lớp CSS)");
       dem.dong = (dem.dong || 0) + ng.n; dem.coNguon = (dem.coNguon || 0) + ng.co;
       if (ng.thieuChu) sai.push(ng.thieuChu + " dòng có sổ mà không ghi nguồn");
-      if (ng.mau) { dem.mau = ng.mau; if (!/1 cái · Chuyển từ ô khác · 512-03-20-02/.test(ng.mau)) sai.push("ca mẫu sai nguồn: " + ng.mau); }
+      if (ng.mau) { dem.mau = ng.mau; if (!/1 cái · châm hàng \(từ ô 512-03-20-02\)/.test(ng.mau)) sai.push("ca mẫu sai nguồn: " + ng.mau); }
       if (sai.length) hong.push(id + ": " + sai.join(", "));
     }
     ok(!hong.length, m.ten + ": T17 quét " + tatCa.length + " phiếu " + JSON.stringify(dem) + (hong.length ? " — " + hong.slice(0, 4).join(" | ") : ""));

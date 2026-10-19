@@ -40,6 +40,9 @@ const DO = (mob) => {
     nguon: nguon.map((e) => ({ t: e.textContent.trim().slice(0, 14), h: Math.round(e.getBoundingClientRect().height), c: cham(e) })),
     pd: pd ? Math.max(...[pd, ...pd.querySelectorAll("*")].filter((e) => e.textContent.trim()).map((e) => parseFloat(getComputedStyle(e).fontSize))) : 0,
     ngang: document.documentElement.scrollWidth - innerWidth,
+    /* G10 19/10 (5) user: chip «Tác động WMS» · «Không qua WMS» · «Ảnh ghi nhận» CÙNG 1 HÀNG ở mọi cỡ, không cuộn ngang */
+    nguonHang: (() => { const h = q("#mBody .hx-ng-hang .hx-qd-nguon"); if (!h) return null; const bs = [...h.children].filter((e) => e.getBoundingClientRect().width);
+      const tops = bs.map((e) => Math.round(e.getBoundingClientRect().top)); return { n: bs.length, lech: tops.length ? Math.max(...tops) - Math.min(...tops) : 0, tran: h.scrollWidth - h.clientWidth, phai: Math.round(Math.max(0, ...bs.map((e) => e.getBoundingClientRect().right)) - h.closest(".hx-tb-tp").getBoundingClientRect().right) }; })(),
     /* 19/10 (3) user: 1 hàng — TRÁI tiêu đề + giờ, PHẢI Mở task · Ghi chú · Đóng (Đóng ngoài cùng); chữ dài cắt … ở tiêu đề, không đẩy nút */
     dau: (() => { const hr = hd.getBoundingClientRect(), pl = parseFloat(getComputedStyle(hd).paddingLeft), pr = parseFloat(getComputedStyle(hd).paddingRight);
       const tt = q("#mTitle"), t1 = q("#mTitle .hx-mt1"), t2 = q("#mTitle .hx-mt2"), dg = q("#mClose"), gc = q("#gcNut"), mt = q("#hxMoTask");
@@ -62,7 +65,7 @@ for (const m of MAY) {
   const ds = async (sub, sel, at) => { await p.evaluate((s) => window.HXACMINH.sub(s), sub); await ngu(1500); return p.evaluate((sel, at) => [...new Set([...document.querySelectorAll("#hxBody " + sel)].map((e) => e.getAttribute(at)))], sel, at); };
   const mo = async (fn, id) => { await p.evaluate((fn, id) => window.HXACMINH[fn](id), fn, id); await ngu(1000);
     await p.waitForFunction(() => { const i = document.querySelector("#mBody .hx-qd-anh img"); return !i || i.complete; }, { timeout: 8000 }).catch(() => {}); await ngu(1400); };
-  const sai = { G1: [], G2: [], G3: [], G4: [], G5: [], G6: [], G7: [], G9: [] }; let soLuot = 0;
+  const sai = { G1: [], G2: [], G3: [], G4: [], G5: [], G6: [], G7: [], G9: [], G10: [] }; let soLuot = 0;
   for (const [sub, sel, at, fn, ten] of [["cam", "[data-lid]", "data-lid", "moLuotId", "may"], ["treo", "[data-p]", "data-p", "moPhieuId", "tacvu"]]) {
     let n = 0;
     for (const id of await ds(sub, sel, at)) {
@@ -79,6 +82,7 @@ for (const m of MAY) {
       }
       if (x.ngang > 0) sai.G7.push(nh + " " + x.ngang + "px");
       if (!(x.dau.traiSat && x.dau.phaiSat && x.dau.thuTu && x.dau.motHang && x.dau.tieuDeTrongKhung)) sai.G9.push(nh + JSON.stringify(x.dau));
+      if (x.nguonHang && (x.nguonHang.n < 2 || x.nguonHang.lech > 1 || x.nguonHang.tran > 1 || x.nguonHang.phai > 1)) sai.G10.push(nh + JSON.stringify(x.nguonHang));
       /* G3: cuộn thanh xuống tối đa → clip vẫn dính ngay dưới đầu thanh, thấy trọn */
       const c3 = await p.evaluate(() => { const bx = document.querySelector("#modal .modal-box"); const tran = bx.scrollHeight - bx.clientHeight; bx.scrollTop = bx.scrollHeight; return tran; });
       await ngu(250);
@@ -92,7 +96,7 @@ for (const m of MAY) {
   }
   ok(soLuot >= 2, m.ten + ": G0 có lượt Theo máy + phiếu Theo tác vụ có clip (" + soLuot + ")");
   const TEN = { G1: "đầu thanh gọn (≤52px, chip ≤32px, tiêu đề không bẻ vụn)", G2: "vùng chạm thật Đóng ≥44 / Ghi chú, Mở task ≥40", G3: "cuộn xuống: clip dính dưới đầu thanh, thấy trọn",
-    G4: "Quyết định không dính (2 thanh như nhau)", G5: "thanh thời gian + ▶ giờ + Tự động ×1 ×2 ×3 cùng 1 hàng", G6: "phụ đề ≤12px · nút tốc độ ≤26px · nút nguồn ≤30px · vùng chạm ≥40", G7: "không kéo ngang", G9: "đầu thanh 1 hàng: tiêu đề + giờ sát trái, Mở task · Ghi chú · Đóng sát phải (Đóng ngoài cùng)" };
+    G4: "Quyết định không dính (2 thanh như nhau)", G5: "thanh thời gian + ▶ giờ + Tự động ×1 ×2 ×3 cùng 1 hàng", G6: "phụ đề ≤12px · nút tốc độ ≤26px · nút nguồn ≤30px · vùng chạm ≥40", G7: "không kéo ngang", G9: "đầu thanh 1 hàng: tiêu đề + giờ sát trái, Mở task · Ghi chú · Đóng sát phải (Đóng ngoài cùng)", G10: "chip Tác động WMS · Không qua WMS · Ảnh ghi nhận cùng 1 hàng (±1px), không tràn/cuộn ngang" };
   for (const k of Object.keys(sai)) { if (!m.mob && ["G1", "G2", "G5", "G6"].includes(k)) continue; ok(!sai[k].length, m.ten + ": " + k + " " + TEN[k] + (sai[k].length ? " — " + sai[k].slice(0, 2).join(" | ") : "")); }
   ok(!con.length, m.ten + ": G8 không lỗi trang" + (con.length ? " — " + con.slice(0, 2).join(" | ") : ""));
   await p.close();

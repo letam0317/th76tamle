@@ -4,7 +4,7 @@
  *  · «clip dính rồi mà cuộn xuống không ăn, cuộn 3–5 lần chỉ động đậy» (cả 2 thanh, web + điện thoại).
  *  Bấm/lăn/vuốt bằng thao tác THẬT (sự kiện vào hàng đợi trình duyệt ⇒ longtask bắt được — page.evaluate thì không, bẫy 10/10). Dữ liệu thật 8591, chặn mọi lượt ghi.
  *  K0 mốc kiểm chứng: cú bấm gây vòng bận 120 ms PHẢI bị longtask bắt (không thì «0 việc nặng» vô nghĩa)
- *  S1 mở thanh từ danh sách Theo tác vụ: CLS 1,5 s ≤ 0,02 · không việc nặng > 200 ms · bấm → thanh có clip ≤ 600 ms
+ *  S1 mở thanh từ danh sách Theo tác vụ: CLS 1,5 s ≤ 0,02 · không việc nặng > 200 ms · bấm → thanh dựng xong ≤ 600 ms
  *  S2 (web) đổi phiếu khi thanh đang mở: CLS ≤ 0,02 · không việc nặng > 200 ms
  *  S3 thanh Theo tác vụ đang mở, bấm mục «Theo máy» ở thanh menu (điện thoại: mở ngăn kéo ☰ trước): tới khi danh sách vẽ xong < 300 ms
  *     · không việc nặng > 200 ms · thanh đã đóng
@@ -40,7 +40,9 @@ for (const m of MAY) {
   const sach = () => p.evaluate(() => { window.__CLS = 0; if (window.__LT) window.__LT.length = 0; window.__T0 = 0; });
   const hien = async (sel) => { const hs = []; for (const x of await p.$$(sel)) if (await x.evaluate((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })) hs.push(x); return hs; };
   const bam = async (sel, i = 0) => { const h = (await hien(sel))[i]; if (!h) return false; await h.evaluate((e) => e.scrollIntoView({ block: "center" })); await ngu(150);
-    const r = await h.boundingBox(); if (!r) return false; await sach(); const x = r.x + Math.min(40, r.width / 2), y = r.y + r.height / 2;
+    const r = await h.boundingBox(); if (!r) return false; await sach();
+    /* thẻ phiếu trên điện thoại: chạm vào dòng chữ lỗi (góc trái thẻ là ảnh nhỏ — chạm vào đó là phát clip, không mở thanh) */
+    const the = m.mob && /data-p|data-lid/.test(sel), x = the ? r.x + r.width * 0.7 : r.x + Math.min(40, r.width / 2), y = the ? r.y + Math.min(48, r.height / 2) : r.y + r.height / 2;
     if (m.mob) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); return true; };
   const cho = (dk, han = 8000) => p.evaluate((src, han) => new Promise((res) => { const f = (0, eval)(src), t = performance.now();
     (function vong() { if (f()) requestAnimationFrame(() => requestAnimationFrame(() => res(Math.round(performance.now() - (window.__T0 || t))))); else if (performance.now() - t > han) res(-1); else setTimeout(vong, 4); })(); }), "(" + dk.toString() + ")", han);
@@ -55,7 +57,7 @@ for (const m of MAY) {
   for (let lan = 0; lan < LAN; lan++) {
     await p.evaluate(() => window.HXACMINH.sub("treo")); await ngu(1500); await dongThanh();
     if (!(await bam("#hxBody [data-p]", lan))) break;
-    const msMo = await cho(() => document.getElementById("modal").classList.contains("show") && document.querySelector('#mBody .hx-tb-luoi [data-tp="clip"] :is(video,img)'));
+    const msMo = await cho(() => document.getElementById("modal").classList.contains("show") && document.querySelector('#mBody .hx-tb-luoi [data-tp="quyetdinh"]'));   // phiếu không camera cũng tính (thanh đã dựng xong)
     await ngu(1500); r.mo.push({ ms: msMo, ...(await lay()) });
     if (!lan) hieuUng = await p.evaluate(() => { const e = document.querySelector("#modal.hx-ben .modal-box"); return e ? getComputedStyle(e).transitionProperty : "không có thanh"; });
     if (!m.mob && await bam("#hxBody [data-p]", lan + 1)) { const ms2 = await cho(() => document.querySelector('#mBody .hx-tb-luoi [data-tp="clip"] :is(video,img)')); await ngu(1500); r.doi.push({ ms: ms2, ...(await lay()) }); }
@@ -73,7 +75,7 @@ for (const m of MAY) {
   const nang = (a) => Math.max(0, ...a.flatMap((x) => x.lt || []));
   ok(r.mo.length && r.mo.every((x) => x.cls <= 0.02), m.ten + ": S1 mở thanh không giật khung (CLS " + r.mo.map((x) => x.cls).join("/") + ")");
   ok(r.mo.length && nang(r.mo) <= 200, m.ten + ": S1 mở thanh không việc nặng >200 ms (lớn nhất " + nang(r.mo) + " ms)");
-  ok(r.mo.length && r.mo.every((x) => x.ms > 0 && x.ms <= 600), m.ten + ": S1 bấm → thanh có clip ≤ 600 ms (" + r.mo.map((x) => x.ms).join("/") + ")");
+  ok(r.mo.length && r.mo.every((x) => x.ms > 0 && x.ms <= 600), m.ten + ": S1 bấm → thanh dựng xong ≤ 600 ms (" + r.mo.map((x) => x.ms).join("/") + ")");
   if (!m.mob) { ok(r.doi.length && r.doi.every((x) => x.cls <= 0.02), m.ten + ": S2 đổi phiếu không giật (CLS " + r.doi.map((x) => x.cls).join("/") + ")"); ok(nang(r.doi) <= 200, m.ten + ": S2 đổi phiếu không việc nặng >200 ms (" + nang(r.doi) + ")"); }
   ok(r.chuyen.length && r.chuyen.every((x) => x.ms > 0 && x.ms < 300), m.ten + ": S3 Theo tác vụ → Theo máy < 300 ms (" + r.chuyen.map((x) => x.ms).join("/") + ")");
   ok(r.chuyen.length && nang(r.chuyen) <= 200, m.ten + ": S3 chuyển không việc nặng >200 ms (lớn nhất " + nang(r.chuyen) + " ms)");
