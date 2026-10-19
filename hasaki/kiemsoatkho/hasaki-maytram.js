@@ -130,7 +130,15 @@
       "@media(max-width:560px){.mt-hang{gap:10px;grid-auto-rows:auto}.mt-xo-ct .mt-nhom{flex-direction:column;gap:4px}.mt-xo-ct .mt-nh{line-height:18px!important}.mt-tde{display:none}.mt-o{padding:0 10px 10px}.mt-o>.mt-tieu{margin:0 -10px 8px;padding:8px 10px}.mt-o>.mt-tieu b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}" +
         ".mt-phai>.mt-xo{min-height:44px;padding:4px 10px}.mt-phai>.mt-xo .nhan{display:inline;font-size:11px;font-weight:600;color:var(--muted)}.mt-phai:has(>.mt-xo)>.mt-xo-ct{left:0;right:0}" +
         ".mt-xo-dong{width:44px;height:44px;margin:-8px -8px -8px 0}.mt-xo-ct .mt-luoi{gap:8px 6px}.mt-xo-ct .mt-luoi>.mt-c{height:32px;min-height:0;font-size:12px}.mt-xo-ct .mt-nh{line-height:32px}" +
-        ".mt-xo-ct .mt-luoi .mt-x{min-width:40px;min-height:40px;margin:-4px -10px -4px -6px}.mt-chua .mt-chua-dau{min-height:44px;padding:8px 12px}.mt-chua{margin-bottom:10px}}"
+        ".mt-xo-ct .mt-luoi .mt-x{min-width:40px;min-height:40px;margin:-4px -10px -4px -6px}.mt-chua .mt-chua-dau{min-height:44px;padding:8px 12px}.mt-chua{margin-bottom:10px}}",
+      /* 19/10 chiều user (máy tính): cột «Thông tin máy · sức khoẻ» HẸP ĐI 40% (1.25fr → .75fr), phần dư chia ĐỀU 2 cột còn lại (1.45fr mỗi cột);
+         nút Cập nhật ngay / Dừng máy gọn vừa cột; RAM·CPU / các ổ 2 ô mỗi hàng. Việc đảm nhận + «Việc chưa có máy nhận» HIỆN THẲNG danh sách
+         (không nút ẩn/hiện) — chỉ điện thoại mới có dòng tóm tắt + mũi tên. Danh sách dài thì chip xuống dòng trong cột; khung vẫn cao bằng nhau. */
+      "@media(min-width:561px){.mt-o,.mt-tde{grid-template-columns:minmax(170px,.75fr) minmax(0,1.45fr) minmax(0,1.45fr)}" +
+        ".mt-o .mt-sk{grid-template-columns:repeat(2,minmax(0,1fr))}.mt-nut{gap:4px}.mt-nut .hx-nut{min-height:26px;font-size:11.5px;padding:0 6px}" +
+        ".mt-phai>.mt-xo{display:none}.mt-xo-dau{display:none}" +
+        ".mt-phai:has(>.mt-xo)>.mt-xo-ct,.mt-phai.mo:has(>.mt-xo)>.mt-xo-ct{display:block;position:static;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;max-height:none;overflow:visible;animation:none}" +
+        ".mt-chua .mt-chua-dau{pointer-events:none;cursor:default}.mt-chua-dau .mt-xo-mui{display:none}.mt-chua:not(.mo)>.hx-mt-ly{display:block}.mt-chua:not(.mo) .mt-chua-dau{border-bottom:1px solid var(--border)}}"
     ].join("\n");
     var st = document.createElement("style"); st.id = "mt-css"; st.textContent = c; document.head.appendChild(st);
   }

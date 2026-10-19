@@ -177,9 +177,16 @@ try {
       const chip = [...o.querySelectorAll(".mt-c")], nang = chip.filter((c) => c.closest(".mt-nhom") && c.closest(".mt-nhom").querySelector(".mt-nh.nang")).length;
       return { co: !!n, hien: !!(n && n.getBoundingClientRect().height), so: n ? n.querySelector(".so").textContent : "", mong: [[nang, "Nặng"], [chip.length - nang, "Nhẹ"]].filter((x) => x[0]).map((x) => x[1] + " " + x[0]).join(" · "),
         an: ct ? getComputedStyle(ct).display === "none" : null, chip: chip.length, cao: n ? Math.round(n.getBoundingClientRect().height) : 0 }; }).filter((x) => x.co));
-    if (!xo0.length) console.log("  ·    ca này không máy nào có việc đảm nhận — không có nút xổ để đo");
+    if (!m.mob) {   // 19/10 chiều user: máy tính HIỆN THẲNG danh sách việc, không nút ẩn/hiện
+      const w1 = await p.evaluate(() => [...document.querySelectorAll("#pane-maytram .mt-phai")].map((o) => { const n = o.querySelector(":scope > .mt-xo"), ct = o.querySelector(":scope > .mt-xo-ct"), dau = ct && ct.querySelector(".mt-xo-dau");
+        const chip = [...o.querySelectorAll(".mt-c")], rc = o.getBoundingClientRect();
+        return { nut: !!(n && n.getBoundingClientRect().height), hien: chip.every((c) => c.getBoundingClientRect().height > 0), noi: ct ? getComputedStyle(ct).position : "", dau: !!(dau && dau.getBoundingClientRect().height),
+          trong: chip.every((c) => { const r = c.getBoundingClientRect(); return r.left >= rc.left - 1 && r.right <= rc.right + 1 && r.bottom <= rc.bottom + 1; }), so: chip.length }; }));
+      ok(w1.every((x) => !x.nut && x.hien && x.noi !== "absolute" && !x.dau), "W1 máy tính: việc Nặng/Nhẹ HIỆN THẲNG trong cột, không nút ẩn/hiện (" + w1.map((x) => x.so + " chip").join(", ") + ")");
+      ok(w1.every((x) => x.trong), "W1 máy tính: danh sách việc nằm trọn trong cột (không tràn/vỡ khung)");
+    } else if (!xo0.length) console.log("  ·    ca này không máy nào có việc đảm nhận — không có nút xổ để đo");
     else {
-      ok(xo0.every((x) => x.hien && x.an && x.so === x.mong && (m.mob ? x.cao >= 40 : x.cao <= 36)), "X1 " + (m.mob ? "điện thoại" : "máy tính") + ": mặc định 1 dòng số việc Nặng/Nhẹ, ẩn chip (" + xo0.map((x) => x.so + (x.an ? "" : " LỘ") + "/" + x.mong + " " + x.cao + "px").join(" | ") + ")");
+      ok(xo0.every((x) => x.hien && x.an && x.so === x.mong && x.cao >= 40), "X1 điện thoại: mặc định 1 dòng số việc Nặng/Nhẹ, ẩn chip (" + xo0.map((x) => x.so + (x.an ? "" : " LỘ") + "/" + x.mong + " " + x.cao + "px").join(" | ") + ")");
       const n1 = await p.$$("#pane-maytram .mt-xo"); const xo1 = [];
       for (const n of n1) {
         const truoc = await p.evaluate(() => [...document.querySelectorAll("#pane-maytram .mt-hang > .mt-o")].map((o) => Math.round(o.getBoundingClientRect().height)));
@@ -203,6 +210,15 @@ try {
       await p.mouse.click(m.w - 5, m.h - 5); await new Promise((r) => setTimeout(r, 150));
       const d2 = await p.evaluate(() => document.querySelectorAll("#pane-maytram .mt-phai.mo").length);
       ok(d1 === 0 && d2 === 0, "X5 ✕ đóng bảng · bấm ra ngoài đóng bảng (" + d1 + "," + d2 + ")");
+    }
+    if (!m.mob) {   // 19/10 chiều: K2 cột thông tin = 60% cũ (1.25fr → .75fr trên tổng 3.65fr), 2 cột còn lại bằng nhau ±2px; nút nằm trọn trong cột thông tin
+      const k2 = await p.evaluate(() => [...document.querySelectorAll("#pane-maytram .mt-hang > .mt-o")].map((o) => { const c = [".mt-trai", ".mt-phai", ".mt-ket"].map((s) => o.querySelector(":scope > " + s).getBoundingClientRect());
+        const tong = c[2].right - c[0].left, tr = c[0], nut = [...o.querySelectorAll(".mt-nut .hx-nut")].map((n) => n.getBoundingClientRect());
+        const catChu = [...o.querySelectorAll(".mt-nut .hx-nut")].some((n) => n.scrollWidth > n.clientWidth + 1);
+        return { ti: c[0].width / tong, phai: Math.round(c[1].width), ket: Math.round(c[2].width), nutTrong: nut.every((r) => r.left >= tr.left - 1 && r.right <= tr.right + 1), catChu }; }));
+      const mong = 0.75 / 3.65;
+      ok(k2.every((x) => Math.abs(x.ti - mong) <= 0.01 && Math.abs(x.phai - x.ket) <= 2), "K2 cột thông tin = 60% bề ngang cũ (" + k2.map((x) => (x.ti * 100).toFixed(1) + "%").join(",") + " / mong " + (mong * 100).toFixed(1) + "%), 2 cột kia bằng nhau (" + k2.map((x) => x.phai + "|" + x.ket).join(",") + ")");
+      ok(k2.every((x) => x.nutTrong && !x.catChu), "K2 nút Cập nhật ngay / Dừng máy nằm trọn trong cột, không cắt chữ");
     }
     /* 19/10 user «nhìn vào là biết khung nào ở máy nào»: K1 mỗi máy 1 khung — thanh tên máy ngang trọn đầu khung, chữ ≥15px, vạch màu trái ≥4px,
        máy tính: mọi khung CAO BẰNG NHAU; điện thoại: khung cao theo nội dung (khung xếp dọc, bằng ngang nhau); khung cách nhau ≥10px */
@@ -279,7 +295,7 @@ try {
         const rN = nh[0].getBoundingClientRect(), cuoiNhe = [...nh[1].querySelectorAll(".mt-c")].map((e) => e.getBoundingClientRect().right);
         const rL = nh[1].getBoundingClientRect(), c0 = (g) => g.querySelector(".mt-c").getBoundingClientRect().left;
         const bn = o.querySelector(".mt-phai .mt-xo-ct"), rb = bn.getBoundingClientRect();   // 19/10 chip nằm trong bảng nổi
-        return { ngang: rL.top >= rN.bottom - 1 && Math.abs(rL.left - rN.left) < 2 && Math.abs(c0(nh[0]) - c0(nh[1])) < 2, traiN: Math.abs(rN.left - rb.left - parseFloat(getComputedStyle(bn).paddingLeft) - 1) < 2, phaiNhe: Math.max(...cuoiNhe) <= rb.right + 1,
+        return { ngang: rL.top >= rN.bottom - 1 && Math.abs(rL.left - rN.left) < 2 && Math.abs(c0(nh[0]) - c0(nh[1])) < 2, traiN: Math.abs(rN.left - rb.left - parseFloat(getComputedStyle(bn).paddingLeft) - parseFloat(getComputedStyle(bn).borderLeftWidth)) < 2, phaiNhe: Math.max(...cuoiNhe) <= rb.right + 1,
           caoDeu: new Set(c.map((x) => x.h)).size === 1, rongTheoChu: new Set(c.map((x) => Math.round(x.w))).size > 3, khongCat: c.every((x) => !x.cat),
           thuTu: [...document.querySelectorAll("#pane-maytram .mt-o .mt-dau b")].map((b) => b.textContent) }; });
       // 15/10 chiều: cột «Việc đảm nhận» hẹp hơn → Nặng TRÊN, Nhẹ DƯỚI, chip 2 nhóm thẳng lề, không tràn cột
@@ -298,10 +314,15 @@ try {
          C2 bấm → xổ chip (popIn). Các ca sau đo ở trạng thái đã xổ. */
       const c1 = await p.evaluate(() => { const k = document.querySelector("#pane-maytram .mt-chua"), dau = k.querySelector(".mt-chua-dau"), ly = k.querySelector(".hx-mt-ly");
         return { cao: Math.round(k.getBoundingClientRect().height), an: getComputedStyle(ly).display === "none", so: (dau.querySelector(".so") || {}).textContent || "", nut: Math.round(dau.getBoundingClientRect().height) }; });
-      ok(c1.an && /^Nặng 7 · Nhẹ 6$/.test(c1.so) && c1.cao <= (m.mob ? 72 : 52) && (!m.mob || c1.nut >= 44), "C1 «Việc chưa có máy nhận» mặc định gọn: «" + c1.so + "», ẩn chip, cao " + c1.cao + "px");
-      await p.click("#pane-maytram .mt-chua-dau"); await new Promise((r) => setTimeout(r, 300));
-      const c2 = await p.evaluate(() => { const ly = document.querySelector("#pane-maytram .mt-chua .hx-mt-ly"); return { hien: getComputedStyle(ly).display !== "none" && ly.getBoundingClientRect().height > 0, anim: getComputedStyle(ly).animationName }; });
-      ok(c2.hien && c2.anim === "popIn", "C2 bấm → xổ chip (popIn) " + JSON.stringify(c2));
+      if (m.mob) {
+        ok(c1.an && /^Nặng 7 · Nhẹ 6$/.test(c1.so) && c1.cao <= 72 && c1.nut >= 44, "C1 điện thoại: «Việc chưa có máy nhận» mặc định gọn: «" + c1.so + "», ẩn chip, cao " + c1.cao + "px");
+        await p.click("#pane-maytram .mt-chua-dau"); await new Promise((r) => setTimeout(r, 300));
+        const c2 = await p.evaluate(() => { const ly = document.querySelector("#pane-maytram .mt-chua .hx-mt-ly"); return { hien: getComputedStyle(ly).display !== "none" && ly.getBoundingClientRect().height > 0, anim: getComputedStyle(ly).animationName }; });
+        ok(c2.hien && c2.anim === "popIn", "C2 điện thoại: bấm → xổ chip (popIn) " + JSON.stringify(c2));
+      } else {   // 19/10 chiều: máy tính hiện thẳng, không mũi tên
+        const c3w = await p.evaluate(() => { const mu = document.querySelector("#pane-maytram .mt-chua-dau .mt-xo-mui"); return !mu || !mu.getBoundingClientRect().height; });
+        ok(!c1.an && c3w && /^Nặng 7 · Nhẹ 6$/.test(c1.so), "C1 máy tính: «Việc chưa có máy nhận» hiện thẳng danh sách, không mũi tên ẩn/hiện");
+      }
       const d = await p.evaluate(() => { const pn = document.querySelector("#pane-maytram"), khoi = pn.querySelector(".mt-chua");
         return { t: pn.innerText, ly: [...pn.querySelectorAll(".hx-mt-ly .ly, .mt-chua-dau .ly1")].map((x) => x.textContent), nhan: pn.querySelectorAll(".hx-mt-ly .hx-tag").length, caoKhoi: khoi ? Math.round(khoi.getBoundingClientRect().height) : 0 }; });
       const laL = m.data === API_LAPTOP;
