@@ -24,6 +24,14 @@ Tầng 2  watch-login-request.js mỗi 2'   — trục thần kinh: cờ + guard
 Tầng 3  từng script nguồn               — tự tuân session-rules (token sống, khung chặn, hash-skip)
 ```
 
+> **19/10/2026 — CHIA VIỆC GIỮA CÁC MÁY TRẠM (user «ưu tiên phần lớn việc nặng cho 2 máy DESKTOP-JE75K38 / DESKTOP-FOQ5T89»).**
+> `cai-pc/dieu-phoi.json` → `mayViecNang: [DESKTOP-JE75K38, DESKTOP-FOQ5T89]`: 7 việc NẶNG (canh-b11, canh-xac-minh-b1,
+> tim-bang-chung-b1, canh-bai-xe sáng/chiều/tối, xac-minh-camera) **chia đều 2 máy này** theo tải/sức; máy kia gánh khi 1 máy
+> tắt/yếu/Dừng; cả 2 không dùng được → chia đều mọi máy (QLIT, laptop). Việc NHẸ né 2 máy này → **HSK-KHO170-QLIT** (ghim
+> lam-tuoi-vesinh, may-chu-xm-du-phong: QLIT → FOQ5T89 dự phòng). Mỗi việc chỉ 1 máy chạy (bảng giao deterministic + khoá
+> PCLEASE) → không chạy trùng, không thêm lượt gọi upstream. Xem bảng hiện tại: `node xem-dieu-phoi.mjs`; kiểm luật:
+> `node dieu-phoi.mjs --test`.
+
 ### A2. Task Scheduler (khớp `SETUP-PC-MOI.ps1` sau khi sửa 30/07)
 
 | Task | Lịch | Chạy gì | Ghi log |

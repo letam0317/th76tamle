@@ -99,8 +99,9 @@ export function chiaViec(board, now, cfg) {
     if (laB1(x.v)) {
       const b1 = x.du.filter((hb) => mayB1.includes(hb.may) && !hb.yeu && ("chayLuc" in hb));
       if (b1.length) x.du = b1;
-    } else if (mayB1.length) {
-      const ngoai = x.du.filter((hb) => !mayB1.includes(hb.may));
+    } else if (x.v.nang && nhaNang.length) {                       // 19/10: việc nặng KHÔNG né máy B1 — 2 máy đó là nhà của việc nặng
+    } else if (mayB1.length || nhaNang.length) {                   // việc nhẹ né máy B1 + máy việc nặng khi còn máy khác nhận được
+      const ngoai = x.du.filter((hb) => !mayB1.includes(hb.may) && !nhaNang.includes(hb.may));
       if (ngoai.length) x.du = ngoai;
     }
   }
@@ -115,10 +116,11 @@ export function chiaViec(board, now, cfg) {
       giao[v.ten] = tot.may; tai.set(tot.may, (tai.get(tot.may) || 0) + w); continue;
     }
     // còn sống + đủ khoá + khoẻ + không Dừng + BẢN MỚI (có chayLuc — bản cũ không chạy được cò xác minh qua kho) — không thì chia đều
-    const nha = v.nang && !laB1(v) && nhaNang.find((m) => du.some((hb) => hb.may === m && !hb.yeu && ("chayLuc" in hb)));
-    if (nha) { giao[v.ten] = nha; tai.set(nha, (tai.get(nha) || 0) + w); continue; }     // không thì chia đều như thường
+    /* 19/10 user «ưu tiên phần lớn việc nặng cho 2 máy JE75K38 / FOQ5T89»: mayViecNang nhiều máy → việc nặng CHIA ĐỀU giữa các máy nhà
+       còn dùng được (theo tải/sức); không máy nhà nào dùng được → chia đều mọi máy như thường. */
+    const nha = v.nang && !laB1(v) ? du.filter((hb) => nhaNang.includes(hb.may) && !hb.yeu && ("chayLuc" in hb)) : [];
     let tot = null, totTi = Infinity;
-    for (const hb of du) {
+    for (const hb of (nha.length ? nha : du)) {
       const ti = ((tai.get(hb.may) || 0) + w) / sucChua(hb);
       if (ti < totTi - 1e-9 || (Math.abs(ti - totTi) <= 1e-9 && ((hb.diem || 0) > (tot.diem || 0) || ((hb.diem || 0) === (tot.diem || 0) && String(hb.may).localeCompare(String(tot.may)) < 0)))) { tot = hb; totTi = ti; }
     }
@@ -274,13 +276,26 @@ function test() {
   g = chiaViec(bB1, now, cfg5);
   const xs = ["x1", "x2", "x3", "x4"].map((t) => g[t]);
   eq(xs.every((m) => m === "JE" || m === "FOQ") && xs.includes("JE") && xs.includes("FOQ"), true, "mayB1: 4 viec B1 chia ca JE va FOQ");
-  eq(cfg5.viec.filter((v) => !v.b1).every((v) => g[v.ten] === "QLIT"), true, "mayB1: viec khac ne JE/FOQ -> QLIT");
+  eq(cfg5.viec.filter((v) => !v.b1 && !v.nang).every((v) => g[v.ten] === "QLIT"), true, "mayB1: viec NHE ne JE/FOQ -> QLIT");
+  eq(cfg5.viec.filter((v) => !v.b1 && v.nang).every((v) => g[v.ten] === "JE"), true, "19/10: viec nang khong-B1 khong ne may nha JE");
   g = chiaViec([{ ...bB1[0], dung: true }, bB1[1], bB1[2]], now, cfg5);
   eq(Object.values(g).every((m) => m === "JE" || m === "FOQ"), true, "QLIT Dung -> viec khac van ve JE/FOQ (khong bo viec)");
   g = chiaViec([bB1[0], { ...bB1[1], dung: true }, bB1[2]], now, cfg5);
   eq(["x1", "x2", "x3", "x4"].every((t) => g[t] === "JE"), true, "FOQ Dung -> JE ganh het viec B1");
   g = chiaViec([bB1[0], { ...bB1[1], dung: true }, { ...bB1[2], dung: true }], now, cfg5);
   eq(["x1", "x2", "x3", "x4"].every((t) => g[t] === "QLIT"), true, "ca 2 may B1 Dung -> viec B1 sang QLIT");
+
+  // 19/10 mayViecNang 2 máy JE+FOQ: việc nặng chia đều 2 máy, việc nhẹ né về QLIT; 1 máy nhà Dừng → máy nhà kia gánh; cả 2 Dừng → QLIT
+  const cfg6 = { ...cfg5, mayViecNang: ["JE", "FOQ"] };
+  g = chiaViec(bB1, now, cfg6);
+  const nang6 = cfg6.viec.filter((v) => v.nang).map((v) => g[v.ten]);
+  eq(nang6.every((m) => m === "JE" || m === "FOQ") && nang6.includes("JE") && nang6.includes("FOQ"), true, "2 may nha: moi viec nang ve JE/FOQ, chia ca 2");
+  eq(Math.abs(nang6.filter((m) => m === "JE").length - nang6.filter((m) => m === "FOQ").length) <= 2, true, "2 may nha: chia gan deu");
+  eq(cfg6.viec.filter((v) => !v.nang).every((v) => g[v.ten] === "QLIT"), true, "2 may nha: viec nhe ve QLIT");
+  g = chiaViec([bB1[0], { ...bB1[1], dung: true }, bB1[2]], now, cfg6);
+  eq(cfg6.viec.filter((v) => v.nang).every((v) => g[v.ten] === "JE"), true, "FOQ Dung -> JE ganh het viec nang");
+  g = chiaViec([bB1[0], { ...bB1[1], dung: true }, { ...bB1[2], dung: true }], now, cfg6);
+  eq(Object.values(g).every((m) => m === "QLIT"), true, "ca 2 may nha Dung -> QLIT lam het (khong bo viec)");
 
   console.log(`\n${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);

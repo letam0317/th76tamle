@@ -3,9 +3,10 @@
   "nhanh": "cai-tien/bo-sung-factory",
   "gasUrl": "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec",
   "hetHanPhut": 3,
-  "_mayViecNang": "14/10 user: viec NANG uu tien may nay (con song + du khoa + khoe + khong Dung); khong thi chia deu theo suc.",
+  "_mayViecNang": "14/10 user: viec NANG uu tien may nay. 19/10 user: uu tien phan lon viec nang cho 2 may JE75K38 + FOQ5T89 -> viec nang CHIA DEU giua cac may trong danh sach (con song + du khoa + khoe + khong Dung + ban moi); viec nhe ne 2 may nay (ve QLIT/laptop) khi con may khac; ca 2 khong dung duoc thi chia deu moi may.",
   "mayViecNang": [
-    "DESKTOP-JE75K38"
+    "DESKTOP-JE75K38",
+    "DESKTOP-FOQ5T89"
   ],
   "_mayB1": "15/10 user: 2 may nay UU TIEN viec b1:true (xac minh / tim bang chung camera-anh B1 de chuyen B1.1) - chia deu giua 2 may; viec khac ne 2 may nay khi con may khac nhan duoc. Khoa xm_khoa van chi cho 1 may chay cò xac minh 1 luc.",
   "mayB1": [
