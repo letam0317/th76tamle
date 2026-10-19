@@ -46,6 +46,7 @@ Chạy tay 1 phiếu: `node auto-complete-single-task.mjs --task=<id> --nv=<mã|
 
 - Treo >48h → bình luận tag QLTT nhắc; quá 72h sau nhắc vẫn im → tự ghi lỗi cá nhân (CH-03).
 - Xong đủ từng thành viên VÀ «Xác nhận lỗi» = **Lỗi cá nhân** → điền NV vi phạm vào B3.1/B3.2, chỉ lưu.
+- **Lỗi đóng gói (19/10):** nhánh là **B3.3** (bước 7827, ô `staff33`). NV **tự** xác nhận «Lỗi cá nhân» → máy điền NV rồi **ĐÓNG LUÔN** bước B3 (kể cả B3.1/B3.2 nếu engine mở), đọc lại để chốt. Quản lý chốt thay / xác nhận hộ thì vẫn chỉ lưu. Án lệ: 14230295 (B3.3 đóng 19/10 09:47).
 - «Không phải lỗi cá nhân» mà không có bằng chứng mới → không đổi kết quả (CH-04, chờ bạn).
 
 ## 5. Tra 1 phiếu: có tự chuyển không, vì sao

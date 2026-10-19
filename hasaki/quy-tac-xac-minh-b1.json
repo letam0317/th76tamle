@@ -720,7 +720,7 @@
    "nhom": "Đóng gói",
    "ten": "Lỗi đóng gói [ĐG] → người đóng đơn ghi trong Mô tả phiếu",
    "dieuKien": "Tên phiếu bắt đầu «[ĐG]» và Mô tả có dòng «Nhân viên đóng gói: <Tên> (<email>)» (máy ghi lúc tạo phiếu từ video đóng gói)",
-   "mayLam": "canh-b1: người chịu = nhân viên đóng gói trong Mô tả (tra mã theo danh bạ) → đóng B1 → B1.1 qua auto-complete-single-task; QLTT (QLBP02) theo luật chia đều 0,2% Hồ Ngọc Tú Uyên / Lê Thị Ngọc Huyền (qltt.js). Mô tả thiếu dòng hoặc email không có trong danh bạ → nghi ngờ, ghi sheet.",
+   "mayLam": "canh-b1: người chịu = nhân viên đóng gói trong Mô tả (tra mã theo danh bạ) → đóng B1 → B1.1 qua auto-complete-single-task; QLTT (QLBP02) theo luật chia đều 0,2% Hồ Ngọc Tú Uyên / Lê Thị Ngọc Huyền (qltt.js). Mô tả thiếu dòng hoặc email không có trong danh bạ → nghi ngờ, ghi sheet. Sau B1.1: NV TỰ xác nhận «Lỗi cá nhân» → canh-b11 ③d điền staff33 vào B3.3 (step 7827) rồi ĐÓNG LUÔN bước (user 19/10), không chỉ lưu.",
    "macDinh": "tu-lam",
    "chay": "canh-b1",
    "tu": "19/10/2026",
@@ -1012,6 +1012,10 @@
   {
    "luc": "2026-10-19",
    "viec": "Thêm DG-01 (lỗi đóng gói theo người đóng đơn trong Mô tả)"
+  },
+  {
+   "luc": "2026-10-19",
+   "viec": "DG-01: NV tự nhận lỗi cá nhân ở B1.1 → canh-b11 điền + đóng luôn B3.3 (B3.1/B3.2 nếu mở)."
   }
  ]
 }

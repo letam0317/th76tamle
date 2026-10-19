@@ -30,6 +30,8 @@
  *       · B1.1 status 2;
  *       · MỌI thành viên đều status 2 (nhiều NV thì đợi đủ từng người — đi đôi với ②).
  *     NVVP04 = mã NV từ B1 (configs.staff), phẩy — khuôn y các phiếu user đã điền tay.
+ *     ③d (19/10, user): phiếu LỖI ĐÓNG GÓI → nhánh B3.3 (step 7827, ô staff33); NV TỰ xác nhận "Lỗi cá nhân"
+ *         thì điền NV rồi ĐÓNG LUÔN bước B3 (B3.1/B3.2/B3.3), không chỉ lưu.
  *     ③b (05/10, user "theo quản lý chốt"): NV chọn "Không phải lỗi cá nhân" mà B3 vẫn mở ⇒ mọi kết luận
  *         quản lý ở B2 (CNF03)/B4 (CNF05) = "Lỗi cá nhân" → điền NV; B2 "Không" + B4 "Có" → log nhờ người.
  *     ③c (05/10, user "hợp lệ"): quản lý tự vào B1.1 điền "Lỗi cá nhân" + đóng hộ NV → miễn gate đủ-từng-người
@@ -224,7 +226,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
 
   let so = { nhac: {}, nhom: {}, b31: {}, b32: {}, tv: {}, dgB1: {}, fail: {}, qltt: {}, b3huy: {}, khop11: {}, tay11: {} };
   try { so = { ...so, ...JSON.parse(fs.readFileSync(F_SO, "utf8")) }; } catch { /* lần đầu */ }
-  for (const k of ["tv", "dgB1", "b32", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho", "bui", "cam"]) if (!so[k]) so[k] = {};
+  for (const k of ["tv", "dgB1", "b32", "b33", "fail", "qltt", "b3huy", "hen72", "leo", "chuoi", "ghiPhat", "nhacGoc", "ho", "bui", "cam"]) if (!so[k]) so[k] = {};
   let nguonTV = null;   // 4 tab GAS — chỉ nạp khi thật sự có task cần truy vết
 
   const iso = (d) => d.toISOString().slice(0, 10);
@@ -474,8 +476,12 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
     /* ═══ ③ B1.1 xong (đủ TỪNG thành viên) → điền "Nhân viên vi phạm" vào B3.1/B3.2 rồi CHỈ LƯU ═══
        25/09: B3.2 (step 7392 "Ghi nhận vi phạm quy định kho tổng") có schema Y HỆT B3.1 — cùng 5 ô,
        4 ô auto, chỉ ô staff nhập tay và khác tên khoá (staff32 thay NVVP04) → áp CHUNG một luật. */
-    const b32 = sub(t, 7392);
-    let cacB3 = [[b31, "NVVP04", "b31", "B3.1"], [b32, "staff32", "b32", "B3.2"]]
+    const b32 = sub(t, 7392), b33 = sub(t, 7827);
+    /* 19/10 (user): phiếu LỖI ĐÓNG GÓI («[ĐG] …» / hạng mục «Đóng gói sai quy định») — engine mở B3.3 (step 7827,
+       ô staff33; cat33/rea33/skill33/loc33 auto). NV tự xác nhận «Lỗi cá nhân» ở B1.1 → điền NV rồi ĐÓNG LUÔN bước B3,
+       không chỉ lưu. Căn cứ khác (quản lý chốt ③b / xác nhận hộ ③c) vẫn chỉ lưu như cũ. */
+    const laDongGoi = /^\[ĐG\]/.test(String(t.name || "")) || /đóng gói sai/i.test(String(cfgCha.TYPE00 || ""));
+    let cacB3 = [[b31, "NVVP04", "b31", "B3.1"], [b32, "staff32", "b32", "B3.2"], [b33, "staff33", "b33", "B3.3"]]
       .filter(([b, , sk]) => b && b.status === 0 && !so[sk][t.id]);
     /* NHÁNH ĐÚP (đo thật 25/09 — task 13162758 bị trừ 2+5 cho 1 lỗi 2%): vài hạng mục (STT06)
        làm engine mở CẢ B3.1 lẫn B3.2. User chốt 25/09 (đã báo quản trị wf, đây là lưới đỡ tạm):
@@ -566,21 +572,22 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         log("③ " + t.code + ": B3.x chờ vì " + chuaXong.length + "/" + codes.length + " NV chưa tự hoàn thành B1.1 (" + chuaXong.join(",") + ") — theo luật đợi đủ từng người.");
       } else for (const [b3, key, sk, ten] of cacB3) {
         const daCo = String((b3.data && b3.data.configs && b3.data.configs[key]) || "").trim();
-        if (daCo) { so[sk][t.id] = Date.now(); continue; }
+        const dongLuon = String(b3.id) === String(dongLuonId) || (laDongGoi && nguon === "NV xác nhận");
+        if (daCo && !dongLuon) { so[sk][t.id] = Date.now(); continue; }
         nB31++;
-        log("③ " + t.code + " (" + ten + " " + b3.id + "): điền " + key + " = " + codes.join(",") + " (chỉ lưu, không đóng bước) · căn cứ: " + nguon);
+        log("③ " + t.code + " (" + ten + " " + b3.id + "): " + (daCo ? key + " đã có «" + daCo + "»" : "điền " + key + " = " + codes.join(",")) + (dongLuon ? " rồi ĐÓNG bước" : " (chỉ lưu, không đóng bước)") + " · căn cứ: " + nguon);
         if (!THU) {
-          const rW = await capNhat(token, b3.id, "data", { ["value[configs][" + key + "]"]: codes.join(",") });
+          const rW = daCo ? { ok: true } : await capNhat(token, b3.id, "data", { ["value[configs][" + key + "]"]: codes.join(",") });
           const d2 = await docTask(token, b3.id);
           const sau = String((d2 && d2.data && d2.data.configs && d2.data.configs[key]) || "");
-          if (rW.ok && sau === codes.join(",")) {
+          if (rW.ok && sau === (daCo || codes.join(","))) {
             so[sk][t.id] = Date.now(); log("   ✓ đã lưu Nhân viên vi phạm vào " + ten + ".");
             /* phiếu bug 2 nhánh: nhánh đúng TỰ ĐÓNG luôn để khép luồng, khỏi chờ người
-               (user chốt 25/09 chiều: "đã biết lỗi này rồi thì để nó tự đóng"). */
-            if (String(b3.id) === String(dongLuonId)) {
+               (user chốt 25/09 chiều: "đã biết lỗi này rồi thì để nó tự đóng"); 19/10: + lỗi đóng gói NV tự nhận. */
+            if (dongLuon) {
               await capNhat(token, b3.id, "status", { value: "2" });
               const d3 = await docTask(token, b3.id);
-              if (d3 && Number(d3.status) === 2) log("   ✓ đã TỰ ĐÓNG " + ten + " (phiếu 2 nhánh — đã biết lỗi).");
+              if (d3 && Number(d3.status) === 2) log("   ✓ đã TỰ ĐÓNG " + ten + (laDongGoi ? " (lỗi đóng gói — NV tự nhận lỗi cá nhân)." : " (phiếu 2 nhánh — đã biết lỗi)."));
               else log("   ⚠ tự đóng " + ten + " chưa chốt (status=" + (d3 && d3.status) + ") — người ghi nhận đóng giúp.");
             }
           }
