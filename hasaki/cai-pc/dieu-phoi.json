@@ -115,6 +115,16 @@
     },
     {
       "ten": "xac-minh-camera",
+      "_chiaPhan": "19/10 user «phieu nghi ngo can chuan bi du lieu clip/camera de quyet — viec nang, chia viec de khong qua tai may»: soi camera MOI phieu nghi ngo co ma o, CHIA 2 PHAN theo task_id (XM_PHAN) chay SONG SONG: phan 1 ghim JE75K38 (du phong FOQ5T89), phan 2 ghim FOQ5T89 (du phong JE75K38); khong cai tren QLIT/may khac (khong qua tai may viec nhe). Moi luot 3 phieu/may, 08:20-18:20 moi 2h + 19:30. khoaChung:false = khong giu xm_khoa (khong chan canh-b11/canh-b1); tep chung ghi bang gop 3 chieu (dong-bo-xm.json gop). 2 phan roi vao cung 1 may -> khoa .xac-minh-dem.lock cua may cho phan sau bo luot (khong chay chong).",
+      "env": {
+        "XM_PHAN": "1/2",
+        "XM_MAX": "3"
+      },
+      "khoaChung": false,
+      "uuTien": [
+        "DESKTOP-JE75K38",
+        "DESKTOP-FOQ5T89"
+      ],
       "xml": "5S_Xac_minh_camera_toi.xml",
       "vbs": "_XAC-MINH-DEM.vbs",
       "nang": true,
@@ -128,6 +138,32 @@
       ],
       "dongBoXm": true,
       "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
+      "b1": true
+    },
+    {
+      "ten": "xac-minh-camera-2",
+      "_doc": "19/10: phan 2/2 cua xac-minh-camera (xem _chiaPhan o viec phan 1).",
+      "env": {
+        "XM_PHAN": "2/2",
+        "XM_MAX": "3"
+      },
+      "khoaChung": false,
+      "uuTien": [
+        "DESKTOP-FOQ5T89",
+        "DESKTOP-JE75K38"
+      ],
+      "xml": "5S_Xac_minh_camera_2.xml",
+      "vbs": "_XAC-MINH-DEM.vbs",
+      "nang": true,
+      "giuTTL": 3600,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS",
+        "GEMINI_API_KEY"
+      ],
+      "dongBoXm": true,
       "b1": true
     },
     {

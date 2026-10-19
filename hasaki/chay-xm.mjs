@@ -20,7 +20,8 @@ const viec = (cfg.viec || []).find((v) => v.ten === tenViec) || {};
 const vbs = path.join(DIR, vbsThat);
 
 function chayVbs() {   // → { pid, xong: Promise<code> }
-  const c = spawn("wscript.exe", ["//nologo", vbs], { cwd: DIR, windowsHide: true, stdio: "ignore" });
+  /* 19/10: «env» trong dieu-phoi.json (vd XM_PHAN=1/2 — phần phiếu của việc chia phần) + XM_TEN truyền xuống vbs → cò (1 vbs dùng chung nhiều việc) */
+  const c = spawn("wscript.exe", ["//nologo", vbs], { cwd: DIR, windowsHide: true, stdio: "ignore", env: { ...process.env, ...(viec.env || {}), XM_TEN: tenViec } });
   return { pid: c.pid, xong: new Promise((r) => { c.on("exit", (code) => r(code)); c.on("error", () => r(-1)); }) };
 }
 
@@ -37,8 +38,10 @@ const ttl = Math.max(3600, Number(viec.giuTTL) || 3600) + 1800;
 /* 19/10 user «tập trung máy trạm chia việc xác minh B1»: 2 máy B1 tranh khoá → máy đến sau BỎ CẢ LƯỢT (canh-b11 trễ 1 giờ vì máy kia
    đang tìm bằng chứng). Nay XẾP HÀNG: hỏi lại mỗi 30 s, tối đa XM_CHO_PHUT (15') rồi mới bỏ lượt. GAS hỏng vẫn bỏ lượt ngay. */
 const CHO_MS = (Number(process.env.XM_CHO_PHUT) || 15) * 60e3, tCho = Date.now();
-let k, baoCho = false;
-for (;;) {
+let k = { kq: "giu" }, baoCho = false;
+/* 19/10: việc «khoaChung:false» (soi camera chia phần) chạy SONG SONG trên nhiều máy — mỗi máy 1 phần phiếu, tệp chung ghi bằng gộp 3 chiều
+   (dong-bo-xm gop) ⇒ không xếp hàng khoá chung, không chặn cò xác minh khác. */
+for (; viec.khoaChung !== false;) {
   try { k = await X.khoa(tenViec, ttl); } catch (e) { nk("không giữ được khoá chung (" + e.message + ") — bỏ lượt"); process.exit(0); }
   if (k.kq === "giu") break;
   if (Date.now() - tCho >= CHO_MS) { nk(`${k.may} vẫn chạy «${k.viec}» sau ${Math.round(CHO_MS / 60e3)}' chờ — bỏ lượt (lịch sau chạy)`); process.exit(0); }
@@ -53,7 +56,7 @@ try {
   catch (e) { nk("kéo dữ liệu lỗi (" + e.message + ") — KHÔNG chạy (thiếu dữ liệu)"); throw e; }
   const t0 = Date.now(); nk("bắt đầu chạy");
   const c = chayVbs();
-  const giaHan = setInterval(() => { X.khoa(tenViec, ttl).catch(() => {}); }, 10 * 60e3);
+  const giaHan = setInterval(() => { if (viec.khoaChung !== false) X.khoa(tenViec, ttl).catch(() => {}); }, 10 * 60e3);
   await c.xong;
   await choCayXong(c.pid, t0);
   clearInterval(giaHan);
@@ -61,7 +64,7 @@ try {
   await X.day(["chung"]);
   if (String(process.env.RUNNER_VAI || "").toLowerCase() === "pc") await X.day(["ra"], { tu: t0 - 5000 });
 } catch (e) { ma = 1; nk("LỖI: " + e.message); }
-finally { try { await X.tra(tenViec); } catch { /* hết hạn tự nhả */ } }
+finally { if (viec.khoaChung !== false) try { await X.tra(tenViec); } catch { /* hết hạn tự nhả */ } }
 process.exit(ma);
 
 // Chờ mọi tiến trình con/cháu của vbs (tạo SAU t0) thoát. Giữ PID đã thấy (cha chết vẫn còn ParentProcessId).
