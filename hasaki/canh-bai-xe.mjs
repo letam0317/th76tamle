@@ -381,6 +381,12 @@ ${KQ.map((k) => `<div class="l"><b>#${k.stt} · ${esc(k.camera)}</b> · ${k.tu}�
 <p class="q">Bạn quyết: ☐ NV Hasaki — ai: ________ ☐ không phải NV / xe ra ☐ không rõ</p></div>`).join("") || "<p>Không có lượt nào.</p>"}
 <p><small>Tải đầu ghi: ${soLuotTai} đoạn · ${soMB.toFixed(0)} MB. Video tạm: ${esc(TAM)}</small></p></body></html>`);
 log(`✓ ${KQ.length} lượt → ${path.join(OUT, "BAO-CAO.html")} · tải ${soLuotTai} đoạn ${soMB.toFixed(0)} MB`);
+/* 20/10 từ 2 ghi chú cải tiến của user: lượt có xe tải đè khung vàng → chỉ lưu vết (xe-tai-che-bai.mjs) · lượt camera có góc phụ → cắt thêm đoạn
+   cùng lúc ở góc đó (goc-phu-bai-xe.mjs, vd AI Bao Ve → San Nhap Hang 2). Lỗi bước phụ không làm hỏng lượt chính. */
+if (KQ.length) { const { spawnSync } = await import("node:child_process");
+  for (const [f, ...x] of [["xe-tai-che-bai.mjs"], ["goc-phu-bai-xe.mjs", "--max=40"]]) {
+    const r = spawnSync(process.execPath, [path.join(DIR, f), "--ngay=" + NGAY, ...x], { cwd: DIR, encoding: "utf8", timeout: 30 * 60e3 });
+    log(`${f}: ${String(r.stdout || r.stderr || "").trim().split(/\r?\n/).pop()}`); } }
 // video tạm: đoạn MẪU chỉ cần trong ngày (giữ để lượt 14:45 dùng lại); đoạn LƯỢT giữ 14 ngày để dựng clip khi bạn quyết
 try { const goc = path.dirname(TAM), han = (n) => new Date(Date.now() + 7 * 36e5 - n * 864e5).toISOString().slice(0, 10);
   for (const d of fs.readdirSync(goc)) { const thu = path.join(goc, d);

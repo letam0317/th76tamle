@@ -125,9 +125,11 @@ function gom() {
       const q = w || (s && s.qd ? { ...s, ma: (String(s.ma || "").match(/(?:^|[^\d:])(\d{5,7})(?![\d:])/) || [])[1] || s.ma, nguon: "sheet" } : null);
       // 05/10 user: "người có phân loại bóng và thùng giấy thì nghi ngờ/bắt làm gì?" — máy chưa phân biệt được phân loại đúng/đổ lẫn
       // (đo màu trắng vùng carton: lượt đúng −3,0 · vụ vi phạm thật 14010729 −2,6 ⇒ không tách được) ⇒ khu phân loại = CHỈ LƯU VẾT, không hỏi
-      const chiLuu = (l.loai || "bai-xe") === "phan-loai";
-      luot.push({ id: l.id, ngay: k.ngay, loai: l.loai || "bai-xe", chiLuu, camera: l.camera, vung: l.vung, tu: l.tu, den: l.den, gioNguoi: l.gioNguoi,
+      /* 20/10 ghi chú user «xe tải đã che bãi xe rồi»: lượt có xe tải đè khung vàng (xe-tai-che-bai.mjs) cũng CHỈ LƯU VẾT — xem được, không bắt quyết */
+      const chiLuu = (l.loai || "bai-xe") === "phan-loai" || !!l.xeTaiChe;
+      luot.push({ id: l.id, ngay: k.ngay, loai: l.loai || "bai-xe", chiLuu, lyDoLuu: l.xeTaiChe ? "xe tải đỗ che bãi — máy bỏ qua" : "", camera: l.camera, vung: l.vung, tu: l.tu, den: l.den, gioNguoi: l.gioNguoi,
         video: (l.nguon || []).map((n, i) => ({ url: `/video/${l.id}/${i}`, bd: n.bd })), doanNguoi: l.doanNguoi || [], vung: l.vung, roi: l.roiPx || null,
+        gocPhu: (l.gocPhu || []).filter((g) => fs.existsSync(g.file)).map((g, i) => ({ ten: g.ten, url: `/video/${l.id}/g${i}`, bd: g.bd })),   // 20/10 góc camera phụ (goc-phu-bai-xe.mjs)
         anh: `/anh/${d}/${l.anh}`, buocAnh: (l.buocAnh || []).map((x) => ({ ...x, anh: `/anh/${d}/${x.file}` })), khongThayNguoi: !!l.khongThayNguoi,
         chamCong: l.chamCong || [], cong: l.cong || [], goiY: l.goiY || null, soNguoi: l.soNguoi || [],
         qd: q ? { qd: q.qd, ma: q.ma || "", nguoi: q.nguoi || null, gc: q.gc || "", nguon: q.nguon || "web", luc: q.luc || "" } : null, may: da[l.id] || null });
@@ -511,7 +513,7 @@ const sv = http.createServer(async (q, s) => {
       s.writeHead(200, { "Content-Type": mf.endsWith(".json") ? "application/json" : "application/octet-stream", "Cache-Control": "max-age=86400" }); return fs.createReadStream(mf).pipe(s);
     }
     if (p.startsWith("/video/")) {   // /video/<id lượt>/<i> — đoạn video đã tải từ đầu ghi (giữ 14 ngày)
-      const [, , id, i] = p.split("/"); const l = timLuot(id); const f = l && (l.nguon || [])[Number(i)]?.file;
+      const [, , id, i] = p.split("/"); const l = timLuot(id); const f = l && (/^g\d+$/.test(i) ? (l.gocPhu || []).filter((g) => fs.existsSync(g.file))[Number(i.slice(1))] : (l.nguon || [])[Number(i)])?.file;
       if (!f || !fs.existsSync(f)) { s.writeHead(404); return s.end(); }
       const st = fs.statSync(f), rg = /bytes=(\d+)-(\d*)/.exec(q.headers.range || "");
       if (rg) { const a = +rg[1], z = rg[2] ? +rg[2] : st.size - 1; s.writeHead(206, { "Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Content-Range": `bytes ${a}-${z}/${st.size}`, "Content-Length": z - a + 1 }); return fs.createReadStream(f, { start: a, end: z }).pipe(s); }
@@ -560,9 +562,17 @@ const sv = http.createServer(async (q, s) => {
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 8e3) return guiJ(s, 413, { loi: "quá lớn" }); }
       const o = JSON.parse(b || "{}");
       if (!/^[\w-]{1,60}$/.test(String(o.id || ""))) return guiJ(s, 400, { loi: "thiếu mã việc" });
+      /* 20/10 user «mục đã ghi chú mà đang cải tiến / cải tiến rồi / chờ cải tiến cần có cờ để nhận biết — loại bỏ — làm mờ»: mỗi ghi chú có
+         tt = cho (chờ cải tiến) · dang (đang cải tiến) · xong (đã cải tiến) · bo (không làm, kèm lý do). Dòng cũ: xong có chữ → «xong», trống → «cho».
+         POST {id, at, tt, xong?} = đổi trạng thái (Claude / ghi-chu.mjs ghi «xong» = đã sửa gì, hoặc lý do không làm). */
       if (o.xoa) { const i = so.findIndex((x) => x.id === o.id && x.at === o.xoa); if (i >= 0) so.splice(i, 1); }
+      else if (o.tt) {
+        if (!["cho", "dang", "xong", "bo"].includes(o.tt)) return guiJ(s, 400, { loi: "trạng thái lạ" });
+        const g = so.find((x) => x.id === o.id && x.at === o.at); if (!g) return guiJ(s, 404, { loi: "không thấy ghi chú" });
+        g.tt = o.tt; if (o.xong != null) g.xong = String(o.xong).slice(0, 600) || null; g.ttLuc = new Date().toISOString();
+      }
       else { const nd = String(o.noiDung || "").trim().slice(0, 2000); if (!nd) return guiJ(s, 400, { loi: "chưa gõ nội dung" });
-        so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", xong: null }); }
+        so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", tt: "cho", xong: null }); }
       fs.writeFileSync(F, JSON.stringify(so, null, 1));
       return guiJ(s, 200, { ok: true, ds: so.filter((x) => x.id === o.id) });
     }
