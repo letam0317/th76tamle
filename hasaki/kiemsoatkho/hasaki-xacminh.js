@@ -295,7 +295,7 @@
         "#modal.hx-ben .hx-tb-luoi .hx-tb-tp[hidden]{display:none!important}#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{justify-content:flex-start}" +
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang>.hx-qd-nguon{margin-left:0!important;flex:0 1 auto;width:auto!important;max-width:100%;min-width:0;flex-wrap:nowrap!important;overflow:visible!important;gap:6px;justify-content:flex-start}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:clip;overflow-clip-margin:8px;text-overflow:ellipsis}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{margin-top:14px!important}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon{gap:4px}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{padding:0 7px!important;font-size:12px!important}#modal.hx-ben .hx-lan .ai small{white-space:normal!important;overflow:visible;text-overflow:clip}}" +
         "#modal.hx-ben .hx-ng-hang button:disabled{opacity:.5;cursor:default}#modal.hx-ben .hx-ng-so{display:inline-block;min-width:16px;margin-left:4px;padding:0 4px;border-radius:8px;background:#d46b08;color:#fff;font-size:11px;line-height:16px;text-align:center}" +
-        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}}" +
+        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}#modal.hx-ben [data-tb=may]>.hx-tb-khung>[data-tp=seghi]{order:-1}#modal.hx-ben [data-tb=may]>.hx-tb-khung>[data-tp=gocds]{order:-1}}" +
         /* 20/10 user (CHỈ WEB): khối thông tin Theo tác vụ dời xuống SÁT TRÊN Quyết định (ảnh ghi nhận được rộng chỗ); khung ảnh CHỐT 9:16 dọc, ảnh contain nền tối — đổi ảnh không làm các mục dưới nhảy */
         "@container (min-width:821px){#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin]{margin-top:auto!important}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=quyetdinh]{margin-top:0!important}" +
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-qd-anh{width:100%;height:320px;aspect-ratio:auto!important;margin:0;background:#111!important}" +
@@ -641,7 +641,7 @@
         '<div class="hx-tl-hang"><div class="hx-tl" id="hxTl"></div><div class="hx-xdau"><span class="hx-vbar" id="lvCtl"><button id="hxPlay" aria-label="Phát / dừng">▶</button><span class="gio" id="hxGio">--:--:--</span>' +
         '<span class="hx-toc"><button data-toc="auto" class="on">Tự động</button><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="3">×3</button></span></span></div></div></div>' +
         /* 19/10 (7) user: «Ảnh ghi nhận» thành CHIP cùng hàng/kiểu với Theo tác vụ, ngay dưới clip — ảnh mặc định ẩn, bấm hiện DƯỚI clip (clip vẫn chạy) */
-        '<div class="hx-qd-xem hx-xem-may"><div class="hx-xdau hx-ng-hang"><span class="hx-qd-nguon"><button type="button" class="hx-ng-anh" data-anhgn aria-pressed="false">Ảnh ghi nhận</button>' +
+        '<div class="hx-qd-xem hx-xem-may"><div class="hx-xdau hx-ng-hang"><span class="hx-qd-nguon"><button type="button" class="hx-ng-anh" data-anhgn aria-pressed="false">Ghi nhận</button>' +   /* 20/10 user: như Theo tác vụ — chip «Ghi nhận» (điện thoại) gom ảnh + «Sẽ ghi nhận» */
         /* 20/10 ghi chú user (lượt 14/10 07:38): «người đi sang góc khác nên không thấy rõ — lấy thêm góc khác cùng thời điểm». Chip «Góc khác · <kênh>»
            như chip Ảnh ghi nhận: mặc định ẩn, bấm hiện 1 khung video RIÊNG dưới clip (clip chính giữ nguyên), tua sẵn tới trước giờ có người 5 s. */
         /* 20/10 user (lượt 2): như Theo tác vụ — chip «Góc chính · <camera>» + mỗi góc phụ 1 chip «Góc khác · <kênh>»; bấm góc khác thì CLIP CHÍNH chuyển sang góc đó
@@ -700,6 +700,8 @@
         if (window.__hxTua) window.__hxTua(t - 2); };
       ds.querySelectorAll("[data-gocmoc]").forEach(function (r) { r.onclick = function () { var d = dong[Number(r.dataset.gocmoc)];
         ds.querySelectorAll("[data-gocmoc]").forEach(function (z) { z.classList.toggle("on", z === r); }); sang(d.goc, d.t); }; });
+      /* 20/10 user CHỐT: web mặc định HIỆN danh sách góc, điện thoại mặc định ẨN (bấm chip mới hiện) */
+      var web = $id("modal").querySelector(".modal-box").clientWidth > 820; ds.hidden = !web; nut.classList.toggle("on", web); nut.setAttribute("aria-pressed", String(web));
       nut.onclick = function () { var mo = ds.hidden; ds.hidden = !mo; nut.classList.toggle("on", mo); nut.setAttribute("aria-pressed", String(mo));
         if (mo) { ds.classList.add("hx-hien-mo"); setTimeout(function () { ds.classList.remove("hx-hien-mo"); }, 320); } else if (gocDang >= 0) sang(-1, giay(l.gioNguoi || l.tu)); lapCotPhai(); };
     })();
@@ -1062,10 +1064,10 @@
     var imA0 = $id("mBody").querySelector(".hx-tb-luoi .hx-qd-anh img"); if (imA0) imA0.style.removeProperty("max-height");
     /* 19/10 user «clip dính rồi mà cuộn xuống không ăn, cuộn 3–5 lần chỉ động đậy»: thanh hẹp/điện thoại xếp 1 cột, clip dính trên ⇒ KHÔNG còn vùng cuộn lồng
        (danh sách Ai tác động / người nghi / Sẽ ghi nhận cao tự nhiên, cả thanh cuộn). Trước đây danh sách bị kẹp 5 dòng + overscroll contain ⇒ lăn trúng nó là kẹt. */
-    var gDs = $id("lvGocDs"); if (gDs) gDs.style.maxHeight = "";
+    var gDs = $id("lvGocDs"); if (gDs) { gDs.style.maxHeight = ""; gDs.style.display = ""; }
     if (bx.clientWidth <= 820) { [C, $id("hxChot")].forEach(function (e) { if (e) e.style.maxHeight = ""; }); qdDay(bx, $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]')); return; }
-    /* 20/10 user (video 16:59): danh sách «Góc camera» CUỘN RIÊNG trong phần còn lại của thanh (web) — không kéo dài thanh nên Ảnh ghi nhận cột kia đứng yên, không bị thu nhỏ */
-    if (gDs && !gDs.hidden) gDs.style.maxHeight = Math.max(120, Math.floor(bx.getBoundingClientRect().bottom - gDs.getBoundingClientRect().top - 16)) + "px";
+    /* 20/10 user CHỐT: danh sách «Góc camera» KHÔNG được làm Ảnh ghi nhận co lại — đo bố cục khi TẠM gỡ danh sách, cuối cùng (qdDay) mới cho nó phần còn lại, cuộn riêng */
+    if (gDs && !gDs.hidden) gDs.style.display = "none";
     var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.style.marginBottom = ""; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
     /* 17/10 (2) «Sẽ ghi nhận» dưới Ảnh ghi nhận, đứng CẠNH clip: nhiều người nghi thì cuộn riêng tới đáy clip — không đẩy cao cả hàng clip (cả thanh phải cuộn) */
     var sg = $id("hxChot"), kc = $id("mBody").querySelector('[data-tp="clip"]');
@@ -1098,7 +1100,8 @@
     if (!qd || !bx) return; qd.style.marginTop = "";   // trả về margin-top:auto (CSS) — trong khung cột, Quyết định tự xuống đáy khung
     var L = qd.closest(".hx-tb-luoi"), pb = parseFloat(getComputedStyle($id("mBody")).paddingBottom) || 0; L.style.minHeight = "";
     if (bx.clientWidth <= 820) { qd.style.marginBottom = ""; return; }
-    coAnhTV(bx, qd);   // 19/10 thanh hẹp/điện thoại: Quyết định nằm ngay sau nội dung, không kéo xuống đáy
+    coAnhTV(bx, qd);
+    var gDs = $id("lvGocDs"); if (gDs && !gDs.hidden) { gDs.style.display = ""; gDs.style.maxHeight = Math.max(80, Math.floor(bx.getBoundingClientRect().bottom - gDs.getBoundingClientRect().top - 16)) + "px"; }   // 19/10 thanh hẹp/điện thoại: Quyết định nằm ngay sau nội dung, không kéo xuống đáy
     var rL = L.getBoundingClientRect(), du = bx.getBoundingClientRect().bottom - rL.bottom - pb;
     du -= QD_CACH_DAY;   // 17/10 (6) user «cụm Quyết định di chuyển lên trên 3cm»
     if (bx.scrollHeight <= bx.clientHeight + 1 && du > 2) L.style.minHeight = Math.floor(rL.height + du) + "px";   // lưới giãn → khung giãn → Quyết định cách đáy thanh QD_CACH_DAY
@@ -1143,7 +1146,7 @@
     A.style.height = Math.max(160, Math.min(tren, Math.floor(tren - Math.max(0, du)))) + "px"; }
   function ganNutAnh(hienSan) { var a = $id("mBody").querySelector(".hx-tb-luoi [data-tp=\"anh\"]"), n = $id("mBody").querySelector("[data-anhgn]"); if (!a || !n) return;
     /* 20/10 Theo tác vụ: chip «Ghi nhận» bật/tắt cả ảnh + khối thông tin (Ngày/Vị trí/SKU/Ghi chú/Thuộc lỗi/Máy gợi ý) — chỉ điện thoại (.an-dt ≤820) */
-    var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"]')));
+    var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"], .hx-tb-luoi[data-tb="may"] [data-tp="seghi"]')));
     var dt = true, an = function () { return a.classList.contains("an-dt"); };
     var dat = function (mo) { ds.forEach(function (e) { e.classList.toggle("an-dt", !mo); }); n.classList.toggle("on", mo); n.setAttribute("aria-pressed", String(mo)); };
     dat(!!hienSan); n.onclick = function () { var mo = an(); dat(mo); if (mo) { a.classList.add("hx-hien-mo"); setTimeout(function () { a.classList.remove("hx-hien-mo"); }, 320); } lapCotPhai(); }; }
