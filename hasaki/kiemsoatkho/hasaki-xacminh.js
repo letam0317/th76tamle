@@ -288,8 +288,7 @@
           "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head :is(#mClose,.hx-gc-nut,.hx-motask){min-height:28px!important;height:28px;padding:0 10px!important}}" +
         /* 19/10 (4) B — CHỈ điện thoại: thanh bên Xác minh MỞ thì đầu trang (☰ thanh trái, tên mục, cài đặt) trượt lên ẩn, thanh bên dùng luôn phần cao đó;
            ĐÓNG thì trượt về — cùng nhịp .32s var(--ez-apple) của thanh bên/ngăn kéo (tái dùng, không thêm hiệu ứng mới) */
-        "@media(max-width:768px){body:has(#modal.hx-ben.show #mBody .hx-tb-luoi){--pop-tren:0px}" +
-          "#modal.hx-ben{transition:top .32s var(--ez-apple),visibility 0s .3s!important}#modal.hx-ben.show{transition:top .32s var(--ez-apple)!important}" +
+        "@media(max-width:768px){#modal.hx-ben:has(#mBody .hx-tb-luoi){top:0!important}" +   /* 20/10 video: KHÔNG chuyển động top 52→0 (dời bố cục cả thanh = giật) — thanh Xác minh luôn sát đỉnh, chỉ đầu trang trượt (translate) */
           "body>header,.main>header,header{transition:translate .32s var(--ez-apple)}body:has(#modal.hx-ben.show #mBody .hx-tb-luoi) header{translate:0 -100%;pointer-events:none}" +
           "body:has(#modal.hx-ben.show #mBody .hx-tb-luoi) #sideToggle{translate:0 -72px!important;opacity:0!important;pointer-events:none!important}}" +
         /* 19/10 (4) A: hàng nguồn Theo tác vụ 1 hàng trái→phải; «Không qua WMS» xám khi máy không thấy lượt nào; Ảnh ghi nhận (bật/tắt) ngay dưới clip */
@@ -319,7 +318,7 @@
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh].hx-hien-mo{animation:paneIn .26s var(--ez-apple)}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:none;padding:0!important;margin:0}#modal.hx-ben .hx-tb-luoi .hx-xem-may>.hx-xdau.hx-ng-hang{margin-top:8px}" +
         "#modal.hx-ben .hx-tb-luoi .hx-ng-hang .hx-ng-anh{display:none}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-ng-hang .hx-ng-anh{display:inline-flex}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:block}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>.hx-tb-tp.an-dt{display:none!important}}" +
         /* 20/10 chip «Góc khác» (góc camera phụ) hiện ở CẢ web: web hàng chip chỉ mở khi lượt có góc phụ, chip Ảnh ghi nhận web vẫn ẩn (ảnh ở cột phải) */
-        "#modal.hx-ben .hx-tb-luoi .hx-xem-may:has([data-gocchip]){display:block}#modal.hx-ben .hx-tb-luoi .hx-ng-hang [data-gocchip]{display:inline-flex}#modal.hx-ben #lvGocDs{margin-top:8px}#modal.hx-ben #lvGocDs.hx-hien-mo{animation:paneIn .26s var(--ez-apple)}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-xem-may:has([data-gocchip]){display:block}#modal.hx-ben .hx-tb-luoi .hx-ng-hang [data-gocchip]{display:inline-flex}#modal.hx-ben #lvGocDs{margin-top:8px;overflow-y:auto;overscroll-behavior:auto}#modal.hx-ben #lvGocDs[hidden]{display:none!important}#modal.hx-ben #lvGocDs.hx-hien-mo{animation:paneIn .26s var(--ez-apple)}" +
         /* 19/10 (6) lọc danh sách ai tác động theo chip đang chọn */
         "#modal.hx-ben .hx-qd-ls[data-che=wms] .hx-lan.vl,#modal.hx-ben .hx-qd-ls[data-che=vl] .hx-lan:not(.vl),#modal.hx-ben .hx-qd-ls:not([data-che=wms]) [data-trong=wms]{display:none!important}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
         "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:8px 12px!important;gap:6px!important;flex-shrink:0;min-height:0!important}" +
@@ -1046,13 +1045,16 @@
   function moThanhBen(khoa) { return hskThanhBen.mo(khoa, '#hxBody [data-p="' + CSSe(khoa) + '"], #hxBody [data-lid="' + CSSe(khoa) + '"]'); }
   /* 16/10 (6)(7) cột phải: phần DỮ LIỆU dưới ảnh (Ai tác động · Người trong khung đỏ) cuộn RIÊNG, cao vừa chỗ còn lại tới đáy thanh —
      không bắt cuộn cả thanh. «Ai tác động» tối đa 5 dòng (đo thật, đo 2 lần vì thanh cuộn làm dòng hẹp lại). Xếp chồng (hẹp/điện thoại) thì để tự nhiên. */
-  function lapCotPhai(daLang) { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls .hx-lans, .hx-qd-nguoi .hx-ds-ng");
+  function lapCotPhai(daLang) { var bx = $id("modal").querySelector(".modal-box"), C = $id("mBody").querySelector(".hx-qd-ls:not(#lvGocDs) .hx-lans, .hx-qd-nguoi .hx-ds-ng");
     var hd0 = bx && bx.querySelector(".modal-head"), M1 = $id("modal");   // 19/10 clip dính ngay dưới đầu thanh (đầu thanh cũng dính) — bám cao đầu thanh khi tiêu đề đổi
     if (hd0) { M1.style.setProperty("--hx-dau", hd0.offsetHeight + "px"); if (!M1._roDau && window.ResizeObserver) { M1._roDau = new ResizeObserver(function () { M1.style.setProperty("--hx-dau", hd0.offsetHeight + "px"); }); M1._roDau.observe(hd0); } }
     var imA0 = $id("mBody").querySelector(".hx-tb-luoi .hx-qd-anh img"); if (imA0) imA0.style.removeProperty("max-height");
     /* 19/10 user «clip dính rồi mà cuộn xuống không ăn, cuộn 3–5 lần chỉ động đậy»: thanh hẹp/điện thoại xếp 1 cột, clip dính trên ⇒ KHÔNG còn vùng cuộn lồng
        (danh sách Ai tác động / người nghi / Sẽ ghi nhận cao tự nhiên, cả thanh cuộn). Trước đây danh sách bị kẹp 5 dòng + overscroll contain ⇒ lăn trúng nó là kẹt. */
+    var gDs = $id("lvGocDs"); if (gDs) gDs.style.maxHeight = "";
     if (bx.clientWidth <= 820) { [C, $id("hxChot")].forEach(function (e) { if (e) e.style.maxHeight = ""; }); qdDay(bx, $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]')); return; }
+    /* 20/10 user (video 16:59): danh sách «Góc camera» CUỘN RIÊNG trong phần còn lại của thanh (web) — không kéo dài thanh nên Ảnh ghi nhận cột kia đứng yên, không bị thu nhỏ */
+    if (gDs && !gDs.hidden) gDs.style.maxHeight = Math.max(120, Math.floor(bx.getBoundingClientRect().bottom - gDs.getBoundingClientRect().top - 16)) + "px";
     var qdTp = $id("mBody").querySelector('.hx-tb-luoi>.hx-tb-khung>[data-tp="quyetdinh"]'); if (qdTp) { qdTp.style.marginTop = "0px"; qdTp.style.marginBottom = ""; qdTp.closest(".hx-tb-luoi").style.minHeight = ""; }   // đo khi CHƯA đẩy đáy
     /* 17/10 (2) «Sẽ ghi nhận» dưới Ảnh ghi nhận, đứng CẠNH clip: nhiều người nghi thì cuộn riêng tới đáy clip — không đẩy cao cả hàng clip (cả thanh phải cuộn) */
     var sg = $id("hxChot"), kc = $id("mBody").querySelector('[data-tp="clip"]');
