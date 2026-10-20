@@ -371,7 +371,7 @@
   "dongDai": 13,
   "cdnKhongGhim": 1
  },
- "_luc": "2026-10-20T13:02:50.184Z",
+ "_luc": "2026-10-20T13:21:45.912Z",
  "_ghiTho": {
   "agy-xm.mjs": 5,
   "ai-hoi-anh.mjs": 1,
@@ -507,5 +507,15 @@
   "_tam-vitri-2sku.mjs": 1,
   "_tim-tac-dong.mjs": 1,
   "_trung-anh.mjs": 2
+ },
+ "tien-ich.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
  }
 }

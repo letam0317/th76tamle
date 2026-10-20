@@ -19,6 +19,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const NGUON = path.join(DIR, "google-script.gs");
@@ -87,7 +88,7 @@ for (const nguon of PHU) {
   const CD = path.dirname(DICH), TRUNG_CHAP_NHAN = { doPost: "PhysicalCountImport.js cũ (sa.js đứng sau nên thắng)" };   // pcJson_ bản parse đã đổi tên pcDoc_ (MayTram/XacMinh) — không còn trùng
   const CLASP_F = path.join(CD, ".clasp.json"), cl = JSON.parse(fs.readFileSync(CLASP_F, "utf8"));
   if (!(cl.filePushOrder || [])[0] || cl.filePushOrder[0] !== "PhysicalCountImport.js") {   // .clasp-deploy không vào git (có bí mật) → máy mới clasp pull sẽ thiếu → tự thêm
-    cl.filePushOrder = ["PhysicalCountImport.js", "TuChua.js", "TaiKhoan.js"]; fs.writeFileSync(CLASP_F, JSON.stringify(cl, null, 2) + "\n"); console.log("✓ .clasp.json: thêm filePushOrder (tệp cũ nạp trước, tệp tách sau — thứ tự quyết định hàm trùng tên nào thắng)");
+    cl.filePushOrder = ["PhysicalCountImport.js", "TuChua.js", "TaiKhoan.js"]; ghiJson(CLASP_F, cl, { thut: 2 }); console.log("✓ .clasp.json: thêm filePushOrder (tệp cũ nạp trước, tệp tách sau — thứ tự quyết định hàm trùng tên nào thắng)");
   }
   const dinh = {};
   for (const f of fs.readdirSync(CD).filter((x) => x.endsWith(".js"))) for (const m of fs.readFileSync(path.join(CD, f), "utf8").matchAll(/^function ([A-Za-z0-9_$]+)/gm)) (dinh[m[1]] = dinh[m[1]] || []).push(f);
