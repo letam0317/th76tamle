@@ -100,7 +100,8 @@ function gom() {
     const nvRaw = String(g(r, "B1. Xác minh lỗi vi phạm ▸ Nhân viên vi phạm")).split(",").filter(Boolean);
     const nv = nvRaw.map((x) => { const ma = nvMa[x] || x; return { ma, ten: tenTheoMa(ma) || tenTheoMa(x) }; });
     const gy = goiY[id];
-    phieu.push({ id, code: g(r, "Task Code"), link: g(r, "Link Task"), ngayVP: g(r, "Ngày vi phạm:"), loi: g(r, "Lỗi vi phạm"), viTri: g(r, "Vị trí ghi nhận"),
+    phieu.push({ id, code: g(r, "Task Code"), link: g(r, "Link Task"), ten: g(r, "Task Name"), ghiChu: g(r, "B4. Audit kiểm tra và xác nhận ▸ Ghi chú:") || g(r, "B5.Vận hành xem xét và xác nhận ▸ Ghi chú:"),   /* 20/10 user: tên phiếu WF lên đầu thanh bên; ghi chú phiếu (nếu có) vào khối thông tin */
+      ngayVP: g(r, "Ngày vi phạm:"), loi: g(r, "Lỗi vi phạm"), viTri: g(r, "Vị trí ghi nhận"),
       nguoiGhi: String(g(r, "Created By")).replace(/ - \d+$/, ""), anh: String(g(r, "Hình ảnh vi phạm")).split("\n").filter(Boolean)[0] || "",
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,

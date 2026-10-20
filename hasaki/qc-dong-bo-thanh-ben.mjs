@@ -19,7 +19,7 @@ const DO = () => {   // số đo 1 thanh đang mở
   const q = (s) => document.querySelector("#mBody " + s), bx = document.querySelector("#modal .modal-box");
   const clip = q(".hx-vwrap") || q("#qdKhung>video") || q("#qdKhung>img"), anh = q(".hx-qd-anh img"), qd = q('[data-tp="quyetdinh"]');
   const kAnh = anh && anh.closest(".hx-tb-khung"), kClip = clip && clip.closest(".hx-tb-khung");
-  const loiNhan = [...document.querySelectorAll("#mBody .lbl")].find((x) => x.textContent.trim() === "Lỗi"), gy = [...document.querySelectorAll("#mBody .lbl")].find((x) => /^(Máy gợi ý|Là ai)$/.test(x.textContent.trim()));
+  const loiNhan = [...document.querySelectorAll("#mBody .lbl")].find((x) => /^(Lỗi|Thuộc lỗi)$/.test(x.textContent.trim()))   /* 20/10 Theo tác vụ đổi nhãn «Thuộc lỗi» */, gy = [...document.querySelectorAll("#mBody .lbl")].find((x) => /^(Máy gợi ý|Là ai)$/.test(x.textContent.trim()));
   const ls = q(".hx-qd-ls"), ng = [...document.querySelectorAll("#mBody .hx-qd-nguon button")].filter((x) => x.getBoundingClientRect().width);
   const tlh = q(".hx-tl-hang:not([hidden])");
   return { khungAnh: R(q(".hx-qd-anh")), clip: R(clip), tl: R(tlh), play: R(q("#hxPlay")), toc: R(q(".hx-toc")), kPhai: R(loiNhan && loiNhan.closest(".hx-tb-khung")), anh: R(anh), tv: !!document.querySelector("#mBody [data-tb=tacvu]"), loi: R(loiNhan), gy: R(gy), qd: R(qd), bx: R(bx), cuon: bx.scrollHeight - bx.clientHeight,
