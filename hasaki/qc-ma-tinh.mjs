@@ -50,7 +50,7 @@ if (process.argv[1] && path.basename(process.argv[1]) === "qc-ma-tinh.mjs") {
   if (A["cap-nhat-moc"] || !Object.keys(moc).length) { const m = { ...moc, ...nay, _luc: new Date().toISOString() }; fs.writeFileSync(MOC_F, JSON.stringify(m, null, 1)); console.log("✓ đã ghi mốc " + Object.keys(nay).length + " tệp → " + path.relative(DIR, MOC_F)); process.exit(0); }
   let loiTong = [], giamTong = [];
   for (const t of ten) { if (!moc[t]) { loiTong.push(`${t}: chưa có mốc — chạy --cap-nhat-moc`); continue; } const r = soSanh(t, moc[t], nay[t]); loiTong.push(...r.loi); giamTong.push(...r.giam); }
-  const tong = (o) => Object.values(o).filter((x) => x && typeof x === "object" && "hex" in x).reduce((a, x) => a + x.hex, 0);
+  const tong = (o) => ten.filter((t) => o[t] && "hex" in o[t]).reduce((a, t) => a + o[t].hex, 0);   // chỉ cộng các tệp đang đo
   console.log(`mã màu cứng: ${tong(nay)} (mốc ${tong(moc)}) · tệp đo: ${ten.length}`);
   if (giamTong.length) { console.log("  GIẢM (tốt, hạ mốc): " + giamTong.join(" · ")); const m = { ...moc }; for (const t of ten) m[t] = nay[t]; m._luc = new Date().toISOString(); fs.writeFileSync(MOC_F, JSON.stringify(m, null, 1)); }
   if (loiTong.length) { console.log("  HỎNG (" + loiTong.length + "):\n   - " + loiTong.join("\n   - ")); process.exit(1); }

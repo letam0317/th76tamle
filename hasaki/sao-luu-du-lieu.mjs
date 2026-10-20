@@ -55,8 +55,11 @@ try {
   // tar (GNU, có sẵn trong Windows 10) tạo zip theo danh sách; -C hasaki để đường trong zip là tương đối
   try { fs.unlinkSync(zip); } catch { /* */ }
   // bsdtar của Windows (System32) mới tạo được .zip; «tar» trong PATH của Git Bash là GNU tar, không nén zip → gọi đích danh
-  const TAR = fs.existsSync("C:/Windows/System32/tar.exe") ? "C:/Windows/System32/tar.exe" : "tar";
-  execFileSync(TAR, ["-a", "-cf", zip, "-C", DIR, "-T", dsTep], { stdio: ["ignore", "ignore", "pipe"], timeout: 20 * 60e3 });
+  // bsdtar không mở được đường có dấu tiếng Việt («Sao lưu Audit») → nén ra tệp tạm đường ASCII rồi Node chuyển sang OneDrive
+  const TAR = fs.existsSync("C:/Windows/System32/tar.exe") ? "C:/Windows/System32/tar.exe" : "tar", zipTam = path.join(DIR, ".exports", "sao-luu-tam.zip");
+  try { fs.unlinkSync(zipTam); } catch { /* */ }
+  execFileSync(TAR, ["-a", "-cf", zipTam, "-C", DIR, "-T", dsTep], { stdio: ["ignore", "ignore", "pipe"], timeout: 20 * 60e3 });
+  fs.copyFileSync(zipTam, zip); fs.unlinkSync(zipTam);
   KQ.zip = zip; KQ.zipMB = +(fs.statSync(zip).size / 1048576).toFixed(1); log(`đã nén → ${zip} (${KQ.zipMB} MB)`);
   // giữ GIU bản gần nhất
   const cu = fs.readdirSync(thu).filter((f) => /^audit-\d{4}-\d{2}-\d{2}\.zip$/.test(f)).sort();

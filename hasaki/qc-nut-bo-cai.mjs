@@ -25,7 +25,8 @@ try {
       const u = r.url();
       if (/127\.0\.0\.1:8591/.test(u)) return r.abort();
       if (r.method() === "POST" && /script\.google\.com/.test(u)) { const o = JSON.parse(r.postData() || "{}"); gasGoi.push(o);
-        if (o.action === "pcBoCai") return r.respond({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(o.ph ? { status: "success", goi: GOI } : { status: "error", code: 401, message: "Cần đăng nhập" }) }); }
+        if (o.action === "pcBoCai") return r.respond({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(o.ph ? { status: "success", goi: GOI } : { status: "error", code: 401, message: "Cần đăng nhập" }) });
+        if (/^tk_|^pcBangPh$/.test(String(o.action || ""))) return r.abort(); }   // kiểm phiên tài khoản / bảng máy trạm (chỉ đọc) — không tính là POST ra ngoài
       if (r.method() === "POST" && /\/api\/tk-/.test(u)) return r.abort();   // module tài khoản (chỉ bản nội bộ) — không phải nút tải
       if (r.method() === "POST") { thatGui.push(u); return r.abort(); }
       if (/\/CAI-PC-1LAN\.bat/.test(u) && /localhost|127\.0\.0\.1/.test(u)) return r.respond({ status: 200, contentType: "application/octet-stream", body: BAT });   // bản nội bộ không có file này (deploy chép từ cai-pc)
@@ -37,7 +38,7 @@ try {
     await p.evaluate(() => document.getElementById("btnTaiBoCai").click());
     let tep = []; for (let i = 0; i < 40 && !(tep = fs.readdirSync(DL).filter((f) => f.endsWith(".bat"))).length; i++) await new Promise((r) => setTimeout(r, 300));
     const nd = tep[0] ? fs.readFileSync(path.join(DL, tep[0]), "utf8") : "";
-    const dangNhapMo = await p.evaluate(() => !!document.querySelector("#tkModal.show, .tk-dn.show, #modal.show, [data-tk-modal].show") || /Đăng nhập/.test((document.querySelector(".modal.show, #modal.show, .tk-pop") || {}).textContent || ""));
+    const dangNhapMo = await p.evaluate(() => { const h = document.getElementById("tkHop"); return !!(h && h.getBoundingClientRect().height > 0 && /Đăng nhập/.test(h.textContent)); });   // hộp đăng nhập của tai-khoan.js (hop() → #tkHop)
     if (!coPhien) {
       ok(dangNhapMo, "không phiên: bấm nút → mở ĐĂNG NHẬP");
       ok(!gasGoi.some((o) => o.action === "pcBoCai"), "không phiên: KHÔNG gọi pcBoCai");
@@ -48,7 +49,7 @@ try {
       ok(nd.indexOf("HSK_KHOA_B64") > nd.indexOf("net session") && nd.indexOf("HSK_KHOA_B64") < nd.indexOf('set "REPO='), "dòng khoá nằm SAU bước nâng quyền, TRƯỚC REPO");
       ok(/\r\n/.test(nd) && !/[^\r]\n/.test(nd), "file .bat xuống dòng kiểu Windows (CRLF)");
     }
-    ok(!thatGui.length, "không gửi POST nào ra ngoài (" + thatGui.length + ")");
+    ok(!thatGui.length, "không gửi POST nào ra ngoài (" + thatGui.length + ")" + (thatGui.length ? " — GAS action: " + gasGoi.map((o) => o.action).join(",") : ""));
     await p.close();
   }
 } finally { await b.close(); fs.rmSync(DL, { recursive: true, force: true }); }
