@@ -106,7 +106,11 @@ function gom() {
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,
       giaiTrinh: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Giải trình:"), xacNhan: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Xác nhận lỗi:"),
-      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", nv: (gy.nv || []).filter((n) => n && n.code).map((n) => { const d = db.theoMa.get(String(n.code)); return { ten: n.ten, ma: n.code, email: (d && d.email) || n.email || "", ttNv: d ? d.tt : "Inactive" }; }) } : null,   // 10/10 QC giao diện cũ: nhãn độ chắc phải đúng (A1-01/TB-03 = VỪA, không phải «chắc chắn»)
+      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", nv: (() => {   /* 20/10 user: xếp hạng ứng viên — lượt tác động GẦN giờ ghi nhận nhất trước, rồi nhiều lượt hơn (canh-b1 chưa có điểm riêng) */
+        const T = t(g(r, "Ngày vi phạm:")), nam = String(g(r, "Ngày vi phạm:")).slice(0, 4);
+        const ds = (gy.nv || []).filter((n) => n && n.code).map((n) => { const d = db.theoMa.get(String(n.code)), lan = (n.lan || []).map((x) => t(nam + "-" + String(x).replace(" ", " "))).filter((x) => !isNaN(x));
+          return { ten: n.ten, ma: n.code, email: (d && d.email) || n.email || "", ttNv: d ? d.tt : "Inactive", cach: lan.length && !isNaN(T) ? Math.min(...lan.map((x) => Math.abs(T - x))) : Infinity, soLan: lan.length }; });
+        return ds.sort((x, y) => x.cach - y.cach || y.soLan - x.soLan).map(({ cach, soLan, ...n }) => ({ ...n, gioCach: isFinite(cach) ? Math.round(cach / 6e4) : null })); })() } : null,   // 10/10 QC giao diện cũ: nhãn độ chắc phải đúng (A1-01/TB-03 = VỪA, không phải «chắc chắn»)
       /* 05/10 user "kết quả đã ghi sheet → đưa lên dashboard": kết quả xác minh camera/WMS + quyết định B1 */
       xm: (() => { const v = XM[id]; if (!v) return null; const g = (k) => String(v[Object.keys(v).find((x) => x.includes(k)) || ""] || "");
         return { nghi: g("NV nghi"), goiY: g("Gợi ý"), camera: g("Camera"), daXuLy: g("Đã xử lý"), clip: g("Clip") }; })(),
