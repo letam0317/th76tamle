@@ -19,7 +19,8 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
 <script>/* 13/10 link theo tab (t4): mở thẳng link sâu /retail/tonkho/batthuong → mọi tệp tương đối phải tính từ GỐC app, không từ /tonkho/ */
 (function(){var m=/^\/(retail|kiemsoatkho|factory|stocklocationfactory)\//.exec(location.pathname);if(m)document.write('<base href="/'+m[1]+'/">');
 /* 13/10 tên miền audit-dc.pages.dev: số liệu summary/ + ảnh nhỏ thu/ đổi liên tục nên KHÔNG đẩy sang Cloudflare — đọc thẳng từ GitHub Pages (cho phép đọc chéo) */
-window.GOC_DL=/\.pages\.dev$/.test(location.hostname)?'https://letam0317.github.io/kiemsoatkho/':'';})();</script>
+/* 20/10 user «nay 20/10 sao mới nhất 07/09»: bản nội bộ (localhost:8123) đọc summary/ cũ trên laptop (dừng 07/09) → số liệu cũ 6 tuần. Bản nội bộ cũng đọc GitHub Pages như audit-dc. */
+window.GOC_DL=/\.pages\.dev$|^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'https://letam0317.github.io/kiemsoatkho/':'';})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Audit Retail" />
