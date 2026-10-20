@@ -33,7 +33,12 @@ try { const cu = Number(fs.readFileSync(KHOA, "utf8")); if (cu && cu !== process
 fs.writeFileSync(KHOA, String(process.pid));
 process.on("exit", () => { try { if (Number(fs.readFileSync(KHOA, "utf8")) === process.pid) fs.unlinkSync(KHOA); } catch { /* */ } });
 
+/* 20/10 đánh giá an ninh: địa chỉ đường hầm từng đăng công khai ở github.io/summary/xm-may-chu.json → ai cũng biết cửa. Nay KHÔNG đẩy lên GitHub nữa;
+   trang tìm địa chỉ qua Apps Script pcBangPh (cần phiên tài khoản) từ nhịp tim (xmHam). Ghi thêm bản ở C:\ProgramData\AuditFactory để nhịp tim của bản cài PC trên laptop đọc được. */
+function ghiChung(o) { try { const d = "C:/ProgramData/AuditFactory"; fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, "duong-ham-591.url"), JSON.stringify(o)); } catch { /* không có quyền thì thôi */ } }
 async function ghiGithub(o) {
+  ghiChung(o);
+  if (!process.env.DUONG_HAM_CONG_BO) return log("địa chỉ chỉ đi qua nhịp tim (không công bố GitHub)");   // 20/10 mặc định tắt
   const noiDung = JSON.stringify(o, null, 1) + "\n";
   try { fs.writeFileSync(path.join(DIR, "kiemsoatkho", TEP), noiDung); } catch { /* */ }
   const T = process.env.GH_TOKEN; if (!T) return log("✗ thiếu GH_TOKEN — không công bố được địa chỉ");

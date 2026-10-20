@@ -471,6 +471,8 @@ const sv = http.createServer(async (q, s) => {
     if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1 } : { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
+    if (p === "/api/qc-dem") return guiJ(s, 200, docJ(path.join(EXP, "qc-dem.json"), { chua: 1 }));   // 20/10 kết quả bộ đo chạy đêm (chay-qc-dem.mjs)
+    if (p === "/api/sao-luu") return guiJ(s, 200, docJ(path.join(EXP, "sao-luu-gan-nhat.json"), { chua: 1 }));   // 20/10 lần sao lưu gần nhất
     if (p === "/api/may-tram/duyet-khoa" && q.method === "POST") {   // 14/10: duyệt / từ chối PC xin khoá (bộ cài tải trên PC, không khoá) → GAS pcDuyetKhoa
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
       let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }

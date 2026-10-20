@@ -37,6 +37,27 @@ try {
 // Khoa NANG LUC may dang co (ten khoa, KHONG gia tri) -> dieu phoi biet may nay lam duoc viec can khoa nao.
 const KHOA_NANG_LUC = ["APPSCRIPT_KEY", "APPSCRIPT_URL", "TOPREVIEW_USER", "TOPREVIEW_PASS", "GEMINI_API_KEY"];
 function coKhoa() { return KHOA_NANG_LUC.filter((k) => (process.env[k] || "").trim() !== ""); }
+/* 20/10 ĐỔI KHOÁ KHÔNG CÀI LẠI (đánh giá an ninh: gói khoá từng lộ → phải đổi được nhanh trên mọi máy):
+   · GAS trả khoaMoi khi máy còn gọi bằng khoá CŨ → ghi APPSCRIPT_KEY mới vào .env ngay.
+   · GAS trả goiBam (băm gói khoá laptop đẩy lên qua pcDatGoi); khác băm máy đã áp (.goi-bam.txt) → pcLayGoi → ghi các dòng KEY=VALUE vào .env
+     (chỉ PC: RUNNER_VAI=pc; laptop là nguồn gói, không tự ghi đè). Mọi tiến trình cò đọc .env lúc khởi động → lượt sau dùng khoá mới. */
+const GOI_F = path.join(DIR, ".goi-bam.txt"), ENV_F = path.join(DIR, ".env");
+function goiBamDaAp() { try { return fs.readFileSync(GOI_F, "utf8").trim().slice(0, 16); } catch { return ""; } }
+function ghiEnv(cap) {   // cập nhật/thêm dòng KEY=VALUE, giữ nguyên dòng khác; ghi tạm rồi đổi tên
+  let dong = []; try { dong = fs.readFileSync(ENV_F, "utf8").split(/\r?\n/); } catch { /* chưa có */ }
+  for (const [k, v] of Object.entries(cap)) { if (!/^[A-Z0-9_]+$/.test(k)) continue; const i = dong.findIndex((l) => l.replace(/^\s*/, "").startsWith(k + "=")); if (i >= 0) dong[i] = k + "=" + v; else dong.push(k + "=" + v); process.env[k] = v; }
+  const tam = ENV_F + ".tam"; fs.writeFileSync(tam, dong.join("\r\n").replace(/(\r\n)+$/, "") + "\r\n"); fs.renameSync(tam, ENV_F);
+}
+async function apKhoaMoi(j, log) {
+  try {
+    if (j.khoaMoi && /^[\w.-]{8,}$/.test(j.khoaMoi) && j.khoaMoi !== KEY) { ghiEnv({ APPSCRIPT_KEY: j.khoaMoi }); KEY = j.khoaMoi; log("nhip: GAS bao KHOA MOI -> da ghi .env"); }
+    if (String(process.env.RUNNER_VAI || "").toLowerCase() === "pc" && j.goiBam && j.goiBam !== goiBamDaAp()) {
+      const g = await gasPost({ action: "pcLayGoi", key: KEY }, log, "pcLayGoi");
+      if (g && g.status === "success" && g.goi) { const cap = {}; for (const l of Buffer.from(g.goi, "base64").toString("utf8").split(/\r?\n/)) { const m = /^([A-Z0-9_]+)=(.*)$/.exec(l.trim()); if (m && m[2]) cap[m[1]] = m[2]; }
+        if (Object.keys(cap).length) { ghiEnv(cap); if (cap.APPSCRIPT_KEY) KEY = cap.APPSCRIPT_KEY; fs.writeFileSync(GOI_F, String(g.goiBam || j.goiBam)); log("nhip: goi khoa moi (" + Object.keys(cap).join(",") + ") -> da ghi .env"); } }
+    }
+  } catch (e) { log("nhip: ap khoa moi loi " + e.message); }
+}
 
 // ---- 13/10: VIEC DANG CHAY tren may nay (cho sub-tab «May tram» + lenh dung) ----
 // _DP-CHAY.vbs ghi .dang-chay/<viec>.pid = PID goc luc khoi chay. Viec con chay = con >=1 tien trinh trong CAY CON
@@ -110,8 +131,11 @@ async function trangThaiTask() {
 }
 
 // 19/10: địa chỉ đường hầm của máy chủ Xác minh DỰ PHÒNG (may-chu-du-phong.mjs) — chỉ khi tiến trình đường hầm còn sống
-function xmHam() {
-  try { const o = JSON.parse(fs.readFileSync(path.join(DIR, ".duong-ham-591.url"), "utf8")); process.kill(o.pid, 0); return /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(o.url) ? o.url : ""; } catch { return ""; }
+function xmHam() {   // 20/10: laptop gửi nhịp tim từ bản cài PC (C:\AuditFactory) nên đọc thêm tệp do đường hầm ghi ở thư mục chung (DUONG_HAM_URL_F)
+  for (const f of [path.join(DIR, ".duong-ham-591.url"), process.env.DUONG_HAM_URL_F || "", "C:/ProgramData/AuditFactory/duong-ham-591.url"]) {
+    if (!f) continue; try { const o = JSON.parse(fs.readFileSync(f, "utf8")); process.kill(o.pid, 0); if (/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(o.url)) return o.url; } catch { /* thử tệp kế */ }
+  }
+  return "";
 }
 
 export async function guiNhip(log = () => {}, opts = {}) {
@@ -123,7 +147,7 @@ export async function guiNhip(log = () => {}, opts = {}) {
   let congGan = []; try { congGan = fs.readFileSync(path.join(DIR, "runner-dieu-phoi.log"), "utf8").trim().split(/\r?\n/).slice(-8).map((d) => d.slice(0, 180)); } catch { /* chưa có */ }   // 14/10: 8 dòng cuối cổng gác → xem từ xa vì sao máy chạy/không chạy
   let chayLuc = {}; try { chayLuc = JSON.parse(fs.readFileSync(CHAY_F, "utf8")); } catch { /* chưa chạy việc nào */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
-    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, capGan: (() => { try { return fs.readFileSync(path.join(DIR, ".cap-nhat-pc.log"), "utf8").replace(/^\uFEFF/, "").trim().split(/\r?\n/).slice(-6).map((d) => d.slice(0, 160)); } catch { return []; } })(), congLuc: (() => { try { return fs.readFileSync(path.join(DIR, ".cong-luc"), "utf8").trim() || null; } catch { return null; } })(), taskDP: await trangThaiTask(), oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], capNhatNhan: (() => { try { return fs.readFileSync(CAPNHAT_F, "utf8").trim(); } catch { return ""; } })(), xmHam: xmHam(), luc: new Date().toISOString() };
+    dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, goiBam: goiBamDaAp(), capGan: (() => { try { return fs.readFileSync(path.join(DIR, ".cap-nhat-pc.log"), "utf8").replace(/^\uFEFF/, "").trim().split(/\r?\n/).slice(-6).map((d) => d.slice(0, 160)); } catch { return []; } })(), congLuc: (() => { try { return fs.readFileSync(path.join(DIR, ".cong-luc"), "utf8").trim() || null; } catch { return null; } })(), taskDP: await trangThaiTask(), oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], capNhatNhan: (() => { try { return fs.readFileSync(CAPNHAT_F, "utf8").trim(); } catch { return ""; } })(), xmHam: xmHam(), luc: new Date().toISOString() };
   try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).
@@ -136,6 +160,7 @@ export async function guiNhip(log = () => {}, opts = {}) {
     if (j && j.status === "success" && Array.isArray(j.bang)) {
       try { fs.writeFileSync(CACHE, JSON.stringify({ bang: j.bang, srvNow: j.srvNow, luc: Date.now() })); } catch { /* */ }
       if (j.lenh) { try { fs.writeFileSync(LENH_F, JSON.stringify(j.lenh)); } catch { /* */ } }
+      await apKhoaMoi(j, log);
       return { bang: j.bang, nguon: "gas", giuOK: j.giuOK, srvNow: j.srvNow, lenh: j.lenh || null, chuyen: j.chuyen || [] };
     }
     log("nhip: GAS tra bat thuong -> dung local");

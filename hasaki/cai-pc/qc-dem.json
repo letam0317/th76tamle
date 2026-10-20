@@ -1,0 +1,15 @@
+{
+  "_doc": "20/10: danh sách bộ đo chạy hằng đêm (chay-qc-dem.mjs, task «5S QC hang dem» 02:30 laptop). CHỈ đưa vào bộ đo CHỈ-ĐỌC (chặn POST / dữ liệu giả), đã chạy ổn trong phiên tay. tranPhut = trần mỗi bộ. Thêm bộ đo = thêm 1 dòng.",
+  "tranPhut": 15,
+  "ds": [
+    { "ten": "qc-ma-tinh", "tranPhut": 2 },
+    { "ten": "qc-ghi-chu-co", "tranPhut": 10 },
+    { "ten": "qc-thanh-ben-dien-thoai", "tranPhut": 12 },
+    { "ten": "qc-thanh-ben-muot", "tranPhut": 12 },
+    { "ten": "qc-may-tram", "tranPhut": 12 },
+    { "ten": "qc-bo-loc-ngay", "tranPhut": 10 },
+    { "ten": "qc-dong-bo-xm", "tranPhut": 6 },
+    { "ten": "qc-nut-bo-cai", "tranPhut": 6 },
+    { "ten": "qc-du-phong-xm", "tranPhut": 10 }
+  ]
+}

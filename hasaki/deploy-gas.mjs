@@ -41,8 +41,11 @@ const BIMAT = [
      là bước tay nên bị quên; nay chèn thẳng ở đây, thiếu GEMINI_API_KEY trong .env là DỪNG deploy. */
   ["SV_KHOA_CUNG", "GEMINI_API_KEY"],
 ];
+/* 20/10 ĐỔI KHOÁ: khoá CŨ còn nhận trong thời gian chuyển — tuỳ chọn, .env không có thì chèn '' (tắt) */
+const BIMAT_TUY_CHON = [["SECRET_CU", "APPSCRIPT_KEY_CU"]];
 
 let src = fs.readFileSync(NGUON, "utf8");
+for (const [hang, env] of BIMAT_TUY_CHON) { const v = process.env[env] || ""; src = src.replace(new RegExp("^var " + hang + " = '[^']*';", "m"), "var " + hang + " = '" + v.replace(/'/g, "\\'") + "';"); }
 const thieu = [];
 for (const [hang, env] of BIMAT) {
   const v = process.env[env];

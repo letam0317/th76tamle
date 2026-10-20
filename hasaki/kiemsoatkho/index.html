@@ -1510,6 +1510,10 @@ window.__HX_KHONG_MAY = !/Windows NT/.test(navigator.userAgent);
 window.HX_API = "http://127.0.0.1:8591";
 window.hxDoMayChu = function(){
   if (window.__HX_DO) return window.__HX_DO;
+  /* 20/10 đánh giá an ninh: trang công khai KHÔNG dò 127.0.0.1:8591 / đường hầm khi máy chưa có phiên nào (24/24 lượt mở đều lỗi CORS trong console,
+     lộ kiến trúc nội bộ, tốn 1–2 s). Có phiên (Xác minh / tài khoản / Máy trạm) mới dò. Không ghi __HX_DO ở nhánh này để sau đăng nhập dò lại. */
+  var coPhien = false; try { var mp = JSON.parse(localStorage.getItem("mt-phien") || "null"); coPhien = !!(localStorage.getItem("hx-phien") || localStorage.getItem("tk-phien") || (window.TK && window.TK.phien) || (mp && mp.ph && mp.het > Date.now())); } catch(e){}
+  if (!coPhien) return Promise.resolve(false);
   var ping = function(u, ms){ var c = new AbortController(); setTimeout(function(){ c.abort(); }, ms);
     return fetch(u + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return r.json().catch(function(){ return {}; }); })
       .then(function(j){ if (j && j.duPhong) window.__HX_DU_PHONG = 1; return u; }); };
@@ -1527,8 +1531,8 @@ window.hxDoMayChu = function(){
       .then(function(u){ window.__HX_DU_PHONG = 1; return u; }); };
   var ham = function(){ var cu = ""; try { cu = localStorage.getItem("hx-ham") || ""; } catch(e){}
     return (cu ? ping(cu, 6000).then(function(u){ if (window.__HX_DU_PHONG) { window.__HX_DU_PHONG = 0; throw 0; } return u; }) : Promise.reject(0))
-      .catch(function(){ return docTep(window.GOC_DL || ""); })
-      .catch(function(){ return docTep("https://raw.githubusercontent.com/letam0317/kiemsoatkho/main/"); })
+      /* 20/10: bỏ tệp địa chỉ công khai summary/xm-may-chu.json — địa chỉ laptop cũng đi qua nhịp tim (xmHam) → pcBangPh sau đăng nhập */
+      .catch(duPhong)
       .then(function(u){ if (!window.__HX_DU_PHONG) try { localStorage.setItem("hx-ham", u); } catch(e){} return u; }, duPhong)
       .then(function(u){ window.__HX_QUA_HAM = 1;
         if (window.__HX_DU_PHONG && typeof toast === "function") setTimeout(function(){ toast("Laptop đang tắt — đang xem bản dự phòng (chỉ xem, quyết định làm khi laptop bật)", "loi"); }, 600);
@@ -4203,7 +4207,10 @@ document.addEventListener('click', ()=>csDongHet(null));
     if(typeof toast==="function") toast("Đã tải bộ cài CÓ SẴN KHOÁ — chuột phải → Run as administrator, chạy 1 lần là xong. Không gửi file này qua chat/email.","ok"); };
   /* 14/10 user CHỌN «bỏ hẳn đăng nhập cho mọi máy» (đã nêu rủi ro: lộ link = lộ khoá) — lấy gói khoá thẳng, không hỏi gì. */
   var quaGas=function(){   // gói khoá → chèn vào .bat công khai
-    return gasPost({ action:"pcBoCai" }).then(function(j){
+    /* 20/10 đánh giá an ninh: pcBoCai nay đòi phiên tài khoản (quyền Xác minh «làm») hoặc phiên Máy trạm — không phiên thì mở đăng nhập */
+    var ph = (window.TK && window.TK.phien) || (function(){ try { var o = JSON.parse(localStorage.getItem("mt-phien") || "null"); return o && o.ph && o.het > Date.now() ? o.ph : ""; } catch(e){ return ""; } })();
+    if (!ph) { if (typeof window.tkMoDangNhap === "function") window.tkMoDangNhap(); return Promise.reject(new Error("đăng nhập tài khoản có quyền Xác minh rồi bấm lại")); }
+    return gasPost({ action:"pcBoCai", ph: ph }).then(function(j){
       if(j.status!=="success") throw new Error(j.message||"Apps Script trả lỗi");
       return fetch(a.getAttribute("href")+"?t="+Date.now()).then(function(r){ if(!r.ok) throw new Error("Không tải được bộ cài gốc"); return r.text(); }).then(function(bat){
         bat=bat.replace(/\r?\n/g,"\r\n"); var moc='set "REPO='; if(bat.indexOf(moc)<0) throw new Error("Bộ cài gốc đổi khuôn — báo quản trị");

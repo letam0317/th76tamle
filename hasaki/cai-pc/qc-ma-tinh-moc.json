@@ -1,0 +1,398 @@
+{
+ "index.html": {
+  "hex": 378,
+  "tienIch": {
+   "esc": 1,
+   "toast": 1,
+   "hm": 1
+  },
+  "lopBang": [
+   "loi-table",
+   "mbcard",
+   "vdoc"
+  ],
+  "lopNut": [
+   "an-hdr",
+   "bb-up",
+   "btn-filter",
+   "cn",
+   "cty-opt",
+   "h2tip",
+   "hm-xoatim",
+   "lb-btn",
+   "tab",
+   "tkq-card",
+   "vp-tab",
+   "xm-khoa-nut"
+  ],
+  "lopChip": [
+   "badge-link",
+   "mb-tag"
+  ],
+  "media": [
+   560,
+   600,
+   640,
+   700,
+   760,
+   761,
+   768,
+   769,
+   820,
+   940,
+   1200,
+   1300
+  ],
+  "dongDai": 51,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-xacminh.js": {
+  "hex": 58,
+  "tienIch": {
+   "e_": 1,
+   "$id": 1,
+   "hm": 1,
+   "ngayVN": 1,
+   "baoOk": 1,
+   "baoLoi": 1
+  },
+  "lopBang": [
+   "hx-chung",
+   "hx-t-nhac",
+   "hx-t-nv",
+   "hx-t-tg",
+   "mbcard"
+  ],
+  "lopNut": [
+   "badge-link",
+   "btn-filter",
+   "chinh",
+   "hx-cb-xoa",
+   "hx-gc-nut",
+   "hx-goc",
+   "hx-gy-them",
+   "hx-ng-anh",
+   "hx-ng-vl",
+   "hx-nut",
+   "hx-sx",
+   "hx-vl-go",
+   "hx-vthumb",
+   "mkn",
+   "on"
+  ],
+  "lopChip": [],
+  "media": [
+   400,
+   560,
+   561,
+   760,
+   761,
+   768,
+   769,
+   820,
+   821,
+   900,
+   1200
+  ],
+  "dongDai": 174,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-maytram.js": {
+  "hex": 15,
+  "tienIch": {
+   "e_": 1
+  },
+  "lopBang": [],
+  "lopNut": [
+   "hx-nut",
+   "mt-chua-dau",
+   "mt-ct",
+   "mt-x",
+   "mt-xo-dong"
+  ],
+  "lopChip": [],
+  "media": [
+   560,
+   561
+  ],
+  "dongDai": 32,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-planogram.js": {
+  "hex": 432,
+  "tienIch": {
+   "esc": 1,
+   "$id": 1,
+   "ngayVN": 1
+  },
+  "lopBang": [
+   "hp-cctbl",
+   "hp-mtbl"
+  ],
+  "lopNut": [
+   "hp-h2btn",
+   "hp-khurow",
+   "hp-legchip",
+   "hp-mclose",
+   "hp-nvmore",
+   "hp-nvr",
+   "hp-progt",
+   "hp-ptchip",
+   "hp-tdrow",
+   "hp-tile",
+   "hp-vtghi",
+   "hp-vtmore",
+   "hp-whtab",
+   "more"
+  ],
+  "lopChip": [
+   "hp-chipbar"
+  ],
+  "media": [
+   560,
+   640,
+   700,
+   720,
+   760,
+   768,
+   769,
+   1024,
+   1150
+  ],
+  "dongDai": 47,
+  "cdnKhongGhim": 0
+ },
+ "factory-kiemke.js": {
+  "hex": 181,
+  "tienIch": {
+   "esc": 1,
+   "$id": 1,
+   "toast": 1
+  },
+  "lopBang": [
+   "fk-mtbl"
+  ],
+  "lopNut": [
+   "fk-adv-toggle",
+   "fk-apply",
+   "fk-mclose",
+   "fk-mpill",
+   "fk-navt",
+   "fk-see",
+   "fk-sheet-x",
+   "fk-sync"
+  ],
+  "lopChip": [],
+  "media": [
+   760,
+   768,
+   900,
+   1100
+  ],
+  "dongDai": 45,
+  "cdnKhongGhim": 0
+ },
+ "factory-stock.js": {
+  "hex": 125,
+  "tienIch": {
+   "esc": 1,
+   "$id": 1,
+   "toast": 1
+  },
+  "lopBang": [
+   "fs-mtbl",
+   "fs-wtbl"
+  ],
+  "lopNut": [
+   "fs-acchd",
+   "fs-mclose",
+   "fs-tab",
+   "fs-whnum"
+  ],
+  "lopChip": [],
+  "media": [
+   640,
+   720,
+   768,
+   820,
+   1100
+  ],
+  "dongDai": 6,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-kiemke.js": {
+  "hex": 140,
+  "tienIch": {
+   "esc": 1,
+   "$id": 1
+  },
+  "lopBang": [
+   "mbcard"
+  ],
+  "lopNut": [
+   "hk-fcg",
+   "hk-mclose",
+   "hk-stchip"
+  ],
+  "lopChip": [],
+  "media": [
+   560,
+   720,
+   768,
+   820,
+   1024
+  ],
+  "dongDai": 24,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-pc.js": {
+  "hex": 79,
+  "tienIch": {
+   "esc": 1,
+   "$id": 1,
+   "toast": 1
+  },
+  "lopBang": [
+   "hpc-tbl"
+  ],
+  "lopNut": [
+   "go",
+   "hpc-btn",
+   "hpc-chip",
+   "hpc-close",
+   "pcx",
+   "rm"
+  ],
+  "lopChip": [],
+  "media": [
+   768
+  ],
+  "dongDai": 16,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-tonbatthuong.js": {
+  "hex": 90,
+  "tienIch": {
+   "esc": 1,
+   "$id": 1
+  },
+  "lopBang": [
+   "ht-mtbl"
+  ],
+  "lopNut": [
+   "ht-mclose"
+  ],
+  "lopChip": [],
+  "media": [
+   640,
+   720,
+   768,
+   1024
+  ],
+  "dongDai": 6,
+  "cdnKhongGhim": 0
+ },
+ "tai-khoan.js": {
+  "hex": 5,
+  "tienIch": {
+   "e_": 1
+  },
+  "lopBang": [
+   "tk-q"
+  ],
+  "lopNut": [
+   "tk-chinh",
+   "tk-x",
+   "tk-xoa"
+  ],
+  "lopChip": [],
+  "media": [
+   768,
+   769
+  ],
+  "dongDai": 4,
+  "cdnKhongGhim": 0
+ },
+ "bo-loc-ngay.js": {
+  "hex": 0,
+  "tienIch": {
+   "esc": 1
+  },
+  "lopBang": [],
+  "lopNut": [
+   "dp-clear",
+   "dp-next",
+   "dp-prev",
+   "primary"
+  ],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
+ },
+ "hasaki-giaodien-antd.js": {
+  "hex": 2,
+  "tienIch": {
+   "esc": 1
+  },
+  "lopBang": [],
+  "lopNut": [
+   "tq-g",
+   "tq-the"
+  ],
+  "lopChip": [],
+  "media": [
+   480,
+   768,
+   769,
+   1280,
+   1366
+  ],
+  "dongDai": 19,
+  "cdnKhongGhim": 0
+ },
+ "form.html": {
+  "hex": 6,
+  "tienIch": {
+   "hm": 2
+  },
+  "lopBang": [],
+  "lopNut": [
+   "absolute",
+   "block",
+   "flex",
+   "hover",
+   "rounded-2xl",
+   "rounded-full",
+   "shrink-0",
+   "w-full"
+  ],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 7,
+  "cdnKhongGhim": 1
+ },
+ "nghiem-thu.html": {
+  "hex": 4,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [
+   "absolute",
+   "block",
+   "flex",
+   "flex-1",
+   "rounded-2xl",
+   "rounded-full",
+   "rounded-xl",
+   "shrink-0",
+   "the",
+   "w-11",
+   "w-full"
+  ],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 13,
+  "cdnKhongGhim": 1
+ },
+ "_luc": "2026-10-20T12:09:22.754Z"
+}

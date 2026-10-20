@@ -10,6 +10,7 @@
 var TEN_SHEET = 'WMS-5S-AUDIT';
 var TEN_THU_MUC_ANH = 'WMS-5S-AUDIT-HinhAnh';
 var SECRET = 'DAT_MA_BI_MAT_RIENG_O_DAY';   // ⚠ ĐẶT GIÁ TRỊ THẬT (= APPSCRIPT_KEY trong .env) khi dán vào Apps Script
+var SECRET_CU = 'DAT_MA_CU_RIENG_O_DAY';     // 20/10 ĐỔI KHOÁ: khoá CŨ còn nhận trong thời gian chuyển (deploy-gas chèn từ APPSCRIPT_KEY_CU; trống = không dùng). Máy trạm gọi bằng khoá cũ được trả khoaMoi ở pcNhip.
 var SYNC_PIN = 'DAT_PIN_RIENG_O_DAY';        // PIN chung: form Ghi nhận 5S + Cập nhật chấm công
 /* KÊNH TELEGRAM CỦA GAS (24/08/2026) — để GAS TỰ nhắn mã OTP cho quản trị, không qua máy trạm.
    Đi theo đúng đường của SECRET/SYNC_PIN: giá trị thật nằm ở .env, deploy-gas.mjs chèn vào bản
@@ -60,7 +61,8 @@ var SERVE_PRIVATE_TABS = ['PHU-TRACH-QUAY-KE', 'CHAMCONG-VESINH', 'VESINH-YEUCAU
 // Apps Script KHÔNG đọc được custom header → SECRET đi trong POST body (an toàn hơn query,
 // không lọt vào access-log/history). Query key chỉ còn dùng cho link email GET (requestLogin).
 function layKeyBody_(duLieu) { return String((duLieu && (duLieu.key || duLieu.secret)) || ''); }
-function keyBodyOK_(duLieu) { return layKeyBody_(duLieu) === SECRET; }
+function keyBodyOK_(duLieu) { var k = layKeyBody_(duLieu); return k === SECRET || (SECRET_CU !== '' && SECRET_CU.indexOf('DAT_') !== 0 && k === SECRET_CU); }
+function keyLaCu_(duLieu) { var k = layKeyBody_(duLieu); return SECRET_CU !== '' && SECRET_CU.indexOf('DAT_') !== 0 && k === SECRET_CU && k !== SECRET; }   // 20/10 máy còn dùng khoá cũ → báo khoá mới
 
 /* ===== KHOÁ THIẾT BỊ (audit 23/08/2026 — user chốt: KHÔNG bắt gõ PIN, trừ ghi nhận 5S) =====
  * Vấn đề: repo public + URL /exec nhúng trang public ⇒ pr_them (in tem thật), sku_vision/sku_ocr
@@ -418,6 +420,8 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pcLayKhoa') return apiPcLayKhoa_(duLieu);
     if (duLieu && duLieu.action === 'pcDuyetKhoa') return keyBodyOK_(duLieu) ? apiPcDuyetKhoa_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pcDatGoi') return keyBodyOK_(duLieu) ? apiPcDatGoi_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'pcLayGoi') return keyBodyOK_(duLieu) ? apiPcLayGoi_() : phanHoiJson({ status: 'error', message: 'Sai key' });        // 20/10 máy trạm tự lấy gói khoá mới (đổi khoá/mật khẩu không cài lại)
+    if (duLieu && duLieu.action === 'saoLuuSheet') return keyBodyOK_(duLieu) ? apiSaoLuuSheet_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' }); // 20/10 sao lưu Sheet hằng ngày (laptop gọi)
     if (duLieu && duLieu.action === 'pcBoCai') return apiPcBoCai_(duLieu);   // 14/10 tải bộ cài có khoá trên máy bất kỳ (phải có phiên)
     if (duLieu && duLieu.action === 'uploadBienBan') return apiUploadBienBan(duLieu);
     // Tồn mã vị trí: 2 action GAS-tự-gọi-WMS bằng token đã lưu. BẮT BUỘC SECRET (trước đây public →
@@ -2499,6 +2503,7 @@ function apiPcNhip_(duLieu) {
       chayLuc: nhip.chayLuc ? pcChayLuc_(nhip.chayLuc) : undefined,   // PC bản cũ không gửi → bỏ trường (đừng báo sai «chưa chạy»). 14/10 { viec: ISO } lần chạy gần nhất (cổng gác cho CHẠY) → «chạy lúc …» trên Máy trạm
       oDia: (nhip.oDia instanceof Array ? nhip.oDia.slice(0, 8).map(function (x) { return { o: String(x && x.o || '').slice(0, 1).toUpperCase(), trong: Number(x && x.trong) || 0, tong: Number(x && x.tong) || 0 }; }).filter(function (x) { return /^[A-Z]$/.test(x.o); }) : []),   // 14/10 mọi ổ đĩa
       xmHam: /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(String(nhip.xmHam || '')) ? String(nhip.xmHam) : undefined,   // 19/10 máy chủ Xác minh DỰ PHÒNG trên PC (laptop tắt → điện thoại xem qua đây; trả chỉ qua pcBangPh có phiên)
+      goiBam: /^[0-9a-f]{0,16}$/.test(String(nhip.goiBam || '')) ? String(nhip.goiBam || '') : '',   // 20/10 băm gói khoá máy đã áp (đổi khoá: biết máy nào đã nhận)
       luc: new Date().toISOString() };   // 13/10: PC tự tính việc được giao (dieu-phoi.mjs) → điện thoại xem không cần máy chủ 8591
     props.setProperty('PCNHIP_' + g.may, JSON.stringify(g));
     var all = props.getProperties(), bang = [], chuyen = [];
@@ -2530,7 +2535,8 @@ function apiPcNhip_(duLieu) {
       else giuOK = false;
     }
     if (nhip.traViec) { var tk = 'PCLEASE_' + String(nhip.traViec); var c2 = pcJson_(props.getProperty(tk)); if (c2 && c2.may === g.may) props.deleteProperty(tk); }
-    return phanHoiJson({ status: 'success', bang: bang, giuOK: giuOK, srvNow: now, lenh: lenhToi, chuyen: chuyen });
+    /* 20/10 ĐỔI KHOÁ không cài lại: máy gọi bằng khoá CŨ → trả khoaMoi (nhip-pc ghi vào .env); goiBam = băm gói khoá hiện hành (khác băm máy đã áp → máy gọi pcLayGoi) */
+    return phanHoiJson({ status: 'success', bang: bang, giuOK: giuOK, srvNow: now, lenh: lenhToi, chuyen: chuyen, khoaMoi: keyLaCu_(duLieu) ? SECRET : undefined, goiBam: pcGoiBam_() });
   } finally { lock.releaseLock(); }
 }
 
@@ -2654,9 +2660,37 @@ function apiPcDatGoi_(d) {   // SECRET
   PropertiesService.getScriptProperties().setProperty('PCGOI', JSON.stringify({ goi: String(d.goi), luc: new Date().toISOString() }));
   return phanHoiJson({ status: 'success' });
 }
+function pcGoiBam_() { var g = pcJson_(PropertiesService.getScriptProperties().getProperty('PCGOI')); return g && g.goi ? pcHex_(String(g.goi)).slice(0, 16) : ''; }
+function apiPcLayGoi_() {   // SECRET — máy trạm (đã đủ khoá) lấy gói khoá hiện hành để cập nhật .env khi gói đổi
+  var g = pcJson_(PropertiesService.getScriptProperties().getProperty('PCGOI'));
+  if (!g || !g.goi) return phanHoiJson({ status: 'error', code: 404, message: 'Chưa có gói khoá' });
+  return phanHoiJson({ status: 'success', goi: g.goi, goiBam: pcHex_(String(g.goi)).slice(0, 16), luc: g.luc });
+}
+/* 20/10 SAO LƯU SHEET (đánh giá: 0 bản sao lưu): chép 4 sheet vào thư mục Drive riêng «Sao lưu Audit (không chia sẻ)», giữ `giu` bản gần nhất mỗi sheet.
+   Không dùng trigger thời gian (scope scriptapp chưa cấp) — laptop gọi mỗi ngày (sao-luu-du-lieu.mjs). */
+function apiSaoLuuSheet_(d) {
+  var props = PropertiesService.getScriptProperties(), giu = Math.max(3, Math.min(60, Number(d.giu) || 14)), ngay = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd');
+  var thu = null, idThu = props.getProperty('SAO_LUU_THU_MUC');
+  if (idThu) { try { thu = DriveApp.getFolderById(idThu); } catch (e) { thu = null; } }
+  if (!thu) { thu = DriveApp.createFolder('Sao lưu Audit (không chia sẻ)'); props.setProperty('SAO_LUU_THU_MUC', thu.getId()); }
+  var nguon = [], ss0 = SpreadsheetApp.getActiveSpreadsheet(); if (ss0) nguon.push(ss0.getId());
+  [props.getProperty('PRIVATE_SHEET_ID'), (typeof STOCKLOC_SHEET_ID !== 'undefined' ? STOCKLOC_SHEET_ID : ''), (typeof NT_SHEET_ID !== 'undefined' ? NT_SHEET_ID : '')].forEach(function (id) { if (id && nguon.indexOf(id) < 0) nguon.push(id); });
+  var ds = [];
+  nguon.forEach(function (id) {
+    try { var f = DriveApp.getFileById(id), ten = f.getName(); var daCo = thu.getFilesByName(ten + ' · sao lưu ' + ngay); if (daCo.hasNext()) { ds.push({ ten: ten, ngay: ngay, trung: true }); return; }
+      var c = f.makeCopy(ten + ' · sao lưu ' + ngay, thu); ds.push({ ten: ten, ngay: ngay, id: c.getId() });
+      var cu = []; var it = thu.getFiles(); while (it.hasNext()) { var x = it.next(); var m = /^(.*) · sao lưu (\d{4}-\d{2}-\d{2})$/.exec(x.getName()); if (m && m[1] === ten) cu.push({ f: x, ngay: m[2] }); }
+      cu.sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; }); cu.slice(giu).forEach(function (x) { x.f.setTrashed(true); });
+    } catch (e) { ds.push({ id: id, loi: String(e.message || e).slice(0, 120) }); }
+  });
+  return phanHoiJson({ status: 'success', ds: ds, thuMuc: thu.getId() });
+}
 function apiPcBoCai_(d) {
-  /* 14/10 user CHỌN «bỏ hẳn đăng nhập cho mọi máy» (đã được nêu rủi ro: lộ link audit-dc = lộ khoá GAS + mật khẩu top-review → khi đó
-     phải đổi khoá GAS + mật khẩu top-review). Không còn gác phiên ở đây. */
+  /* 14/10 user chọn «bỏ hẳn đăng nhập» → 20/10 đánh giá an ninh: cửa này trả TRỌN GÓI KHOÁ cho bất kỳ ai POST (đã thử) ⇒ user «xử lý hết»:
+     GÁC LẠI bằng phiên tài khoản có quyền Xác minh (tkPhien_) hoặc phiên Máy trạm (pcDangNhap). Không phiên → 401, không trả gì. */
+  var nTk = (typeof tkPhien_ === 'function') ? tkPhien_(d.ph) : null;
+  var duocTk = !!(nTk && nTk.quyen && nTk.quyen['r.xacminh'] === 'lam');
+  if (!duocTk && !pcPhienOK_(d.ph)) return phanHoiJson({ status: 'error', code: 401, message: 'Cần đăng nhập tài khoản có quyền Xác minh (làm) rồi bấm lại.' });
   var g = pcJson_(PropertiesService.getScriptProperties().getProperty('PCGOI'));
   if (!g || !g.goi) return phanHoiJson({ status: 'error', code: 404, message: 'Chưa có gói khoá — mở máy chủ Xác minh trên laptop 1 lần.' });
   return phanHoiJson({ status: 'success', goi: g.goi });

@@ -8,7 +8,7 @@ import { phienQC } from "./xacminh-dang-nhap.mjs";
 const PHIEN_QC = phienQC();
 const LIVE = process.argv.includes("--live");
 const GOC = LIVE ? "https://audit-dc.pages.dev/retail/" : "http://localhost:8123/kiemsoatkho/";
-const HAM = JSON.parse(fs.readFileSync(new URL("./kiemsoatkho/summary/xm-may-chu.json", import.meta.url), "utf8")).url;
+const HAM = JSON.parse(fs.readFileSync(new URL("./.duong-ham-591.url", import.meta.url), "utf8")).url;   // 20/10 không còn tệp công khai summary/xm-may-chu.json
 let dat = 0, truot = 0; const ok = (d, t) => { d ? dat++ : truot++; console.log((d ? "  ✓ " : "  ✗ ") + t); };
 const ngu = (ms) => new Promise((r) => setTimeout(r, ms));
 

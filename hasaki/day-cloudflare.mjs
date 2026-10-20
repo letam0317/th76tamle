@@ -109,7 +109,23 @@ fs.writeFileSync(path.join(DIST, "404.html"), '<!doctype html><meta charset="utf
 /* 13/10 QC bảo mật: header chung cho MỌI tệp — chặn nhúng trang vào web lạ (form ghi nhận 5S chỉ được iframe cùng gốc), chặn đoán kiểu tệp,
    không gửi đường dẫn sâu sang web khác, chặn máy tìm kiếm lập chỉ mục (dữ liệu nội bộ: tên NV, ảnh vi phạm), camera chỉ cho chính trang (quét mã). */
 fs.writeFileSync(path.join(DIST, "robots.txt"), "User-agent: *\nDisallow: /\n");
-fs.writeFileSync(path.join(DIST, "_headers"), "/*\n  X-Frame-Options: SAMEORIGIN\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Robots-Tag: noindex, nofollow\n  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()\n/*/index.html\n  Cache-Control: no-cache\n/retail/\n  Cache-Control: no-cache\n/factory/\n  Cache-Control: no-cache\n");
+/* 20/10 đánh giá an ninh: thêm HSTS + Content-Security-Policy. CSP liệt kê đúng các nguồn trang đang dùng (đo bằng grep tên miền 20/10):
+   script = mã trang + Apps Script (JSONP) + jsdelivr (tfjs/coco) + unpkg (alpine/html5-qrcode) + tailwind CDN; 'unsafe-inline' vì 15 khối script nội tuyến,
+   'unsafe-eval' vì Alpine (form) + tfjs (WebAssembly). connect = GAS/Sheet/GitHub (summary, thu/) + máy chủ nội bộ 8591 + đường hầm + WMS/work/planogram/hr.
+   Thêm nguồn mới = thêm vào đây (không thì console báo «Refused to …»). Thử trước ở nhánh xemtruoc. */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://script.google.com https://*.googleusercontent.com https://docs.google.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://letam0317.github.io",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+  "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+  "img-src 'self' data: blob: https: http://127.0.0.1:8591",
+  "media-src 'self' blob: https: http://127.0.0.1:8591",
+  "connect-src 'self' https://script.google.com https://*.googleusercontent.com https://docs.google.com https://drive.google.com https://letam0317.github.io https://raw.githubusercontent.com http://127.0.0.1:8591 https://*.trycloudflare.com https://api.ipify.org https://www.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://*.hasaki.vn https://*.inshasaki.com https://fonts.googleapis.com https://fonts.gstatic.com",
+  "frame-src 'self' https://docs.google.com https://drive.google.com https://*.google.com https://work.hasaki.vn https://planogram.hasaki.vn",
+  "worker-src 'self' blob:",
+  "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'", "form-action 'self' https://script.google.com https://docs.google.com",
+].join("; ");
+fs.writeFileSync(path.join(DIST, "_headers"), "/*\n  X-Frame-Options: SAMEORIGIN\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Robots-Tag: noindex, nofollow\n  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()\n  Strict-Transport-Security: max-age=31536000; includeSubDomains\n  Content-Security-Policy: " + CSP + "\n/*/index.html\n  Cache-Control: no-cache\n/retail/\n  Cache-Control: no-cache\n/factory/\n  Cache-Control: no-cache\n");
 
 /* ---- 2) không đổi thì bỏ qua · trần lượt/ngày ---- */
 const tep = []; (function di(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const ab = path.join(d, f.name); if (f.isDirectory()) di(ab); else tep.push(ab); } })(DIST);

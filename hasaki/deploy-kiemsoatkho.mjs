@@ -100,6 +100,13 @@ async function day(localFile, repoPath) {
   console.log(`→ Đẩy lên ${OWNER}/${REPO}@${BRANCH} (https://${OWNER}.github.io/${REPO}/)`);
   /* --chi kho170-3d.html,kho170-topview.js → chỉ đẩy các tệp repo này (khi tệp khác trên máy còn sửa dở chưa duyệt) */
   const iC = process.argv.indexOf("--chi"), CHI = iC > 0 ? process.argv[iC + 1].split(",") : null;
+  /* 20/10 BỘ KIỂM MÃ TĨNH (qc-ma-tinh.mjs, răng cưa theo mốc): tệp nào tệ thêm (màu cứng, chép tiện ích, lớp bảng/nút/chip mới…) → KHÔNG đẩy. --bo-qua-lint = đẩy liều (ghi lý do vào commit). */
+  if (!process.argv.includes("--bo-qua-lint")) {
+    const { spawnSync } = await import("node:child_process");
+    const tepKiem = (CHI || FILES.map(([, r]) => r)).filter((r) => /\.(js|html)$/.test(r));
+    const l = spawnSync(process.execPath, ["qc-ma-tinh.mjs", "--chi=" + tepKiem.join(",")], { cwd: path.dirname(fileURLToPath(import.meta.url)), encoding: "utf8" });
+    process.stdout.write(l.stdout || ""); if (l.status) { console.error("✗ Bộ kiểm mã tĩnh HỎNG — sửa cho không tệ thêm, hoặc --bo-qua-lint kèm lý do."); process.exit(3); }
+  }
   for (const [local, remote] of FILES) if (!CHI || CHI.includes(remote)) await day(local, remote);
   console.log("✓ Xong. GitHub Pages cập nhật sau ~30–60 giây.");
   /* 13/10: GitHub là nguồn gốc, audit-dc.pages.dev là mặt tiền — đẩy GitHub xong thì đẩy Cloudflare luôn (không đổi thì nó tự bỏ qua).
