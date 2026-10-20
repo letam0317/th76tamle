@@ -45,5 +45,6 @@ if (LENH === "appscript") {
 } else if (LENH === "day") {
   log("8591 khởi động lại: " + (await khoiDongLai8591() ? "OK (gói mới đã đẩy lên GAS)" : "chưa trả lời — kiểm tay")); await xem();
 } else if (LENH === "xong") {
-  if (!process.env.APPSCRIPT_KEY_CU) { log("không có APPSCRIPT_KEY_CU — không có gì để kết thúc"); } else { const r = await xem(); if (r.du < r.tong && !process.argv.includes("--ep")) { log(`mới ${r.du}/${r.tong} máy nhận gói — chưa tắt khoá cũ (thêm --ep để ép)`); process.exit(1); } ghiEnv({ APPSCRIPT_KEY_CU: null }); deployGas(); log("đã tắt khoá cũ"); }
+  if (!process.env.APPSCRIPT_KEY_CU) { log("không có APPSCRIPT_KEY_CU — không có gì để kết thúc"); } else { const r = await xem(); if (r.du < r.tong && !process.argv.includes("--ep")) { log(`mới ${r.du}/${r.tong} máy nhận gói — chưa tắt khoá cũ (thêm --ep để ép)`); process.exit(1); } ghiEnv({ APPSCRIPT_KEY_CU: null }); deployGas(); log("đã tắt khoá cũ");
+    log("NHẮC: tiến trình node chạy lâu trên laptop còn giữ khoá cũ trong bộ nhớ (co-dang-nhap.mjs, in-tem-agent.mjs --dich-vu, bang-591 nếu chưa khởi động lại) → khởi động lại chúng (hoặc khởi động lại máy) để dùng khoá mới."); }
 } else await xem();
