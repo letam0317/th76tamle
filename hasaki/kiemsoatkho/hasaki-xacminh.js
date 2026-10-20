@@ -680,7 +680,7 @@
       var cuoi = giay(l.den || l.tu) + 3, dong = [];
       (l.buocAnh || []).forEach(function (b) { var t = giay(b.luc), mt = String(b.nhan || "").replace(/ · [0-9:]+$/, "").replace(/^[^ ]+ /, "").toLowerCase(); mt = mt.charAt(0).toUpperCase() + mt.slice(1) + (b.doNguoi ? " · có người" : "");
         dong.push({ goc: -1, ten: l.camera || "Góc chính", t: t, luc: b.luc, mt: mt });
-        l.gocPhu.forEach(function (g, k) { if (t >= giay(g.bd) && t <= cuoi) dong.push({ goc: k, ten: g.ten, t: t, luc: b.luc, mt: "" }); }); });   /* góc phụ: không lặp mô tả, chỉ nhãn «Cùng lúc» */
+        l.gocPhu.forEach(function (g, k) { if (t >= giay(g.bd) && t <= cuoi && t <= giay(g.bd) + (g.giay || 9999)) dong.push({ goc: k, ten: g.ten, t: t, luc: b.luc, mt: "" }); }); });   /* góc phụ: không lặp mô tả, chỉ nhãn «Cùng lúc» */
       dong.sort(function (a, z) { return a.t - z.t || a.goc - z.goc; });
       dong.forEach(function (d) { d.cung = dong.filter(function (x) { return x.goc !== d.goc && Math.abs(x.t - d.t) <= CUNG_GIAY; }).map(function (x) { return x.ten; }).filter(function (x, i, a) { return a.indexOf(x) === i; }); });
       /* 20/10 user (bực «tùm lum»): dòng y khuôn Tác động WMS — .hx-lan · giờ (+ trước/sau) · tên góc · 1 dòng nhỏ «mô tả · nhãn Cùng lúc» cắt … · ▶ */
@@ -692,10 +692,12 @@
           '<span class="ai"><b>' + e_(d.ten) + '</b><small class="hx-nguon-lan hx-mot-dong"><span class="mt">' + e_(d.mt) + '</span>' +
             (d.cung.length ? '<span class="hx-tag-cung" title="Cùng thời gian với góc ' + e_(d.cung.join(", ")) + '">Cùng lúc: ' + e_(d.cung.map(gocGon).join(", ")) + '</span>' : "") + '</small></span><span class="pl">▶</span></div>'; }).join("") + '</div>';
       var sang = function (k, t) { if (k !== gocDang) { gocDang = k; v.pause();
-          if (k < 0) { ov.style.display = ""; if (th) th.hidden = false; v.controls = false; v.removeAttribute("src"); v.load(); if (window.__hxTua) window.__hxTua(t); return; }   /* bỏ src góc phụ ⇒ __hxTua nạp đúng đoạn góc chính */
-          var g = l.gocPhu[k]; ov.style.display = "none"; if (th) th.hidden = true; v.controls = true; v.src = u_(g.url);
-          v.onloadedmetadata = function () { v.currentTime = Math.max(0, t - giay(g.bd) - 2); v.play().catch(function () {}); }; return; }
-        if (k < 0) { if (window.__hxTua) window.__hxTua(t); } else { v.currentTime = Math.max(0, t - giay(l.gocPhu[k].bd) - 2); v.play().catch(function () {}); } };
+          /* 20/10: CẢ 2 góc dùng thanh thời gian tự dựng (giờ thật · mốc · vạch có người · Tự động) — góc phụ không khoanh người, không trình phát mặc định */
+          if (th) th.hidden = false; v.controls = false; v.removeAttribute("src"); v.load(); ov.getContext("2d").clearRect(0, 0, 1280, 720);
+          if (k < 0) { ov.style.display = ""; ganVideo(l, dn, { tu: t - 2 }); return; }
+          var g = l.gocPhu[k]; ov.style.display = "none";
+          ganVideo({ video: [{ url: g.url, bd: g.bd }], den: l.den, buocAnh: l.buocAnh, roi: null }, dn, { phu: true, tu: t - 2 }); return; }
+        if (window.__hxTua) window.__hxTua(t - 2); };
       ds.querySelectorAll("[data-gocmoc]").forEach(function (r) { r.onclick = function () { var d = dong[Number(r.dataset.gocmoc)];
         ds.querySelectorAll("[data-gocmoc]").forEach(function (z) { z.classList.toggle("on", z === r); }); sang(d.goc, d.t); }; });
       nut.onclick = function () { var mo = ds.hidden; ds.hidden = !mo; nut.classList.toggle("on", mo); nut.setAttribute("aria-pressed", String(mo));
@@ -872,17 +874,26 @@
         return { detect: function (v) { g.drawImage(v, 0, 0, 640, 360); return m.detect(c, 20, 0.3); } }; }).catch(function () { return null; });
     return MH;
   }
-  function ganVideo(l, dn) {
+  /* 20/10 user «so sánh 2 thanh thời gian → làm»: góc camera phụ trước dùng trình phát MẶC ĐỊNH (giờ 0:00–1:00, không mốc, không vạch có người,
+     không Tự động ×1/×3, có nút Download) ⇒ nay góc phụ dùng CHÍNH thanh này: opt.phu = không dò/khoanh người (toạ độ khoanh là của góc chính),
+     giờ thật = giờ đầu đoạn góc phụ + thời gian chạy, vạch «có người» + mốc ①②③ theo cùng đồng hồ, tốc độ Tự động như góc chính.
+     PHIÊN: mỗi lần gọi đánh số; vòng vẽ + sự kiện của phiên cũ tự thôi (không chồng 2 vòng tranh đồng hồ / tốc độ). */
+  function ganVideo(l, dn, opt) {
+    opt = opt || {}; var phien = ganVideo.phien = (ganVideo.phien || 0) + 1, cu = function () { return phien !== ganVideo.phien; };
     var v = $id("hxV"), ov = $id("hxOv"), g = ov.getContext("2d"), src = l.video || [], idx = 0, toc = "auto", tocTo = null;
     if (!src.length) { v.parentNode.innerHTML = '<div class="hx-trong" style="color:#ccc">Không còn video của lượt này (đầu ghi chỉ giữ đoạn đã tải 14 ngày).</div>'; return; }
     var S = giay(src[0].bd), E = giay(l.den) + 3, tong = Math.max(1, E - S);
-    var tl = $id("hxTl"); tl.innerHTML = dn.map(function (d) { return '<div class="dn" style="left:' + ((d[0] - S) / tong * 100) + '%;width:' + Math.max(0.6, (d[1] - d[0] + 4) / tong * 100) + '%"></div>'; }).join("") +
-      (l.buocAnh || []).map(function (b, i) { var x = Math.max(1.5, Math.min(98.5, (giay(b.luc) - S) / tong * 100));
+    var tl = $id("hxTl"), veTl = function () { tl.innerHTML = dn.filter(function (d) { return d[1] >= S - 4 && d[0] <= E; }).map(function (d) { return '<div class="dn" style="left:' + ((d[0] - S) / tong * 100) + '%;width:' + Math.max(0.6, (d[1] - d[0] + 4) / tong * 100) + '%"></div>'; }).join("") +
+      (l.buocAnh || []).map(function (b, i) { if (opt.phu && (giay(b.luc) < S || giay(b.luc) > E)) return "";   /* góc phụ: mốc ngoài đoạn thì không vẽ (ép mép là sai giờ) */
+        var x = Math.max(1.5, Math.min(98.5, (giay(b.luc) - S) / tong * 100));
         return '<div class="mk" style="left:' + x + '%"></div><button class="mkn' + (b.doNguoi ? " ng" : "") + '" data-tmk="' + i + '" style="left:' + x + '%" title="' + e_(b.nhan) + ' — bấm để tua tới">' + (i + 1) + '</button>'; }).join("") + '<div class="cur" id="hxCur"></div>';
     /* 17/10 (2) user «① trước ② sau này là gì — hiển thị ở thanh thời gian clip luôn»: mốc = các ảnh máy chụp (trước / lúc gửi xe / sau) → số tròn trên thanh, bấm tua tới */
-    tl.querySelectorAll("[data-tmk]").forEach(function (m) { m.onclick = function (ev) { ev.stopPropagation(); tuaToi(giay(l.buocAnh[Number(m.dataset.tmk)].luc)); }; });
+    tl.querySelectorAll("[data-tmk]").forEach(function (m) { m.onclick = function (ev) { ev.stopPropagation(); tuaToi(giay(l.buocAnh[Number(m.dataset.tmk)].luc)); }; }); };
+    veTl();
     v.crossOrigin = "anonymous";   // video từ máy chủ 127.0.0.1:8591 (khác nguồn) — thiếu dòng này canvas bị khoá, không dò được người
-    var nap = function (i, t) { idx = i; v.src = u_(src[i].url); v.onloadedmetadata = function () { if (t != null) v.currentTime = Math.max(0, t - giay(src[i].bd)); v.play().catch(function () {}); }; };
+    var nap = function (i, t) { idx = i; v.src = u_(src[i].url); v.onloadedmetadata = function () { if (cu()) return;
+      if (opt.phu && isFinite(v.duration) && v.duration > 0) { E = S + v.duration; tong = Math.max(1, E - S); veTl(); }
+      if (t != null) v.currentTime = Math.max(0, t - giay(src[i].bd)); v.play().catch(function () {}); }; };
     var bayGio = function () { return giay(src[idx].bd) + (v.currentTime || 0); };
     var trongNguoi = function (t) { return dn.some(function (d) { return t >= d[0] - 4 && t <= d[1] + 10; }); };
     window.__hxTua = function (t) { var i = 0; for (var k = 0; k < src.length; k++) if (giay(src[k].bd) <= t) i = k; tracks = []; prevXam = null;
@@ -925,7 +936,7 @@
       tracks = tracks.filter(function (tr) { return Math.abs(t - tr.luc) < 1.6; }); tracks.forEach(function (tr) { ganTen(tr, t); }); veOv();
     }
     function doTim() {
-      if (ban || !v.videoWidth) return; ban = true; var t = bayGio();
+      if (opt.phu || cu() || ban || !v.videoWidth) return; ban = true; var t = bayGio();
       if (!model) { var d0 = vungCuDong(v); ban = false; xongVung(d0, t); return; }   // 10/10 GIẬT LAG: chưa có mô hình → chỉ chép khung 160×90 (trước: chép 640×360 mỗi lượt)
 
       var xong = function (hop, kieu) {
@@ -942,7 +953,7 @@
       }).catch(function () { ban = false; });
     }
     function veOv() {
-      g.clearRect(0, 0, 1280, 720); var t = bayGio();
+      if (cu()) return; g.clearRect(0, 0, 1280, 720); var t = bayGio();
       if (roi) { g.strokeStyle = "#f1c40f"; g.lineWidth = 4; g.setLineDash([]); g.strokeRect(roi[0], roi[1], roi[2] - roi[0], roi[3] - roi[1]); }
       var daVe = [];   // nhãn đã vẽ — nhãn sau chồng lên thì dời lên trên (2 người đứng sát nhau)
       tracks.forEach(function (tr) { var b = tr.box;
@@ -957,16 +968,16 @@
       var dang = toc === "auto" && !v.paused ? String(v.playbackRate) : ""; if (dang !== tocTo) { tocTo = dang; document.querySelectorAll(".hx-vbar [data-toc]").forEach(function (x) { x.classList.toggle("dang", x.dataset.toc === dang); }); }
       var cur = $id("hxCur"); if (cur) cur.style.left = ((t - S) / tong * 100) + "%";
     }
-    (function vong() { if (!document.body.contains(v)) return;   // 10/10 GIẬT LAG: dò 2,5 lần/giây (trước 5), video dừng thì KHÔNG vẽ lại lớp khung mỗi khung hình
+    (function vong() { if (!document.body.contains(v) || cu()) return;   // 10/10 GIẬT LAG: dò 2,5 lần/giây (trước 5), video dừng thì KHÔNG vẽ lại lớp khung mỗi khung hình
       if (!v.paused) { if (performance.now() - lanCuoi > 400) { lanCuoi = performance.now(); doTim(); } veOv(); } requestAnimationFrame(vong); })();
-    v.addEventListener("seeked", function () { prevXam = null; doTim(); });
-    v.addEventListener("play", function () { $id("hxPlay").textContent = "⏸"; }); v.addEventListener("pause", function () { $id("hxPlay").textContent = "▶"; veOv(); });
-    v.addEventListener("ended", function () { if (idx + 1 < src.length) nap(idx + 1, giay(src[idx + 1].bd)); });
+    v.addEventListener("seeked", function () { if (cu()) return; prevXam = null; doTim(); });
+    v.addEventListener("play", function () { if (cu()) return; $id("hxPlay").textContent = "⏸"; }); v.addEventListener("pause", function () { if (cu()) return; $id("hxPlay").textContent = "▶"; veOv(); });
+    v.addEventListener("ended", function () { if (cu()) return; if (idx + 1 < src.length) nap(idx + 1, giay(src[idx + 1].bd)); });
     $id("hxPlay").onclick = function () { if (!v.src) nap(0, dn.length ? Math.max(S, dn[0][0] - 6) : S); else if (v.paused) v.play(); else v.pause(); };
     document.querySelectorAll(".hx-vbar [data-toc]").forEach(function (b) { b.onclick = function () { toc = b.dataset.toc; document.querySelectorAll(".hx-vbar [data-toc]").forEach(function (x) { x.classList.toggle("on", x === b); }); if (toc !== "auto") v.playbackRate = Number(toc); veOv(); }; });
     tl.onclick = function (ev) { var r = tl.getBoundingClientRect(); window.__hxTua(S + (ev.clientX - r.left) / r.width * tong); };
     document.querySelectorAll(".hx-tlg [data-tua]").forEach(function (b) { b.onclick = function () { window.__hxTua(Number(b.dataset.tua) - 4); }; });
-    nap(0, dn.length ? Math.max(S, dn[0][0] - 6) : S);
+    if (opt.tu != null) nap(0, opt.tu); else nap(0, dn.length ? Math.max(S, dn[0][0] - 6) : S);
   }
   function tuaToi(t) { if (window.__hxTua) window.__hxTua(t - 2); }
 

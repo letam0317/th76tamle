@@ -2,11 +2,11 @@
 // Ghi chú cải tiến của user 19/10 (lượt 2026-10-14_AIBV_074132): «Người đi sang góc khác nên không thấy rõ, nên lấy thêm góc khác cùng
 //   thời điểm để xác minh được là ai — camera Sân nhập hàng ở 170 QL1A - 1». Đối chiếu khung 14/10 07:39: kênh 18 «San Nhap Hang 2» của đầu
 //   ghi 170 QL1A - 1 (172.16.10.10) nhìn ngược về đúng khu bãi bảo vệ, thấy rõ người dắt xe lúc camera AI Bảo vệ chỉ thấy lờ mờ.
-// Mỗi lượt của camera có trong GOC_PHU: cắt 60 s (20 s trước giờ có người → 40 s sau; 150 s = 40 MB/lượt, quá nặng — đo 20/10) ở góc phụ → .exports/.bai-xe-tam/<ngày>/ (giữ 14 ngày
+// Mỗi lượt của camera có trong GOC_PHU: cắt 90 s (20 s trước giờ có người → 70 s sau; 20/10 user duyệt nới từ 60 s; 150 s = 40 MB/lượt, quá nặng) ở góc phụ → .exports/.bai-xe-tam/<ngày>/ (giữ 14 ngày
 //   như đoạn chính) → ghi lượt.gocPhu = [{ten, host, kenh, file, bd}] vào <BAIXE_DIR>/<ngày>/ket-qua.json. Bảng Xác minh: chip «Góc khác».
 // Camera ghi theo chuyển động → cổng agy-xm cat-doan tự thử lệch giờ, bd = giờ THẬT đầu đoạn.
 //   node goc-phu-bai-xe.mjs [--ngay=YYYY-MM-DD] [--id=<lượt>] [--max=20] [--ca-da-quyet]   (mặc định: mọi ngày ≤14 ngày, chỉ lượt chưa quyết)
-// Tải: chỉ đầu ghi top-review (~16 MB/lượt — kênh 18 bitrate cao). 0 lượt work/wms/hr.
+// Tải: chỉ đầu ghi top-review (~24 MB/lượt — kênh 18 bitrate cao). 0 lượt work/wms/hr.
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -42,11 +42,11 @@ for (const ngay of ngays) {
       if ((l.gocPhu || []).some((x) => x.host === g.host && x.kenh === g.kenh && fs.existsSync(x.file))) continue;
       const t = ms(ngay, l.gioNguoi || l.tu) - 20e3, ra = path.join(DIR, ".exports", ".bai-xe-tam", ngay, `${l.id.split("_").slice(1).join("-")}-g${g.host.split(".").pop()}-${g.kenh}.mp4`);
       fs.mkdirSync(path.dirname(ra), { recursive: true });
-      const r = spawnSync(process.execPath, [path.join(DIR, "agy-xm.mjs"), "cat-doan", g.host, g.kenh, new Date(t + 7 * 36e5).toISOString().slice(0, 19), 60, ra], { cwd: DIR, encoding: "utf8", timeout: 20 * 60e3 });
+      const r = spawnSync(process.execPath, [path.join(DIR, "agy-xm.mjs"), "cat-doan", g.host, g.kenh, new Date(t + 7 * 36e5).toISOString().slice(0, 19), 90, ra], { cwd: DIR, encoding: "utf8", timeout: 20 * 60e3 });
       const out = String(r.stdout || "") + String(r.stderr || "");
       if (r.status !== 0 || !fs.existsSync(ra)) { loi++; log(`✗ ${l.id} · ${g.ten}: ${out.trim().split("\n").pop().slice(0, 140)}`); continue; }
       const lech = Number((/LỆCH ([+-]?\d+) s/.exec(out) || [])[1] || 0);
-      l.gocPhu = (l.gocPhu || []).filter((x) => !(x.host === g.host && x.kenh === g.kenh)).concat([{ ten: g.ten, host: g.host, kenh: g.kenh, file: ra, bd: gio(t + lech * 1000) }]);
+      l.gocPhu = (l.gocPhu || []).filter((x) => !(x.host === g.host && x.kenh === g.kenh)).concat([{ ten: g.ten, host: g.host, kenh: g.kenh, file: ra, bd: gio(t + lech * 1000), giay: 90 }]);   /* giay = độ dài đoạn → bảng chỉ hiện mốc nằm trong đoạn */
       doi = true; lam++; ghi(F, k); log(`✓ ${l.id} · ${g.ten} từ ${gio(t + lech * 1000)}${lech ? ` (lệch ${lech} s — camera ghi theo chuyển động)` : ""}`);
     }
   }

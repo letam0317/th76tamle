@@ -42,6 +42,25 @@ for (const m of MAY) {
     const n = await p.evaluate(() => [...document.querySelectorAll("#mBody [data-gocmoc]")].filter((e) => e.getBoundingClientRect().height > 0).length);
     ok(n > 0, `[${m.ten}] G2 bấm chip → danh sách đoạn góc camera hiện (${n} dòng)`); }
   ok(await p.evaluate(() => { const v = document.getElementById("hxV"); return !!(v && v.src); }), `[${m.ten}] G3 clip chính vẫn giữ nguồn`);
+  /* G9 (20/10) chuyển sang góc phụ: dùng THANH TỰ DỰNG (không trình phát mặc định), đồng hồ = giờ thật đoạn góc phụ, có Tự động, mốc trong đoạn;
+     về góc chính: đúng đoạn + giờ; chuyển qua lại 3 lần đồng hồ không nhảy lùi (không chồng 2 vòng vẽ) */
+  const gioGiay = (s) => { const p = String(s || "").split(":").map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : NaN; };
+  const doc9 = () => p.evaluate(() => { const v = document.getElementById("hxV"), th = document.querySelector("#lvClip .hx-tl-hang");
+    return { src: v.currentSrc || v.src || "", ctl: v.controls, thanh: !!(th && !th.hidden && th.getBoundingClientRect().height > 0), gio: (document.getElementById("hxGio") || {}).textContent || "",
+      tudong: !!document.querySelector('.hx-vbar [data-toc="auto"]'), moc: document.querySelectorAll("#hxTl [data-tmk]").length }; });
+  const bam9 = (phu) => p.evaluate((phu) => { const r = [...document.querySelectorAll("#mBody [data-gocmoc]")].find((e) => phu ? /San Nhap Hang 2/.test(e.textContent) : !/San Nhap Hang 2/.test(e.textContent)); if (r) r.click(); return !!r; }, phu);
+  if (await bam9(true)) {
+    await p.waitForFunction(() => /\/g\d+/.test(document.getElementById("hxV").currentSrc || "") && document.getElementById("hxV").currentTime > 0, { timeout: 30000 }).catch(() => {});
+    await new Promise((r) => setTimeout(r, 1500)); const a = await doc9();
+    ok(/\/g\d+/.test(a.src) && !a.ctl && a.thanh && a.tudong, `[${m.ten}] G9 góc phụ dùng thanh tự dựng (src góc phụ ${/\/g\d+/.test(a.src)}, trình phát mặc định ${a.ctl}, thanh ${a.thanh}, Tự động ${a.tudong})`);
+    ok(/^\d{2}:\d{2}:\d{2}$/.test(a.gio) && gioGiay(a.gio) >= gioGiay("07:37:00") && gioGiay(a.gio) <= gioGiay("07:42:00"), `[${m.ten}] G9 đồng hồ góc phụ là giờ thật quanh lúc có người (${a.gio})`);
+    let lui = false, truoc = gioGiay(a.gio);
+    for (const phu of [false, true, false]) { await bam9(phu); await new Promise((r) => setTimeout(r, 2500)); const b2 = await doc9(); await new Promise((r) => setTimeout(r, 1200)); const c2 = await doc9();
+      if (gioGiay(c2.gio) + 0.5 < gioGiay(b2.gio)) lui = true; truoc = gioGiay(c2.gio); }
+    const z = await doc9();
+    ok(/\/video\/[^/]+\/\d+/.test(z.src) && !z.ctl && z.thanh, `[${m.ten}] G9 về góc chính đúng đoạn (${z.src.replace(/^.*\/video\//, "/video/").slice(0, 60)})`);
+    ok(!lui, `[${m.ten}] G9 chuyển góc qua lại 3 lần: đồng hồ không nhảy lùi (không chồng vòng vẽ)`);
+  } else ok(false, `[${m.ten}] G9 không thấy dòng góc San Nhap Hang 2 trong danh sách`);
   await p.evaluate(() => document.getElementById("gcNut").click());
   await p.waitForFunction(() => document.querySelector("#gcDs .hx-tag"), { timeout: 10000 }).catch(() => {});
   const g4 = await p.evaluate(() => [...document.querySelectorAll("#gcDs .hx-tag")].map((x) => x.textContent));

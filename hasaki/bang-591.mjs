@@ -134,7 +134,7 @@ function gom() {
       const chiLuu = (l.loai || "bai-xe") === "phan-loai" || !!l.xeTaiChe;
       luot.push({ id: l.id, ngay: k.ngay, loai: l.loai || "bai-xe", chiLuu, lyDoLuu: l.xeTaiChe ? "xe tải đỗ che bãi — máy bỏ qua" : "", camera: l.camera, vung: l.vung, tu: l.tu, den: l.den, gioNguoi: l.gioNguoi,
         video: (l.nguon || []).map((n, i) => ({ url: `/video/${l.id}/${i}`, bd: n.bd })), doanNguoi: l.doanNguoi || [], vung: l.vung, roi: l.roiPx || null,
-        gocPhu: (l.gocPhu || []).filter((g) => fs.existsSync(g.file)).map((g, i) => ({ ten: g.ten, url: `/video/${l.id}/g${i}`, bd: g.bd })),   // 20/10 góc camera phụ (goc-phu-bai-xe.mjs)
+        gocPhu: (l.gocPhu || []).filter((g) => fs.existsSync(g.file)).map((g, i) => ({ ten: g.ten, url: `/video/${l.id}/g${i}`, bd: g.bd, giay: g.giay || 60 })),   // 20/10 góc camera phụ (goc-phu-bai-xe.mjs)
         anh: `/anh/${d}/${l.anh}`, buocAnh: (l.buocAnh || []).map((x) => ({ ...x, anh: `/anh/${d}/${x.file}` })), khongThayNguoi: !!l.khongThayNguoi,
         chamCong: l.chamCong || [], cong: (l.cong || []).map((c) => { const d = c && c.code ? db.theoMa.get(String(c.code)) : null; return d ? { ...c, email: d.email || "", ttNv: d.tt } : c; }),   /* 20/10 tên NV kèm email + trạng thái (danh sách góc khác) */ goiY: l.goiY || null, soNguoi: l.soNguoi || [],
         qd: q ? { qd: q.qd, ma: q.ma || "", nguoi: q.nguoi || null, gc: q.gc || "", nguon: q.nguon || "web", luc: q.luc || "" } : null, may: da[l.id] || null });
