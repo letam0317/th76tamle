@@ -537,11 +537,11 @@
   function anhNguoi(l) { var b = (l.buocAnh || []).find(function (x) { return x.doNguoi && x.kieu; }) || (l.buocAnh || []).find(function (x) { return x.doNguoi; }) || (l.buocAnh || [])[0]; return b ? u_(b.anh) : u_(l.anh); }
   function veCam() {
     var ngays = Array.from(new Set(D.luot.map(function (l) { return l.ngay; }))).sort().reverse();
-    var ds = D.luot.filter(function (l) { return (!LOC.khu || l.loai === LOC.khu) && trongKhoang(l.ngay, LOC.ngay) && (!LOC.tt || ttLuot(l) === LOC.tt) &&
+    var ds = D.luot.filter(function (l) { return (!LOC.khu || l.loai === LOC.khu) && trongKhoang(l.ngay, LOC.ngay) && (!LOC.tt || (LOC.tt === "gc" ? !!gcCua(l.id) : ttLuot(l) === LOC.tt)) &&
       (!TIM || (l.camera + " " + nguoiChot(l) + " " + (l.chamCong || []).concat(l.cong || []).map(function (c) { return c.code + " " + c.ten; }).join(" ")).toLowerCase().indexOf(TIM.toLowerCase()) >= 0); });
     taiGC(veCam); ds = donGC(ds, function (l) { return l.id; });   // 20/10 mục có ghi chú dồn cuối, làm mờ
     var h = boLoc([
-      { k: "tt", lbl: "Trạng thái", v: LOC.tt, opt: [["cho", "Chờ bạn quyết"], ["da", "Đã quyết · máy đang làm"], ["xong", "Đã lập phiếu"], ["luu", "Chỉ lưu vết (khu phân loại · xe tải che bãi)"], ["", "Tất cả"]] },
+      { k: "tt", lbl: "Trạng thái", v: LOC.tt, opt: [["cho", "Chờ bạn quyết"], ["da", "Đã quyết · máy đang làm"], ["xong", "Đã lập phiếu"], ["luu", "Chỉ lưu vết (khu phân loại · xe tải che bãi)"], ["gc", "Có ghi chú (mọi trạng thái)"], ["", "Tất cả"]] },
       { k: "khu", lbl: "Khu", v: LOC.khu, opt: [["", "Mọi khu"], ["bai-xe", "Bãi xe NCC / bảo vệ"], ["phan-loai", "Khu phân loại giấy"]] },
       { k: "ngay", lbl: "Ngày", ngay: 1, v: LOC.ngay, coDuLieu: function (iso) { return ngays.indexOf(iso) >= 0; }, nhan: function (a, b) { return a ? "" : "14 ngày gần nhất"; },
         presets: [{ k: "today", lb: "Hôm nay" }, { k: "yesterday", lb: "Hôm qua" }, { k: "3", lb: "3 ngày" }, { k: "7", lb: "7 ngày" }, { k: "all", lb: "Tất cả" }] },
@@ -942,7 +942,9 @@
   var MUC_MAY = { chac: ["Máy chắc chắn", "good"], vua: ["Máy gợi ý · cần bạn xem", "warn"], chon: ["Cần bạn quyết", "warn"], tam: ["Nhờ anh Tâm kiểm tra thực tế", "warn"], cam: ["Máy tra camera giờ báo cáo", "info"], tudong: ["Máy tự xử theo luật vệ sinh", "info"], tra: ["Chờ camera xác nhận", "info"], khong: ["Máy đang tìm bằng chứng", ""], quyet: ["Bạn đã quyết · chờ máy làm", "info"], xong: ["Đã xử lý", "good"] };
   function mucMay(p) {
     var x = p.xm || {}, g = p.goiY;
-    if (x.daXuLy) return "xong"; if (p.qdB1) return "quyet";
+    /* 20/10 user «14115619 ghi Đã xử lý mà vẫn treo B1»: cột «Đã xử lý» = «Đã đưa vào hàng chờ cắt clip camera» (12/10) bị coi là XONG.
+       Câu hàng chờ / đang làm KHÔNG phải xong → xét tiếp như phiếu thường (bằng chứng + gợi ý của máy). */
+    if (x.daXuLy && !/hàng chờ|đang /i.test(x.daXuLy)) return "xong"; if (p.qdB1 && !/^Cắt thêm clip/.test(p.qdB1.qd || "")) return "quyet";
     /* 07/10 luật vệ sinh VS-06/VS-07 (canh-b11 ⑤ ghi vesinh-xet.json): kho bụi quá 8h / camera đã đo → nhờ anh Tâm; báo cáo trong 8h → máy tra camera lượt kế; còn lại máy tự xử */
     var vs = p.vs; if (vs) { if (vs.bui || vs.camSo || vs.cam) return "tam"; if (vs.hanhDong === "camera") return "cam"; if (vs.hanhDong === "dong-b1" || /^nghi_/.test(vs.hanhDong || "")) return "tudong"; }
     if (!g || (typeof coBC === "function" && !coBC(p))) return "khong";
@@ -955,11 +957,12 @@
   function veTreo() {
     var thuTu = ["B1", "B1.1", "B2", "B2.1", "B3.1", "B3.2", "B3.3", "B4", "B4.1", "B5", "Điều hướng"], dem = {}, demM = {}, THU = ["chac", "vua", "chon", "tam", "cam", "tudong", "tra", "quyet", "khong", "xong"];
     D.phieu.forEach(function (p) { dem[p.buoc] = (dem[p.buoc] || 0) + 1; var m = mucMay(p); demM[m] = (demM[m] || 0) + 1; });
-    var ds = D.phieu.filter(function (p) { return (!LOC.buoc || p.buoc === LOC.buoc) && (!LOC.treo || (p.treoGio || 0) > 48) && (!LOC.mucMay || mucMay(p) === LOC.mucMay) &&
+    var ds = D.phieu.filter(function (p) { return (!LOC.buoc || p.buoc === LOC.buoc) && (!LOC.treo || (p.treoGio || 0) > 48) && (!LOC.mucMay || (LOC.mucMay === "gc" ? !!gcCua(p.id) : mucMay(p) === LOC.mucMay)) &&
       (!TIM || (p.code + " " + p.viTri + " " + p.loi + " " + p.nguoiBuoc + " " + p.nv.map(function (v) { return v.ten + " " + v.ma; }).join(" ")).toLowerCase().indexOf(TIM.toLowerCase()) >= 0); })
       .sort(function (a, b) { var sx = LOC.sxTreo; if (sx && sx.k) { var v = function (p) { return sx.k === "luc" ? String(p.ngayVP || "") : sx.k === "treo" ? (p.treoGio || 0) : sx.k === "ai" ? (aiPhieu(p) ? 0 : 1) + aiPhieu(p) : (coBC(p) ? 0 : 1); };
         var x = v(a), y = v(b); if (x !== y) return (x > y ? 1 : -1) * sx.d; } return THU.indexOf(mucMay(a)) - THU.indexOf(mucMay(b)) || (b.treoGio || 0) - (a.treoGio || 0); });
-    var h = boLoc([{ k: "mucMay", lbl: "Máy đã biết tới đâu", v: LOC.mucMay || "", opt: [["", "Tất cả (" + D.phieu.length + ")"]].concat(THU.filter(function (k) { return demM[k]; }).map(function (k) { return [k, MUC_MAY[k][0] + " (" + demM[k] + ")"]; })) },
+    var h = boLoc([{ k: "mucMay", lbl: "Máy đã biết tới đâu", v: LOC.mucMay || "", opt: [["", "Tất cả (" + D.phieu.length + ")"]].concat(THU.filter(function (k) { return demM[k]; }).map(function (k) { return [k, MUC_MAY[k][0] + " (" + demM[k] + ")"]; }))
+        .concat((function () { var n = D.phieu.filter(function (p) { return gcCua(p.id); }).length; return n || LOC.mucMay === "gc" ? [["gc", "Có ghi chú (" + n + ")"]] : []; })()) },
       { k: "buoc", lbl: "Đang ở bước", v: LOC.buoc, opt: [["", "Mọi bước (" + D.phieu.length + ")"]].concat(thuTu.filter(function (b) { return dem[b]; }).map(function (b) { return [b, b + " (" + dem[b] + ")"]; })) },
       { k: "treo", lbl: "Thời gian treo", v: LOC.treo, opt: [["", "Tất cả"], ["48", "Quá 48 giờ"]] },
       { k: "tim", lbl: "Tìm (vị trí / tên NV)", input: 1, v: TIM, ph: "F0-A1 / Nguyễn…" }]);

@@ -53,7 +53,11 @@ for (const p of PH) { const id = String(p.id);
   const luc = String(p.ngayVP || "").slice(0, 19); if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(luc)) continue;
   if (so[id] && (so[id].anh || []).length || so[id] && (so[id].hong || 0) >= 3) continue;
   viec.push({ id, luc: luc.length === 16 ? luc + ":00" : luc, v: {}, x: { bin: p.viTri }, loai: "chup" }); }
-log(`${viec.length} phiếu cần tìm khung camera (chạy tối đa ${MAX})`);
+/* 20/10 HÀNG CHỜ «Cắt thêm clip camera» (bạn chọn ở cột Quyết định → canh-b1 ghi .exports/b1-cho-camera.json) trước nay KHÔNG CÓ cò nào đọc
+   (14115619 nằm hàng chờ từ 12/10, bảng còn ghi nhầm «Đã xử lý»). Nay: phiếu trong hàng chờ xếp ĐẦU lượt; có khung/clip rồi thì gỡ khỏi hàng chờ (cuối lượt). */
+const F_HANG = path.join(DIR, ".exports", "b1-cho-camera.json"), HANG = doc(F_HANG, {});
+viec.sort((a, b) => (HANG[b.id] ? 1 : 0) - (HANG[a.id] ? 1 : 0));
+log(`${viec.length} phiếu cần tìm khung camera (chạy tối đa ${MAX})${Object.keys(HANG).length ? ` · hàng chờ cắt clip: ${Object.keys(HANG).join(", ")}` : ""}`);
 fs.mkdirSync(GOC_BC, { recursive: true });
 let lam = 0;
 // 14/10 «chạy ra sao, của task nào» → tab Máy trạm (lượt thật)
@@ -148,4 +152,8 @@ for (const [id, x] of Object.entries(kq)) {
   }
 }
 log(`xong: ${lam} phiếu có khung mới · ${clipMoi} clip mới · ${clipLan} clip lượt châm → ${F_RA}`);
+if (!THU && Object.keys(HANG).length) {   // gỡ khỏi hàng chờ: đã có khung/clip, hoặc phiếu không còn ở B1
+  const bc = doc(F_RA, {}), go = Object.keys(HANG).filter((id) => (mo && !mo.has(id)) || (bc[id] && ((bc[id].anh || []).length || bc[id].clip || (bc[id].lanKho || []).some((e) => e.clip))));
+  if (go.length) { const h = doc(F_HANG, {}); go.forEach((id) => delete h[id]); fs.writeFileSync(F_HANG, JSON.stringify(h, null, 1)); log(`hàng chờ cắt clip: xong ${go.join(", ")}`); }
+}
 await TD?.xong();

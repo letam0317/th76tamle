@@ -50,6 +50,17 @@ for (const m of MAY) {
   await p.waitForFunction(() => document.querySelector("#gcDs .hx-tag"), { timeout: 10000 }).catch(() => {});
   const g4 = await p.evaluate(() => [...document.querySelectorAll("#gcDs .hx-tag")].map((x) => x.textContent));
   ok(g4.length && g4.every((t) => /^(Chờ|Đang|Đã) cải tiến$|^Không làm$/.test(t)), `[${m.ten}] G4 pop-up Ghi chú nhãn trạng thái (${g4.join(", ")})`);
+  /* G7 lọc «Có ghi chú» (Theo máy) ra đủ mục đã ghi chú — kể cả lượt đã chuyển «Chỉ lưu vết» (xe tải che) */
+  await p.keyboard.press("Escape"); await p.keyboard.press("Escape");
+  await p.evaluate(() => { const s = document.querySelector('#hxFilters select[data-k="tt"]'); s.value = "gc"; s.dispatchEvent(new Event("change")); });
+  await p.waitForFunction((s, che) => document.querySelector(s + '[data-lid="' + che + '"]'), { timeout: 15000 }, sel, CHE).catch(() => {});
+  const g7 = await p.evaluate((s) => [...document.querySelectorAll(s)].filter((e) => e.getBoundingClientRect().height > 0).map((e) => e.dataset.lid), sel);
+  ok(g7.includes(ID) && g7.includes(CHE) && g7.length === 2, `[${m.ten}] G7 lọc «Có ghi chú» ra đủ 2 lượt đã ghi chú (${g7.join(", ")})`);
+  /* G8 Theo tác vụ: phiếu 14115619 (hàng chờ cắt clip 12/10) không còn nhãn «Đã xử lý» */
+  await p.evaluate(() => window.HXACMINH.sub("treo"));
+  await p.waitForFunction(() => document.querySelectorAll("#hxBody [data-p]").length > 3, { timeout: 30000 }).catch(() => {});
+  const g8 = await p.evaluate(() => { const e = [...document.querySelectorAll('#hxBody [data-p="14115619"]')].find((x) => x.getBoundingClientRect().height > 0); return e ? e.textContent : null; });
+  ok(g8 != null ? !/Đã xử lý/.test(g8) : true, `[${m.ten}] G8 phiếu 14115619 không còn nhãn «Đã xử lý»${g8 == null ? " (không nằm trong 30 dòng đầu)" : ""}`);
   ok(!con.length, `[${m.ten}] G6 không lỗi trang${con.length ? " — " + con.join(" | ").slice(0, 200) : ""}`);
   await p.close();
 }
