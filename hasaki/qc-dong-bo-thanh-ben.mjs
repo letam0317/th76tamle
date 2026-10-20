@@ -49,14 +49,14 @@ for (const m of MAY) {
     if (!gan(x.kPhai, goc.kPhai, "l")) sai.D2.push(id + JSON.stringify(x.kPhai));
     if (!["l", "t"].every((k) => gan(x.anh, goc.anh, k)) || !x.khungAnh || Math.abs(x.khungAnh.w - x.anh.w) > 1 || Math.abs(x.khungAnh.h - x.anh.h) > 1 || x.khungAnh.w < x.kPhai.w - 52) { if (!x.tv) sai.D3.push(id + JSON.stringify([x.anh, x.khungAnh, x.kPhai && x.kPhai.w])); }   /* 19/10 (4) Theo tác vụ: ảnh ẩn tới khi bấm nút — chỉ so Theo máy */   // 17/10 (8) user «ảnh chưa khít khung»: ảnh phủ kín khung, khung kín bề rộng cột (trừ lề 24×2)
     if (!gan(x.loi, goc.loi, "l")) sai.D4.push(id + JSON.stringify(x.loi));
-    if (!x.qd || (x.bx.b - x.qd.b) < 0 || (x.bx.b - x.qd.b) > 53 + 16) sai.D5.push(id + " cách đáy " + (x.qd ? x.bx.b - x.qd.b : "?"));   // 17/10 (8) user: lên 3 cm rồi xuống 2 cm ⇒ cách đáy 37px + 16px lề
+    if (!x.qd || (!x.tv && (x.bx.b - x.qd.b) < 0) || (x.bx.b - x.qd.b) > 53 + 16) sai.D5.push(id + " cách đáy " + (x.qd ? x.bx.b - x.qd.b : "?"));   // 17/10 (8) user: lên 3 cm rồi xuống 2 cm ⇒ cách đáy 37px + 16px lề
     if (!x.lsCungClip || (x.ls && x.ls.t < x.clip.b)) sai.D6.push(id);
     if (!x.cungKhungPhai || !(x.loi && x.gy && x.qd && x.loi.t < x.gy.t && x.gy.b <= x.qd.t + 1)) sai.D7.push(id);
-    if (x.cuon > 1) sai.D8.push(id + " " + x.cuon + "px");
+    if (x.cuon > 1 && !x.tv) sai.D8.push(id + " " + x.cuon + "px");
     if (!x.tl || !goc.tl || Math.abs((x.tl.t - x.clip.b) - (goc.tl.t - goc.clip.b)) > 2 || !gan(x.tl, goc.tl, "l") || !gan(x.tl, goc.tl, "w") || !gan(x.play, goc.play, "l") || !gan(x.toc, goc.toc, "l")) sai.D11.push(id + JSON.stringify([x.tl, x.clip && x.clip.b]));
   }
   const TEN = { D11: "thanh thời gian + ▶ giờ · Tự động ×1 ×2 ×3 cùng vị trí ở 2 thanh (17/10 (6))", D1: "clip cùng vị trí + kích thước ở 2 thanh", D2: "khung Ảnh ghi nhận cùng mép trái", D3: "Ảnh ghi nhận cùng mép trái/trên, kín bề rộng cột, ảnh phủ khít khung", D4: "nhãn Lỗi cùng mép trái",
-    D5: "Quyết định trong màn, cách đáy ≤ ~1,8 cm (20/10 cột phải Theo tác vụ dài thêm)", D6: "Ai tác động dưới clip, cùng khung clip", D7: "Lỗi → Máy gợi ý → Quyết định dưới Ảnh ghi nhận, cùng khung", D8: "không cuộn cả thanh" };
+    D5: "Quyết định trong màn, cách đáy ≤ ~1,8 cm (20/10 cột phải Theo tác vụ dài thêm)", D6: "Ai tác động dưới clip, cùng khung clip", D7: "Lỗi → Máy gợi ý → Quyết định dưới Ảnh ghi nhận, cùng khung", D8: "Theo máy không cuộn cả thanh (Theo tác vụ 20/10 thêm khối thông tin → được cuộn, clip dính trên)" };
   Object.keys(sai).forEach((k) => ok(!sai[k].length, m.ten + ": " + k + " " + TEN[k] + (sai[k].length ? " — " + sai[k].length + " lệch: " + sai[k].slice(0, 3).join(" | ") : "")));
   ok(!con.length, m.ten + ": D10 không lỗi trang " + con.slice(0, 2).join(" | "));
   if (A.anh) { if (may[0]) { await mo("moLuotId", may[0][0]); await p.screenshot({ path: A.anh + "/dongbo-may-" + m.ten + ".png" }); } if (tv[0]) { await p.evaluate(() => window.HXACMINH.sub("treo")); await ngu(1200); await mo("moPhieuId", tv[0][0]); await p.screenshot({ path: A.anh + "/dongbo-tacvu-" + m.ten + ".png" }); } }

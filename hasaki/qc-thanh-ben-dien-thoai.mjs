@@ -49,7 +49,9 @@ const DO = (mob) => {
       const tt = q("#mTitle"), t1 = q("#mTitle .hx-mt1"), t2 = q("#mTitle .hx-mt2"), dg = q("#mClose"), gc = q("#gcNut"), mt = q("#hxMoTask");
       const R2 = (e) => e && e.getBoundingClientRect().width ? e.getBoundingClientRect() : null, a = [R2(t1), R2(t2), R2(mt), R2(gc), R2(dg)];
       const giua = a.filter(Boolean).map((r) => r.top + r.height / 2);
-      return { traiSat: !!a[0] && Math.abs(a[0].left - (hr.left + pl)) <= 2, phaiSat: !!a[4] && Math.abs(a[4].right - (hr.right - pr)) <= 2,
+      const cuoi = [a[0], a[1]].filter(Boolean).pop();   /* 20/10 user CHỐT web: Đóng sát TRÁI, kế Ghi chú/Mở task, tiêu đề sát PHẢI; điện thoại như cũ */
+      return { webDongTrai: !!a[4] && Math.abs(a[4].left - (hr.left + pl)) <= 2, webTenPhai: !!cuoi && Math.abs(cuoi.right - (hr.right - pr)) <= 2, webThuTu: !!(a[4] && a[3] && a[3].left >= a[4].right - 1 && (!a[2] || a[2].left >= a[3].right - 1) && cuoi.left >= (a[2] || a[3]).right - 1),
+        traiSat: !!a[0] && Math.abs(a[0].left - (hr.left + pl)) <= 2, phaiSat: !!a[4] && Math.abs(a[4].right - (hr.right - pr)) <= 2,
         thuTu: [a[0], a[1], a[2], a[3], a[4]].filter(Boolean).every((r, i, x) => !i || r.left >= x[i - 1].right - 1),
         motHang: giua.length >= 3 && Math.max(...giua) - Math.min(...giua) <= 8, tieuDeTrongKhung: !!tt && tt.getBoundingClientRect().right <= (a[2] || a[3] || a[4]).left + 1 };
     })() };
@@ -82,7 +84,7 @@ for (const m of MAY) {
         if ((x.pd && x.pd > 12) || (h && (h.tocH > 26 || h.tocC < 40)) || x.nguon.some((g) => g.h > 30 || g.c < 40)) sai.G6.push(nh + JSON.stringify({ pd: x.pd, toc: h && [h.tocH, h.tocC], nguon: x.nguon }));
       }
       if (x.ngang > 0) sai.G7.push(nh + " " + x.ngang + "px");
-      if (!(x.dau.traiSat && x.dau.phaiSat && x.dau.thuTu && x.dau.motHang && x.dau.tieuDeTrongKhung)) sai.G9.push(nh + JSON.stringify(x.dau));
+      if (!(m.mob ? x.dau.traiSat && x.dau.phaiSat && x.dau.thuTu && x.dau.motHang && x.dau.tieuDeTrongKhung : x.dau.webDongTrai && x.dau.webTenPhai && x.dau.webThuTu && x.dau.motHang)) sai.G9.push(nh + JSON.stringify(x.dau));
       if (x.nguonHang && (x.nguonHang.n < 1 || x.nguonHang.lech > 1 || x.nguonHang.tran > 1 || x.nguonHang.phai > 1)) sai.G10.push(nh + JSON.stringify(x.nguonHang));
       /* G3: cuộn thanh xuống tối đa → clip vẫn dính ngay dưới đầu thanh, thấy trọn */
       const c3 = await p.evaluate(() => { const bx = document.querySelector("#modal .modal-box"); const tran = bx.scrollHeight - bx.clientHeight; bx.scrollTop = bx.scrollHeight; return tran; });
@@ -97,7 +99,7 @@ for (const m of MAY) {
   }
   ok(soLuot >= 2, m.ten + ": G0 có lượt Theo máy + phiếu Theo tác vụ có clip (" + soLuot + ")");
   const TEN = { G1: "đầu thanh gọn (≤52px, chip ≤32px, tiêu đề không bẻ vụn)", G2: "vùng chạm thật Đóng ≥44 / Ghi chú, Mở task ≥40", G3: "cuộn xuống: clip dính dưới đầu thanh, thấy trọn",
-    G4: "Quyết định không dính (2 thanh như nhau)", G5: "thanh thời gian + ▶ giờ + Tự động ×1 ×2 ×3 cùng 1 hàng", G6: "phụ đề ≤12px · nút tốc độ ≤26px · nút nguồn ≤30px · vùng chạm ≥40", G7: "không kéo ngang", G9: "đầu thanh 1 hàng: tiêu đề + giờ sát trái, Mở task · Ghi chú · Đóng sát phải (Đóng ngoài cùng)", G10: "chip Tác động WMS · Không qua WMS · Ảnh ghi nhận cùng 1 hàng (±1px), không tràn/cuộn ngang" };
+    G4: "Quyết định không dính (2 thanh như nhau)", G5: "thanh thời gian + ▶ giờ + Tự động ×1 ×2 ×3 cùng 1 hàng", G6: "phụ đề ≤12px · nút tốc độ ≤26px · nút nguồn ≤30px · vùng chạm ≥40", G7: "không kéo ngang", G9: "đầu thanh 1 hàng — điện thoại: tiêu đề trái, Mở task · Ghi chú · Đóng phải; web: Đóng sát trái, Ghi chú · Mở task, tiêu đề sát phải", G10: "chip Tác động WMS · Không qua WMS · Ảnh ghi nhận cùng 1 hàng (±1px), không tràn/cuộn ngang" };
   for (const k of Object.keys(sai)) { if (!m.mob && ["G1", "G2", "G5", "G6"].includes(k)) continue; ok(!sai[k].length, m.ten + ": " + k + " " + TEN[k] + (sai[k].length ? " — " + sai[k].slice(0, 2).join(" | ") : "")); }
   ok(!con.length, m.ten + ": G8 không lỗi trang" + (con.length ? " — " + con.slice(0, 2).join(" | ") : ""));
   await p.close();

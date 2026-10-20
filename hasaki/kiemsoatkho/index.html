@@ -3475,7 +3475,7 @@ function moHasakiXacMinh(){
   if(!window.__HX_MAY_CHU){ window.hxDoMayChu().then(co=>{ if(co) moHasakiXacMinh(); else setTab("maytram"); }); return; }   // 19/10: chờ dò máy chủ (laptop hoặc đường hầm); không có thì về Máy trạm (tránh ô đăng nhập lặp)
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261020d';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261020f';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });

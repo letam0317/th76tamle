@@ -157,7 +157,7 @@ async function lichSuCat(bin, pt) {
     const r = await fetch(WMS + "/wms/transfer-bins?" + new URLSearchParams(q), { headers: { authorization: "Bearer " + wmsToken, "Company-Ids": "1001", "user-agent-type": "web" }, signal: AbortSignal.timeout(150000) });
     const j = await r.json();
     const rec = (j.records || []).filter((x) => x.bin_in === bin && Number(x.status) === 3)
-      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name }));
+      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, tu: x.bin_out || "" }));   // 20/10 giữ ô nguồn (Source location) — cùng lượt gọi
     CACHE[k] = { rec, luc: new Date().toISOString() }; ghiJ(F_CACHE, CACHE);
     return CACHE[k];
   } catch (e) { log("   ⚠ WMS " + bin + ": " + String(e.message).slice(0, 80)); return null; }

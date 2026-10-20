@@ -259,6 +259,8 @@ function gom() {
       const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
       const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.at === r.at);
         return { at: r.at, ten: nv ? nv.ten : r.email, ma: nv ? nv.ma : "", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
+          /* 20/10 user: ghi rõ Transfer Type + Source location như trang WMS Transfer location (bin_in = ô) — 0 lượt gọi thêm: bin_out có trong sổ nguon-cham-b1 / bộ đệm cò */
+          tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
           clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
       p.lsKho = { bin, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
