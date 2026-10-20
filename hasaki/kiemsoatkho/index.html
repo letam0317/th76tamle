@@ -1127,6 +1127,7 @@ html{scroll-behavior:smooth;scrollbar-gutter:stable;}
 .settings-pop .dropdown-action-btn .timestamp-hint{font-size:12px; font-weight:500; color:var(--muted,#888); white-space:nowrap; line-height:1.3;}
 .settings-pop .dropdown-action-btn:hover .act{color:var(--accent);}
 .settings-pop a.dropdown-action-btn{text-decoration:none;}
+.settings-pop .dl-moi{cursor:default}.settings-pop .dl-moi:hover .act{color:inherit}
 
 /* Badge DEV (hiện khi ?dev=1 — nhắc đang ở bản nháp, sync production bị chặn) */
 .dev-badge{background:#b45309; color:#fff; border-radius:6px; padding:3px 8px; font-size:10.5px; font-weight:800; letter-spacing:.6px;}
@@ -1136,7 +1137,7 @@ html{scroll-behavior:smooth;scrollbar-gutter:stable;}
 [data-company="factory"][data-theme="nord"],[data-company="factory"][data-theme="mocha"]{--brand:#f0a45a; --brand-on:#0e1116;}
 [data-company="factory"] #hskMark{display:none !important;}   /* watermark Hasaki không hiện ở Factory */
 /* Các nút nghiệp vụ nối vào backend Hasaki — ẨN khi đang xem Factory (chưa có backend riêng) */
-[data-company="factory"] #btnGhiNhan,[data-company="factory"] #btnSync,[data-company="factory"] #btnSyncTS{display:none;}
+[data-company="factory"] #btnGhiNhan,[data-company="factory"] #dlMoi{display:none;}
 /* Skeleton toàn trang khi chuyển công ty + trạng thái "chưa có dữ liệu" */
 #ctySkl,#ctyEmpty{display:none;}
 body.cty-loading .pane{display:none !important;} body.cty-loading #ctySkl{display:block;}
@@ -1593,9 +1594,10 @@ window.hxDoMayChu = function(){
             <!-- Nút hành động 2 TẦNG DỌC (vertical stack, học ô "Thời gian" bảng vi phạm):
                  dòng 1 = hành động (đậm, nowrap không rớt dòng), dòng 2 = timestamp xám mờ.
                  Tất cả dùng chung .dropdown-action-btn, min-height 56px -> danh sách vuông vức đồng bộ -->
-            <button id="btnReload" class="dropdown-action-btn"><span class="act">Tải lại dữ liệu</span><small class="timestamp-hint" id="tsReload"></small></button>
-            <button id="btnSync" class="dropdown-action-btn"><span class="act">Cập nhật ngay (cần PIN)</span><small class="timestamp-hint" id="tsSync"></small></button>
-            <button id="btnSyncTS" class="dropdown-action-btn"><span class="act">Cập nhật chấm công (cần PIN)</span><small class="timestamp-hint" id="tsSyncTS"></small></button>
+            <!-- 20/10 user «3 mục này còn cần không, không cần thì bỏ»: bỏ «Tải lại dữ liệu» (trang tự làm mới 5' + khi quay lại tab),
+                 «Cập nhật ngay (cần PIN)» + «Cập nhật chấm công (cần PIN)» (nhật ký watch-login từ 01/08: 0 lần bấm; 5S tự đồng bộ ≥45', chấm công 07:20 hằng ngày;
+                 2 nút chỉ chạy khi laptop bật). Giữ 1 dòng giờ dữ liệu (trước lặp ở 2 nút). -->
+            <div id="dlMoi" class="dropdown-action-btn dl-moi" role="status"><span class="act">Dữ liệu 5S tự làm mới</span><small class="timestamp-hint" id="tsReload"></small></div>
             <a id="btnTaiBoCai" class="dropdown-action-btn" href="CAI-PC-1LAN.bat" download="CAI-PC-1LAN.bat" style="text-decoration:none"><span class="act">Tải bộ cài PC (chạy admin)</span><small class="timestamp-hint">cài 5S cho PC nội bộ · 1 lần</small></a>
           </div>
         </div>
@@ -3795,8 +3797,8 @@ function hienGioDuLieu(ms,laServer){
   const hint='Mới nhất: '+p(d.getHours())+':'+p(d.getMinutes())+' '+p(d.getDate())+'/'+p(d.getMonth()+1);
   const chiTiet=(laServer?'Dữ liệu lấy từ API WMS lúc ':'Dữ liệu tải về trình duyệt lúc ')
     +p(d.getHours())+':'+p(d.getMinutes())+' ngày '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
-  ['tsReload','tsSync'].forEach(id=>{ const e2=$(id); if(e2) e2.textContent=hint; });
-  ['btnReload','btnSync'].forEach(id=>{ const b=$(id); if(b) b.title=chiTiet; });   // accessibility: tooltip chi tiết
+  const e2=$('tsReload'); if(e2) e2.textContent=hint;
+  const b=$('dlMoi'); if(b) b.title=chiTiet+' · trang tự làm mới mỗi 5 phút';   // accessibility: tooltip chi tiết
 }
 
 /* ===== TOAST không chặn (thay alert) + loading nút Cập nhật ===== */
@@ -3988,45 +3990,6 @@ async function taiBienBanLen(files){
   }catch(e){ toast("Lỗi kết nối khi tải biên bản: "+e.message, 'loi'); }
 }
 
-/* ===== ÉP CẬP NHẬT (cần PIN) ===== */
-function capNhatNgay(){
-  if(dangCho){ toast("Đang chờ hệ thống cập nhật, vui lòng đợi…", 'loi'); return; }
- hoiPin('Cập nhật dữ liệu ngay','Nhập PIN tải dữ liệu để ép hệ thống kéo dữ liệu 5S mới nhất').then(pin=>{
-  if(!pin) return;
-  capNhatNutSync('Đang đồng bộ…');
-  const cb="sync_"+Date.now();
-  window[cb]=resp=>{
-    delete window[cb];
-    if(resp && resp.status==='success'){
-      dangCho=true;
-      toast(resp.message||"Đã gửi yêu cầu. Trang sẽ tự tải lại dữ liệu.", 'ok');
-      setTimeout(()=>lamMoiNen(), 1500);
-      setTimeout(()=>{ dangCho=false; capNhatNutSync(null); lamMoiNen(); }, 180000);
-    } else { capNhatNutSync(null); toast((resp&&resp.message)||"Không gửi được yêu cầu.", 'loi'); }
-  };
-  const s=document.createElement('script');
-  s.src=APPSCRIPT_URL+"?action=requestSync&pin="+encodeURIComponent(pin)+"&callback="+cb;
-  s.onerror=()=>{ capNhatNutSync(null); toast("Không kết nối được máy chủ.", 'loi'); delete window[cb]; };
-  document.body.appendChild(s);
- });
-}
-
-/* ===== ÉP CẬP NHẬT CHẤM CÔNG (cần PIN) — kéo hr.hasaki.vn → tab CHAM-CONG ===== */
-function capNhatChamCong(){
- hoiPin('Cập nhật chấm công','Nhập PIN để kéo chấm công hr.hasaki.vn mới nhất').then(pin=>{
-  if(!pin) return;
-  const cb="ts_"+Date.now();
-  window[cb]=resp=>{ delete window[cb];
-    toast(resp&&resp.status==='success' ? (resp.message||"Đã gửi yêu cầu. Chấm công sẽ mới sau ~2–3 phút.") : ((resp&&resp.message)||"Không gửi được yêu cầu."), resp&&resp.status==='success'?'ok':'loi');
-    if(resp&&resp.status==='success') setTimeout(()=>lamMoiNen(), 1500);
-  };
-  const s=document.createElement('script');
-  s.src=APPSCRIPT_URL+"?action=requestTimesheet&pin="+encodeURIComponent(pin)+"&callback="+cb;
-  s.onerror=()=>{ toast("Không kết nối được máy chủ.", 'loi'); delete window[cb]; };
-  document.body.appendChild(s);
- });
-}
-
 /* ===== SỰ KIỆN ===== */
 // Nhấp 1 dòng (bảng hoặc thẻ) -> mở chi tiết
 document.addEventListener('click', e=>{
@@ -4131,12 +4094,9 @@ $('bbFile').addEventListener('change',e=>{ taiBienBanLen(e.target.files); });
 // ---- Bộ lọc "Ngày ghi nhận" = 1 bản của khuôn dùng chung taoBoLocNgay (Planogram dùng cùng khuôn) ----
 const LOC_NGAY = taoBoLocNgay({ root: $('dateFilter'), idNut: 'btnDate', idPop: 'datePop',
   onApply: (a, b) => { gFrom = a; gTo = b; render(); } });
-$('btnReload').addEventListener('click',()=>{ if(!dangCho) lamMoiNen(); });
 $('ctySwitch').addEventListener('click', e=>{
   const b=e.target.closest('.cty-opt'); if(b && !dangCho) switchCompany(b.dataset.cty);
 });
-$('btnSync').addEventListener('click',capNhatNgay);
-$('btnSyncTS').addEventListener('click',capNhatChamCong);
 $('themeSel').addEventListener('change', e=>setTheme(e.target.value));
 $('titleSel').addEventListener('change', e=>setTitle(e.target.value));
 // ---- Menu Cài đặt (đóng/mở + click ra ngoài thì đóng) ----

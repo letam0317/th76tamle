@@ -17,7 +17,7 @@
   ];
   /* «Thao tác» của từng tab = nút ghi/sửa dữ liệu. Quyền «xem» ẩn các nút này. [bộ chọn, tab sở hữu, chỉ khi đang ở tab đó] */
   var THAO_TAC = {
-    r: [["#btnGhiNhan,.hp-vtghi", "r.task"], [".bb-up", "r.task"], ["#btnSync,#btnSyncTS", "r.tong"], ["#hpcbar,#hpcprev", "r.kk", 1], ["#hpcbar,#hpcprev", "r.htonbat", 1]],
+    r: [["#btnGhiNhan,.hp-vtghi", "r.task"], [".bb-up", "r.task"], ["#hpcbar,#hpcprev", "r.kk", 1], ["#hpcbar,#hpcprev", "r.htonbat", 1]],
     f: [["#pcbar,#pcprev,#hdrKkPlan", "f.kk", 1], ["#pcbar,#pcprev,#hdrKkPlan", "f.abn", 1], ["#prbar", "f.sku"], ["#tmvBtnIn", "f.tem"]]
   };
   var KHACH_GOC = (function () { var q = {}; NHOM.forEach(function (g) { g[1].forEach(function (t) { q[t[0]] = t[0] === "r.xacminh" ? "khong" : "lam"; }); }); return q; })();

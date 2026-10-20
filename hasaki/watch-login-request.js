@@ -62,23 +62,8 @@ const chayGuard = (force = true) => new Promise((res) => { const c = spawn("cmd.
  * chặn được đa số lượt, nhưng lượt lọt qua vẫn nhân đôi số lượt hỏi Sheet/WMS vô ích).
  * Muốn tra tay 1 lượt: node tra-uid-sheet.mjs --dien */
 
-// 1) Yêu cầu CẬP NHẬT dashboard (nút "Cập nhật ngay" + PIN)
-const s = await hoi("syncStatus");
-if (s && s.requested) {
-  coViec = true; log("⚡ Có yêu cầu cập nhật dashboard! Chạy auto-export (chờ xong)...");
-  await apiPost("clearSync");
-  await chayCho("auto-export-sync.js");   // chờ hoàn tất; auto-export có khoá chống chạy chồng
-  log("Auto-export xong.");
-} else imLang.push("cập nhật");
-
-// 1b) Yêu cầu CẬP NHẬT CHẤM CÔNG (nút "Cập nhật chấm công" + PIN)
-const tsq = await hoi("timesheetStatus");
-if (tsq && tsq.requested) {
-  coViec = true; log("⚡ Có yêu cầu cập nhật chấm công! Chạy pull-timesheet (chờ xong)...");
-  await apiPost("clearTimesheet");
-  await chayCho("pull-timesheet.js");
-  log("Pull-timesheet xong.");
-} else imLang.push("chấm công");
+/* 20/10 user bỏ 2 nút «Cập nhật ngay (cần PIN)» + «Cập nhật chấm công (cần PIN)» trên dashboard (nhật ký từ 01/08: 0 lần bấm; 5S tự đồng bộ ≥45',
+   chấm công 07:20 hằng ngày) ⇒ thôi hỏi GAS syncStatus/timesheetStatus mỗi 2 phút (bớt 2 lượt gọi GAS/nhịp). Muốn chạy tay: node auto-export-sync.js · node pull-timesheet.js */
 
 // 1c) Yêu cầu TẢI LẠI TỒN KHO FACTORY (nút "Tải lại dữ liệu" dashboard đặt cờ qua GAS).
 // CHỈ hỏi khi backend đã có action này (caps.stockFlag) — hỏi action lạ trên GAS bản cũ
