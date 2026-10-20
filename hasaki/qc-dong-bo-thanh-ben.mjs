@@ -10,7 +10,7 @@
 import puppeteer from "puppeteer-core";
 import { phienQC } from "./xacminh-dang-nhap.mjs"; const PHIEN_QC = phienQC();
 const A = Object.fromEntries(process.argv.slice(2).map((x) => x.replace(/^--/, "").split("=")));
-const N = +(A.n || 6), MAY = [{ ten: "1366", w: 1366, h: 768 }, { ten: "1600", w: 1600, h: 900 }, { ten: "1920", w: 1920, h: 1080 }];
+const N = +(A.n || 6), MAY0 = [{ ten: "1366", w: 1366, h: 768 }, { ten: "1600", w: 1600, h: 900 }, { ten: "1920", w: 1920, h: 1080 }]; const MAY = A.chi ? MAY0.filter((m) => A.chi.split(",").includes(m.ten)) : MAY0;   // --chi=1366
 const ngu = (ms) => new Promise((r) => setTimeout(r, ms));
 const b = await puppeteer.launch({ executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: "new" });
 const loi = []; let dat = 0; const ok = (dk, ten) => { if (dk) dat++; else loi.push(ten); };

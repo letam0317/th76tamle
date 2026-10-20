@@ -14,8 +14,9 @@ import puppeteer from "puppeteer-core";
 import { phienQC } from "./xacminh-dang-nhap.mjs"; const PHIEN_QC = phienQC();
 const A = Object.fromEntries(process.argv.slice(2).map((x) => x.replace(/^--/, "").split("=")));
 const N = +(A.n || 3);
-const MAY = [{ ten: "dt-360", w: 360, h: 780, mob: true }, { ten: "dt-390", w: 390, h: 844, mob: true }, { ten: "dt-414", w: 414, h: 896, mob: true },
+let MAY = [{ ten: "dt-360", w: 360, h: 780, mob: true }, { ten: "dt-390", w: 390, h: 844, mob: true }, { ten: "dt-414", w: 414, h: 896, mob: true },
   { ten: "1366", w: 1366, h: 768 }, { ten: "1600", w: 1600, h: 900 }, { ten: "1920", w: 1920, h: 1080 }];
+if (A.chi) MAY = MAY.filter((m) => A.chi.split(",").includes(m.ten));   // --chi=1366,dt-390
 const ngu = (ms) => new Promise((r) => setTimeout(r, ms));
 await ngu(6000);   // máy chủ 8591 đọc lại sổ phiên theo nhịp đệm 5 s — chờ phiên QC có hiệu lực
 if (A.anh) fs.mkdirSync(A.anh, { recursive: true });
