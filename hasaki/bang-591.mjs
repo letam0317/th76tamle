@@ -82,7 +82,7 @@ function gom() {
   const c = docJ(path.join(EXP, "tasks-cache.json"), { header: [], rows: {} });
   const H = c.header, ix = (n) => H.indexOf(n), g = (r, n) => r[ix(n)] || "";
   const nvMa = c.nvCodes || {}, nvTen = c.nvNames || {};
-  const goiY = docJ(path.join(EXP, "canh-b1-ketqua.json"), {});
+  const goiY = docJ(path.join(EXP, "canh-b1-ketqua.json"), {}), MOTA = docJ(path.join(EXP, "mo-ta-phieu.json"), {});
   const XM = docJ(path.join(EXP, "b1-treo-cap-nhat.json"), {}), QDS = docJ(path.join(EXP, "b1-quyet-dinh.json"), {}), QDW = docJ(path.join(EXP, "b1-quyet-dinh-web.json"), {});
   const tenTheoMa = (m) => db.theoMa.get(String(m))?.ten || nvTen[m] || "";
   const t = (s) => (s ? Date.parse(String(s).replace(" ", "T") + "+07:00") : NaN);
@@ -100,9 +100,9 @@ function gom() {
     const nvRaw = String(g(r, "B1. Xác minh lỗi vi phạm ▸ Nhân viên vi phạm")).split(",").filter(Boolean);
     const nv = nvRaw.map((x) => { const ma = nvMa[x] || x; return { ma, ten: tenTheoMa(ma) || tenTheoMa(x) }; });
     const gy = goiY[id];
-    phieu.push({ id, code: g(r, "Task Code"), link: g(r, "Link Task"), ten: g(r, "Task Name"), ghiChu: g(r, "B4. Audit kiểm tra và xác nhận ▸ Ghi chú:") || g(r, "B5.Vận hành xem xét và xác nhận ▸ Ghi chú:"),   /* 20/10 user: tên phiếu WF lên đầu thanh bên; ghi chú phiếu (nếu có) vào khối thông tin */
+    phieu.push({ id, code: g(r, "Task Code"), link: g(r, "Link Task"), ten: g(r, "Task Name"), ghiChu: (MOTA[id] && MOTA[id].note) || "",   /* 20/10 user: tên phiếu WF lên đầu thanh bên; «Ghi chú» = MÔ TẢ phiếu (sổ mo-ta-phieu.json do mo-ta-phieu.mjs đọc task-input) */
       ngayVP: g(r, "Ngày vi phạm:"), loi: g(r, "Lỗi vi phạm"), viTri: g(r, "Vị trí ghi nhận"),
-      nguoiGhi: String(g(r, "Created By")).replace(/ - \d+$/, ""), anh: String(g(r, "Hình ảnh vi phạm")).split("\n").filter(Boolean)[0] || "",
+      nguoiGhi: String(g(r, "Created By")).replace(/ - \d+$/, ""), anh: String(g(r, "Hình ảnh vi phạm")).split("\n").filter(Boolean)[0] || "", anhDs: String(g(r, "Hình ảnh vi phạm")).split("\n").filter(Boolean),   /* 20/10 user: hiện ĐỦ ảnh của phiếu */
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,
       giaiTrinh: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Giải trình:"), xacNhan: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Xác nhận lỗi:"),

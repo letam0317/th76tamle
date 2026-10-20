@@ -297,6 +297,9 @@
         "#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang>.hx-qd-nguon{margin-left:0!important;flex:0 1 auto;width:auto!important;max-width:100%;min-width:0;flex-wrap:nowrap!important;overflow:visible!important;gap:6px;justify-content:flex-start}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:clip;overflow-clip-margin:8px;text-overflow:ellipsis}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-qd-xem>.hx-xdau.hx-ng-hang{margin-top:14px!important}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon{gap:4px}#modal.hx-ben .hx-tb-luoi .hx-ng-hang>.hx-qd-nguon>button{padding:0 7px!important;font-size:12px!important}#modal.hx-ben .hx-lan .ai small{white-space:normal!important;overflow:visible;text-overflow:clip}}" +
         "#modal.hx-ben .hx-ng-hang button:disabled{opacity:.5;cursor:default}#modal.hx-ben .hx-ng-so{display:inline-block;min-width:16px;margin-left:4px;padding:0 4px;border-radius:8px;background:#d46b08;color:#fff;font-size:11px;line-height:16px;text-align:center}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}}" +
+        /* 20/10 nhiều ảnh: số «i/N» góc phải ảnh to; dãy ảnh nhỏ cao cố định 52px (giữ chỗ, cuộn ngang trong khung nếu nhiều) */
+        "#modal.hx-ben .hx-qd-mota:not(.mo){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#modal.hx-ben .hx-qd-mota{cursor:pointer;white-space:pre-line}#modal.hx-ben .hx-qd-anh.nhieu{position:relative}#modal.hx-ben .hx-anh-so{position:absolute;top:8px;right:8px;z-index:1;padding:1px 8px;border-radius:10px;background:color-mix(in srgb,#000 60%,transparent);color:#fff;font-size:12px;line-height:18px}" +
+        "#modal.hx-ben .hx-anh-day{display:flex;gap:6px;height:52px;margin-top:6px;overflow-x:auto;overflow-y:hidden}#modal.hx-ben .hx-anh-day button{flex:0 0 auto;width:70px;height:52px;min-height:0!important;padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;background:var(--ad-nen2,#f5f5f5);cursor:pointer}#modal.hx-ben .hx-anh-day button.on{border-color:var(--accent)}#modal.hx-ben .hx-anh-day img{width:100%;height:100%;object-fit:cover;display:block}" +
         /* 20/10 Theo tác vụ điện thoại: clip → (ảnh) → Ngày/Vị trí/Ghi chú → Thuộc lỗi → Máy gợi ý → ai tác động → tình trạng → Quyết định */
         "@container (max-width:820px){#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=clip]{order:-6}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=anh]{order:-5}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin]{order:-4}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi]{order:-3}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy]{order:-2}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=aitacdong]{order:-1}}" +
         /* 19/10 (7) ảnh ghi nhận bật bằng chip: hiện ra bằng hiệu ứng paneIn sẵn có; hàng chip Theo máy cùng kiểu Theo tác vụ */
@@ -1351,7 +1354,10 @@
     /* 19/10 (6) user: «Không qua WMS» = MỌI lượt tác động không có lệnh WMS (máy soi + người ghi); không có lượt nào thì ẨN HẲN chip (không làm mờ) */
     var vlDs = (LS ? LS.ds : []).map(function (x, j) { return { x: x, i: lanIdx[j] }; }).filter(function (o) { return o.x.vatLy; }), vlDau = vlDs.filter(function (o) { return o.i >= 0; })[0];
     var vlTT = vlDs.length ? '<button type="button" class="hx-ng-vl co" data-vlchip data-vlmay="' + (vlDau ? vlDau.i : -1) + '" title="' + e_(vlDs.map(function (o) { return o.x.at.slice(11, 16) + " " + o.x.at.slice(8, 10) + "/" + o.x.at.slice(5, 7) + " · " + (o.x.moTa || o.x.ten); }).join("\n")) + '">Không qua WMS <span class="hx-ng-so">' + vlDs.length + '</span></button>' : "";
-    var anhGN = bc.anh ? '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="qdAnhGN" src="' + e_(bc.anh) + '" alt="Ảnh ghi nhận" decoding="async"></div>' : "";
+    /* 20/10 user: phiếu nhiều ảnh thì hiện ĐỦ — ảnh đầu to + số «1/N» + dãy ảnh nhỏ (cao cố định, giữ chỗ sẵn); bấm ảnh nhỏ đổi ảnh to, bấm ảnh to xem phóng */
+    var anhDs = (p.anhDs && p.anhDs.length ? p.anhDs : [bc.anh]).filter(Boolean);
+    var anhGN = anhDs.length ? '<div class="hx-qd-anh' + (anhDs.length > 1 ? " nhieu" : "") + '"><span class="lbl">Ảnh ghi nhận</span><img id="qdAnhGN" src="' + e_(anhDs[0]) + '" alt="Ảnh ghi nhận" decoding="async">' +
+      (anhDs.length > 1 ? '<span class="hx-anh-so" id="qdAnhSo">1/' + anhDs.length + '</span></div><div class="hx-anh-day">' + anhDs.map(function (u, i) { return '<button type="button" data-anhi="' + i + '"' + (i ? "" : ' class="on"') + ' aria-label="Ảnh ' + (i + 1) + '/' + anhDs.length + '"><img src="' + e_(thu_(u) || u) + '" alt="" loading="lazy" decoding="async"></button>'; }).join("") + '</div>' : '</div>') : "";
     /* 16/10 (4) user: Quyết định ⇄ «Ai tác động ô…» đổi chỗ — cột TRÁI = bằng chứng camera + Quyết định; cột PHẢI = Ảnh ghi nhận + Ai tác động */
     /* 17/10 (4) user «làm thử cho Theo tác vụ»: rã thành phần + KHUNG như Theo máy (bộ Chỉnh bố cục kéo được) — mặc định TB_MAC.tacvu:
        [camera + nguồn xem 8] [Ảnh ghi nhận + Ai tác động 4] · [12: tình trạng → Lỗi → Máy gợi ý → Quyết định (chốt cứng đáy thanh)] */
@@ -1370,7 +1376,7 @@
       (LS ? tp("aitacdong", '<div class="hx-qd-ls">' + oLsKho(LS, lanIdx, ai) + '</div>') : "") +   // 19/10 (5) user: khôi phục danh sách ai tác động (chỉ bỏ dòng tiêu đề)
       /* 20/10 user: khối thông tin dưới Ảnh ghi nhận — Ngày ghi nhận / Vị trí / Ghi chú (có mới hiện) → Thuộc lỗi → Máy gợi ý (2 thành phần sẵn có, không nhân đôi) */
       tp("thongtin", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Ngày ghi nhận</span><div>' + e_(nvpChu) + '</div></div>' + (viTriChu ? '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Vị trí</span><div>' + e_(viTriChu) + '</div></div>' : "") +
-        (p.ghiChu ? '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Ghi chú</span><div class="hx-qd-loi" title="' + e_(p.ghiChu) + '">' + e_(p.ghiChu) + '</div></div>' : "")) +
+        (p.ghiChu ? '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Ghi chú</span><div class="hx-qd-mota" title="' + e_(p.ghiChu) + '">' + e_(p.ghiChu) + '</div></div>' : "")) +
       tp("tinhtrang", tt ? '<div class="hx-qd-tt">' + e_(tt) + '</div>' : "") +
       tp("loi", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Thuộc lỗi</span><div class="hx-qd-loi" title="' + e_(p.loi) + '">' + e_(p.loi) + '</div></div>') +
       tp("goiy", '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Máy gợi ý</span><div><b>' + e_(ai || "Chưa có ứng viên") + '</b>' + (p.goiY ? ' <span class="hx-tag ' + (MUC_MAY[mucMay(p)] || ["", ""])[1] + '">' + e_(String((MUC_MAY[mucMay(p)] || [""])[0]).replace(/^Máy gợi ý · /, "")) + '</span>' : "") + '</div></div>' +
@@ -1382,10 +1388,14 @@
           '<label class="hx-qd-o"><span class="lbl">Gán người khác (mã NV)</span><input id="qdGc" inputmode="numeric" autocomplete="off" value="' + e_(q.gc || "") + '" placeholder="vd 260189"></label></div>' +
         '<button class="hx-nut" id="qdLuu" style="width:100%">Lưu quyết định</button><div id="qdMsg" class="muted" style="font-size:12px;min-height:16px"></div></div>') + '</div>';
     tbAp();
-    var aGN = $id("qdAnhGN"); if (aGN) aGN.onclick = function () { if (typeof openLB === "function") openLB([{ url: bc.anh, title: "Ảnh ghi nhận" }], 0); };
+    var aGN = $id("qdAnhGN"), anhI = 0;
+    if (aGN) aGN.onclick = function () { if (typeof openLB === "function") openLB(anhDs.map(function (u, i) { return { url: u, title: "Ảnh ghi nhận " + (i + 1) + "/" + anhDs.length }; }), anhI); };
+    $id("mBody").querySelectorAll("[data-anhi]").forEach(function (b) { b.onclick = function () { anhI = Number(b.dataset.anhi); aGN.src = anhDs[anhI]; $id("qdAnhSo").textContent = (anhI + 1) + "/" + anhDs.length;
+      $id("mBody").querySelectorAll("[data-anhi]").forEach(function (z) { z.classList.toggle("on", z === b); }); }; });
     ganGhiChu("phieu", String(p.id), ((LS && LS.bin) || p.viTri || "") + " · " + (nvp.length >= 16 ? nvp.slice(8, 10) + "/" + nvp.slice(5, 7) + "/" + nvp.slice(0, 4) + " " + nvp.slice(11, 16) : nvp));
     var vs0 = $id("mBody").querySelector(".hx-visao"); if (vs0) vs0.onclick = function () { vs0.classList.toggle("mo"); };
-    var loi0 = $id("mBody").querySelector(".hx-qd-loi"); if (loi0) loi0.onclick = function () { loi0.classList.toggle("mo"); };   // 16/10 câu lỗi dài kẹp 2 dòng, bấm mở hết
+    var loi0 = $id("mBody").querySelector(".hx-qd-loi"); if (loi0) loi0.onclick = function () { loi0.classList.toggle("mo"); };
+    var mt0 = $id("mBody").querySelector(".hx-qd-mota"); if (mt0) mt0.onclick = function () { mt0.classList.toggle("mo"); };   // 20/10 Mô tả dài: 3 dòng rồi «…», bấm xem đủ   // 16/10 câu lỗi dài kẹp 2 dòng, bấm mở hết
     var dangXem = null;
     /* 17/10 (6) thanh thời gian Theo tác vụ: đoạn quanh mỗi lượt tác động tô đỏ, mốc số tròn bấm tua; Tự động = ×1 quanh lượt tác động, ×3 chỗ trống
        (không có mốc thì ×1); tốc độ đang chạy = nút tô nhạt — cùng khuôn ganVideo của Theo máy. */
