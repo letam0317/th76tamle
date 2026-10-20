@@ -23,8 +23,9 @@ try {
   # 14/10 TU CHUA TASK (moi luot, ke ca khi chua duoc nhan ban moi): QLIT gui nhip tim deu nhung task «5S DP …» KHONG HE goi cong gac
   #   -> kiem du task theo dieu-phoi.json: thieu -> dang ky lai (DongBo-DieuPhoi), bi tat -> bat lai. Ghi ro de xem tu xa (capGan).
   try {
-    $thieu = @(); $tat = @()
-    foreach ($v in $cfg.viec) {
+    $thieu = @(); $tat = @(); $mayNay = [System.Net.Dns]::GetHostName()
+    # 20/10 viec GHIM (uuTien) cho may khac thi may nay KHONG cai (DongBo-DieuPhoi bo qua) -> khong tinh la thieu (truoc: BANGCHUYEN-2 bao "thieu 4/17" ao)
+    foreach ($v in @($cfg.viec | Where-Object { -not $_.uuTien -or ($_.uuTien -contains $mayNay) })) {
       $t = Get-ScheduledTask -TaskName ("5S DP " + $v.ten) -ErrorAction SilentlyContinue
       if (-not $t) { $thieu += $v.ten } elseif ($t.State -eq "Disabled") { Enable-ScheduledTask -TaskName $t.TaskName -ErrorAction SilentlyContinue | Out-Null; $tat += $v.ten }
     }
@@ -37,7 +38,7 @@ try {
     if ($thieu.Count) {
       Ghi ("tu chua: THIEU task " + ($thieu -join ",") + " -> dang ky lai")
       . "$kit\dong-bo-task.ps1"; $kq0 = DongBo-DieuPhoi $kit $cfg $duAn "C:\Users\lechitam\New folder\hasaki"
-      $con = @($cfg.viec | Where-Object { -not (Get-ScheduledTask -TaskName ("5S DP " + $_.ten) -ErrorAction SilentlyContinue) } | ForEach-Object { $_.ten })
+      $con = @($cfg.viec | Where-Object { (-not $_.uuTien -or ($_.uuTien -contains $mayNay)) -and -not (Get-ScheduledTask -TaskName ("5S DP " + $_.ten) -ErrorAction SilentlyContinue) } | ForEach-Object { $_.ten })
       Ghi ("tu chua: nap " + $kq0.nap + $(if ($con.Count) { " · VAN THIEU: " + ($con -join ",") } else { " · du task" }))
     }
   } catch { Ghi "[X] tu chua task loi: $_" }
@@ -100,9 +101,12 @@ try {
     $themKhoa = @()
     foreach($k in $kq.envKeys){ if(-not $dong.ContainsKey($k)){ $dong[$k] = "$k="; $themKhoa += $k } }
     foreach($p in $cfg.envCung.PSObject.Properties){ $dong[$p.Name] = "$($p.Name)=$($p.Value)" }
+    if ($script:baixeO) { $dong["BAIXE_DIR"] = "BAIXE_DIR=$script:baixeO" }   # 20/10 bang chung o o phu (o-du-lieu.ps1)
     ($dong.Values | Sort-Object) -join "`r`n" | Out-File $envF -Encoding utf8
     Ghi "dong bo viec: nap $($kq.nap), go $($kq.xoa)$(if($themKhoa){', .env them khoa TRONG: ' + ($themKhoa -join ',')})"
   }
+  # 20/10 DU LIEU NANG CUA CO XAC MINH -> O PHU (D:...) neu co, moi luot (o-du-lieu.ps1)
+  if (Test-Path "$kit\o-du-lieu.ps1") { try { . "$kit\o-du-lieu.ps1"; $script:baixeO = Doi-ODuLieu $duAn } catch { Ghi "[X] o du lieu: $_" } }
   # VAN DON DIA dinh ky (PC xoa-ngay raw da dinh phieu + van dia thap; laptop no-op). Khong de dia day lam may tu "yeu".
   if (Test-Path "$duAn\don-clip.mjs") { Push-Location $duAn; try { & $NODE don-clip.mjs --im 2>&1 | Out-Null } catch {}; Pop-Location }
   @{ may = [System.Net.Dns]::GetHostName(); luc = (Get-Date).ToString("s"); ban = $sha } | ConvertTo-Json | Out-File "$duAn\.nhip-pc.json" -Encoding utf8

@@ -119,7 +119,7 @@ export async function guiNhip(log = () => {}, opts = {}) {
   let dangChay = opts.dangChay; if (!dangChay) { try { dangChay = JSON.parse(fs.readFileSync(DC_TOM, "utf8")); } catch { dangChay = []; } }
   // 13/10: việc máy này được giao (tính ở nhịp trước bằng dieu-phoi.mjs) + mọi việc trong dieu-phoi.json → tab Máy trạm trên điện thoại
   let viecGiao = []; try { viecGiao = JSON.parse(fs.readFileSync(GIAO_F, "utf8")); } catch { /* chưa tính */ }
-  let tatCaViec = [], viecNang = []; try { const vs = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).viec || []; tatCaViec = vs.map((v) => v.ten); viecNang = vs.filter((v) => v.nang).map((v) => v.ten); } catch { /* */ }   // 14/10 nhãn nặng/nhẹ
+  let tatCaViec = [], viecNang = []; try { const vs = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).viec || []; tatCaViec = vs.filter((v) => !v.uuTien || v.uuTien.includes(os.hostname())).map((v) => v.ten);   /* 20/10: việc ghim máy khác không cài ở máy này → không đếm «thiếu task» */ viecNang = vs.filter((v) => v.nang).map((v) => v.ten); } catch { /* */ }   // 14/10 nhãn nặng/nhẹ
   let congGan = []; try { congGan = fs.readFileSync(path.join(DIR, "runner-dieu-phoi.log"), "utf8").trim().split(/\r?\n/).slice(-8).map((d) => d.slice(0, 180)); } catch { /* chưa có */ }   // 14/10: 8 dòng cuối cổng gác → xem từ xa vì sao máy chạy/không chạy
   let chayLuc = {}; try { chayLuc = JSON.parse(fs.readFileSync(CHAY_F, "utf8")); } catch { /* chưa chạy việc nào */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
