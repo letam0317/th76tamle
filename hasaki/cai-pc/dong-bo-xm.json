@@ -44,6 +44,7 @@
     ".exports/agy-xm/**",
     ".exports/cam-baocao/**",
     ".exports/kenh-luc-chup/**",
+    ".exports/nhat-ky-may/**",
     "@BC/may/**",
     "@BC/*.mp4"
   ]

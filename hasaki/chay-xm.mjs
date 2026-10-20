@@ -62,10 +62,25 @@ try {
   clearInterval(giaHan);
   nk(`xong sau ${Math.round((Date.now() - t0) / 60000)} phút — đẩy dữ liệu`);
   await X.day(["chung"]);
-  if (String(process.env.RUNNER_VAI || "").toLowerCase() === "pc") await X.day(["ra"], { tu: t0 - 5000 });
+  if (String(process.env.RUNNER_VAI || "").toLowerCase() === "pc") { ghiNhatKyMay(t0); await X.day(["ra"], { tu: t0 - 5000 }); }
 } catch (e) { ma = 1; nk("LỖI: " + e.message); }
 finally { if (viec.khoaChung !== false) try { await X.tra(tenViec); } catch { /* hết hạn tự nhả */ } }
 process.exit(ma);
+
+/* 20/10 user «soi camera 14:20 trên 2 máy không ra báo cáo — vì sao?»: nhật ký nằm trên máy trạm, laptop không đọc được. Mỗi lượt cò xác minh
+   chép ĐOẠN CUỐI nhật ký của việc + dong-bo-xm.log vào .exports/nhat-ky-may/<máy>/<việc>-<giờ>.log → nhóm «ra» đẩy lên kho → laptop kéo về
+   (dinh-ky 5'). Đọc: hasaki/.exports/nhat-ky-may/. */
+function ghiNhatKyMay(t0) {
+  const NK = { "xac-minh-camera": ["xac-minh-dem.log"], "xac-minh-camera-2": ["xac-minh-dem.log"], "canh-xac-minh-b1": ["canh-xac-minh.log"],
+    "tim-bang-chung-b1": ["tim-bang-chung-b1.log", "dai-lui.log"], "canh-b11": ["canh-b11.log"] };
+  try {
+    const may = (process.env.COMPUTERNAME || "may").replace(/[^\w.-]/g, "_"), luc = new Date(t0 + 7 * 36e5).toISOString().slice(0, 16).replace(/[-:T]/g, "");
+    const duoi = (f, n) => { try { return fs.readFileSync(path.join(DIR, f), "utf8").split(/\r?\n/).slice(-n).join("\n"); } catch { return "(không có " + f + ")"; } };
+    const nd = (NK[tenViec] || []).concat(["dong-bo-xm.log"]).map((f) => "===== " + f + " (60 dòng cuối) =====\n" + duoi(f, 60)).join("\n\n");
+    const ra = path.join(DIR, ".exports", "nhat-ky-may", may, `${tenViec}-${luc}.log`);
+    fs.mkdirSync(path.dirname(ra), { recursive: true }); fs.writeFileSync(ra, `máy ${may} · việc ${tenViec} · bắt đầu ${new Date(t0).toISOString()} · env XM_PHAN=${(viec.env || {}).XM_PHAN || ""}\n\n` + nd);
+  } catch (e) { nk("ghi nhật ký máy lỗi: " + e.message); }
+}
 
 // Chờ mọi tiến trình con/cháu của vbs (tạo SAU t0) thoát. Giữ PID đã thấy (cha chết vẫn còn ParentProcessId).
 async function dsTienTrinh() {
