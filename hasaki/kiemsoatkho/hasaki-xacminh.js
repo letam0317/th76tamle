@@ -319,7 +319,7 @@
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh].hx-hien-mo{animation:paneIn .26s var(--ez-apple)}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:none;padding:0!important;margin:0}#modal.hx-ben .hx-tb-luoi .hx-xem-may>.hx-xdau.hx-ng-hang{margin-top:8px}" +
         "#modal.hx-ben .hx-tb-luoi .hx-ng-hang .hx-ng-anh{display:none}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-ng-hang .hx-ng-anh{display:inline-flex}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:block}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>.hx-tb-tp.an-dt{display:none!important}}" +
         /* 20/10 chip «Góc khác» (góc camera phụ) hiện ở CẢ web: web hàng chip chỉ mở khi lượt có góc phụ, chip Ảnh ghi nhận web vẫn ẩn (ảnh ở cột phải) */
-        "#modal.hx-ben .hx-tb-luoi .hx-xem-may:has([data-gocphu]){display:block}#modal.hx-ben .hx-tb-luoi .hx-ng-hang :is([data-gocphu],[data-gocchinh]){display:inline-flex}#modal.hx-ben #lvGocDs{margin-top:8px}#modal.hx-ben #lvGocDs.hx-hien-mo{animation:paneIn .26s var(--ez-apple)}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-xem-may:has([data-gocchip]){display:block}#modal.hx-ben .hx-tb-luoi .hx-ng-hang [data-gocchip]{display:inline-flex}#modal.hx-ben #lvGocDs{margin-top:8px}#modal.hx-ben #lvGocDs.hx-hien-mo{animation:paneIn .26s var(--ez-apple)}" +
         /* 19/10 (6) lọc danh sách ai tác động theo chip đang chọn */
         "#modal.hx-ben .hx-qd-ls[data-che=wms] .hx-lan.vl,#modal.hx-ben .hx-qd-ls[data-che=vl] .hx-lan:not(.vl),#modal.hx-ben .hx-qd-ls:not([data-che=wms]) [data-trong=wms]{display:none!important}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
         "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:8px 12px!important;gap:6px!important;flex-shrink:0;min-height:0!important}" +
@@ -647,8 +647,8 @@
            như chip Ảnh ghi nhận: mặc định ẩn, bấm hiện 1 khung video RIÊNG dưới clip (clip chính giữ nguyên), tua sẵn tới trước giờ có người 5 s. */
         /* 20/10 user (lượt 2): như Theo tác vụ — chip «Góc chính · <camera>» + mỗi góc phụ 1 chip «Góc khác · <kênh>»; bấm góc khác thì CLIP CHÍNH chuyển sang góc đó
            và bên dưới hiện danh sách mốc dạng dòng như Tác động WMS (giờ · trước/sau · người tô màu trạng thái · mô tả · ▶ phát tại mốc). Không có góc phụ thì không có chip. */
-        ((l.gocPhu || []).length ? '<button type="button" class="hx-goc on" data-gocchinh aria-pressed="true" title="Camera của sự việc">Góc chính · ' + e_(l.camera || "") + '</button>' +
-          l.gocPhu.map(function (g, i) { return '<button type="button" class="hx-goc" data-gocphu="' + i + '" aria-pressed="false" title="Camera ' + e_(g.ten) + ' cùng lúc, từ ' + e_(g.bd) + '">Góc khác · ' + e_(g.ten) + '</button>'; }).join("") : "") +
+        /* 20/10 user (lượt 3): GỘP thành 1 chip «Góc camera (N)» — bấm hiện/ẩn danh sách gộp đoạn của MỌI góc theo thời gian (dòng ghi TÊN GÓC, không đoán người) */
+        ((l.gocPhu || []).length ? '<button type="button" class="hx-goc" data-gocchip aria-pressed="false" title="' + e_([l.camera || ""].concat(l.gocPhu.map(function (g) { return g.ten; })).join(" · ")) + '">Góc camera (' + (1 + l.gocPhu.length) + ')</button>' : "") +
         '</span></div></div>') +
       ((l.gocPhu || []).length ? tp("gocds", '<div id="lvGocDs" class="hx-qd-ls" hidden></div>') : "") +   // danh sách mốc góc khác — thành phần RIÊNG dưới clip (không nằm trong khung clip dính trên)
       tp("anh", '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" decoding="async"></div>') +
@@ -675,23 +675,26 @@
     $id("lvAnhGN").onclick = function () { openLB([{ url: anhNguoi(l), title: "Ảnh ghi nhận", sub: l.camera }], 0); };
     ganNutAnh();   // 19/10 (7) chip Ảnh ghi nhận (mặc định ẩn ảnh)
     if ((l.gocPhu || []).length) (function () {
-      var v = $id("hxV"), ov = $id("hxOv"), th = $id("mBody").querySelector("#lvClip .hx-tl-hang"), ds = $id("lvGocDs"), gocDang = -1;
-      var hm = function (t) { var x = Math.round(t); return String(Math.floor(x / 3600)).padStart(2, "0") + ":" + String(Math.floor(x % 3600 / 60)).padStart(2, "0") + ":" + String(x % 60).padStart(2, "0"); };
-      var chon = function (k) { $id("mBody").querySelectorAll("[data-gocchinh],[data-gocphu]").forEach(function (x) { var on = x.hasAttribute("data-gocchinh") ? k < 0 : Number(x.dataset.gocphu) === k; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); }); };
-      var veDs = function (g) { var T = giay(l.gioNguoi || l.tu);
-        ds.innerHTML = '<div class="hx-lans">' + (l.buocAnh || []).map(function (b, i) { var t = giay(b.luc), d = T - t, c = (l.cong || []).filter(function (x) { return Math.abs(giay(x.gio) - t) <= 90; }).sort(function (a, z) { return Math.abs(giay(a.gio) - t) - Math.abs(giay(z.gio) - t); })[0];
-          return '<div role="button" tabindex="0" class="hx-lan" data-gocmoc="' + i + '"><span class="gio">' + e_(b.luc) + '<small>' + (d >= 0 ? "trước " : "sau ") + Math.abs(Math.round(d)) + ' giây</small></span><span class="ai">' +
-            (c ? (c.email ? cumNV(c.ten, c.email, c.ttNv) : '<b>' + e_(c.ten) + '</b>') : '<b class="muted">Chưa định danh</b>') +
-            '<small class="hx-nguon-lan hx-lan-hang">' + e_(String(b.nhan || "").replace(/ · [0-9:]+$/, "").replace(/^[^ ]+ /, "")) + (b.doNguoi ? " · có người trong khung" : "") + '</small></span><span class="pl">▶</span></div>'; }).join("") + '</div>';
-        ds.querySelectorAll("[data-gocmoc]").forEach(function (r) { r.onclick = function () { var t = giay(l.buocAnh[Number(r.dataset.gocmoc)].luc);
-          ds.querySelectorAll("[data-gocmoc]").forEach(function (z) { z.classList.toggle("on", z === r); }); v.currentTime = Math.max(0, t - giay(g.bd) - 2); v.play().catch(function () {}); }; }); };
-      var sang = function (k) { if (k === gocDang) return; gocDang = k; chon(k);
-        if (k < 0) { ds.hidden = true; ds.innerHTML = ""; ov.style.display = ""; if (th) th.hidden = false; v.controls = false; v.pause(); v.removeAttribute("src"); v.load(); if (window.__hxTua) window.__hxTua(giay(l.gioNguoi || l.tu));   /* bỏ src góc khác ⇒ __hxTua nạp lại đúng đoạn góc chính */ lapCotPhai(); return; }
-        var g = l.gocPhu[k]; ov.style.display = "none"; if (th) th.hidden = true; v.controls = true; v.pause(); v.src = u_(g.url);
-        v.onloadedmetadata = function () { v.currentTime = Math.max(0, giay(l.gioNguoi || l.tu) - giay(g.bd) - 5); v.play().catch(function () {}); };
-        veDs(g); ds.hidden = false; ds.classList.add("hx-hien-mo"); setTimeout(function () { ds.classList.remove("hx-hien-mo"); }, 320); lapCotPhai(); };
-      $id("mBody").querySelector("[data-gocchinh]").onclick = function () { sang(-1); };
-      $id("mBody").querySelectorAll("[data-gocphu]").forEach(function (n) { n.onclick = function () { sang(Number(n.dataset.gocphu)); }; });
+      /* 20/10 user (lượt 3): 1 danh sách gộp đoạn của mọi góc, sắp theo giờ. Góc chính = các mốc máy chụp (buocAnh); góc phụ = cùng các mốc ấy
+         nằm trong đoạn clip góc phụ (từ g.bd). Cờ «Cùng thời gian với góc X»: 2 đoạn ở 2 góc lệch nhau ≤ 5 GIÂY (CUNG_GIAY) — xem góc kia cùng lúc khi góc này thấy người mà không rõ mặt. */
+      var CUNG_GIAY = 5, v = $id("hxV"), ov = $id("hxOv"), th = $id("mBody").querySelector("#lvClip .hx-tl-hang"), ds = $id("lvGocDs"), nut = $id("mBody").querySelector("[data-gocchip]"), gocDang = -1;
+      var cuoi = giay(l.den || l.tu) + 3, dong = [];
+      (l.buocAnh || []).forEach(function (b) { var t = giay(b.luc), mt = String(b.nhan || "").replace(/ · [0-9:]+$/, "").replace(/^[^ ]+ /, "") + (b.doNguoi ? " · có người trong khung" : "");
+        dong.push({ goc: -1, ten: l.camera || "Góc chính", t: t, luc: b.luc, mt: mt });
+        l.gocPhu.forEach(function (g, k) { if (t >= giay(g.bd) && t <= cuoi) dong.push({ goc: k, ten: g.ten, t: t, luc: b.luc, mt: "cùng lúc mốc «" + mt + "»" }); }); });
+      dong.sort(function (a, z) { return a.t - z.t || a.goc - z.goc; });
+      dong.forEach(function (d) { d.cung = dong.filter(function (x) { return x.goc !== d.goc && Math.abs(x.t - d.t) <= CUNG_GIAY; }).map(function (x) { return x.ten; }).filter(function (x, i, a) { return a.indexOf(x) === i; }); });
+      ds.innerHTML = '<div class="hx-lans">' + dong.map(function (d, i) { return '<div role="button" tabindex="0" class="hx-lan" data-gocmoc="' + i + '"><span class="gio">' + e_(d.luc) + '</span><span class="ai"><b>' + e_(d.ten) + '</b>' +
+        '<small class="hx-nguon-lan hx-lan-hang">' + e_(d.mt) + '</small>' + (d.cung.length ? '<small class="hx-lan-hang"><span class="hx-tag info">Cùng thời gian với góc ' + e_(d.cung.join(", ")) + '</span></small>' : "") + '</span><span class="pl">▶</span></div>'; }).join("") + '</div>';
+      var sang = function (k, t) { if (k !== gocDang) { gocDang = k; v.pause();
+          if (k < 0) { ov.style.display = ""; if (th) th.hidden = false; v.controls = false; v.removeAttribute("src"); v.load(); if (window.__hxTua) window.__hxTua(t); return; }   /* bỏ src góc phụ ⇒ __hxTua nạp đúng đoạn góc chính */
+          var g = l.gocPhu[k]; ov.style.display = "none"; if (th) th.hidden = true; v.controls = true; v.src = u_(g.url);
+          v.onloadedmetadata = function () { v.currentTime = Math.max(0, t - giay(g.bd) - 2); v.play().catch(function () {}); }; return; }
+        if (k < 0) { if (window.__hxTua) window.__hxTua(t); } else { v.currentTime = Math.max(0, t - giay(l.gocPhu[k].bd) - 2); v.play().catch(function () {}); } };
+      ds.querySelectorAll("[data-gocmoc]").forEach(function (r) { r.onclick = function () { var d = dong[Number(r.dataset.gocmoc)];
+        ds.querySelectorAll("[data-gocmoc]").forEach(function (z) { z.classList.toggle("on", z === r); }); sang(d.goc, d.t); }; });
+      nut.onclick = function () { var mo = ds.hidden; ds.hidden = !mo; nut.classList.toggle("on", mo); nut.setAttribute("aria-pressed", String(mo));
+        if (mo) { ds.classList.add("hx-hien-mo"); setTimeout(function () { ds.classList.remove("hx-hien-mo"); }, 320); } else if (gocDang >= 0) sang(-1, giay(l.gioNguoi || l.tu)); lapCotPhai(); };
     })();
     xongThanhBen(TB);
     var huy = function () { [$id("hxV")].forEach(function (v) { if (v) { v.pause(); v.removeAttribute("src"); v.load(); } }); };
