@@ -296,7 +296,8 @@
         "#modal.hx-ben .hx-ng-hang button:disabled{opacity:.5;cursor:default}#modal.hx-ben .hx-ng-so{display:inline-block;min-width:16px;margin-left:4px;padding:0 4px;border-radius:8px;background:#d46b08;color:#fff;font-size:11px;line-height:16px;text-align:center}" +
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}}" +
         /* 19/10 (7) ảnh ghi nhận bật bằng chip: hiện ra bằng hiệu ứng paneIn sẵn có; hàng chip Theo máy cùng kiểu Theo tác vụ */
-        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]:not([hidden]){animation:paneIn .26s var(--ez-apple)}#modal.hx-ben .hx-tb-luoi .hx-xem-may{padding:0!important;margin:0}#modal.hx-ben .hx-tb-luoi .hx-xem-may>.hx-xdau.hx-ng-hang{margin-top:8px}" +
+        "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh].hx-hien-mo{animation:paneIn .26s var(--ez-apple)}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:none;padding:0!important;margin:0}#modal.hx-ben .hx-tb-luoi .hx-xem-may>.hx-xdau.hx-ng-hang{margin-top:8px}" +
+        "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:block}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh].an-dt{display:none!important}}" +
         /* 19/10 (6) lọc danh sách ai tác động theo chip đang chọn */
         "#modal.hx-ben .hx-qd-ls[data-che=wms] .hx-lan.vl,#modal.hx-ben .hx-qd-ls[data-che=vl] .hx-lan:not(.vl),#modal.hx-ben .hx-qd-ls:not([data-che=wms]) [data-trong=wms]{display:none!important}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
         "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:8px 12px!important;gap:6px!important;flex-shrink:0;min-height:0!important}" +
@@ -1039,15 +1040,17 @@
      Ảnh ghi nhận · đồng bộ vị trí/kích thước clip và các khung ở CẢ 2 thanh Theo máy + Theo tác vụ»: 2 khung y hệt nhau — trái 7/12 · phải 5/12. */
   /* 17/10 (7) user «khung Ảnh ghi nhận và clip đổi vị trí cho nhau (kể cả Ghi chú/Đóng ⇄ tiêu đề) · clip tăng kích thước cho vừa thanh»:
      TRÁI 4/12 = Ảnh ghi nhận → … → Lỗi → Máy gợi ý → Quyết định · PHẢI 8/12 = clip (+ Ai tác động dưới clip) */
-  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "anh" }] }],   // 19/10 (7) Theo máy: Ảnh ghi nhận DƯỚI clip (bật bằng chip) như Theo tác vụ
+  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }] }],   // 20/10 user đính chính: WEB giữ ảnh ở cột phải như cũ; chip + ảnh dưới clip CHỈ điện thoại (CSS @container ≤820)
     tacvu: [{ id: "k2", rong: 4, ds: [{ id: "tinhtrang" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "anh" }, { id: "aitacdong" }] }] };   // 19/10 (4) Ảnh ghi nhận DƯỚI clip (bật bằng nút) · (5) danh sách ai tác động giữ, chỉ bỏ dòng tiêu đề
   var TB_TEN = { clip: "Camera / clip", anh: "Ảnh ghi nhận", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
   /* 19/10 (7) chip «Ảnh ghi nhận» dùng chung 2 thanh: ảnh mặc định ẨN, bấm hiện ngay DƯỚI clip (hiệu ứng paneIn sẵn có), bấm lại ẩn; clip giữ nguyên chỗ, vẫn chạy */
+  /* 20/10 user đính chính: Theo máy — chip + ẩn ảnh CHỈ trên điện thoại (lớp .an-dt chỉ có tác dụng trong @container ≤820); web ảnh hiện sẵn ở cột phải như cũ */
   function ganNutAnh(hienSan) { var a = $id("mBody").querySelector(".hx-tb-luoi [data-tp=\"anh\"]"), n = $id("mBody").querySelector("[data-anhgn]"); if (!a || !n) return;
-    var dat = function (mo) { a.hidden = !mo; n.classList.toggle("on", mo); n.setAttribute("aria-pressed", String(mo)); };
-    dat(!!hienSan); n.onclick = function () { dat(a.hidden); lapCotPhai(); }; }
+    var dt = a.closest(".hx-tb-luoi").dataset.tb === "may", an = function () { return dt ? a.classList.contains("an-dt") : a.hidden; };
+    var dat = function (mo) { if (dt) a.classList.toggle("an-dt", !mo); else a.hidden = !mo; n.classList.toggle("on", mo); n.setAttribute("aria-pressed", String(mo)); };
+    dat(!!hienSan); n.onclick = function () { var mo = an(); dat(mo); if (mo) { a.classList.add("hx-hien-mo"); setTimeout(function () { a.classList.remove("hx-hien-mo"); }, 320); } lapCotPhai(); }; }
   function tbAp(luoi) {
     luoi = luoi || ($id("mBody") && $id("mBody").querySelector(".hx-tb-luoi")); if (!luoi) return;
     var tps = {}, dung = {}, khung = [];
@@ -1062,7 +1065,7 @@
     Object.keys(tps).forEach(function (id) { if (dung[id]) return; var x = tps[id]; x.style.setProperty("--tb-rong", 12); x.removeAttribute("data-tb-an"); khung[khung.length - 1].appendChild(x); });
     khung.forEach(function (f) { f.toggleAttribute("data-trong", ![].slice.call(f.children).some(function (x) { return x.classList.contains("hx-tb-tp") && !x.hasAttribute("data-tb-an") && x.childElementCount; })); luoi.appendChild(f); });
     cu.forEach(function (x) { x.remove(); });
-    if (tps.anh && tps.clip) tps.clip.after(tps.anh);   // 19/10 (4) user: Ảnh ghi nhận luôn ngay DƯỚI clip, kể cả bố cục đã chỉnh tay
+    if (luoi.dataset.tb === "tacvu" && tps.anh && tps.clip) tps.clip.after(tps.anh);   // 19/10 (4) user: Ảnh ghi nhận luôn ngay DƯỚI clip, kể cả bố cục đã chỉnh tay
     tbVach(luoi);
     var M0 = $id("modal"); if (M0._roTb) M0._roTb.disconnect(); if (window.ResizeObserver) { M0._roTb = new ResizeObserver(function (ds) { tbVach(luoi); if (ds.some(function (d) { return d.target !== luoi; })) lapCotPhai(); }); M0._roTb.observe(luoi);
       var kc = luoi.querySelector('[data-tp="clip"]'); if (kc) M0._roTb.observe(kc); }   // clip nạp xong mới đủ cao → tính lại chỗ cuộn

@@ -41,7 +41,7 @@ const DO = (mob) => {
     pd: pd ? Math.max(...[pd, ...pd.querySelectorAll("*")].filter((e) => e.textContent.trim()).map((e) => parseFloat(getComputedStyle(e).fontSize))) : 0,
     ngang: document.documentElement.scrollWidth - innerWidth,
     /* G10 19/10 (5) user: chip «Tác động WMS» · «Không qua WMS» · «Ảnh ghi nhận» CÙNG 1 HÀNG ở mọi cỡ, không cuộn ngang */
-    nguonHang: (() => { const h = q("#mBody .hx-ng-hang .hx-qd-nguon"); if (!h) return null; const bs = [...h.children].filter((e) => e.getBoundingClientRect().width);
+    nguonHang: (() => { const h = q("#mBody .hx-ng-hang .hx-qd-nguon"); if (!h || !h.getBoundingClientRect().height) return null; /* web Theo máy không có hàng chip (20/10) */ const bs = [...h.children].filter((e) => e.getBoundingClientRect().width);
       const tops = bs.map((e) => Math.round(e.getBoundingClientRect().top)); return { n: bs.length, lech: tops.length ? Math.max(...tops) - Math.min(...tops) : 0, tran: h.scrollWidth - h.clientWidth, phai: Math.round(Math.max(0, ...bs.map((e) => e.getBoundingClientRect().right)) - h.closest(".hx-tb-tp").getBoundingClientRect().right) }; })(),
     /* 19/10 (3) user: 1 hàng — TRÁI tiêu đề + giờ, PHẢI Mở task · Ghi chú · Đóng (Đóng ngoài cùng); chữ dài cắt … ở tiêu đề, không đẩy nút */
     dau: (() => { const hr = hd.getBoundingClientRect(), pl = parseFloat(getComputedStyle(hd).paddingLeft), pr = parseFloat(getComputedStyle(hd).paddingRight);
