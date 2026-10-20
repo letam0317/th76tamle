@@ -16,7 +16,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
 
@@ -70,8 +70,37 @@ src = src.replace(
 fs.writeFileSync(DICH, src);
 console.log("✓ Sinh " + path.relative(DIR, DICH) + " (" + (src.length / 1024).toFixed(0) + " KB) — đã chèn " + BIMAT.length + " hằng bí mật từ .env");
 /* 14/10: tệp Apps Script phụ không chứa bí mật — chép nguồn git-safe sang thư mục clasp (TaiKhoan = tài khoản + phân quyền audit-dc) */
-for (const [nguon, dich] of [["google-script-TaiKhoan.gs", "TaiKhoan.js"]]) {
-  const ab = path.join(DIR, nguon); if (fs.existsSync(ab)) { fs.copyFileSync(ab, path.join(path.dirname(DICH), dich)); console.log("✓ Chép " + nguon + " → " + dich); }
+/* 20/10: google-script.gs tách theo mục nghiệp vụ → MỌI google-script-*.gs (trừ DEPLOY = bản cũ có bí mật, TuChua = bản .clasp-deploy
+   đang lệch nguồn, chưa đối chiếu) chép sang .clasp-deploy/<Ten>.js. Tệp tách KHÔNG được chứa placeholder bí mật. */
+const PHU = fs.readdirSync(DIR).filter((f) => /^google-script-.+\.gs$/.test(f) && !/-(DEPLOY|TuChua)\.gs$/.test(f)).sort();
+for (const nguon of PHU) {
+  const ab = path.join(DIR, nguon), dich = nguon.replace(/^google-script-/, "").replace(/\.gs$/, ".js"), nd = fs.readFileSync(ab, "utf8");
+  if (/DAT_[A-Z_]+_O_DAY/.test(nd)) { console.error("✗ " + nguon + " có placeholder bí mật — bí mật chỉ được ở google-script.gs"); process.exit(2); }
+  fs.copyFileSync(ab, path.join(path.dirname(DICH), dich)); console.log("✓ Chép " + nguon + " → " + dich);
+}
+/* 20/10 TAI NẠN sau khi tách: Apps Script nạp tệp theo THỨ TỰ ĐẨY, hàm trùng tên thì tệp SAU thắng. pcJson_ (MayTram: parse chuỗi) trùng
+   pcJson_ (PhysicalCountImport.js bản 08/2026: bọc JSON trả về) — trước đây sa.js đứng cuối nên thắng; tách ra MayTram.js đứng TRƯỚC
+   PhysicalCountImport.js → bản cũ thắng → mọi PCNHIP_* bị coi hỏng và XOÁ (bảng máy trạm trống 20:05–20:30 20/10).
+   Chốt: (1) .clasp.json filePushOrder đẩy PhysicalCountImport/TuChua/TaiKhoan TRƯỚC, các tệp tách sau; (2) hàm trùng tên ngoài danh sách
+   chấp nhận → KHÔNG đẩy. */
+{
+  const CD = path.dirname(DICH), TRUNG_CHAP_NHAN = { doPost: "PhysicalCountImport.js cũ (sa.js đứng sau nên thắng)" };   // pcJson_ bản parse đã đổi tên pcDoc_ (MayTram/XacMinh) — không còn trùng
+  const CLASP_F = path.join(CD, ".clasp.json"), cl = JSON.parse(fs.readFileSync(CLASP_F, "utf8"));
+  if (!(cl.filePushOrder || [])[0] || cl.filePushOrder[0] !== "PhysicalCountImport.js") {   // .clasp-deploy không vào git (có bí mật) → máy mới clasp pull sẽ thiếu → tự thêm
+    cl.filePushOrder = ["PhysicalCountImport.js", "TuChua.js", "TaiKhoan.js"]; fs.writeFileSync(CLASP_F, JSON.stringify(cl, null, 2) + "\n"); console.log("✓ .clasp.json: thêm filePushOrder (tệp cũ nạp trước, tệp tách sau — thứ tự quyết định hàm trùng tên nào thắng)");
+  }
+  const dinh = {};
+  for (const f of fs.readdirSync(CD).filter((x) => x.endsWith(".js"))) for (const m of fs.readFileSync(path.join(CD, f), "utf8").matchAll(/^function ([A-Za-z0-9_$]+)/gm)) (dinh[m[1]] = dinh[m[1]] || []).push(f);
+  const trung = Object.entries(dinh).filter(([, fs2]) => fs2.length > 1 && !TRUNG_CHAP_NHAN[fs2[0] && Object.keys(dinh).find((k) => dinh[k] === fs2)]);
+  const trungLa = Object.entries(dinh).filter(([k, fs2]) => fs2.length > 1 && !TRUNG_CHAP_NHAN[k]);
+  if (trungLa.length) { console.error("✗ Hàm trùng tên giữa các tệp Apps Script (tệp sau đè tệp trước): " + trungLa.map(([k, fs2]) => k + " [" + fs2.join(", ") + "]").join(" · ") + " — đổi tên rồi đẩy."); process.exit(5); }
+  void trung;
+}
+/* 20/10: bảng lệnh–gác (API-GAS.md) — lệnh KHÔNG gác mà chưa có lý do trong cai-pc/gas-gac-moc.json thì KHÔNG đẩy (--bo-qua-gac để ép, phải nêu lý do). */
+if (!process.argv.includes("--bo-qua-gac")) {
+  const g = spawnSync(process.execPath, [path.join(DIR, "qc-gas-gac.mjs")], { cwd: DIR, encoding: "utf8" });
+  process.stdout.write((g.stdout || "").split("\n").map((l) => "  gác│ " + l).join("\n") + "\n");
+  if (g.status) { console.error("✗ qc-gas-gac HỎNG — không đẩy."); process.exit(4); }
 }
 
 /* shell:false + mô tả KHÔNG có khoảng trắng: với shell:true trên Windows, chuỗi mô tả nhiều từ bị

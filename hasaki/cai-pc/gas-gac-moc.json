@@ -1,0 +1,12 @@
+{
+ "_ghi": "Lệnh Apps Script KHÔNG gác được chấp nhận có chủ đích (qc-gas-gac.mjs so với danh sách này; lệnh không gác mà không có ở đây → deploy-gas dừng). Mỗi lệnh 1 lý do; bỏ gác lệnh khác phải thêm vào đây kèm lý do.",
+ "khongGac": {
+  "bridgeCaps": "JSON tĩnh cho extension biết máy chủ hỗ trợ gì — không đọc/ghi dữ liệu.",
+  "lastSync": "Chỉ trả mốc giờ ghi dữ liệu gần nhất (chip «Mới nhất») — không lộ nội dung.",
+  "requestLogin": "Nút trong email: chỉ ĐẶT CỜ yêu cầu đăng nhập cho máy trạm, không trả dữ liệu; mã OTP 6 số vẫn phải gõ trên máy.",
+  "requestStockSync": "Nút «Tải lại dữ liệu» công khai: chỉ đặt cờ cho máy trạm, chống spam 60 s/lần, không gọi WMS trực tiếp.",
+  "pr_hangdoi": "Pop-up In tem hỏi máy in sống/chết + ai đang in + trần lệnh — chỉ đọc trạng thái, không có nội dung tem.",
+  "bridgeToken": "Extension wms-bridge đẩy token phiên WMS: gác bằng chính token (phải là JWT hợp lệ ≥100 ký tự, lưu theo sub trong token) — extension không giữ SECRET.",
+  "upsertPcLogin": "Agent đăng nhập PC khu A8 (top-review) ghi hostname/IP/tài khoản WMS vào tab A8-PC-DANGNHAP — CHƯA GÁC (ghi sổ, không trả dữ liệu). Nên thêm keyBodyOK_ khi sửa agent A8 lần tới (xem theo-doi-dang-nhap-pc-a8)."
+ }
+}
