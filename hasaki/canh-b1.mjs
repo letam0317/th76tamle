@@ -368,5 +368,5 @@ for (const [id, { qd, gc }] of Object.entries(QD)) {
 ghiJ(F_KQ, KQ); ghiJ(F_SO, SO); ghiJ(F_CN, CN);
 log("Tổng: " + Object.entries(dem).map(([k, n]) => k + " " + n).join(" · ") + " · WMS " + nWms + " lượt");
 /* 20/10 sổ Mô tả phiếu (thanh bên Theo tác vụ «Ghi chú») — chỉ phiếu mới, tối đa 40 lượt/lần */
-try { await (await import("./mo-ta-phieu.mjs")).capNhatMoTa(wshrToken || await layTokenSongWork(DIR, () => {}), { log }); } catch (e) { log("mô tả phiếu lỗi: " + e.message); }
+try { const MT = await import("./mo-ta-phieu.mjs"), tk = wshrToken || await layTokenSongWork(DIR, () => {}); await MT.capNhatMoTa(tk, { log }); await MT.capNhatMoTaViTri(tk, { log }); } catch (e) { log("mô tả phiếu/vị trí lỗi: " + e.message); }
 await TD?.xong();

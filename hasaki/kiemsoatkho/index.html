@@ -1487,7 +1487,7 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
-<script src="hasaki-giaodien-antd.js?v=20261017b"></script>
+<script src="hasaki-giaodien-antd.js?v=20261020a"></script>
 <script src="tai-khoan.js?v=20261019a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 <link rel="stylesheet" href="thanh-cuon.css?v=20261017a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->
 <link rel="stylesheet" href="bo-loc-ngay.css?v=20261019a"><script src="bo-loc-ngay.js?v=20261019a"></script><!-- 19/10 BỘ LỌC NGÀY CHUẨN toàn dự án (taoBoLocNgay) -->
@@ -1532,7 +1532,7 @@ window.hxDoMayChu = function(){
         if (window.__HX_DU_PHONG && typeof toast === "function") setTimeout(function(){ toast("Laptop đang tắt — đang xem bản dự phòng (chỉ xem, quyết định làm khi laptop bật)", "loi"); }, 600);
         return u; }); };
   var p = window.__HX_KHONG_MAY ? ham() : ping("http://127.0.0.1:8591", 1500).catch(function(){ return ham(); });
-  return window.__HX_DO = p.then(function(u){ window.HX_API = u; window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); return true; },
+  return window.__HX_DO = p.then(function(u){ window.HX_API = u; window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); if (typeof homeVeLai === "function") setTimeout(homeVeLai, 0); return true; },   /* 20/10 dò máy chủ/đường hầm xong → vẽ lại Tổng quan (thẻ Xác minh) */
     function(){ var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_KHONG_MAY) window.__HX_CHAN = 1; return false; });
 };</script>
 <script>/* 14/10: pop-up không che thanh bên — --pop-trai = mép phải thật của #sideNav (máy tính); điện thoại = 0 (ngăn kéo nổi trên pop-up) */
@@ -3475,7 +3475,7 @@ function moHasakiXacMinh(){
   if(!window.__HX_MAY_CHU){ window.hxDoMayChu().then(co=>{ if(co) moHasakiXacMinh(); else setTab("maytram"); }); return; }   // 19/10: chờ dò máy chủ (laptop hoặc đường hầm); không có thì về Máy trạm (tránh ô đăng nhập lặp)
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261020f';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261020h';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -3563,7 +3563,9 @@ function homeRender(){
   var mtDN=false; try{ var mp=JSON.parse(localStorage.getItem("mt-phien")||"null"); mtDN=!!(mp&&mp.het>Date.now()); }catch(e){}
   /* 13/10: máy không có 8591 (điện thoại) vẫn thấy nhóm Xác minh nhưng CHỈ thẻ Máy trạm (đăng nhập qua GAS) */
   var nhom=HOME_MUC.map(function(g){ return (!g.hx||window.__HX_MAY_CHU)?g:{ g:g.g, hx:1, mo:g.mo, items:g.items.filter(function(it){ return it.t!=="xacminh"; }) }; }).filter(function(g){ return g.items.length; }).map(function(g){
-    return { ten: g.g, khoa: g.hx&&!(window.__HX_MAY_CHU?daDN:mtDN), muc: g.items.map(function(it){
+    /* 20/10 user «chưa đăng nhập không thấy nhóm Xác minh»: khoá theo ĐĂNG NHẬP TÀI KHOẢN (TK.nguoi) — trước đây theo hx-phien/mt-phien còn sót trong máy
+       ⇒ khoa=false trong khi chưa đăng nhập ⇒ tqVe lọc theo quyền khách (r.xacminh=khong) ⇒ nhóm rỗng bị bỏ hẳn */
+    return { ten: g.g, khoa: g.hx&&!(window.TK&&window.TK.nguoi), muc: g.items.map(function(it){
       var s=so(it), m={ k: it.t+(it.sub?":"+it.sub:""), ten: it.ten, mo: it.mo, mauSo: MAU[it.t] };
       if(s){ m.so=s.k; m.dv=s.l.replace(/ tháng \d\d\/\d{4}$/,""); }
       else if(it.t==="planogram"&&plg&&plg.tong){ m.so=pctVN(plg.da,plg.tong)+"%"; m.dv="đã vệ sinh hôm nay"; m.tien=plg.da/plg.tong*100; }

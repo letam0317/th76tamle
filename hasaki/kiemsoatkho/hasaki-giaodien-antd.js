@@ -499,7 +499,8 @@
   window.tqVe = function (el, cfg) {
     if (!el) return;
     /* 14/10 phân quyền (tai-khoan.js): thẻ / ô chỉ số của tab bị «Không» thì không hiện; nhóm hết mục thì bỏ cả nhóm */
-    var coQ = function (k) { return typeof window.tkCo !== "function" || !k || k === "home" || window.tkCo((TQ_APP === "factory" ? "f." : "r.") + String(k).split(":")[0]); };
+    var coQ = function (k) { k = String(k || "").split(":")[0]; if (k === "maytram") k = "xacminh";   /* 20/10: sổ quyền không có khoá r.maytram — Máy trạm thuộc nhóm Xác minh (trước đây bị lọc mất thẻ khi đã đăng nhập) */
+      return typeof window.tkCo !== "function" || !k || k === "home" || window.tkCo((TQ_APP === "factory" ? "f." : "r.") + k); };
     var cs = (cfg.chiSo || []).filter(function (c) { return c && (!c.tab || coQ(c.tab)); });
     cfg = { chiSo: cfg.chiSo, nhom: (cfg.nhom || []).map(function (g) { var g2 = {}; for (var k in g) g2[k] = g[k]; g2.muc = g.khoa && !(window.TK && window.TK.nguoi) ? (g.muc || []) : (g.muc || []).filter(function (m) { return coQ(m.k); }); return g2; }).filter(function (g) { return g.muc.length; }) };
     var h = cs.length ? '<div class="tq-cs n' + cs.length + '">' + cs.map(function (c) {

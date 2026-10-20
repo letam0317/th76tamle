@@ -51,7 +51,7 @@ function danhBa() {
   if (DB && Date.now() - DB.at < 10 * 60e3) return DB;
   const ds = docJ(path.join(DIR, ".cache-nv170.json"), { data: [] }).data || [];
   const theoMa = new Map(), theoTen = new Map();
-  for (const x of ds) { if (!x.code) continue; const v = { ma: String(x.code), ten: x.staff_name, email: x.staff_email, chuc: x.staff_title }; theoMa.set(v.ma, v); if (!theoTen.has(x.staff_name)) theoTen.set(x.staff_name, v); }
+  for (const x of ds) { if (!x.code) continue; const v = { ma: String(x.code), ten: x.staff_name, email: x.staff_email, chuc: x.staff_title, tt: x.staff_status === 1 ? "Active" : x.staff_status === 4 ? "Pending" : "Inactive" };   /* 20/10 trạng thái NV: 1 Active · 4 Pending (nghỉ thai sản) · khác/không có trong danh bạ = Inactive */ theoMa.set(v.ma, v); if (!theoTen.has(x.staff_name)) theoTen.set(x.staff_name, v); }
   DB = { at: Date.now(), theoMa, theoTen }; return DB;
 }
 
@@ -106,7 +106,7 @@ function gom() {
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,
       giaiTrinh: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Giải trình:"), xacNhan: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Xác nhận lỗi:"),
-      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", nv: (gy.nv || []).filter((n) => n && n.code).map((n) => ({ ten: n.ten, ma: n.code })) } : null,   // 10/10 QC giao diện cũ: nhãn độ chắc phải đúng (A1-01/TB-03 = VỪA, không phải «chắc chắn»)
+      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", nv: (gy.nv || []).filter((n) => n && n.code).map((n) => { const d = db.theoMa.get(String(n.code)); return { ten: n.ten, ma: n.code, email: (d && d.email) || n.email || "", ttNv: d ? d.tt : "Inactive" }; }) } : null,   // 10/10 QC giao diện cũ: nhãn độ chắc phải đúng (A1-01/TB-03 = VỪA, không phải «chắc chắn»)
       /* 05/10 user "kết quả đã ghi sheet → đưa lên dashboard": kết quả xác minh camera/WMS + quyết định B1 */
       xm: (() => { const v = XM[id]; if (!v) return null; const g = (k) => String(v[Object.keys(v).find((x) => x.includes(k)) || ""] || "");
         return { nghi: g("NV nghi"), goiY: g("Gợi ý"), camera: g("Camera"), daXuLy: g("Đã xử lý"), clip: g("Clip") }; })(),
@@ -232,6 +232,9 @@ function gom() {
     /* 16/10 user «1 cái đó từ đâu — hàng hoàn hay pick dư hay châm/soạn hàng»: sổ nguon-cham-b1.mjs lần ngược lệnh đưa món hàng VÀO XE
        trước lượt châm (0 lượt gọi ở đây — chỉ đọc sổ). chu = nhãn ngắn trên dòng, chiTiet = chuỗi đầy đủ cho title. */
     const NG = docJ(path.join(EXP, "nguon-cham-b1.json"), { lan: {} }); NG.lan ||= {};
+    /* 20/10 user: ghi chú ô nguồn — ô TF (xe/giỏ trung chuyển) «Giỏ <số>», ô khác = Description danh mục vị trí WMS (sổ mo-ta-vi-tri.json) */
+    const MTVT = docJ(path.join(EXP, "mo-ta-vi-tri.json"), {});
+    const ghiChuO = (o) => { o = String(o || ""); if (!o) return ""; const so = (/[(]([0-9]+)[)]$/.exec(o) || [])[1]; if (/^F0-TF-/.test(o)) return so ? "Giỏ " + so : "Xe / giỏ trung chuyển"; return ((MTVT[o.replace(/ [(].*$/, "")] || {}).desc) || ""; };
     /* nhãn theo KHU NGUỒN (mô tả chính thức trong danh mục vị trí WMS, tra 16/10): F0-IT «Khu vực hàng khi nhận IT» · F0-RT «đơn bị trả về»
        · F0-PA «giỏ repush» (đơn huỷ/pick trả kệ) · F0-PL «Pallet số N» · F0-NG «đơn trả sản phẩm không phù hợp» · F0-TF xe đẩy · còn lại = ô kệ khác */
     const KHU = { IT: "Nhận hàng IT", RT: "Hàng hoàn", PA: "Đơn huỷ trả kệ", NG: "Hàng trả không phù hợp", TF: "Từ xe khác" };
@@ -258,9 +261,9 @@ function gom() {
       const rec = (CW[bin + "|" + ngay] || {}).rec; if (!rec) continue;
       const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
       const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.at === r.at);
-        return { at: r.at, ten: nv ? nv.ten : r.email, ma: nv ? nv.ma : "", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
+        return { at: r.at, ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
           /* 20/10 user: ghi rõ Transfer Type + Source location như trang WMS Transfer location (bin_in = ô) — 0 lượt gọi thêm: bin_out có trong sổ nguon-cham-b1 / bộ đệm cò */
-          tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
+          tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", oGhiChu: ghiChuO(r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || ""), goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
           clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
       p.lsKho = { bin, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
