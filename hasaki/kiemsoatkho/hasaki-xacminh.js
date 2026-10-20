@@ -311,7 +311,7 @@
         "#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin] .hx-qd-o>div,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi] .hx-qd-o>div,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy] .hx-qd-o>div{font-size:13px!important;line-height:20px;margin:0!important;padding:0!important}" +
         "#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin]{display:flex;flex-direction:column;gap:8px}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi],#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy]{margin-top:-2px!important}" +
         /* 20/10 nhiều ảnh: số «i/N» góc phải ảnh to; dãy ảnh nhỏ cao cố định 48px (giữ chỗ, cuộn ngang trong khung nếu nhiều) */
-        "#modal.hx-ben .hx-lan .ai small.hx-mot-dong{display:block;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}#modal.hx-ben .hx-tag-manh{font-size:11px!important;line-height:16px;padding:0 6px!important;margin:0;vertical-align:baseline}#modal.hx-ben .hx-gy-them{border:0;background:none;padding:0 2px;color:var(--accent);font:inherit;font-size:12px;cursor:pointer}#modal.hx-ben .hx-gy-con{margin-top:4px;line-height:20px}#modal.hx-ben .hx-nv.tt-active{color:#389e0d}#modal.hx-ben .hx-nv.tt-pending{color:#9254de}#modal.hx-ben .hx-nv.tt-inactive{color:var(--muted)}#modal.hx-ben .hx-nv b{color:inherit;font-weight:600}#modal.hx-ben .hx-lan .ai small.hx-lan-hang{display:block;white-space:normal!important;overflow:visible;text-overflow:clip}#modal.hx-ben .hx-lan .ai small.hx-lan-o{display:block;white-space:normal!important;overflow:visible;text-overflow:clip;color:var(--muted);font-size:11px;line-height:15px}#modal.hx-ben .hx-qd-mota:not(.mo){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#modal.hx-ben .hx-qd-mota{cursor:pointer;white-space:pre-line}#modal.hx-ben .hx-qd-anh.nhieu{position:relative}#modal.hx-ben .hx-anh-so{position:absolute;top:8px;right:8px;z-index:1;padding:1px 8px;border-radius:10px;background:color-mix(in srgb,#000 60%,transparent);color:#fff;font-size:12px;line-height:18px}" +
+        "#modal.hx-ben .hx-lan .ai small.hx-mot-dong{display:flex!important;align-items:center;gap:6px;white-space:nowrap!important;overflow:hidden!important;min-width:0}#modal.hx-ben .hx-mot-dong>.mt{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}#modal.hx-ben .hx-tag-cung{flex:none;padding:0 6px;border-radius:8px;font-size:11px;line-height:16px;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}#modal.hx-ben .hx-tag-manh{font-size:11px!important;line-height:16px;padding:0 6px!important;margin:0;vertical-align:baseline}#modal.hx-ben .hx-gy-them{border:0;background:none;padding:0 2px;color:var(--accent);font:inherit;font-size:12px;cursor:pointer}#modal.hx-ben .hx-gy-con{margin-top:4px;line-height:20px}#modal.hx-ben .hx-nv.tt-active{color:#389e0d}#modal.hx-ben .hx-nv.tt-pending{color:#9254de}#modal.hx-ben .hx-nv.tt-inactive{color:var(--muted)}#modal.hx-ben .hx-nv b{color:inherit;font-weight:600}#modal.hx-ben .hx-lan .ai small.hx-lan-hang{display:block;white-space:normal!important;overflow:visible;text-overflow:clip}#modal.hx-ben .hx-lan .ai small.hx-lan-o{display:block;white-space:normal!important;overflow:visible;text-overflow:clip;color:var(--muted);font-size:11px;line-height:15px}#modal.hx-ben .hx-qd-mota:not(.mo){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#modal.hx-ben .hx-qd-mota{cursor:pointer;white-space:pre-line}#modal.hx-ben .hx-qd-anh.nhieu{position:relative}#modal.hx-ben .hx-anh-so{position:absolute;top:8px;right:8px;z-index:1;padding:1px 8px;border-radius:10px;background:color-mix(in srgb,#000 60%,transparent);color:#fff;font-size:12px;line-height:18px}" +
         "#modal.hx-ben .hx-anh-day{display:flex;gap:6px;height:48px;margin-top:6px;overflow-x:auto;overflow-y:hidden}#modal.hx-ben .hx-anh-day button{flex:0 0 auto;width:64px;height:48px;min-height:0!important;padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;background:var(--ad-nen2,#f5f5f5);cursor:pointer}#modal.hx-ben .hx-anh-day button.on{border-color:var(--accent)}#modal.hx-ben .hx-anh-day img{width:100%;height:100%;object-fit:cover;display:block}" +
         /* 20/10 Theo tác vụ điện thoại: clip → (ảnh) → Ngày/Vị trí/Ghi chú → Thuộc lỗi → Máy gợi ý → ai tác động → tình trạng → Quyết định */
         "@container (max-width:820px){#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=clip]{order:-6}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=anh]{order:-5}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin]{order:-4}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi]{order:-3}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy]{order:-2}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=aitacdong]{order:-1}}" +
@@ -686,9 +686,12 @@
       dong.forEach(function (d) { d.cung = dong.filter(function (x) { return x.goc !== d.goc && Math.abs(x.t - d.t) <= CUNG_GIAY; }).map(function (x) { return x.ten; }).filter(function (x, i, a) { return a.indexOf(x) === i; }); });
       /* 20/10 user (bực «tùm lum»): dòng y khuôn Tác động WMS — .hx-lan · giờ (+ trước/sau) · tên góc · 1 dòng nhỏ «mô tả · nhãn Cùng lúc» cắt … · ▶ */
       var T0 = giay(l.gioNguoi || l.tu);
+      /* 20/10 user: mô tả + nhãn «Cùng lúc» CÙNG 1 HÀNG — tên góc dài (>12 ký tự) rút chữ đầu + số (San Nhap Hang 2 → SNH2), title giữ tên đủ; mô tả bị cắt … trước, nhãn không cắt */
+      var gocGon = function (t) { t = String(t || ""); return t.length <= 12 ? t : t.split(/\s+/).map(function (w) { return /^[0-9]+$/.test(w) ? w : w.charAt(0).toUpperCase(); }).join(""); };
       ds.innerHTML = '<div class="hx-lans">' + dong.map(function (d, i) { var dd = Math.round(T0 - d.t);
         return '<div role="button" tabindex="0" class="hx-lan" data-gocmoc="' + i + '"><span class="gio">' + e_(d.luc.slice(0, 5)) + '<small>' + (dd ? (dd > 0 ? "trước " : "sau ") + Math.abs(dd) + " giây" : "lúc có người") + '</small></span>' +
-          '<span class="ai"><b>' + e_(d.ten) + '</b><small class="hx-nguon-lan hx-mot-dong">' + e_(d.mt) + (d.cung.length ? (d.mt ? " " : "") + '<span class="hx-tag info hx-tag-manh">Cùng lúc: ' + e_(d.cung.join(", ")) + '</span>' : "") + '</small></span><span class="pl">▶</span></div>'; }).join("") + '</div>';
+          '<span class="ai"><b>' + e_(d.ten) + '</b><small class="hx-nguon-lan hx-mot-dong"><span class="mt">' + e_(d.mt) + '</span>' +
+            (d.cung.length ? '<span class="hx-tag-cung" title="Cùng thời gian với góc ' + e_(d.cung.join(", ")) + '">Cùng lúc: ' + e_(d.cung.map(gocGon).join(", ")) + '</span>' : "") + '</small></span><span class="pl">▶</span></div>'; }).join("") + '</div>';
       var sang = function (k, t) { if (k !== gocDang) { gocDang = k; v.pause();
           if (k < 0) { ov.style.display = ""; if (th) th.hidden = false; v.controls = false; v.removeAttribute("src"); v.load(); if (window.__hxTua) window.__hxTua(t); return; }   /* bỏ src góc phụ ⇒ __hxTua nạp đúng đoạn góc chính */
           var g = l.gocPhu[k]; ov.style.display = "none"; if (th) th.hidden = true; v.controls = true; v.src = u_(g.url);
@@ -971,7 +974,7 @@
   /* ---------- 3) PHIẾU TREO ---------- */
   /* 05/10 QC: thay mã luật (KHAC/TB-02…) bằng MỨC MÁY BIẾT viết thường — đúng Hướng 1 user duyệt (chắc chắn → bấm là xong; cần chọn; đang tra; chưa tra được).
      Mã luật vẫn còn trong tooltip cho chủ máy tra sổ luật. */
-  var MUC_MAY = { chac: ["Máy chắc chắn", "good"], vua: ["Máy gợi ý · cần bạn xem", "warn"], chon: ["Cần bạn quyết", "warn"], tam: ["Nhờ anh Tâm kiểm tra thực tế", "warn"], cam: ["Máy tra camera giờ báo cáo", "info"], tudong: ["Máy tự xử theo luật vệ sinh", "info"], tra: ["Chờ camera xác nhận", "info"], khong: ["Máy đang tìm bằng chứng", ""], quyet: ["Bạn đã quyết · chờ máy làm", "info"], xong: ["Đã xử lý", "good"] };
+  var MUC_MAY = { chac: ["Máy chắc chắn", "good"], vua: ["Máy gợi ý · cần bạn xem", "warn"], chon: ["Cần bạn quyết", "warn"], tam: ["Nhờ anh Tâm kiểm tra thực tế", "warn"], cam: ["Máy tra camera giờ báo cáo", "info"], tudong: ["Máy tự xử theo luật vệ sinh", "info"], tra: ["Chờ camera xác nhận", "info"], soi: ["Máy đang soi camera (AI)", "info"], nhan: ["Có clip lúc chụp · bạn nhận người", "warn"], khong: ["Máy đang tìm bằng chứng", ""], quyet: ["Bạn đã quyết · chờ máy làm", "info"], xong: ["Đã xử lý", "good"] };
   function mucMay(p) {
     var x = p.xm || {}, g = p.goiY;
     /* 20/10 user «14115619 ghi Đã xử lý mà vẫn treo B1»: cột «Đã xử lý» = «Đã đưa vào hàng chờ cắt clip camera» (12/10) bị coi là XONG.
@@ -979,7 +982,15 @@
     if (x.daXuLy && !/hàng chờ|đang /i.test(x.daXuLy)) return "xong"; if (p.qdB1 && !/^Cắt thêm clip/.test(p.qdB1.qd || "")) return "quyet";
     /* 07/10 luật vệ sinh VS-06/VS-07 (canh-b11 ⑤ ghi vesinh-xet.json): kho bụi quá 8h / camera đã đo → nhờ anh Tâm; báo cáo trong 8h → máy tra camera lượt kế; còn lại máy tự xử */
     var vs = p.vs; if (vs) { if (vs.bui || vs.camSo || vs.cam) return "tam"; if (vs.hanhDong === "camera") return "cam"; if (vs.hanhDong === "dong-b1" || /^nghi_/.test(vs.hanhDong || "")) return "tudong"; }
-    if (!g || (typeof coBC === "function" && !coBC(p))) return "khong";
+    /* 20/10 user «task treo B1 >100 mà chờ tôi quyết chưa tới 20 — còn lại gặp vấn đề gì»: nhóm «Máy đang tìm bằng chứng» gom 38 phiếu, 34 phiếu ĐÃ có
+       clip + khung camera lúc chụp (bcChup). Khung lúc chụp KHÔNG mở khoá Quyết định (người trong đó là người kiểm — luật cũ giữ nguyên ở coBC),
+       nhưng gọi «đang tìm» là sai ⇒ tách: mã ô chưa soi AI → «soi» (máy soi camera hằng 2h) · đã có clip lúc chụp → «nhan» (bạn nhận người) · còn lại → «khong». */
+    if (!g || (typeof coBC === "function" && !coBC(p))) {
+      var ch0 = p.bcChup || {};
+      if (!g || !(ch0.clip || (ch0.anh || []).length)) return "khong";
+      if (/^F0-Ad+-/.test(String(p.viTri || "")) && !/^(DL-02|DL-03|CH-05|CH-06|VS)$/.test(g.luat || "") && !p.xmSoi) return "soi";
+      return "nhan";
+    }
     if (g.doChac === "CAO" || (g.ketLuan === "B1.1" && !g.doChac)) return "chac";   // 10/10 QC: B1.1 độ chắc VỪA (A1-01 phụ trách kệ, TB-03 người châm gần nhất) KHÔNG được gọi «chắc chắn»
     if (g.ketLuan === "B1.1") return "vua";
     if (/^cho-/.test(g.ketLuan || "") || g.ketLuan === "canh-b11") return "tra";
@@ -987,7 +998,7 @@
     return "khong";
   }
   function veTreo() {
-    var thuTu = ["B1", "B1.1", "B2", "B2.1", "B3.1", "B3.2", "B3.3", "B4", "B4.1", "B5", "Điều hướng"], dem = {}, demM = {}, THU = ["chac", "vua", "chon", "tam", "cam", "tudong", "tra", "quyet", "khong", "xong"];
+    var thuTu = ["B1", "B1.1", "B2", "B2.1", "B3.1", "B3.2", "B3.3", "B4", "B4.1", "B5", "Điều hướng"], dem = {}, demM = {}, THU = ["chac", "vua", "chon", "nhan", "tam", "cam", "tudong", "tra", "soi", "quyet", "khong", "xong"];
     D.phieu.forEach(function (p) { dem[p.buoc] = (dem[p.buoc] || 0) + 1; var m = mucMay(p); demM[m] = (demM[m] || 0) + 1; });
     var ds = D.phieu.filter(function (p) { return (!LOC.buoc || p.buoc === LOC.buoc) && (!LOC.treo || (p.treoGio || 0) > 48) && (!LOC.mucMay || (LOC.mucMay === "gc" ? !!gcCua(p.id) : mucMay(p) === LOC.mucMay)) &&
       (!TIM || (p.code + " " + p.viTri + " " + p.loi + " " + p.nguoiBuoc + " " + p.nv.map(function (v) { return v.ten + " " + v.ma; }).join(" ")).toLowerCase().indexOf(TIM.toLowerCase()) >= 0); })
