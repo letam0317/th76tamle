@@ -299,7 +299,7 @@
         "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh]{order:-1}}" +
         /* 20/10 user (CHỈ WEB): khối thông tin Theo tác vụ dời xuống SÁT TRÊN Quyết định (ảnh ghi nhận được rộng chỗ); khung ảnh CHỐT 9:16 dọc, ảnh contain nền tối — đổi ảnh không làm các mục dưới nhảy */
         "@container (min-width:821px){#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin]{margin-top:auto!important}#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=quyetdinh]{margin-top:0!important}" +
-          "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-qd-anh{aspect-ratio:9/16;width:min(100%,calc((100vh - 330px) * 9 / 16));margin:0 auto;background:#111!important}" +
+          "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-qd-anh{width:100%;height:320px;aspect-ratio:auto!important;margin:0;background:#111!important}" +
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-qd-anh img{width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:contain!important}" +
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-anh-day{justify-content:center}}" +
         /* 20/10 user CHỐT (chỉ WEB, khổ >820): đầu thanh — «Đóng» sát TRÁI, kế «Ghi chú», «Mở task»; tiêu đề (tên task / sự việc + giờ) sát PHẢI, căn phải, dài cắt … · điện thoại giữ tên trái, nút phải */
@@ -1053,7 +1053,8 @@
   function qdDay(bx, qd) {
     if (!qd || !bx) return; qd.style.marginTop = "";   // trả về margin-top:auto (CSS) — trong khung cột, Quyết định tự xuống đáy khung
     var L = qd.closest(".hx-tb-luoi"), pb = parseFloat(getComputedStyle($id("mBody")).paddingBottom) || 0; L.style.minHeight = "";
-    if (bx.clientWidth <= 820) { qd.style.marginBottom = ""; return; }   // 19/10 thanh hẹp/điện thoại: Quyết định nằm ngay sau nội dung, không kéo xuống đáy
+    if (bx.clientWidth <= 820) { qd.style.marginBottom = ""; return; }
+    coAnhTV(bx, qd);   // 19/10 thanh hẹp/điện thoại: Quyết định nằm ngay sau nội dung, không kéo xuống đáy
     var rL = L.getBoundingClientRect(), du = bx.getBoundingClientRect().bottom - rL.bottom - pb;
     du -= QD_CACH_DAY;   // 17/10 (6) user «cụm Quyết định di chuyển lên trên 3cm»
     if (bx.scrollHeight <= bx.clientHeight + 1 && du > 2) L.style.minHeight = Math.floor(rL.height + du) + "px";   // lưới giãn → khung giãn → Quyết định cách đáy thanh QD_CACH_DAY
@@ -1088,6 +1089,14 @@
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
   /* 19/10 (7) chip «Ảnh ghi nhận» dùng chung 2 thanh: ảnh mặc định ẨN, bấm hiện ngay DƯỚI clip (hiệu ứng paneIn sẵn có), bấm lại ẩn; clip giữ nguyên chỗ, vẫn chạy */
   /* 20/10 user đính chính: Theo máy — chip + ẩn ảnh CHỈ trên điện thoại (lớp .an-dt chỉ có tác dụng trong @container ≤820); web ảnh hiện sẵn ở cột phải như cũ */
+  /* 20/10 user (WEB Theo tác vụ): cả cột phải «ảnh → khối thông tin → Quyết định» VỪA 1 màn — khung ảnh cao = phần còn lại của cột
+     (trần 9:16 theo bề ngang cột, sàn 160px; chạm sàn mới phải cuộn). Tính khi mở phiếu / đổi cỡ (lapCotPhai gọi qua qdDay); đổi ảnh KHÔNG tính lại ⇒ khung giữ nguyên. */
+  function coAnhTV(bx, qd) {
+    var A = $id("mBody").querySelector('.hx-tb-luoi[data-tb="tacvu"] [data-tp="anh"] .hx-qd-anh'); if (!A || !A.offsetWidth) return;
+    var tran = A.closest(".hx-tb-khung"), cuoi = qd.getBoundingClientRect(), tren = Math.floor(A.offsetWidth * 16 / 9);
+    A.style.height = tren + "px";
+    var du = qd.getBoundingClientRect().bottom - (bx.getBoundingClientRect().bottom - 16);
+    A.style.height = Math.max(160, Math.min(tren, Math.floor(tren - Math.max(0, du)))) + "px"; }
   function ganNutAnh(hienSan) { var a = $id("mBody").querySelector(".hx-tb-luoi [data-tp=\"anh\"]"), n = $id("mBody").querySelector("[data-anhgn]"); if (!a || !n) return;
     /* 20/10 Theo tác vụ: chip «Ghi nhận» bật/tắt cả ảnh + khối thông tin (Ngày/Vị trí/SKU/Ghi chú/Thuộc lỗi/Máy gợi ý) — chỉ điện thoại (.an-dt ≤820) */
     var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"]')));
