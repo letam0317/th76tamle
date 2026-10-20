@@ -319,7 +319,7 @@
         "#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>[data-tp=anh].hx-hien-mo{animation:paneIn .26s var(--ez-apple)}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:none;padding:0!important;margin:0}#modal.hx-ben .hx-tb-luoi .hx-xem-may>.hx-xdau.hx-ng-hang{margin-top:8px}" +
         "#modal.hx-ben .hx-tb-luoi .hx-ng-hang .hx-ng-anh{display:none}@container (max-width:820px){#modal.hx-ben .hx-tb-luoi .hx-ng-hang .hx-ng-anh{display:inline-flex}#modal.hx-ben .hx-tb-luoi .hx-xem-may{display:block}#modal.hx-ben .hx-tb-luoi>.hx-tb-khung>.hx-tb-tp.an-dt{display:none!important}}" +
         /* 20/10 chip «Góc khác» (góc camera phụ) hiện ở CẢ web: web hàng chip chỉ mở khi lượt có góc phụ, chip Ảnh ghi nhận web vẫn ẩn (ảnh ở cột phải) */
-        "#modal.hx-ben .hx-tb-luoi .hx-xem-may:has([data-gocphu]){display:block}#modal.hx-ben .hx-tb-luoi .hx-ng-hang [data-gocphu]{display:inline-flex}#modal.hx-ben #lvGocPhu video{max-height:42vh}" +
+        "#modal.hx-ben .hx-tb-luoi .hx-xem-may:has([data-gocphu]){display:block}#modal.hx-ben .hx-tb-luoi .hx-ng-hang :is([data-gocphu],[data-gocchinh]){display:inline-flex}#modal.hx-ben #lvGocDs{margin-top:8px}#modal.hx-ben #lvGocDs.hx-hien-mo{animation:paneIn .26s var(--ez-apple)}" +
         /* 19/10 (6) lọc danh sách ai tác động theo chip đang chọn */
         "#modal.hx-ben .hx-qd-ls[data-che=wms] .hx-lan.vl,#modal.hx-ben .hx-qd-ls[data-che=vl] .hx-lan:not(.vl),#modal.hx-ben .hx-qd-ls:not([data-che=wms]) [data-trong=wms]{display:none!important}" +   // đầu thanh nằm TRÊN clip dính (clip z 5)
         "@media(max-width:760px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head{padding:8px 12px!important;gap:6px!important;flex-shrink:0;min-height:0!important}" +
@@ -645,8 +645,12 @@
         '<div class="hx-qd-xem hx-xem-may"><div class="hx-xdau hx-ng-hang"><span class="hx-qd-nguon"><button type="button" class="hx-ng-anh" data-anhgn aria-pressed="false">Ảnh ghi nhận</button>' +
         /* 20/10 ghi chú user (lượt 14/10 07:38): «người đi sang góc khác nên không thấy rõ — lấy thêm góc khác cùng thời điểm». Chip «Góc khác · <kênh>»
            như chip Ảnh ghi nhận: mặc định ẩn, bấm hiện 1 khung video RIÊNG dưới clip (clip chính giữ nguyên), tua sẵn tới trước giờ có người 5 s. */
-        (l.gocPhu || []).map(function (g, i) { return '<button type="button" class="hx-ng-anh" data-gocphu="' + i + '" aria-pressed="false" title="Camera ' + e_(g.ten) + ' cùng lúc, từ ' + e_(g.bd) + '">Góc khác · ' + e_(g.ten) + '</button>'; }).join("") +
-        '</span></div><div id="lvGocPhu" hidden></div></div>') +
+        /* 20/10 user (lượt 2): như Theo tác vụ — chip «Góc chính · <camera>» + mỗi góc phụ 1 chip «Góc khác · <kênh>»; bấm góc khác thì CLIP CHÍNH chuyển sang góc đó
+           và bên dưới hiện danh sách mốc dạng dòng như Tác động WMS (giờ · trước/sau · người tô màu trạng thái · mô tả · ▶ phát tại mốc). Không có góc phụ thì không có chip. */
+        ((l.gocPhu || []).length ? '<button type="button" class="hx-goc on" data-gocchinh aria-pressed="true" title="Camera của sự việc">Góc chính · ' + e_(l.camera || "") + '</button>' +
+          l.gocPhu.map(function (g, i) { return '<button type="button" class="hx-goc" data-gocphu="' + i + '" aria-pressed="false" title="Camera ' + e_(g.ten) + ' cùng lúc, từ ' + e_(g.bd) + '">Góc khác · ' + e_(g.ten) + '</button>'; }).join("") : "") +
+        '</span></div></div>') +
+      ((l.gocPhu || []).length ? tp("gocds", '<div id="lvGocDs" class="hx-qd-ls" hidden></div>') : "") +   // danh sách mốc góc khác — thành phần RIÊNG dưới clip (không nằm trong khung clip dính trên)
       tp("anh", '<div class="hx-qd-anh"><span class="lbl">Ảnh ghi nhận</span><img id="lvAnhGN" src="' + e_(anhNguoi(l)) + '" alt="Ảnh ghi nhận" decoding="async"></div>') +
       tp("seghi", '<div class="hx-chot" id="hxChot"></div>') +
       /* người nghi: 4–5 người thì khối này cao — cuộn riêng (lapCotPhai), không đẩy dài cả thanh */
@@ -670,18 +674,27 @@
     var lvXem = function () {};   // 16/10 (7) ảnh ghi nhận đứng riêng ở cột phải — không còn đổi qua lại clip/ảnh
     $id("lvAnhGN").onclick = function () { openLB([{ url: anhNguoi(l), title: "Ảnh ghi nhận", sub: l.camera }], 0); };
     ganNutAnh();   // 19/10 (7) chip Ảnh ghi nhận (mặc định ẩn ảnh)
-    $id("mBody").querySelectorAll("[data-gocphu]").forEach(function (n) { n.onclick = function () {
-      var o = $id("lvGocPhu"), g = l.gocPhu[Number(n.dataset.gocphu)], mo = n.getAttribute("aria-pressed") !== "true";
-      $id("mBody").querySelectorAll("[data-gocphu]").forEach(function (x) { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); });
-      var cu = o.querySelector("video"); if (cu) { cu.pause(); cu.removeAttribute("src"); cu.load(); }
-      o.innerHTML = ""; o.hidden = !mo; if (!mo) { lapCotPhai(); return; }
-      n.classList.add("on"); n.setAttribute("aria-pressed", "true");
-      o.innerHTML = '<div class="muted" style="font-size:12px;margin:6px 0 4px">' + e_(g.ten) + ' · cùng thời điểm (đoạn từ ' + e_(g.bd) + ')</div><video controls playsinline muted preload="metadata" style="width:100%;border-radius:8px;background:#000"></video>';
-      var v2 = o.querySelector("video"); v2.src = u_(g.url);
-      v2.onloadedmetadata = function () { v2.currentTime = Math.max(0, giay(l.gioNguoi || l.tu) - giay(g.bd) - 5); v2.play().catch(function () {}); };
-      o.classList.add("hx-hien-mo"); setTimeout(function () { o.classList.remove("hx-hien-mo"); }, 320); lapCotPhai(); }; });
+    if ((l.gocPhu || []).length) (function () {
+      var v = $id("hxV"), ov = $id("hxOv"), th = $id("mBody").querySelector("#lvClip .hx-tl-hang"), ds = $id("lvGocDs"), gocDang = -1;
+      var hm = function (t) { var x = Math.round(t); return String(Math.floor(x / 3600)).padStart(2, "0") + ":" + String(Math.floor(x % 3600 / 60)).padStart(2, "0") + ":" + String(x % 60).padStart(2, "0"); };
+      var chon = function (k) { $id("mBody").querySelectorAll("[data-gocchinh],[data-gocphu]").forEach(function (x) { var on = x.hasAttribute("data-gocchinh") ? k < 0 : Number(x.dataset.gocphu) === k; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); }); };
+      var veDs = function (g) { var T = giay(l.gioNguoi || l.tu);
+        ds.innerHTML = '<div class="hx-lans">' + (l.buocAnh || []).map(function (b, i) { var t = giay(b.luc), d = T - t, c = (l.cong || []).filter(function (x) { return Math.abs(giay(x.gio) - t) <= 90; }).sort(function (a, z) { return Math.abs(giay(a.gio) - t) - Math.abs(giay(z.gio) - t); })[0];
+          return '<div role="button" tabindex="0" class="hx-lan" data-gocmoc="' + i + '"><span class="gio">' + e_(b.luc) + '<small>' + (d >= 0 ? "trước " : "sau ") + Math.abs(Math.round(d)) + ' giây</small></span><span class="ai">' +
+            (c ? (c.email ? cumNV(c.ten, c.email, c.ttNv) : '<b>' + e_(c.ten) + '</b>') : '<b class="muted">Chưa định danh</b>') +
+            '<small class="hx-nguon-lan hx-lan-hang">' + e_(String(b.nhan || "").replace(/ · [0-9:]+$/, "").replace(/^[^ ]+ /, "")) + (b.doNguoi ? " · có người trong khung" : "") + '</small></span><span class="pl">▶</span></div>'; }).join("") + '</div>';
+        ds.querySelectorAll("[data-gocmoc]").forEach(function (r) { r.onclick = function () { var t = giay(l.buocAnh[Number(r.dataset.gocmoc)].luc);
+          ds.querySelectorAll("[data-gocmoc]").forEach(function (z) { z.classList.toggle("on", z === r); }); v.currentTime = Math.max(0, t - giay(g.bd) - 2); v.play().catch(function () {}); }; }); };
+      var sang = function (k) { if (k === gocDang) return; gocDang = k; chon(k);
+        if (k < 0) { ds.hidden = true; ds.innerHTML = ""; ov.style.display = ""; if (th) th.hidden = false; v.controls = false; v.pause(); v.removeAttribute("src"); v.load(); if (window.__hxTua) window.__hxTua(giay(l.gioNguoi || l.tu));   /* bỏ src góc khác ⇒ __hxTua nạp lại đúng đoạn góc chính */ lapCotPhai(); return; }
+        var g = l.gocPhu[k]; ov.style.display = "none"; if (th) th.hidden = true; v.controls = true; v.pause(); v.src = u_(g.url);
+        v.onloadedmetadata = function () { v.currentTime = Math.max(0, giay(l.gioNguoi || l.tu) - giay(g.bd) - 5); v.play().catch(function () {}); };
+        veDs(g); ds.hidden = false; ds.classList.add("hx-hien-mo"); setTimeout(function () { ds.classList.remove("hx-hien-mo"); }, 320); lapCotPhai(); };
+      $id("mBody").querySelector("[data-gocchinh]").onclick = function () { sang(-1); };
+      $id("mBody").querySelectorAll("[data-gocphu]").forEach(function (n) { n.onclick = function () { sang(Number(n.dataset.gocphu)); }; });
+    })();
     xongThanhBen(TB);
-    var huy = function () { [$id("hxV"), $id("lvGocPhu") && $id("lvGocPhu").querySelector("video")].forEach(function (v) { if (v) { v.pause(); v.removeAttribute("src"); v.load(); } }); };
+    var huy = function () { [$id("hxV")].forEach(function (v) { if (v) { v.pause(); v.removeAttribute("src"); v.load(); } }); };
     $id("mClose").addEventListener("click", huy, { once: true });
     ganVideo(l, dn);
     /* 14/10 user: ô Vi phạm gì ghi RÕ hạng mục (câu QUY-ĐỊNH), gõ để tìm, mục máy gợi ý đánh ★ — như ô «Là ai» */
@@ -1082,9 +1095,9 @@
      Ảnh ghi nhận · đồng bộ vị trí/kích thước clip và các khung ở CẢ 2 thanh Theo máy + Theo tác vụ»: 2 khung y hệt nhau — trái 7/12 · phải 5/12. */
   /* 17/10 (7) user «khung Ảnh ghi nhận và clip đổi vị trí cho nhau (kể cả Ghi chú/Đóng ⇄ tiêu đề) · clip tăng kích thước cho vừa thanh»:
      TRÁI 4/12 = Ảnh ghi nhận → … → Lỗi → Máy gợi ý → Quyết định · PHẢI 8/12 = clip (+ Ai tác động dưới clip) */
-  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }] }],   // 20/10 user đính chính: WEB giữ ảnh ở cột phải như cũ; chip + ảnh dưới clip CHỈ điện thoại (CSS @container ≤820)
+  var TB_MAC = { may: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "seghi" }, { id: "dsnguoi" }, { id: "trangthai" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "gocds" }] }],   // 20/10 user đính chính: WEB giữ ảnh ở cột phải như cũ; chip + ảnh dưới clip CHỈ điện thoại (CSS @container ≤820)
     tacvu: [{ id: "k2", rong: 4, ds: [{ id: "anh" }, { id: "tinhtrang" }, { id: "thongtin" }, { id: "loi" }, { id: "goiy" }, { id: "quyetdinh" }] }, { id: "k1", rong: 8, ds: [{ id: "clip" }, { id: "aitacdong" }] }] };   // 20/10 user: web Theo tác vụ ảnh ở cột phải như cũ; chip ảnh CHỈ điện thoại   // 19/10 (4) Ảnh ghi nhận DƯỚI clip (bật bằng nút) · (5) danh sách ai tác động giữ, chỉ bỏ dòng tiêu đề
-  var TB_TEN = { clip: "Camera / clip", anh: "Ảnh ghi nhận", thongtin: "Ngày · Vị trí · Ghi chú", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
+  var TB_TEN = { gocds: "Góc khác · danh sách mốc", clip: "Camera / clip", anh: "Ảnh ghi nhận", thongtin: "Ngày · Vị trí · Ghi chú", quyetdinh: "Quyết định", trangthai: "Trạng thái phiếu", seghi: "Sẽ ghi nhận", dsnguoi: "Lỗi · Máy gợi ý (người nghi)", aitacdong: "Ai tác động ô", tinhtrang: "Tình trạng bằng chứng", loi: "Lỗi", goiy: "Máy gợi ý" };
   var tbCot = function (v) { v = Math.round(Number(v) || 12); return Math.max(1, Math.min(12, v)); };
   function tbCfg(k) { var c = window.DASH_BOCUC && window.DASH_BOCUC.thanhBen && window.DASH_BOCUC.thanhBen[k]; return c && c.khung && c.khung.length ? c.khung : (TB_MAC[k] || []); }
   /* 19/10 (7) chip «Ảnh ghi nhận» dùng chung 2 thanh: ảnh mặc định ẨN, bấm hiện ngay DƯỚI clip (hiệu ứng paneIn sẵn có), bấm lại ẩn; clip giữ nguyên chỗ, vẫn chạy */
