@@ -981,7 +981,8 @@
        Câu hàng chờ / đang làm KHÔNG phải xong → xét tiếp như phiếu thường (bằng chứng + gợi ý của máy). */
     if (x.daXuLy && !/hàng chờ|đang /i.test(x.daXuLy)) return "xong"; if (p.qdB1 && !/^Cắt thêm clip/.test(p.qdB1.qd || "")) return "quyet";
     /* 07/10 luật vệ sinh VS-06/VS-07 (canh-b11 ⑤ ghi vesinh-xet.json): kho bụi quá 8h / camera đã đo → nhờ anh Tâm; báo cáo trong 8h → máy tra camera lượt kế; còn lại máy tự xử */
-    var vs = p.vs; if (vs) { if (vs.bui || vs.camSo || vs.cam) return "tam"; if (vs.hanhDong === "camera") return "cam"; if (vs.hanhDong === "dong-b1" || /^nghi_/.test(vs.hanhDong || "")) return "tudong"; }
+    var vs = p.vs; if (vs) { if (vs.bui || vs.camSo || vs.cam) return "tam";
+      if (vs.hanhDong === "khong-phan-cong" || vs.hanhDong === "nguoi-xac-minh") return "chon";   /* 20/10: vị trí không có phân công / nghỉ ngắn mà có người khác báo cáo → máy để NGƯỜI quyết (trước hiện «Chờ camera xác nhận» / «Máy tự xử») */ if (vs.hanhDong === "camera") return "cam"; if (vs.hanhDong === "dong-b1" || /^nghi_/.test(vs.hanhDong || "")) return "tudong"; }
     /* 20/10 user «task treo B1 >100 mà chờ tôi quyết chưa tới 20 — còn lại gặp vấn đề gì»: nhóm «Máy đang tìm bằng chứng» gom 38 phiếu, 34 phiếu ĐÃ có
        clip + khung camera lúc chụp (bcChup). Khung lúc chụp KHÔNG mở khoá Quyết định (người trong đó là người kiểm — luật cũ giữ nguyên ở coBC),
        nhưng gọi «đang tìm» là sai ⇒ tách: mã ô chưa soi AI → «soi» (máy soi camera hằng 2h) · đã có clip lúc chụp → «nhan» (bạn nhận người) · còn lại → «khong». */

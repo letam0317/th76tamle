@@ -770,7 +770,8 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         const kq = layKQ(x), c = (x.t.data && x.t.data.configs) || {};
         if (!kq) continue;
         if (!kq.phuTrach) { ghiXet(x, kq, "khong-phan-cong"); log("⑤ " + x.t.code + ": vị trí «" + c.BIN00 + "» không tra được phụ trách — để người xác minh."); continue; }
-        ghiXet(x, kq, kq.suyNV ? (kq.trongCuaSoBui ? "camera" : kq.ketLuan === "chua_dat" ? "bui" : "dong-b1") : kq.ketLuan);
+        /* 20/10: nghỉ ngắn mà CÓ người khác báo cáo ngày xét → máy để người xác minh (nhánh dưới) — trước ghi «nghi_ngan» làm bảng hiện «Máy tự xử» sai (13950762) */
+        ghiXet(x, kq, kq.suyNV ? (kq.trongCuaSoBui ? "camera" : kq.ketLuan === "chua_dat" ? "bui" : "dong-b1") : kq.ketLuan === "nghi_ngan" && kq.coBaoCaoNgayXet ? "nguoi-xac-minh" : kq.ketLuan);
         if (kq.suyNV) {   /* (2) đi làm mà không báo cáo / vệ sinh chưa đạt */
           const nhan = kq.ketLuan === "chua_dat" ? "VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn)" : "KHÔNG báo cáo";
           const g14 = daGhiNhan14(kq.khoa, kq.suyNV, ngayVP(x), x.t.id, loaiCua(x.t));

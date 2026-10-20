@@ -1,7 +1,7 @@
 /**
  * qc-ghi-chu-co.mjs — đo CỜ GHI CHÚ + CHIP «GÓC KHÁC» ở Xác minh (20/10, dữ liệu THẬT từ 8591, chặn mọi lượt ghi ở tầng mạng).
  *  G1 Theo máy: mục có ghi chú có nhãn «Ghi chú · <trạng thái>», mờ, nằm SAU mọi mục không ghi chú (web + điện thoại)
- *  G2 lượt có góc phụ: chip «Góc khác · …» ẩn khung sẵn; bấm → khung video riêng hiện, nạp được, tua tới trước giờ có người; bấm lại → ẩn
+ *  G2 lượt có góc phụ: chip «Góc camera (N)» (phiên khác gộp 20/10 16:42); bấm → danh sách đoạn mọi góc
  *  G3 clip chính vẫn còn nguồn khi mở góc phụ · G4 pop-up Ghi chú hiện nhãn trạng thái mới · G5 lượt «xe tải che bãi» không còn trong «Chờ bạn quyết»
  *  G6 không lỗi trang.   Chạy: node qc-ghi-chu-co.mjs [--id=<lượt có ghi chú + góc phụ>]
  */
@@ -33,19 +33,15 @@ for (const m of MAY) {
   ok(g1 && g1.sauHet, `[${m.ten}] G1 mục có ghi chú dồn cuối danh sách`);
   ok(g1 && !g1.che, `[${m.ten}] G5 lượt xe tải che bãi không còn trong «Chờ bạn quyết»`);
   await p.evaluate((s, id) => document.querySelector(s + '[data-lid="' + id + '"]').click(), sel, ID);
-  await p.waitForFunction(() => document.querySelector("#mBody [data-gocphu]"), { timeout: 20000 }).catch(() => {});
-  const g2a = await p.evaluate(() => { const n = document.querySelector("#mBody [data-gocphu]"), o = document.getElementById("lvGocPhu"); return { n: n ? n.textContent : "", an: o ? o.hidden : null }; });
-  ok(/^Góc khác · /.test(g2a.n) && g2a.an === true, `[${m.ten}] G2 chip «${g2a.n}» có, khung góc phụ ẩn sẵn`);
-  await p.evaluate(() => document.querySelector("#mBody [data-gocphu]").click());
-  await p.waitForFunction(() => { const v = document.querySelector("#lvGocPhu video"); return v && v.readyState >= 1 && v.currentTime > 0; }, { timeout: 30000 }).catch(() => {});
-  const g2 = await p.evaluate(() => { const o = document.getElementById("lvGocPhu"), v = o && o.querySelector("video"), r = v ? v.getBoundingClientRect() : {}, n = document.querySelector("#mBody [data-gocphu]");
-    const hv = document.getElementById("hxV"); let e = o, ch = []; while (e && e.id !== "mBody") { ch.push((e.dataset.tp || e.dataset.tbk || e.className || e.tagName) + ":" + getComputedStyle(e).display + "/" + Math.round(e.getBoundingClientRect().height)); e = e.parentElement; }
-    return { ch: ch.join(" < "), vh: Math.round(r.height || 0), hien: o && !o.hidden && r.height > 50, ready: v ? v.readyState : -1, t: v ? +v.currentTime.toFixed(1) : -1, bam: n.getAttribute("aria-pressed"), chinh: !!(hv && hv.src) }; });
-  ok(g2.hien && g2.ready >= 1, `[${m.ten}] G2 bấm chip → khung video góc phụ hiện + nạp được (readyState ${g2.ready}, cao ${g2.vh}${g2.hien ? "" : " · " + g2.ch})`);
-  ok(g2.t > 0 && g2.bam === "true", `[${m.ten}] G2 tua sẵn tới trước giờ có người (${g2.t} s) · chip bật`);
-  ok(g2.chinh, `[${m.ten}] G3 clip chính vẫn giữ nguồn`);
-  await p.evaluate(() => document.querySelector("#mBody [data-gocphu]").click());
-  ok(await p.evaluate(() => document.getElementById("lvGocPhu").hidden && !document.querySelector("#lvGocPhu video")), `[${m.ten}] G2 bấm lại → ẩn, gỡ video`);
+  /* 20/10 16:42 (phiên khác, user lượt 3): chip «Góc khác · …» gộp thành 1 chip «Góc camera (N)» → bấm hiện danh sách đoạn mọi góc (data-gocmoc) */
+  await p.waitForFunction(() => document.querySelector("#mBody [data-gocchip]"), { timeout: 20000 }).catch(() => {});
+  const g2a = await p.evaluate(() => { const n = document.querySelector("#mBody [data-gocchip]"); return n ? n.textContent : ""; });
+  ok(/^Góc camera/.test(g2a), `[${m.ten}] G2 lượt có góc phụ hiện chip «${g2a}»`);
+  if (g2a) { await p.evaluate(() => document.querySelector("#mBody [data-gocchip]").click());
+    await p.waitForFunction(() => document.querySelectorAll("#mBody [data-gocmoc]").length > 0, { timeout: 10000 }).catch(() => {});
+    const n = await p.evaluate(() => [...document.querySelectorAll("#mBody [data-gocmoc]")].filter((e) => e.getBoundingClientRect().height > 0).length);
+    ok(n > 0, `[${m.ten}] G2 bấm chip → danh sách đoạn góc camera hiện (${n} dòng)`); }
+  ok(await p.evaluate(() => { const v = document.getElementById("hxV"); return !!(v && v.src); }), `[${m.ten}] G3 clip chính vẫn giữ nguồn`);
   await p.evaluate(() => document.getElementById("gcNut").click());
   await p.waitForFunction(() => document.querySelector("#gcDs .hx-tag"), { timeout: 10000 }).catch(() => {});
   const g4 = await p.evaluate(() => [...document.querySelectorAll("#gcDs .hx-tag")].map((x) => x.textContent));
