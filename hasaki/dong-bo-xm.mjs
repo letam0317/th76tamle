@@ -15,6 +15,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const MAY = os.hostname();
@@ -109,7 +110,7 @@ export async function keo(nhom, { xoaSauKeo = false } = {}) {
         let gocBuf = null; try { gocBuf = fs.readFileSync(fGoc(t.ten)); } catch { /* */ }
         const taBuf = fs.readFileSync(abs), ta = docJson(taBuf), ho = docJson(bo);
         if (gocBuf && bam(gocBuf) !== bam(taBuf) && ta !== undefined && ho !== undefined) {   // chưa có gốc (lần đầu sau 19/10) → kéo đè như cũ
-          fs.writeFileSync(tam, JSON.stringify(gop3(gocBuf ? docJson(gocBuf) : undefined, ta, ho), null, 1)); fs.renameSync(tam, abs);
+          ghiJson(tam, gop3(gocBuf ? docJson(gocBuf) : undefined, ta, ho), { thut: 1 }); fs.renameSync(tam, abs);
           ghiGoc(t.ten, bo); n++; daKeo.push(t.ten); log("gộp 3 chiều khi kéo " + t.ten); continue;
         }
       }

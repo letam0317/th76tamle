@@ -37,10 +37,12 @@ for (const m of MAY) {
   await p.waitForFunction(() => document.querySelector("#mBody [data-gocchip]"), { timeout: 20000 }).catch(() => {});
   const g2a = await p.evaluate(() => { const n = document.querySelector("#mBody [data-gocchip]"); return n ? n.textContent : ""; });
   ok(/^Góc camera/.test(g2a), `[${m.ten}] G2 lượt có góc phụ hiện chip «${g2a}»`);
-  if (g2a) { await p.evaluate(() => document.querySelector("#mBody [data-gocchip]").click());
-    await p.waitForFunction(() => document.querySelectorAll("#mBody [data-gocmoc]").length > 0, { timeout: 10000 }).catch(() => {});
-    const n = await p.evaluate(() => [...document.querySelectorAll("#mBody [data-gocmoc]")].filter((e) => e.getBoundingClientRect().height > 0).length);
-    ok(n > 0, `[${m.ten}] G2 bấm chip → danh sách đoạn góc camera hiện (${n} dòng)`); }
+  if (g2a) { /* 20/10 (c681b47): web danh sách góc mặc định HIỆN, điện thoại mặc định ẨN → chip là nút BẬT/TẮT: đang hiện thì không bấm (bấm là tắt) */
+    const demHien = () => p.evaluate(() => [...document.querySelectorAll("#mBody [data-gocmoc]")].filter((e) => e.getBoundingClientRect().height > 0).length);
+    const n0 = await demHien();
+    if (!n0) { await p.evaluate(() => document.querySelector("#mBody [data-gocchip]").click()); await p.waitForFunction(() => [...document.querySelectorAll("#mBody [data-gocmoc]")].some((e) => e.getBoundingClientRect().height > 0), { timeout: 10000 }).catch(() => {}); }
+    const n = await demHien();
+    ok(n > 0, `[${m.ten}] G2 ${n0 ? "danh sách đoạn góc camera hiện sẵn" : "bấm chip → danh sách đoạn góc camera hiện"} (${n} dòng)`); }
   ok(await p.evaluate(() => { const v = document.getElementById("hxV"); return !!(v && v.src); }), `[${m.ten}] G3 clip chính vẫn giữ nguồn`);
   /* G9 (20/10) chuyển sang góc phụ: dùng THANH TỰ DỰNG (không trình phát mặc định), đồng hồ = giờ thật đoạn góc phụ, có Tự động, mốc trong đoạn;
      về góc chính: đúng đoạn + giờ; chuyển qua lại 3 lần đồng hồ không nhảy lùi (không chồng 2 vòng vẽ) */

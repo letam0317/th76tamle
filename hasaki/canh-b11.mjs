@@ -52,6 +52,7 @@ import "dotenv/config";
 import { layTokenGhiWork, phutVN, mayDuocChay, laTokenGhiDuoc } from "./session-rules.js";
 import { napNguonTruyVet, truyVet, laHangMucVeSinhHangNgay, DAU_TRUY_VET, cauNhacBui, DAU_NHAC_BUI, CUA_SO_BUI_GIO } from "./truy-vet-vesinh.mjs";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot, mapTenAnToan, laQLKho170 } from "./qltt.js";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -126,7 +127,7 @@ async function layDanhBa(token) {
   try {
     const j = await (await fetch(V + "/news/staff/search-for-dropdown?limit=10000&sort=staff_id", { headers: { authorization: token }, signal: AbortSignal.timeout(60000) })).json();
     const data = j.data || j.rows || [];
-    if (data.length) try { fs.writeFileSync(CACHE_DB, JSON.stringify({ at: Date.now(), data })); } catch { /* best-effort */ }
+    if (data.length) try { ghiJson(CACHE_DB, { at: Date.now(), data }, { thut: 0 }); } catch { /* best-effort */ }
     return data;
   } catch { try { return JSON.parse(fs.readFileSync(CACHE_DB, "utf8")).data || []; } catch { return []; } }
 }
@@ -250,7 +251,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
           xn: [].concat(c.xacnhan11 || [])[0] || "", gt: [].concat(c.giaitrinh11 || [])[0] || "", nv: String(c1.staff || ""), ql: c1.QLBP02 || "",
           cam: (b.staff || []).map((x) => (x.info && x.info.staff_name) || "").filter(Boolean) }); }
     }
-    fs.writeFileSync(path.join(DIR, ".exports", "b11-anh-chup.json"), JSON.stringify({ luc: new Date().toISOString(), b11: anh }));
+    ghiJson(path.join(DIR, ".exports", "b11-anh-chup.json"), { luc: new Date().toISOString(), b11: anh }, { thut: 0 });
   } catch (e) { log("⚠ ghi ảnh chụp B1.1: " + e.message); }
 
   /* Vòng B1→B1.1 có thể LẶP (B1.1 bị huỷ → engine mở lại B1): lấy bản MỚI NHẤT chưa huỷ,
@@ -761,7 +762,7 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         XET[x.t.id] = Object.assign({ code: x.t.code, bin: c.BIN00 || "", ngayVP: c.DATE00 || "", loi: c.TYPE00 || "", phuTrach: kq && kq.phuTrach ? { ma: kq.phuTrach.code, ten: kq.phuTrach.ten } : null,
           ketLuan: kq ? kq.ketLuan : "", ngayXet: kq ? kq.ngayXet : "", bc: bc ? { ngay: bc.ngay, gio: bc.gio, req: bc.req } : null, cachGioBc: kq && kq.cachGioBc != null ? Math.round(kq.cachGioBc * 10) / 10 : null,
           trongCuaSoBui: !!(kq && kq.trongCuaSoBui), cuaSoGio: CUA_SO_BUI_GIO, hanhDong, bui: so.bui[x.t.id] || null, cam: so.cam[x.t.id] || null, dgB1: so.dgB1[x.t.id] || null }, them || {}); };
-      const luuXet = () => { try { fs.writeFileSync(path.join(DIR, ".exports", "vesinh-xet.json"), JSON.stringify({ luc: new Date().toISOString(), thu: THU, phieu: XET })); } catch (e) { log("⚠ ghi vesinh-xet: " + e.message); } };
+      const luuXet = () => { try { ghiJson(path.join(DIR, ".exports", "vesinh-xet.json"), { luc: new Date().toISOString(), thu: THU, phieu: XET }, { thut: 0 }); } catch (e) { log("⚠ ghi vesinh-xet: " + e.message); } };
       /* (2)(3)(4) từng phiếu còn mở chưa bị fail trùng */
       const soQL = docSoQLTT(DIR);
       const QL_CAP_TREN = new Map([["ho ngoc tu uyen", "Hà Trọng Thúc Bằng"], ["le thi ngoc huyen", "Hà Trọng Thúc Bằng"]]);

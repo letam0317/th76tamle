@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url)), KS = path.join(DIR, "kiemsoatkho"), MOC_F = path.join(DIR, "cai-pc", "qc-ma-tinh-moc.json");
 const A = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith("--")).map((x) => { const [k, v] = x.slice(2).split("="); return [k, v ?? "1"]; }));
@@ -20,7 +21,8 @@ const tap = (s, re, i = 1) => new Set([...s.matchAll(re)].map((m) => m[i]));
 /** Đo 1 tệp → {hex, tienIch:{ten:n}, lopBang:[…], lopNut:[…], lopChip:[…], media:[…], dongDai, cdnKhongGhim} */
 export function doTep(ten) {
   const s = fs.readFileSync(path.join(KS, ten), "utf8");
-  const tienIch = {}; for (const fn of TIEN_ICH) { const q = fn.replace("$", "\\$"); const n = dem(s, new RegExp("(?:^|[\\s;{(])(?:function " + q + "\\s*\\(|(?:var|const|let) " + q + "\\s*=)", "g")); if (n) tienIch[fn] = n; }
+  const sTI = s.split(/\r?\n/).filter((l) => !/hskTienIch\./.test(l)).join("\n");   // 20/10: dòng tham chiếu tiện ích chung (var esc = window.hskTienIch.esc) KHÔNG tính là khai lại
+  const tienIch = {}; for (const fn of TIEN_ICH) { const q = fn.replace("$", "\\$"); const n = dem(sTI, new RegExp("(?:^|[\\s;{(])(?:function " + q + "\\s*\\(|(?:var|const|let) " + q + "\\s*=)", "g")); if (n) tienIch[fn] = n; }
   return {
     hex: dem(s, /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b(?![\w-])/g),                               // mã màu viết cứng (cả trong CSS lẫn JS)
     tienIch,
@@ -43,16 +45,30 @@ const soSanh = (ten, moc, nay) => {   // → danh sách lỗi (TĂNG so với m�
   return { loi, giam };
 };
 
+/** 20/10: chỗ ghi JSON thô `writeFileSync(…JSON.stringify…)` trong *.mjs/*.js ở thư mục gốc hasaki — tệp mới PHẢI dùng so-ghi.mjs (ghiJson);
+ *  số này chỉ được GIẢM (mốc `_ghiTho` trong qc-ma-tinh-moc.json). */
+export function doGhiTho() {
+  const ra = {};
+  for (const f of fs.readdirSync(DIR)) { if (!/\.(mjs|js)$/.test(f) || f === "so-ghi.mjs") continue; const n = dem(fs.readFileSync(path.join(DIR, f), "utf8"), /writeFileSync\([^;\n]*JSON\.stringify/g); if (n) ra[f] = n; }
+  return ra;
+}
+
 if (process.argv[1] && path.basename(process.argv[1]) === "qc-ma-tinh.mjs") {
   const ten = A.chi ? A.chi.split(",") : TEP.filter((t) => fs.existsSync(path.join(KS, t)));
   const nay = {}; for (const t of ten) nay[t] = doTep(t);
+  nay._ghiTho = doGhiTho();
   let moc = {}; try { moc = JSON.parse(fs.readFileSync(MOC_F, "utf8")); } catch { /* chưa có mốc */ }
-  if (A["cap-nhat-moc"] || !Object.keys(moc).length) { const m = { ...moc, ...nay, _luc: new Date().toISOString() }; fs.writeFileSync(MOC_F, JSON.stringify(m, null, 1)); console.log("✓ đã ghi mốc " + Object.keys(nay).length + " tệp → " + path.relative(DIR, MOC_F)); process.exit(0); }
+  if (A["cap-nhat-moc"] || !Object.keys(moc).length) { const m = { ...moc, ...nay, _luc: new Date().toISOString() }; ghiJson(MOC_F, m, { thut: 1 }); console.log("✓ đã ghi mốc " + Object.keys(nay).length + " tệp → " + path.relative(DIR, MOC_F)); process.exit(0); }
   let loiTong = [], giamTong = [];
   for (const t of ten) { if (!moc[t]) { loiTong.push(`${t}: chưa có mốc — chạy --cap-nhat-moc`); continue; } const r = soSanh(t, moc[t], nay[t]); loiTong.push(...r.loi); giamTong.push(...r.giam); }
+  { const mocG = moc._ghiTho || {}, nayG = nay._ghiTho, lanDau = !moc._ghiTho && Object.keys(moc).length > 0;   // ghi JSON thô: so từng tệp .mjs/.js
+    for (const f of new Set([...Object.keys(mocG), ...Object.keys(nayG)])) { const a = mocG[f] || 0, b = nayG[f] || 0; if (b > a && !lanDau) loiTong.push(`${f}: ghi JSON thô ${a} → ${b} — dùng ghiJson (so-ghi.mjs)`); else if (b < a) giamTong.push(`${f}: ghi JSON thô ${a} → ${b}`); }
+    const tongG = Object.values(nayG).reduce((x, y) => x + y, 0);
+    if (lanDau) giamTong.push(`ghi JSON thô: lập mốc lần đầu ${tongG} chỗ / ${Object.keys(nayG).length} tệp`);
+    console.log(`ghi JSON thô ngoài so-ghi: ${tongG} chỗ / ${Object.keys(nayG).length} tệp` + (moc._ghiTho ? ` (mốc ${Object.values(mocG).reduce((x, y) => x + y, 0)})` : "")); }
   const tong = (o) => ten.filter((t) => o[t] && "hex" in o[t]).reduce((a, t) => a + o[t].hex, 0);   // chỉ cộng các tệp đang đo
   console.log(`mã màu cứng: ${tong(nay)} (mốc ${tong(moc)}) · tệp đo: ${ten.length}`);
-  if (giamTong.length) { console.log("  GIẢM (tốt, hạ mốc): " + giamTong.join(" · ")); const m = { ...moc }; for (const t of ten) m[t] = nay[t]; m._luc = new Date().toISOString(); fs.writeFileSync(MOC_F, JSON.stringify(m, null, 1)); }
+  if (giamTong.length) { console.log("  GIẢM (tốt, hạ mốc): " + giamTong.join(" · ")); const m = { ...moc }; for (const t of ten) m[t] = nay[t]; m._ghiTho = nay._ghiTho; m._luc = new Date().toISOString(); ghiJson(MOC_F, m, { thut: 1 }); }
   if (loiTong.length) { console.log("  HỎNG (" + loiTong.length + "):\n   - " + loiTong.join("\n   - ")); process.exit(1); }
   console.log("  ĐẠT — không tệ thêm so với mốc."); process.exit(0);
 }

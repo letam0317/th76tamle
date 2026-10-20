@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const A = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith("--")).map((x) => { const [k, v] = x.slice(2).split("="); return [k, v ?? "1"]; }));
@@ -29,9 +30,9 @@ const chay = (x) => new Promise((res) => {
 
 const KQ = { luc: new Date().toISOString(), ds: [] };
 log(`bắt đầu ${DS.length} bộ đo`);
-for (const x of DS) { const r = await chay(x); KQ.ds.push(r); log(`${r.ma === 0 ? "ĐẠT " : "HỎNG"} ${r.ten} · ${r.giay}s · ${r.cuoi.slice(0, 120)}`); fs.writeFileSync(path.join(DIR, ".exports", "qc-dem.json"), JSON.stringify({ ...KQ, dangChay: x.ten }, null, 1)); }
+for (const x of DS) { const r = await chay(x); KQ.ds.push(r); log(`${r.ma === 0 ? "ĐẠT " : "HỎNG"} ${r.ten} · ${r.giay}s · ${r.cuoi.slice(0, 120)}`); ghiJson(path.join(DIR, ".exports", "qc-dem.json"), { ...KQ, dangChay: x.ten }, { thut: 1 }); }
 KQ.tong = KQ.ds.length; KQ.dat = KQ.ds.filter((r) => r.ma === 0).length; KQ.hong = KQ.tong - KQ.dat; KQ.xongLuc = new Date().toISOString();
-fs.writeFileSync(path.join(DIR, ".exports", "qc-dem.json"), JSON.stringify(KQ, null, 1));
+ghiJson(path.join(DIR, ".exports", "qc-dem.json"), KQ, { thut: 1 });
 try { fs.unlinkSync(KHOA); } catch { /* */ }
 log(`xong: ${KQ.dat}/${KQ.tong} đạt`);
 process.exit(KQ.hong ? 1 : 0);

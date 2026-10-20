@@ -2,7 +2,6 @@
  "index.html": {
   "hex": 378,
   "tienIch": {
-   "esc": 1,
    "toast": 1,
    "hm": 1
   },
@@ -49,10 +48,6 @@
  "hasaki-xacminh.js": {
   "hex": 58,
   "tienIch": {
-   "e_": 1,
-   "$id": 1,
-   "hm": 1,
-   "ngayVN": 1,
    "baoOk": 1,
    "baoLoi": 1
   },
@@ -99,9 +94,7 @@
  },
  "hasaki-maytram.js": {
   "hex": 15,
-  "tienIch": {
-   "e_": 1
-  },
+  "tienIch": {},
   "lopBang": [],
   "lopNut": [
    "hx-nut",
@@ -120,11 +113,7 @@
  },
  "hasaki-planogram.js": {
   "hex": 432,
-  "tienIch": {
-   "esc": 1,
-   "$id": 1,
-   "ngayVN": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "hp-cctbl",
    "hp-mtbl"
@@ -165,8 +154,6 @@
  "factory-kiemke.js": {
   "hex": 181,
   "tienIch": {
-   "esc": 1,
-   "$id": 1,
    "toast": 1
   },
   "lopBang": [
@@ -195,8 +182,6 @@
  "factory-stock.js": {
   "hex": 125,
   "tienIch": {
-   "esc": 1,
-   "$id": 1,
    "toast": 1
   },
   "lopBang": [
@@ -222,10 +207,7 @@
  },
  "hasaki-kiemke.js": {
   "hex": 140,
-  "tienIch": {
-   "esc": 1,
-   "$id": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "mbcard"
   ],
@@ -248,8 +230,6 @@
  "hasaki-pc.js": {
   "hex": 79,
   "tienIch": {
-   "esc": 1,
-   "$id": 1,
    "toast": 1
   },
   "lopBang": [
@@ -272,10 +252,7 @@
  },
  "hasaki-tonbatthuong.js": {
   "hex": 90,
-  "tienIch": {
-   "esc": 1,
-   "$id": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "ht-mtbl"
   ],
@@ -394,5 +371,141 @@
   "dongDai": 13,
   "cdnKhongGhim": 1
  },
- "_luc": "2026-10-20T12:09:22.754Z"
+ "_luc": "2026-10-20T13:02:50.184Z",
+ "_ghiTho": {
+  "agy-xm.mjs": 5,
+  "ai-hoi-anh.mjs": 1,
+  "auto-complete-single-task.mjs": 1,
+  "auto-export-sync.js": 4,
+  "bai-xe-phieu.mjs": 3,
+  "bao-vesinh-telegram.mjs": 1,
+  "bat-khu-rac.mjs": 1,
+  "bat-request-bridge.mjs": 1,
+  "bo-sung-sku-comment.mjs": 1,
+  "camera-a8.mjs": 2,
+  "camera-bao-cao.mjs": 6,
+  "canh-ao-xanh.mjs": 2,
+  "canh-b11.mjs": 1,
+  "canh-suc-khoe.js": 1,
+  "canh-trung-nv.mjs": 2,
+  "cap-token-toi.mjs": 1,
+  "capture-buoc-task.mjs": 1,
+  "capture-planogram-authed.mjs": 1,
+  "capture-planogram.mjs": 1,
+  "capture-stocklocation.mjs": 1,
+  "capture-task-api.js": 1,
+  "capture-task-detail.mjs": 1,
+  "capture2.mjs": 1,
+  "cham-agy-xm.mjs": 1,
+  "chay-agy-xm.mjs": 2,
+  "co-canh-planogram.mjs": 6,
+  "co-luy-tien.mjs": 1,
+  "dai-lui-thoi-gian-b1.mjs": 2,
+  "day-cloudflare.mjs": 2,
+  "day-xm-len-bang.mjs": 1,
+  "do-lag-xacminh.mjs": 1,
+  "do-toc-do-tem.mjs": 8,
+  "doc-chat-phancong.mjs": 1,
+  "doc-chat-qltt.mjs": 1,
+  "doi-soat-kiemke.mjs": 1,
+  "dung-clip-agent.mjs": 3,
+  "duong-ham-591.mjs": 2,
+  "ep-tuoi.mjs": 1,
+  "export-pc.mjs": 1,
+  "ghi-tac-dong-may.mjs": 1,
+  "hop-thu.mjs": 2,
+  "kho170-sodo-build.mjs": 1,
+  "kiem-giai-trinh-ai.mjs": 1,
+  "login-hasaki.js": 2,
+  "luat-3-ngay.mjs": 1,
+  "mo-ta-phieu.mjs": 2,
+  "mtg-sodo-build.mjs": 1,
+  "nguon-cham-b1.mjs": 1,
+  "nhuong-pc.mjs": 1,
+  "pc-login-agent.mjs": 1,
+  "pdf-mtg-boc.mjs": 1,
+  "phan-cong-khu-giay.mjs": 2,
+  "phan-tich-vai-thun.mjs": 1,
+  "probe-a8-chuan-moi.mjs": 1,
+  "probe-a8-dung-0708.mjs": 1,
+  "probe-a8-tieuchuan.mjs": 2,
+  "probe-a8-trangthai-lich.mjs": 1,
+  "probe-chamcong.mjs": 1,
+  "probe-dieu-huong.mjs": 2,
+  "probe-kpi-vesinh-3buoc.mjs": 2,
+  "probe-kpi-vesinh-kho.mjs": 3,
+  "probe-kpi-vesinh-quet.mjs": 1,
+  "probe-kpi-vesinh-tuchoi.mjs": 2,
+  "probe-kpi-vesinh.mjs": 1,
+  "probe-pc-detail.mjs": 1,
+  "probe-phep-con-lai.mjs": 1,
+  "probe-phutrach.mjs": 1,
+  "probe-planogram-token.mjs": 1,
+  "probe-planogram2.mjs": 1,
+  "probe-planogram3.mjs": 1,
+  "probe-planogram4.mjs": 1,
+  "probe-task-12850765-raw.mjs": 1,
+  "probe-task-kpi-tru.mjs": 1,
+  "probe-ui-bundle.mjs": 1,
+  "probe-vesinh-anh.mjs": 2,
+  "pull-timesheet.js": 2,
+  "push-5s-to-workflow.js": 2,
+  "push-pc-to-sheet.mjs": 2,
+  "qc-gas-gac.mjs": 1,
+  "qc-ghi-nhan-5s-planogram.mjs": 1,
+  "qc-luat-tb-lich-su.mjs": 2,
+  "qc-ma-tinh.mjs": 1,
+  "qc-mobile-toan-du-an.mjs": 1,
+  "qc-ocr-doi-chung.mjs": 1,
+  "qc-tem-tay.mjs": 1,
+  "qc-toc-do-ghi-nhan-5s.mjs": 1,
+  "qc-vesinh-muctieu.mjs": 1,
+  "qc-xacminh-cu.mjs": 1,
+  "qltt-phancong.mjs": 1,
+  "qltt.js": 1,
+  "runner-dieu-phoi.mjs": 1,
+  "scaffold-map-tram.mjs": 1,
+  "scratch_scan_open_b1.mjs": 1,
+  "session-rules.js": 1,
+  "sync-a8-thieu-lich.mjs": 2,
+  "sync-board-to-sheet.js": 1,
+  "sync-guard.js": 1,
+  "sync-inside-status.mjs": 1,
+  "sync-packer-a8.mjs": 2,
+  "sync-phancong.mjs": 1,
+  "sync-poller.js": 1,
+  "sync-sku-master.mjs": 3,
+  "sync-stocklocation.js": 1,
+  "sync-tonbatthuong.js": 2,
+  "sync-vesinh-ai.mjs": 1,
+  "sync-vesinh-all.js": 7,
+  "TAO-GOI-DUNG-CLIP.mjs": 1,
+  "tao-ket-qua-nghiem-thu.mjs": 1,
+  "task-hangngay.mjs": 1,
+  "thong-ke-uidgr-cancel.mjs": 1,
+  "token-store.js": 1,
+  "tra-bom.mjs": 1,
+  "tra-sku-hasaki.mjs": 1,
+  "tra-uid-sheet.mjs": 1,
+  "truy-nguoc-b1.mjs": 1,
+  "tu-chua.js": 1,
+  "va-puppeteer-ho-so.mjs": 1,
+  "watch-login-request.js": 3,
+  "xac-minh-tu-dong.mjs": 5,
+  "xacminh-dang-nhap.mjs": 1,
+  "xem-noi-bo.mjs": 1,
+  "_anh-cong.mjs": 1,
+  "_cat-doan.mjs": 1,
+  "_do-luu-nvr.mjs": 2,
+  "_do-thoi-quen-plg.mjs": 2,
+  "_gemini-nguoi-vung.mjs": 1,
+  "_kenh-luc-chup.mjs": 1,
+  "_kiem-b3-treo.mjs": 1,
+  "_nguoi-trong-vung.mjs": 1,
+  "_quet-nguoi-o.mjs": 3,
+  "_roi-moc.mjs": 2,
+  "_tam-vitri-2sku.mjs": 1,
+  "_tim-tac-dong.mjs": 1,
+  "_trung-anh.mjs": 2
+ }
 }

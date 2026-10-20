@@ -1489,6 +1489,7 @@ body.side-anim{overflow-x:clip;}
 <style>body.hx-an .tab[data-tab="xacminh"]{display:none}</style>
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
+<script src="tien-ich.js?v=20261020a"></script><!-- 20/10 tiện ích chung: esc/$id/hm/ngayVN — nạp TRƯỚC mọi mô-đun -->
 <script src="hasaki-giaodien-antd.js?v=20261020a"></script>
 <script src="tai-khoan.js?v=20261019a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 <link rel="stylesheet" href="thanh-cuon.css?v=20261017a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->
@@ -2113,8 +2114,7 @@ const NV_MAP = {
 let NAME_BY_CODE = {};
 let gFrom = '', gTo = '';                  // khoảng ngày lọc (ISO yyyy-mm-dd), rỗng = tất cả — LOC_NGAY (taoBoLocNgay) chốt
 
-const $ = id => document.getElementById(id);
-const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $ = window.hskTienIch.$id, esc = window.hskTienIch.esc;   // 20/10 tiện ích chung (tien-ich.js) — esc thoát cả ' và null-safe
 // BẢO MẬT: chỉ cho phép URL http/https vào href/src (chặn javascript:, data:, ... từ dữ liệu Sheet).
 // Trả '' nếu không hợp lệ -> link/ảnh trỏ rỗng thay vì chạy mã. Luôn bọc trong esc() khi nhúng.
 const safeUrl = u => { const s=String(u==null?"":u).trim(); return /^https?:\/\/|^data:image\/|^blob:/i.test(s) ? s : ""; };

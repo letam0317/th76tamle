@@ -28,6 +28,7 @@
  * ============================================================================
  */
 (function(){
+var $id = window.hskTienIch.$id, esc = window.hskTienIch.esc;   // 20/10 tiện ích chung (tien-ich.js)
 "use strict";
 if (window.HPC) return;
 
@@ -46,9 +47,7 @@ var _wireMap = [];   // [{el, getRows}] để refreshChecks/syncAll biết vùng
 /* khôi phục giỏ đã chọn từ phiên trước */
 try { PC.sel = JSON.parse(sessionStorage.getItem("hpc-sel") || "{}") || {}; } catch (e) { PC.sel = {}; }
 
-var $id = function(s){ return document.getElementById(s); };
 function nf(x){ return (x || 0).toLocaleString("vi-VN"); }
-function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 function p2(n){ return (n < 10 ? "0" : "") + n; }
 function toast(msg){ try { console.log("[HPC] " + msg); } catch (e) {} }   // portal không có toast riêng -> log; thông báo hiện trong modal
 

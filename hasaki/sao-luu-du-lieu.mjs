@@ -13,6 +13,7 @@ import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const A = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith("--")).map((x) => { const [k, v] = x.slice(2).split("="); return [k, v ?? "1"]; }));
@@ -69,6 +70,6 @@ if (!A["khong-sheet"]) {
   try { const j = await saoLuuSheet(); KQ.sheet = j.ds || j; log("Sheet: " + JSON.stringify(j.ds || j).slice(0, 300)); }
   catch (e) { KQ.loi.push("sheet: " + e.message); log("LỖI sao lưu Sheet: " + e.message); }
 }
-fs.writeFileSync(path.join(DIR, ".exports", "sao-luu-gan-nhat.json"), JSON.stringify(KQ, null, 1));
+ghiJson(path.join(DIR, ".exports", "sao-luu-gan-nhat.json"), KQ, { thut: 1 });
 log(KQ.loi.length ? "xong, có lỗi: " + KQ.loi.join(" | ") : "xong");
 process.exit(KQ.loi.length ? 1 : 0);

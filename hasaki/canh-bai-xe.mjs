@@ -20,6 +20,7 @@ import "dotenv/config";
 import fs from "node:fs"; import path from "node:path"; import http from "node:http"; import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 import { layTokenSongWork, mayDuocChay } from "./session-rules.js";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const A = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith("--")).map((x) => { const [k, v] = x.slice(2).split("="); return [k, v ?? "1"]; }));
@@ -61,7 +62,7 @@ async function trToken(moi = false) {
   const r = await fetch(TR + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: process.env.TOPREVIEW_USER, password: process.env.TOPREVIEW_PASS }) });
   const j = await r.json(); const token = j?.data?.token || j?.token; if (!token) throw new Error("top-review đăng nhập lỗi " + r.status);
   let exp = 0; try { exp = JSON.parse(Buffer.from(token.split(".")[1], "base64url")).exp * 1000; } catch { /* */ }
-  fs.writeFileSync(TOKF, JSON.stringify({ token, exp })); return token;
+  ghiJson(TOKF, { token, exp }, { thut: 0 }); return token;
 }
 let TOK = await trToken();
 const ms = (hhmmss) => new Date(`${NGAY}T${hhmmss}+07:00`).getTime();
@@ -366,7 +367,7 @@ try { const cu = JSON.parse(fs.readFileSync(path.join(OUT, "ket-qua.json"), "utf
   const trongKhung = (l) => (CAM.find((c) => c.ma === l.ma)?.khungChay || KHUNG).some(([a, b]) => l.den >= a + ":00" && l.den <= b + ":59");
   const giu = (cu.luot || []).filter((l) => l.ma && (!ma.has(l.ma) || !trongKhung(l))); if (giu.length) { KQ.push(...giu); KQ.sort((x, y) => (x.camera + x.den).localeCompare(y.camera + y.den)); KQ.forEach((k, i) => (k.stt = i + 1)); } } catch { /* chưa có */ }
 for (const f of fs.readdirSync(OUT)) if (/^[A-Z0-9]+-\d{6}(-cam|-k\d(-goc)?)?\.jpg$/.test(f) && !KQ.some((k) => k.anh === f || k.anhCam === f || (k.buocAnh || []).some((b) => b.file === f || b.file.replace(".jpg", "-goc.jpg") === f))) fs.rmSync(path.join(OUT, f));   // ảnh của lượt chạy trước không còn trong báo cáo
-fs.writeFileSync(path.join(OUT, "ket-qua.json"), JSON.stringify({ ngay: NGAY, khung: KHUNG, buoc: BUOC, luot: KQ, mocChup: MOC, taiDauGhi: { doan: soLuotTai, MB: +soMB.toFixed(0) } }, null, 1));
+ghiJson(path.join(OUT, "ket-qua.json"), { ngay: NGAY, khung: KHUNG, buoc: BUOC, luot: KQ, mocChup: MOC, taiDauGhi: { doan: soLuotTai, MB: +soMB.toFixed(0) } }, { thut: 1 });
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const dong = (a) => a.length ? a.map((x) => `${esc(x.gio)} · <b>${esc(x.code)}</b> ${esc(x.ten)}`).join("<br>") : "<i>không có</i>";
 fs.writeFileSync(path.join(OUT, "BAO-CAO.html"), `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

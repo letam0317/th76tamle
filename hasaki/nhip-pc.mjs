@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sucKhoe } from "./suc-khoe.mjs";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL = path.join(DIR, ".nhip-pc.json");       // ban sao nhip may nay (du phong khi chua co GAS)
@@ -126,7 +127,7 @@ async function trangThaiTask() {
     "$_.TaskName + '|' + $_.State + '|' + $(if ($i.LastRunTime) { $i.LastRunTime.ToString('dd/MM HH:mm') } else { '-' }) + '|' + $i.LastTaskResult + '|' + $(if ($i.NextRunTime) { $i.NextRunTime.ToString('dd/MM HH:mm') } else { '-' }) }";
   const out = await new Promise((r) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { windowsHide: true, timeout: 30000 }, (e, so) => r(e ? "" : String(so))));
   const ds = out.split(/\r?\n/).map((d) => d.trim()).filter(Boolean).slice(0, 40).map((d) => d.slice(0, 120));   // 19/10: 20 → 40 — máy FOQ đã 19 lịch, lịch thứ 21 bị cắt = «thiếu task» → không được giao việc
-  try { fs.writeFileSync(TASK_F, JSON.stringify({ luc: Date.now(), ds })); } catch { /* */ }
+  try { ghiJson(TASK_F, { luc: Date.now(), ds }, { thut: 0 }); } catch { /* */ }
   return ds;
 }
 
@@ -148,7 +149,7 @@ export async function guiNhip(log = () => {}, opts = {}) {
   let chayLuc = {}; try { chayLuc = JSON.parse(fs.readFileSync(CHAY_F, "utf8")); } catch { /* chưa chạy việc nào */ }
   const ban = { may: sk.may, ramTrongPct: sk.ramTrongPct, cpuPct: sk.cpuPct, yeu: sk.yeu, diem: sk.diem, nhan: sk.nhan, ramTongGB: sk.ramTongGB, diaTrongGB: sk.diaTrongGB, coKhoa: coKhoa(),
     dangChay, viecGiao, tatCaViec, viecNang, chayLuc, congGan, goiBam: goiBamDaAp(), capGan: (() => { try { return fs.readFileSync(path.join(DIR, ".cap-nhat-pc.log"), "utf8").replace(/^\uFEFF/, "").trim().split(/\r?\n/).slice(-6).map((d) => d.slice(0, 160)); } catch { return []; } })(), congLuc: (() => { try { return fs.readFileSync(path.join(DIR, ".cong-luc"), "utf8").trim() || null; } catch { return null; } })(), taskDP: await trangThaiTask(), oDia: sk.oDia || [], ban: banCode(), daNhan: opts.daNhan || [], capNhatNhan: (() => { try { return fs.readFileSync(CAPNHAT_F, "utf8").trim(); } catch { return ""; } })(), xmHam: xmHam(), luc: new Date().toISOString() };
-  try { fs.writeFileSync(LOCAL, JSON.stringify(ban)); } catch { /* */ }
+  try { ghiJson(LOCAL, ban, { thut: 0 }); } catch { /* */ }
   if (!gasPost || !KEY) { log("nhip: chua co GAS/key -> chi local"); return { bang: [ban], nguon: "local", giuOK: null }; }
   // TRAN THOI GIAN: cong gac khong duoc cho GAS qua lau -> het han thi roi ve local (may uu-tien-1 van chay).
   const tran = Number(opts.timeoutMs || process.env.NHIP_TRAN_MS || 2500);
@@ -158,8 +159,8 @@ export async function guiNhip(log = () => {}, opts = {}) {
     const j = await Promise.race([goi, hetGio]);
     if (j === "__TIMEOUT__") { log(`nhip: GAS qua ${tran}ms -> dung local`); goi.catch(() => {}); return { bang: [ban], nguon: "local", giuOK: null }; }
     if (j && j.status === "success" && Array.isArray(j.bang)) {
-      try { fs.writeFileSync(CACHE, JSON.stringify({ bang: j.bang, srvNow: j.srvNow, luc: Date.now() })); } catch { /* */ }
-      if (j.lenh) { try { fs.writeFileSync(LENH_F, JSON.stringify(j.lenh)); } catch { /* */ } }
+      try { ghiJson(CACHE, { bang: j.bang, srvNow: j.srvNow, luc: Date.now() }, { thut: 0 }); } catch { /* */ }
+      if (j.lenh) { try { ghiJson(LENH_F, j.lenh, { thut: 0 }); } catch { /* */ } }
       await apKhoaMoi(j, log);
       return { bang: j.bang, nguon: "gas", giuOK: j.giuOK, srvNow: j.srvNow, lenh: j.lenh || null, chuyen: j.chuyen || [] };
     }
@@ -176,13 +177,13 @@ if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
   setTimeout(() => { try { fs.appendFileSync(path.join(DIR, "runner-dieu-phoi.log"), new Date().toTimeString().slice(0, 8) + " nhip: qua 80s -> tu thoat (chong treo)" + os.EOL); } catch { /* */ } process.exit(3); }, 80000).unref();
   const nk = (...a) => { const d = new Date().toTimeString().slice(0, 8) + " " + a.join(" "); console.error(d); try { fs.appendFileSync(path.join(DIR, "runner-dieu-phoi.log"), d + "\n"); } catch { /* */ } };
   const dc = await doDangChay();
-  if (dc) { try { fs.mkdirSync(DC_DIR, { recursive: true }); fs.writeFileSync(DC_TOM, JSON.stringify(Object.keys(dc))); } catch { /* */ } }
+  if (dc) { try { fs.mkdirSync(DC_DIR, { recursive: true }); ghiJson(DC_TOM, Object.keys(dc), { thut: 0 }); } catch { /* */ } }
   let daNhan = []; try { daNhan = JSON.parse(fs.readFileSync(NHAN_F, "utf8")); } catch { /* */ }
   const r = await guiNhip(nk, { timeoutMs: 20000, daNhan, ...(dc ? { dangChay: Object.keys(dc) } : {}) });
   if (r.nguon === "gas") { try { fs.unlinkSync(NHAN_F); } catch { /* */ } }
   if (r.nguon === "gas") {   // việc được giao theo bảng vừa nhận (cùng luật cổng gác) → báo ở nhịp kế
     try { const { viecCuaToi } = await import("./dieu-phoi.mjs"); const cfg = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8"));
-      fs.writeFileSync(GIAO_F, JSON.stringify(viecCuaToi(os.hostname(), r.bang, cfg, r.srvNow || Date.now()))); } catch { /* */ }
+      ghiJson(GIAO_F, viecCuaToi(os.hostname(), r.bang, cfg, r.srvNow || Date.now()), { thut: 0 }); } catch { /* */ }
   }
 
   // 1) LENH DUNG: viec dang chay ma may nay bi dung (ca may / rieng viec) -> dung ngay; nhip ke bao GAS "da dung" -> may khac chay bu
@@ -214,7 +215,7 @@ if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
       nk(`chay bu ${c.viec} (bi dung o ${c.tu}) -> ${ok ? "da goi task" : "LOI goi task"}`);
       if (ok) nhan.push(c.viec);
     }
-    if (nhan.length) { try { fs.writeFileSync(NHAN_F, JSON.stringify(nhan)); } catch { /* */ } }
+    if (nhan.length) { try { ghiJson(NHAN_F, nhan, { thut: 0 }); } catch { /* */ } }
   }
   console.log("May nay: " + os.hostname() + " (nguon: " + r.nguon + ")" + (dc ? " · dang chay: " + (Object.keys(dc).join(", ") || "khong") : ""));
   console.log(JSON.stringify(r.bang, null, 1));

@@ -48,6 +48,7 @@
  * ============================================================================
  */
 (function(){
+var $id = window.hskTienIch.$id, esc = window.hskTienIch.esc, ngayVN = window.hskTienIch.ngayVN;   // 20/10 tiện ích chung (tien-ich.js)
 "use strict";
 if (window.HPLANOGRAM) return;
 
@@ -675,7 +676,6 @@ function fmtNgayGio(v){ v = String(v == null ? "" : v).trim();
   if (m) return m[1] + "-" + p2(+m[2] + 1) + "-" + p2(+m[3]) + " " + p2(+m[4]) + ":" + p2(+m[5]);
   return v; }
 function isoToday(){ var d = new Date(); return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()); }
-function ngayVN(iso){ var m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + "/" + m[2] : iso; }
 function thuVN(iso){ var m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return "";
   var d = new Date(+m[1], +m[2] - 1, +m[3]).getDay(); return d === 0 ? "CN" : "T" + (d + 1); }
 /* Ảnh báo cáo: MỌI url ảnh planogram dùng chung 76 ký tự đầu, đúng một nửa độ dài trung bình
@@ -746,9 +746,7 @@ function animBat(){
 }
 var _emNm = {};   // email(lower) -> { code, name } (gom từ PT + NK để hiện tên người thực hiện)
 
-var $id = function(s){ return document.getElementById(s); };
 function nf(x){ return (x || 0).toLocaleString("vi-VN"); }
-function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 function fmtTime(ms){ var d = new Date(ms); function p(n){ return (n < 10 ? "0" : "") + n; }
   return p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear(); }
 function idxOf(H, aliases){ for (var i = 0; i < aliases.length; i++){ var j = H.indexOf(aliases[i]); if (j >= 0) return j; } return -1; }

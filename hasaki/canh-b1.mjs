@@ -31,6 +31,7 @@ import { chuanTu, chuanTuSau } from "./tu-ngu.mjs";   // TU-01: "châm hàng" kh
 import { execFileSync } from "node:child_process";
 import { layTokenSongWork, layTokenGhiWork, mayDuocChay } from "./session-rules.js";
 import { laHangMucVeSinhHangNgay, napNguonTruyVet, traPhanCong } from "./truy-vet-vesinh.mjs";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
@@ -43,7 +44,7 @@ const NGUONG_THUNG = 10;          // TB-01: lệnh cất ≥10 cái = cất số
 const CUA_SO_GIO = 72;            // TB: soi lịch sử cất trong 72h trước giờ chụp
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 const docJ = (f, mac) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return mac; } };
-const ghiJ = (f, x) => fs.writeFileSync(f, JSON.stringify(f.endsWith("canh-b1-ketqua.json") ? chuanTuSau(x) : x, null, 1));
+const ghiJ = (f, x) => ghiJson(f, f.endsWith("canh-b1-ketqua.json") ? chuanTuSau(x) : x, { thut: 1 });
 const boDau = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
 
 if (LAM && !FORCE) {
@@ -103,7 +104,7 @@ const napPC = async () => {
   if (NGUON_PC) return NGUON_PC;
   const n = await napNguonTruyVet(() => {}).catch(() => null);
   if (n && n.pc.size && n.cc.size) {
-    try { fs.writeFileSync(F_PC, JSON.stringify({ luc: Date.now(), pc: [...n.pc], cc: [...n.cc].map(([k, m]) => [k, [...m]]) })); } catch { /* */ }
+    try { ghiJson(F_PC, { luc: Date.now(), pc: [...n.pc], cc: [...n.cc].map(([k, m]) => [k, [...m]]) }, { thut: 0 }); } catch { /* */ }
     return (NGUON_PC = { ...n, nguon: "GAS" });
   }
   const c = docJ(F_PC, null);

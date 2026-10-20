@@ -12,6 +12,7 @@
  * ============================================================================
  */
 (function(){
+var $id = window.hskTienIch.$id, esc = window.hskTienIch.esc;   // 20/10 tiện ích chung (tien-ich.js)
 "use strict";
 if (window.FKIEMKE) return;
 
@@ -61,9 +62,7 @@ var qSearch = "", _qdeb = null;                    // Tìm nhanh SKU/tên/vị t
 var _boot = false, _syncing = false, _loaded = 0, _lastSyncMs = 0, _deb = null, PANE = null, _openDD = null;
 var mFilter = { t: "all" }, mTab = "sku", mLabel = "";
 
-var $id = function(s){ return document.getElementById(s); };
 function nf(x){ return (x == null ? 0 : x).toLocaleString("vi-VN"); }
-function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 function p2(n){ return (n < 10 ? "0" : "") + n; }
 function parseDate(s){
   if (!s) return NaN; s = String(s);

@@ -23,7 +23,7 @@
     "co-canh-planogram": "Cò canh planogram", "dong-bo-dashboard": "Đồng bộ dashboard", "packer-a8-sang": "Packer A8 sáng", "packer-a8-chieu": "Packer A8 chiều",
     "cham-cong": "Chấm công", "watchdog-ton-kho": "Canh tồn kho", "lam-tuoi-vesinh": "Làm tươi vệ sinh 15'" };   // 19/10 nhịp sync-poller sang PC
   var tenV = function (t) { return TEN_VIEC[t] || t; };
-  var e_ = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var e_ = window.hskTienIch.esc;
   var phien = function () { try { return localStorage.getItem("hx-phien") || ""; } catch (e) { return ""; } };
 
   function napCss() {

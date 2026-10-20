@@ -21,6 +21,7 @@
  * ============================================================================
  */
 (function(){
+var $id = window.hskTienIch.$id, esc = window.hskTienIch.esc;   // 20/10 tiện ích chung (tien-ich.js)
 "use strict";
 if (window.FSTOCK) return;   // đã nạp rồi thì thôi (inject 2 lần vô hại)
 
@@ -44,9 +45,7 @@ var WH_DATA = {}, WH_COLOR = {}, curWh = null, curTab = "shelf", CUR_CATS = [], 
 var _raw = [], _pending = 0, _failed = 0, _lastLoadAt = 0, _boot = false;
 var PANE = null;
 
-var $id = function(s){ return document.getElementById(s); };
 function nf(x){ return (x || 0).toLocaleString("vi-VN"); }
-function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 function isShelf(loc){ var s = (loc || "").toString().trim().toUpperCase(); return !(s.indexOf("F0-A0") === 0 || s.indexOf("F00-A00") === 0); }
 function fmtTime(ms){ var d = new Date(ms); function p(n){ return (n < 10 ? "0" : "") + n; }
   return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) + " " + p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear(); }

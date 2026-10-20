@@ -21,6 +21,7 @@
  * ============================================================================
  */
 (function(){
+var $id = window.hskTienIch.$id, esc = window.hskTienIch.esc;   // 20/10 tiện ích chung (tien-ich.js)
 "use strict";
 if (window.HTONBAT) return;
 
@@ -71,9 +72,7 @@ var _daNapTho = false, _dangNapTho = null;
 var MODAL = { base: [], preset: null };
 var PANE = null, _whColor = {}, _whCi = 0, _deb = null, _debT = null;
 
-var $id = function(s){ return document.getElementById(s); };
 function nf(x){ return (x || 0).toLocaleString("vi-VN"); }
-function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 function fmtTime(ms){ var d = new Date(ms); function p(n){ return (n < 10 ? "0" : "") + n; }
   return p(d.getHours()) + ":" + p(d.getMinutes()) + " " + p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear(); }
 function whColor(w){ if (WH_FIX[w]) return WH_FIX[w]; if (!_whColor[w]) _whColor[w] = PAL[_whCi++ % PAL.length]; return _whColor[w]; }

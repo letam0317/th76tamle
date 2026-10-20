@@ -12,6 +12,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 export const GOC_PHU = {
@@ -29,7 +30,7 @@ const gio = (t) => new Date(t + 7 * 36e5).toISOString().slice(11, 19);
 
 const ngays = A.ngay ? [A.ngay] : fs.readdirSync(GOC).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= han).sort().reverse();
 let lam = 0, loi = 0;
-const ghi = (F, k) => { const tam = F + ".tam"; fs.writeFileSync(tam, JSON.stringify(k, null, 1)); fs.renameSync(tam, F); };   // ghi SAU MỖI lượt — bị dừng giữa chừng không mồ côi tệp
+const ghi = (F, k) => { const tam = F + ".tam"; ghiJson(tam, k, { thut: 1 }); fs.renameSync(tam, F); };   // ghi SAU MỖI lượt — bị dừng giữa chừng không mồ côi tệp
 for (const ngay of ngays) {
   const F = path.join(GOC, ngay, "ket-qua.json"), k = docJ(F, null); if (!k) continue;
   let doi = false;

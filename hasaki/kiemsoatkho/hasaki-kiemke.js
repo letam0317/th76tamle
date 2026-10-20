@@ -28,6 +28,7 @@
  * ============================================================================
  */
 (function(){
+var $id = window.hskTienIch.$id, esc = window.hskTienIch.esc;   // 20/10 tiện ích chung (tien-ich.js)
 "use strict";
 if (window.HKIEMKE) return;
 
@@ -69,10 +70,8 @@ var FC_DP = { start: "", end: "" }, FC_LOC = null;   // khoảng "bắt đầu �
 var PANE = null, _whColor = {}, _whCi = 0, _deb = null, _debT = null;
 
 /* ===== HELPERS ===== */
-var $id = function(s){ return document.getElementById(s); };
 function nf(x){ return (x || 0).toLocaleString("vi-VN"); }
 function pct(v){ return Number((v || 0).toFixed(2)) + "%"; }
-function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 function p2(n){ return (n < 10 ? "0" : "") + n; }
 function fmtTime(ms){ var d = new Date(ms);
   return p2(d.getHours()) + ":" + p2(d.getMinutes()) + " " + p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear(); }

@@ -18,8 +18,8 @@
   try { var l0 = JSON.parse(localStorage.getItem("hx-loc") || "null"); if (l0) { SUB = l0.SUB || SUB; Object.assign(LOC, l0.LOC || {}); } } catch (e) {}
   if (!/^(treo|cam|tg)$/.test(SUB)) SUB = "treo";   // 12/10 user bỏ Khu giấy · rác, Nhắc QLTT, Nhân viên — máy còn nhớ mục cũ thì về Theo tác vụ
   function luu() { try { localStorage.setItem("hx-loc", JSON.stringify({ SUB: SUB, LOC: LOC })); } catch (e) {} }
-  var $id = function (i) { return document.getElementById(i); };
-  var e_ = function (s) { return (typeof esc === "function") ? esc(s) : String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var $id = window.hskTienIch.$id;
+  var e_ = window.hskTienIch.esc;
   /* 12/10 user: "riêng phần xác minh cần cấp id và mật khẩu mới vô được" — phiên do máy chủ 8591 cấp sau khi đăng nhập
      (xacminh-dang-nhap.mjs). Gửi kèm MỌI yêu cầu: dữ liệu qua tiêu đề x-hx-phien, ảnh/clip qua tham số ?phien= (thẻ <img>/<video>
      không gửi được tiêu đề). Máy chủ trả 401 canDangNhap → về màn đăng nhập. */
@@ -31,8 +31,8 @@
   var tenLoai = function (l) { return l === "phan-loai" ? "Khu phân loại giấy" : "Bãi xe NCC"; };
   var ngayChu = function (s) { return String(s == null ? "" : s).replace(/\b(0[1-9]|1[0-2])-([0-3]\d)(?= \d{2}:\d{2})/g, "$2/$1"); };   // 13/10 chữ máy ghi "08-18 13:59" → "18/08 13:59" như mọi chỗ khác
   var soVN = function (n) { return String(n).replace(".", ","); };
-  var hm = function (s) { return String(s || "").slice(0, 5); };
-  var ngayVN = function (d) { var p = String(d || "").split("-"); return p.length === 3 ? p[2] + "/" + p[1] : d; };
+  var hm = window.hskTienIch.hm;
+  var ngayVN = window.hskTienIch.ngayVN;
   var giay = function (s) { var p = String(s || "0:0:0").split(":").map(Number); return p[0] * 3600 + p[1] * 60 + (p[2] || 0); };
   var hms = function (n) { n = Math.max(0, Math.round(n)); return [Math.floor(n / 3600), Math.floor(n / 60) % 60, n % 60].map(function (v) { return String(v).padStart(2, "0"); }).join(":"); };
 

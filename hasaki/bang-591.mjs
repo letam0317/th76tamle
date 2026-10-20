@@ -23,9 +23,11 @@ import "dotenv/config";
 import { chuanTuSau } from "./tu-ngu.mjs";
 import { docSo, TEN_BO } from "./so-tac-gia.mjs";
 import { dangNhap, kiemPhien, dangXuat, taoPhienTk } from "./xacminh-dang-nhap.mjs";   // 12/10 user: phần Xác minh phải có tài khoản + mật khẩu   // 12/10 sổ tác giả: cò/script nào đã tạo phiếu · bình luận · ảnh (chỉ đọc tệp trên máy)
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
+let SK_DL = { luc: 0, kq: null };   // 20/10 kết quả sucKhoeDuLieu (GAS) giữ 10 phút cho /api/suc-khoe-du-lieu
 const GOC = process.env.BAIXE_DIR || "C:/Users/lechitam/Videos/5S-bang-chung/bai-xe";
 const GOC_BC = path.dirname(GOC);   // Videos/5S-bang-chung — bằng chứng từng phiếu (<task_id>_…)
 const WEB = path.join(DIR, "bang-591");
@@ -473,6 +475,13 @@ const sv = http.createServer(async (q, s) => {
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
     if (p === "/api/qc-dem") return guiJ(s, 200, docJ(path.join(EXP, "qc-dem.json"), { chua: 1 }));   // 20/10 kết quả bộ đo chạy đêm (chay-qc-dem.mjs)
     if (p === "/api/sao-luu") return guiJ(s, 200, docJ(path.join(EXP, "sao-luu-gan-nhat.json"), { chua: 1 }));   // 20/10 lần sao lưu gần nhất
+    if (p === "/api/suc-khoe-du-lieu") {   // 20/10 sức khoẻ kho dữ liệu GAS (Script Properties gần trần 500 KB? ô Sheet?) — hỏi GAS, giữ 10'
+      if (!SK_DL.luc || Date.now() - SK_DL.luc > 10 * 60e3) {
+        try { const { gasPost } = await import("./session-rules.js"); const j = await gasPost({ action: "sucKhoeDuLieu", key: process.env.APPSCRIPT_KEY }, () => {}, "sucKhoeDuLieu"); SK_DL = { luc: Date.now(), kq: j }; }
+        catch (e) { SK_DL = { luc: Date.now(), kq: { status: "error", message: String(e.message || e).slice(0, 200) } }; }
+      }
+      return guiJ(s, 200, SK_DL.kq);
+    }
     if (p === "/api/may-tram/duyet-khoa" && q.method === "POST") {   // 14/10: duyệt / từ chối PC xin khoá (bộ cài tải trên PC, không khoá) → GAS pcDuyetKhoa
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
       let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
@@ -548,7 +557,7 @@ const sv = http.createServer(async (q, s) => {
       if (o.qd && !QD_B1.includes(o.qd)) return guiJ(s, 400, { loi: "quyết định lạ" });
       const F = path.join(EXP, "b1-quyet-dinh-web.json"), so = docJ(F, {});
       if (!o.qd) delete so[o.id]; else so[o.id] = { qd: o.qd, gc: String(o.gc || "").slice(0, 300), luc: new Date().toISOString(), nguon: "web" };
-      fs.writeFileSync(F, JSON.stringify(so, null, 1)); DEM = null;
+      ghiJson(F, so, { thut: 1 }); DEM = null;
       return guiJ(s, 200, { ok: true, qdB1: so[o.id] || null });
     }
     if (p === "/api/tac-dong-vat-ly" && q.method === "POST") {   // 13/10: ghi người tác động vật lý KHÔNG qua hệ thống kho (xem clip thấy) — xoa:true để gỡ
@@ -563,7 +572,7 @@ const sv = http.createServer(async (q, s) => {
       if (o.xoa) { if (i >= 0) ds.splice(i, 1); if (!ds.length) delete so[o.id]; }
       else { const v = { at: o.at, ma: String(o.ma), viec: String(o.viec || "Tác động vật lý").slice(0, 80), clip: /^\/bc\//.test(String(o.clip || "")) ? String(o.clip).slice(0, 400) : "", tgClip: Number.isFinite(+o.tgClip) ? +o.tgClip : null, nguon: "tay", luc: new Date().toISOString() };
         if (i >= 0) ds[i] = v; else ds.push(v); }
-      fs.writeFileSync(F, JSON.stringify(so, null, 1)); DEM = null;
+      ghiJson(F, so, { thut: 1 }); DEM = null;
       return guiJ(s, 200, { ok: true, ds: so[o.id] || [] });
     }
     /* 14/10 user: nút «Ghi chú» ở pop-up Theo tác vụ / Theo máy — ghi điều cần cải tiến; Claude đọc sổ này mỗi phiên để sửa cho lần sau.
@@ -585,7 +594,7 @@ const sv = http.createServer(async (q, s) => {
       }
       else { const nd = String(o.noiDung || "").trim().slice(0, 2000); if (!nd) return guiJ(s, 400, { loi: "chưa gõ nội dung" });
         so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", tt: "cho", xong: null }); }
-      fs.writeFileSync(F, JSON.stringify(so, null, 1));
+      ghiJson(F, so, { thut: 1 });
       return guiJ(s, 200, { ok: true, ds: so.filter((x) => x.id === o.id) });
     }
     if (p === "/api/quyet-dinh" && q.method === "POST") {
@@ -610,7 +619,7 @@ const sv = http.createServer(async (q, s) => {
       }
       const so = docJ(SO_QD, {});
       if (!o.qd) delete so[o.id]; else so[o.id] = { qd: o.qd, ma, nguoi: o.qd === QD[0] ? nguoi : null, gc: String(o.gc || "").slice(0, 300), luc: new Date().toISOString(), nguon: "web" };
-      fs.writeFileSync(SO_QD, JSON.stringify(so, null, 1)); DEM = null;
+      ghiJson(SO_QD, so, { thut: 1 }); DEM = null;
       log("quyết định", o.id, o.qd || "(bỏ)", ma);
       return guiJ(s, 200, { ok: true, ten: ma ? ma.split(",").map((m) => danhBa().theoMa.get(m)?.ten).join(", ") : null });
     }

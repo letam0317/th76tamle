@@ -6,6 +6,7 @@
  *  node xac-minh-dem.mjs [--max=5] [--thu]   (--thu = chỉ in danh sách chọn) */
 import fs from "node:fs"; import path from "node:path"; import { spawn } from "node:child_process"; import { fileURLToPath } from "node:url";
 import { mayDuocChay } from "./session-rules.js";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 const A = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith("--")).map((x) => { const [k, v] = x.slice(2).split("="); return [k, v ?? "1"]; }));
 const MAX = Number(A.max || process.env.XM_MAX || 5);
@@ -76,6 +77,6 @@ for (const id of fs.readdirSync(RA).filter((d) => /^\d+$/.test(d))) { const v = 
   XN[id] = { nv: [ma], luc: new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10), ghiChu: "máy xac-minh-tu-dong: " + ((/HỆ THỐNG: (.*)/.exec(t) || [])[1] || "").slice(0, 120), may: true }; them++;
   log(`  ${id}: ✓ ghi xác nhận camera (máy) → ${ma}`);
 }
-if (them) fs.writeFileSync(FXN, JSON.stringify(XN, null, 1));
+if (them) ghiJson(FXN, XN, { thut: 1 });
 fs.rmSync(KHOA, { force: true });
 await TD.xong();

@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const F = path.join(path.dirname(fileURLToPath(import.meta.url)), ".exports", "ghi-chu-cai-tien.json");
 const TEN = { cho: "chờ cải tiến", dang: "đang cải tiến", xong: "đã cải tiến", bo: "không làm" };
@@ -24,7 +25,7 @@ if (process.argv[1] && path.basename(process.argv[1]) === "ghi-chu.mjs") {
     const g = /^\d+$/.test(khoa) && Number(khoa) <= so.length ? so[Number(khoa) - 1] : so.find((x) => x.id === id && x.at === khoa);
     if (!g || g.id !== id) { console.error("không thấy ghi chú " + id + " / " + khoa); process.exit(1); }
     g.tt = tt; if (cau.length) g.xong = cau.join(" ").slice(0, 600); g.ttLuc = new Date().toISOString();
-    fs.writeFileSync(F, JSON.stringify(so, null, 1));
+    ghiJson(F, so, { thut: 1 });
     console.log(`✓ ${id} → ${TEN[tt]}${g.xong ? " · " + g.xong : ""}`);
   } else {
     const tatCa = A.includes("--tat-ca"); let n = 0;

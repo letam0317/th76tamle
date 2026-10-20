@@ -10,6 +10,7 @@
     { "ten": "qc-bo-loc-ngay", "tranPhut": 10 },
     { "ten": "qc-dong-bo-xm", "tranPhut": 6 },
     { "ten": "qc-nut-bo-cai", "tranPhut": 6 },
-    { "ten": "qc-du-phong-xm", "tranPhut": 10 }
+    { "ten": "qc-du-phong-xm", "tranPhut": 10 },
+    { "ten": "qc-tab-0-loi", "tranPhut": 8 }
   ]
 }

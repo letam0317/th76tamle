@@ -10,6 +10,7 @@ import path from "node:path";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 export const NGUONG = { rong: 0.4, de: 0.3, diem: 0.3 };
@@ -67,7 +68,7 @@ if (process.argv[1] && path.basename(process.argv[1]) === "xe-tai-che-bai.mjs") 
   for (const ngay of doi.keys()) {   // đọc lại tệp mới nhất rồi chỉ gắn khoá xeTaiChe (không đè thay đổi khác trong lúc soi)
     const F = path.join(GOC, ngay, "ket-qua.json"), k = docJ(F, null); if (!k) continue;
     for (const l of k.luot || []) { const v = viec.find((x) => x.l.id === l.id && x.l.xeTaiChe); if (v) l.xeTaiChe = v.l.xeTaiChe; }
-    const tam = F + ".tam"; fs.writeFileSync(tam, JSON.stringify(k, null, 1)); fs.renameSync(tam, F);
+    const tam = F + ".tam"; ghiJson(tam, k, { thut: 1 }); fs.renameSync(tam, F);
   }
   console.log(`xong: ${n}/${viec.length} lượt xe tải che bãi${A.thu ? " (thử, không ghi)" : ""}`);
 }
