@@ -63,7 +63,7 @@ var PAL = ["#f59e0b", "#8b5cf6", "#ef4444", "#10b981", "#ec4899", "#6366f1", "#0
 var NHOM_TEN = { PL: "Phụ liệu", NVL: "Nguyên liệu", KHAC: "Nhóm khác", ALL: "chung" };
 
 /* ===== STATE ===== */
-var S = { ok: false, data: { sku: [], loc: [] }, wh: "", cdate: "", plan: "", id: "", src: "", req: "", st: "", lastAt: 0, tsData: 0 };
+var S = { ok: false, data: { sku: [], loc: [] }, wh: "", cdate: null, plan: null, id: "", src: "", req: "", st: "", lastAt: 0, tsData: 0 };
 var MODAL = { kind: null, metric: null, rows: [] };
 var FC = { kind: null, fc: null, U: "" };
 var FC_DP = { start: "", end: "" }, FC_LOC = null;   // khoảng "bắt đầu → hạn chót" của mô phỏng dự báo (FC_LOC = bộ lọc ngày chuẩn)
@@ -173,31 +173,11 @@ var CSS = [
 "#pane-kk .hk-span2{grid-column:1/-1;display:block;}",
 "#pane-kk .hk-hang1{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:stretch;}",
 "#pane-kk .hk-hang1 > .hk-panel{margin:0;min-width:0;}",
-"#pane-kk .hk-dau-panel{display:flex;justify-content:space-between;align-items:center;margin:0 -24px 12px;padding:16px 24px;border-bottom:1px solid var(--border);background:var(--surface);border-radius:8px 8px 0 0;}",
-"@media(max-width:768px){#pane-kk .hk-dau-panel{margin:0 -8px 12px;padding:10px 16px;}}",
-"#pane-kk .hk-dau-td{font-size:16px;font-weight:600;line-height:24px;color:var(--text);}",
-"#pane-kk #hkBtnLoc{position:relative;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;" +
-  "margin-left:auto;padding:0 10px;height:28px;min-height:28px;font-size:12px;font-weight:500;line-height:1;" +
-  "border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}",
-"#pane-kk #hkBtnLoc::after{content:'';display:inline-block;width:5.5px;height:5.5px;border-right:1.5px solid currentColor;" +
-  "border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);transition:transform .22s ease;}",
-"#pane-kk #hkBtnLoc.mo::after{transform:translateY(1.5px) rotate(-135deg);}",
-"#pane-kk #hkBtnLoc:hover,#pane-kk #hkBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
-  "background:color-mix(in srgb,var(--accent) 8%,var(--surface));}",
-"#pane-kk #hkWhBar.collapsed{display:none!important;}",
-"#pane-kk #hkWhBar:not(.collapsed){display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 10px;align-items:flex-end;" +
-  "transform-origin:top center;animation:popIn .22s cubic-bezier(.16,1,.3,1);" +
-  "margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}",
-"#pane-kk .hk-locfld{display:flex;flex-direction:column;gap:3px;min-width:0;}",
-"#pane-kk .hk-locfld label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}",
-"#pane-kk .hk-locfld input,#pane-kk .hk-locfld select{height:28px;min-height:28px;padding:0 8px;font-size:12px;" +
-  "border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);box-sizing:border-box;width:100%;outline:none;}",
-"#pane-kk .hk-locfld input:focus,#pane-kk .hk-locfld select:focus{border-color:var(--accent);}",
-"#pane-kk .hk-locacts{display:flex;align-items:center;gap:6px;min-height:28px;}",
-"#pane-kk .hk-locacts button.hk-fcg{height:28px;min-height:28px;padding:0 10px;font-size:12px;border-radius:6px;" +
-  "border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}",
-"#pane-kk .hk-locacts button.hk-fcg:hover{color:var(--accent);border-color:var(--accent);}",
-"@media(max-width:768px){#pane-kk #hkWhBar:not(.collapsed){grid-template-columns:repeat(2,minmax(0,1fr));}}",
+"#pane-kk .hk-dau-panel{margin:0 0 16px;border-radius:12px;}",
+"#pane-kk .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end;}",
+"#pane-kk .filters label{min-width:0;}",
+"#pane-kk .filters input,#pane-kk .filters select{width:100%;min-width:0;}",
+"@media(max-width:768px){#pane-kk .filters{grid-template-columns:repeat(2,minmax(0,1fr));}}",
 "@media(max-width:768px){#pane-kk .hk-hang1{grid-template-columns:minmax(0,1fr);}}",
 "@media(max-width:1024px){#pane-kk .hk-span2{grid-column:auto;}}",
 "#pane-kk .hk-panel h2{margin:0 0 10px;font-size:14px;font-weight:680;color:var(--text,#374151);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}",
@@ -343,8 +323,19 @@ var CSS = [
 /* ===== KHUNG HTML ===== */
 var KHUNG =
 /* 15/10 user (Retail + Factory cùng khuôn): HÀNG 1 = [Bộ lọc] [Tiến độ theo kho] · HÀNG 2 = [Kiểm kê theo SKU] [Kiểm kê theo mã vị trí] */
-'<div class="hk-dau-panel"><div class="hk-dau-td">Kiểm kê</div><button type="button" class="hk-fcg" id="hkBtnLoc" onclick="HKIEMKE.toggleLoc()">Bộ lọc</button></div>' +
-'<div class="hk-locbar collapsed" id="hkWhBar"></div>' +
+'<div class="panel hk-dau-panel">' +
+'  <div class="panel-head"><span class="ph-trai"><span class="ph-td">Kiểm kê</span><span class="ph-dem" id="hkDemTxt"></span></span>' +
+'    <button type="button" class="hk-fcg btn-filter" id="hkBtnLoc" onclick="HKIEMKE.toggleLoc()">Bộ lọc</button></div>' +
+'  <div class="filters collapsed" id="hkWhBar" data-mb-rangcua="luoi-1-cot-gap-mac-dinh">' +
+'    <label><span class="lbl">Kho</span><select id="hkWhSel"></select></label>' +
+'    <div class="date-filter" id="hkCdateSlot"><span class="lbl">Ngày kiểm</span></div>' +
+'    <div class="date-filter" id="hkPlanSlot"><span class="lbl">Ngày kế hoạch</span></div>' +
+'    <label><span class="lbl">ID</span><input type="search" id="hkIdInp" autocomplete="off" placeholder="Tìm ID…"></label>' +
+'    <label><span class="lbl">Source code</span><input type="search" id="hkSrcInp" autocomplete="off" placeholder="Source code…"></label>' +
+'    <label><span class="lbl">Request code</span><input type="search" id="hkReqInp" autocomplete="off" placeholder="Request code…"></label>' +
+'    <label><span class="lbl">Trạng thái</span><select id="hkStSel"></select></label>' +
+'  </div>' +
+'</div>' +
 '<div class="hk-grid2" id="hkGrid" style="display:none">' +
 '  <section class="hk-panel">' +
 '    <h2>Kiểm kê theo SKU <span class="hk-hint">(type SKU)</span> <span class="hk-scope" id="hkScope-sku" hidden></span></h2>' +
@@ -448,7 +439,7 @@ function loadData(){
   var btn = $id("hkReload"); if (btn) btn.disabled = true;
   st.style.display = "block";
   st.innerHTML = '<div class="hk-spin"></div>Đang tải dữ liệu kiểm kê…';
-  $id("hkGrid").style.display = "none"; $id("hkWhBar").innerHTML = "";
+  $id("hkGrid").style.display = "none";
   S.lastAt = Date.now();
   Promise.all([gvizP(TAB_SKU, "hkgv_sku"), gvizP(TAB_LOC, "hkgv_loc")]).then(function(res){
     var sku = parseResp("sku", res[0]), loc = parseResp("loc", res[1]);
@@ -484,8 +475,14 @@ function rowsScope(kind){
     if (S.id && String(r.id || "").toLowerCase().indexOf(S.id.toLowerCase()) < 0) return false;
     if (S.src && String(r.src || "").toLowerCase().indexOf(S.src.toLowerCase()) < 0) return false;
     if (S.req && String(r.req || "").toLowerCase().indexOf(S.req.toLowerCase()) < 0) return false;
-    if (S.cdate){ var d = parseDate(r.cdate); if (isNaN(d) || dateIsoVN(d) !== S.cdate) return false; }
-    if (S.plan){ var p = parseDate(r.plan); if (isNaN(p) || dateIsoVN(p) !== S.plan) return false; }
+    if (S.cdate && S.cdate[0]){
+      var iso = dateIsoVN(parseDate(r.cdate));
+      if (!iso || iso < S.cdate[0] || iso > (S.cdate[1] || S.cdate[0])) return false;
+    }
+    if (S.plan && S.plan[0]){
+      var iso = dateIsoVN(parseDate(r.plan));
+      if (!iso || iso < S.plan[0] || iso > (S.plan[1] || S.plan[0])) return false;
+    }
     return true;
   });
 }
@@ -556,7 +553,7 @@ function render(){
   if (!st || !grid) return;
   var btn = $id("hkReload"); if (btn) btn.disabled = false;
   if (!S.ok){
-    grid.style.display = "none"; $id("hkWhBar").innerHTML = "";
+    grid.style.display = "none";
     st.style.display = "block";
     st.innerHTML = '<div style="max-width:720px;margin:0 auto;text-align:left;line-height:1.75;color:var(--muted,#6b7280)">' +
       '<b style="color:var(--text,#1f2937)">Chưa có dữ liệu kiểm kê trong Google Sheet.</b><br>' +
@@ -572,98 +569,126 @@ function render(){
   renderWh();
   capNhatInfo();
 }
+var CDATE_LOC = null, PLAN_LOC = null, _locBuilt = false;
 function resetLoc(){
-  S.wh = ""; S.cdate = ""; S.plan = ""; S.id = ""; S.src = ""; S.req = ""; S.st = "";
+  S.wh = ""; S.cdate = null; S.plan = null; S.id = ""; S.src = ""; S.req = ""; S.st = "";
+  if (CDATE_LOC) CDATE_LOC.dat("", "");
+  if (PLAN_LOC) PLAN_LOC.dat("", "");
+  var idInp = $id("hkIdInp"); if (idInp) idInp.value = "";
+  var srcInp = $id("hkSrcInp"); if (srcInp) srcInp.value = "";
+  var reqInp = $id("hkReqInp"); if (reqInp) reqInp.value = "";
   render();
 }
-/* Thanh lọc kiểm kê: Kho, Ngày kiểm, Ngày kế hoạch, ID, Source code, Request code, Status */
+/* Thanh lọc kiểm kê chuẩn dự án: .filters + enhanceSelect + taoBoLocNgay */
 function renderWhBar(){
-  var el = $id("hkWhBar"); if (!el) return;
+  var bar = $id("hkWhBar"); if (!bar) return;
+  if (!bar.querySelector("#hkWhSel")){
+    bar.innerHTML =
+      '<label><span class="lbl">Kho</span><select id="hkWhSel"></select></label>' +
+      '<div class="date-filter" id="hkCdateSlot"><span class="lbl">Ngày kiểm</span></div>' +
+      '<div class="date-filter" id="hkPlanSlot"><span class="lbl">Ngày kế hoạch</span></div>' +
+      '<label><span class="lbl">ID</span><input type="search" id="hkIdInp" autocomplete="off" placeholder="Tìm ID…" value="' + esc(S.id || "") + '"></label>' +
+      '<label><span class="lbl">Source code</span><input type="search" id="hkSrcInp" autocomplete="off" placeholder="Source code…" value="' + esc(S.src || "") + '"></label>' +
+      '<label><span class="lbl">Request code</span><input type="search" id="hkReqInp" autocomplete="off" placeholder="Request code…" value="' + esc(S.req || "") + '"></label>' +
+      '<label><span class="lbl">Trạng thái</span><select id="hkStSel"></select></label>';
+    _locBuilt = false;
+  }
   var dem = {};
   ["sku", "loc"].forEach(function(k){
     S.data[k].forEach(function(r){ if (r.wh) dem[r.wh] = (dem[r.wh] || 0) + 1; });
   });
   var ws = Object.keys(dem).sort();
-  if (!ws.length){ el.innerHTML = ""; return; }
   var tong = ws.reduce(function(a, w){ return a + dem[w]; }, 0);
+
+  var demEl = $id("hkDemTxt");
+  if (demEl) demEl.textContent = tong ? "(" + nf(tong) + " phiếu)" : "";
 
   var stDem = {};
   ["sku", "loc"].forEach(function(k){
-    S.data[k].forEach(function(r){
-      var s = stKey(r); if (s) stDem[s] = (stDem[s] || 0) + 1;
-    });
+    S.data[k].forEach(function(r){ var s = stKey(r); if (s) stDem[s] = (stDem[s] || 0) + 1; });
   });
   var stList = ST_ORDER.filter(function(s){ return stDem[s]; });
   Object.keys(stDem).forEach(function(s){ if (stList.indexOf(s) < 0) stList.push(s); });
 
-  var coLoc = !!(S.wh || S.cdate || S.plan || S.id || S.src || S.req || S.st);
+  var whSel = $id("hkWhSel");
+  if (whSel){
+    whSel.innerHTML = '<option value="">Tất cả kho (' + nf(tong) + ')</option>' +
+      ws.map(function(w){
+        return '<option value="' + esc(w) + '"' + (S.wh === w ? " selected" : "") + '>' + esc(w) + ' (' + nf(dem[w]) + ')</option>';
+      }).join("");
+    if (typeof window.enhanceSelect === "function") window.enhanceSelect(whSel);
+    if (whSel._csWrap && typeof whSel._csWrap._csDongBo === "function") whSel._csWrap._csDongBo();
+  }
 
-  var h =
-    '<div class="hk-locfld"><label>Kho</label><select id="hkWhSel"><option value="">Tất cả kho (' + nf(tong) + ')</option>' +
-    ws.map(function(w){
-      return '<option value="' + esc(w) + '"' + (S.wh === w ? " selected" : "") + '>' + esc(w) + ' (' + nf(dem[w]) + ')</option>';
-    }).join("") +
-    '</select></div>' +
-    '<div class="hk-locfld"><label>Ngày kiểm</label><input type="date" id="hkCdateInp" value="' + esc(S.cdate || "") + '" title="Ngày kiểm (Counted date)"></div>' +
-    '<div class="hk-locfld"><label>Ngày kế hoạch</label><input type="date" id="hkPlanInp" value="' + esc(S.plan || "") + '" title="Ngày kế hoạch (Plan date)"></div>' +
-    '<div class="hk-locfld"><label>ID</label><input type="text" id="hkIdInp" placeholder="Tìm ID…" value="' + esc(S.id || "") + '"></div>' +
-    '<div class="hk-locfld"><label>Source code</label><input type="text" id="hkSrcInp" placeholder="Source code…" value="' + esc(S.src || "") + '"></div>' +
-    '<div class="hk-locfld"><label>Request code</label><input type="text" id="hkReqInp" placeholder="Request code…" value="' + esc(S.req || "") + '"></div>' +
-    '<div class="hk-locfld"><label>Status</label><select id="hkStSel"><option value="">Tất cả trạng thái</option>' +
-    stList.map(function(s){
-      return '<option value="' + esc(s) + '"' + (S.st === s ? " selected" : "") + '>' + esc(s) + ' (' + nf(stDem[s]) + ')</option>';
-    }).join("") +
-    '</select></div>' +
-    (coLoc ? '<div class="hk-locacts"><button type="button" class="hk-fcg" onclick="HKIEMKE.resetLoc()" title="Xoá tất cả bộ lọc">Đặt lại</button></div>' : '');
+  var stSel = $id("hkStSel");
+  if (stSel){
+    stSel.innerHTML = '<option value="">Tất cả trạng thái</option>' +
+      stList.map(function(s){
+        return '<option value="' + esc(s) + '"' + (S.st === s ? " selected" : "") + '>' + esc(s) + ' (' + nf(stDem[s]) + ')</option>';
+      }).join("");
+    if (typeof window.enhanceSelect === "function") window.enhanceSelect(stSel);
+    if (stSel._csWrap && typeof stSel._csWrap._csDongBo === "function") stSel._csWrap._csDongBo();
+  }
 
-  var actId = document.activeElement ? document.activeElement.id : null;
-  var cStart = (actId && document.activeElement && typeof document.activeElement.selectionStart === "number")
-    ? document.activeElement.selectionStart : null;
-  var cEnd = (actId && document.activeElement && typeof document.activeElement.selectionEnd === "number")
-    ? document.activeElement.selectionEnd : null;
+  if (!_locBuilt){
+    _locBuilt = true;
+    if (whSel) whSel.addEventListener("change", function(){ S.wh = this.value; render(); });
+    if (stSel) stSel.addEventListener("change", function(){ S.st = this.value; render(); });
 
-  el.innerHTML = h;
+    var idInp = $id("hkIdInp");
+    if (idInp) idInp.addEventListener("input", function(){
+      clearTimeout(_debT); var v = this.value.trim();
+      _debT = setTimeout(function(){ S.id = v; render(); }, 250);
+    });
 
-  var whSel = $id("hkWhSel"); if (whSel) whSel.onchange = function(){ S.wh = this.value; render(); };
-  var stSel = $id("hkStSel"); if (stSel) stSel.onchange = function(){ S.st = this.value; render(); };
-  var cdInp = $id("hkCdateInp"); if (cdInp) cdInp.onchange = function(){ S.cdate = this.value; render(); };
-  var plInp = $id("hkPlanInp"); if (plInp) plInp.onchange = function(){ S.plan = this.value; render(); };
+    var srcInp = $id("hkSrcInp");
+    if (srcInp) srcInp.addEventListener("input", function(){
+      clearTimeout(_debT); var v = this.value.trim();
+      _debT = setTimeout(function(){ S.src = v; render(); }, 250);
+    });
 
-  var idInp = $id("hkIdInp");
-  if (idInp) idInp.oninput = function(){
-    clearTimeout(_debT);
-    var v = this.value.trim();
-    _debT = setTimeout(function(){ S.id = v; render(); }, 300);
-  };
+    var reqInp = $id("hkReqInp");
+    if (reqInp) reqInp.addEventListener("input", function(){
+      clearTimeout(_debT); var v = this.value.trim();
+      _debT = setTimeout(function(){ S.req = v; render(); }, 250);
+    });
 
-  var srcInp = $id("hkSrcInp");
-  if (srcInp) srcInp.oninput = function(){
-    clearTimeout(_debT);
-    var v = this.value.trim();
-    _debT = setTimeout(function(){ S.src = v; render(); }, 300);
-  };
-
-  var reqInp = $id("hkReqInp");
-  if (reqInp) reqInp.oninput = function(){
-    clearTimeout(_debT);
-    var v = this.value.trim();
-    _debT = setTimeout(function(){ S.req = v; render(); }, 300);
-  };
-
-  if (actId && $id(actId)){
-    var fEl = $id(actId);
-    fEl.focus();
-    if (cStart !== null && typeof fEl.setSelectionRange === "function"){
-      fEl.setSelectionRange(cStart, cEnd);
+    if (typeof window.taoBoLocNgay === "function"){
+      var cdRoot = $id("hkCdateSlot");
+      if (cdRoot){
+        CDATE_LOC = window.taoBoLocNgay({
+          root: cdRoot, idNut: "hkCdateBtn", idPop: "hkCdatePop",
+          homNay: function(){ return dateIsoVN(Date.now()); },
+          nhan: function(a, b){
+            if (!a) return "Tất cả";
+            var fa = a.slice(8, 10) + "/" + a.slice(5, 7), fb = b ? b.slice(8, 10) + "/" + b.slice(5, 7) : fa;
+            return (b && b !== a) ? fa + " → " + fb : fa;
+          },
+          onApply: function(a, b){ S.cdate = a ? [a, b || a] : null; render(); }
+        });
+      }
+      var plRoot = $id("hkPlanSlot");
+      if (plRoot){
+        PLAN_LOC = window.taoBoLocNgay({
+          root: plRoot, idNut: "hkPlanBtn", idPop: "hkPlanPop",
+          homNay: function(){ return dateIsoVN(Date.now()); },
+          nhan: function(a, b){
+            if (!a) return "Tất cả";
+            var fa = a.slice(8, 10) + "/" + a.slice(5, 7), fb = b ? b.slice(8, 10) + "/" + b.slice(5, 7) : fa;
+            return (b && b !== a) ? fa + " → " + fb : fa;
+          },
+          onApply: function(a, b){ S.plan = a ? [a, b || a] : null; render(); }
+        });
+      }
     }
   }
 
   var btn = $id("hkBtnLoc");
   if (btn){
-    var nLoc = [S.wh, S.cdate, S.plan, S.id, S.src, S.req, S.st].filter(Boolean).length;
-    btn.textContent = nLoc ? "Bộ lọc (" + nLoc + ")" : "Bộ lọc";
+    var coLoc = !!(S.wh || S.cdate || S.plan || S.id || S.src || S.req || S.st);
+    btn.classList.toggle("dang-loc", coLoc);
+    btn.textContent = coLoc ? "Bộ lọc · đang lọc" : "Bộ lọc";
   }
-  if (!el.classList.contains("collapsed") && (!btn || !btn.classList.contains("mo"))) el.classList.add("collapsed");
 }
 function toggleLoc(){
   var bar = $id("hkWhBar"), btn = $id("hkBtnLoc");
