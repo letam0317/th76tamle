@@ -136,8 +136,11 @@ try {
       const sauDN = await p.evaluate(() => ({ tab: (document.querySelector(".tab.active") || {}).dataset?.tab, dnXm: [...document.querySelectorAll(".hx-dn, .xm-khoa, #mtMoTk")].some((x) => x.offsetParent), hop: !!document.querySelector(".tk-f"), url: location.href }));
       ok(sauDN.tab === "maytram" && /maytram/.test(sauDN.url) && !sauDN.dnXm && !sauDN.hop, "điện thoại: đăng nhập ở hộp thanh bên → sang Máy trạm, KHÔNG hiện lại màn đăng nhập (" + JSON.stringify(sauDN) + ")");
       await p.evaluate(() => setTab("xacminh")); await new Promise((r) => setTimeout(r, 400));
-      const vaoXm = await p.evaluate(() => ({ tab: (document.querySelector(".tab.active") || {}).dataset?.tab, dnXm: !!document.querySelector("#pane-xacminh .hx-dn") }));
-      ok(vaoXm.tab === "maytram" && !vaoXm.dnXm, "điện thoại: mở tab xacminh (đường dẫn/tab nhớ) → tự về Máy trạm, không ô đăng nhập riêng (" + JSON.stringify(vaoXm) + ")");
+      /* 21/10 user «mất Theo tác vụ/Theo máy/Nhật ký trên điện thoại»: không còn tự nhảy về Máy trạm — ở lại tab Xác minh, nói rõ lý do + nút «Thử lại» / «Mở Máy trạm» */
+      await new Promise((r) => setTimeout(r, 1500));
+      const vaoXm = await p.evaluate(() => { const k = document.querySelector("#pane-xacminh .xm-khoa"); return { tab: (document.querySelector(".tab.active") || {}).dataset?.tab, dnXm: !!document.querySelector("#pane-xacminh .hx-dn"),
+        baoRo: !!(k && /Chưa nối được máy chủ/.test(k.textContent)), nutMT: !!(k && [...k.querySelectorAll("button")].some((b) => /Mở Máy trạm/.test(b.textContent))), nutThu: !!(k && [...k.querySelectorAll("button")].some((b) => /Thử lại/.test(b.textContent))) }; });
+      ok(vaoXm.tab === "xacminh" && vaoXm.baoRo && vaoXm.nutMT && vaoXm.nutThu && !vaoXm.dnXm, "điện thoại: mở tab xacminh không có máy chủ → Ở LẠI, báo «Chưa nối được máy chủ» + nút Thử lại / Mở Máy trạm (" + JSON.stringify(vaoXm) + ")");
     }
     await p.waitForFunction(() => document.querySelectorAll("#pane-maytram .mt-o").length > 0, { timeout: 60000 });
     await new Promise((r) => setTimeout(r, 800));

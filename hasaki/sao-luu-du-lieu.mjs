@@ -66,7 +66,9 @@ try {
   const cu = fs.readdirSync(thu).filter((f) => /^audit-\d{4}-\d{2}-\d{2}\.zip$/.test(f)).sort();
   for (const f of cu.slice(0, Math.max(0, cu.length - GIU))) { fs.unlinkSync(path.join(thu, f)); log("xoá bản cũ " + f); }
 } catch (e) { KQ.loi.push("zip: " + e.message); log("LỖI nén: " + e.message); }
-if (!A["khong-sheet"]) {
+/* 21/10 user «chép Sheet có cần không?» → KHÔNG: Google Sheets tự giữ lịch sử phiên bản (Tệp › Lịch sử phiên bản), chép thêm chỉ tốn Drive.
+   Mặc định bỏ; cần thì chạy tay `--sheet`. Bản đã chép 20–21/10 nằm ở Drive «Sao lưu Audit (không chia sẻ)» — xoá tay nếu muốn. */
+if (A.sheet) {
   try { const j = await saoLuuSheet(); KQ.sheet = j.ds || j; log("Sheet: " + JSON.stringify(j.ds || j).slice(0, 300)); }
   catch (e) { KQ.loi.push("sheet: " + e.message); log("LỖI sao lưu Sheet: " + e.message); }
 }

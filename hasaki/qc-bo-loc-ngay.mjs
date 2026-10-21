@@ -110,7 +110,8 @@ for (const may of MAY) for (const x of DS) {
   if (d.loi) { ok(false, nhan + ": N2 " + d.loi); await p.close(); continue; }
   if (x.chuan) CHUAN[may.ten] = d.mat;
   const c = CHUAN[may.ten], khac = c ? Object.keys(c).filter((k) => String(c[k]) !== String(d.mat[k]) && !(k === "nav" || k === "chan" ? false : false)).map((k) => k + ": " + d.mat[k] + " ≠ chuẩn " + c[k]) : ["chưa đo được bản chuẩn"];
-  ok(!khac.length, nhan + ": N2 cùng mặt bản chuẩn" + (khac.length ? " — " + khac.join(" · ") : ""));
+  /* 21/10: chạy --chi (bản chuẩn không nằm trong lượt) hoặc bản chuẩn đo hụt → KHÔNG tính hỏng, chỉ ghi «bỏ qua» (đêm 20/10 báo hỏng giả) */
+  if (!c) console.log("  –    " + nhan + ": N2 bỏ qua — bản chuẩn chưa đo trong lượt này"); else ok(!khac.length, nhan + ": N2 cùng mặt bản chuẩn" + (khac.length ? " — " + khac.join(" · ") : ""));
   ok(d.trongMan && d.bamDuoc && !d.keoNgang, nhan + ": N2 lịch trọn màn, Áp dụng bấm được" + (d.trongMan ? "" : " — lòi khỏi màn") + (d.bamDuoc ? "" : " — Áp dụng bị che/cắt") + (d.keoNgang ? " — trang kéo ngang" : "") + (d.trongMan && d.bamDuoc ? "" : " · " + d.vet));
   if (A.anh) await p.screenshot({ path: path.join(A.anh, "bo-loc-ngay-" + x.ten.replace(/\W+/g, "-") + "-" + may.ten + ".png") });
   /* N4 trước khi chọn tay: nút nhanh "7 ngày"/"3 ngày" */

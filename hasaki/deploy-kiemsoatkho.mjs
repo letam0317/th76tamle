@@ -49,6 +49,7 @@ const FILES = [
   ["kiemsoatkho/kho170-bocuc.js", "kho170-bocuc.js"],
   ["kiemsoatkho/tai-khoan.js", "tai-khoan.js"],             // 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory, Apps Script tk_*)
   ["kiemsoatkho/dash-bocuc.js", "dash-bocuc.js"],           // 13/10 bố cục dashboard (bộ Chỉnh bố cục ở bản QC ghi, «Chốt phát hành» đẩy)
+  ["kiemsoatkho/thanh-phan.css", "thanh-phan.css"],       // 21/10 chip trạng thái + nút dùng chung (Mẫu 1) — index.html nạp ở <head>
   ["kiemsoatkho/thanh-cuon.css", "thanh-cuon.css"],       // 17/10 thanh cuộn chung theo theme (mọi trang)
   ["kiemsoatkho/tien-ich.js", "tien-ich.js"],             // 20/10 TIỆN ÍCH CHUNG esc/$id/hm/ngayVN (window.hskTienIch) — index.html nạp TRƯỚC mọi mô-đun
   ["kiemsoatkho/bo-loc-ngay.js", "bo-loc-ngay.js"],       // 19/10 BỘ LỌC NGÀY CHUẨN toàn dự án (taoBoLocNgay) — index.html nạp ở <head>

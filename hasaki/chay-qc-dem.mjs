@@ -17,6 +17,8 @@ const log = (...a) => { const d = new Date().toTimeString().slice(0, 8) + " " + 
 const KHOA = path.join(DIR, ".exports", ".qc-dem.lock");
 try { if (Date.now() - fs.statSync(KHOA).mtimeMs < 3 * 36e5) { log("đang có lượt khác chạy — thoát"); process.exit(0); } } catch { /* */ }
 fs.writeFileSync(KHOA, String(process.pid));
+/* 21/10: laptop tắt lúc 02:30 → task chạy bù lúc mở máy (08:44) khi user đang làm → chờ máy rảnh ≥10' (tối đa 3 giờ), --ngay để bỏ qua */
+if (!A.ngay) { const { choMayRanh } = await import("./may-ranh.mjs"); if (!(await choMayRanh({ log }))) { log("máy bận suốt — bỏ lượt này"); try { fs.unlinkSync(KHOA); } catch { /* */ } process.exit(0); } }
 
 const chay = (x) => new Promise((res) => {
   const t0 = Date.now(), tran = (Number(x.tranPhut || A.tran || CFG.tranPhut || 15)) * 60e3, tep = path.join(DIR, x.ten + ".mjs");

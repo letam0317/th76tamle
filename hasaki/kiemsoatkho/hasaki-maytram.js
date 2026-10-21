@@ -21,7 +21,8 @@
   var TEN_VIEC = { "canh-b11": "Cò canh B1.1", "canh-xac-minh-b1": "Cò xác minh B1", "tim-bang-chung-b1": "Tìm bằng chứng B1",
     "canh-bai-xe-sang": "Canh bãi xe sáng", "canh-bai-xe-chieu": "Canh bãi xe chiều", "canh-bai-xe-toi": "Canh bãi xe tối", "xac-minh-camera": "Soi camera B1 (phần 1)", "xac-minh-camera-2": "Soi camera B1 (phần 2)",
     "co-canh-planogram": "Cò canh planogram", "dong-bo-dashboard": "Đồng bộ dashboard", "packer-a8-sang": "Packer A8 sáng", "packer-a8-chieu": "Packer A8 chiều",
-    "cham-cong": "Chấm công", "watchdog-ton-kho": "Canh tồn kho", "lam-tuoi-vesinh": "Làm tươi vệ sinh 15'" };   // 19/10 nhịp sync-poller sang PC
+    "cham-cong": "Chấm công", "watchdog-ton-kho": "Canh tồn kho", "lam-tuoi-vesinh": "Làm tươi vệ sinh 15'",
+    "may-chu-xm-du-phong": "Máy chủ Xác minh dự phòng", "day-bao-cao-5s": "Đẩy báo cáo 5S" };   // 21/10 đánh giá: 2 chip hiện mã kỹ thuật vì thiếu tên   // 19/10 nhịp sync-poller sang PC
   var tenV = function (t) { return TEN_VIEC[t] || t; };
   var e_ = window.hskTienIch.esc;
   var phien = function () { try { return localStorage.getItem("hx-phien") || ""; } catch (e) { return ""; } };
@@ -29,6 +30,10 @@
   function napCss() {
     if (document.getElementById("mt-css")) return;
     var c = [
+      /* 21/10 khối «Đêm qua máy làm gì»: 3 ô ngang hàng (web), xếp dọc (điện thoại) — màu theo token good/warn/bad */
+      ".mt-dem .mt-dem-ds{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 18px;padding:10px 14px 12px}.mt-dem .o{display:flex;flex-direction:column;gap:2px;min-width:0}",
+      ".mt-dem .o b{font-size:15px;line-height:20px}.mt-dem .o b.good{color:var(--good)}.mt-dem .o b.warn{color:var(--warn)}.mt-dem .o b.bad{color:var(--bad)}",
+      ".mt-dem .o small{color:var(--muted);font-size:12px;line-height:16px;overflow:hidden;text-overflow:ellipsis}",
       /* nhãn + nút dùng lại khuôn Xác minh (chép đúng luật để tab này đứng một mình được khi Xác minh không nạp) */
       ".hx-tag{display:inline-block;font-size:11px;font-weight:600;border-radius:20px;padding:2px 8px;margin:0 4px 2px 0;border:1px solid var(--border);background:var(--surface2);color:var(--muted);white-space:nowrap}",
       ".hx-tag.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent);background:color-mix(in srgb,var(--bad) 9%,transparent)}",
@@ -180,6 +185,44 @@
     var ctl = new AbortController(), h = setTimeout(function () { ctl.abort(); }, 1500);
     return fetch(API + "/api/ping", { signal: ctl.signal }).then(function (r) { clearTimeout(h); return r.ok; }).catch(function () { return false; });
   }
+  /* 21/10 (đánh giá: «bộ đo chạy đêm, báo lên tab Máy trạm»): khối «Đêm qua máy làm gì» — QC đêm · sao lưu · sức khoẻ kho dữ liệu Apps Script,
+     đọc từ 8591 (/api/qc-dem, /api/sao-luu, /api/suc-khoe-du-lieu), giữ 10'; chỉ máy có máy chủ (laptop / đường hầm). */
+  var DEMQUA = null, DEMQUA_LUC = 0;
+  function taiDemQua() {
+    if (Date.now() - DEMQUA_LUC < 10 * 60e3) return;
+    DEMQUA_LUC = Date.now();
+    var ds = ["/api/qc-dem", "/api/sao-luu", "/api/suc-khoe-du-lieu"].map(function (d) { return goi591(d).catch(function () { return null; }); });
+    Promise.all(ds).then(function (r) {
+      DEMQUA = { qc: r[0] && r[0].ds ? r[0] : null, sl: r[1] && r[1].luc ? r[1] : null, sk: r[2] && r[2].props ? r[2] : null };
+      ve();
+    });
+  }
+  function veDemQua() {
+    if (!DEMQUA || !(DEMQUA.qc || DEMQUA.sl || DEMQUA.sk)) return "";
+    var p2 = window.hskTienIch.p2;
+    var gio = function (iso) { var d = new Date(iso); if (isNaN(d)) return "";
+      var g = p2(d.getHours()) + ":" + p2(d.getMinutes()); return Date.now() - d > 864e5 ? g + " " + d.getDate() + "/" + (d.getMonth() + 1) : g; };
+    var o = function (nhan, muc, chinh, phu) { return '<div class="o"><small>' + nhan + '</small><b class="' + muc + '">' + chinh + "</b><small>" + phu + "</small></div>"; };
+    var ra = [];
+    if (DEMQUA.qc) {
+      var bo = DEMQUA.qc.ds || [], hong = bo.filter(function (b) { return b.ma !== 0; }).map(function (b) { return b.ten.replace(/^qc-/, ""); });
+      ra.push(o("QC đêm · " + gio(DEMQUA.qc.luc), hong.length ? "warn" : "good", (bo.length - hong.length) + "/" + bo.length + " bộ đo đạt",
+        hong.length ? "hỏng: " + e_(hong.join(", ")) : "không bộ nào hỏng"));
+    }
+    if (DEMQUA.sl) {
+      var sl = DEMQUA.sl, loi = (sl.loi || []).length;
+      ra.push(o("Sao lưu · " + gio(sl.luc), loi ? "warn" : "good", String(sl.zipMB || 0).replace(".", ",") + " MB · " + Number(sl.soTep || 0).toLocaleString("vi-VN") + " tệp",
+        loi ? e_(sl.loi.join(" · ")) : "OneDrive · giữ 14 bản"));
+    }
+    if (DEMQUA.sk) {
+      var p = DEMQUA.sk.props, pct = p.tranByte ? Math.round(p.byte / p.tranByte * 100) : 0;
+      var sh = (DEMQUA.sk.sheets || []).filter(function (s) { return s.o; }).sort(function (a, b) { return b.o / b.tranO - a.o / a.tranO; })[0];
+      ra.push(o("Kho dữ liệu Apps Script", pct >= 80 ? "bad" : pct >= 60 ? "warn" : "good", Math.round(p.byte / 1024) + " KB / " + Math.round(p.tranByte / 1024) + " KB (" + pct + "%)",
+        p.so + " khoá" + (sh ? " · Sheet lớn nhất " + e_(sh.ten) + " " + Math.round(sh.o / sh.tranO * 100) + "% trần" : "")));
+    }
+    return '<div class="panel mt-dem"><div class="panel-head"><span>Đêm qua máy làm gì</span><span class="muted">tự chạy 02:00 · 02:30 (chờ máy rảnh)</span></div>' +
+      '<div class="mt-dem-ds">' + ra.join("") + "</div></div>";
+  }
   function tai() {
     return dongMayChu().then(function (co) {
       MAY_CHU = co;
@@ -203,7 +246,7 @@
         if (j.status !== "success") { if (j.code === 401) { if (!tkPh) try { localStorage.removeItem("mt-phien"); } catch (x) {} CAN_DN = true; return null; } throw new Error(j.message || "Apps Script trả lỗi"); }
         // 14/10 user «nút dừng chạy của máy trạm đâu»: tài khoản quyền «làm» ở Xác minh → có nút (lệnh qua GAS pcLenhPh); quyền «xem» → chỉ xem
         DIEU_KHIEN = !!(tkPh && typeof window.tkCo === "function" && window.tkCo("r.xacminh", "lam")); CAN_DN = false; return chuanGas(j); });
-    }).then(function (d) { MTD = d; MT_LOI = "";
+    }).then(function (d) { MTD = d; MT_LOI = ""; if (d && MAY_CHU) taiDemQua();
       if (d && window.tqGhi) tqGhi("mt", { song: d.may.filter(function (m) { return m.song && !m.dung; }).length, tong: d.may.length });
       if (d && typeof window.soThanhBen === "function") window.soThanhBen(); })   // 14/10: thanh bên từng giữ số cũ (0/1 khi đã có 2 máy)
       .catch(function (e) { MT_LOI = e.name === "AbortError" ? "Máy chủ không trả lời sau 45 giây" : e.message; });
@@ -428,7 +471,7 @@
     h += MTD.may.length ? '<div class="mt-tde"><span>Thông tin máy · sức khoẻ</span><span>Việc đảm nhận</span><span>Việc đang làm và kết quả</span></div><div class="mt-hang">' + mayXep.map(the).join("") + "</div>"
       : '<div class="panel"><div class="hx-trong">Chưa PC nào gửi nhịp tim. Cài bằng nút «Tải bộ cài PC» ở trang Tổng quan; PC gửi nhịp mỗi phút.</div></div>';
     if (!MAY_CHU && !phienTk() && mtPhien()) h += '<div style="text-align:center;margin:14px 0"><button type="button" class="hx-nut phu" id="mtDangXuat">Đăng xuất</button></div>';
-    PANE.innerHTML = h;
+    PANE.innerHTML = veDemQua() + h;   // 21/10 khối «Đêm qua máy làm gì» trên cùng (rỗng khi không có máy chủ)
     var dx = document.getElementById("mtDangXuat");
     if (dx) dx.onclick = function () { var mp = mtPhien(); try { localStorage.removeItem("mt-phien"); } catch (e) {} MTD = null; CAN_DN = true;
       if (mp) postGas({ action: "pcDangXuat", ph: mp.ph }).catch(function () {}); veDangNhap(); };

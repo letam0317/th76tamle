@@ -580,7 +580,7 @@
           '<td class="c-loi" style="white-space:normal"><div class="hx-l2">' + e_(loiCam(l)) + '</div></td>' +
           '<td><div class="hx-bc"><span class="hx-vthumb"><img loading="lazy" src="' + e_(anhNguoi(l)) + '" alt="Clip camera" style="width:100%;height:100%;object-fit:cover;display:block"><span class="pl">▶</span></span><div class="hx-bc-chu"><span>Clip camera</span>' + ((l.chamCong || []).length || (l.cong || []).length ? '<span class="muted">' + [(l.chamCong || []).length ? "chấm công" : "", (l.cong || []).length ? "sổ cổng" : ""].filter(Boolean).join(" · ") + '</span>' : "") + '</div></div></td>' +
           '<td style="white-space:normal">' + (/<\/div>$/.test(c.uv) ? c.uv.replace(/<\/div>$/, " · " + c.ng.replace(/<[^>]+>/g, "") + "</div>") : c.uv + '<div class="muted" style="font-size:12px">' + c.ng.replace(/<[^>]+>/g, "") + '</div>') + '</td>' +   // 1 dòng phụ: mã · giờ cổng · số người nghi
-          '<td>' + (ttLuot(l) === "cho" ? '<button class="hx-nut nho" data-mo="' + i + '">Mở để quyết</button><div class="muted" style="font-size:12px;margin-top:4px">chưa có task</div>' : c.tt) + '</td></tr>'; }).join("") ||
+          '<td>' + (ttLuot(l) === "cho" ? '<button class="hx-nut nho" data-mo="' + i + '">Quyết định</button><div class="muted" style="font-size:12px;margin-top:4px">chưa có task</div>' : c.tt) + '</td></tr>'; }).join("") ||
         '<tr><td colspan="5"><div class="empty-row">' + (LOC.tt === "cho" ? "Không còn sự việc nào chờ bạn quyết." : "Không có sự việc khớp bộ lọc.") + '</div></td></tr>') + '</tbody></table></div>' +
       '<div class="cardlist">' + ds.map(function (l, i) { var c = cot(l);
         return '<div class="cl-item' + (gcCua(l.id) ? " hx-gc-mo" : "") + '" data-l="' + i + '" data-lid="' + e_(l.id) + '"><img class="cl-img" loading="lazy" src="' + e_(anhNguoi(l)) + '" alt=""><div class="cl-body"><div class="cl-top">' + c.tt.split("</span>")[0] + '</span></div>' +
@@ -986,7 +986,8 @@
   /* ---------- 3) PHIẾU TREO ---------- */
   /* 05/10 QC: thay mã luật (KHAC/TB-02…) bằng MỨC MÁY BIẾT viết thường — đúng Hướng 1 user duyệt (chắc chắn → bấm là xong; cần chọn; đang tra; chưa tra được).
      Mã luật vẫn còn trong tooltip cho chủ máy tra sổ luật. */
-  var MUC_MAY = { chac: ["Máy chắc chắn", "good"], vua: ["Máy gợi ý · cần bạn xem", "warn"], chon: ["Cần bạn quyết", "warn"], tam: ["Nhờ anh Tâm kiểm tra thực tế", "warn"], cam: ["Máy tra camera giờ báo cáo", "info"], tudong: ["Máy tự xử theo luật vệ sinh", "info"], tra: ["Chờ camera xác nhận", "info"], soi: ["Máy đang soi camera (AI)", "info"], nhan: ["Có clip lúc chụp · bạn nhận người", "warn"], khong: ["Máy đang tìm bằng chứng", ""], quyet: ["Bạn đã quyết · chờ máy làm", "info"], xong: ["Đã xử lý", "good"] };
+  /* 21/10 Mẫu 1 (đánh giá 20/10: chip viết hoa không thống nhất «Máy chắc chắn» / «cần bạn xem»): 3 mức độ chắc, ngắn, cùng kiểu */
+  var MUC_MAY = { chac: ["Máy chắc", "good"], vua: ["Cần bạn xem", "warn"], chon: ["Cần bạn quyết", "warn"], tam: ["Nhờ anh Tâm kiểm tra thực tế", "warn"], cam: ["Máy tra camera giờ báo cáo", "info"], tudong: ["Máy tự xử theo luật vệ sinh", "info"], tra: ["Chờ camera xác nhận", "info"], soi: ["Máy đang soi camera (AI)", "info"], nhan: ["Có clip lúc chụp · bạn nhận người", "warn"], khong: ["Máy đang tìm bằng chứng", ""], quyet: ["Bạn đã quyết · chờ máy làm", "info"], xong: ["Đã xử lý", "good"] };
   function mucMay(p) {
     var x = p.xm || {}, g = p.goiY;
     /* 20/10 user «14115619 ghi Đã xử lý mà vẫn treo B1»: cột «Đã xử lý» = «Đã đưa vào hàng chờ cắt clip camera» (12/10) bị coi là XONG.
