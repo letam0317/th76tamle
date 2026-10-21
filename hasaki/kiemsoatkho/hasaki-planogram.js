@@ -1414,7 +1414,8 @@ var CSS = [
 /* pop-up: phụ đề rỗng thì ẩn · 7 ô ngày luôn 1 hàng trên điện thoại */
 ".hp-modalhd .mtsub:empty{display:none;}",
 /* 21/10 user: pop-up ô → THANH BÊN PHẢI (web: trượt từ phải, cao hết màn; điện thoại: toàn màn, đầu trang trượt lên như Theo tác vụ/Theo máy) */
-"#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}#hpVtModal.show .hp-modalbox{transform:none;}",
+"#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}",
+"#hpVtModal.show .hp-modalbox{transform:none;}",
 "#hpVtModal .hp-modalhd{align-items:flex-start;}#hpVtModal .hp-vtacts{min-width:0;max-width:60%;flex:none;}#hpVtModal .hp-vtr1{flex-wrap:wrap;justify-content:flex-end;}#hpVtModal .hp-modalhd>div:first-child{min-width:0;}",
 ".hp-vtr1{display:flex;align-items:center;gap:8px;}.hp-vtpg{font-size:12px;white-space:nowrap;}.hp-vtpg:empty{display:none;}.hp-vt-tgon{display:none;}",
 "@media(max-width:768px){#hpVtModal .hp-modalbox{width:100vw!important;}body:has(#hpVtModal.show) header{translate:0 -100%;pointer-events:none}.hp-vt-tday{display:none}.hp-vt-tgon{display:inline}" +
