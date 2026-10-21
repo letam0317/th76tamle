@@ -302,9 +302,9 @@
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-qd-anh img{width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:contain!important}" +
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-anh-day{justify-content:center}}" +
         /* 20/10 user CHỐT (chỉ WEB, khổ >820): đầu thanh — «Đóng» sát TRÁI, kế «Ghi chú», «Mở task»; tiêu đề (tên task / sự việc + giờ) sát PHẢI, căn phải, dài cắt … · điện thoại giữ tên trái, nút phải */
-        /* 21/10 Mẫu 3 + luật R1 (tên trái, Ghi chú · Đóng phải) áp cả màn rộng — trước đây ≥821px đảo nút sang trái, tiêu đề sang phải (khác Vi phạm) */
-        "@container (min-width:821px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mClose{order:3}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#gcNut{order:1}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#hxMoTask{order:2}" +
-          "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mTitle{order:-1;justify-content:flex-start!important;text-align:left}}" +
+        /* 21/10 user «Pop-up Theo máy/Theo tác vụ — vẫn giữ như vậy» → màn rộng vẫn Đóng · Ghi chú · Mở task bên trái, tiêu đề bên phải; Vi phạm đổi theo (index.html) */
+        "@container (min-width:821px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mClose{order:-3}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#gcNut{order:-2}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#hxMoTask{order:-1}" +
+          "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mTitle{order:1;justify-content:flex-end!important;text-align:right}}" +
         /* 20/10 khối thông tin Theo tác vụ (Ngày ghi nhận / Vị trí / Ghi chú / Thuộc lỗi / Máy gợi ý): mỗi mục = nhãn nhỏ màu phụ (cột 88px) + giá trị, nhãn→giá trị 12px, giữa các mục 8px (khung cách 10px ⇒ phần loi/goiy −2px) — gọn chiều cao để web 1366×768 không phải cuộn cả thanh (khung đã cách 10px ⇒ phần loi/goiy thêm 2px), cùng cỡ chữ, cùng lề */
         "#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin] .hx-qd-o,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi] .hx-qd-o,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy] .hx-qd-o{display:grid!important;grid-template-columns:88px minmax(0,1fr)!important;column-gap:12px;row-gap:0;align-items:baseline!important;margin:0!important;padding:0!important}" +
         "#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin] .hx-qd-o>.lbl,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi] .hx-qd-o>.lbl,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy] .hx-qd-o>.lbl{font-size:12px!important;line-height:20px;color:var(--muted)!important;font-weight:400!important;padding:0!important;margin:0!important;width:auto!important;white-space:nowrap}" +
@@ -381,7 +381,8 @@
       ".hx-qd-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.hx-qd-form .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}.hx-qd-form input,.hx-qd-form select{width:100%}",
       ".hx-visao{font-size:13px;line-height:1.45;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}.hx-visao.mo{display:block}",
       ".hx-sx{border:0;background:none;padding:0;font:inherit;font-weight:inherit;color:inherit;cursor:pointer;text-align:left}.hx-sx:hover,.hx-sx.on{color:var(--accent)}",
-      ".hx-pd{display:flex;gap:10px;align-items:baseline;padding:8px 12px;background:#111;color:#e6efe9;font-size:14px;min-height:22px}.hx-pd .gio{font-variant-numeric:tabular-nums;font-weight:700;color:#9fd3b5;flex:none}.hx-pd .ngay{color:#ffd54f;font-weight:700}.hx-pd .sap{color:#cfd8d3}",
+      ".hx-pd{display:flex;gap:10px;align-items:baseline;padding:8px 12px;background:#111;color:#e6efe9;font-size:14px;min-height:22px;flex-wrap:nowrap;overflow:hidden}.hx-pd>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hx-qd-khung{position:relative}.hx-qd-khung.hx-dang-tai::after,.hx-qd-khung.hx-loi-clip::after,.hx-qd-khung.hx-cham-phat::after{content:'Đang tải clip…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);color:#fff;font-size:14px;font-weight:600;pointer-events:none}.hx-qd-khung.hx-loi-clip::after{content:'Không tải được clip lượt này — chọn dòng khác'}.hx-qd-khung.hx-cham-phat::after{content:'▶  Bấm để phát';font-size:18px;cursor:pointer;pointer-events:none}.hx-pd .gio{font-variant-numeric:tabular-nums;font-weight:700;color:#9fd3b5;flex:none}.hx-pd .ngay{color:#ffd54f;font-weight:700}.hx-pd .sap{color:#cfd8d3}",
+      "@container (max-width:820px){#modal.hx-ben .hx-tb-luoi.gn-mo .hx-qd-ls:not(#lvGocDs){display:none!important}}",   /* 21/10 user: bấm «Ghi nhận» chỉ còn ảnh + dữ liệu, ẩn danh sách Tác động WMS (điện thoại) */
       ".hx-pd-cach{padding:8px 12px;background:#1b1b1b;color:#cfd8d3;font-size:13px;line-height:1.45;border-top:1px solid #333}.hx-pd-cach b{color:#fff}",
       ".hx-nut[disabled]{opacity:.55;cursor:not-allowed;background:var(--surface2);border-color:var(--border);color:var(--muted)}",
       ".hx-nut{min-height:40px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-text,#fff);font-weight:650;padding:0 14px;cursor:pointer}",
@@ -1148,10 +1149,11 @@
     A.style.height = Math.max(160, Math.min(tren, Math.floor(tren - Math.max(0, du)))) + "px"; }
   function ganNutAnh(hienSan) { var a = $id("mBody").querySelector(".hx-tb-luoi [data-tp=\"anh\"]"), n = $id("mBody").querySelector("[data-anhgn]"); if (!a || !n) return;
     /* 20/10 Theo tác vụ: chip «Ghi nhận» bật/tắt cả ảnh + khối thông tin (Ngày/Vị trí/SKU/Ghi chú/Thuộc lỗi/Máy gợi ý) — chỉ điện thoại (.an-dt ≤820) */
-    var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"], .hx-tb-luoi[data-tb="may"] [data-tp="seghi"]')));
+    var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"], .hx-tb-luoi[data-tb="may"] [data-tp="seghi"], .hx-tb-luoi[data-tb="may"] [data-tp="loi"], .hx-tb-luoi[data-tb="may"] [data-tp="dsnguoi"]')));   /* 21/10 user: Theo máy cùng luật Theo tác vụ — chip gom ảnh + Lỗi + Là ai + Sẽ ghi nhận */
     var dt = true, an = function () { return a.classList.contains("an-dt"); };
-    var dat = function (mo) { ds.forEach(function (e) { e.classList.toggle("an-dt", !mo); }); n.classList.toggle("on", mo); n.setAttribute("aria-pressed", String(mo)); };
-    dat(!!hienSan); n.onclick = function () { var mo = an(); dat(mo); if (mo) { a.classList.add("hx-hien-mo"); setTimeout(function () { a.classList.remove("hx-hien-mo"); }, 320); } lapCotPhai(); }; }
+    var luoi = a.closest(".hx-tb-luoi");
+    var dat = function (mo) { ds.forEach(function (e) { e.classList.toggle("an-dt", !mo); }); n.classList.toggle("on", mo); n.setAttribute("aria-pressed", String(mo)); if (luoi) luoi.classList.toggle("gn-mo", mo); };   /* 21/10 gn-mo: điện thoại ẩn danh sách Tác động WMS khi đang xem Ghi nhận */
+    n._dat = dat; dat(!!hienSan); n.onclick = function () { var mo = an(); dat(mo); if (mo) { a.classList.add("hx-hien-mo"); setTimeout(function () { a.classList.remove("hx-hien-mo"); }, 320); } lapCotPhai(); }; }
   function tbAp(luoi) {
     luoi = luoi || ($id("mBody") && $id("mBody").querySelector(".hx-tb-luoi")); if (!luoi) return;
     var tps = {}, dung = {}, khung = [];
@@ -1286,7 +1288,7 @@
   /* 12/10: khối «Ai tác động ô này trước giờ ghi nhận» — phụ trách kệ + từng lượt châm (WMS), gần giờ ghi nhận nhất trước */
   /* 13/10 user: «tác động vật lý mà KHÔNG thao tác hệ thống» phải ghi lại + gắn nhãn nổi — lượt vatLy (sổ tac-dong-vat-ly.json) tô cam, có nút Gỡ */
   var VIEC_VL = ["Lấy hàng ra khỏi ô", "Đặt hàng vào ô", "Xếp / dời hàng trong ô", "Chạm / lục hàng", "Khác"];
-  function cumNV(ten, email, tt) { tt = tt || "Inactive"; return '<span class="hx-nv tt-' + e_(tt.toLowerCase()) + '" title="' + e_(tt === "Active" ? "Đang làm" : tt === "Pending" ? "Nghỉ thai sản" : "Đã nghỉ / không còn trong danh bạ") + '"><b>' + e_(ten) + '</b> [' + e_(email) + '|' + e_(tt) + ']</span>'; }
+  function cumNV(ten, email, tt) { tt = tt || "Inactive"; return '<span class="hx-nv tt-' + e_(tt.toLowerCase()) + '" title="' + e_(tt === "Active" ? "Đang làm" : tt === "Pending" ? "Nghỉ thai sản" : "Đã nghỉ / không còn trong danh bạ") + '"><b>' + e_(ten) + '</b> [@' + e_(String(email || "").replace(/@.*$/, "")) + ' |' + e_(tt) + ']</span>'; }   /* 21/10 user: «[@hamlx |Active]» thay «[hamlx@hasaki.vn|Active]», màu theo trạng thái giữ nguyên */
   function oLsKho(LS, idx, ai) {
     if (!LS) return "";
     var pt = (LS.phuTrach || []).filter(function (n) { return !(ai && n.ma && ai.indexOf(n.ma) >= 0); })   // 13/10 luật không lặp: phụ trách kệ = người máy gợi ý thì bỏ
@@ -1520,11 +1522,20 @@
         var I = n.info || {}, bd = I.batDau ? Date.parse(I.batDau.replace(" ", "T") + "+07:00") : 0, sk = suKienClip(LS, bd, I.suKien);
         k.innerHTML = '<video autoplay muted playsinline preload="metadata" src="' + e_(n.url) + '"></video>' + (bd ? '<div class="hx-pd" id="qdPd" aria-live="polite"></div>' : "");   // 05/10 user bác dòng "Máy tìm ra bằng cách nào" (không yêu cầu) — chỉ giữ phụ đề
         var v = k.querySelector("video"); if (n.tua != null) v.addEventListener("loadedmetadata", function () { v.currentTime = n.tua; }, { once: true });
+        /* 21/10 user «bấm dòng Tác động WMS thì clip đen/không chạy»: clip mới tải chậm (qua đường hầm) hoặc máy chặn tự phát → nói rõ thay vì màn đen:
+           «Đang tải clip…» tới khi có hình; lỗi nguồn → «Không tải được clip lượt này»; tự phát bị chặn → nút ▶ bấm để phát */
+        k.classList.remove("hx-loi-clip", "hx-cham-phat"); k.classList.add("hx-dang-tai");
+        v.addEventListener("loadeddata", function () { k.classList.remove("hx-dang-tai"); }, { once: true });
+        v.addEventListener("error", function () { k.classList.remove("hx-dang-tai"); k.classList.add("hx-loi-clip"); }, { once: true });
+        var pl = v.play(); if (pl && pl.catch) pl.catch(function () { k.classList.add("hx-cham-phat"); });
+        k.onclick = function (ev) { if (k.classList.contains("hx-cham-phat") && !ev.target.closest(".hx-pd,.hx-tl-hang")) { k.classList.remove("hx-cham-phat"); v.play().catch(function () {}); } };
         dangXem = { n: n, v: v, bd: bd }; tlTacVu(v, bd, sk);
         if (bd) { var pd = $id("qdPd"), hm2 = function (t) { return new Date(t + 7 * 36e5).toISOString().slice(11, 19); };
+          /* 21/10 user «chú thích đang xem gì quá dài, đẩy dữ liệu xuống»: 1 dòng cắt «…», chữ ngắn (WMS: … · 15:10), rê chuột/giữ xem đủ */
+          var gon = function (s) { return String(s).replace(/^Hệ thống kho ghi nhận:\s*/, "WMS: ").replace(/ lúc (\d{2}\/\d{2}) (\d{2}:\d{2})/, " $2"); };
           var cap = function () { var now = bd + (v.currentTime || 0) * 1000, cur = null, toi = null;
             sk.forEach(function (x) { if (x.t <= now + 500 && now - x.t < 12000) cur = x; if (x.t > now && (!toi || x.t < toi.t)) toi = x; });
-            pd.innerHTML = '<span class="gio">' + hm2(now) + '</span>' + (cur ? '<span class="ngay' + (cur.vl ? " vl" : "") + '">' + e_(cur.chu) + '</span>' : toi ? '<span class="sap' + (toi.vl ? " vl" : "") + '">còn ' + Math.ceil((toi.t - now) / 1000) + ' giây tới: ' + e_(toi.chu) + '</span>' : '<span class="sap">đã qua các mốc — xem tiếp diễn biến sau đó</span>'); };
+            pd.title = cur ? cur.chu : toi ? toi.chu : ""; pd.innerHTML = '<span class="gio">' + hm2(now) + '</span>' + (cur ? '<span class="ngay' + (cur.vl ? " vl" : "") + '">' + e_(gon(cur.chu)) + '</span>' : toi ? '<span class="sap' + (toi.vl ? " vl" : "") + '">còn ' + Math.ceil((toi.t - now) / 1000) + ' s: ' + e_(gon(toi.chu)) + '</span>' : '<span class="sap">đã qua các mốc — xem tiếp diễn biến sau đó</span>'); };
           v.addEventListener("timeupdate", cap); v.addEventListener("seeked", cap); cap(); }
         return; }
       if (n.k !== "lui") { k.innerHTML = '<img src="' + e_(n.url) + '" alt="' + e_(n.ten) + '" style="cursor:zoom-in">'; k.querySelector("img").onclick = function () { if (typeof openLB === "function") openLB([{ url: n.url, title: n.ten }], 0); }; return; }
@@ -1551,7 +1562,7 @@
     var che = function (k) { if (lsKhoi) lsKhoi.dataset.che = k; if (nutVL) nutVL.classList.toggle("on", k === "vl");
       if (k === "vl") $id("mBody").querySelectorAll(".hx-qd-nguon [data-ng]").forEach(function (b) { b.classList.remove("on"); }); };
     che("wms");
-    $id("mBody").querySelectorAll(".hx-qd-nguon [data-ng]").forEach(function (b) { b.onclick = function () { xem(Number(b.dataset.ng)); che("wms"); }; });
+    $id("mBody").querySelectorAll(".hx-qd-nguon [data-ng]").forEach(function (b) { b.onclick = function () { xem(Number(b.dataset.ng)); che("wms"); var nA = $id("mBody").querySelector("[data-anhgn]"); if (nA && nA._dat) nA._dat(false); }; });   /* 21/10 chip WMS tắt chip Ghi nhận (điện thoại: 2 chế độ loại trừ) */
     /* 19/10 (4) «Ảnh ghi nhận»: bật/tắt ảnh ngay DƯỚI clip — clip vẫn chạy nguồn đang chọn, không thay chỗ */
     var anhTp = $id("mBody").querySelector('.hx-tb-luoi [data-tp="anh"]'), nutA = $id("mBody").querySelector("[data-anhgn]");
     ganNutAnh();

@@ -1176,8 +1176,7 @@ var CSS = [
 ".hp-nk-loc{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;margin:1px 2px 1px 0;text-decoration:none;color:var(--text,#374151);background:color-mix(in srgb, var(--muted,#9ca3af) 14%, transparent);transition:background .16s ease,color .16s ease;}",
 ".hp-nk-loc:hover{background:color-mix(in srgb, var(--accent,#326e51) 14%, transparent);color:var(--accent,#326e51);}",
 ".hp-nk-empty{color:var(--muted,#9ca3af);font-size:12.5px;padding:40px 16px;text-align:center;}",
-/* 21/10 Mẫu 3: điện thoại — cùng khung TRƯỢT TỪ ĐÁY như thanh bên (trước: toàn màn, ✕ góc) */
-"@media(max-width:768px){.hp-modal{padding:0;align-items:flex-end;justify-content:stretch;}.hp-modalbox{width:100vw!important;max-height:92vh!important;height:auto;border-radius:16px 16px 0 0;transform:translateY(28px);}.hp-vtfoot{padding:10px 14px;}.hp-mfilters input{min-height:44px;}#pane-planogram .hp-whtab{min-height:44px;}#hpReload,#pane-planogram .hp-btn{min-height:44px;width:100%;}",
+"@media(max-width:768px){.hp-modal{padding:0;align-items:stretch;justify-content:stretch;}.hp-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hp-mfilters input{min-height:44px;}#pane-planogram .hp-whtab{min-height:44px;}#hpReload,#pane-planogram .hp-btn{min-height:44px;width:100%;}",
 ".hp-nk-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;}.hp-nk-left{border-right:0;border-bottom:1px solid var(--border,#e8ecf1);}.hp-nk-list{max-height:200px;}",
 ".hp-ai-toolbar{flex-direction:column;align-items:stretch;padding:8px 12px;gap:8px;}#hpAiModal #hpAiSearch{max-width:none;width:100%;min-height:40px;margin:0;}#hpAiChips{width:100%;}#hpAiChips .hp-whtab{min-height:40px !important;padding:4px 12px;font-size:12px;}}",
 /* lightbox host phải nổi TRÊN pop-up module (host để z-index 60, pop-up 1200) */
@@ -1414,9 +1413,12 @@ var CSS = [
 "#pane-planogram .hp-toolsp{flex:1;}",
 /* pop-up: phụ đề rỗng thì ẩn · 7 ô ngày luôn 1 hàng trên điện thoại */
 ".hp-modalhd .mtsub:empty{display:none;}",
-/* 21/10 Mẫu 3: đầu pop-up = tiêu đề 2 dòng trái · «Mở yêu cầu ↗» + «Đóng» phải (cùng vị trí với thanh bên Vi phạm / Xác minh); chân = luỹ tiến trái · nút chính phải */
-".hp-vtdau{display:flex;align-items:center;gap:8px;flex:none;}.hp-vtdau #hpVtPg:empty{display:none;}",
-".hp-vtfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 20px;border-top:1px solid var(--border,#e8ecf1);flex:none;}.hp-vtfoot .hp-vtlt{padding:0;}",
+/* 21/10 user: pop-up ô → THANH BÊN PHẢI (web: trượt từ phải, cao hết màn; điện thoại: toàn màn, đầu trang trượt lên như Theo tác vụ/Theo máy) */
+"#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}#hpVtModal.show .hp-modalbox{transform:none;}",
+"#hpVtModal .hp-modalhd{align-items:flex-start;}#hpVtModal .hp-vtacts{min-width:0;max-width:60%;flex:none;}#hpVtModal .hp-vtr1{flex-wrap:wrap;justify-content:flex-end;}#hpVtModal .hp-modalhd>div:first-child{min-width:0;}",
+".hp-vtr1{display:flex;align-items:center;gap:8px;}.hp-vtpg{font-size:12px;white-space:nowrap;}.hp-vtpg:empty{display:none;}.hp-vt-tgon{display:none;}",
+"@media(max-width:768px){#hpVtModal .hp-modalbox{width:100vw!important;}body:has(#hpVtModal.show) header{translate:0 -100%;pointer-events:none}.hp-vt-tday{display:none}.hp-vt-tgon{display:inline}" +
+"#hpVtModal .hp-vtr1 .hsk-nut,#hpVtModal .hp-vtpg{min-height:28px!important;height:28px;padding:0 8px!important;font-size:13px!important;border-radius:6px}.hp-vtpg{border:1px solid var(--border,#e5e7eb);display:inline-flex;align-items:center;text-decoration:none}}",
 "@media(max-width:700px){#pane-planogram .hp-chiM{display:inline-flex;}#pane-planogram .hp-legrow{flex-wrap:nowrap;}" +
   /* 33 tên xổ ra thành 28 hàng (bộ đo răng cưa bắt 28/09) → 1 dải cuộn ngang; bấm tên vẫn soi ô trên sơ đồ */
   "#pane-planogram .hp-todo .hp-ptnhac{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-left:0;padding-bottom:2px;}#pane-planogram .hp-todo .hp-ptnhac .hp-ptchip{flex:0 0 auto;min-height:40px;}" +
@@ -1512,11 +1514,11 @@ var MODAL_HTML =
 '<div id="hpVtModal" class="hp-modal">' +
 '  <div class="hp-modalbox" style="width:min(680px,96vw);">' +
 '    <div class="hp-modalhd"><div><div class="mt" id="hpVtTitle"></div><div class="mtsub" id="hpVtSub"></div></div>' +
-'      <div class="hp-vtdau"><a id="hpVtPg" class="hsk-nut phu nho" target="_blank" rel="noopener"></a>' +
-'      <button type="button" class="hsk-nut phu nho hp-mdong" onclick="HPLANOGRAM.closeVt()">Đóng</button></div></div>' +
+/* 21/10 user: «Yêu cầu #…» và «Ghi nhận 5S» GIỮ NGUYÊN chỗ cũ (góc phải trên), chỉ ✕ → «Đóng»; pop-up thành THANH BÊN PHẢI (CSS #hpVtModal) */
+'      <div class="hp-vtacts"><div class="hp-vtr1"><a id="hpVtPg" class="hp-ext hp-vtpg" target="_blank" rel="noopener"></a><button type="button" class="hsk-nut phu nho hp-mdong" onclick="HPLANOGRAM.closeVt()">Đóng</button></div>' +
+'      <button type="button" id="hpVtGhi" class="hp-vtghi" onclick="HPLANOGRAM.ghiNhan5S()" title="Mở form Ghi nhận 5S (cần PIN) — vị trí và hiện trạng đã điền sẵn từ dữ liệu của ô này">Ghi nhận 5S</button>' +
+'      <span id="hpVtLt" class="hp-vtlt"></span></div></div>' +
 '    <div class="hp-modalbody" id="hpVtBody" style="padding:14px 20px 20px;"></div>' +
-/* 21/10 Mẫu 3 (đánh giá 20/10): chân pop-up = chữ luỹ tiến trái · nút CHÍNH «Ghi nhận 5S» phải — trước đây nút đỏ chữ nằm chen ở góc trên cạnh ✕ */
-'    <div class="hp-vtfoot"><span id="hpVtLt" class="hp-vtlt"></span><button type="button" id="hpVtGhi" class="hsk-nut chinh" onclick="HPLANOGRAM.ghiNhan5S()" title="Mở form Ghi nhận 5S (cần PIN) — vị trí và hiện trạng đã điền sẵn từ dữ liệu của ô này">Ghi nhận 5S</button></div>' +
 '  </div>' +
 '</div>' +
 '<div id="hpNkModal" class="hp-modal">' +
@@ -3657,7 +3659,8 @@ function renderVt(){
   var byNgay = {}; S.yc.rows.forEach(function(r){ if (khoaO(r.loc) !== kO) return;
     var cur = byNgay[r.ngay]; if (!cur || (cur.bk !== "da" && r.bk === "da")) byNgay[r.ngay] = r; });
   var r = byNgay[d] || null;
-  $id("hpVtTitle").textContent = locTitle(loc);
+  /* 21/10 user (điện thoại): «Kệ 05 · dãy 503 · F0-A1-503-05-04-01» → «A1-503-05-04-01»; web giữ đủ */
+  $id("hpVtTitle").innerHTML = '<span class="hp-vt-tday">' + esc(locTitle(loc)) + '</span><span class="hp-vt-tgon">' + esc(String(loc).replace(/^F0-/, "")) + '</span>';
   /* Ô là bàn đóng hàng A8 có camera → phụ đề mang luôn mã camera (map CAMERA_BAN, khoá theo khoaO);
    * ô khác giữ nguyên câu chú dẫn cũ. Chỉ đổi CHỮ — không đổi vị trí/màu/element. */
   $id("hpVtSub").textContent = CAMERA_BAN[kO]
@@ -3693,10 +3696,10 @@ function renderVt(){
     /* 1 badge nhóm; badge hệ thống CHỈ thêm khi mang nghĩa khác (Chờ duyệt/Đã duyệt/Từ chối) — tránh trùng lặp.
        Hyperlink duy nhất "Yêu cầu #… ↗" ở góc phải trên pop-up. */
     var themSt = (r.stId === 1 || /new/i.test(r.st)) ? "" : " " + stBadge(r);
-    rows.push(["Trạng thái", '<span class="hp-badge" style="background:color-mix(in srgb,' + m2.c + ' 15%,transparent);color:' + cellInk(m2) + '">' + esc(m2.lb) + '</span>' + themSt]);
-    /* Chưa ai báo cáo → MỘT dòng thay 3 dòng rỗng ("chưa có ai" · "chưa chấm" · "chưa có ảnh") cùng nói một ý */
-    if (!r.email) rows.push(["Báo cáo", '<span class="hp-hint">Chưa có ai báo cáo ngày này</span>']);
-    else {
+    /* 21/10 user: «Trạng thái» và «Báo cáo» gom 1 dòng: Trạng thái: … | Báo cáo: Chưa có ai */
+    rows.push(["Trạng thái", '<span class="hp-badge" style="background:color-mix(in srgb,' + m2.c + ' 15%,transparent);color:' + cellInk(m2) + '">' + esc(m2.lb) + '</span>' + themSt +
+      (!r.email ? ' <span class="hp-hint">| Báo cáo: Chưa có ai</span>' : "")]);
+    if (r.email) {   // (trước: else của «if (!r.email)» — nay gom vào dòng Trạng thái)
       rows.push(["Người báo cáo", r.email ? (esc(tenNm(r.email) || r.email) + (r.at ? ' <span class="hp-hint">lúc ' + esc(String(r.at).slice(11, 16) || r.at) + " " + ngayVN(r.ngay) + '</span>' : "")) : '<span class="hp-hint">— chưa có ai báo cáo trong ngày này</span>']);
       var ai = aiOf(r), aim = ai && aiMeta(ai.kl);
       rows.push(["AI xét duyệt", aim
@@ -3754,8 +3757,8 @@ function renderVt(){
       '<div class="hp-vtcard pt">' +
       '<div class="hd">Phụ trách <span class="hp-badge" style="background:color-mix(in srgb,' + mauNg + ' 14%,transparent);color:' + mauNg + '">' +
         esc(tuGS ? "Bảng phân công" : "Suy từ báo cáo gần nhất") + '</span></div>' +
-      '<div class="who"><span class="av" style="background:' + nmColor(ten) + '">' + esc(chuDau(ten)) + '</span>' +
-        '<div><b>' + esc(ten) + '</b><small>' + (pc.code ? esc(pc.code) + " · " : "") + esc(pc.em) + '</small></div></div>' +
+      /* 21/10 user «làm gọn cụm»: bỏ vòng chữ cái + email, 1 dòng tên · mã */
+      '<div class="who"><div><b>' + esc(ten) + '</b>' + (pc.code ? '<small>' + esc(pc.code) + '</small>' : "") + '</div></div>' +
       '<div class="cc"><span class="hp-dot" style="background:' + cc.c + '"></span>' +
         '<div><b style="color:' + cc.c + '">' + esc(cc.lb) + '</b>' +
         (cc.sub ? '<small' + (cc.subC ? ' style="color:' + cc.subC + ';font-weight:650"' : "") + '>' + esc(cc.sub) + '</small>' : "") +
@@ -3832,8 +3835,7 @@ function renderVt(){
   cardBc = '<div class="hp-vtcard ref"><div class="hd">Báo cáo gần nhất <span class="hp-hint" style="font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:500">tham khảo</span></div>';
   if (bcTen || bcEm){
     var tenBc = bcTen || bcEm;
-    cardBc += '<div class="who"><span class="av" style="background:' + nmColor(tenBc) + '">' + esc(chuDau(tenBc)) + '</span>' +
-      '<div><b>' + esc(tenBc) + '</b><small>' + (bcCode ? esc(bcCode) + (bcEm ? " · " : "") : "") + esc(bcEm) + '</small></div></div>' +
+    cardBc += '<div class="who"><div><b>' + esc(tenBc) + '</b>' + (bcCode ? '<small>' + esc(bcCode) + '</small>' : "") + '</div></div>' +
       '<div class="ln"><b>' + esc(thuVN(bcNgay)) + " " + esc(ngayVN(bcNgay)) + '</b>' +
         (bcGio ? ' lúc <b>' + esc(bcGio) + '</b>' : "") +
         (ptTuoiVt != null ? ' <span class="hp-hint">· ' + (ptTuoiVt > 0 ? ptTuoiVt + " ngày trước" : "hôm nay") + '</span>' : "") +

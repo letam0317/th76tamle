@@ -209,18 +209,14 @@
       ra.push(o("QC đêm · " + gio(DEMQUA.qc.luc), hong.length ? "warn" : "good", (bo.length - hong.length) + "/" + bo.length + " bộ đo đạt",
         hong.length ? "hỏng: " + e_(hong.join(", ")) : "không bộ nào hỏng"));
     }
-    if (DEMQUA.sl) {
-      var sl = DEMQUA.sl, loi = (sl.loi || []).length;
-      ra.push(o("Sao lưu · " + gio(sl.luc), loi ? "warn" : "good", String(sl.zipMB || 0).replace(".", ",") + " MB · " + Number(sl.soTep || 0).toLocaleString("vi-VN") + " tệp",
-        loi ? e_(sl.loi.join(" · ")) : "OneDrive · giữ 14 bản"));
-    }
+    /* 21/10 user «không cần sao lưu» → bỏ ô Sao lưu (task đã tắt) */
     if (DEMQUA.sk) {
       var p = DEMQUA.sk.props, pct = p.tranByte ? Math.round(p.byte / p.tranByte * 100) : 0;
       var sh = (DEMQUA.sk.sheets || []).filter(function (s) { return s.o; }).sort(function (a, b) { return b.o / b.tranO - a.o / a.tranO; })[0];
       ra.push(o("Kho dữ liệu Apps Script", pct >= 80 ? "bad" : pct >= 60 ? "warn" : "good", Math.round(p.byte / 1024) + " KB / " + Math.round(p.tranByte / 1024) + " KB (" + pct + "%)",
         p.so + " khoá" + (sh ? " · Sheet lớn nhất " + e_(sh.ten) + " " + Math.round(sh.o / sh.tranO * 100) + "% trần" : "")));
     }
-    return '<div class="panel mt-dem"><div class="panel-head"><span>Đêm qua máy làm gì</span><span class="muted">tự chạy 02:00 · 02:30 (chờ máy rảnh)</span></div>' +
+    return '<div class="panel mt-dem"><div class="panel-head"><span>Đêm qua máy làm gì</span><span class="muted">QC tự chạy 02:30 (chờ máy rảnh)</span></div>' +
       '<div class="mt-dem-ds">' + ra.join("") + "</div></div>";
   }
   function tai() {

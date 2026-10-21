@@ -124,6 +124,7 @@
    "hp-ptchip",
    "hp-tdrow",
    "hp-tile",
+   "hp-vtghi",
    "hp-vtmore",
    "hp-whtab",
    "hsk-nut",
@@ -360,7 +361,7 @@
   "dongDai": 13,
   "cdnKhongGhim": 1
  },
- "_luc": "2026-10-21T02:47:08.030Z",
+ "_luc": "2026-10-21T04:25:21.233Z",
  "_ghiTho": {
   "agy-xm.mjs": 5,
   "ai-hoi-anh.mjs": 1,

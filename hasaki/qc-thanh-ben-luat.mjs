@@ -51,7 +51,7 @@ for (const [w, h] of [[360, 780], [390, 844], [414, 896]]) {
       ghi("R6 chip ẩn khi không có dữ liệu", cay, tab === "tacvu" ? (x.vl > 0) === x.chip.includes("Không qua WMS") : (id === (mayGoc && mayGoc.id)) === x.chip.some((c) => /^Góc camera/.test(c)), { vl: x.vl, chip: x.chip });
       ghi("R7 Ghi nhận mặc định ẩn", cay, x.ghiAn); ghi("R8 Góc camera mặc định ẩn (điện thoại)", cay, x.gocAn);
       if (tab === "tacvu" && x.dong.length) ghi("R9 dòng tác động: số lượng · loại · vị trí nguồn đủ · ghi chú", cay, x.dong.every((t) => /^\d+ cái · [^·]+( · F0-[A-Z0-9-]+( [(][0-9]+[)])?)?( · .+)?$/.test(t)) && x.dong.some((t) => / · F0-/.test(t)), x.dong.slice(0, 2));
-      if (x.nv.length) ghi("R10 tên NV [email|trạng thái] tô màu", cay, x.nv.every((n) => /\[[^\]|]+@[^\]|]+\|(Active|Pending|Inactive)\]/.test(n.t) && /tt-(active|pending|inactive)/.test(n.c)), x.nv[0]);
+      if (x.nv.length) ghi("R10 tên NV [email|trạng thái] tô màu", cay, x.nv.every((n) => /\[@[^\]|\s]+ \|(Active|Pending|Inactive)\]/.test(n.t) && /tt-(active|pending|inactive)/.test(n.c)), x.nv[0]);   // 21/10 user: mẫu «Tên [@hamlx |Active]» (bỏ phần sau @)
       if (tab === "tacvu" && tvGy && id === tvGy.id) ghi("R11 Máy gợi ý ≤2 + «+N»", cay, x.gy.hien <= 2 && /^\+\d+ người khác$/.test(x.gy.nut || ""), x.gy);
       ghi("R12 Quyết định không dính đáy", cay, x.qdTinh); if (x.tlHang !== null) ghi("R13 thanh thời gian + Tự động/×1 cùng hàng", cay, x.tlHang);
       ghi("R14 mở / chuyển mục không giật (CLS ≤ 0,01)", cay, x.cls <= 0.01, x.cls); ghi("R15 không cuộn ngang", cay, x.ngang <= 0, x.ngang);
