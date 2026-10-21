@@ -63,7 +63,7 @@ var PAL = ["#f59e0b", "#8b5cf6", "#ef4444", "#10b981", "#ec4899", "#6366f1", "#0
 var NHOM_TEN = { PL: "Phụ liệu", NVL: "Nguyên liệu", KHAC: "Nhóm khác", ALL: "chung" };
 
 /* ===== STATE ===== */
-var S = { ok: false, data: { sku: [], loc: [] }, wh: "", lastAt: 0, tsData: 0 };
+var S = { ok: false, data: { sku: [], loc: [] }, wh: "", cdate: "", plan: "", id: "", src: "", req: "", st: "", lastAt: 0, tsData: 0 };
 var MODAL = { kind: null, metric: null, rows: [] };
 var FC = { kind: null, fc: null, U: "" };
 var FC_DP = { start: "", end: "" }, FC_LOC = null;   // khoảng "bắt đầu → hạn chót" của mô phỏng dự báo (FC_LOC = bộ lọc ngày chuẩn)
@@ -128,6 +128,11 @@ function nhomCat(c){ c = String(c || "").toLowerCase();
 }
 var VN_OFFSET = 7 * 60 * 60 * 1000;
 function vnDate(ms){ return new Date(ms + VN_OFFSET); }   // sau đó CHỈ đọc bằng getUTC* = giờ VN
+function dateIsoVN(ms){
+  if (isNaN(ms)) return "";
+  var d = vnDate(ms);
+  return d.getUTCFullYear() + "-" + p2(d.getUTCMonth() + 1) + "-" + p2(d.getUTCDate());
+}
 function todayMsVN(){ var n = vnDate(Date.now()); return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()); }
 function dayStr(ms){ var t = new Date(ms); return t.getUTCFullYear() + "-" + p2(t.getUTCMonth() + 1) + "-" + p2(t.getUTCDate()); }
 /* ETA từ NGÀY BẮT ĐẦU tuỳ chọn, Chủ nhật nghỉ */
@@ -150,8 +155,6 @@ var CSS = [
 "#pane-kk .hk-hint,.hk-modal .hk-hint{color:var(--muted,#9ca3af);font-size:11.5px;font-weight:400;letter-spacing:0;text-transform:none;}",
 /* chip lọc kho (cross-filter cấp tab) */
 "#pane-kk .hk-whbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px;}",
-"#pane-kk .hk-locbar{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,260px));gap:12px;margin:0 0 16px;}",
-"#pane-kk .hk-locbar label{display:flex;flex-direction:column;gap:4px;}",
 
 /* Tên kho dài ("WH - MATERIAL - GARMENT") nên trên màn 360px mỗi chip ăn trọn một hàng ⇒ thanh
    vỡ 4 hàng / 144px = 18% màn hình trước khi thấy số liệu (bộ đo bắt được 21/08/2026). Về MỘT
@@ -182,8 +185,19 @@ var CSS = [
 "#pane-kk #hkBtnLoc:hover,#pane-kk #hkBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
   "background:color-mix(in srgb,var(--accent) 8%,var(--surface));}",
 "#pane-kk #hkWhBar.collapsed{display:none!important;}",
-"#pane-kk #hkWhBar:not(.collapsed){transform-origin:top center;animation:popIn .22s cubic-bezier(.16,1,.3,1);margin:0 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}",
-"#pane-kk #hkWhBar .lbl{display:none;}",
+"#pane-kk #hkWhBar:not(.collapsed){display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 10px;align-items:flex-end;" +
+  "transform-origin:top center;animation:popIn .22s cubic-bezier(.16,1,.3,1);" +
+  "margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}",
+"#pane-kk .hk-locfld{display:flex;flex-direction:column;gap:3px;min-width:0;}",
+"#pane-kk .hk-locfld label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}",
+"#pane-kk .hk-locfld input,#pane-kk .hk-locfld select{height:28px;min-height:28px;padding:0 8px;font-size:12px;" +
+  "border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);box-sizing:border-box;width:100%;outline:none;}",
+"#pane-kk .hk-locfld input:focus,#pane-kk .hk-locfld select:focus{border-color:var(--accent);}",
+"#pane-kk .hk-locacts{display:flex;align-items:center;gap:6px;min-height:28px;}",
+"#pane-kk .hk-locacts button.hk-fcg{height:28px;min-height:28px;padding:0 10px;font-size:12px;border-radius:6px;" +
+  "border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}",
+"#pane-kk .hk-locacts button.hk-fcg:hover{color:var(--accent);border-color:var(--accent);}",
+"@media(max-width:768px){#pane-kk #hkWhBar:not(.collapsed){grid-template-columns:repeat(2,minmax(0,1fr));}}",
 "@media(max-width:768px){#pane-kk .hk-hang1{grid-template-columns:minmax(0,1fr);}}",
 "@media(max-width:1024px){#pane-kk .hk-span2{grid-column:auto;}}",
 "#pane-kk .hk-panel h2{margin:0 0 10px;font-size:14px;font-weight:680;color:var(--text,#374151);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}",
@@ -392,13 +406,34 @@ function idxOf(H, names){ for (var i = 0; i < names.length; i++){ var j = H.inde
 function mapRows(kind, H, rows){
   var g = function(r, i){ return i >= 0 && r[i] != null ? r[i] : ""; };
   if (kind === "sku"){
-    var c = { id: idxOf(H, ["ID"]), req: idxOf(H, ["Request code"]), wh: idxOf(H, ["Warehouse"]), sku: idxOf(H, ["SKU"]), pn: idxOf(H, ["Product Name"]), cat: idxOf(H, ["Category"]), type: idxOf(H, ["Type"]), inv: idxOf(H, ["Inventory"]), cnt: idxOf(H, ["Quantity Count"]), by: idxOf(H, ["Counted by"]), cdate: idxOf(H, ["Counted date"]), upd: idxOf(H, ["Updated At"]), plan: idxOf(H, ["Plan Date"]), st: idxOf(H, ["Status"]) };
+    var c = { id: idxOf(H, ["ID"]), req: idxOf(H, ["Request code"]), src: idxOf(H, ["Source code", "Source"]),
+      wh: idxOf(H, ["Warehouse"]), sku: idxOf(H, ["SKU"]), pn: idxOf(H, ["Product Name"]),
+      cat: idxOf(H, ["Category"]), type: idxOf(H, ["Type"]), inv: idxOf(H, ["Inventory"]),
+      cnt: idxOf(H, ["Quantity Count"]), by: idxOf(H, ["Counted by"]), cdate: idxOf(H, ["Counted date"]),
+      upd: idxOf(H, ["Updated At"]), plan: idxOf(H, ["Plan Date"]), st: idxOf(H, ["Status"]) };
     if (c.sku < 0 || c.wh < 0) return null;   // tab chưa có / sai nguồn
-    return rows.filter(function(r){ return String(g(r, c.sku)) !== ""; }).map(function(r){ return { id: String(g(r, c.id)), req: String(g(r, c.req)), wh: String(g(r, c.wh)), sku: String(g(r, c.sku)), pn: String(g(r, c.pn)), cat: String(g(r, c.cat)), type: String(g(r, c.type)), inv: Number(g(r, c.inv)) || 0, cnt: (g(r, c.cnt) === "" ? null : Number(g(r, c.cnt)) || 0), by: String(g(r, c.by)), cdate: String(g(r, c.cdate)), upd: String(g(r, c.upd)), plan: String(g(r, c.plan)), st: String(g(r, c.st)) }; });
+    return rows.filter(function(r){ return String(g(r, c.sku)) !== ""; }).map(function(r){
+      return { id: String(g(r, c.id)), req: String(g(r, c.req)), src: String(g(r, c.src)),
+        wh: String(g(r, c.wh)), sku: String(g(r, c.sku)), pn: String(g(r, c.pn)),
+        cat: String(g(r, c.cat)), type: String(g(r, c.type)), inv: Number(g(r, c.inv)) || 0,
+        cnt: (g(r, c.cnt) === "" ? null : Number(g(r, c.cnt)) || 0), by: String(g(r, c.by)),
+        cdate: String(g(r, c.cdate)), upd: String(g(r, c.upd)), plan: String(g(r, c.plan)),
+        st: String(g(r, c.st)) };
+    });
   }
-  var d = { id: idxOf(H, ["ID"]), req: idxOf(H, ["Request code"]), wh: idxOf(H, ["Warehouse"]), type: idxOf(H, ["Type"]), loc: idxOf(H, ["Location"]), pri: idxOf(H, ["Priority"]), diff: idxOf(H, ["Diff"]), by: idxOf(H, ["Counted by"]), cdate: idxOf(H, ["Counted date"]), upd: idxOf(H, ["Updated At"]), plan: idxOf(H, ["Plan Date"]), st: idxOf(H, ["Status"]) };
+  var d = { id: idxOf(H, ["ID"]), req: idxOf(H, ["Request code"]), src: idxOf(H, ["Source code", "Source"]),
+    wh: idxOf(H, ["Warehouse"]), type: idxOf(H, ["Type"]), loc: idxOf(H, ["Location"]),
+    pri: idxOf(H, ["Priority"]), diff: idxOf(H, ["Diff"]), by: idxOf(H, ["Counted by"]),
+    cdate: idxOf(H, ["Counted date"]), upd: idxOf(H, ["Updated At"]), plan: idxOf(H, ["Plan Date"]),
+    st: idxOf(H, ["Status"]) };
   if (d.loc < 0 || d.wh < 0) return null;
-  return rows.filter(function(r){ return String(g(r, d.loc)) !== ""; }).map(function(r){ return { id: String(g(r, d.id)), req: String(g(r, d.req)), wh: String(g(r, d.wh)), type: String(g(r, d.type)), loc: String(g(r, d.loc)), pri: String(g(r, d.pri)), diff: Number(g(r, d.diff)) || 0, by: String(g(r, d.by)), cdate: String(g(r, d.cdate)), upd: String(g(r, d.upd)), plan: String(g(r, d.plan)), st: String(g(r, d.st)) }; });
+  return rows.filter(function(r){ return String(g(r, d.loc)) !== ""; }).map(function(r){
+    return { id: String(g(r, d.id)), req: String(g(r, d.req)), src: String(g(r, d.src)),
+      wh: String(g(r, d.wh)), type: String(g(r, d.type)), loc: String(g(r, d.loc)),
+      pri: String(g(r, d.pri)), diff: Number(g(r, d.diff)) || 0, by: String(g(r, d.by)),
+      cdate: String(g(r, d.cdate)), upd: String(g(r, d.upd)), plan: String(g(r, d.plan)),
+      st: String(g(r, d.st)) };
+  });
 }
 function parseResp(kind, resp){
   try{
@@ -441,7 +476,19 @@ function capNhatInfo(){
 }
 
 /* ===== MÔ HÌNH DỮ LIỆU (cross-filter kho + khử trùng phiếu — port từ factory) ===== */
-function rowsScope(kind){ var rs = S.data[kind]; return S.wh ? rs.filter(function(r){ return r.wh === S.wh; }) : rs; }
+function rowsScope(kind){
+  var rs = S.data[kind];
+  return rs.filter(function(r){
+    if (S.wh && r.wh !== S.wh) return false;
+    if (S.st && stKey(r) !== S.st) return false;
+    if (S.id && String(r.id || "").toLowerCase().indexOf(S.id.toLowerCase()) < 0) return false;
+    if (S.src && String(r.src || "").toLowerCase().indexOf(S.src.toLowerCase()) < 0) return false;
+    if (S.req && String(r.req || "").toLowerCase().indexOf(S.req.toLowerCase()) < 0) return false;
+    if (S.cdate){ var d = parseDate(r.cdate); if (isNaN(d) || dateIsoVN(d) !== S.cdate) return false; }
+    if (S.plan){ var p = parseDate(r.plan); if (isNaN(p) || dateIsoVN(p) !== S.plan) return false; }
+    return true;
+  });
+}
 function keyOf(kind, r){ return r.wh + "|" + ((kind === "sku") ? r.sku : r.loc); }
 /* "Đã kiểm" (cấp phiếu) = có Counted Date HOẶC Status thực (khác rỗng/NOT COUNT) */
 function isChecked(r){ return !isNaN(parseDate(r.cdate)) || stKey(r) !== "NOT COUNT"; }
@@ -525,22 +572,97 @@ function render(){
   renderWh();
   capNhatInfo();
 }
-/* Thanh chip lọc kho đầu tab: "Tất cả kho" + từng kho (chấm màu đồng bộ thẻ kho) */
+function resetLoc(){
+  S.wh = ""; S.cdate = ""; S.plan = ""; S.id = ""; S.src = ""; S.req = ""; S.st = "";
+  render();
+}
+/* Thanh lọc kiểm kê: Kho, Ngày kiểm, Ngày kế hoạch, ID, Source code, Request code, Status */
 function renderWhBar(){
-  /* 12/10 user bỏ bộ lọc Kho ("xấu quá") → 15/10 user muốn lại thẻ «Bộ lọc» đầu hàng 1 (cùng khuôn Factory): ô Kho trong thẻ, không nhãn rời */
-  /* 12/10 user: bỏ dải chip "Trạng thái kiểm kê theo kho" — lọc kho chuyển sang Ô CHỌN kiểu bộ lọc chung (nhãn + combo như
-     Xác minh › Nhật ký). Số phiếu theo kho nằm ngay trong lựa chọn. */
   var el = $id("hkWhBar"); if (!el) return;
-  var dem = {}; ["sku", "loc"].forEach(function(k){ S.data[k].forEach(function(r){ if (r.wh) dem[r.wh] = (dem[r.wh] || 0) + 1; }); });
+  var dem = {};
+  ["sku", "loc"].forEach(function(k){
+    S.data[k].forEach(function(r){ if (r.wh) dem[r.wh] = (dem[r.wh] || 0) + 1; });
+  });
   var ws = Object.keys(dem).sort();
   if (!ws.length){ el.innerHTML = ""; return; }
   var tong = ws.reduce(function(a, w){ return a + dem[w]; }, 0);
-  el.innerHTML = '<label><span class="lbl">Kho</span><select id="hkWhSel"><option value="">Tất cả kho (' + nf(tong) + ')</option>' +
-    ws.map(function(w){ return '<option value="' + esc(w) + '"' + (S.wh === w ? " selected" : "") + '>' + esc(w) + ' (' + nf(dem[w]) + ')</option>'; }).join("") + '</select></label>';
-  var sel = $id("hkWhSel");
-  sel.onchange = function(){ S.wh = sel.value; render(); };
-  if (typeof window.enhanceSelect === "function") window.enhanceSelect(sel);
+
+  var stDem = {};
+  ["sku", "loc"].forEach(function(k){
+    S.data[k].forEach(function(r){
+      var s = stKey(r); if (s) stDem[s] = (stDem[s] || 0) + 1;
+    });
+  });
+  var stList = ST_ORDER.filter(function(s){ return stDem[s]; });
+  Object.keys(stDem).forEach(function(s){ if (stList.indexOf(s) < 0) stList.push(s); });
+
+  var coLoc = !!(S.wh || S.cdate || S.plan || S.id || S.src || S.req || S.st);
+
+  var h =
+    '<div class="hk-locfld"><label>Kho</label><select id="hkWhSel"><option value="">Tất cả kho (' + nf(tong) + ')</option>' +
+    ws.map(function(w){
+      return '<option value="' + esc(w) + '"' + (S.wh === w ? " selected" : "") + '>' + esc(w) + ' (' + nf(dem[w]) + ')</option>';
+    }).join("") +
+    '</select></div>' +
+    '<div class="hk-locfld"><label>Ngày kiểm</label><input type="date" id="hkCdateInp" value="' + esc(S.cdate || "") + '" title="Ngày kiểm (Counted date)"></div>' +
+    '<div class="hk-locfld"><label>Ngày kế hoạch</label><input type="date" id="hkPlanInp" value="' + esc(S.plan || "") + '" title="Ngày kế hoạch (Plan date)"></div>' +
+    '<div class="hk-locfld"><label>ID</label><input type="text" id="hkIdInp" placeholder="Tìm ID…" value="' + esc(S.id || "") + '"></div>' +
+    '<div class="hk-locfld"><label>Source code</label><input type="text" id="hkSrcInp" placeholder="Source code…" value="' + esc(S.src || "") + '"></div>' +
+    '<div class="hk-locfld"><label>Request code</label><input type="text" id="hkReqInp" placeholder="Request code…" value="' + esc(S.req || "") + '"></div>' +
+    '<div class="hk-locfld"><label>Status</label><select id="hkStSel"><option value="">Tất cả trạng thái</option>' +
+    stList.map(function(s){
+      return '<option value="' + esc(s) + '"' + (S.st === s ? " selected" : "") + '>' + esc(s) + ' (' + nf(stDem[s]) + ')</option>';
+    }).join("") +
+    '</select></div>' +
+    (coLoc ? '<div class="hk-locacts"><button type="button" class="hk-fcg" onclick="HKIEMKE.resetLoc()" title="Xoá tất cả bộ lọc">Đặt lại</button></div>' : '');
+
+  var actId = document.activeElement ? document.activeElement.id : null;
+  var cStart = (actId && document.activeElement && typeof document.activeElement.selectionStart === "number")
+    ? document.activeElement.selectionStart : null;
+  var cEnd = (actId && document.activeElement && typeof document.activeElement.selectionEnd === "number")
+    ? document.activeElement.selectionEnd : null;
+
+  el.innerHTML = h;
+
+  var whSel = $id("hkWhSel"); if (whSel) whSel.onchange = function(){ S.wh = this.value; render(); };
+  var stSel = $id("hkStSel"); if (stSel) stSel.onchange = function(){ S.st = this.value; render(); };
+  var cdInp = $id("hkCdateInp"); if (cdInp) cdInp.onchange = function(){ S.cdate = this.value; render(); };
+  var plInp = $id("hkPlanInp"); if (plInp) plInp.onchange = function(){ S.plan = this.value; render(); };
+
+  var idInp = $id("hkIdInp");
+  if (idInp) idInp.oninput = function(){
+    clearTimeout(_debT);
+    var v = this.value.trim();
+    _debT = setTimeout(function(){ S.id = v; render(); }, 300);
+  };
+
+  var srcInp = $id("hkSrcInp");
+  if (srcInp) srcInp.oninput = function(){
+    clearTimeout(_debT);
+    var v = this.value.trim();
+    _debT = setTimeout(function(){ S.src = v; render(); }, 300);
+  };
+
+  var reqInp = $id("hkReqInp");
+  if (reqInp) reqInp.oninput = function(){
+    clearTimeout(_debT);
+    var v = this.value.trim();
+    _debT = setTimeout(function(){ S.req = v; render(); }, 300);
+  };
+
+  if (actId && $id(actId)){
+    var fEl = $id(actId);
+    fEl.focus();
+    if (cStart !== null && typeof fEl.setSelectionRange === "function"){
+      fEl.setSelectionRange(cStart, cEnd);
+    }
+  }
+
   var btn = $id("hkBtnLoc");
+  if (btn){
+    var nLoc = [S.wh, S.cdate, S.plan, S.id, S.src, S.req, S.st].filter(Boolean).length;
+    btn.textContent = nLoc ? "Bộ lọc (" + nLoc + ")" : "Bộ lọc";
+  }
   if (!el.classList.contains("collapsed") && (!btn || !btn.classList.contains("mo"))) el.classList.add("collapsed");
 }
 function toggleLoc(){
@@ -945,24 +1067,29 @@ function tablePhieu(kind, rs){
         dcell(r.cnt == null ? 0 : e.d, "Lệch") +
         '<td class="num" data-lb="Tồn">' + nf(r.inv) + "</td>" +
         '<td class="num' + (r.cnt == null ? " mb-0" : "") + '" data-lb="Đã đếm">' + (r.cnt == null ? "—" : nf(r.cnt)) + "</td>" +
-        tdl(r.type, "Type") + tdl(r.req, "Phiếu") + tdl(r.by, "Người đếm") +
+        tdl(r.type, "Type") + tdl(r.req, "Request") + tdl(r.src, "Source") + tdl(r.by, "Người đếm") +
         tdh(fmtD(parseDate(r.cdate)), r.cdate, "Ngày đếm") +
         tdh(fmtD(parseDate(r.plan), true), r.plan, "Ngày kế hoạch") +
         '<td class="mb-tag"><span class="hk-badge ' + badgeCls(r.st) + '">' + (r.st ? esc(r.st) : "—") + "</span></td></tr>");
     }
-    return '<div class="hk-wrap"><table class="mbcard"><thead><tr>' + (_hpc() ? HPC.headCell() : "") + '<th>ID</th><th>SKU</th><th>Category</th><th class="num">Diff</th><th class="num">Inventory</th><th class="num">Qty count</th><th>Type</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' + (out.join("") || emptyRow(_hpc() ? 13 : 12)) + "</tbody></table></div>" +
+    return '<div class="hk-wrap"><table class="mbcard"><thead><tr>' + (_hpc() ? HPC.headCell() : "") +
+      '<th>ID</th><th>SKU</th><th>Category</th><th class="num">Diff</th><th class="num">Inventory</th><th class="num">Qty count</th>' +
+      '<th>Type</th><th>Request</th><th>Source</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead>' +
+      '<tbody>' + (out.join("") || emptyRow(_hpc() ? 14 : 13)) + "</tbody></table></div>" +
       '<div class="hk-note">' + (rs.length > CAP ? ("Hiển thị " + nf(CAP) + " / " + nf(rs.length) + " dòng — lọc để thu hẹp.") : (nf(rs.length) + " dòng.")) + "</div>";
   }
   for (var j = 0; j < rs.length && out.length < CAP; j++){ var l = rs[j];
     out.push("<tr>" + tdh(idLink(l.id, "loc"), l.id, "ID") +
       '<td class="mb-hd"><b>' + esc(l.loc) + "</b></td>" +
       tdl(l.wh, "Kho") + tdl(l.type, "Type") + tdl(l.pri, "Ưu tiên") + dcell(l.diff, "Lệch") +
-      tdl(l.req, "Phiếu") + tdl(l.by, "Người đếm") +
+      tdl(l.req, "Request") + tdl(l.src, "Source") + tdl(l.by, "Người đếm") +
       tdh(fmtD(parseDate(l.cdate)), l.cdate, "Ngày đếm") +
       tdh(fmtD(parseDate(l.plan), true), l.plan, "Ngày kế hoạch") +
       '<td class="mb-tag"><span class="hk-badge ' + badgeCls(l.st) + '">' + (l.st ? esc(l.st) : "—") + "</span></td></tr>");
   }
-  return '<div class="hk-wrap"><table class="mbcard"><thead><tr><th>ID</th><th>Location</th><th>Warehouse</th><th>Type</th><th>Priority</th><th class="num">Diff</th><th>Request</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead><tbody>' + (out.join("") || emptyRow(11)) + "</tbody></table></div>" +
+  return '<div class="hk-wrap"><table class="mbcard"><thead><tr><th>ID</th><th>Location</th><th>Warehouse</th><th>Type</th><th>Priority</th>' +
+    '<th class="num">Diff</th><th>Request</th><th>Source</th><th>Counted by</th><th>Counted date</th><th>Plan date</th><th>Status</th></tr></thead>' +
+    '<tbody>' + (out.join("") || emptyRow(12)) + "</tbody></table></div>" +
     '<div class="hk-note">' + (rs.length > CAP ? ("Hiển thị " + nf(CAP) + " / " + nf(rs.length) + " dòng — lọc để thu hẹp.") : (nf(rs.length) + " dòng.")) + "</div>";
 }
 /* Bảng DANH SÁCH MÃ distinct (kho|mã) — metric total (coKiem=true, kèm cột trạng thái) & notcount */
@@ -1012,7 +1139,8 @@ function openModal(kind, metric){
 /* Thanh lọc TỰ SINH từ dữ liệu bảng — chỉ sinh combo khi cột có >1 giá trị thực */
 function buildFilters(){
   var rows = MODAL.rows;
-  var defs = [{ k: "wh", lb: "Warehouse" }, { k: "cat", lb: "Category" }, { k: "type", lb: "Type" }, { k: "st", lb: "Trạng thái" }, { k: "by", lb: "Counted by" }];
+  var defs = [{ k: "wh", lb: "Warehouse" }, { k: "st", lb: "Status" }, { k: "src", lb: "Source code" },
+    { k: "req", lb: "Request code" }, { k: "cat", lb: "Category" }, { k: "type", lb: "Type" }, { k: "by", lb: "Counted by" }];
   var html = "";
   defs.forEach(function(d){
     var uniq = new Set();
@@ -1043,7 +1171,7 @@ function rowsWith(excludeK, state, q){
       if (f.exact){ if (cell !== f.raw) return false; }
       else if (cell.toLowerCase().indexOf(f.v) < 0) return false;
     }
-    if (q && ((r.sku || "") + " " + (r.pn || "") + " " + (r.loc || "") + " " + (r.wh || "")).toLowerCase().indexOf(q) < 0) return false;
+    if (q && ((r.sku || "") + " " + (r.pn || "") + " " + (r.loc || "") + " " + (r.wh || "") + " " + (r.id || "") + " " + (r.src || "") + " " + (r.req || "")).toLowerCase().indexOf(q) < 0) return false;
     return true;
   });
 }
@@ -1140,7 +1268,7 @@ function init(pane){
 }
 
 window.HKIEMKE = {
-  init: init, reload: loadData, setWh: setWh, toggleLoc: toggleLoc,
+  init: init, reload: loadData, setWh: setWh, toggleLoc: toggleLoc, resetLoc: resetLoc,
   open: openModal, closeModal: closeModal,
   comboInput: comboInput, comboMenu: comboMenu, quick: quick,
   fcOpen: fcOpen, closeFc: closeFc, fcToggle: fcToggle, fcSim: fcSim,
