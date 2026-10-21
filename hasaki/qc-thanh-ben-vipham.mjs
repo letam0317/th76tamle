@@ -42,7 +42,7 @@ for (const m of MAY) {
   const v1 = await tt();
   ok(v1.show && v1.ben && v1.hien && /rgba\(0, 0, 0, 0\)|transparent/.test(v1.nen), m.ten + ": V1 thanh mở, không phủ nền " + JSON.stringify([v1.show, v1.ben, v1.hien, v1.nen]));
   ok(Math.abs(v1.phai - v1.mep) <= 17, m.ten + ": V1 sát mép phải (" + v1.phai + "/" + v1.mep + ")");
-  if (!m.mob) { ok(v1.trai > 300 && v1.trai <= 430, m.ten + ": V1 còn chỗ bên trái bấm dòng (trái=" + v1.trai + ")"); ok(!v1.side, m.ten + ": V1 thanh trái tự thu"); }
+  if (!m.mob) { ok(v1.trai > 300 && Math.abs(v1.mep - v1.trai - 740) <= 20, m.ten + ": V1 thanh rộng 740 px, còn chỗ bên trái bấm dòng (trái=" + v1.trai + ")"); ok(!v1.side, m.ten + ": V1 thanh trái tự thu"); }
   ok(!v1.dauTran, m.ten + ": V2 nút Đóng / Mở task nằm trong màn");
   if (m.mob) ok(v1.rong >= m.w - 1 && v1.dong >= 44 && v1.tabCao >= 40, m.ten + ": V10 điện thoại phủ ngang, Đóng " + v1.dong + "px, bước " + v1.tabCao + "px");
   ok(v1.t1.length > 5 && /^HSK-/.test(v1.t2), m.ten + ": V2 tiêu đề 2 dòng (tên / mã) «" + v1.t2 + "»");

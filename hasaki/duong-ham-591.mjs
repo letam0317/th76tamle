@@ -15,6 +15,7 @@ import path from "node:path";
 import { spawn, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import "dotenv/config";
+import { ghiJson } from "./so-ghi.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXE = path.join(DIR, "bin", "cloudflared.exe");
@@ -70,7 +71,7 @@ function chay() {
     const m = String(b).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (!m || URLH) return;
     URLH = m[0]; log("địa chỉ:", URLH);
-    try { fs.writeFileSync(TEP_URL, JSON.stringify({ url: URLH, pid: process.pid, luc: new Date().toISOString() })); } catch { /* */ } ghiChung({ url: URLH });   /* 21/10: kèm pid + ghi ngay (trước: chỉ ghi khi đổi URL và KHÔNG có pid → nhịp tim laptop đọc hỏng → điện thoại rơi vào bản chỉ xem) */
+    try { ghiJson(TEP_URL, { url: URLH, pid: process.pid, luc: new Date().toISOString() }, { thut: 0 }); } catch { /* */ } ghiChung({ url: URLH });   /* 21/10: kèm pid + ghi ngay (trước: chỉ ghi khi đổi URL và KHÔNG có pid → nhịp tim laptop đọc hỏng → điện thoại rơi vào bản chỉ xem) */
     for (let i = 0; i < 24 && !(await pingQuaHam(URLH)); i++) await new Promise((r) => setTimeout(r, 5000));   // DNS mới cần vài giây
     if (DU_PHONG) return log("bản dự phòng — địa chỉ gửi kèm nhịp tim, không ghi GitHub");
     let cu = {}; try { cu = JSON.parse(fs.readFileSync(path.join(DIR, "kiemsoatkho", TEP), "utf8")); } catch { /* */ }
@@ -81,7 +82,7 @@ function chay() {
 }
 setInterval(async () => {
   if (!CF || !URLH) return;
-  if (await pingQuaHam(URLH)) { hong = 0; try { fs.writeFileSync(TEP_URL, JSON.stringify({ url: URLH, pid: process.pid, luc: new Date().toISOString() })); } catch { /* */ } ghiChung({ url: URLH }); return; }   /* 21/10: làm mới «luc» mỗi 3' → nhip-pc xmHam() nhận tệp ≤45' kể cả khi không soi được tiến trình */
+  if (await pingQuaHam(URLH)) { hong = 0; try { ghiJson(TEP_URL, { url: URLH, pid: process.pid, luc: new Date().toISOString() }, { thut: 0 }); } catch { /* */ } ghiChung({ url: URLH }); return; }   /* 21/10: làm mới «luc» mỗi 3' → nhip-pc xmHam() nhận tệp ≤45' kể cả khi không soi được tiến trình */
   if (!(await fetch(GOC + "/api/ping").then((r) => r.ok, () => false))) return log("máy chủ 8591 chưa chạy — chờ");
   if (++hong >= 3) { log("3 lần không ping được qua đường hầm → khởi động lại"); CF.kill(); }
 }, 3 * 60 * 1000);
