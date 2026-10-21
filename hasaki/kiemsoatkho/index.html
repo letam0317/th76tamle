@@ -1238,7 +1238,7 @@ body.side-open #sideNav{transform:none;}
 /* 15/10 (lượt 2) user «Kiểm kê và Bất thường là 2 khung khác nhau — đóng khung cho đẹp»: mỗi phần = 1 khung (Card antd) — tiêu đề là đầu khung, vạch ngăn dưới */
 #pane-kk:not(.hidden),#pane-htonbat:not(.hidden){border:1px solid var(--ad-chia,var(--border));border-radius:8px;background:var(--surface);padding:0 24px 4px;margin-bottom:16px}
 #pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{display:block;margin:0 -24px;padding:16px 24px;border-bottom:1px solid var(--ad-chia,var(--border));background:var(--surface);border-radius:8px 8px 0 0;font-size:16px;font-weight:600;line-height:24px;color:var(--text)}
-#pane-kk:not(.hidden)::before{content:"Kiểm kê"}
+#pane-kk:not(.hidden)::before{display:none!important;content:""}
 #pane-htonbat:not(.hidden)::before{content:"Bất thường"}
 @media(max-width:768px){#pane-kk:not(.hidden),#pane-htonbat:not(.hidden){padding:0 8px 8px}#pane-kk:not(.hidden)::before,#pane-htonbat:not(.hidden)::before{margin:0 -8px 12px;padding:10px 16px}}
 /* 15/10 user «Cập nhật sao hiển thị 2 lần»: 1 viên chung ở cuối trang (viên của Bất thường) — viên Kiểm kê ẩn, giờ/tooltip/bấm gộp cả 2 nguồn (cnGopVe) */

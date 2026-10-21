@@ -170,22 +170,20 @@ var CSS = [
 "#pane-kk .hk-span2{grid-column:1/-1;display:block;}",
 "#pane-kk .hk-hang1{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:stretch;}",
 "#pane-kk .hk-hang1 > .hk-panel{margin:0;min-width:0;}",
-"#pane-kk .hk-boloc h2{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;}",
-"#pane-kk .hk-boloc #hkBtnLoc{display:none;}",
-"@media(max-width:768px){" +
-  "#pane-kk .hk-boloc #hkBtnLoc{position:relative;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;" +
+"#pane-kk .hk-dau-panel{display:flex;justify-content:space-between;align-items:center;margin:0 -24px 12px;padding:16px 24px;border-bottom:1px solid var(--border);background:var(--surface);border-radius:8px 8px 0 0;}",
+"@media(max-width:768px){#pane-kk .hk-dau-panel{margin:0 -8px 12px;padding:10px 16px;}}",
+"#pane-kk .hk-dau-td{font-size:16px;font-weight:600;line-height:24px;color:var(--text);}",
+"#pane-kk #hkBtnLoc{position:relative;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;" +
   "margin-left:auto;padding:0 10px;height:28px;min-height:28px;font-size:12px;font-weight:500;line-height:1;" +
-  "border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}" +
-  "#pane-kk .hk-boloc #hkBtnLoc::after{content:'';display:inline-block;width:5.5px;height:5.5px;border-right:1.5px solid currentColor;" +
-  "border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);transition:transform .22s ease;}" +
-  "#pane-kk .hk-boloc #hkBtnLoc.mo::after{transform:translateY(1.5px) rotate(-135deg);}" +
-  "#pane-kk .hk-boloc #hkBtnLoc:hover,#pane-kk .hk-boloc #hkBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
-  "background:color-mix(in srgb,var(--accent) 8%,var(--surface));}" +
-  "#pane-kk .hk-boloc .hk-locbar.collapsed{display:none!important;}" +
-  "#pane-kk .hk-boloc .hk-locbar:not(.collapsed){transform-origin:top center;animation:popIn .22s cubic-bezier(.16,1,.3,1);}" +
-"}",
-"#pane-kk .hk-boloc .hk-locbar{display:block;margin:0;}",
-"#pane-kk .hk-boloc .hk-locbar .lbl{display:none;}",
+  "border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}",
+"#pane-kk #hkBtnLoc::after{content:'';display:inline-block;width:5.5px;height:5.5px;border-right:1.5px solid currentColor;" +
+  "border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);transition:transform .22s ease;}",
+"#pane-kk #hkBtnLoc.mo::after{transform:translateY(1.5px) rotate(-135deg);}",
+"#pane-kk #hkBtnLoc:hover,#pane-kk #hkBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
+  "background:color-mix(in srgb,var(--accent) 8%,var(--surface));}",
+"#pane-kk #hkWhBar.collapsed{display:none!important;}",
+"#pane-kk #hkWhBar:not(.collapsed){transform-origin:top center;animation:popIn .22s cubic-bezier(.16,1,.3,1);margin:0 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}",
+"#pane-kk #hkWhBar .lbl{display:none;}",
 "@media(max-width:768px){#pane-kk .hk-hang1{grid-template-columns:minmax(0,1fr);}}",
 "@media(max-width:1024px){#pane-kk .hk-span2{grid-column:auto;}}",
 "#pane-kk .hk-panel h2{margin:0 0 10px;font-size:14px;font-weight:680;color:var(--text,#374151);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}",
@@ -331,11 +329,9 @@ var CSS = [
 /* ===== KHUNG HTML ===== */
 var KHUNG =
 /* 15/10 user (Retail + Factory cùng khuôn): HÀNG 1 = [Bộ lọc] [Tiến độ theo kho] · HÀNG 2 = [Kiểm kê theo SKU] [Kiểm kê theo mã vị trí] */
+'<div class="hk-dau-panel"><div class="hk-dau-td">Kiểm kê</div><button type="button" class="hk-fcg" id="hkBtnLoc" onclick="HKIEMKE.toggleLoc()">Bộ lọc</button></div>' +
+'<div class="hk-locbar collapsed" id="hkWhBar"></div>' +
 '<div class="hk-grid2" id="hkGrid" style="display:none">' +
-'  <div class="hk-hang1 hk-span2">' +
-'    <section class="hk-panel hk-boloc"><h2><span>Bộ lọc</span><button type="button" id="hkBtnLoc" onclick="HKIEMKE.toggleLoc()">Bộ lọc</button></h2><div class="hk-locbar" id="hkWhBar"></div></section>' +
-'    <section class="hk-panel"><h2>Tiến độ theo kho</h2><div class="hk-whlist" id="hkWhList"></div></section>' +
-'  </div>' +
 '  <section class="hk-panel">' +
 '    <h2>Kiểm kê theo SKU <span class="hk-hint">(type SKU)</span> <span class="hk-scope" id="hkScope-sku" hidden></span></h2>' +
 '    <div class="hk-strip" id="hkStrip-sku"></div>' +
@@ -544,10 +540,8 @@ function renderWhBar(){
   var sel = $id("hkWhSel");
   sel.onchange = function(){ S.wh = sel.value; render(); };
   if (typeof window.enhanceSelect === "function") window.enhanceSelect(sel);
-  if (window.matchMedia("(max-width:768px)").matches) {
-    var btn = $id("hkBtnLoc");
-    if (!el.classList.contains("collapsed") && (!btn || !btn.classList.contains("mo"))) el.classList.add("collapsed");
-  }
+  var btn = $id("hkBtnLoc");
+  if (!el.classList.contains("collapsed") && (!btn || !btn.classList.contains("mo"))) el.classList.add("collapsed");
 }
 function toggleLoc(){
   var bar = $id("hkWhBar"), btn = $id("hkBtnLoc");

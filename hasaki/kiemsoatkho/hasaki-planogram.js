@@ -1269,7 +1269,7 @@ var CSS = [
 "#pane-planogram .hp-wb1{display:contents;}",
 /* 12/10 HÀNG TRÊN: [Bộ lọc] [Tiến độ] | [Cần xử lý] — nhãn h2 cùng khuôn "Cần xử lý". Bộ lọc xếp dọc: Ngày rồi Khu vực (ô xổ xuống).
    Tiến độ: 2 cột BẰNG NHAU — trái vòng % to + câu "x / y vị trí", phải 3 ô xếp dọc. Điện thoại: mọi thứ 1 cột. */
-"#pane-planogram #hpToday{display:grid;grid-template-columns:minmax(190px,230px) minmax(0,1fr);gap:12px;align-items:stretch;}",
+"#pane-planogram #hpToday{display:block;}",
 "#pane-planogram #hpToday > .hp-panel{margin:0;}",
 "#pane-planogram .hp-progloc #hpWhBar{display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:8px;margin:0;}",
 "#pane-planogram .hp-progloc #hpWhBar .hp-ngayloc{min-width:0;width:100%;}",
@@ -1285,7 +1285,7 @@ var CSS = [
 "#pane-planogram .hp-tiles.hp-tilesdoc{display:flex;flex-direction:column;gap:8px;margin:0;}",
 "#pane-planogram .hp-tiles.hp-tilesdoc .hp-tile{flex:1;min-height:0;flex-direction:row;align-items:baseline;gap:8px;flex-wrap:wrap;}",
 "#pane-planogram .hp-tiles.hp-tilesdoc .hp-tile .s{flex-basis:100%;}",
-"@media(max-width:768px){#pane-planogram #hpToday{grid-template-columns:minmax(0,1fr);}" +
+"@media(max-width:768px){#pane-planogram #hpToday{display:block;}" +
   "#pane-planogram .hp-tdo2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;}" +
   "#pane-planogram .hp-tdotrai .hp-ring{width:104px;height:104px;}}",
 /* LÝ DO AI — tách 2 phần: câu kết luận + danh sách "ô nào lỗi gì". Trước đây nhồi cả hai vào một
@@ -1414,20 +1414,18 @@ var CSS = [
 /* pop-up: phụ đề rỗng thì ẩn · 7 ô ngày luôn 1 hàng trên điện thoại */
 ".hp-modalhd .mtsub:empty{display:none;}",
 /* 21/10 user: pop-up ô → THANH BÊN PHẢI (web: trượt từ phải, cao hết màn; điện thoại: toàn màn, đầu trang trượt lên như Theo tác vụ/Theo máy) */
-".hp-loc h2{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;}",
-".hp-loc #hpBtnLoc{display:none;}",
-"@media(max-width:768px){" +
-  ".hp-loc #hpBtnLoc{position:relative;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;" +
-  "margin-left:auto;padding:0 10px;height:28px;min-height:28px;font-size:12px;font-weight:500;line-height:1;" +
-  "border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}" +
-  ".hp-loc #hpBtnLoc::after{content:'';display:inline-block;width:5.5px;height:5.5px;border-right:1.5px solid currentColor;" +
-  "border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);transition:transform .22s var(--ez-apple,ease);}" +
-  ".hp-loc #hpBtnLoc.mo::after{transform:translateY(1.5px) rotate(-135deg);}" +
-  ".hp-loc #hpBtnLoc:hover,.hp-loc #hpBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
-  "background:color-mix(in srgb,var(--accent) 8%,var(--surface));}" +
-  ".hp-loc #hpLocSlot.collapsed{display:none!important;}" +
-  ".hp-loc #hpLocSlot:not(.collapsed){transform-origin:top center;animation:popIn .22s var(--ez-spring,cubic-bezier(.16,1,.3,1));}" +
-"}",
+".hp-proghd{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;}",
+".hp-proghd h2{margin:0;}",
+"#hpBtnLoc{position:relative;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;" +
+"margin-left:auto;padding:0 10px;height:28px;min-height:28px;font-size:12px;font-weight:500;line-height:1;" +
+"border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}",
+"#hpBtnLoc::after{content:'';display:inline-block;width:5.5px;height:5.5px;border-right:1.5px solid currentColor;" +
+"border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);transition:transform .22s var(--ez-apple,ease);}",
+"#hpBtnLoc.mo::after{transform:translateY(1.5px) rotate(-135deg);}",
+"#hpBtnLoc:hover,#hpBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
+"background:color-mix(in srgb,var(--accent) 8%,var(--surface));}",
+"#hpLocSlot.collapsed{display:none!important;}",
+"#hpLocSlot:not(.collapsed){transform-origin:top center;animation:popIn .22s var(--ez-spring,cubic-bezier(.16,1,.3,1));margin-bottom:12px;}",
 "#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}" +
 "#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}",
 "#hpVtModal.show .hp-modalbox{transform:none;}",
@@ -2600,8 +2598,9 @@ function renderToday(){
   /* Không có yêu cầu trong khoảng → empty-state gọn thay vì 4 thẻ số 0 */
   if (!nTot){
     var wb0 = $id("hpWhBar");   // giữ tham chiếu TRƯỚC khi innerHTML xoá chỗ cũ — vẫn phải đổi được ngày khi khoảng này trống
-    box.innerHTML = '<section class="hp-panel hp-fade hp-loc"><h2><span>Bộ lọc</span><button type="button" class="hsk-nut" id="hpBtnLoc" onclick="HPLANOGRAM.toggleLoc()">Bộ lọc</button></h2><div class="hp-progloc" id="hpLocSlot"></div></section>' +
-      '<section class="hp-panel hp-fade hp-prog"><h2>Tiến độ</h2><div class="hp-empty">Không có yêu cầu vệ sinh trong khoảng này' +
+    box.innerHTML = '<section class="hp-panel hp-fade hp-prog">' +
+      '<div class="hp-proghd"><h2>Tiến độ</h2><button type="button" class="hsk-nut" id="hpBtnLoc" onclick="HPLANOGRAM.toggleLoc()">Bộ lọc</button></div>' +
+      '<div class="hp-progloc collapsed" id="hpLocSlot"></div><div class="hp-empty">Không có yêu cầu vệ sinh trong khoảng này' +
       (S.area ? ' ở ' + esc(areaMeta(S.area).ngan || areaMeta(S.area).short || S.area) : '') + '.</div></section>';
     ganLocVaoThe(wb0);
     var todo1 = $id("hpTodo"); if (todo1) todo1.innerHTML = "";
@@ -2630,8 +2629,10 @@ function renderToday(){
   /* 12/10 user: thẻ "Tiến độ" (nhãn như "Cần xử lý") — TRÁI khoá cứng: vòng % to + "x / y vị trí · đã báo cáo vệ sinh ngày …" ngay dưới;
      PHẢI từ trên xuống: Đã vệ sinh · Chưa · đi làm · Chưa · nghỉ. Hai cột rộng bằng nhau. */
   box.innerHTML =
-    '<section class="hp-panel hp-fade hp-loc"><h2><span>Bộ lọc</span><button type="button" class="hsk-nut" id="hpBtnLoc" onclick="HPLANOGRAM.toggleLoc()">Bộ lọc</button></h2><div class="hp-progloc" id="hpLocSlot"></div></section>' +
-    '<section class="hp-panel hp-fade hp-prog hp-tdo"><h2>Tiến độ</h2><div class="hp-tdo2">' +
+    '<section class="hp-panel hp-fade hp-prog hp-tdo">' +
+    '<div class="hp-proghd"><h2>Tiến độ</h2><button type="button" class="hsk-nut" id="hpBtnLoc" onclick="HPLANOGRAM.toggleLoc()">Bộ lọc</button></div>' +
+    '<div class="hp-progloc collapsed" id="hpLocSlot"></div>' +
+    '<div class="hp-tdo2">' +
     '<div class="hp-tdotrai">' +
       '<div class="hp-ring" style="background:conic-gradient(' + vong + ')" role="img" aria-label="Đã vệ sinh ' + p + '%"><span><b>' + p + '%</b><small>đã xong</small></span></div>' +
       '<button type="button" class="hp-progt" onclick="HPLANOGRAM.openYc(\'\')" title="Xem mọi yêu cầu vệ sinh trong khoảng đang xem">' +
@@ -2653,7 +2654,7 @@ function renderToday(){
 function ganLocVaoThe(wb){
   var slot = $id("hpLocSlot");
   if (slot && wb && wb.parentNode !== slot) slot.appendChild(wb);
-  if (slot && window.matchMedia("(max-width:768px)").matches) {
+  if (slot) {
     var btn = $id("hpBtnLoc");
     if (!slot.classList.contains("collapsed") && (!btn || !btn.classList.contains("mo"))) slot.classList.add("collapsed");
   }
