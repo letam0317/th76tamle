@@ -565,7 +565,9 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 #modal.hx-ben .modal-head{border-radius:0}
 /* 21/10 user: pop-up Vi phạm ở màn rộng hiển thị NHƯ Theo máy/Theo tác vụ — Đóng · Mở task bên trái, tiêu đề bên phải (cùng mốc @container 821px của Xác minh) */
 #modal.hx-ben .modal-box{container-type:inline-size}
-@container not (max-width:820px){#modal.hx-ben:not(:has(.hx-tb-luoi)) .modal-head>#mClose{order:-3}#modal.hx-ben:not(:has(.hx-tb-luoi)) .modal-head>#hxMoTask{order:-2}#modal.hx-ben:not(:has(.hx-tb-luoi)) .modal-head>#mTitle{order:1;text-align:right;margin-left:auto}}
+@container not (max-width:820px){#modal.hx-ben:not(:has(.hx-tb-luoi)) .modal-head>#mClose{order:-3}
+  #modal.hx-ben:not(:has(.hx-tb-luoi)) .modal-head>#hxMoTask{order:-2}
+  #modal.hx-ben:not(:has(.hx-tb-luoi)) .modal-head>#mTitle{order:1;text-align:right;margin-left:auto}}
 #modal.hx-ben #mBody{flex:1 0 auto;display:flex;flex-direction:column}
 #modal.hx-ben #mBody.hx-doi{animation:paneIn .26s var(--ez-apple)}
 @media(max-width:760px){#modal.hx-ben{left:0!important}}
