@@ -133,8 +133,16 @@ async function trangThaiTask() {
 
 // 19/10: địa chỉ đường hầm của máy chủ Xác minh DỰ PHÒNG (may-chu-du-phong.mjs) — chỉ khi tiến trình đường hầm còn sống
 function xmHam() {   // 20/10: laptop gửi nhịp tim từ bản cài PC (C:\AuditFactory) nên đọc thêm tệp do đường hầm ghi ở thư mục chung (DUONG_HAM_URL_F)
+  /* 21/10 (Theo máy điện thoại trống): tệp ProgramData từng KHÔNG có pid → process.kill(undefined) ném lỗi → laptop không bao giờ báo xmHam.
+     Nay: tiến trình còn sống (pid) HOẶC tệp mới ghi ≤45' (đường hầm làm mới «luc» mỗi 30') đều chấp nhận — nhịp tim SYSTEM không soi được tiến trình người dùng cũng vẫn đọc được. */
   for (const f of [path.join(DIR, ".duong-ham-591.url"), process.env.DUONG_HAM_URL_F || "", "C:/ProgramData/AuditFactory/duong-ham-591.url"]) {
-    if (!f) continue; try { const o = JSON.parse(fs.readFileSync(f, "utf8")); process.kill(o.pid, 0); if (/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(o.url)) return o.url; } catch { /* thử tệp kế */ }
+    if (!f) continue;
+    try {
+      const o = JSON.parse(fs.readFileSync(f, "utf8"));
+      if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(o.url)) continue;
+      let song = false; try { process.kill(o.pid, 0); song = true; } catch { /* không soi được tiến trình → xét tuổi tệp */ }
+      if (song || Date.now() - Date.parse(o.luc) < 45 * 60e3) return o.url;
+    } catch { /* thử tệp kế */ }
   }
   return "";
 }

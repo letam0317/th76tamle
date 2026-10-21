@@ -39,7 +39,7 @@ process.on("exit", () => { try { if (Number(fs.readFileSync(KHOA, "utf8")) === p
 
 /* 20/10 đánh giá an ninh: địa chỉ đường hầm từng đăng công khai ở github.io/summary/xm-may-chu.json → ai cũng biết cửa. Nay KHÔNG đẩy lên GitHub nữa;
    trang tìm địa chỉ qua Apps Script pcBangPh (cần phiên tài khoản) từ nhịp tim (xmHam). Ghi thêm bản ở C:\ProgramData\AuditFactory để nhịp tim của bản cài PC trên laptop đọc được. */
-function ghiChung(o) { try { const d = "C:/ProgramData/AuditFactory"; fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, "duong-ham-591.url"), JSON.stringify(o)); } catch { /* không có quyền thì thôi */ } }
+function ghiChung(o) { try { const d = "C:/ProgramData/AuditFactory"; fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, "duong-ham-591.url"), JSON.stringify({ url: o.url, pid: process.pid, luc: o.luc || new Date().toISOString() })); } catch { /* không có quyền thì thôi */ } }
 async function ghiGithub(o) {
   ghiChung(o);
   if (!process.env.DUONG_HAM_CONG_BO) return log("địa chỉ chỉ đi qua nhịp tim (không công bố GitHub)");   // 20/10 mặc định tắt
@@ -70,18 +70,18 @@ function chay() {
     const m = String(b).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (!m || URLH) return;
     URLH = m[0]; log("địa chỉ:", URLH);
-    try { fs.writeFileSync(TEP_URL, JSON.stringify({ url: URLH, pid: process.pid, luc: new Date().toISOString() })); } catch { /* */ }
+    try { fs.writeFileSync(TEP_URL, JSON.stringify({ url: URLH, pid: process.pid, luc: new Date().toISOString() })); } catch { /* */ } ghiChung({ url: URLH });   /* 21/10: kèm pid + ghi ngay (trước: chỉ ghi khi đổi URL và KHÔNG có pid → nhịp tim laptop đọc hỏng → điện thoại rơi vào bản chỉ xem) */
     for (let i = 0; i < 24 && !(await pingQuaHam(URLH)); i++) await new Promise((r) => setTimeout(r, 5000));   // DNS mới cần vài giây
     if (DU_PHONG) return log("bản dự phòng — địa chỉ gửi kèm nhịp tim, không ghi GitHub");
     let cu = {}; try { cu = JSON.parse(fs.readFileSync(path.join(DIR, "kiemsoatkho", TEP), "utf8")); } catch { /* */ }
     if (cu.url !== URLH) await ghiGithub({ url: URLH, luc: new Date().toISOString() });
   };
   CF.stdout.on("data", doc); CF.stderr.on("data", doc);
-  CF.on("exit", (c) => { try { fs.unlinkSync(TEP_URL); } catch { /* */ } log("cloudflared thoát, mã", c, "— chạy lại sau 10 s"); CF = null; setTimeout(chay, 10000); });
+  CF.on("exit", (c) => { try { fs.unlinkSync(TEP_URL); } catch { /* */ } try { fs.unlinkSync("C:/ProgramData/AuditFactory/duong-ham-591.url"); } catch { /* */ } log("cloudflared thoát, mã", c, "— chạy lại sau 10 s"); CF = null; setTimeout(chay, 10000); });
 }
 setInterval(async () => {
   if (!CF || !URLH) return;
-  if (await pingQuaHam(URLH)) { hong = 0; return; }
+  if (await pingQuaHam(URLH)) { hong = 0; try { fs.writeFileSync(TEP_URL, JSON.stringify({ url: URLH, pid: process.pid, luc: new Date().toISOString() })); } catch { /* */ } ghiChung({ url: URLH }); return; }   /* 21/10: làm mới «luc» mỗi 3' → nhip-pc xmHam() nhận tệp ≤45' kể cả khi không soi được tiến trình */
   if (!(await fetch(GOC + "/api/ping").then((r) => r.ok, () => false))) return log("máy chủ 8591 chưa chạy — chờ");
   if (++hong >= 3) { log("3 lần không ping được qua đường hầm → khởi động lại"); CF.kill(); }
 }, 3 * 60 * 1000);

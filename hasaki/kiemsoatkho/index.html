@@ -407,8 +407,18 @@ tbody tr:hover{background:var(--hover);}
 .rm-tb .rm-thumb{width:72px; height:48px; border-radius:6px;}   /* 21/10 Mẫu 2: ảnh 44px không đọc được → 72×48, bấm phóng to như cũ */
 .c-ql-sub{font-size:12px; font-weight:400; color:var(--muted); margin-top:2px;}   /* 21/10 dòng «QL: …» dưới tên NV (gộp 2 cột) */
 .vp-chua-xm{color:var(--muted); font-weight:400;}
-.cl-sep{color:var(--muted); margin:0 2px;}   /* 21/10 thẻ điện thoại: «Ngày ghi nhận … | Tạo …», «Ghi nhận cho … | QL …» */
-#cardList .cl-top .bb-cell{margin-left:auto}
+.cl-sep{color:var(--muted); margin:0 2px;}   /* 21/10 thẻ điện thoại: «Ghi nhận ngày … | Tạo …», «Ghi nhận cho … | QL …» */
+/* 21/10 user (ảnh 12:18): thẻ Vi phạm điện thoại = 2 hàng. Hàng 1: ảnh (số ảnh ở góc ảnh) · chip · cột 2 nút gọn 28 px vừa chiều cao ảnh 64 px; hàng 2: dữ liệu sát lề trái, 1 dòng/mục, dài thì «…» */
+#cardList .cl-item.vp{flex-direction:column; gap:8px; align-items:stretch;}
+.cl-hang1{display:flex; align-items:center; gap:10px; min-height:64px;}
+.cl-hang1 .row-media{align-self:flex-start; flex:none;}
+.cl-hang1 .cl-tt{flex:1; min-width:0; display:flex; align-items:center;}
+.cl-hang1 .cl-nut{display:flex; flex-direction:column; gap:6px; flex:none; align-items:stretch;}
+.cl-hang1 .cl-nut .hsk-nut, .cl-hang1 .cl-nut .bb-up{min-height:28px!important; height:28px; padding:0 10px!important; font-size:12px!important; justify-content:center; white-space:nowrap;}
+.cl-hang1 .cl-nut .bb-cell{display:block; margin:0;}
+.cl-data{font-size:12px; min-width:0;}
+.cl-data .cl-loi{display:block; -webkit-line-clamp:unset; margin:0 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cl-data .cl-kv{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 /* 21/10 Mẫu 2: nút «+ Biên bản» web chỉ hiện khi rê chuột lên dòng (190 nút giống nhau → 0 nút thường trực); màn chạm luôn hiện */
 #pane-task tbody .c-bb .bb-up{opacity:0; transition:opacity .15s ease;}
 #pane-task tbody tr:hover .c-bb .bb-up, #pane-task tbody .c-bb .bb-up:focus-visible{opacity:1;}
@@ -489,7 +499,9 @@ thead th.c-status, tbody td.c-status{white-space:nowrap; vertical-align:middle;}
    dài hơn thì XUỐNG DÒNG (không kéo giãn cột) */
 thead th.c-vitri, tbody td.c-vitri{white-space:normal; width:24ch; min-width:24ch; max-width:24ch; overflow-wrap:anywhere; line-height:1.35;}
 /* (3) Lỗi vi phạm: thu hẹp còn ~2/3, cắt bớt bằng "…", KHÔNG xuống dòng (hover xem đủ) */
-thead th.c-loi, tbody td.c-loi{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:230px; width:230px;}   /* 21/10 320 → 250: nhường chỗ cho cột NV·QL + Trạng thái, bảng vừa 1366 */
+/* 21/10 user (ảnh 12:23): cột Lỗi rộng tới «vạch xanh» (~350 px ở màn rộng), dài hơn thì gãy 2 dòng trong khung dòng (không cao thêm); màn ≤1400 giữ 230 px để bảng không tràn */
+thead th.c-loi, tbody td.c-loi{--loi-w:clamp(150px, calc(100vw - 1136px), 350px); white-space:normal!important; max-width:var(--loi-w); width:var(--loi-w); min-width:var(--loi-w);}   /* min-width: cột đệm 100% không được ép cột này về min-content */
+tbody td.c-loi .loi-2d{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.35; max-height:2.7em; white-space:normal;}
 /* (4) NV vi phạm + QL trực tiếp: vừa "Hà trọng thúc bằng bằng bằng", KHÔNG xuống dòng */
 /* 21/10 user: tên NV và QL KHÔNG xuống dòng (1 người 1 dòng, nhiều người mỗi người 1 dòng); cột rộng theo tên dài nhất, cột đệm + Ảnh + Tần suất dời sang phải nhường chỗ */
 thead th.c-nv, tbody td.c-nv{white-space:nowrap; width:auto; min-width:16ch;}
@@ -903,9 +915,8 @@ thead th.c-freq, tbody td.c-freq{white-space:nowrap; vertical-align:middle;}
 /* TIÊU ĐỀ CỘT ghi thẳng, KHÔNG xuống dòng; HỌ TÊN mỗi người 1 dòng (<br>), không gãy giữa tên */
 #pane-task thead th{white-space:nowrap;}
 tbody td.c-nv, tbody td.c-ql{white-space:nowrap;}
-thead th.c-loi, tbody td.c-loi{max-width:230px;}   /* 21/10 270 → 230: nhường chỗ cho cột Nhân viên · Quản lý không xuống dòng */
+thead th.c-loi, tbody td.c-loi{max-width:var(--loi-w);}   /* 21/10: theo vạch xanh của user; bề rộng tính ở --loi-w (dòng ~503), không mốc riêng */
 .table-wrap{overflow-x:auto;}                        /* bảng rộng hơn màn -> cuộn ngang, không bóp cột */
-@media (max-width:1300px){ thead th.c-loi, tbody td.c-loi{max-width:200px;} }
 /* ===== BẢNG LUỸ KẾ KPI TRỪ (tab Tổng quan) — trang trọng, to rõ ===== */
 #kpiPanel .panel-head{font-size:14px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;}
 #kpiPanel .panel-head>span:first-child{border-left:4px solid var(--bad); padding-left:11px;}
@@ -1551,8 +1562,14 @@ window.hxDoMayChu = function(){
       .then(function(r){ return r.json(); }).then(function(j){ var now = j.srvNow || Date.now();
         var ds = (j.may || []).filter(function(m){ return m.xmHam && now - Date.parse(m.luc) < 6 * 60e3; });
         if (!ds.length) throw 0;
-        return new Promise(function(ok, hong){ var con = ds.length; ds.forEach(function(m){ ping(m.xmHam, 8000).then(ok, function(){ if (!--con) hong(0); }); }); }); })
-      .then(function(u){ window.__HX_DU_PHONG = 1; return u; }); };
+        /* 21/10 (Theo máy điện thoại «0 sự việc»): laptop thật + PC dự phòng chỉ xem cùng báo đường hầm → ping hết,
+           máy KHÔNG dự phòng trả lời là lấy ngay; chỉ khi laptop im mới chịu bản chỉ xem (thiếu dữ liệu bãi xe, Theo máy trống) */
+        return new Promise(function(ok, hong){ var con = ds.length, that = null, du = null;
+          var chot = function(){ if (that) { window.__HX_DU_PHONG = 0; ok(that); } else if (du) { window.__HX_DU_PHONG = 1; ok(du); } else hong(0); };
+          ds.forEach(function(m){ var c = new AbortController(); setTimeout(function(){ c.abort(); }, 8000);
+            fetch(m.xmHam + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return r.json().catch(function(){ return {}; }); })
+              .then(function(x){ if (x && x.duPhong) du = du || m.xmHam; else { that = that || m.xmHam; con = 0; chot(); } }, function(){})
+              .then(function(){ if (con > 0 && !--con) chot(); }); }); }); }); };
   var ham = function(){ var cu = ""; try { cu = localStorage.getItem("hx-ham") || ""; } catch(e){}
     return (cu ? ping(cu, 6000).then(function(u){ if (window.__HX_DU_PHONG) { window.__HX_DU_PHONG = 0; throw 0; } return u; }) : Promise.reject(0))
       /* 20/10: bỏ tệp địa chỉ công khai summary/xm-may-chu.json — địa chỉ laptop cũng đi qua nhịp tim (xmHam) → pcBangPh sau đăng nhập */
@@ -2161,7 +2178,8 @@ const statusHienThi = r => daHuy(r) ? "Đã huỷ" : dichStatus(r[iStatus]);
    web và điện thoại cùng một ô; bỏ liên kết gạch chấm (.status-link) và badge riêng. */
 const STT_CHIP = {"Chưa xử lý":"cho","Mới":"cho","Đang xử lý":"dang","Hoàn thành":"xong","Đã huỷ":"luu","Quá hạn":"qua"};
 const chipStatus = r => { const t = statusHienThi(r); return `<span class="hsk-chip ${STT_CHIP[t]||'luu'}">${esc(t==="Chưa xử lý"?"Chờ xử lý":t)}</span>`; };
-const statusCell = r => chipStatus(r) + (r[iLink] ? ` <a class="hsk-nut phu nho vp-mo" href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">Mở task ↗</a>` : '');
+const moTaskNut = r => r[iLink] ? `<a class="hsk-nut phu nho vp-mo" href="${esc(safeUrl(r[iLink]))}" target="_blank" rel="noopener" title="Mở task trên work.hasaki.vn">Mở task ↗</a>` : '';
+const statusCell = r => chipStatus(r) + (moTaskNut(r) ? ' ' + moTaskNut(r) : '');
 const statusBadge = statusCell;
 /* 21/10 Mẫu 2: Nhân viên + Quản lý gộp 1 ô — tên NV đậm, dòng nhỏ «QL: …»; chưa xác minh thì chữ mờ (trước: 2 cột bị bóp 3–4 dòng) */
 /* 21/10 user (thẻ điện thoại Vi phạm): QL ghi tên ngắn «Tú Uyên, Thanh Huyền, …» — 2 chữ cuối của họ tên, nhiều người cách dấu phẩy */
@@ -2898,7 +2916,7 @@ function _render(){
     return `<tr data-i="${gi}">
       <td class="c-ngay">${thoiGianCell(r)}</td>
       <td class="c-vitri">${esc(r[iViTri])}</td>
-      <td class="c-loi" title="${esc(r[iLoi])}">${esc(r[iLoi])}</td>
+      <td class="c-loi" title="${esc(r[iLoi])}"><span class="loi-2d">${esc(r[iLoi])}</span></td>
       <td class="c-nv">${nvQlCell(r)}</td>
       <td class="c-flex"></td>
       <td class="c-anh">${anh}</td>
@@ -2912,13 +2930,13 @@ function _render(){
   $('cardList').innerHTML = dTable.map(r=>{
     const gi=ROWS.indexOf(r);
     const anh=thumbCell(r,gi,'cl');
-    return `<div class="cl-item" data-i="${gi}">
-      ${anh}
-      <div class="cl-body">
-        <div class="cl-top">${statusBadge(r)}${bbCell(r, false)}</div>
-        <div class="cl-loi">${esc(r[iLoi]||'')}</div>
+    /* 21/10 user (ảnh 12:18): hàng 1 = ảnh · chip trạng thái · 2 nút gọn (Mở task / + Biên bản) vừa chiều cao ảnh; hàng 2 = dữ liệu sát lề trái, mỗi dòng 1 hàng không gãy; số ảnh ở góc ảnh */
+    return `<div class="cl-item vp" data-i="${gi}">
+      <div class="cl-hang1">${anh}<span class="cl-tt">${chipStatus(r)}</span><span class="cl-nut">${moTaskNut(r)}${bbCell(r, false)}</span></div>
+      <div class="cl-data">
+        <div class="cl-loi" title="${esc(r[iLoi]||'')}">${esc(r[iLoi]||'')}</div>
         ${kv('Vị trí',r[iViTri])}
-        <div class="cl-kv">Ngày ghi nhận: <b>${esc(fmtNgay(r[iNgayVP]))}</b>${iCreatedAt>=0&&r[iCreatedAt]?` <span class="cl-sep">|</span> Tạo: <b>${esc(boNamNay(fmtNgay(r[iCreatedAt])))}</b>`:''}</div>
+        <div class="cl-kv">Ghi nhận ngày: <b>${esc(fmtNgay(r[iNgayVP]))}</b>${iCreatedAt>=0&&r[iCreatedAt]?` <span class="cl-sep">|</span> Tạo: <b>${esc(boNamNay(fmtNgay(r[iCreatedAt])))}</b>`:''}</div>
         ${(nameVP(r)||(iQLTT>=0&&r[iQLTT]))?`<div class="cl-kv">${nameVP(r)?`Ghi nhận cho: <b>${esc(nameVP(r))}</b>`:''}${iQLTT>=0&&r[iQLTT]?`${nameVP(r)?' <span class="cl-sep">|</span> ':''}QL: <b>${esc(tenNganDs(r[iQLTT]))}</b>`:''}</div>`:''}
         <div class="cl-kv">Tần suất: ${freqCell(gi,r)}</div>
       </div>

@@ -53,7 +53,7 @@ try {
   pg.on("pageerror", (e) => loi.push(e.message));
   await pg.setUserAgent("Mozilla/5.0 (Linux; Android 14; 23116PN5BC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36");
   await pg.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-  await pg.evaluateOnNewDocument((hx) => { try { localStorage.setItem("hx-phien", hx); localStorage.removeItem("hx-ham"); localStorage.setItem("tk-phien", "qc");
+  await pg.evaluateOnNewDocument((hx) => { if (window.top !== window) return; /* 21/10: khung con cùng gốc cũng chạy đoạn này → xoá nhầm hx-ham, «không nhớ» đạt giả */ try { localStorage.setItem("hx-phien", hx); localStorage.removeItem("hx-ham"); localStorage.setItem("tk-phien", "qc");
     localStorage.setItem("tk-nho", JSON.stringify({ ts: Date.now(), nguoi: { id: "qc", ten: "QC", vaiTro: "quantri" }, quyen: { "r.xacminh": "lam", "r.maytram": "lam" } })); } catch (e) {} }, PHIEN);
   await pg.evaluateOnNewDocument(() => { window.__qcToast = []; new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.classList && n.classList.contains("toast")) window.__qcToast.push(n.textContent); })))
     .observe(document, { childList: true, subtree: true }); });

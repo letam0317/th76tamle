@@ -37,7 +37,8 @@
     ".canh-b11.json",
     ".canh-trung-nv.json",
     ".exports/mo-ta-phieu.json",
-    ".exports/mo-ta-vi-tri.json"
+    ".exports/mo-ta-vi-tri.json",
+    "@BC/bai-xe/*/ket-qua.json"
   ],
   "ra": [
     ".exports/xm-tu-dong/**",
