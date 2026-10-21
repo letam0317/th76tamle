@@ -39,6 +39,11 @@ cách không gõ tay: khoá thiết bị cấp 1 lần qua link `#khoa=` → loc
 
 ## 1. BẢO MẬT (cả 2 repo là PUBLIC — mọi file tracked là công khai Internet)
 
+- **KHOÁ GHI theo chủ token (12/10/2026)**: token mượn từ phiên người khác (hướng 3 — bridge riêng từng PC)
+  CHỈ được ĐỌC. Mọi cò GHI (tạo/nộp task, bình luận, đóng B1.1, thao tác UID…) PHẢI kiểm `laTokenGhiDuoc(token)`
+  (`session-rules.js`) TRƯỚC khi ghi; không phải tamlc → DỪNG, không ghi (tránh ghi nhầm danh tính người khác).
+  **CẤM bật hướng 3** (PC tự bơm token người khác) cho tới khi: mọi điểm ghi đã gắn khoá + test token-người-khác
+  bị chặn đạt. Hôm nay kho chỉ có token tamlc nên khoá là NO-OP.
 - **Trước MỌI cú push**: bí mật mới nào từng gõ vào code thì `git log -S "<bí mật>"` phải RỖNG.
   Commit chưa push mà dính bí mật → sửa lịch sử (rebase/soft-reset) TRƯỚC khi push, và xoay bí mật đó.
 - Bí mật chỉ sống ở `.env` / Script Properties / file đã gitignore. **CẤM fallback hardcode**
@@ -240,6 +245,7 @@ của `qc-mobile-toan-du-an.mjs` kèm `sanSangMan` bám CON SỐ THẬT (skeleto
 | `do-toc-do-tem.mjs` | Đụng tốc độ AI đọc tem |
 | `qc-vesinh-muctieu.mjs` (≈34 ca × 4 máy; `--url` `--may=pc\|ip14\|ipse\|and`) | Mọi lần sửa tab Planogram › Vệ sinh — đo MỤC TIÊU chứ không chỉ luật bố cục: màn đầu có Tiến độ + Cần xử lý, các con số giữa các khối KHỚP nhau, xem ngày cũ ra đúng ngày, không chữ rác, sơ đồ vừa màn điện thoại, giả lập 25 khu |
 | `qc-tvt-mobile.mjs` (18 ca) | Mẫu bộ đo SÂU cho 1 mục — mục mới có pop-up thì viết `qc-<mục>-mobile.mjs` theo mẫu này |
+| `qc-nghiem-thu.mjs` (38 ca × 4 máy; `--khong-gui`) | Mọi lần sửa form Nghiệm thu checklist (`kiemsoatkho/nghiem-thu.html`) hoặc GAS `nt_*` — chạy trên bản nội bộ, ca GỬI ghi vào SHEET NHÁP qua `/api/nt-thu` của xem-noi-bo.mjs (GAS HEAD), sheet thật không bị ghi |
 | `qc-lienanh-3d.mjs` (≈40 ca, `--url`) + `kiem-dxf-lienanh.mjs <tep.dxf>` (AutoCAD nền) | Mọi lần sửa công cụ bố trí kho Liên Anh (`lienanh-3d.html`, `lienanh-xuat.js`, `xem-noi-bo.mjs`); kiểm DXF sau mỗi lần đổi hàm xuất — AutoCAD từ chối DXF im lặng (05/10/2026: thiếu từ điển PlotStyleName) |
 | `qc-bo-loc-ngay.mjs` (≈120 ca: mọi bộ lọc ngày × 1440/390; `--chi=regex`) | Thêm/sửa bất kỳ bộ lọc ngày nào, hoặc sửa `bo-loc-ngay.js/.css` — so CÙNG MẶT với ô Ngày Retail › Planogram, lịch trọn màn + bấm được Áp dụng, chạm chọn khoảng, lọc dữ liệu giữ đúng |
 | `node --check` | Mọi file JS/MJS vừa sửa |
@@ -372,6 +378,7 @@ Nguyên tắc:
   **Đường GEMINI (08/10/2026, user: «2 mục này dùng Gemini chạy được không — dạy cho Gemini chạy»):** `camera-bao-cao.mjs --gemini --clip` → `_gemini-nguoi-vung.mjs`: Gemini (khoá `GEMINI_API_KEY` bậc miễn phí, chuỗi model dự phòng như `sync-vesinh-ai`) đọc **lô 8 khung/5 s** có khung vàng → từng khung: bbox người (0–1000 → px), quần áo, trong/sát khung vàng, **hành động** `ve-sinh · sap-xep-hang · chup-anh · dung-yen · di-lai`; mã người nối giữa lô bằng tâm bbox ≤220 px + chữ quần áo (tất định). Không gửi tên NV, không nhận diện danh tính.
   Người chính = nhiều khung tại kệ nhất (ưu tiên có mặt ±60 s quanh giờ nộp) → **kết luận theo giây hành động**: lau ≥30 s «co-ve-sinh» · không lau & có mặt ≤60 s «chi-chup» · xếp hàng ≥60 s «co-thao-tac» · còn lại «khong-ro» (ngưỡng `CAM_GM_VESINH_GIAY/SAPXEP_GIAY`). Khung đỏ clip = bbox Gemini nội suy (`chiNeo`), chỉ dựng khi bám nhất quán ≥0,85 (`CAM_GM_NHAT_QUAN`) và ≥6 khung; **nhãn tên NV chỉ khi định danh được** (người chính có mặt ±60 s quanh giờ nộp VÀ không ai khác tại kệ lúc đó), không thì «Người tại kệ».
   `canh-b11` cổng `B11_CAM_AI=gemini` (`khong` = đường không AI; trống = mô hình COCO): gắn ảnh/clip vào B1 + nhờ anh Tâm như đường không AI; «chi-chup» + `B11_CAM_TU_DONG=1` mới đóng B1. Gemini hỏng (quota ngày/mạng) → tự rơi về đường không AI. Bẫy: hộp cát Claude Code chặn Google (curl google.com timeout) — thử Gemini phải chạy ngoài hộp cát; `gemini-3.5-flash` hết quota ngày vì `sync-vesinh-ai` → flash-lite ~9 s/lô.
+- **BẢN ĐỒ TỰ CHUYỂN B1 → B1.1 (19/10): `hasaki/LUAT-TU-CHUYEN-B11.md`** — 3 cửa, nhóm lỗi → máy nào lo, cách tra 1 phiếu.
 - **SỔ TAY CHI TIẾT (09/10): `hasaki/SO-TAY-XAC-MINH-CAMERA.md`** — góc cam, vùng, khung vật/khung người, định danh, clip, máy tự bắt, cách hỏi AI. Gemini agy đọc qua skill `.agents/skills/xac-minh-camera-5s`.
 - **Quy trình từng bước: `hasaki/SOP-XAC-MINH-CAMERA.md`** (3 nguyên tắc gốc + bảng tự kiểm 7 câu). Đọc TRƯỚC mỗi lần xác minh bằng camera.
 - **Bài học 13389950 + 14010729 (02/10/2026 — user đính chính 2 lần):**
@@ -440,6 +447,14 @@ Nguyên tắc:
 - **02/10/2026 (chiều)** — Mục 11: CAM-05 thùng gốc + quy cách, camera không được đoán đè luật hệ thống, CAM-06 clip nối
   (`_clip-noi.mjs` khung đỏ bám người + neo), NV-01 định danh không có WMS, TU-01 từ ngữ (user: "Hương lấy 1 chai trong
   thùng đó", "thay cất → châm hàng", "lấy → tác động", "sao k thấy vòng khoanh vùng người di chuyển", "sao k đối chiếu ảnh ra vào").
+
+- **21/10/2026** — Giao diện đợt 2 (chuẩn hoá thanh bên + bảng khít màn hình + bộ lọc mobile):
+  (1) **Khít màn hình không khoảng trống thừa**: `.table-wrap` mở rộng sát chân màn hình (`max-height: calc(100vh - 124px)` / `calc(100dvh - 124px)`), triệt tiêu khoảng trống đáy `72vh` cũ.
+  (2) **Thanh bên phải Planogram (web)**: theo luật thứ tự chuẩn: Đóng · Yêu cầu #… ↗ · Ghi nhận 5S nằm bên trái; Tên kệ/vị trí & ngày nằm bên phải căn lề phải; ẩn mã task phụ `HSK-ZRJB61HN` (`#mTitle .vp-mt2`).
+  (3) **Luật tự ẩn thanh bên trái**: khi thanh bên phải hiển thị (Vi phạm, Xác minh, Planogram) hoặc khi click chọn 1 mục bất kỳ ở thanh bên trái thì thanh bên trái tự động ẩn.
+  (4) **Mặc định sau đăng nhập**: chuyển ngay về tab Tổng quan (`home`) ở cả Retail và Factory.
+  (5) **Bộ lọc trên điện thoại**: các mục Tồn kho chính xác / Planogram ở Retail và Factory dùng nút hình chữ nhật `.btn-filter` (cao 28px, bo góc 6px, mũi tên xổ xuống) ở lề phải H2, vùng lọc mặc định gập (`collapsed`) và bung ra với animation `popIn`.
+  (6) **Thu hẹp thanh bên trái mobile**: giảm từ 264px xuống 200px ôm khít nhãn và số đếm, không lãng phí khoảng trống.
 
 - **02/10/2026** — Mục 11: luật sửa/thêm phải có `khacCu` (khác luật cũ + bối cảnh) để user duyệt; sổ luật gộp án lệ 151 phiếu B3 (XE-01, BX-01, CAM-04, CH-04 đề xuất; VS-03 giữ; SH-01 tách 3 dạng ảnh).
 

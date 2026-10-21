@@ -388,12 +388,47 @@ label{display:flex; flex-direction:column; gap:4px;}
 .filters label{min-width:0;}
 .filters input,.filters select{width:100%; min-width:0;}
 .btn-filter{display:none;}
+html body .panel > .panel-head:has(.btn-filter){display:flex!important; align-items:center!important; justify-content:space-between!important;
+  gap:8px!important; flex-wrap:nowrap!important; height:40px!important; min-height:40px!important; padding:0 16px!important;
+  font-size:14px!important; line-height:20px!important;}
+.panel-head .ph-trai{display:flex; align-items:baseline; gap:8px; flex-wrap:nowrap; min-width:0; flex:1 1 auto; overflow:hidden; white-space:nowrap;}
+.panel-head .ph-td{font-size:14px; font-weight:600; line-height:20px; color:var(--text); white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden;}
+.panel-head .ph-dem,html.ad .panel-head #dem{color:var(--muted)!important; font-weight:400!important; font-size:12px!important; line-height:18px!important; white-space:nowrap; flex:0 0 auto;}
+.panel-head .btn-filter{position:relative; display:inline-flex!important; align-items:center; justify-content:center; gap:6px;
+  width:auto!important; flex:0 0 auto; margin:0 0 0 auto!important; padding:0 10px!important; height:28px!important; min-height:28px!important;
+  font-size:12px!important; font-weight:500!important; line-height:1!important; border-radius:6px!important;
+  border:1px solid var(--border); background:var(--surface); color:var(--text); white-space:nowrap; cursor:pointer;}
+.panel-head .btn-filter::after{content:""; display:inline-block; width:5.5px; height:5.5px; border-right:1.5px solid currentColor;
+  border-bottom:1.5px solid currentColor; transform:translateY(-1.5px) rotate(45deg); transition:transform .22s var(--ez-apple,ease); flex:0 0 auto;}
+.panel-head .btn-filter.mo::after{transform:translateY(1.5px) rotate(-135deg);}
+.panel-head .btn-filter:hover,.panel-head .btn-filter.mo,.panel-head .btn-filter.dang-loc{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb,var(--accent) 8%,var(--surface));}
+.panel > .filters{position:relative; z-index:30; margin:0!important; border:0!important; border-bottom:1px solid var(--ad-chia,var(--border))!important; border-radius:0!important;
+  transform-origin:top center; animation:popIn .22s var(--ez-spring,cubic-bezier(.16,1,.3,1));}
+.panel > .filters.collapsed{display:none!important; animation:none!important;}
+.panel:has(> .filters:not(.collapsed)){overflow:visible;}
+@media (max-width:768px){
+  html body .panel > .panel-head:has(.btn-filter){height:38px!important; min-height:38px!important; padding:0 12px!important; gap:6px!important;}
+  .panel-head .ph-trai{gap:6px;}
+  .panel-head .ph-td{font-size:13px;}
+  .panel-head .ph-dem,html.ad .panel-head #dem{font-size:11.5px!important;}
+  .panel-head .btn-filter::before{content:""; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px;}
+}
+@media (max-width:560px){
+  html body .panel > .panel-head:has(.btn-filter){padding:0 8px!important; gap:4px!important;}
+  .panel-head .ph-trai{gap:4px;}
+  .panel-head .ph-td{font-size:11.5px; letter-spacing:-.015em;}
+  .panel-head .ph-dem,html.ad .panel-head #dem{font-size:11px!important;}
+  .panel-head .btn-filter{padding:0 7px!important; gap:4px;}
+}
 
 /* ===== BẢNG ===== */
 .panel{background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow);}
 .panel-head{display:flex; justify-content:space-between; align-items:center; padding:11px 16px; border-bottom:1px solid var(--border); font-weight:600; font-size:14px;}
 .panel-head #dem{color:var(--muted); font-weight:400; font-size:12px;}
-.table-wrap{overflow-x:auto; max-height:72vh;}
+.table-wrap{overflow-x:auto; max-height:calc(100vh - 124px);}
+@supports (height:100dvh){.table-wrap{max-height:calc(100dvh - 124px);}}
+.panel:has(.filters:not(.collapsed)) .table-wrap{max-height:calc(100vh - 188px);}
+@supports (height:100dvh){.panel:has(.filters:not(.collapsed)) .table-wrap{max-height:calc(100dvh - 188px);}}
 table{width:100%; border-collapse:collapse; font-size:12.5px;}
 thead th{position:sticky; top:0; background:var(--surface2); text-align:left; color:var(--muted); font-weight:600; padding:9px 12px; white-space:nowrap; z-index:2;}
 tbody td{padding:9px 12px; border-top:1px solid var(--border); vertical-align:middle; white-space:nowrap; font-size:inherit;}
@@ -409,7 +444,7 @@ tbody tr:hover{background:var(--hover);}
 .vp-chua-xm{color:var(--muted); font-weight:400;}
 .cl-sep{color:var(--muted); margin:0 2px;}   /* 21/10 thẻ điện thoại: «Ghi nhận ngày … | Tạo …», «Ghi nhận cho … | QL …» */
 /* 21/10 user (ảnh 12:18): thẻ Vi phạm điện thoại = 2 hàng. Hàng 1: ảnh (số ảnh ở góc ảnh) · chip · cột 2 nút gọn 28 px vừa chiều cao ảnh 64 px; hàng 2: dữ liệu sát lề trái, 1 dòng/mục, dài thì «…» */
-#cardList .cl-item.vp{flex-direction:column; gap:8px; align-items:stretch;}
+.cl-item.vp{flex-direction:column; gap:8px; align-items:stretch;}
 .cl-hang1{display:flex; align-items:center; gap:10px; min-height:64px;}
 .cl-hang1 .row-media{align-self:flex-start; flex:none;}
 .cl-hang1 .cl-tt{flex:1; min-width:0; display:flex; align-items:center;}
@@ -450,6 +485,7 @@ thead th.c-ngay, tbody td.c-ngay{white-space:nowrap; font-variant-numeric:tabula
 .cmt-h{display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font-size:12.5px;}
 .cmt-luc{color:var(--muted); font-size:11px; margin-left:auto; font-variant-numeric:tabular-nums;}
 .cmt-nd{font-size:13px; line-height:1.5; margin-top:3px; overflow-wrap:anywhere;}
+.cmt-nhac{color:var(--info,var(--accent)); font-weight:600; background:color-mix(in srgb,var(--info,var(--accent)) 10%,transparent); padding:1px 5px; border-radius:4px;}
 /* ===== TỔNG KẾT NHANH — LƯỚI THẺ BẤM ĐƯỢC (3 cột desktop, xếp chồng trên di động) ===== */
 /* Tổng kết nhanh: thu gọn bằng <details>, mặc định ĐÓNG; mũi tên xổ mượt */
 .tkn-details{overflow:hidden;}
@@ -499,12 +535,14 @@ thead th.c-status, tbody td.c-status{white-space:nowrap; vertical-align:middle;}
    dài hơn thì XUỐNG DÒNG (không kéo giãn cột) */
 thead th.c-vitri, tbody td.c-vitri{white-space:normal; width:24ch; min-width:24ch; max-width:24ch; overflow-wrap:anywhere; line-height:1.35;}
 /* (3) Lỗi vi phạm: thu hẹp còn ~2/3, cắt bớt bằng "…", KHÔNG xuống dòng (hover xem đủ) */
-/* 21/10 user (ảnh 12:23): cột Lỗi rộng tới «vạch xanh» (~350 px ở màn rộng), dài hơn thì gãy 2 dòng trong khung dòng (không cao thêm); màn ≤1400 giữ 230 px để bảng không tràn */
-thead th.c-loi, tbody td.c-loi{--loi-w:clamp(150px, calc(100vw - 1136px), 350px); white-space:normal!important; max-width:var(--loi-w); width:var(--loi-w); min-width:var(--loi-w);}   /* min-width: cột đệm 100% không được ép cột này về min-content */
+/* 21/10 user: tăng kích thước cột Lỗi vi phạm về bên phải thêm 4cm (350px + 4cm ≈ 501px), dài hơn thì gãy 2 dòng trong khung dòng; min-width giữ cột đệm 100% không ép về min-content */
+thead th.c-loi, tbody td.c-loi{--loi-w:clamp(185px, calc(100vw - 1010px), calc(350px + 4cm)); white-space:normal!important; max-width:var(--loi-w); width:var(--loi-w); min-width:var(--loi-w);}
+body.side-open thead th.c-loi, body.side-open tbody td.c-loi{--loi-w:clamp(185px, calc(100vw - 1255px), calc(350px + 4cm));}
 tbody td.c-loi .loi-2d{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.35; max-height:2.7em; white-space:normal;}
 /* (4) NV vi phạm + QL trực tiếp: vừa "Hà trọng thúc bằng bằng bằng", KHÔNG xuống dòng */
-/* 21/10 user: tên NV và QL KHÔNG xuống dòng (1 người 1 dòng, nhiều người mỗi người 1 dòng); cột rộng theo tên dài nhất, cột đệm + Ảnh + Tần suất dời sang phải nhường chỗ */
-thead th.c-nv, tbody td.c-nv{white-space:nowrap; width:auto; min-width:16ch;}
+/* 21/10 user: tăng kích thước cột Nhân viên · Quản lý sang phải để tên nhân viên vi phạm KHÔNG ĐƯỢC CẮT XUỐNG DÒNG */
+thead th.c-nv, tbody td.c-nv{white-space:nowrap!important; width:auto; min-width:22ch;}
+tbody td.c-nv b{white-space:nowrap!important; display:inline-block;}
 .c-ql-sub{white-space:nowrap;}
 /* cột đệm cuối: ăn hết phần dư để các cột trên giữ đúng kích thước */
 thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var(--border);}
@@ -583,7 +621,7 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 #modal.hx-ben #mBody{flex:1 0 auto;display:flex;flex-direction:column}
 #modal.hx-ben #mBody.hx-doi{animation:paneIn .26s var(--ez-apple)}
 @media(max-width:760px){#modal.hx-ben{left:0!important}}
-@media(min-width:761px){#modal.hx-ben:not(:has(.hx-tb-luoi)){left:max(clamp(340px,26vw,420px),calc(100vw - 740px))!important}}   /* 21/10 user (ảnh mũi tên): thanh bên Vi phạm rộng 740 px thay vì trùm 3/4 màn; Xác minh (có .hx-tb-luoi) giữ nguyên */
+@media(min-width:761px){#modal.hx-ben:not(:has(.hx-tb-luoi)){left:max(clamp(260px,20vw,360px),calc(100vw - 740px - 5cm))!important}}   /* 21/10 user: dời mép trái thanh bên phải sang trái thêm 5cm (ra giữa màn hình) */
 @media(min-width:761px){#modal.hx-ben .modal-head{padding:12px 24px;min-height:56px}}
 /* dòng đang xem = nền chọn của Table antd (AD-01 cấm vạch nhấn một cạnh) */
 tr.tb-dangxem>td,.cl-item.tb-dangxem{background:var(--ad-chon,color-mix(in srgb,var(--accent) 10%,var(--surface)))!important}
@@ -591,7 +629,7 @@ tr.tb-dangxem>td,.cl-item.tb-dangxem{background:var(--ad-chon,color-mix(in srgb,
 /* ===== 16/10 KHUNG VIỆC kiểu WF591 (work.hasaki) trong thanh bên Vi phạm — lớp antd: chữ 12/13/14/16, đậm 400/600, 1 tầng khung ===== */
 #modal.hx-ben #mTitle{flex:1 1 auto;min-width:0}#modal.hx-ben .modal-head{gap:8px}
 #mTitle .vp-mt1{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#mTitle .vp-mt2{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+#mTitle .vp-mt2{display:none!important;font-size:12px;font-weight:400;color:var(--muted)}
 .vp-motask{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 12px;border:1px solid var(--border);border-radius:6px;color:var(--accent);text-decoration:none;font-size:13px;white-space:nowrap;flex:none}
 .vp-motask .ps{display:none}
 @media(max-width:560px){.vp-motask .pt{display:none}.vp-motask .ps{display:inline}.vp-motask{min-height:44px}}
@@ -719,7 +757,7 @@ tr.tb-dangxem>td,.cl-item.tb-dangxem{background:var(--ad-chon,color-mix(in srgb,
 /* mượt khi mở/chuyển báo cáo */
 .steps-track{animation:fadeUp .28s ease both;}
 
-/* ===== BỘ LỌC NGÀY: kiểu ở bo-loc-ngay.css (khuôn chuẩn toàn dự án, 19/10) — giữ keyframe popIn ở đây vì combo/menu khác cũng dùng =====
+/* ===== BỘ LỌC NGÀY: kiểu ở bo-loc-ngay.css (khuôn chuẩn toàn dự án, 19/10) — giữ keyframe popIn ở đây vì combo/menu khác cũng dùng ===== */
 @keyframes popIn{from{opacity:0; transform:translate3d(0,-6px,0) scale(.98);} to{opacity:1; transform:none;}}
 
 /* ===== POP-UP THỐNG KÊ (danh sách task theo loại) ===== */
@@ -1364,10 +1402,10 @@ body.side-open #sideNav .s-grp:nth-of-type(2){animation-delay:.05s;}
 body.side-anim{overflow-x:clip;}
 /* ===== MOBILE (≤768px): phủ lên nội dung + nền mờ (không đủ chỗ để đẩy) ===== */
 @media(max-width:768px){
-  #sideNav{width:72vw;max-width:264px;   /* 15/10 user «thanh bên to» trên điện thoại: 80vw/300px → 72vw/264px (cỡ Drawer antd) */}
+  #sideNav{width:200px;max-width:200px;   /* 15/10 user «thanh bên to» trên điện thoại: 80vw/300px → 72vw/264px (cỡ Drawer antd) */}
   /* min(80vw,300px) khớp đúng mép drawer — bản cũ dùng calc(80vw+7px) nên máy rộng >375px nút bị lệch ~19px */
-  body.side-open #sideToggle{translate:calc(min(72vw,264px) - 52px) 0;z-index:1303;}   /* 15/10: nút thu nằm TRONG đầu ngăn kéo (góc phải, ngang logo) — ra ngoài thì đè nút «Ghi nhận 5S» */
-  @supports not (translate:1px 0){ body.side-open #sideToggle{left:calc(min(72vw,264px) + 7px);} }
+  body.side-open #sideToggle{translate:calc(200px - 52px) 0;z-index:1303;}   /* 15/10: nút thu nằm TRONG đầu ngăn kéo (góc phải, ngang logo) — ra ngoài thì đè nút «Ghi nhận 5S» */
+  @supports not (translate:1px 0){ body.side-open #sideToggle{left:calc(200px + 7px);} }
   body.side-open #sideBackdrop{opacity:1;visibility:visible;}
 }
 
@@ -1525,7 +1563,7 @@ body.side-anim{overflow-x:clip;}
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
 <script src="tien-ich.js?v=20261020a"></script><!-- 20/10 tiện ích chung: esc/$id/hm/ngayVN — nạp TRƯỚC mọi mô-đun -->
-<script src="hasaki-giaodien-antd.js?v=20261020a"></script>
+<script src="hasaki-giaodien-antd.js?v=20261021b"></script>
 <script src="tai-khoan.js?v=20261019a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 <link rel="stylesheet" href="thanh-phan.css?v=20261021a"><!-- 21/10 chip trạng thái + nút dùng chung mọi tab (Mẫu 1 đánh giá 20/10) -->
 <link rel="stylesheet" href="thanh-cuon.css?v=20261017a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->
@@ -1729,23 +1767,21 @@ window.hxDoMayChu = function(){
 
   <!-- ===== TAB TASK VI PHẠM (bộ lọc + bảng) ===== -->
   <section id="pane-task" class="pane">
-    <button class="btn-filter" id="btnFilter">Bộ lọc ▾</button>
-    <!-- `data-mb-rangcua`: MIỄN TRỪ TỰ KHAI khỏi luật ⑨ (cụm control răng cưa) của qc-mobile, cùng khuôn `data-mb-cuon`.
-         Trên ≤560px lưới này là 1 CỘT 4 ô (≈270px) — nhưng mặc định GẤP sau nút "Bộ lọc — chạm để mở", chỉ hiện khi
-         người dùng chủ động mở, nên không phải thanh ăn phần đầu màn. Bộ đo mở nó để đo pop-up lịch bên trong (08/09/2026). -->
-    <div class="filters collapsed" id="filterGrid" data-mb-rangcua="luoi-1-cot-gap-mac-dinh">
-      <!-- Nút #btnDate + pop-up lịch #datePop do KHUÔN DÙNG CHUNG taoBoLocNgay dựng (khối DATE PICKER cuối file) —
-           tab Planogram (hasaki-planogram.js) dùng đúng khuôn này cho ô "Ngày" (08/09/2026). -->
-      <div class="date-filter" id="dateFilter">
-        <span class="lbl">Ngày ghi nhận</span>
-      </div>
-      <label><span class="lbl">Trạng thái</span><select id="fStatus"><option value="">Tất cả</option></select></label>
-      <label><span class="lbl">Lỗi vi phạm</span><select id="fLoi"><option value="">Tất cả</option></select></label>
-      <label><span class="lbl">Tìm (vị trí / mã)</span><input type="search" id="fTim" autocomplete="off" placeholder="F0-A1 / HSK-..."></label>
-    </div>
-
     <div class="panel">
-      <div class="panel-head"><span>Task vi phạm</span><span id="dem"></span></div>
+      <div class="panel-head"><span class="ph-trai"><span class="ph-td">Task vi phạm</span><span id="dem" class="ph-dem"></span></span><button type="button" class="btn-filter" id="btnFilter">Bộ lọc</button></div>
+      <!-- `data-mb-rangcua`: MIỄN TRỪ TỰ KHAI khỏi luật ⑨ (cụm control răng cưa) của qc-mobile, cùng khuôn `data-mb-cuon`.
+           Trên ≤560px lưới này là 1 CỘT 4 ô (≈270px) — nhưng mặc định GẤP sau nút "Bộ lọc — chạm để mở", chỉ hiện khi
+           người dùng chủ động mở, nên không phải thanh ăn phần đầu màn. Bộ đo mở nó để đo pop-up lịch bên trong (08/09/2026). -->
+      <div class="filters collapsed" id="filterGrid" data-mb-rangcua="luoi-1-cot-gap-mac-dinh">
+        <!-- Nút #btnDate + pop-up lịch #datePop do KHUÔN DÙNG CHUNG taoBoLocNgay dựng (khối DATE PICKER cuối file) —
+             tab Planogram (hasaki-planogram.js) dùng đúng khuôn này cho ô "Ngày" (08/09/2026). -->
+        <div class="date-filter" id="dateFilter">
+          <span class="lbl">Ngày ghi nhận</span>
+        </div>
+        <label><span class="lbl">Trạng thái</span><select id="fStatus"><option value="">Tất cả</option></select></label>
+        <label><span class="lbl">Lỗi vi phạm</span><select id="fLoi"><option value="">Tất cả</option></select></label>
+        <label><span class="lbl">Tìm (vị trí / mã)</span><input type="search" id="fTim" autocomplete="off" placeholder="F0-A1 / HSK-..."></label>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -2907,7 +2943,11 @@ function _render(){
   curD=dAll; rowGal={};
   /* 21/10 đánh giá: «190 task» đầu bảng ≠ «111» thanh bên, không ai biết số nào là gì → nói rõ cả hai */
   { const cho=dTable.filter(r=>/^(Chưa xử lý|Mới|Đang xử lý|Quá hạn)$/.test(statusHienThi(r))).length;
-    $('dem').textContent=dTable.length+" phiếu · "+cho+" chờ xử lý"; }
+    $('dem').textContent=dTable.length+" phiếu · "+cho+" chờ xử lý";
+    const coLoc=!!(gFrom||$('fStatus').value||$('fLoi').value||$('fTim').value.trim()), dong=$('filterGrid').classList.contains('collapsed');
+    $('btnFilter').textContent=coLoc?'Bộ lọc · đang lọc':'Bộ lọc';
+    $('btnFilter').classList.toggle('dang-loc',coLoc);
+    $('btnFilter').classList.toggle('mo',!dong); }
   setTimeout(()=>{ if(window.hskThanhBen) hskThanhBen.toDam(); },0);   // 16/10 bảng vẽ lại → tô lại dòng đang mở ở thanh bên
   renderTk7(dAll);                               // Tổng kết nhanh · kiểm soát 7 ngày (tab Tổng quan)
 
@@ -3151,13 +3191,15 @@ function moChiTiet(i){
   const than = giaiDoan ? `<section class="vp-muc"><h3 class="vp-h3">Giai đoạn</h3><ol class="vp-gd">${giaiDoan}</ol></section>` : '';
   // ---- BÌNH LUẬN: lấy TRỰC TIẾP từ API WMS (/api/v2/task/comment, pipeline gom sẵn vào
   //      data-summary.json) — hiển thị người, mã NV, thời gian, nội dung, ảnh đính kèm.
+  // 21/10 user: @[Tên](user_id:12345) → tô xanh kiểu tag tên ở work.hasaki.vn, bỏ "(user_id:12345)"
+  const fmtTagTen=s=>esc(s).replace(/@\[([^\]]+)\]\(user_id:\d+\)/g,'<span class="cmt-nhac">@$1</span>');
   const cmtL=(BINH_LUAN&&BINH_LUAN[String(r[iCode])])||[];
   let cmtBody;
   if(cmtL.length){
     const MB='https://hr-media.hasaki.vn/production/hr/';
     cmtBody=cmtL.map(c=>`<div class="cmt">
       <div class="cmt-h"><b>${esc(c.ten)}</b>${c.ma?` <span class="muted">(${esc(c.ma)})</span>`:''}<span class="cmt-luc">${esc(fmtNgay(c.luc))}</span></div>
-      ${String(c.nd||'').trim()?`<div class="cmt-nd">${esc(c.nd)}</div>`:''}
+      ${String(c.nd||'').trim()?`<div class="cmt-nd">${fmtTagTen(c.nd)}</div>`:''}
       ${(c.files&&c.files.length)?`<div class="thumbs">${c.files.map(f=>{
         const u=MB+f;                                   // f là path tương đối trên hr-media (host cố định https)
         if(isVideo(f)) return `<span class="bb-thumbwrap"><video class="bb-thumb bb-vid" preload="metadata" muted playsinline src="${esc(u)}#t=0.1" data-bb="${esc(u)}" title="Xem clip đính kèm"></video></span>`;
@@ -3169,7 +3211,7 @@ function moChiTiet(i){
     // dự phòng: cột "bình luận/comment" trong dữ liệu export (nếu sau này có)
     const cmtVals=H.map((h,c)=>/bình luận|comment/i.test(h)?String(r[c]||'').trim():'').filter(Boolean);
     cmtBody=cmtVals.length
-      ? cmtVals.map(v=>`<div class="fld"><span class="fld-v">${esc(v)}</span></div>`).join('')
+      ? cmtVals.map(v=>`<div class="fld"><span class="fld-v">${fmtTagTen(v)}</span></div>`).join('')
       : '<div class="muted">Chưa có bình luận nào</div>';
   }
   // Khối bình luận nằm RIÊNG BÊN DƯỚI dải bước workflow (không phải 1 bước trong stepper ngang)
@@ -3537,7 +3579,7 @@ function moHasakiXacMinh(){
     }); return; }   // 19/10: chờ dò máy chủ (laptop hoặc đường hầm); không có thì về Máy trạm (tránh ô đăng nhập lặp)
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261020p';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261021c';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });
@@ -4059,7 +4101,7 @@ async function taiBienBanLen(files){
 // Nhấp 1 dòng (bảng hoặc thẻ) -> mở chi tiết
 document.addEventListener('click', e=>{
   // Ảnh ở cột Hình ảnh -> CHỈ mở lightbox media Mục 1 (không mở chi tiết các bước)
-  const rm=e.target.closest('.row-media');
+  const rm=e.target.closest('.row-media[data-mg]');
   if(rm){ e.preventDefault(); e.stopPropagation(); const g=rowGal[rm.dataset.mg]||[]; if(g.length) openLB(g,0); return; }
   // Cột Biên bản: nút tải lên / xem ảnh biên bản
   const bbu=e.target.closest('.bb-up');
@@ -4173,7 +4215,9 @@ document.addEventListener('click', e=>{ if(!$('settingsPop').classList.contains(
 $('tabsNav').addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(b) setTab(b.dataset.tab); });
 $('btnFilter').addEventListener('click',()=>{
   const g=$('filterGrid'), dong=g.classList.toggle('collapsed');
-  $('btnFilter').textContent = dong ? 'Bộ lọc ▾' : 'Bộ lọc ▴';   // 13/10 luật 7: bỏ «— chạm để mở/đóng» (chỉ dẫn thao tác), mũi tên đã nói
+  const coLoc=!!(gFrom||$('fStatus').value||$('fLoi').value||$('fTim').value.trim());
+  $('btnFilter').textContent = coLoc ? 'Bộ lọc · đang lọc' : 'Bộ lọc';   // 13/10 luật 7: bỏ «— chạm để mở/đóng» (chỉ dẫn thao tác), mũi tên ::after tự xoay
+  $('btnFilter').classList.toggle('mo', !dong);
 });
 
 /* ===== CUSTOM DROPDOWN: nâng cấp <select> -> div/ul/li animate được ===== */
@@ -4349,11 +4393,12 @@ document.addEventListener('click', ()=>csDongHet(null));
           fetch("http://127.0.0.1:8591/api/ping").then(function(r){ if (!r.ok) throw 0; window.__HX_MAY_CHU = 1; window.__HX_CHAN = 0; document.body.classList.remove("hx-an"); build(); if (typeof toast === "function") toast("Đã kết nối máy chủ Xác minh", "ok"); })
             .catch(function(){ if (typeof toast === "function") toast("Edge vẫn chặn: bấm biểu tượng bên trái ô địa chỉ → Quyền cho trang web → «Truy cập mạng cục bộ» = Cho phép, rồi tải lại trang. (Máy chủ Xác minh phải đang chạy trên máy này.)", "loi"); });
         }); return; }
+      /* 21/10 user: chọn 1 mục bất kỳ ở thanh bên (web + điện thoại) → thanh bên TỰ ẨN sau khi chọn */
       el.addEventListener("click", function(){ var s = el.getAttribute("data-sub");
         if (s) { if (window.HXACMINH) { setTab("xacminh"); window.HXACMINH.sub(s); }
           else { try { var o = JSON.parse(localStorage.getItem("hx-loc") || "null") || {}; o.SUB = s; localStorage.setItem("hx-loc", JSON.stringify(o)); } catch(e){} setTab("xacminh"); }
-          sync(); return; }
-        setTab(el.getAttribute("data-tab")); });
+          sync(); if (document.body.classList.contains("side-open")) dong(); return; }
+        setTab(el.getAttribute("data-tab")); if (document.body.classList.contains("side-open")) dong(); });
     });
     sync(); if (window.soThanhBen) soThanhBen();
   }
@@ -4405,6 +4450,15 @@ document.addEventListener('click', ()=>csDongHet(null));
     e.preventDefault(); daoChieu();
   });
   nhan(document.body.classList.contains("side-open"));
+  /* Luật thanh bên: khi thanh bên phải (Vi phạm, Xác minh, Planogram) hiển thị thì thanh bên trái tự động ẩn */
+  try {
+    var obsBen = new MutationObserver(function(){
+      if (!document.body.classList.contains("side-open")) return;
+      var coBenPhai = document.querySelector("#modal.hx-ben.show, #hpVtModal.show, .hx-ben.show");
+      if (coBenPhai) dong();
+    });
+    obsBen.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["class"] });
+  } catch (e) {}
   /* Bọc setTab gốc để đồng bộ trạng thái active của sidebar (kể cả khi gọi từ deep-link) */
   if (typeof window.setTab === "function"){ var _st = window.setTab; window.setTab = function(n){ _st(n); sync(); }; }
   build();

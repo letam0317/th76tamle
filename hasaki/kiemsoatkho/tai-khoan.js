@@ -104,7 +104,15 @@
       '<label>Mật khẩu<input name="mk" type="password" autocomplete="current-password" required></label><button type="submit" class="tk-chinh">Đăng nhập</button><div class="tk-st"></div></form>');
     var f = o.querySelector("form"); (f.id.value ? f.mk : f.id).focus();
     f.onsubmit = function (ev) { ev.preventDefault(); var nut = f.querySelector("button"); nut.disabled = true; trangThai(o, "", "Đang kiểm tra…");
-      dangNhap(f.id.value, f.mk.value).then(function () { ls.set("tk-id", f.id.value.trim().toLowerCase().replace(/@.*$/, "")); dongHop(); if (sau) sau(); })
+      dangNhap(f.id.value, f.mk.value).then(function () {
+        ls.set("tk-id", f.id.value.trim().toLowerCase().replace(/@.*$/, ""));
+        dongHop();
+        if (sau) { try { sau(); } catch (e) {} }
+        try {
+          if (typeof window.setTab === "function") window.setTab("home");
+          else if (typeof window.showTab === "function") window.showTab("home");
+        } catch (e) {}
+      })
         .catch(function (e) { trangThai(o, "loi", e.message); nut.disabled = false; f.mk.select(); }); };
   }
   window.tkMoDangNhap = moDangNhap;

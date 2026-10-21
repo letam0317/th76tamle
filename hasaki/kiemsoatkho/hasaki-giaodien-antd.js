@@ -325,7 +325,7 @@
     "@media(max-width:768px){" + B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile){padding:4px 10px!important}" + B + " :is(#pane-kk,#pane-htonbat,#viewKK,#viewAbn) :is(.hk-strip,.kkstrip,.ht-tiles,.abntiles) > :is(.ks,.ht-tile,.abntile):nth-child(3n+1){border-left:0!important;padding-left:0!important}}",
     /* 13/10 QC «vừa chiều ngang»: bảng Task vi phạm (Retail) rộng 1.342px trong khung 1.159px ở màn 1440 → phải kéo ngang.
        Tên NV / quản lý được xuống dòng (bỏ min 22ch), nhãn cột «Tần suất vi phạm» xuống dòng — bảng vừa khung, không cuộn ngang */
-    "@media(min-width:769px){" + B + " :is(thead th,tbody td):is(.c-nv,.c-ql){min-width:0!important;white-space:normal!important}" + B + " thead th:is(.c-freq,.c-nv,.c-ql){white-space:normal!important}}",
+    "@media(min-width:769px){" + B + " :is(thead th,tbody td).c-ql{min-width:0!important;white-space:normal!important}" + B + " thead th:is(.c-freq,.c-ql){white-space:normal!important}}",
     "@media(min-width:769px) and (max-width:1366px){" + B + " :is(thead th,tbody td).c-vitri{width:17ch!important;min-width:17ch!important;max-width:17ch!important}" + B + " tbody td.c-freq{white-space:normal!important}}",
     /* 13/10 Tổng quan phương án B (tqVe) — token antd: thẻ viền 1px bo 8, số 30/600 (ô chỉ số) · 24/600 (thẻ), mô tả 14 xám 2 dòng */
     ".tq{display:flex;flex-direction:column}",
@@ -388,8 +388,8 @@
       /* đầu trang điện thoại 1 hàng: chỉ còn tên mục (nhóm đã thấy trong thanh bên) — chặn luật 13 rác đầu màn */
       H + " #adCrumb .g," + H + " #adCrumb .s{display:none}" +
       H + " #adCrumb{white-space:normal}" + H + " #adCrumb b{font-size:14px;line-height:20px}" +   // máy hẹp 360px: tên dài xuống 2 dòng, không cắt chữ
-      H + " #adLogo{width:min(72vw,264px)}" + H + " #adChuyen{width:min(72vw,264px)}" +
-      H + " #sideNav{width:72vw;max-width:264px}" +
+      H + " #adLogo{width:200px;padding:0 16px}" + H + " #adChuyen{width:200px}" +   /* 21/10 user: điện thoại thanh bên khít cụm dữ liệu (264 → 200px) */
+      H + " #sideNav{width:200px;max-width:200px}" +
       H + " #sideToggle{width:40px;height:40px;top:8px;left:8px}" +
       H + " #btnSettings{width:40px;height:40px}" +
       H + " #btnGhiNhan{min-height:40px}" +

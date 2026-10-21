@@ -1414,12 +1414,35 @@ var CSS = [
 /* pop-up: phụ đề rỗng thì ẩn · 7 ô ngày luôn 1 hàng trên điện thoại */
 ".hp-modalhd .mtsub:empty{display:none;}",
 /* 21/10 user: pop-up ô → THANH BÊN PHẢI (web: trượt từ phải, cao hết màn; điện thoại: toàn màn, đầu trang trượt lên như Theo tác vụ/Theo máy) */
-"#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}",
+".hp-loc h2{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;}",
+".hp-loc #hpBtnLoc{display:none;}",
+"@media(max-width:768px){" +
+  ".hp-loc #hpBtnLoc{position:relative;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;" +
+  "margin-left:auto;padding:0 10px;height:28px;min-height:28px;font-size:12px;font-weight:500;line-height:1;" +
+  "border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;}" +
+  ".hp-loc #hpBtnLoc::after{content:'';display:inline-block;width:5.5px;height:5.5px;border-right:1.5px solid currentColor;" +
+  "border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);transition:transform .22s var(--ez-apple,ease);}" +
+  ".hp-loc #hpBtnLoc.mo::after{transform:translateY(1.5px) rotate(-135deg);}" +
+  ".hp-loc #hpBtnLoc:hover,.hp-loc #hpBtnLoc.mo{border-color:var(--accent);color:var(--accent);" +
+  "background:color-mix(in srgb,var(--accent) 8%,var(--surface));}" +
+  ".hp-loc #hpLocSlot.collapsed{display:none!important;}" +
+  ".hp-loc #hpLocSlot:not(.collapsed){transform-origin:top center;animation:popIn .22s var(--ez-spring,cubic-bezier(.16,1,.3,1));}" +
+"}",
+"#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}" +
+"#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}",
 "#hpVtModal.show .hp-modalbox{transform:none;}",
-"#hpVtModal .hp-modalhd{align-items:flex-start;}#hpVtModal .hp-vtacts{min-width:0;max-width:60%;flex:none;}#hpVtModal .hp-vtr1{flex-wrap:wrap;justify-content:flex-end;}#hpVtModal .hp-modalhd>div:first-child{min-width:0;}",
+"@media(min-width:769px){#hpVtModal .hp-modalhd{display:flex;flex-direction:row;align-items:center;gap:12px;}" +
+  "#hpVtModal .hp-vtacts{order:-1;max-width:none;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;}" +
+  "#hpVtModal .hp-vtr1{display:inline-flex;align-items:center;gap:8px;}" +
+  "#hpVtModal .hp-vtr1 .hp-mdong{order:1;}" +
+  "#hpVtModal .hp-vtr1 #hpVtPg{order:2;}" +
+  "#hpVtModal #hpVtGhi{order:3;margin:0;}" +
+  "#hpVtModal .hp-modalhd>div:first-child{order:1;margin-left:auto;text-align:right;min-width:0;}}",
+"@media(max-width:768px){#hpVtModal .hp-modalhd{align-items:flex-start;}#hpVtModal .hp-vtacts{min-width:0;max-width:60%;flex:none;}" +
+  "#hpVtModal .hp-vtr1{flex-wrap:wrap;justify-content:flex-end;}#hpVtModal .hp-modalhd>div:first-child{min-width:0;}}",
 ".hp-vtr1{display:flex;align-items:center;gap:8px;}.hp-vtpg{font-size:12px;white-space:nowrap;}.hp-vtpg:empty{display:none;}.hp-vt-tgon{display:none;}",
 "@media(max-width:768px){#hpVtModal .hp-modalbox{width:100vw!important;}body:has(#hpVtModal.show) header{translate:0 -100%;pointer-events:none}.hp-vt-tday{display:none}.hp-vt-tgon{display:inline}" +
-"#hpVtModal .hp-vtr1 .hsk-nut,#hpVtModal .hp-vtpg{min-height:28px!important;height:28px;padding:0 8px!important;font-size:13px!important;border-radius:6px}.hp-vtpg{border:1px solid var(--border,#e5e7eb);display:inline-flex;align-items:center;text-decoration:none}}",
+  "#hpVtModal .hp-vtr1 .hsk-nut,#hpVtModal .hp-vtpg{min-height:28px!important;height:28px;padding:0 8px!important;font-size:13px!important;border-radius:6px}.hp-vtpg{border:1px solid var(--border,#e5e7eb);display:inline-flex;align-items:center;text-decoration:none}}",
 "@media(max-width:700px){#pane-planogram .hp-chiM{display:inline-flex;}#pane-planogram .hp-legrow{flex-wrap:nowrap;}" +
   /* 33 tên xổ ra thành 28 hàng (bộ đo răng cưa bắt 28/09) → 1 dải cuộn ngang; bấm tên vẫn soi ô trên sơ đồ */
   "#pane-planogram .hp-todo .hp-ptnhac{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-left:0;padding-bottom:2px;}#pane-planogram .hp-todo .hp-ptnhac .hp-ptchip{flex:0 0 auto;min-height:40px;}" +
@@ -2577,7 +2600,7 @@ function renderToday(){
   /* Không có yêu cầu trong khoảng → empty-state gọn thay vì 4 thẻ số 0 */
   if (!nTot){
     var wb0 = $id("hpWhBar");   // giữ tham chiếu TRƯỚC khi innerHTML xoá chỗ cũ — vẫn phải đổi được ngày khi khoảng này trống
-    box.innerHTML = '<section class="hp-panel hp-fade hp-loc"><h2>Bộ lọc</h2><div class="hp-progloc" id="hpLocSlot"></div></section>' +
+    box.innerHTML = '<section class="hp-panel hp-fade hp-loc"><h2><span>Bộ lọc</span><button type="button" class="hsk-nut" id="hpBtnLoc" onclick="HPLANOGRAM.toggleLoc()">Bộ lọc</button></h2><div class="hp-progloc" id="hpLocSlot"></div></section>' +
       '<section class="hp-panel hp-fade hp-prog"><h2>Tiến độ</h2><div class="hp-empty">Không có yêu cầu vệ sinh trong khoảng này' +
       (S.area ? ' ở ' + esc(areaMeta(S.area).ngan || areaMeta(S.area).short || S.area) : '') + '.</div></section>';
     ganLocVaoThe(wb0);
@@ -2607,7 +2630,7 @@ function renderToday(){
   /* 12/10 user: thẻ "Tiến độ" (nhãn như "Cần xử lý") — TRÁI khoá cứng: vòng % to + "x / y vị trí · đã báo cáo vệ sinh ngày …" ngay dưới;
      PHẢI từ trên xuống: Đã vệ sinh · Chưa · đi làm · Chưa · nghỉ. Hai cột rộng bằng nhau. */
   box.innerHTML =
-    '<section class="hp-panel hp-fade hp-loc"><h2>Bộ lọc</h2><div class="hp-progloc" id="hpLocSlot"></div></section>' +
+    '<section class="hp-panel hp-fade hp-loc"><h2><span>Bộ lọc</span><button type="button" class="hsk-nut" id="hpBtnLoc" onclick="HPLANOGRAM.toggleLoc()">Bộ lọc</button></h2><div class="hp-progloc" id="hpLocSlot"></div></section>' +
     '<section class="hp-panel hp-fade hp-prog hp-tdo"><h2>Tiến độ</h2><div class="hp-tdo2">' +
     '<div class="hp-tdotrai">' +
       '<div class="hp-ring" style="background:conic-gradient(' + vong + ')" role="img" aria-label="Đã vệ sinh ' + p + '%"><span><b>' + p + '%</b><small>đã xong</small></span></div>' +
@@ -2627,7 +2650,20 @@ function renderToday(){
 }
 /* 12/10: dời CHÍNH phần tử #hpWhBar (ô Ngày dùng chung taoBoLocNgay + chip khu) vào cột trái thẻ tiến độ — không dựng lại nên
    lịch, trạng thái và sự kiện còn nguyên; renderWhBar() vẫn tìm theo id như cũ. */
-function ganLocVaoThe(wb){ var slot = $id("hpLocSlot"); if (slot && wb && wb.parentNode !== slot) slot.appendChild(wb); }
+function ganLocVaoThe(wb){
+  var slot = $id("hpLocSlot");
+  if (slot && wb && wb.parentNode !== slot) slot.appendChild(wb);
+  if (slot && window.matchMedia("(max-width:768px)").matches) {
+    var btn = $id("hpBtnLoc");
+    if (!slot.classList.contains("collapsed") && (!btn || !btn.classList.contains("mo"))) slot.classList.add("collapsed");
+  }
+}
+function toggleLoc(){
+  var slot = $id("hpLocSlot"), btn = $id("hpBtnLoc");
+  if (!slot || !btn) return;
+  var col = slot.classList.toggle("collapsed");
+  btn.classList.toggle("mo", !col);
+}
 /* ===== KHU VỰC (tầng 1 khi kho có ≥3 khu) — mỗi khu 1 dòng: tên · x/y · thanh · số ô chưa làm.
  * Khu nhiều việc tồn nhất xếp lên đầu. Chỉ hiện khi đang xem "Tất cả" và có từ 3 khu — với 2 khu
  * (A1 + A8 hiện nay) thẻ Tiến độ + chip khu đã đủ, thêm bảng này chỉ là rác. Bấm dòng = lọc khu. */
@@ -3550,6 +3586,12 @@ var VT = { loc: "", ngay: "", moAnh: {} };   // moAnh[request id] = đã bấm "
 function bkCua(r, dd){ return r.bk === "da" ? "da" : (dd === isoToday() ? r.bk : "chua"); }
 function openViTri(loc){
   if (!loc) return;
+  /* Luật thanh bên: khi thanh bên phải hiển thị thì thanh bên trái tự động ẩn */
+  if (document.body.classList.contains("side-open")) {
+    var tg = $id("sideToggle");
+    if (tg) tg.click();
+    else document.body.classList.remove("side-open");
+  }
   VT.loc = loc; VT.ngay = ngayXem();
   canANH();  // ƯU TIÊN ẢNH LÊN ĐẦU: chiếm kết nối trước để ảnh về ngay, không bị nghẽn sau các tab lịch sử
   canCC();   // pop-up cần chấm công hôm nay của phụ trách — nguồn bậc 3, nạp lúc mở (buildCC vẽ lại)
@@ -4753,7 +4795,7 @@ function init(pane){
 }
 
 window.HPLANOGRAM = {
-  init: init, reload: loadData, setArea: setArea, moKhuMB: moKhuMB, setNgay: setNgay, setKhoang: setKhoang, chonNgay: chonNgay, moLocNgay: moLocNgay, dongLocNgay: dongLocNgay, setListMode: setListMode,
+  init: init, reload: loadData, setArea: setArea, moKhuMB: moKhuMB, setNgay: setNgay, setKhoang: setKhoang, chonNgay: chonNgay, moLocNgay: moLocNgay, dongLocNgay: dongLocNgay, setListMode: setListMode, toggleLoc: toggleLoc,
   openAll: openAll, openArea: openArea, openStatus: openStatus, openName: openName, openYc: openYc, openYcAi: openYcAi, closeModal: closeModal,
   openAiList: openAiList, closeAiModal: closeAiModal, renderAiModal: renderAiModal,
   comboInput: comboInput, comboMenu: comboMenu, quick: quick, openAnh: openAnh, anhLui: anhLui,
