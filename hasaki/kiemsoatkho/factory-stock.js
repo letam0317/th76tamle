@@ -548,13 +548,7 @@ function capNhatNut(){
   if (_syncing){ btn.disabled = true; btn.textContent = "Đang tải…"; btn.title = "Đang đọc lại dữ liệu từ Sheet."; return; }
   btn.disabled = false; btn.textContent = "Tải lại dữ liệu"; btn.title = "Đọc lại dữ liệu mới nhất từ Sheet (máy trạm đồng bộ WMS mỗi sáng).";
 }
-function toast(msg, type){
-  var el = $id("fsToast");
-  el.className = type || ""; el.textContent = msg;
-  requestAnimationFrame(function(){ el.classList.add("show"); });
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 6000);
-}
+var toast = function(msg, type){ window.hskTienIch.toast(msg, type); };   // 21/10 gộp toast: thông báo chung (trước: ô #fsToast riêng)
 /* "Tải lại dữ liệu" = ĐỌC LẠI từ Google Sheet (nguồn được máy trạm đồng bộ từ WMS mỗi sáng/theo yêu cầu).
    KHÔNG gọi GAS→WMS trực tiếp: WMS chặn IP ngoài (firewall) nên máy chủ Google không với tới được. */
 function syncWms(){

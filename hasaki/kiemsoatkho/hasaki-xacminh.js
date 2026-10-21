@@ -302,8 +302,9 @@
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-qd-anh img{width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:contain!important}" +
           "#modal.hx-ben [data-tb=tacvu] [data-tp=anh] .hx-anh-day{justify-content:center}}" +
         /* 20/10 user CHỐT (chỉ WEB, khổ >820): đầu thanh — «Đóng» sát TRÁI, kế «Ghi chú», «Mở task»; tiêu đề (tên task / sự việc + giờ) sát PHẢI, căn phải, dài cắt … · điện thoại giữ tên trái, nút phải */
-        "@container (min-width:821px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mClose{order:-3}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#gcNut{order:-2}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#hxMoTask{order:-1}" +
-          "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mTitle{order:1;justify-content:flex-end!important;text-align:right}}" +
+        /* 21/10 Mẫu 3 + luật R1 (tên trái, Ghi chú · Đóng phải) áp cả màn rộng — trước đây ≥821px đảo nút sang trái, tiêu đề sang phải (khác Vi phạm) */
+        "@container (min-width:821px){#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mClose{order:3}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#gcNut{order:1}#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#hxMoTask{order:2}" +
+          "#modal.hx-ben:has(#mBody .hx-tb-luoi) .modal-head>#mTitle{order:-1;justify-content:flex-start!important;text-align:left}}" +
         /* 20/10 khối thông tin Theo tác vụ (Ngày ghi nhận / Vị trí / Ghi chú / Thuộc lỗi / Máy gợi ý): mỗi mục = nhãn nhỏ màu phụ (cột 88px) + giá trị, nhãn→giá trị 12px, giữa các mục 8px (khung cách 10px ⇒ phần loi/goiy −2px) — gọn chiều cao để web 1366×768 không phải cuộn cả thanh (khung đã cách 10px ⇒ phần loi/goiy thêm 2px), cùng cỡ chữ, cùng lề */
         "#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin] .hx-qd-o,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi] .hx-qd-o,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy] .hx-qd-o{display:grid!important;grid-template-columns:88px minmax(0,1fr)!important;column-gap:12px;row-gap:0;align-items:baseline!important;margin:0!important;padding:0!important}" +
         "#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=thongtin] .hx-qd-o>.lbl,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=loi] .hx-qd-o>.lbl,#modal.hx-ben [data-tb=tacvu]>.hx-tb-khung>[data-tp=goiy] .hx-qd-o>.lbl{font-size:12px!important;line-height:20px;color:var(--muted)!important;font-weight:400!important;padding:0!important;margin:0!important;width:auto!important;white-space:nowrap}" +
@@ -833,8 +834,8 @@
         return tai(true).then(function () { var l2 = D.luot.find(function (x) { return x.id === l.id; }); if (l2) { var st = $id("mBody").querySelector(".hx-st"); var moi = stLuot(l2); if (st) st.outerHTML = moi || ""; else $id("mBody").querySelector(".hx-act").insertAdjacentHTML("afterend", moi); } if (SUB === "cam") veCam(); }); })
       .catch(function (e) { baoLoi(e.message); });
   }
-  function baoOk(t) { if (typeof toast === "function") toast(t, "ok"); else if (typeof showToast === "function") showToast(t); else alert(t); }
-  function baoLoi(t) { if (typeof toast === "function") toast(t, "loi"); else if (typeof showToast === "function") showToast(t); else alert(t); }
+  var baoOk = function (t) { window.hskTienIch.toast(t, "ok"); };    // 21/10 gộp toast: dùng thông báo chung (tien-ich.js)
+  var baoLoi = function (t) { window.hskTienIch.toast(t, "loi"); };
 
   /* clip: phát nối các đoạn đã tải từ đầu ghi; "Tự động" = tua ×3 khúc trống, ×1 lúc có người (−4…+10 s).
      05/10 user: "tại sao các clip trên k thấy khung vạch đứt di chuyển theo người khi người di chuyển, cái chỗ thể hiện tên trên khung đó đâu"

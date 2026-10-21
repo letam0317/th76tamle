@@ -649,7 +649,7 @@ function sync(){
   loadData();
   setTimeout(function(){ _syncing = false; btn.disabled = false; btn.classList.remove("spinning"); if (tx) tx.textContent = "Tải lại"; toast("Đã tải lại dữ liệu mới nhất từ Sheet.", "ok"); }, 1200);
 }
-function toast(msg, type){ var el = $id("fkToast"); el.className = type || ""; el.textContent = msg; requestAnimationFrame(function(){ el.classList.add("show"); }); clearTimeout(toast._t); toast._t = setTimeout(function(){ el.classList.remove("show"); }, 6000); }
+var toast = function(msg, type){ window.hskTienIch.toast(msg, type); };   // 21/10 gộp toast: thông báo chung (trước: ô #fkToast riêng)
 
 function init(pane){
   PANE = pane;

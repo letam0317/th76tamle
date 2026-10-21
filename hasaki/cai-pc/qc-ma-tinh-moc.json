@@ -25,7 +25,6 @@
    "xm-khoa-nut"
   ],
   "lopChip": [
-   "badge-link",
    "mb-tag"
   ],
   "media": [
@@ -47,10 +46,7 @@
  },
  "hasaki-xacminh.js": {
   "hex": 58,
-  "tienIch": {
-   "baoOk": 1,
-   "baoLoi": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "hx-chung",
    "hx-t-nhac",
@@ -112,7 +108,7 @@
   "cdnKhongGhim": 0
  },
  "hasaki-planogram.js": {
-  "hex": 432,
+  "hex": 433,
   "tienIch": {},
   "lopBang": [
    "hp-cctbl",
@@ -122,16 +118,15 @@
    "hp-h2btn",
    "hp-khurow",
    "hp-legchip",
-   "hp-mclose",
    "hp-nvmore",
    "hp-nvr",
    "hp-progt",
    "hp-ptchip",
    "hp-tdrow",
    "hp-tile",
-   "hp-vtghi",
    "hp-vtmore",
    "hp-whtab",
+   "hsk-nut",
    "more"
   ],
   "lopChip": [
@@ -148,14 +143,12 @@
    1024,
    1150
   ],
-  "dongDai": 47,
+  "dongDai": 48,
   "cdnKhongGhim": 0
  },
  "factory-kiemke.js": {
   "hex": 181,
-  "tienIch": {
-   "toast": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "fk-mtbl"
   ],
@@ -176,14 +169,12 @@
    900,
    1100
   ],
-  "dongDai": 45,
+  "dongDai": 44,
   "cdnKhongGhim": 0
  },
  "factory-stock.js": {
   "hex": 125,
-  "tienIch": {
-   "toast": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "fs-mtbl",
    "fs-wtbl"
@@ -229,9 +220,7 @@
  },
  "hasaki-pc.js": {
   "hex": 79,
-  "tienIch": {
-   "toast": 1
-  },
+  "tienIch": {},
   "lopBang": [
    "hpc-tbl"
   ],
@@ -371,7 +360,7 @@
   "dongDai": 13,
   "cdnKhongGhim": 1
  },
- "_luc": "2026-10-20T13:21:45.912Z",
+ "_luc": "2026-10-21T02:47:08.030Z",
  "_ghiTho": {
   "agy-xm.mjs": 5,
   "ai-hoi-anh.mjs": 1,

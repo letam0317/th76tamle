@@ -11,4 +11,11 @@
   TI.p2 = function (n) { return (n < 10 ? "0" : "") + n; };
   /* yyyy-mm-dd (có thể kèm giờ) → "dd/mm"; không đúng dạng → trả nguyên */
   TI.ngayVN = function (d) { var m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + "/" + m[2] : d; };
+  /* 21/10 gộp toast (đánh giá: 3 cách báo kết quả — toast ở index, baoOk ở Xác minh, ô riêng ở Factory): một thông báo dưới đáy màn cho mọi mô-đun.
+     loai: ok (mặc định) · loi · warn; tên cũ err/error/bad → loi. Không có toast của trang (tệp chạy riêng) → alert. */
+  TI.toast = function (msg, loai) {
+    var l = (loai === "err" || loai === "error" || loai === "bad") ? "loi" : (loai || "ok");
+    if (typeof window.toast === "function") return window.toast(msg, l);
+    try { alert(msg); } catch (e) {}
+  };
 })();

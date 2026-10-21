@@ -1176,7 +1176,8 @@ var CSS = [
 ".hp-nk-loc{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;margin:1px 2px 1px 0;text-decoration:none;color:var(--text,#374151);background:color-mix(in srgb, var(--muted,#9ca3af) 14%, transparent);transition:background .16s ease,color .16s ease;}",
 ".hp-nk-loc:hover{background:color-mix(in srgb, var(--accent,#326e51) 14%, transparent);color:var(--accent,#326e51);}",
 ".hp-nk-empty{color:var(--muted,#9ca3af);font-size:12.5px;padding:40px 16px;text-align:center;}",
-"@media(max-width:768px){.hp-modal{padding:0;align-items:stretch;justify-content:stretch;}.hp-modalbox{width:100vw!important;max-height:100vh!important;height:100vh;border-radius:0;}.hp-mclose{font-size:30px;min-width:48px;min-height:48px;}.hp-mfilters input{min-height:44px;}#pane-planogram .hp-whtab{min-height:44px;}#hpReload,#pane-planogram .hp-btn{min-height:44px;width:100%;}",
+/* 21/10 Mẫu 3: điện thoại — cùng khung TRƯỢT TỪ ĐÁY như thanh bên (trước: toàn màn, ✕ góc) */
+"@media(max-width:768px){.hp-modal{padding:0;align-items:flex-end;justify-content:stretch;}.hp-modalbox{width:100vw!important;max-height:92vh!important;height:auto;border-radius:16px 16px 0 0;transform:translateY(28px);}.hp-vtfoot{padding:10px 14px;}.hp-mfilters input{min-height:44px;}#pane-planogram .hp-whtab{min-height:44px;}#hpReload,#pane-planogram .hp-btn{min-height:44px;width:100%;}",
 ".hp-nk-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;}.hp-nk-left{border-right:0;border-bottom:1px solid var(--border,#e8ecf1);}.hp-nk-list{max-height:200px;}",
 ".hp-ai-toolbar{flex-direction:column;align-items:stretch;padding:8px 12px;gap:8px;}#hpAiModal #hpAiSearch{max-width:none;width:100%;min-height:40px;margin:0;}#hpAiChips{width:100%;}#hpAiChips .hp-whtab{min-height:40px !important;padding:4px 12px;font-size:12px;}}",
 /* lightbox host phải nổi TRÊN pop-up module (host để z-index 60, pop-up 1200) */
@@ -1413,6 +1414,9 @@ var CSS = [
 "#pane-planogram .hp-toolsp{flex:1;}",
 /* pop-up: phụ đề rỗng thì ẩn · 7 ô ngày luôn 1 hàng trên điện thoại */
 ".hp-modalhd .mtsub:empty{display:none;}",
+/* 21/10 Mẫu 3: đầu pop-up = tiêu đề 2 dòng trái · «Mở yêu cầu ↗» + «Đóng» phải (cùng vị trí với thanh bên Vi phạm / Xác minh); chân = luỹ tiến trái · nút chính phải */
+".hp-vtdau{display:flex;align-items:center;gap:8px;flex:none;}.hp-vtdau #hpVtPg:empty{display:none;}",
+".hp-vtfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 20px;border-top:1px solid var(--border,#e8ecf1);flex:none;}.hp-vtfoot .hp-vtlt{padding:0;}",
 "@media(max-width:700px){#pane-planogram .hp-chiM{display:inline-flex;}#pane-planogram .hp-legrow{flex-wrap:nowrap;}" +
   /* 33 tên xổ ra thành 28 hàng (bộ đo răng cưa bắt 28/09) → 1 dải cuộn ngang; bấm tên vẫn soi ô trên sơ đồ */
   "#pane-planogram .hp-todo .hp-ptnhac{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-left:0;padding-bottom:2px;}#pane-planogram .hp-todo .hp-ptnhac .hp-ptchip{flex:0 0 auto;min-height:40px;}" +
@@ -1499,7 +1503,7 @@ var MODAL_HTML =
 '  <div class="hp-modalbox">' +
 '    <div class="hp-modalhd"><div><div class="mt" id="hpMtitle"></div><div class="mtsub" id="hpMsub"></div></div>' +
 '      <div style="display:flex;align-items:center;gap:8px;"><a id="hpMPg" class="hp-ext" target="_blank" rel="noopener" style="display:none;font-size:12px;white-space:nowrap;">Mở planogram ↗</a>' +
-'      <button class="hp-mclose" onclick="HPLANOGRAM.closeModal()">&times;</button></div></div>' +
+'      <button type="button" class="hsk-nut phu nho hp-mdong" onclick="HPLANOGRAM.closeModal()">Đóng</button></div></div>' +
 '    <div class="hp-mfilters" id="hpMFilters"></div>' +
 '    <div class="hp-msum" id="hpMSum"></div>' +
 '    <div class="hp-modalbody"><table class="hp-mtbl mbcard"><thead id="hpMHead"></thead><tbody id="hpMBody"></tbody></table></div>' +
@@ -1508,18 +1512,18 @@ var MODAL_HTML =
 '<div id="hpVtModal" class="hp-modal">' +
 '  <div class="hp-modalbox" style="width:min(680px,96vw);">' +
 '    <div class="hp-modalhd"><div><div class="mt" id="hpVtTitle"></div><div class="mtsub" id="hpVtSub"></div></div>' +
-'      <div style="display:flex;align-items:flex-start;gap:8px;"><div class="hp-vtacts"><a id="hpVtPg" class="hp-ext" target="_blank" rel="noopener" style="font-size:12px;white-space:nowrap;"></a>' +
-'      <button type="button" id="hpVtGhi" class="hp-vtghi" onclick="HPLANOGRAM.ghiNhan5S()" title="Mở form Ghi nhận 5S (cần PIN) — vị trí và hiện trạng đã điền sẵn từ dữ liệu của ô này">Ghi nhận 5S</button>' +
-'      <span id="hpVtLt" class="hp-vtlt"></span></div>' +
-'      <button class="hp-mclose" onclick="HPLANOGRAM.closeVt()">&times;</button></div></div>' +
+'      <div class="hp-vtdau"><a id="hpVtPg" class="hsk-nut phu nho" target="_blank" rel="noopener"></a>' +
+'      <button type="button" class="hsk-nut phu nho hp-mdong" onclick="HPLANOGRAM.closeVt()">Đóng</button></div></div>' +
 '    <div class="hp-modalbody" id="hpVtBody" style="padding:14px 20px 20px;"></div>' +
+/* 21/10 Mẫu 3 (đánh giá 20/10): chân pop-up = chữ luỹ tiến trái · nút CHÍNH «Ghi nhận 5S» phải — trước đây nút đỏ chữ nằm chen ở góc trên cạnh ✕ */
+'    <div class="hp-vtfoot"><span id="hpVtLt" class="hp-vtlt"></span><button type="button" id="hpVtGhi" class="hsk-nut chinh" onclick="HPLANOGRAM.ghiNhan5S()" title="Mở form Ghi nhận 5S (cần PIN) — vị trí và hiện trạng đã điền sẵn từ dữ liệu của ô này">Ghi nhận 5S</button></div>' +
 '  </div>' +
 '</div>' +
 '<div id="hpNkModal" class="hp-modal">' +
 '  <div class="hp-modalbox" style="width:min(920px,96vw);height:min(640px,90vh);">' +
 '    <div class="hp-modalhd"><div><div class="mt">Tra cứu theo nhân viên</div>' +
 '      <div class="mtsub">' + LS_NGAY + ' ngày gần nhất</div></div>' +
-'      <button class="hp-mclose" onclick="HPLANOGRAM.closeNk()">&times;</button></div>' +
+'      <button type="button" class="hsk-nut phu nho hp-mdong" onclick="HPLANOGRAM.closeNk()">Đóng</button></div>' +
 '    <div class="hp-nk-grid">' +
 '      <div class="hp-nk-left"><input id="hpNkQ" autocomplete="off" placeholder="Tìm tên / mã nhân viên…" oninput="HPLANOGRAM.nkSearch(this.value)"><div class="hp-nk-list" id="hpNkList"></div></div>' +
 '      <div class="hp-nk-right" id="hpNkRight"></div>' +
@@ -1530,7 +1534,7 @@ var MODAL_HTML =
 '  <div class="hp-modalbox" style="width:min(1100px,96vw);height:min(760px,92vh);">' +
 '    <div class="hp-modalhd"><div><div class="mt">Kết quả AI xét duyệt ảnh</div>' +
 '      <div class="mtsub" id="hpAiSub">Toàn bộ ảnh chụp vệ sinh được Gemini AI phân tích chất lượng</div></div>' +
-'      <button class="hp-mclose" onclick="HPLANOGRAM.closeAiModal()">&times;</button></div>' +
+'      <button type="button" class="hsk-nut phu nho hp-mdong" onclick="HPLANOGRAM.closeAiModal()">Đóng</button></div>' +
 '    <div class="hp-ai-toolbar">' +
 '      <div id="hpAiChips" class="hp-whbar hp-chipbar" style="margin:0;flex:1;min-width:0;"></div>' +
 '      <input id="hpAiSearch" class="hp-ccsearch" placeholder="Tìm vị trí / nhân viên / lý do…" oninput="HPLANOGRAM.aiSearch(this.value)">' +

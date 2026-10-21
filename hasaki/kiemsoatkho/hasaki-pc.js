@@ -49,7 +49,7 @@ try { PC.sel = JSON.parse(sessionStorage.getItem("hpc-sel") || "{}") || {}; } ca
 
 function nf(x){ return (x || 0).toLocaleString("vi-VN"); }
 function p2(n){ return (n < 10 ? "0" : "") + n; }
-function toast(msg){ try { console.log("[HPC] " + msg); } catch (e) {} }   // portal không có toast riêng -> log; thông báo hiện trong modal
+var toast = function(msg, loai){ window.hskTienIch.toast(msg, loai); };   // 21/10 gộp toast: thông báo chung (trước: chỉ console.log)
 
 /* ===== CSS ===== */
 var CSS = [
