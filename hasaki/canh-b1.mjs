@@ -323,7 +323,10 @@ for (const p of phieu) {
   if (kq.ketLuan === "canh-b11") continue;
   log(p.id + " " + kq.luat + " → " + kq.ketLuan + " · " + kq.lyDo.slice(0, 160));
   if (kq.ketLuan === "B1.1" && !SO.lam[p.id]) {
-    if (!choTuLam(kq.luat)) { KQ[p.id].choDuyet = true; log("   (luật " + kq.luat + " chưa được duyệt «Cho máy tự làm» — chỉ ghi sheet)"); continue; }
+    /* 21/10 user: phiếu [NF] (và [ĐG] — đã có DG-01 tự làm) thoả luật thì TỰ CHUYỂN B1.1 luôn, không cần cắt clip camera, dù TB-03 đang «Chỉ ghi sheet» */
+    const nfTuLam = /^\[NF\]/.test(p.ten || "") && kq.luat === "TB-03";
+    if (!choTuLam(kq.luat) && !nfTuLam) { KQ[p.id].choDuyet = true; log("   (luật " + kq.luat + " chưa được duyệt «Cho máy tự làm» — chỉ ghi sheet)"); continue; }
+    if (nfTuLam) log("   [NF] tự chuyển theo TB-03 không cần camera (user 21/10)");
     if (!LAM) { log("   [thử] sẽ đóng B1 → B1.1 cho " + kq.nv[0].ten); continue; }
     if (dongB1(p.id, kq.nv[0].email)) { SO.lam[p.id] = { luat: kq.luat, nv: kq.nv[0].code, luc: new Date().toISOString() }; ghiDaLam(p.id, "Máy (" + kq.luat + ") chuyển B1.1 cho " + kq.nv[0].ten + " (" + kq.nv[0].code + ")"); }
   }

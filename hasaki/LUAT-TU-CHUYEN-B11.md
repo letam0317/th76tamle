@@ -77,3 +77,7 @@ Chạy tay 1 phiếu: `node auto-complete-single-task.mjs --task=<id> --nv=<mã|
 2. `node canh-b1.mjs --qc` → phải đúng **mọi** án lệ.
 3. `python sheet-b1-treo.py --lam` đưa lên tab QUY TẮC XÁC MINH → bạn duyệt.
 4. Rà việc cũ (RA-01): phiếu còn mở chạy lại theo luật mới; phiếu đã xong để nguyên.
+
+## 21/10 — phiếu [NF] và [ĐG]
+- **[ĐG]**: luật DG-01 (người đóng đơn theo Mô tả phiếu) — «Cho máy tự làm» → tự chuyển B1.1, không cần camera.
+- **[NF]**: luật TB-03 (người tác động hàng vào ô gần nhất trước ảnh, theo WMS) — dù cột «Bạn duyệt» của TB-03 đang «Chỉ ghi sheet», phiếu [NF] vẫn **tự chuyển B1.1 ngay, không cắt clip camera** (user chốt 21/10; `nfTuLam` trong canh-b1.mjs). Phiếu 5S thường vẫn theo cột Bạn duyệt.

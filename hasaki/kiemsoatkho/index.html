@@ -489,11 +489,11 @@ thead th.c-status, tbody td.c-status{white-space:nowrap; vertical-align:middle;}
    dài hơn thì XUỐNG DÒNG (không kéo giãn cột) */
 thead th.c-vitri, tbody td.c-vitri{white-space:normal; width:24ch; min-width:24ch; max-width:24ch; overflow-wrap:anywhere; line-height:1.35;}
 /* (3) Lỗi vi phạm: thu hẹp còn ~2/3, cắt bớt bằng "…", KHÔNG xuống dòng (hover xem đủ) */
-thead th.c-loi, tbody td.c-loi{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:250px; width:250px;}   /* 21/10 320 → 250: nhường chỗ cho cột NV·QL + Trạng thái, bảng vừa 1366 */
+thead th.c-loi, tbody td.c-loi{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:230px; width:230px;}   /* 21/10 320 → 250: nhường chỗ cho cột NV·QL + Trạng thái, bảng vừa 1366 */
 /* (4) NV vi phạm + QL trực tiếp: vừa "Hà trọng thúc bằng bằng bằng", KHÔNG xuống dòng */
-thead th.c-nv, tbody td.c-nv{white-space:normal; width:17ch; min-width:17ch;}   /* 21/10 gộp NV + QL vào 1 cột (c-ql bỏ); họ tên dài gãy 2 dòng, không 3–4 */
-thead th.c-nv{white-space:nowrap;}
-.c-ql-sub{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:17ch;}
+/* 21/10 user: tên NV và QL KHÔNG xuống dòng (1 người 1 dòng, nhiều người mỗi người 1 dòng); cột rộng theo tên dài nhất, cột đệm + Ảnh + Tần suất dời sang phải nhường chỗ */
+thead th.c-nv, tbody td.c-nv{white-space:nowrap; width:auto; min-width:16ch;}
+.c-ql-sub{white-space:nowrap;}
 /* cột đệm cuối: ăn hết phần dư để các cột trên giữ đúng kích thước */
 thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var(--border);}
 .code-link{color:var(--accent); font-weight:700; text-decoration:none; white-space:nowrap;}
@@ -903,7 +903,7 @@ thead th.c-freq, tbody td.c-freq{white-space:nowrap; vertical-align:middle;}
 /* TIÊU ĐỀ CỘT ghi thẳng, KHÔNG xuống dòng; HỌ TÊN mỗi người 1 dòng (<br>), không gãy giữa tên */
 #pane-task thead th{white-space:nowrap;}
 tbody td.c-nv, tbody td.c-ql{white-space:nowrap;}
-thead th.c-loi, tbody td.c-loi{max-width:270px;}
+thead th.c-loi, tbody td.c-loi{max-width:230px;}   /* 21/10 270 → 230: nhường chỗ cho cột Nhân viên · Quản lý không xuống dòng */
 .table-wrap{overflow-x:auto;}                        /* bảng rộng hơn màn -> cuộn ngang, không bóp cột */
 @media (max-width:1300px){ thead th.c-loi, tbody td.c-loi{max-width:200px;} }
 /* ===== BẢNG LUỸ KẾ KPI TRỪ (tab Tổng quan) — trang trọng, to rõ ===== */
@@ -1731,7 +1731,7 @@ window.hxDoMayChu = function(){
         <table>
           <thead><tr>
             <th class="c-ngay">Thời gian</th><th class="c-vitri">Vị trí</th><th class="c-loi">Lỗi vi phạm</th><th class="c-nv">Nhân viên · Quản lý</th>
-            <th class="c-anh">Ảnh</th><th class="c-freq">Tần suất vi phạm</th><th class="c-flex"></th><th class="c-status">Trạng thái</th><th class="c-bb">Biên bản</th>
+            <th class="c-flex"></th><th class="c-anh">Ảnh</th><th class="c-freq">Tần suất vi phạm</th><th class="c-status">Trạng thái</th><th class="c-bb">Biên bản</th>
           </tr></thead>
           <tbody id="tbody">
             <tr><td colspan="10"><div class="sk sk-line" style="width:90%"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:80%"></div></td></tr>
@@ -2900,9 +2900,9 @@ function _render(){
       <td class="c-vitri">${esc(r[iViTri])}</td>
       <td class="c-loi" title="${esc(r[iLoi])}">${esc(r[iLoi])}</td>
       <td class="c-nv">${nvQlCell(r)}</td>
+      <td class="c-flex"></td>
       <td class="c-anh">${anh}</td>
       <td class="c-freq">${freqCell(gi,r)}</td>
-      <td class="c-flex"></td>
       <td class="c-status">${statusCell(r)}</td>
       <td class="c-bb">${bbCell(r)}</td></tr>`;
   }).join('') || '<tr><td colspan="9"><div class="empty-row">Không có task khớp bộ lọc.</div></td></tr>';

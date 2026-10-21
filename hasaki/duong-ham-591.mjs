@@ -27,6 +27,10 @@ const LOG = path.join(DIR, "duong-ham-591.log");
 const DU_PHONG = process.env.XM_DU_PHONG === "1";
 const TEP_URL = path.join(DIR, ".duong-ham-591.url");
 const log = (...a) => { const d = new Date().toLocaleString("vi-VN", { hour12: false }) + " " + a.join(" "); console.log(d); try { fs.appendFileSync(LOG, d + "\n"); } catch { /* */ } };
+/* 21/10: 08:54 tiến trình thoát không để lại dòng nào (.out/.log trống) → ghi mọi lỗi chưa bắt + nhịp «còn sống» 30' để lần sau biết chết lúc nào; task 15' (IgnoreNew) chạy lại */
+process.on("uncaughtException", (e) => log("LỖI chưa bắt:", (e && e.stack) || e));
+process.on("unhandledRejection", (e) => log("Promise lỗi:", (e && e.stack) || e));
+setInterval(() => log("còn sống"), 30 * 60e3).unref();
 
 // ---- chỉ 1 bản ----
 try { const cu = Number(fs.readFileSync(KHOA, "utf8")); if (cu && cu !== process.pid) { try { process.kill(cu, 0); process.exit(0); } catch { /* bản cũ đã chết */ } } } catch { /* */ }
