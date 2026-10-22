@@ -23,8 +23,10 @@
  *    tk_khoitao {key, id, ten, mk}    → chỉ máy (SECRET): tạo/đặt lại tài khoản QUẢN TRỊ (lần đầu, quên mật khẩu)
  * ============================================================================================= */
 var TK_LAP = 300, TK_PHIEN_GIAY = 21600;
-var TK_TAB = ['r.tong', 'r.task', 'r.hangmuc', 'r.planogram', 'r.htonbat', 'r.kk', 'r.xacminh', 'f.stock', 'f.kk', 'f.abn', 'f.plg', 'f.sku', 'f.cd', 'f.tem'];
-var TK_KHACH_MAC_DINH = (function () { var q = {}; TK_TAB.forEach(function (t) { q[t] = t === 'r.xacminh' ? 'khong' : 'lam'; }); return q; })();
+var TK_TAB = ['r.tong', 'r.task', 'r.hangmuc', 'r.planogram', 'r.htonbat', 'r.kk', 'r.xacminh', 'r.xm.treo', 'r.xm.cam', 'r.maytram', 'r.xm.tg', 'f.stock', 'f.kk', 'f.abn', 'f.plg', 'f.sku', 'f.cd', 'f.tem'];
+/* 22/10 mục con của Xác minh (cùng luật tai-khoan.js): con chưa từng lưu → theo cha cũ; cha = mức cao nhất của con (máy chủ 8591 hỏi r.xacminh) */
+var TK_CHA = { 'r.xm.treo': 'r.xacminh', 'r.xm.cam': 'r.xacminh', 'r.maytram': 'r.xacminh', 'r.xm.tg': 'r.xacminh' };
+var TK_KHACH_MAC_DINH = (function () { var q = {}; TK_TAB.forEach(function (t) { q[t] = t === 'r.xacminh' || TK_CHA[t] ? 'khong' : 'lam'; }); return q; })();
 
 function tkHex_(b) { return b.map(function (x) { return ('0' + ((x + 256) % 256).toString(16)).slice(-2); }).join(''); }
 function tkBam_(mk, muoi) {
@@ -36,7 +38,13 @@ function tkNgauNhien_(n) { var s = ''; while (s.length < n * 2) s += Utilities.g
 function tkId_(id) { return String(id || '').trim().toLowerCase().replace(/@.*$/, '').replace(/[^a-z0-9._-]/g, '').slice(0, 40); }
 function tkDoc_(k, macDinh) { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(k) || 'null') || macDinh; } catch (e) { return macDinh; } }
 function tkGhi_(k, v) { PropertiesService.getScriptProperties().setProperty(k, JSON.stringify(v)); }
-function tkSach_(q) { var r = {}; TK_TAB.forEach(function (t) { var v = q && q[t]; r[t] = v === 'lam' || v === 'xem' ? v : 'khong'; }); return r; }
+function tkSach_(q) {
+  var r = {}, bac = { khong: 0, xem: 1, lam: 2 };
+  TK_TAB.forEach(function (t) { var v = q && q[t]; if (v == null && q && TK_CHA[t]) v = q[TK_CHA[t]]; r[t] = v === 'lam' || v === 'xem' ? v : 'khong'; });
+  Object.keys(TK_CHA).forEach(function (c) { var p = TK_CHA[c]; if (r[p + '#']) { if (bac[r[c]] > bac[r[p]]) r[p] = r[c]; } else { r[p + '#'] = 1; r[p] = r[c]; } });
+  Object.keys(r).forEach(function (k) { if (k.slice(-1) === '#') delete r[k]; });
+  return r;
+}
 function tkNguoi_(id, t) { return { id: id, ten: t.ten || id, vaiTro: t.vaiTro, quyen: t.vaiTro === 'quantri' ? tkTatCa_() : tkSach_(t.quyen) }; }
 function tkTatCa_() { var q = {}; TK_TAB.forEach(function (t) { q[t] = 'lam'; }); return q; }
 function tkKhach_() { return tkSach_(tkDoc_('TK_KHACH', TK_KHACH_MAC_DINH)); }

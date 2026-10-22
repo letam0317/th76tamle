@@ -34,6 +34,9 @@ function tbOK_(duLieu, e) {
   var tb = String((duLieu && duLieu.tb) || (e && e.parameter && e.parameter.tb) || '');
   var duyet = {}; try { duyet = JSON.parse(all.TB_DUYET || '{}') || {}; } catch (eD) { duyet = {}; }
   if (tb && (tb === k || !!duyet[tb])) return true;   // khoá chung HOẶC máy đã duyệt qua bot (tb_xin/tb_duyet)
+  /* 22/10 user «đã là quản trị, đã đăng nhập rồi còn 🔒 Máy này chưa được cấp quyền»: trang mới (xemtruoc.audit-dc) chưa có mã thiết bị.
+     Phiên tài khoản audit-dc còn hạn (tk_dangnhap) = đã xác thực người ⇒ đủ thay mã thiết bị. Trang gửi tb = 'tk:<phiên>'. */
+  if (tb.indexOf('tk:') === 0 && typeof tkPhien_ === 'function' && tkPhien_(tb.slice(3))) return true;
   return keyBodyOK_(duLieu || {});
 }
 function tbTuChoi_() {

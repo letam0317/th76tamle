@@ -11,21 +11,40 @@
     : "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec";
   var APP = /factory|stocklocation/.test(location.pathname) ? "f" : "r";
   var API_XM = function () { try { return localStorage.getItem("hx-api") || window.HX_API || "http://127.0.0.1:8591"; } catch (e) { return window.HX_API || "http://127.0.0.1:8591"; } };   // 19/10 hàm: HX_API đổi sau khi dò đường hầm
+  /* 22/10 user «phải hiển thị hạng mục con bên trong: theo tác vụ/theo máy,…»: bảng quyền theo đúng thanh bên — mục có mục con = [khoá cha|null, tên, [con…], tab thanh bên].
+     Khoá cha (r.xacminh) = mức cao nhất của các con (máy chủ 8591 vẫn hỏi r.xacminh); con chưa từng lưu thì thừa hưởng quyền cha cũ. Cùng luật ở google-script-TaiKhoan.gs. */
   var NHOM = [
-    ["Audit Retail", [["r.tong", "Tổng kết"], ["r.task", "Vi phạm"], ["r.hangmuc", "Quy định"], ["r.planogram", "Planogram"], ["r.htonbat", "Bất thường"], ["r.kk", "Kiểm kê"], ["r.xacminh", "Xác minh"]]],
-    ["Audit Factory", [["f.stock", "Trạng thái lưu trữ"], ["f.kk", "Kiểm kê"], ["f.abn", "Tồn kho bất thường"], ["f.plg", "Planogram"], ["f.sku", "Nhận diện SKU"], ["f.cd", "Chuyển đổi cân"], ["f.tem", "Tem vị trí"]]]
+    ["Audit Retail", [["r.tong", "Tổng kết"], ["r.task", "Vi phạm"], ["r.hangmuc", "Quy định"], ["r.planogram", "Planogram"],
+      [null, "Tồn kho chính xác", [["r.kk", "Kiểm kê"], ["r.htonbat", "Bất thường"]], "kk"],
+      ["r.xacminh", "Xác minh", [["r.xm.treo", "Theo tác vụ"], ["r.xm.cam", "Theo máy"], ["r.maytram", "Máy trạm"], ["r.xm.tg", "Nhật ký"]], "xacminh"]]],
+    ["Audit Factory", [["f.stock", "Trạng thái lưu trữ"], [null, "Tồn kho chính xác", [["f.kk", "Kiểm kê"], ["f.abn", "Bất thường"]], "kk"],
+      ["f.plg", "Planogram"], ["f.sku", "Nhận diện SKU"], ["f.cd", "Chuyển đổi cân"], ["f.tem", "Tem vị trí"]]]
   ];
+  /* chỗ ẩn của từng mục con khi «Không» (mặc định: mục cùng tên ở thanh bên) */
+  var AN_CON = { "r.xm.treo": "#sideNav .s-item[data-tab='xacminh'][data-sub='treo']", "r.xm.cam": "#sideNav .s-item[data-tab='xacminh'][data-sub='cam']",
+    "r.xm.tg": "#sideNav .s-item[data-tab='xacminh'][data-sub='tg']", "r.kk": "#pane-kk", "r.htonbat": "#pane-htonbat", "f.kk": "#viewKK", "f.abn": "#viewAbn" };
+  var MUC = [], CHA = {};   // MUC: mọi mục lá [khoá, tên, mục cha]; CHA: khoá con → khoá cha
+  NHOM.forEach(function (g) { g[1].forEach(function (t) { if (!t[2]) return MUC.push([t[0], t[1], null]);
+    t[2].forEach(function (c) { MUC.push([c[0], c[1], t]); if (t[0]) CHA[c[0]] = t[0]; }); }); });
+  var BAC = { khong: 0, xem: 1, lam: 2 };
+  function chuanQ(q) {   // con thiếu → theo cha cũ; cha = mức cao nhất của con
+    q = Object.assign({}, q || {});
+    MUC.forEach(function (m) { if (q[m[0]] == null && CHA[m[0]]) q[m[0]] = q[CHA[m[0]]]; });
+    NHOM.forEach(function (g) { g[1].forEach(function (t) { if (!t[0] || !t[2]) return;
+      q[t[0]] = t[2].reduce(function (a, c) { return BAC[q[c[0]]] > BAC[a] ? q[c[0]] : a; }, "khong"); }); });
+    return q;
+  }
   /* «Thao tác» của từng tab = nút ghi/sửa dữ liệu. Quyền «xem» ẩn các nút này. [bộ chọn, tab sở hữu, chỉ khi đang ở tab đó] */
   var THAO_TAC = {
     r: [["#btnGhiNhan,.hp-vtghi", "r.task"], [".bb-up", "r.task"], ["#hpcbar,#hpcprev", "r.kk", 1], ["#hpcbar,#hpcprev", "r.htonbat", 1]],
     f: [["#pcbar,#pcprev,#hdrKkPlan", "f.kk", 1], ["#pcbar,#pcprev,#hdrKkPlan", "f.abn", 1], ["#prbar", "f.sku"], ["#tmvBtnIn", "f.tem"]]
   };
-  var KHACH_GOC = (function () { var q = {}; NHOM.forEach(function (g) { g[1].forEach(function (t) { q[t[0]] = t[0] === "r.xacminh" ? "khong" : "lam"; }); }); return q; })();
+  var KHACH_GOC = (function () { var q = {}; MUC.forEach(function (m) { q[m[0]] = CHA[m[0]] === "r.xacminh" ? "khong" : "lam"; }); return chuanQ(q); })();
   var e_ = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var ls = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
 
   var TK = window.TK = { phien: ls.get("tk-phien") || "", nguoi: null, quyen: null };
-  try { var c0 = JSON.parse(ls.get("tk-nho") || "null"); if (c0 && Date.now() - c0.ts < 6 * 3600e3) { TK.nguoi = c0.nguoi || null; TK.quyen = c0.quyen; } } catch (e) {}
+  try { var c0 = JSON.parse(ls.get("tk-nho") || "null"); if (c0 && Date.now() - c0.ts < 6 * 3600e3) { TK.nguoi = c0.nguoi || null; TK.quyen = chuanQ(c0.quyen); } } catch (e) {}
   if (!TK.quyen) TK.quyen = KHACH_GOC;
 
   function goi(action, d) {
@@ -46,9 +65,13 @@
   function tabDangMo() { var on = document.querySelector("#sideNav .s-item.on"); return on ? APP + "." + on.dataset.tab : ""; }
   function apQuyen() {
     var q = TK.quyen || {}, css = [], cur = tabDangMo();
-    NHOM.forEach(function (g) { g[1].forEach(function (t) { if (t[0].charAt(0) !== APP || q[t[0]] !== "khong") return;
+    var an = function (k) { return (q[k] || "khong") === "khong"; };
+    NHOM.forEach(function (g) { g[1].forEach(function (t) { if ((t[0] || t[2][0][0]).charAt(0) !== APP) return;
       if (t[0] === "r.xacminh" && !TK.nguoi) return;   // 14/10 user: chưa đăng nhập vẫn thấy mục «Xác minh» (bấm → đăng nhập), chỉ ẩn mục con
-      var k = t[0].slice(2); css.push("#sideNav .s-item[data-tab='" + k + "']{display:none!important}"); }); });
+      if (!t[2]) { if (an(t[0])) css.push("#sideNav .s-item[data-tab='" + t[0].slice(2) + "']{display:none!important}"); return; }
+      /* mục có mục con: con nào «Không» thì ẩn phần đó; mọi con «Không» thì ẩn luôn mục ở thanh bên */
+      if (t[2].every(function (c) { return an(c[0]); })) { css.push("#sideNav .s-item[data-tab='" + t[3] + "']{display:none!important}"); return; }
+      t[2].forEach(function (c) { if (an(c[0])) css.push((AN_CON[c[0]] || "#sideNav .s-item[data-tab='" + c[0].slice(2) + "']") + "{display:none!important}"); }); }); });
     (THAO_TAC[APP] || []).forEach(function (x) { if (x[2] ? (cur === x[1] && q[x[1]] !== "lam") : q[x[1]] !== "lam") css.push(x[0] + "{display:none!important}"); });
     stQ.textContent = css.join("\n");
     /* tiêu đề nhóm thanh bên: ẩn khi mọi mục trong nhóm bị ẩn */
@@ -56,7 +79,11 @@
       var co = false; for (var n = h.nextElementSibling; n && !n.classList.contains("s-grp"); n = n.nextElementSibling) if (n.matches(".s-item,.s-sub") && getComputedStyle(n).display !== "none") co = true;
       h.style.display = co ? "" : "none"; });
     /* đang đứng ở tab bị cấm → về Tổng quan */
-    if (cur && q[cur] === "khong" && !(cur === "r.xacminh" && !TK.nguoi)) { var home = document.querySelector("#sideNav .s-item[data-tab='home']"); if (home) home.click(); }
+    /* mục con bị cấm (vd Theo tác vụ) → sang mục con khác cùng nhóm còn quyền; không còn thì về Tổng quan */
+    var on = document.querySelector("#sideNav .s-item.on");
+    if (cur && on && getComputedStyle(on).display === "none" && !(cur === "r.xacminh" && !TK.nguoi)) {
+      var ke = on.dataset.sub ? [].slice.call(on.parentNode.querySelectorAll(".s-item[data-sub]")).filter(function (x) { return getComputedStyle(x).display !== "none"; })[0] : null;
+      var home = ke || document.querySelector("#sideNav .s-item[data-tab='home']"); if (home) home.click(); }
     veNut();
   }
   window.tkApQuyen = apQuyen;
@@ -95,7 +122,7 @@
        (cùng họ lỗi gas-chap-chon-404) → thử lại 1 lần; vẫn thiếu thì báo câu dễ hiểu, không để lỗi kỹ thuật rơi ra ô đăng nhập. */
     var lan = function (k) { return goi("tk_dangnhap", { id: id, mk: mk }).then(function (j) {
       if (!j.nguoi || !j.phien) { if (k) return lan(0); throw new Error("Máy chủ trả thiếu thông tin tài khoản — bấm Đăng nhập lại"); }
-      datNguoi(j.nguoi, j.phien); TK.quyen = j.nguoi.quyen || {}; nho(); apQuyen(); doiPhienXm(); bao(); return j.nguoi; }); };
+      datNguoi(j.nguoi, j.phien); TK.quyen = chuanQ(j.nguoi.quyen); nho(); apQuyen(); doiPhienXm(); bao(); return j.nguoi; }); };
     return lan(1);
   }
   window.tkDangNhap = dangNhap;
@@ -149,10 +176,24 @@
       var id = d.dataset.id; suaTk(o, id ? QL.ds.find(function (x) { return x.id === id; }) : { khach: 1, quyen: QL.khach }); }; });
   }
   function bangQuyen(q, khoa) {
+    q = chuanQ(khoa ? MUC.reduce(function (a, m) { a[m[0]] = "lam"; return a; }, {}) : q);   // quản trị: hiện đủ «Xem + thao tác»
     return '<table class="tk-q"><thead><tr><th>Mục</th><th>Không</th><th>Xem</th><th>Xem + thao tác</th></tr></thead><tbody>' +
-      NHOM.map(function (g) { return '<tr class="tk-qg"><td colspan="4">' + e_(g[0]) + "</td></tr>" + g[1].map(function (t) {
-        var v = (q || {})[t[0]] || "khong";
-        return "<tr><td>" + e_(t[1]) + "</td>" + ["khong", "xem", "lam"].map(function (m) { return '<td><input type="radio" name="q:' + t[0] + '" value="' + m + '"' + (v === m ? " checked" : "") + (khoa ? " disabled" : "") + ' aria-label="' + e_(t[1]) + " — " + m + '"></td>'; }).join("") + "</tr>"; }).join(""); }).join("") + "</tbody></table>";
+      NHOM.map(function (g) { return '<tr class="tk-qg"><td colspan="4">' + e_(g[0]) + "</td></tr>" + g[1].map(function (t, i) {
+        var o = function (ten, ten2, v, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : "") + "><td>" + e_(ten2) + "</td>" + ["khong", "xem", "lam"].map(function (m) {
+          return '<td><input type="radio" name="' + ten + '" value="' + m + '"' + (v === m ? " checked" : "") + (khoa ? " disabled" : "") + ' aria-label="' + e_(ten2) + " — " + m + '"></td>'; }).join("") + "</tr>"; };
+        if (!t[2]) return o("q:" + t[0], t[1], q[t[0]] || "khong");
+        /* hàng cha: chọn 1 lần cho mọi mục con; con lệch nhau thì hàng cha để trống */
+        var vs = t[2].map(function (c) { return q[c[0]] || "khong"; });
+        return o("qc:" + g[0].charAt(6) + i, t[1], vs.every(function (v) { return v === vs[0]; }) ? vs[0] : "", "tk-qcha") +
+          t[2].map(function (c, j) { return o("q:" + c[0], c[1], vs[j], "tk-qcon"); }).join(""); }).join(""); }).join("") + "</tbody></table>";
+  }
+  function noiQuyen(f) {   // bấm hàng cha → áp cho các con; bấm con → hàng cha theo
+    f.onchange = function (ev) { var r = ev.target; if (r.type !== "radio") return; var tr = r.closest("tr");
+      if (tr.classList.contains("tk-qcha")) { for (var n = tr.nextElementSibling; n && n.classList.contains("tk-qcon"); n = n.nextElementSibling) n.querySelector('input[value="' + r.value + '"]').checked = true; return; }
+      if (!tr.classList.contains("tk-qcon")) return;
+      var c = tr; while (!c.classList.contains("tk-qcha")) c = c.previousElementSibling;
+      var vs = []; for (n = c.nextElementSibling; n && n.classList.contains("tk-qcon"); n = n.nextElementSibling) vs.push((n.querySelector("input:checked") || {}).value);
+      [].slice.call(c.querySelectorAll("input")).forEach(function (x) { x.checked = vs.every(function (v) { return v === x.value; }); }); };
   }
   function suaTk(o, x) {
     var el = o.querySelector(".tk-sua");
@@ -169,7 +210,8 @@
       '<div class="tk-nut"><button type="submit" class="tk-chinh">Lưu</button>' + (!x.khach && !x.moi && x.id !== (TK.nguoi || {}).id ? '<button type="button" class="tk-xoa">Xoá tài khoản</button>' : "") + '</div><div class="tk-st"></div></form>';
     var f = el.querySelector("form");
     if (f.vaiTro) f.vaiTro.onchange = function () { var q = f.vaiTro.value === "quantri"; f.querySelector(".tk-qwrap").innerHTML = bangQuyen(q ? null : x.quyen, q) + (q ? '<div class="tk-goiy">Quản trị luôn có toàn quyền.</div>' : ""); };
-    var layQ = function () { var q = {}; [].slice.call(f.querySelectorAll("input[type=radio]:checked")).forEach(function (r) { q[r.name.slice(2)] = r.value; }); return q; };
+    noiQuyen(f);
+    var layQ = function () { var q = {}; [].slice.call(f.querySelectorAll("input[type=radio][name^='q:']:checked")).forEach(function (r) { q[r.name.slice(2)] = r.value; }); return chuanQ(q); };
     f.onsubmit = function (ev) { ev.preventDefault();
       var p = x.khach ? goi("tk_luukhach", { phien: TK.phien, quyen: layQ() })
         : goi("tk_luu", { phien: TK.phien, tk: { id: f.id.value, ten: f.ten.value, mk: f.mk.value, vaiTro: f.vaiTro.value, quyen: layQ(), khoa: f.khoa.checked } });
@@ -196,10 +238,10 @@
   function bao() { try { document.dispatchEvent(new CustomEvent("tk-doi")); } catch (e) {} if (typeof window.homeRender === "function") try { window.homeRender(); } catch (e) {} }
 
   /* ---------- nạp: khách / kiểm phiên (1 lượt gọi Apps Script mỗi lần mở trang; nhớ 6 giờ để vẽ ngay) ---------- */
-  function taiKhach() { return goi("tk_khach").then(function (j) { if (!TK.nguoi) { TK.quyen = j.quyen; nho(); } }).catch(function () {}); }
+  function taiKhach() { return goi("tk_khach").then(function (j) { if (!TK.nguoi) { TK.quyen = chuanQ(j.quyen); nho(); } }).catch(function () {}); }
   function kiem() {
     if (!TK.phien) return taiKhach().then(function () { datNguoi(null); apQuyen(); bao(); });
-    return goi("tk_toi", { phien: TK.phien }).then(function (j) { if (!j.nguoi) return; datNguoi(j.nguoi); TK.quyen = j.nguoi.quyen || {}; nho(); apQuyen(); bao(); if (!ls.get("hx-phien")) doiPhienXm(); })
+    return goi("tk_toi", { phien: TK.phien }).then(function (j) { if (!j.nguoi) return; datNguoi(j.nguoi); TK.quyen = chuanQ(j.nguoi.quyen); nho(); apQuyen(); bao(); if (!ls.get("hx-phien")) doiPhienXm(); })
       .catch(function (e) { if (e.code === 401) { datNguoi(null, ""); TK.quyen = null; return taiKhach().then(function () { apQuyen(); bao(); }); } });
   }
 
@@ -233,6 +275,7 @@
     ".tk-q{width:100%;border-collapse:collapse;font-size:14px}.tk-q th{position:sticky;top:0;background:var(--ad-nen2,var(--surface2));font-weight:600;padding:8px 12px;text-align:center;border-bottom:1px solid var(--border)}",
     ".tk-q th:first-child,.tk-q td:first-child{text-align:left}.tk-q td{padding:6px 12px;text-align:center;border-bottom:1px solid var(--ad-chia,var(--border))}",
     ".tk-q .tk-qg td{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface)}.tk-q input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}",
+    ".tk-q .tk-qcha td:first-child{font-weight:600}.tk-q .tk-qcon td:first-child{padding-left:28px;color:var(--muted)}",
     "@media(max-width:768px){.tk-ql,.tk-hai{grid-template-columns:minmax(0,1fr)}#tkHop{padding-top:16px}#tkHop .tk-bd{padding:12px 16px 16px}.tk-q input{width:20px;height:20px}.tk-q td{padding:8px}}"
   ].join("\n");
   (document.head || document.documentElement).appendChild(st);
