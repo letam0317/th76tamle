@@ -48,6 +48,7 @@ const FILES = [
   ["kiemsoatkho/kho170-topview.webp", "kho170-topview.webp"],
   ["kiemsoatkho/kho170-bocuc.js", "kho170-bocuc.js"],
   ["kiemsoatkho/tai-khoan.js", "tai-khoan.js"],             // 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory, Apps Script tk_*)
+  ["kiemsoatkho/tat-loc.js", "tat-loc.js"],                 // 22/10 nút «✕ Tắt lọc» cạnh mọi nút «Bộ lọc» (bản chép factory/tat-loc.js)
   ["kiemsoatkho/sw.js", "sw.js"],
   ["kiemsoatkho/giai-ma-guong.js", "giai-ma-guong.js"],     // 22/10 giải mã đoạn dùng chung sw.js + trang (đường lùi iPhone)
   ["kiemsoatkho/guong-ma-trang.js", "guong-ma-trang.js"],   // 22/10 window.hxGuongMa — index.html nạp ngay sau hxDoMayChu                           // 22/10 bộ giải mã luồng bản dự phòng Xác minh mã hoá (chỉ chạm đường __giai-ma/, chỉ đăng ký khi bản dự phòng mã hoá)

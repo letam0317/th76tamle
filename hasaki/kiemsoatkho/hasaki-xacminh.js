@@ -424,18 +424,23 @@
         ".hx-nvm:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}.hx-nvm .hx-chips{display:contents}" +
         ".hx-nvm input{flex:1 1 120px;min-width:0;border:0!important;outline:0;box-shadow:none!important;background:transparent;padding:3px 2px!important;min-height:0!important}" +
         ".hx-chip{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:1px 2px 1px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--text);font-size:12px;line-height:20px}" +
-        ".hx-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hx-chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:11px;line-height:1;padding:3px 5px;min-height:0;border-radius:50%}.hx-chip button:hover{color:var(--bad)}" +
+        ".hx-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+        ".hx-chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:11px;line-height:1;padding:3px 5px;min-height:0;border-radius:50%}.hx-chip button:hover{color:var(--bad)}" +
         /* (2) Ghi chú cải tiến chờ duyệt ở Nhật ký */
         ".hx-gcd .hx-gcd-dong{display:flex;gap:12px;align-items:flex-start;padding:10px 16px;border-top:1px solid var(--border);font-size:13px}.hx-gcd .nd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}" +
         "#mBody .hx-ng-nguon,#mBody .hx-gcd-nut .hx-nut{white-space:nowrap}#mBody .hx-ng-nguon{background:var(--surface);color:var(--accent)}" +
         ".hx-gcd-nut{display:flex;gap:8px;flex:none;flex-wrap:nowrap}.hx-gcd-nut [data-gcd=khong]{background:var(--surface);color:var(--text);border-color:var(--border)}" +
         "@media(max-width:560px){.hx-gcd .hx-gcd-dong{flex-direction:column}.hx-gcd-nut .hx-nut{min-height:44px}}" +
         /* (3) «@ai đang xử lý» cạnh nhãn Quyết định — cùng cỡ chữ nhãn, nổi bật + chấm nhấp nháy (cn-dot của «Cập nhật») */
-        ".hx-dxl{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:0 5px;border-radius:4px;line-height:1.35;background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);font:inherit;font-weight:700;vertical-align:baseline;white-space:nowrap}" +   /* 22/10 tông đỏ, khung khít chữ — tên lớp riêng (.hx-dx đã là nút khác cao 40px) */
+        ".hx-dxl{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:0 5px;border-radius:4px;line-height:1.35;" +
+        "background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);font:inherit;font-weight:700;vertical-align:baseline;white-space:nowrap}" +   /* 22/10 tông đỏ, khung khít chữ — tên lớp riêng (.hx-dx đã là nút khác cao 40px) */
         ".hx-dxl[hidden]{display:none}.hx-dxl .cn-dot{color:var(--bad);width:6px;height:6px}" +
         "#modal .hx-qd-nguon .hx-ng-anh:not(.on){color:var(--text)}" +
-        "#modal [data-tb=tacvu] [data-tp=thongtin]{gap:4px!important}#modal.hx-ben .hx-tb-luoi[data-tb=tacvu] .hx-tb-khung>:is([data-tp=loi],[data-tp=goiy]),#modal .hx-tb-luoi[data-tb=tacvu] .hx-tb-khung>:is([data-tp=loi],[data-tp=goiy]){margin-top:-6px!important}" +   /* 22/10 user: dòng Ngày ghi nhận…Máy gợi ý sát lại còn 1/2 (8 → 4px) */
-        "#modal .hx-qd-anh.nhieu{position:relative}#modal .hx-qd-anh .hx-anh-day-trong{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);margin:0!important;max-width:calc(100% - 20px);padding:4px;background:rgba(0,0,0,.45);border-radius:8px;z-index:2}" +   /* 22/10 dải ảnh nhỏ nằm trong khung ảnh, sát đáy */   /* chip «Ghi nhận» chữ thường — xám nhạt trông như nút bị khoá */
+        "#modal [data-tb=tacvu] [data-tp=thongtin]{gap:4px!important}" +
+        "#modal.hx-ben .hx-tb-luoi[data-tb=tacvu] .hx-tb-khung>:is([data-tp=loi],[data-tp=goiy]),"+
+        "#modal .hx-tb-luoi[data-tb=tacvu] .hx-tb-khung>:is([data-tp=loi],[data-tp=goiy]){margin-top:-6px!important}" +   /* 22/10 user: dòng Ngày ghi nhận…Máy gợi ý sát lại còn 1/2 (8 → 4px) */
+        "#modal .hx-qd-anh.nhieu{position:relative}" +
+        "#modal .hx-qd-anh .hx-anh-day-trong{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);margin:0!important;max-width:calc(100% - 20px);padding:4px;background:rgba(0,0,0,.45);border-radius:8px;z-index:2}" +   /* 22/10 dải ảnh nhỏ nằm trong khung ảnh, sát đáy */
         /* (4) chú thích dưới clip: tối đa 2 dòng (web + điện thoại), giữ chỗ 2 dòng để clip/khung dưới không nhảy */
         "#qdPd{align-items:flex-start}#qdPd>span:not(.gio){white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em;line-height:1.4}",
       ".hx-xdau{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}.hx-xdau .hx-vbar{margin:0;gap:6px;flex-wrap:nowrap}.hx-xdau .hx-qd-nguon{margin:0!important;flex-wrap:nowrap}" +
@@ -884,7 +889,8 @@
     var dongBo = function () { n.ma = ds.map(function (x) { return x.ma; }).join(","); n.ten = ds.map(function (x) { return x.ten || x.ma; }).join(", "); veChip(); veChot(); };
     var them = function (ma, ten) { if (!ma || ds.some(function (x) { return x.ma === ma; })) return; ds.push({ ma: ma, ten: ten || "" }); dongBo(); };
     var veChip = function () {
-      chips.innerHTML = ds.map(function (x, i) { var t = x.ten ? x.ten + " · " + x.ma : x.ma; return '<span class="hx-chip" title="' + e_(t) + '"><span>' + e_(t) + '</span>' + (inp.disabled ? "" : '<button type="button" data-xoa-chip="' + i + '" aria-label="Bỏ ' + e_(x.ten || x.ma) + '">✕</button>') + '</span>'; }).join("");
+      chips.innerHTML = ds.map(function (x, i) { var t = x.ten ? x.ten + " · " + x.ma : x.ma;
+        return '<span class="hx-chip" title="' + e_(t) + '"><span>' + e_(t) + '</span>' + (inp.disabled ? "" : '<button type="button" data-xoa-chip="' + i + '" aria-label="Bỏ ' + e_(x.ten || x.ma) + '">✕</button>') + '</span>'; }).join("");
       chips.querySelectorAll("[data-xoa-chip]").forEach(function (b) { b.onmousedown = function (ev) { ev.preventDefault(); ev.stopPropagation(); ds.splice(Number(b.dataset.xoaChip), 1); dongBo(); }; });
       inp.placeholder = ds.length ? "Thêm người…" : (inp.dataset.ph0 || inp.placeholder);
     };
@@ -1551,20 +1557,23 @@
     var ma0 = String(gt || "").match(/\d{5,7}/g) || []; ma0.forEach(function (m) { if (!ds.some(function (n) { return n.ma === m; })) ds.push({ ma: m, ten: "" }); });
     if (!ma0.length && gt) inp.value = gt;
     var veChip = function () {
-      chips.innerHTML = ds.map(function (n, i) { return '<span class="hx-chip" title="' + e_(n.ten ? n.ten + " · " + n.ma : n.ma) + '"><span>' + e_(n.ten ? n.ten + " · " + n.ma : n.ma) + '</span><button type="button" data-xoa="' + i + '" aria-label="Bỏ ' + e_(n.ten || n.ma) + '">✕</button></span>'; }).join("");
+      chips.innerHTML = ds.map(function (n, i) { var t = n.ten ? n.ten + " · " + n.ma : n.ma;
+        return '<span class="hx-chip" title="' + e_(t) + '"><span>' + e_(t) + '</span><button type="button" data-xoa="' + i + '" aria-label="Bỏ ' + e_(n.ten || n.ma) + '">✕</button></span>'; }).join("");
       chips.querySelectorAll("[data-xoa]").forEach(function (b) { b.onmousedown = function (ev) { ev.preventDefault(); ds.splice(Number(b.dataset.xoa), 1); veChip(); }; });
       inp.placeholder = ds.length ? "Thêm người…" : "Gõ mail, họ tên hoặc mã NV…";
     };
     var ve = function (kq) {
       var k = inp.value.trim(), con = (kq || []).filter(function (c) { return !ds.some(function (n) { return n.ma === c.ma; }); });
-      menu.innerHTML = con.map(function (c) { return '<div class="hx-it" data-ma="' + e_(c.ma) + '" data-ten="' + e_(c.ten) + '"><div style="min-width:0"><div class="t">' + e_(c.ten) + '</div><div class="s">' + e_(c.ma) + (c.email ? " · " + e_(c.email) : "") + (c.chuc ? " · " + e_(c.chuc) : "") + '</div></div></div>'; }).join("") ||
+      menu.innerHTML = con.map(function (c) { return '<div class="hx-it" data-ma="' + e_(c.ma) + '" data-ten="' + e_(c.ten) + '">' +
+        '<div style="min-width:0"><div class="t">' + e_(c.ten) + '</div><div class="s">' + e_(c.ma) + (c.email ? " · " + e_(c.email) : "") + (c.chuc ? " · " + e_(c.chuc) : "") + '</div></div></div>'; }).join("") ||
         '<div class="hx-it h">' + (k.length < 2 ? "Gõ ≥2 ký tự: mail, họ tên hoặc mã NV" : kq ? "Không tìm thấy" : "Đang tìm…") + '</div>';
       menu.querySelectorAll("[data-ma]").forEach(function (it) { it.onmousedown = function (ev) { ev.preventDefault(); ds.push({ ma: it.dataset.ma, ten: it.dataset.ten }); inp.value = ""; veChip(); ve([]); }; });
       datMenu(box);
     };
     inp.addEventListener("focus", function () { box.classList.add("show"); ve([]); });
     inp.addEventListener("blur", function () { setTimeout(function () { box.classList.remove("show"); boMenu(box); }, 150); });
-    inp.addEventListener("input", function () { clearTimeout(hT); var k = inp.value.trim(); ve(k.length >= 2 ? null : []); if (k.length >= 2) hT = setTimeout(function () { goi("/api/nv?q=" + encodeURIComponent(k)).then(ve).catch(function () { ve([]); }); }, 220); });
+    inp.addEventListener("input", function () { clearTimeout(hT); var k = inp.value.trim(); ve(k.length >= 2 ? null : []);
+      if (k.length >= 2) hT = setTimeout(function () { goi("/api/nv?q=" + encodeURIComponent(k)).then(ve).catch(function () { ve([]); }); }, 220); });
     inp.addEventListener("keydown", function (ev) {
       if (ev.key === "Backspace" && !inp.value && ds.length) { ds.pop(); veChip(); }
       if (ev.key === "Enter") { ev.preventDefault(); var a = menu.querySelector("[data-ma]"); if (a) a.dispatchEvent(new MouseEvent("mousedown")); } });
@@ -1682,7 +1691,8 @@
         '<div class="hx-qd-form"><label class="hx-qd-o"><span class="lbl">Quyết định<span class="hx-dxl" hidden></span></span><select id="qdSel"><option value="">— chưa quyết —</option>' +
           ds.map(function (o) { return '<option' + (o === q.qd ? " selected" : "") + '>' + e_(o) + '</option>'; }).join("") + '</select></label>' +
           /* 22/10 user: gõ mail hoặc họ tên (như ô «1. Nhân viên vi phạm» của form 5S), chọn được nhiều NV */
-          '<div class="hx-qd-o"><span class="lbl">Gán người khác</span><div class="hx-cb hx-nvm" id="qdGcBox"><div class="hx-chips"></div><input id="qdGc" type="text" autocomplete="off" spellcheck="false" placeholder="Gõ mail, họ tên hoặc mã NV…"><div class="menu"></div></div></div></div>' +
+          '<div class="hx-qd-o"><span class="lbl">Gán người khác</span><div class="hx-cb hx-nvm" id="qdGcBox"><div class="hx-chips"></div>' +
+          '<input id="qdGc" type="text" autocomplete="off" spellcheck="false" placeholder="Gõ mail, họ tên hoặc mã NV…"><div class="menu"></div></div></div></div>' +
         '<button class="hx-nut" id="qdLuu" style="width:100%">Lưu quyết định</button><div id="qdMsg" class="muted" style="font-size:12px;min-height:16px"></div></div>') + '</div>';
     tbAp();
     var aGN = $id("qdAnhGN"), anhI = 0;
