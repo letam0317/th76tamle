@@ -21,8 +21,9 @@ const pg = await b.newPage(); const loi = [], goi127 = [], goiHam = [];
 pg.on("pageerror", (e) => loi.push(e.message));
 await pg.setUserAgent("Mozilla/5.0 (Linux; Android 14; 23116PN5BC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36");
 await pg.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-await pg.evaluateOnNewDocument((hx) => { try { localStorage.setItem("hx-phien", hx); localStorage.removeItem("hx-ham"); localStorage.removeItem("hx-api"); localStorage.removeItem("hx-loc"); localStorage.setItem("tk-phien", "qc");
-  localStorage.setItem("tk-nho", JSON.stringify({ ts: Date.now(), nguoi: { id: "qc", ten: "QC", vaiTro: "quantri" }, quyen: { "r.xacminh": "lam", "r.maytram": "lam" } })); } catch (e) {} }, PHIEN_QC);
+/* 22/10: tệp địa chỉ công khai đã bỏ (20/10) và phiên giả «qc» không qua được pcBangPh ⇒ QC giả lập máy ĐÃ nhớ đường hầm (hx-ham) như điện thoại thật sau lần đầu */
+await pg.evaluateOnNewDocument((hx, ham) => { if (window.top !== window) return; try { localStorage.setItem("hx-phien", hx); localStorage.setItem("hx-ham", ham); localStorage.removeItem("hx-api"); localStorage.removeItem("hx-loc"); localStorage.setItem("tk-phien", "qc");
+  localStorage.setItem("tk-nho", JSON.stringify({ ts: Date.now(), nguoi: { id: "qc", ten: "QC", vaiTro: "quantri" }, quyen: { "r.xacminh": "lam", "r.maytram": "lam" } })); } catch (e) {} }, PHIEN_QC, HAM);
 await pg.setRequestInterception(true);
 pg.on("request", (r) => { const u = r.url();
   if (/127\.0\.0\.1:8591/.test(u)) goi127.push(u);
@@ -51,6 +52,23 @@ if (coMay) { await pg.evaluate(() => window.HXACMINH.sub("cam")); await ngu(1500
 ok(goi127.length === 0, "không gọi 127.0.0.1 (" + goi127.length + ")");
 ok(goiHam.length > 0, "có gọi qua đường hầm (" + goiHam.length + " lượt)");
 ok(loi.length === 0, "không lỗi trang " + loi.slice(0, 2).join(" | "));
+/* 22/10 user «đăng nhập rồi điện thoại vẫn không thấy Máy trạm/Theo tác vụ/Theo máy/Nhật ký»: mở trang KHI CHƯA đăng nhập, rồi mới đăng nhập
+   (tk-doi) ⇒ phải dò lại máy chủ và hiện đủ 4 mục (bản cũ chốt cờ dò 1 lần ⇒ chỉ còn Máy trạm) */
+{ const ctx = await b.createBrowserContext(); const p2 = await ctx.newPage();
+  await p2.setUserAgent("Mozilla/5.0 (Linux; Android 14; 23116PN5BC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36");
+  await p2.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  await p2.setRequestInterception(true);
+  p2.on("request", (r) => { if (/127.0.0.1:8591/.test(r.url())) return r.abort(); if (r.method() !== "GET" && r.method() !== "OPTIONS" && r.method() !== "HEAD") return r.abort(); r.continue(); });
+  await p2.goto(GOC, { waitUntil: "networkidle2", timeout: 60000 });
+  const truoc = await p2.evaluate(() => document.querySelectorAll("#sideNav .s-khoa").length);
+  ok(truoc === 1, "chưa đăng nhập: nhóm Xác minh khoá (" + truoc + ")");
+  await p2.evaluate((hx, ham) => { localStorage.setItem("hx-phien", hx); localStorage.setItem("hx-ham", ham); localStorage.setItem("tk-phien", "qc");
+    const q = { "r.xacminh": "lam", "r.maytram": "lam" }; localStorage.setItem("tk-nho", JSON.stringify({ ts: Date.now(), nguoi: { id: "qc", ten: "QC", vaiTro: "quantri" }, quyen: q }));
+    window.TK.phien = "qc"; window.TK.nguoi = { id: "qc", ten: "QC", vaiTro: "quantri" }; window.TK.quyen = q; document.dispatchEvent(new CustomEvent("tk-doi")); }, PHIEN_QC, HAM);
+  await p2.waitForFunction(() => document.querySelectorAll("#sideNav .s-item[data-sub]").length >= 3, { timeout: 30000 }).catch(() => {});
+  const sau = await p2.evaluate(() => [...document.querySelectorAll("#sideNav .s-item")].map((e) => e.textContent.trim().replace(/s*d+$/, "")));
+  for (const t of ["Theo tác vụ", "Theo máy", "Máy trạm", "Nhật ký"]) ok(sau.some((m) => m.includes(t)), "đăng nhập SAU khi mở trang → có «" + t + "»");
+  await ctx.close(); }
 await b.close();
 console.log((truot ? "✗ " : "✓ ") + dat + "/" + (dat + truot) + " đạt");
 process.exit(truot ? 1 : 0);

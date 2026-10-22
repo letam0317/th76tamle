@@ -2,7 +2,7 @@
 
 Sinh tự động bởi `qc-gas-gac.mjs` (chạy trong `deploy-gas.mjs`) — **đừng sửa tay**. Lệnh KHÔNG gác phải có lý do trong `cai-pc/gas-gac-moc.json`, nếu không deploy dừng.
 
-Cập nhật: 2026-10-20 13:16 UTC · 79 lệnh · 7 không gác (có chủ đích) · nguồn: google-script-Bridge.gs, google-script-DonTab.gs, google-script-Form5S.gs, google-script-InTem.gs, google-script-KiemKe.gs, google-script-MayTram.gs, google-script-NghiemThu.gs, google-script-ReadTab.gs, google-script-SkuVision.gs, google-script-TaiKhoan.gs, google-script-ThietBi.gs, google-script-TonMaViTri.gs, google-script-TuChua.gs, google-script-XacMinh.gs, google-script.gs
+Cập nhật: 2026-10-22 05:24 UTC · 79 lệnh · 7 không gác (có chủ đích) · nguồn: google-script-Bridge.gs, google-script-DonTab.gs, google-script-Form5S.gs, google-script-InTem.gs, google-script-KiemKe.gs, google-script-MayTram.gs, google-script-NghiemThu.gs, google-script-ReadTab.gs, google-script-SkuVision.gs, google-script-TaiKhoan.gs, google-script-ThietBi.gs, google-script-TonMaViTri.gs, google-script-TuChua.gs, google-script-XacMinh.gs, google-script.gs
 
 | Lệnh | Kiểu | Gác bằng | Ghi chú / lý do không gác |
 |---|---|---|---|

@@ -69,7 +69,7 @@ window.GOC_DL=/\.pages\.dev$|^(localhost|127\.0\.0\.1)$/.test(location.hostname)
     var V='20261017lx';   // PHẢI khớp s.src trong moHasakiPlanogram()
     var l=document.createElement('link'); l.rel='preload'; l.as='script'; l.href='hasaki-planogram.js?v='+V; document.head.appendChild(l);
     var GAS='https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8Ttfd790-JYolO1C4rMoEPj7FdNOWLPb23QpUHgIZ2T_dlZPJRQ/exec';
-    var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||''; }catch(e){}
+    var khoa=''; try{ khoa=localStorage.getItem('tb-khoa')||(localStorage.getItem('tk-phien')?'tk:'+localStorage.getItem('tk-phien'):''); }catch(e){}   // 22/10 phiên tài khoản thay mã thiết bị
     var T=window.__HPT={ kq:{}, dang:{}, cho:{}, dung:{} };
     ['VESINH-YEUCAU','PHU-TRACH-QUAY-KE','VESINH-PHANCONG'].forEach(function(t,i){
       var cb='__hpt_cb'+i; T.dang[t]=1;
@@ -732,6 +732,10 @@ tr.tb-dangxem>td,.cl-item.tb-dangxem{background:var(--ad-chon,color-mix(in srgb,
 .lb-btn:hover{background:var(--accent); color:var(--accent-text); border-color:var(--accent); opacity:1;}
 #lbPrev{left:18px;} #lbNext{right:18px;}
 #lbClose{position:absolute; top:16px; right:18px; background:var(--surface); color:var(--text); border:1px solid var(--border); padding:8px 14px; border-radius:10px; font-weight:600; cursor:pointer;}
+/* 22/10 user (ảnh Theo tác vụ «Bằng chứng» không thấy Đóng): ảnh dọc lớn vẽ SAU nút nên ĐÈ mất «Đóng»/số trang/Trước-Sau ⇒ nút luôn nổi trên ảnh,
+   và trên điện thoại chừa dải trên/dưới cho nút + chú thích để ảnh không chui dưới chúng */
+#lbClose,#lbCount,.lb-btn{z-index:66;}
+@media (max-width:600px){ #lightbox{padding:58px 8px 52px;} #lbContent img,#lbContent video{max-height:calc(100vh - var(--pop-tren,0px) - 120px);} }
 @keyframes lbCapIn{from{opacity:0; transform:translate3d(-50%, 4px, 0) scale(.98);} to{opacity:1; transform:translate3d(-50%, 0, 0) scale(1);}}
 #lbCount{position:absolute; top:18px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); color:var(--text); padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600;}
 #lbCaption{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,.88); backdrop-filter:blur(8px);
@@ -1620,7 +1624,8 @@ window.hxDoMayChu = function(){
         return u; }); };
   var p = window.__HX_KHONG_MAY ? ham() : ping("http://127.0.0.1:8591", 1500).catch(function(){ return ham(); });
   return window.__HX_DO = p.then(function(u){ window.HX_API = u; window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); if (typeof homeVeLai === "function") setTimeout(homeVeLai, 0); return true; },   /* 20/10 dò máy chủ/đường hầm xong → vẽ lại Tổng quan (thẻ Xác minh) */
-    function(){ var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_KHONG_MAY) window.__HX_CHAN = 1; return false; });
+    function(){ window.__HX_DO = null;   /* 22/10: dò hỏng KHÔNG nhớ — lần sau (đăng nhập xong, laptop bật lại) dò lại được */
+      var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_KHONG_MAY) window.__HX_CHAN = 1; return false; });
 };</script>
 <script>/* 14/10: pop-up không che thanh bên — --pop-trai = mép phải thật của #sideNav (máy tính); điện thoại = 0 (ngăn kéo nổi trên pop-up) */
 (function(){var nav=document.getElementById("sideNav");if(!nav)return;var h=0;
@@ -4386,7 +4391,11 @@ document.addEventListener('click', ()=>csDongHet(null));
     nav.innerHTML = html;
     /* 05/10 user: "trang chỉ mình t coi được" — tab Xác minh CHỈ hiện khi máy đang mở có máy chủ nội bộ bang-591 (127.0.0.1:8591);
        máy người khác không thấy cả nút tab. Dữ liệu vốn chỉ nằm trên máy quản lý, đây chỉ là giấu lối vào. */
-    if (!window.__HX_MAY_CHU && !build._do) { build._do = 1;   // 19/10: dò 127.0.0.1 (laptop) rồi tới đường hầm — điện thoại cũng thấy mục con khi đã đăng nhập
+    /* 22/10 user «đăng nhập rồi điện thoại vẫn không thấy Máy trạm/Theo tác vụ/Theo máy/Nhật ký — xử lý dứt điểm». GỐC RỄ: mở trang lúc CHƯA
+       đăng nhập → dò máy chủ trả «không» (chưa phiên) nhưng cờ build._do đã chốt 1 ⇒ đăng nhập xong (tk-doi → build) KHÔNG dò lại nữa.
+       Nay chốt theo PHIÊN: phiên đổi (đăng nhập / đăng xuất / đổi tài khoản) là dò lại; dò hỏng thì hxDoMayChu không nhớ kết quả hỏng. */
+    var phNay = ""; try { phNay = (window.TK && window.TK.phien) || localStorage.getItem("hx-phien") || ""; } catch(e){}
+    if (!window.__HX_MAY_CHU && build._do !== phNay) { build._do = phNay;   // 19/10: dò 127.0.0.1 (laptop) rồi tới đường hầm — điện thoại cũng thấy mục con khi đã đăng nhập
       window.hxDoMayChu().then(function(co){ if (co || window.__HX_CHAN) build(); if (co && window.homeVeLai) homeVeLai(); }); }
     nav.querySelectorAll(".s-khoa").forEach(function(el){ el.addEventListener("click", xmMoDangNhap);
       el.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); xmMoDangNhap(); } }); });

@@ -104,7 +104,10 @@ var APPSCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIE6E68VYxS0Zm1vj8
  *   https://letam0317.github.io/kiemsoatkho/#khoa=<DEVICE_KEY>
  * (lưu localStorage, xoá khỏi thanh địa chỉ — người dùng không phải gõ gì). GAS chưa bật siết
  * (DEVICE_KEY trống) thì mọi thứ chạy y như cũ. */
-function tbKhoa(){ try{ return localStorage.getItem("tb-khoa") || ""; }catch(e){ return ""; } }
+/* 22/10: vừa đăng nhập tài khoản mà trang đang báo 🔒 thiếu quyền → tải lại dữ liệu ngay (phiên tài khoản thay mã thiết bị) */
+document.addEventListener("tk-doi", function(){ if (typeof LOI_NGUON !== "undefined" && Object.keys(LOI_NGUON).some(function(t){ return LOI_NGUON[t] === "khoa"; }) && window.HPLANOGRAM && HPLANOGRAM.reload) HPLANOGRAM.reload(); });
+// 22/10: chưa có mã thiết bị mà đã đăng nhập tài khoản → gửi phiên (GAS tbOK_ nhận)
+function tbKhoa(){ try{ return localStorage.getItem("tb-khoa") || (localStorage.getItem('tk-phien')?'tk:'+localStorage.getItem('tk-phien'):''); }catch(e){ return ""; } }
 (function(){
   try{
     var m = (location.hash || "").match(/[#&]khoa=([^&]+)/);
@@ -369,7 +372,7 @@ var CELLST = {
   rework: { c: "#7c3aed",  lb: "Đã vệ sinh · AI không đạt — làm lại", sh: "Đã VS · làm lại",       da: true, ct: "#6d28d9", tri: true },
   /* 03/08/2026 đổi nhãn cho trung tính về thời gian: ô này nay xuất hiện cả khi soi NGÀY CŨ
      (nguồn VESINH-CHAMCONG-NGAY 60 ngày), lúc đó việc phải làm là ĐI TRUY chứ không "nhắc ngay". */
-  remind: { c: "#dc2626",  lb: "Chưa vệ sinh · phụ trách CÓ đi làm hôm đó", sh: "Chưa VS · có đi làm" },
+  remind: { c: "#dc2626",  lb: "Chưa vệ sinh · phụ trách có đi làm", sh: "Chưa VS · có đi làm" },
   chua:   { c: "#dc2626",  lb: "Chưa vệ sinh",                        sh: "Chưa vệ sinh" },
   noshift:{ c: "#64748b",  lb: "Chưa vệ sinh · phụ trách nghỉ / chưa nhận", sh: "Chưa VS · nghỉ / chưa nhận" }
 };
@@ -1430,24 +1433,29 @@ var CSS = [
 "#hpVtModal.hp-modal{align-items:stretch;justify-content:flex-end;padding:0;}" +
 "#hpVtModal .hp-modalbox{width:min(720px,96vw)!important;max-height:100vh!important;height:100vh;border-radius:0;transform:translateX(28px);}",
 "#hpVtModal.show .hp-modalbox{transform:none;}",
-"@media(min-width:769px){#hpVtModal .hp-modalhd{display:flex;flex-direction:row;align-items:center;gap:12px;}" +
-  "#hpVtModal .hp-vtacts{order:-1;max-width:none;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;}" +
-  "#hpVtModal .hp-vtr1{display:inline-flex;align-items:center;gap:8px;}" +
-  "#hpVtModal .hp-vtr1 .hp-mdong{order:1;}" +
-  "#hpVtModal .hp-vtr1 #hpVtPg{order:2;}" +
-  "#hpVtModal #hpVtGhi{order:3;margin:0;}" +
-  "#hpVtModal .hp-modalhd>div:first-child{order:1;margin-left:auto;text-align:right;min-width:0;}}",
-/* 22/10 user (điện thoại, ảnh mũi tên lần 2): hàng 1 «mã vị trí · Ghi nhận 5S … Yêu cầu #… ↗» · hàng 2 «camera_… … Đóng».
-   Lưới 2 hàng, 2 khối bọc cũ display:contents để từng mục tự vào ô. Thanh bên bám inset:0 của khung (không dùng vh/dvh — thanh công cụ
-   trình duyệt điện thoại co giãn làm hở khoảng trống ở đáy); thân tự giãn hết phần còn lại. */
-"@media(max-width:768px){#hpVtModal.hp-modal{top:0!important;bottom:0;}body:has(#hpVtModal.show) #sideToggle{opacity:0;pointer-events:none;}" +
-  "#hpVtModal .hp-modalbox{height:auto!important;max-height:none!important;align-self:stretch;}#hpVtModal .hp-modalbody{flex:1 1 auto;min-height:0;}" +
-  "#hpVtModal .hp-modalhd{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:'ma ghi yc' 'cam cam dong';align-items:center;gap:6px 10px;}" +
-  "#hpVtModal .hp-modalhd>div:first-child,#hpVtModal .hp-vtacts,#hpVtModal .hp-vtr1{display:contents;}" +
-  "#hpVtTitle{grid-area:ma;white-space:nowrap;}#hpVtSub{grid-area:cam;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hp-vt-sban{display:none;}" +
-  "#hpVtModal #hpVtGhi,#hpVtModal #hpVtLt{grid-area:ghi;justify-self:start;margin:0;white-space:normal;text-align:left;}" +
-  "#hpVtModal #hpVtPg{grid-area:yc;justify-self:end;padding:0 6px!important;font-size:12px!important;}#hpVtModal .hp-mdong{grid-area:dong;justify-self:end;}" +
-  "#hpVtModal #hpVtGhi{line-height:1.25;font-size:11.5px;}#hpVtModal .hp-modalhd{column-gap:8px;}}",   // ghi dài («· còn N phiếu») tự xuống tối đa 2 dòng trong khe giữa, không đẩy «Yêu cầu» ra mép
+/* 22/10 user (lần 3, cả web lẫn điện thoại cùng khuôn), trái→phải:
+   hàng 1 «mã vị trí» (trái) … «Ghi nhận 5S» «Đóng» (phải) · hàng 2 «Băng chuyền NN / camera» (trái) … «Yêu cầu #… ↗» (phải).
+   Lưới 2 hàng; 3 khối bọc cũ display:contents để từng mục tự vào ô. */
+"#hpVtModal .hp-modalhd{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:'ma ghi dong' 'cam yc yc';align-items:center;gap:6px 8px;}" +
+"#hpVtModal .hp-modalhd>div:first-child,#hpVtModal .hp-vtacts,#hpVtModal .hp-vtr1{display:contents;}" +
+"#hpVtTitle{grid-area:ma;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}#hpVtSub{grid-area:cam;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+"#hpVtModal #hpVtGhi,#hpVtModal #hpVtLt{grid-area:ghi;justify-self:end;margin:0;white-space:nowrap;}" +
+"#hpVtModal .hp-mdong{grid-area:dong;justify-self:end;}#hpVtModal #hpVtPg{grid-area:yc;justify-self:end;}",
+/* 22/10 user lần 4 — WEB: cụm «Đóng · Ghi nhận 5S» căn TRÁI thanh bên; cụm «mã vị trí / camera|băng chuyền / Yêu cầu #… ↗» căn PHẢI,
+   3 dòng sát nhau. Điện thoại (22/10 lần 5 user «xemtruoc điện thoại chưa làm theo»): ĐẢO trái/phải so với web — cụm «mã / dòng phụ / Yêu cầu» căn TRÁI; «Ghi nhận 5S» «Đóng» CÙNG HÀNG (Đóng bên phải) căn PHẢI (lần 6). */
+"@media(min-width:769px){#hpVtModal .hp-modalhd{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:'dong ghi ma' 'dong ghi cam' 'dong ghi yc';align-items:start;row-gap:1px;column-gap:8px;padding-top:12px;padding-bottom:12px;}" +
+  "#hpVtModal .hp-mdong{justify-self:start;}#hpVtModal #hpVtGhi,#hpVtModal #hpVtLt{justify-self:start;align-self:start;margin-top:2px!important;}" +
+  "#hpVtTitle,#hpVtSub,#hpVtModal #hpVtPg{justify-self:end;text-align:right;line-height:1.3;}#hpVtSub{margin:0;}#hpVtModal #hpVtPg{min-height:0;padding:0;}}",
+/* Đáy thanh bên (điện thoại): khoảng hở dưới đáy = thanh công cụ trình duyệt ẩn đi để lộ trang phía sau (khung cao theo vùng nhìn NHỎ).
+   ⇒ khung cao theo vùng nhìn LỚN NHẤT (100vh = lvh) để luôn phủ kín; thân chừa thêm đáy bằng phần thanh công cụ (100vh − 100dvh)
+   để mục cuối vẫn cuộn lên được khi thanh công cụ đang hiện. */
+"@media(max-width:768px){#hpVtModal .hp-modalhd{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:'ma ghi dong' 'cam . .' 'yc . .';align-items:start;row-gap:2px;column-gap:8px;}" +
+  "#hpVtModal .hp-mdong,#hpVtModal #hpVtGhi,#hpVtModal #hpVtLt{justify-self:end;text-align:right;margin-bottom:-8px!important;}#hpVtModal #hpVtGhi{min-height:28px;padding:0;white-space:nowrap;}" +
+  "#hpVtTitle,#hpVtSub,#hpVtModal #hpVtPg{justify-self:start;text-align:left;line-height:1.3;}#hpVtModal #hpVtPg{border:0!important;height:auto!important;min-height:0!important;padding:0!important;}}" +
+  "@media(max-width:768px){#hpVtModal.hp-modal{top:0!important;}body:has(#hpVtModal.show) #sideToggle{opacity:0;pointer-events:none;}" +
+  "#hpVtModal .hp-modalbox{height:100vh!important;max-height:none!important;}#hpVtModal .hp-modalbody{flex:1 1 auto;min-height:0;}" +
+  "@supports(height:100dvh){#hpVtModal .hp-modalbody{padding-bottom:calc(20px + 100vh - 100dvh)!important;}}" +
+  "#hpVtModal #hpVtGhi{font-size:11.5px;}#hpVtModal #hpVtPg{padding:0!important;font-size:12px!important;}}",
 ".hp-vtr1{display:flex;align-items:center;gap:8px;}.hp-vtpg{font-size:12px;white-space:nowrap;}.hp-vtpg:empty{display:none;}.hp-vt-tgon{display:none;}",
 "@media(max-width:768px){#hpVtModal .hp-modalbox{width:100vw!important;}body:has(#hpVtModal.show) header{translate:0 -100%;pointer-events:none}.hp-vt-tday{display:none}.hp-vt-tgon{display:inline}" +
   "#hpVtModal .hp-vtr1 .hsk-nut,#hpVtModal .hp-vtpg{min-height:28px!important;height:28px;padding:0 8px!important;font-size:13px!important;border-radius:6px}.hp-vtpg{border:1px solid var(--border,#e5e7eb);display:inline-flex;align-items:center;text-decoration:none}}",
@@ -3714,12 +3722,18 @@ function renderVt(){
     var cur = byNgay[r.ngay]; if (!cur || (cur.bk !== "da" && r.bk === "da")) byNgay[r.ngay] = r; });
   var r = byNgay[d] || null;
   /* 21/10 user (điện thoại): «Kệ 05 · dãy 503 · F0-A1-503-05-04-01» → «A1-503-05-04-01»; web giữ đủ */
-  $id("hpVtTitle").innerHTML = '<span class="hp-vt-tday">' + esc(locTitle(loc)) + '</span><span class="hp-vt-tgon">' + esc(String(loc).replace(/^F0-/, "")) + '</span>';
+  /* 22/10 user lần 4: tiêu đề web gọn như A8 — chỉ mã vị trí (bỏ «Kệ 05 · dãy 503 ·», «Băng chuyền ·»), mọi khu */
+  $id("hpVtTitle").innerHTML = '<span class="hp-vt-tday">' + esc(loc) + '</span><span class="hp-vt-tgon">' + esc(String(loc).replace(/^F0-/, "")) + '</span>';
   /* Ô là bàn đóng hàng A8 có camera → phụ đề mang luôn mã camera (map CAMERA_BAN, khoá theo khoaO);
    * ô khác giữ nguyên câu chú dẫn cũ. Chỉ đổi CHỮ — không đổi vị trí/màu/element. */
-  /* 22/10 user (điện thoại): «Bàn đóng hàng: camera_00052» → «camera_00052», cùng 1 hàng với mã vị trí — tiền tố chỉ ẩn ở điện thoại (CSS .hp-vt-sban) */
-  $id("hpVtSub").innerHTML = CAMERA_BAN[kO]
-    ? '<span class="hp-vt-sban">Bàn đóng hàng: </span>' + esc(CAMERA_BAN[kO])
+  /* 22/10 user: bỏ tiền tố «Bàn đóng hàng:» (web + điện thoại); ô A8 có camera mà đuôi mã -01…-04 → «Băng chuyền 01…04»
+     (mã camera vẫn còn ở tooltip và thẻ Báo cáo đóng gói) */
+  /* 22/10 user lần 4 (sửa lại): «Băng chuyền NN» CHỈ cho ô A8 KHÔNG có camera (ô băng chuyền trong MAP_A8 .bc, đuôi -01…-04);
+     ô có camera giữ mã camera */
+  var bc = !CAMERA_BAN[kO] && /^F0-A8-/.test(String(loc)) && MAP_A8.some(function(c){ return c.bc === loc; }) && /-(0[1-4])$/.exec(String(loc));
+  $id("hpVtSub").title = CAMERA_BAN[kO] || "";
+  $id("hpVtSub").innerHTML = CAMERA_BAN[kO] ? esc(CAMERA_BAN[kO])
+    : bc ? esc("Băng chuyền " + bc[1])
     /* Câu hướng dẫn "bấm ô ngày bên dưới…" đã bỏ (luật ⑦) — dòng phụ nay mang DỮ LIỆU: khu + ngày đang xem.
        Để trống thì khối tiêu đề thấp hơn cụm nút góc phải, đầu pop-up cao thêm (qc-ghi-nhan-5s bắt 28/09). */
     : esc(((areaOf(loc) || {}).ngan || "") + (d ? " · " + thuVN(d) + " " + ngayVN(d) : ""));

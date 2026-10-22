@@ -24,6 +24,8 @@ import { chuanTuSau } from "./tu-ngu.mjs";
 import { docSo, TEN_BO } from "./so-tac-gia.mjs";
 import { dangNhap, kiemPhien, dangXuat, taoPhienTk } from "./xacminh-dang-nhap.mjs";   // 12/10 user: phần Xác minh phải có tài khoản + mật khẩu   // 12/10 sổ tác giả: cò/script nào đã tạo phiếu · bình luận · ảnh (chỉ đọc tệp trên máy)
 import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
+import crypto from "node:crypto";
+import { kiemKy, kiemRel, timTepLuot, relTepLuot, DUOI_OK, TRAN_TEP } from "./guong-clip-chung.mjs";   // 22/10 gương clip laptop → bản dự phòng
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
@@ -136,7 +138,7 @@ function gom() {
       const chiLuu = (l.loai || "bai-xe") === "phan-loai" || !!l.xeTaiChe;
       luot.push({ id: l.id, ngay: k.ngay, loai: l.loai || "bai-xe", chiLuu, lyDoLuu: l.xeTaiChe ? "xe tải đỗ che bãi — máy bỏ qua" : "", camera: l.camera, vung: l.vung, tu: l.tu, den: l.den, gioNguoi: l.gioNguoi,
         video: (l.nguon || []).map((n, i) => ({ url: `/video/${l.id}/${i}`, bd: n.bd })), doanNguoi: l.doanNguoi || [], vung: l.vung, roi: l.roiPx || null,
-        gocPhu: (l.gocPhu || []).filter((g) => fs.existsSync(g.file)).map((g, i) => ({ ten: g.ten, url: `/video/${l.id}/g${i}`, bd: g.bd, giay: g.giay || 60 })),   // 20/10 góc camera phụ (goc-phu-bai-xe.mjs)
+        gocPhu: (l.gocPhu || []).filter((g) => timTepLuot(g.file, GOC_BC, EXP)).map((g, i) => ({ ten: g.ten, url: `/video/${l.id}/g${i}`, bd: g.bd, giay: g.giay || 60 })),   // 20/10 góc camera phụ (goc-phu-bai-xe.mjs)
         anh: `/anh/${d}/${l.anh}`, buocAnh: (l.buocAnh || []).map((x) => ({ ...x, anh: `/anh/${d}/${x.file}` })), khongThayNguoi: !!l.khongThayNguoi,
         chamCong: l.chamCong || [], cong: (l.cong || []).map((c) => { const d = c && c.code ? db.theoMa.get(String(c.code)) : null; return d ? { ...c, email: d.email || "", ttNv: d.tt } : c; }),   /* 20/10 tên NV kèm email + trạng thái (danh sách góc khác) */ goiY: l.goiY || null, soNguoi: l.soNguoi || [],
         qd: q ? { qd: q.qd, ma: q.ma || "", nguoi: q.nguoi || null, gc: q.gc || "", nguon: q.nguon || "web", luc: q.luc || "" } : null, may: da[l.id] || null });
@@ -418,12 +420,102 @@ function mayTram() {
   return MT_DANG;
 }
 
+/* ---- 22/10 GƯƠNG CLIP (user: «cải tiến để laptop tắt vẫn xem được các clip ở theo tác vụ/theo máy/vi phạm») ----
+   Bản dự phòng trước có danh sách (JSON kéo qua kho Drive) nhưng KHÔNG có clip/ảnh (kho Drive trần 40 MB, đi qua Apps Script).
+   Laptop (guong-clip-du-phong.mjs) đẩy tệp bằng chứng thẳng sang đây qua đường hầm của PC. NGOẠI LỆ CÓ KIỂM SOÁT của luật «dự phòng chỉ xem»:
+   chỉ ghi vào THƯ MỤC BẰNG CHỨNG (đuôi mp4/webm/jpg/jpeg/png), không đụng dữ liệu nghiệp vụ; chỉ bật khi XM_DU_PHONG=1; cần chữ ký HMAC
+   dẫn từ APPSCRIPT_KEY (guong-clip-chung.mjs) — không phiên đăng nhập nào mở được.
+     GET /api/guong-clip/co            → { tep: { "<rel>": cỡ } } mọi tệp bằng chứng đang có trên máy này
+     PUT /api/guong-clip?p=<rel>       thân = byte tệp (≤100 MB, kèm x-guong-sha256 + x-guong-mtime) → ghi tạm → kiểm sha → đổi tên
+   Trần tổng gương GUONG_TRAN_GB (mặc định 8 GB, chỉ tính tệp DO GƯƠNG GHI — sổ <BC>/.guong-clip-so.json; tệp PC tự sinh không bao giờ bị xoá):
+   vượt thì xoá tệp gương KHÔNG còn được tham chiếu trước, rồi tới tệp gương cũ nhất. Đĩa còn < cỡ tệp + 2 GB → 507. */
+const SO_GUONG = path.join(GOC_BC, ".guong-clip-so.json");
+const TRAN_GUONG = Number(process.env.GUONG_TRAN_GB || 8) * 1024 ** 3;   // đo 22/10: đang dùng ~6,1 GB (bc 1,66 · ảnh lượt 0,15 · video lượt 4,32)
+let GUONG_DANG = 0;   // số lượt ghi đang chạy (tự nạp code mới phải chờ về 0)
+const ghiSoGuong = (so) => ghiJson(SO_GUONG, so, { thut: 0 });   // sổ nằm trong thư mục bằng chứng (không phải dữ liệu nghiệp vụ .exports)
+function thamChieuGuong() {   // rel các tệp bằng chứng mà dữ liệu đang hiển thị còn dùng (bản dự phòng: theo dữ liệu kéo từ kho Drive)
+  const ra = new Set(), d = gom(), t = JSON.stringify(d), relGoc = path.relative(GOC_BC, GOC).split(path.sep).join("/");
+  for (const m of t.matchAll(/"\/bc\/([^"?]+)/g)) { try { ra.add(decodeURIComponent(m[1])); } catch { ra.add(m[1]); } }
+  for (const m of t.matchAll(/"\/anh\/([^"?]+)/g)) ra.add(relGoc + "/" + m[1]);
+  for (const l of d.luot || []) { const k = timLuot(l.id); for (const n of [...(k?.nguon || []), ...(k?.gocPhu || [])]) { const r = n?.file && relTepLuot(n.file, GOC_BC, EXP); if (r) ra.add(r); } }
+  return ra;
+}
+function tepBangChung() {   // { rel: cỡ } mọi tệp đuôi hợp lệ trong thư mục bằng chứng (bỏ thư mục/tệp ẩn), trần 60k tệp
+  const ra = {}; let n = 0; const di = [""];
+  while (di.length && n < 60000) {
+    const rel = di.pop(); let ds = []; try { ds = fs.readdirSync(path.join(GOC_BC, rel), { withFileTypes: true }); } catch { continue; }
+    for (const e of ds) {
+      if (e.name.startsWith(".")) continue;
+      const r = rel ? rel + "/" + e.name : e.name;
+      if (e.isDirectory()) { if (r.split("/").length < 6) di.push(r); }
+      else if (e.isFile() && DUOI_OK.test(e.name)) { try { ra[r] = fs.statSync(path.join(GOC_BC, r)).size; n++; } catch { /* */ } }
+    }
+  }
+  return ra;
+}
+function donChoGuong(can) {   // xoá tệp gương cho đủ chỗ `can` byte; trả false nếu không dọn đủ
+  const so = docJ(SO_GUONG, {});
+  for (const r of Object.keys(so)) if (!fs.existsSync(path.join(GOC_BC, r))) delete so[r];
+  let tong = Object.values(so).reduce((a, x) => a + (x.co || 0), 0);
+  if (tong + can > TRAN_GUONG) {
+    let dung = new Set(); try { dung = thamChieuGuong(); } catch { /* không đọc được tham chiếu → coi như mọi tệp đều đang dùng */ dung = new Set(Object.keys(so)); }
+    const ds = Object.entries(so).sort(([a, x], [b, y]) => (dung.has(a) ? 1 : 0) - (dung.has(b) ? 1 : 0) || (x.luc || 0) - (y.luc || 0));
+    for (const [r, x] of ds) {
+      if (tong + can <= TRAN_GUONG) break;
+      try { fs.unlinkSync(path.join(GOC_BC, r)); } catch { /* */ }
+      delete so[r]; tong -= x.co || 0; log("gương clip: xoá " + r + (dung.has(r) ? " (cũ nhất, vẫn còn tham chiếu)" : " (không còn tham chiếu)"));
+    }
+  }
+  ghiSoGuong(so);
+  return tong + can <= TRAN_GUONG;
+}
+async function xuLyGuong(q, s, u, p) {
+  const o = { pt: q.method, rel: p === "/api/guong-clip/co" ? "" : String(u.searchParams.get("p") || ""), luc: q.headers["x-guong-luc"], co: Number(q.headers["content-length"] || 0), sha: String(q.headers["x-guong-sha256"] || "") };
+  const loiKy = kiemKy(process.env.APPSCRIPT_KEY || "", o, q.headers["x-guong-ky"]);
+  if (loiKy) { log("gương clip: TỪ CHỐI (" + loiKy + ") từ " + (q.headers["cf-connecting-ip"] || q.socket.remoteAddress)); return guiJ(s, loiKy === "máy chủ chưa có khoá" ? 503 : 401, { loi: loiKy }); }
+  if (p === "/api/guong-clip/co" && q.method === "GET") return guiJ(s, 200, { tep: tepBangChung(), tranTong: TRAN_GUONG });
+  if (p !== "/api/guong-clip" || q.method !== "PUT") return guiJ(s, 405, { loi: "chỉ GET /api/guong-clip/co hoặc PUT /api/guong-clip?p=" });
+  const loiRel = kiemRel(o.rel); if (loiRel) return guiJ(s, 400, { loi: loiRel });
+  const dich = path.resolve(GOC_BC, ...o.rel.split("/"));
+  if (!dich.startsWith(path.resolve(GOC_BC) + path.sep)) return guiJ(s, 400, { loi: "ra ngoài thư mục bằng chứng" });
+  if (!/^[0-9a-f]{64}$/.test(o.sha)) return guiJ(s, 400, { loi: "thiếu x-guong-sha256" });
+  if (!(o.co > 0)) return guiJ(s, 411, { loi: "thiếu Content-Length" });
+  if (o.co > TRAN_TEP) return guiJ(s, 413, { loi: "tệp quá 100 MB" });
+  try { const st = fs.statfsSync(GOC_BC); if (st.bavail * st.bsize < o.co + 2 * 1024 ** 3) return guiJ(s, 507, { loi: "đĩa PC sắp đầy (còn " + Math.round(st.bavail * st.bsize / 1e9 * 10) / 10 + " GB)" }); } catch { /* thư mục chưa có — tạo bên dưới */ }
+  if (!donChoGuong(o.co)) return guiJ(s, 507, { loi: "vượt trần gương " + Math.round(TRAN_GUONG / 1024 ** 3) + " GB" });
+  fs.mkdirSync(path.dirname(dich), { recursive: true });
+  const tam = dich + ".guong-tam-" + process.pid + "-" + crypto.randomBytes(4).toString("hex");
+  GUONG_DANG++;
+  try {
+    const h = crypto.createHash("sha256"), w = fs.createWriteStream(tam); let n = 0;
+    for await (const ch of q) { n += ch.length; if (n > o.co || n > TRAN_TEP) break; h.update(ch); if (!w.write(ch)) await new Promise((r) => w.once("drain", r)); }
+    await new Promise((r, j) => w.end((e) => (e ? j(e) : r())));
+    if (n !== o.co) { fs.rmSync(tam, { force: true }); return guiJ(s, 400, { loi: "thân thiếu/thừa byte (" + n + "/" + o.co + ")" }); }
+    if (h.digest("hex") !== o.sha) { fs.rmSync(tam, { force: true }); return guiJ(s, 400, { loi: "sha256 không khớp" }); }
+    fs.renameSync(tam, dich);
+    const mt = Number(q.headers["x-guong-mtime"]);   // giữ giờ sửa của laptop ⇒ dong-bo-xm «ra» trên PC (đẩy tệp mới sửa) không đẩy ngược gương lên kho Drive
+    if (Number.isFinite(mt) && mt > 0) try { fs.utimesSync(dich, new Date(mt), new Date(mt)); } catch { /* */ }
+    const so = docJ(SO_GUONG, {}); so[o.rel] = { co: o.co, luc: Date.now() }; ghiSoGuong(so);
+    log("gương clip: nhận " + o.rel + " (" + Math.round(o.co / 1e4) / 100 + " MB)");
+    return guiJ(s, 200, { ok: 1, rel: o.rel, co: o.co });
+  } catch (e) { fs.rmSync(tam, { force: true }); throw e; }
+  finally { GUONG_DANG--; }
+}
+/* 22/10: bản dự phòng chạy mãi trên PC — PC kéo code mới (git pull 2 giờ/lần) nhưng tiến trình cũ không tự nạp. Bản dự phòng soi giờ sửa
+   của chính nó + guong-clip-chung.mjs mỗi 5'; đổi thì thoát (khi không đang nhận tệp) → may-chu-du-phong.mjs (5'/lần) bật lại bản mới. */
+if (DU_PHONG) {
+  const TEP_CODE = [fileURLToPath(import.meta.url), path.join(DIR, "guong-clip-chung.mjs"), path.join(DIR, "xacminh-dang-nhap.mjs")];
+  const dau = () => TEP_CODE.map((f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } }).join("|");
+  const goc = dau();
+  setInterval(() => { if (GUONG_DANG === 0 && dau() !== goc) { log("bản dự phòng: code đổi — thoát để may-chu-du-phong bật lại bản mới"); process.exit(0); } }, 5 * 60e3).unref();
+}
+
 // ---- máy chủ ----
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json" };
 const guiJ = (s, code, o) => { s.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); s.end(JSON.stringify(o)); };
 const hopLe = (q) => !LAN || !KHOA || q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.headers["x-khoa"] === KHOA ||
   new URL(q.url, "http://x").searchParams.get("khoa") === KHOA;
-const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/(xemtruoc\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + audit-dc.pages.dev + bản xem trước xemtruoc. — QC bảo mật: KHÔNG nhận link phụ <mã>.audit-dc.pages.dev (bản cũ Cloudflare giữ vĩnh viễn)
+const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/((xemtruoc|qc)\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + audit-dc.pages.dev + bản xem trước xemtruoc. — QC bảo mật: KHÔNG nhận link phụ <mã>.audit-dc.pages.dev (bản cũ Cloudflare giữ vĩnh viễn)
 const sv = http.createServer(async (q, s) => {
   const goc = q.headers.origin || "";
   /* 05/10 user: "trang chỉ mình t coi được" — chỉ nhận trang của chính dự án. BỎ origin "null"/file:// (trang web lạ dựng được
@@ -452,6 +544,8 @@ const sv = http.createServer(async (q, s) => {
     const quaHam = !!(q.headers["cf-connecting-ip"] || q.headers["cf-ray"]);
     const noiBo = !quaHam && (q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.socket.remoteAddress === "::ffff:127.0.0.1");
     const phien = String(q.headers["x-hx-phien"] || u.searchParams.get("phien") || "");
+    /* 22/10 gương clip: CHỈ bản dự phòng; đi qua hầm được (laptop chỉ tới được PC qua hầm) nhưng xác thực bằng chữ ký HMAC, không bằng phiên */
+    if (DU_PHONG && (p === "/api/guong-clip" || p === "/api/guong-clip/co")) return await xuLyGuong(q, s, u, p);
     if (quaHam && !/^\/(api\/(ping|dang-nhap|dang-nhap-tk|dang-xuat)|m\/[\w.-]+)$/.test(p) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
     if (p === "/api/dang-nhap" && q.method === "POST") {
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
@@ -479,7 +573,7 @@ const sv = http.createServer(async (q, s) => {
     if (canPhien && q.method === "POST" && (kiemPhien(phien) || {}).chiXem) return guiJ(s, 403, { loi: "Tài khoản chỉ có quyền xem phần Xác minh" });
     if (DU_PHONG && q.method === "POST" && p.startsWith("/api/")) return guiJ(s, 503, { loi: "Laptop đang tắt — đang xem bản dự phòng (chỉ xem). Quyết định / ghi chú làm khi laptop bật lại.", duPhong: 1 });
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
-    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1 } : { ok: 1 });   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
+    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1 } : { ok: 1 });   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
     if (p === "/api/qc-dem") return guiJ(s, 200, docJ(path.join(EXP, "qc-dem.json"), { chua: 1 }));   // 20/10 kết quả bộ đo chạy đêm (chay-qc-dem.mjs)
@@ -543,8 +637,9 @@ const sv = http.createServer(async (q, s) => {
       s.writeHead(200, { "Content-Type": mf.endsWith(".json") ? "application/json" : "application/octet-stream", "Cache-Control": "max-age=86400" }); return fs.createReadStream(mf).pipe(s);
     }
     if (p.startsWith("/video/")) {   // /video/<id lượt>/<i> — đoạn video đã tải từ đầu ghi (giữ 14 ngày)
-      const [, , id, i] = p.split("/"); const l = timLuot(id); const f = l && (/^g\d+$/.test(i) ? (l.gocPhu || []).filter((g) => fs.existsSync(g.file))[Number(i.slice(1))] : (l.nguon || [])[Number(i)])?.file;
-      if (!f || !fs.existsSync(f)) { s.writeHead(404); return s.end(); }
+      /* 22/10 gương clip: ket-qua.json ghi đường TUYỆT ĐỐI của máy đã cắt (laptop) — bản dự phòng trên PC tìm bản gương qua timTepLuot */
+      const [, , id, i] = p.split("/"); const l = timLuot(id); const f = timTepLuot(l && (/^g\d+$/.test(i) ? (l.gocPhu || []).filter((g) => timTepLuot(g.file, GOC_BC, EXP))[Number(i.slice(1))] : (l.nguon || [])[Number(i)])?.file, GOC_BC, EXP);
+      if (!f) { s.writeHead(404); return s.end(); }
       const st = fs.statSync(f), rg = /bytes=(\d+)-(\d*)/.exec(q.headers.range || "");
       if (rg) { const a = +rg[1], z = rg[2] ? +rg[2] : st.size - 1; s.writeHead(206, { "Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Content-Range": `bytes ${a}-${z}/${st.size}`, "Content-Length": z - a + 1 }); return fs.createReadStream(f, { start: a, end: z }).pipe(s); }
       s.writeHead(200, { "Content-Type": "video/mp4", "Content-Length": st.size, "Accept-Ranges": "bytes" }); return fs.createReadStream(f).pipe(s);

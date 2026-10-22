@@ -11,7 +11,7 @@ import puppeteer from "puppeteer-core";
 import fs from "node:fs";
 import { phienQC } from "./xacminh-dang-nhap.mjs";
 const A = Object.fromEntries(process.argv.slice(2).map((x) => x.replace(/^--/, "").split("=")));
-const W = +(A.w || 1440), ANH = A.anh || "", GOC = (A.goc || "http://localhost:8123").replace(/\/$/, "");   // --goc=https://xemtruoc.audit-dc.pages.dev
+const W = +(A.w || 1440), ANH = A.anh || "", GOC = (A.goc || "http://localhost:8123").replace(/\/$/, "");   // --goc=https://qc.audit-dc.pages.dev
 const PD = /\.pages\.dev$/.test(new URL(GOC).hostname);
 if (ANH) fs.mkdirSync(ANH, { recursive: true });
 const b = await puppeteer.launch({ executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: "new" });

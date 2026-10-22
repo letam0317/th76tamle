@@ -2,14 +2,14 @@
  * day-cloudflare.mjs — đẩy 2 dashboard lên Cloudflare Pages, dự án «audit-dc» → https://audit-dc.pages.dev (13/10/2026, kế hoạch async-wibbling-haven giai đoạn E).
  * GitHub vẫn là NGUỒN GỐC; Cloudflare chỉ là MẶT TIỀN:  /retail/ ← repo kiemsoatkho · /factory/ ← repo stocklocationfactory.
  *   node day-cloudflare.mjs                          # nguồn = bản đã đẩy lên GitHub · nhánh main (tên miền chính)
- *   node day-cloudflare.mjs --nguon=local --nhanh=xemtruoc   # nguồn = bản NỘI BỘ đang sửa (chưa đẩy GitHub) · bản xem trước https://xemtruoc.audit-dc.pages.dev
+ *   node day-cloudflare.mjs --nguon=local --nhanh=qc   # nguồn = bản NỘI BỘ đang sửa (chưa đẩy GitHub) · bản QC/xem trước https://qc.audit-dc.pages.dev (22/10 user đổi tên từ xemtruoc)
  *   thêm --ep  để đẩy kể cả khi không đổi · --kho  chỉ ráp thư mục, không đẩy
  * KHÔNG đẩy: summary/ + thu/ (đổi liên tục — trang đọc thẳng từ github.io qua window.GOC_DL), .git, bộ chỉnh dash-bocuc-sua.js (chỉ bản QC),
  *   thư mục tiện ích wms-bridge* / backend, tệp khoá *.pem. Retail lấy theo DANH SÁCH cho phép của deploy-kiemsoatkho.mjs (không chép bừa thư mục máy).
  * Hạn mức gói Free: không đổi thì BỎ QUA (băm SHA-256 cả cây). Khoá CF_API_TOKEN / CF_ACCOUNT_ID ở .env.
  * 14/10 user «làm» — ĐẨY NGAY + NGÂN SÁCH THÁNG: gọi tay (deploy-kiemsoatkho / day-bocuc-factory / phiên sửa) → hẹn 2 phút (--hen), gọi chồng thì
  *   lượt sau thay lượt trước (gộp). Lịch 10 phút (--lich) là lưới an toàn (bắt cả lần push factory bằng git). Cloudflare ghi «500 builds/tháng»
- *   (trang tổng quan ghi «500 deploys») và KHÔNG nói rõ tải thẳng (wrangler) có được miễn ⇒ tính chặt: 500 lượt/tháng gồm CẢ main + xemtruoc.
+ *   (trang tổng quan ghi «500 deploys») và KHÔNG nói rõ tải thẳng (wrangler) có được miễn ⇒ tính chặt: 500 lượt/tháng gồm CẢ main + qc (trước 22/10 tên xemtruoc).
  *   Hạn hôm nay = floor((500 − đã dùng trước hôm nay) ÷ số ngày còn lại kể cả hôm nay) — ngày dùng ít thì dư dồn cho ngày sau, không bao giờ vượt 500.
  */
 import "dotenv/config";
@@ -112,7 +112,7 @@ fs.writeFileSync(path.join(DIST, "robots.txt"), "User-agent: *\nDisallow: /\n");
 /* 20/10 đánh giá an ninh: thêm HSTS + Content-Security-Policy. CSP liệt kê đúng các nguồn trang đang dùng (đo bằng grep tên miền 20/10):
    script = mã trang + Apps Script (JSONP) + jsdelivr (tfjs/coco) + unpkg (alpine/html5-qrcode) + tailwind CDN; 'unsafe-inline' vì 15 khối script nội tuyến,
    'unsafe-eval' vì Alpine (form) + tfjs (WebAssembly). connect = GAS/Sheet/GitHub (summary, thu/) + máy chủ nội bộ 8591 + đường hầm + WMS/work/planogram/hr.
-   Thêm nguồn mới = thêm vào đây (không thì console báo «Refused to …»). Thử trước ở nhánh xemtruoc. */
+   Thêm nguồn mới = thêm vào đây (không thì console báo «Refused to …»). Thử trước ở nhánh qc. */
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://script.google.com https://*.googleusercontent.com https://docs.google.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://letam0317.github.io",
@@ -138,7 +138,7 @@ if (nh.bam === bam && !("ep" in A)) { log("✓ không đổi so với lần đ�
 /* Ngân sách tháng (cả 2 nhánh). Sổ tháng 10 mở 14/10 với 20 lượt đã ghi nhận (13/10 main 3 · 14/10 main 14 + xemtruoc 3). */
 const ky = hn.slice(0, 7), ngayCuoi = new Date(Date.UTC(+ky.slice(0, 4), +ky.slice(5, 7), 0)).getUTCDate(), conLai = ngayCuoi - +hn.slice(8, 10) + 1;
 if (!so.thang || so.thang.ky !== ky) so.thang = { ky, dem: ky === "2026-10" ? 20 : 0 };
-if (!so.homNay || so.homNay.ngay !== hn) so.homNay = { ngay: hn, dem: ["main", "xemtruoc"].reduce((t, k) => t + (so[k] && so[k].ngay === hn ? so[k].dem || 0 : 0), 0) };   // mở sổ ngày: cộng số lượt 2 nhánh đã ghi hôm nay
+if (!so.homNay || so.homNay.ngay !== hn) so.homNay = { ngay: hn, dem: ["main", "qc", "xemtruoc"].reduce((t, k) => t + (so[k] && so[k].ngay === hn ? so[k].dem || 0 : 0), 0) };   // mở sổ ngày: cộng số lượt 2 nhánh đã ghi hôm nay
 const hanNay = Math.floor((TRAN_THANG - (so.thang.dem - so.homNay.dem)) / conLai);
 if (so.homNay.dem >= hanNay) { log("✗ hôm nay đã đẩy " + so.homNay.dem + "/" + hanNay + " lượt (tháng " + so.thang.dem + "/" + TRAN_THANG + ") — dừng tới 0 giờ; github.io vẫn cập nhật"); process.exit(1); }
 
@@ -152,7 +152,7 @@ nh.bam = bam; nh.dem++; so.thang.dem++; so.homNay.dem++; nh.luc = new Date().toI
 log("✓ đã đẩy (hôm nay " + so.homNay.dem + "/" + hanNay + " · tháng " + so.thang.dem + "/" + TRAN_THANG + ") · " + url + (NHANH === "main" ? " · tên miền chính https://" + DU_AN + ".pages.dev" : " · bản xem trước https://" + NHANH + "." + DU_AN + ".pages.dev"));
 
 /* 13/10 QC bảo mật: Cloudflare giữ VĨNH VIỄN mỗi lượt đẩy dưới link phụ <mã>.audit-dc.pages.dev (kể cả bản xem trước chưa duyệt).
-   Sau mỗi lượt: xoá mọi bản cũ, chỉ giữ bản đang chạy của tên miền chính + bản mới nhất của nhánh xemtruoc. Lỗi dọn KHÔNG làm hỏng lượt đẩy. */
+   Sau mỗi lượt: xoá mọi bản cũ, chỉ giữ bản đang chạy của tên miền chính + bản mới nhất của nhánh xem trước (qc). Lỗi dọn KHÔNG làm hỏng lượt đẩy. */
 try {
   const B = "https://api.cloudflare.com/client/v4/accounts/" + process.env.CF_ACCOUNT_ID + "/pages/projects/" + DU_AN, H = { Authorization: "Bearer " + process.env.CF_API_TOKEN };
   const dang = ((await (await fetch(B, { headers: H })).json()).result || {}).canonical_deployment?.id;
