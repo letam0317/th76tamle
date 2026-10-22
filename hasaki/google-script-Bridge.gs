@@ -94,7 +94,31 @@ function apiBridgeToken(duLieu) {
   P.setProperty(K.exp, String(exp));
   return phanHoiJson({ status: 'success', saved: true });
 }
-function apiGetBridgeToken(kind, chu) {
+/* 22/10 user «mã hoá bí mật trên PC… làm»: không máy nào giấu được khoá khỏi chính quản trị viên của nó ⇒ chốt chặn cuối là PHÁT HIỆN.
+   Mỗi lượt TRAO phiên (token khác rỗng) ghi sổ BRIDGE_LAY_LOG (200 lượt gần nhất: lúc · máy · kênh · chủ) và nhắn Telegram khi:
+   ① máy khai tên mà KHÔNG có nhịp tim (không phải máy trạm đã biết; không khai tên = mã cũ, chỉ ghi sổ); ② 1 máy lấy > 40 lượt/giờ;
+   ③ lấy phiên GHI (chu=tamlc) lúc 22:00–05:00. Mỗi loại báo tối đa 1 tin/giờ/máy (CacheService). Tên máy do máy tự khai — kẻ giả được
+   tên máy đã biết thì lọt ①, nhưng vẫn vướng ②③ và để lại dấu ở sổ. */
+function bridgeGhiLay_(may, kind, chu) {
+  try {
+    may = String(may || '').slice(0, 40); var P = PropertiesService.getScriptProperties(), now = new Date(), C = CacheService.getScriptCache();
+    var so = []; try { so = JSON.parse(P.getProperty('BRIDGE_LAY_LOG') || '[]'); } catch (e) { so = []; }
+    so.push({ t: now.toISOString(), may: may, kind: String(kind || 'wms'), chu: chu || '' }); if (so.length > 200) so = so.slice(-200);
+    P.setProperty('BRIDGE_LAY_LOG', JSON.stringify(so));
+    var bao = function (loai, chu2) { var k = 'BLB:' + loai + ':' + may; if (C.get(k)) return; C.put(k, '1', 3600); tbBaoTele_('⚠️ Phiên work/WMS của bạn vừa được lấy bất thường\n' + chu2 + '\nMáy: ' + (may || '(không khai tên)') + ' · kênh ' + (kind || 'wms') + (chu ? ' · phiên GHI' : '') + '\nNếu không phải máy của bạn: đổi khoá dự án (doi-khoa.mjs) và đăng xuất work trên trình duyệt.'); };
+    if (may && !P.getProperty('PCNHIP_' + may)) bao('la', 'Máy lạ — không có trong danh sách máy trạm.');   // thiếu tên = mã cũ chưa cập nhật → chỉ ghi sổ
+    var gio = so.filter(function (x) { return x.may === may && now.getTime() - Date.parse(x.t) < 3600e3; }).length;
+    if (gio > 40) bao('nhieu', 'Lấy ' + gio + ' lượt trong 1 giờ (bình thường dưới 20).');
+    var h = Number(Utilities.formatDate(now, 'Asia/Ho_Chi_Minh', 'H'));
+    if (chu === 'tamlc' && (h >= 22 || h < 5)) bao('dem', 'Lấy phiên GHI lúc ' + Utilities.formatDate(now, 'Asia/Ho_Chi_Minh', 'HH:mm') + ' (ngoài giờ làm).');
+  } catch (e) { /* sổ hỏng không được làm hỏng lượt trao phiên */ }
+}
+function apiGetBridgeToken(kind, chu, may) {
+  var kq = apiGetBridgeToken_(kind, chu);
+  try { var j = JSON.parse(kq.getContent()); if (j && j.token) bridgeGhiLay_(may, kind, chu); } catch (e) {}
+  return kq;
+}
+function apiGetBridgeToken_(kind, chu) {
   var K = khoaBridge_(kind);
   var P = PropertiesService.getScriptProperties();
   var now = new Date().getTime();

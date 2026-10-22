@@ -177,7 +177,7 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'stockSyncStatus') return keyBodyOK_(duLieu) ? phanHoiJson(trangThaiCo_('STOCK_SYNC_REQUESTED')) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'clearStockSync') return keyBodyOK_(duLieu) ? xoaCo_('STOCK_SYNC_REQUESTED') : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeToken') return apiBridgeToken(duLieu);             // extension wms-bridge đẩy token PHIÊN SỐNG của operator — public, validate dạng JWT + throttle
-    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken(duLieu.kind, duLieu.chu) : phanHoiJson({ status: 'error', message: 'Sai key' });
+    if (duLieu && duLieu.action === 'getBridgeToken') return keyBodyOK_(duLieu) ? apiGetBridgeToken(duLieu.kind, duLieu.chu, duLieu.may) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeDs') return keyBodyOK_(duLieu) ? apiBridgeDs() : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'bridgeDatMail') return keyBodyOK_(duLieu) ? apiBridgeDatMail_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 8591 tra danh bạ sub→email   // 16/10: ai đang cấp phiên bridge (email), không trả token
     // Bộ pc_* (PhysicalCountImport.gs — dashboard factory "Tạo lệnh kiểm kê" + "SL điều chỉnh"):

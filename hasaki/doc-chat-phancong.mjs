@@ -39,7 +39,7 @@ const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour1
  * API chat cần CẢ HAI header (đo thật 25/09: chỉ 1 token → 401 "phiên hết hạn"). */
 async function layTokenChat() {
   if (!APPSCRIPT_KEY) { log("✗ thiếu APPSCRIPT_KEY trong .env"); return null; }
-  const g = async (kind) => { const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, kind }, () => {}, "gb-" + kind).catch(() => null); return (j && j.status === "success" && j.token) ? String(j.token).replace(/^Bearer\s+/i, "") : null; };
+  const g = async (kind) => { const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, kind, may: (await import("node:os")).hostname() }, () => {}, "gb-" + kind).catch(() => null); return (j && j.status === "success" && j.token) ? String(j.token).replace(/^Bearer\s+/i, "") : null; };
   const access = await g("chat"), auth = await g("chatauth");
   if (!access) { log("⚠ CHƯA có token chat (accessToken) trên GAS."); return null; }
   if (!auth) { log("⚠ có accessToken nhưng THIẾU authToken (khe chatauth) — API chat cần cả 2 header."); return null; }

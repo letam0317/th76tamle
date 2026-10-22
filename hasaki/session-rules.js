@@ -29,6 +29,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import os from "node:os";   // 22/10: khai tên máy khi xin phiên (GAS ghi sổ + báo động máy lạ)
 import { docTokenCu, luuToken, nguonToken } from "./token-store.js";
 
 export const DEFER_EXIT = 75;   // exit code "hoãn — không phải lỗi, sẽ thử lại sau"
@@ -463,7 +464,7 @@ export async function layBridgeToken(log = () => {}, { chu } = {}) {   // chu:"t
   if (!APPSCRIPT_KEY) return null;
   if (!(await coBridgeCap())) return null;   // GAS chưa redeploy bản có bridge → im lặng bỏ qua
   try {
-    const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, ...(chu ? { chu } : {}) }, () => {}, "getBridgeToken").catch(() => null);
+    const j = await gasPost({ action: "getBridgeToken", key: APPSCRIPT_KEY, may: os.hostname(), ...(chu ? { chu } : {}) }, () => {}, "getBridgeToken").catch(() => null);
     if (!j || j.status !== "success" || !j.token) return null;
     const tk = "Bearer " + String(j.token).replace(/^Bearer\s+/i, "");
     const me = await fetch(GET_ME, { headers: { authorization: tk } }).catch(() => null);
@@ -561,7 +562,7 @@ export async function layBridgeTokenWshr(log = () => {}, { chu } = {}) {
   if (!APPSCRIPT_KEY) return null;
   if (!(await docBridgeCaps()).wshr) return null;
   try {
-    const j = await gasPost({ action: "getBridgeToken", kind: "wshr", key: APPSCRIPT_KEY, ...(chu ? { chu } : {}) }, () => {}, "getBridgeToken wshr").catch(() => null);
+    const j = await gasPost({ action: "getBridgeToken", kind: "wshr", key: APPSCRIPT_KEY, may: os.hostname(), ...(chu ? { chu } : {}) }, () => {}, "getBridgeToken wshr").catch(() => null);
     if (!j || j.status !== "success" || !j.token) return null;
     const tk = "Bearer " + String(j.token).replace(/^Bearer\s+/i, "");
     const thu = await fetch(WSHR_THU, { headers: { authorization: tk } }).catch(() => null);

@@ -21,7 +21,7 @@ const THU = Number((process.argv.find((x) => x.startsWith("--thu=")) || "").spli
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
 
 async function tokenChat() {
-  const g = async (kind) => { const j = await gasPost({ action: "getBridgeToken", key: KEY, kind }, () => {}, "gb-" + kind).catch(() => null); return (j && j.status === "success" && j.token) ? String(j.token).replace(/^Bearer\s+/i, "") : null; };
+  const g = async (kind) => { const j = await gasPost({ action: "getBridgeToken", key: KEY, kind, may: (await import("node:os")).hostname() }, () => {}, "gb-" + kind).catch(() => null); return (j && j.status === "success" && j.token) ? String(j.token).replace(/^Bearer\s+/i, "") : null; };
   const access = await g("chat"), auth = await g("chatauth");
   return access && auth ? { access, auth } : null;
 }
