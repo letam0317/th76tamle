@@ -335,7 +335,7 @@ function gom() {
     const tao = new Map(); for (const d of docSo(60, 20000)) if (d.hd === "Tạo phiếu" && d.phieu && !tao.has(d.phieu)) tao.set(d.phieu, d);
     for (const p of phieu) { const d = tao.get(String(p.id)); if (d) { p.mayTao = d.ten; if (d.nguoiThat) p.nguoiGui = ai(d.nguoiThat); } }
     return { ds: docSo(14, 2000).map((d) => ({ t: d.t, ten: d.ten, chuoi: String(d.chuoi || "").split(" › ").map((x) => TEN_BO[x] || x).join(" › "), cach: d.cach, may: d.may, hd: d.hd, phieu: d.phieu || "", doan: !!d.doan,
-      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tk: d.tk || "", tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false,
+      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tk: d.tk || "", nguon: d.nguon || null, gcAt: d.gcAt || "", tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false,
       truong: d.truong || "", truoc: d.truoc == null ? null : d.truoc, sau: d.sau == null ? null : d.sau })) };   // 13/10: trước / sau khi điều chỉnh
   })();
   const tuoi = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
@@ -523,7 +523,15 @@ const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/((xemtruoc|qc)\.)?
 /* 22/10 chủ dashboard = tài khoản tamlc, phiên đăng nhập riêng cũ của laptop (không phải phiên tài khoản), hoặc tiến trình nội bộ không qua trình duyệt */
 const DANG_XEM = new Map();   // 22/10 «@ai đang xử lý»: "phieu:<id>" | "luot:<id>" → Map(tài khoản → lúc nhịp cuối); chỉ trong bộ nhớ
 function laChuPhien(ph, trinhDuyet, noiBo) { return (!trinhDuyet && noiBo) || !!(ph && (!ph.tk || ph.email === (process.env.HSK_CHU_TK || "tamlc"))); }
+/* 22/10 user: pop-up nhóm «Người dùng bấm trên trang» có cột Nguồn (bấm mở thanh bên của phiếu / lượt) + Hành động (duyệt ghi chú) ⇒ mỗi dòng ghi kèm
+   nguon {loai: phieu|luot, id}; dòng tạo ghi chú ghi thêm gcAt (mốc ghi chú, máy chủ gắn khi lưu) để nút Duyệt trỏ đúng ghi chú. */
 function moTaThaoTac(p, b) {
+  const r = moTaThaoTac_(p, b); let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
+  const id = String(o.id || "").slice(0, 60), luot = { "/api/quyet-dinh": 1, "/api/thu-hep": 1 }[p] || (p === "/api/ghi-chu" && o.loai === "luot");
+  if (/^[\w-]{1,60}$/.test(id) && /^\/api\/(quyet-dinh-b1|quyet-dinh|tac-dong-vat-ly|thu-hep|ghi-chu)$/.test(p)) r.nguon = { loai: luot ? "luot" : "phieu", id };
+  return r;
+}
+function moTaThaoTac_(p, b) {
   let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
   const ct = (x, n) => String(x == null ? "" : x).replace(/\s+/g, " ").slice(0, n || 300);
   if (p === "/api/quyet-dinh-b1") return { hd: "Quyết định phiếu B1", phieu: /^\d{6,10}$/.test(String(o.id)) ? String(o.id) : "", truong: "Quyết định",
@@ -604,7 +612,7 @@ const sv = http.createServer(async (q, s) => {
       const ph = kiemPhien(phien), ua = String(q.headers["user-agent"] || "");
       datNguoi({ id: ph.email || "?", thietBi: (/Mobi|Android|iPhone/.test(ua) ? "Điện thoại" : "Máy tính") + (quaHam ? " · ngoài mạng" : "") });
       const nc = nguCanh(), tt = moTaThaoTac(p, b);
-      s.on("finish", () => { if (nc.soGhiWork) return; try { ghiThaoTac(Object.assign({ tk: nc.nguoi.id, may: nc.nguoi.thietBi, ok: s.statusCode < 400, http: s.statusCode, url: "POST " + p }, tt)); } catch { /* sổ hỏng không làm hỏng lệnh */ } });
+      s.on("finish", () => { if (nc.soGhiWork) return; if (nc.gcAt) tt.gcAt = nc.gcAt; try { ghiThaoTac(Object.assign({ tk: nc.nguoi.id, may: nc.nguoi.thietBi, ok: s.statusCode < 400, http: s.statusCode, url: "POST " + p }, tt)); } catch { /* sổ hỏng không làm hỏng lệnh */ } });
     }
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
     if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1, diaGB: diaTrongGB() } : { ok: 1 });   /* 22/10 diaGB: laptop + điện thoại chọn bản dự phòng NHIỀU CHỖ nhất */   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
@@ -761,7 +769,8 @@ const sv = http.createServer(async (q, s) => {
         g.tt = o.tt; if (o.xong != null) g.xong = String(o.xong).slice(0, 600) || null; g.ttLuc = new Date().toISOString();
       }
       else { const nd = String(o.noiDung || "").trim().slice(0, 2000); if (!nd) return guiJ(s, 400, { loi: "chưa gõ nội dung" });
-        so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", tt: "cho", xong: null, duyet: chu ? "ok" : "cho" }); }
+        const at0 = new Date().toISOString(), nc0 = nguCanh(); if (nc0) nc0.gcAt = at0;   // 22/10 dòng Nhật ký trỏ đúng ghi chú này
+        so.push({ at: at0, loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", tt: "cho", xong: null, duyet: chu ? "ok" : "cho" }); }
       ghiJson(F, so, { thut: 1 });
       return guiJ(s, 200, { ok: true, ds: so.filter((x) => x.id === o.id) });
     }

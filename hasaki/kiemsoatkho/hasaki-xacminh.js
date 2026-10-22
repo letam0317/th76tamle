@@ -422,11 +422,13 @@
         ".hx-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hx-chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:11px;line-height:1;padding:3px 5px;min-height:0;border-radius:50%}.hx-chip button:hover{color:var(--bad)}" +
         /* (2) Ghi chú cải tiến chờ duyệt ở Nhật ký */
         ".hx-gcd .hx-gcd-dong{display:flex;gap:12px;align-items:flex-start;padding:10px 16px;border-top:1px solid var(--border);font-size:13px}.hx-gcd .nd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}" +
-        ".hx-gcd-nut{display:flex;gap:8px;flex:none}.hx-gcd-nut [data-gcd=khong]{background:var(--surface);color:var(--text);border-color:var(--border)}" +
+        "#mBody .hx-ng-nguon,#mBody .hx-gcd-nut .hx-nut{white-space:nowrap}#mBody .hx-ng-nguon{background:var(--surface);color:var(--accent)}" +
+        ".hx-gcd-nut{display:flex;gap:8px;flex:none;flex-wrap:nowrap}.hx-gcd-nut [data-gcd=khong]{background:var(--surface);color:var(--text);border-color:var(--border)}" +
         "@media(max-width:560px){.hx-gcd .hx-gcd-dong{flex-direction:column}.hx-gcd-nut .hx-nut{min-height:44px}}" +
         /* (3) «@ai đang xử lý» cạnh nhãn Quyết định — cùng cỡ chữ nhãn, nổi bật + chấm nhấp nháy (cn-dot của «Cập nhật») */
         ".hx-dx{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:0 7px;border-radius:999px;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn);font:inherit;font-weight:700;vertical-align:baseline}" +
         ".hx-dx[hidden]{display:none}.hx-dx .cn-dot{color:var(--warn);width:7px;height:7px}" +
+        "#modal .hx-qd-nguon .hx-ng-anh:not(.on){color:var(--text)}" +   /* chip «Ghi nhận» chữ thường — xám nhạt trông như nút bị khoá */
         /* (4) chú thích dưới clip: tối đa 2 dòng (web + điện thoại), giữ chỗ 2 dòng để clip/khung dưới không nhảy */
         "#qdPd{align-items:flex-start}#qdPd>span:not(.gio){white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em;line-height:1.4}",
       ".hx-xdau{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}.hx-xdau .hx-vbar{margin:0;gap:6px;flex-wrap:nowrap}.hx-xdau .hx-qd-nguon{margin:0!important;flex-wrap:nowrap}" +
@@ -716,7 +718,7 @@
         (nhieu ? '<div class="ten">' + (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so) + ' <span class="muted" style="font-weight:400">· ' + hm(n.luc) + (n.luc && n.luc.length > 5 ? n.luc.slice(5) : "") + '</span>' +
           '<label class="hx-chk"><input type="checkbox" data-kh="' + n.so + '"' + (n.khong ? " checked" : "") + (khoa ? " disabled" : "") + '><span>' + (PL ? "Người này không vi phạm" : "Không phải NV Hasaki / không vi phạm") + '</span></label></div>' : "") +
         '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl">Lỗi</span><div class="hx-cb"><textarea rows="1" autocomplete="off" data-mcb="' + n.so + '" spellcheck="false" placeholder="Bấm để chọn hạng mục vi phạm"' + (khoa ? " disabled" : "") + '>Mục ' + n.muc + '</textarea>' + (khoa ? "" : '<button type="button" class="hx-cb-xoa" data-xoa-muc="' + n.so + '" title="Xoá để chọn lại hạng mục" aria-label="Xoá để chọn lại hạng mục">✕</button>') + '<div class="menu"></div></div></label>' +
-        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl" data-nhan-ai="' + n.so + '">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="' + (n.so === EV.ng[0].so && !gy0 ? ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") + " — bấm để chọn" : "Chưa có ứng viên — bấm để chọn / gõ tên, mã NV") : "Bấm để chọn ứng viên hoặc gõ tên / mã NV") + '" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? " disabled" : "") + '>' + (khoa ? "" : '<button type="button" class="hx-cb-xoa" data-xoa-ai="' + n.so + '" title="Xoá để chọn lại người" aria-label="Xoá để chọn lại người">✕</button>') + '<div class="menu"></div></div>' +
+        '<label class="hx-qd-o hx-tb-mt hx-o-an"><span class="lbl" data-nhan-ai="' + n.so + '">Là ai</span><div class="hx-cb"><input type="text" autocomplete="off" data-cb="' + n.so + '" placeholder="' + (n.so === EV.ng[0].so && !gy0 ? ((l.chamCong || []).length ? l.chamCong.length + " NV " + (PL ? "trong ca" : "chấm công gần giờ") + " — bấm để chọn" : "Chưa có ứng viên — bấm để chọn / gõ tên, mã NV") : "Bấm để chọn ứng viên hoặc gõ tên / mã NV") + '" value="' + e_(n.ma ? (n.ten ? n.ten + " · " : "") + n.ma : "") + '"' + (khoa ? ' disabled title="Lượt này máy đã xử lý (' + e_(l.may.trangThai) + ') — không đổi người được"' : "") + '>' + (khoa ? "" : '<button type="button" class="hx-cb-xoa" data-xoa-ai="' + n.so + '" title="Xoá để chọn lại người" aria-label="Xoá để chọn lại người">✕</button>') + '<div class="menu"></div></div>' +
           '<span class="hx-ai-phu" data-ai-phu="' + n.so + '"></span></label>' +
         '</div>'; }).join("") + '</div></div>') +
       tp("trangthai", stLuot(l)) +
@@ -1212,7 +1214,9 @@
     A.style.height = Math.max(160, Math.min(tren, Math.floor(tren - Math.max(0, du)))) + "px"; }
   function ganNutAnh(hienSan) { var a = $id("mBody").querySelector(".hx-tb-luoi [data-tp=\"anh\"]"), n = $id("mBody").querySelector("[data-anhgn]"); if (!a || !n) return;
     /* 20/10 Theo tác vụ: chip «Ghi nhận» bật/tắt cả ảnh + khối thông tin (Ngày/Vị trí/SKU/Ghi chú/Thuộc lỗi/Máy gợi ý) — chỉ điện thoại (.an-dt ≤820) */
-    var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"], .hx-tb-luoi[data-tb="may"] [data-tp="seghi"], .hx-tb-luoi[data-tb="may"] [data-tp="loi"], .hx-tb-luoi[data-tb="may"] [data-tp="dsnguoi"]')));
+    var ds = [a].concat([].slice.call($id("mBody").querySelectorAll('.hx-tb-luoi[data-tb="tacvu"] [data-tp="thongtin"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="loi"], .hx-tb-luoi[data-tb="tacvu"] [data-tp="goiy"], .hx-tb-luoi[data-tb="may"] [data-tp="seghi"]')));
+    /* 22/10 user «mục Là ai ở Theo máy vẫn chưa nhập được»: trên điện thoại Lỗi + Là ai bị giấu sau chip (chữ xám như nút khoá) → nay LUÔN hiện để nhập;
+       chip chỉ bật/tắt ảnh ghi nhận + «Sẽ ghi nhận» */
     /* 21/10 user: Theo máy cùng luật Theo tác vụ — chip gom ảnh + Lỗi + Là ai + Sẽ ghi nhận */
     var dt = true, an = function () { return a.classList.contains("an-dt"); };
     var luoi = a.closest(".hx-tb-luoi");
@@ -1817,36 +1821,65 @@
   var TEN_TRUONG = { name: "Tên phiếu", finished_at: "Hoàn thành lúc", date_end: "Hạn chót", date_start: "Ngày bắt đầu", status: "Trạng thái", data: "Dữ liệu phiếu", description: "Mô tả" };
   function moNhomTG(g) {
     if (!g) return; var x0 = g.ds[0], coTS = g.ds.some(function (x) { return x.truong; });
+    var laND = !!x0.tk;   // 22/10 nhóm «Người dùng bấm trên trang»: thêm cột Nguồn + Hành động
+    if (laND && !GC_ALL) { napGcAll().then(function () { moNhomTG(g); }).catch(function () { GC_ALL = []; moNhomTG(g); }); return; }
     var lk = function (id) { return id ? '<a class="status-link" href="https://work.hasaki.vn/tasks?task_id=' + e_(id) + '" target="_blank" rel="noopener">' + e_(id) + "</a>" : '<span class="muted">—</span>'; };
     $id("mTitle").innerHTML = e_(x0.ten) + ' <span class="stat-sub">' + e_(x0.hd) + " · " + g.ds.length + " lượt</span>";
     $id("mBody").innerHTML = '<div class="hx-tg-ct"><div class="muted" style="margin:0 0 12px">' +
       (x0.tk ? "Tài khoản " + e_(x0.tk) + " · " : "") + e_(x0.cach) + " · " + e_(x0.may) + (x0.chuoi.indexOf(" › ") > 0 ? " · gọi từ " + e_(x0.chuoi.split(" › ").slice(0, -1).join(" › ")) : "") + "</div>" +
-      '<div class="table-wrap"><table class="mbcard hx-tg-bang"><thead><tr><th style="width:110px">Lúc</th><th style="width:100px">Phiếu</th>' + (coTS ? '<th style="width:90px">Trường</th><th>Trước khi điều chỉnh</th><th>Sau khi điều chỉnh</th>' : "<th>Nội dung · ảnh</th>") + "</tr></thead><tbody>" +
+      '<div class="table-wrap"><table class="mbcard hx-tg-bang"><thead><tr><th style="width:110px">Lúc</th><th style="width:100px">Phiếu</th>' + (coTS ? '<th style="width:90px">Trường</th><th>Trước khi điều chỉnh</th><th>Sau khi điều chỉnh</th>' : "<th>Nội dung · ảnh</th>") +
+      (laND ? '<th style="width:140px">Nguồn</th><th style="width:210px">Hành động</th>' : "") + "</tr></thead><tbody>" +
       g.ds.slice().reverse().map(function (x) { var k = coTS ? khacBiet(x.truoc, x.sau) : null;
         return "<tr><td data-lb=\"Lúc\">" + e_(x.t.slice(8, 10) + "/" + x.t.slice(5, 7) + " " + x.t.slice(11, 19)) + '</td><td class="mb-hd">' + lk(x.phieu) + "</td>" +
           (coTS ? '<td data-lb="Trường">' + e_(TEN_TRUONG[x.truong] || x.truong || "—") + '</td><td class="mb-full" data-lb="Trước">' + (x.truoc != null ? k[0] : '<span class="muted">chưa ghi (lượt trước 13/10)</span>') + '</td><td class="mb-full" data-lb="Sau">' + (x.sau != null ? k[1] : '<span class="muted">—</span>') + "</td>"
-            : '<td class="mb-full" data-lb="Nội dung">' + (x.nd ? eTag_(x.nd) : "") + (x.tep.length ? '<div class="muted">Tệp: ' + e_(x.tep.join(", ")) + "</div>" : "") + (!x.nd && !x.tep.length ? '<span class="muted">—</span>' : "") + "</td>") + "</tr>"; }).join("") +
+            : '<td class="mb-full" data-lb="Nội dung">' + (x.nd ? eTag_(x.nd) : "") + (x.tep.length ? '<div class="muted">Tệp: ' + e_(x.tep.join(", ")) + "</div>" : "") + (!x.nd && !x.tep.length ? '<span class="muted">—</span>' : "") + "</td>") +
+          (laND ? '<td data-lb="Nguồn">' + oNguon(x) + '</td><td data-lb="Hành động">' + oHanhDong(x) + "</td>" : "") + "</tr>"; }).join("") +
       "</tbody></table></div></div>";
     boThanhBen(); hienModal("modal");
+    if (!laND) return;
+    $id("mBody").querySelectorAll("[data-ngl]").forEach(function (b) { b.onclick = function () {   // Nguồn → thanh bên phải của phiếu / lượt (như bấm ở Theo tác vụ / Theo máy)
+      var id = b.dataset.ngid;
+      if (b.dataset.ngl === "luot") { var l = D && D.luot.find(function (z) { return String(z.id) === id; }); if (l) return moLuot(l);
+        if (typeof toast === "function") toast("Lượt này không còn trong danh sách Theo máy (đã quá 14 ngày hoặc đã dọn).", "loi"); return; }
+      var p = D && D.phieu.find(function (z) { return String(z.id) === id; }); if (p) return moQD(p);
+      window.open("https://work.hasaki.vn/tasks?task_id=" + encodeURIComponent(id), "_blank", "noopener");   // phiếu đã đóng — không còn ở Theo tác vụ
+    }; });
+    $id("mBody").querySelectorAll("[data-gcd]").forEach(function (b) { b.onclick = function () {
+      b.parentNode.querySelectorAll("button").forEach(function (z) { z.disabled = true; });
+      goi("/api/ghi-chu", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: b.dataset.id, at: b.dataset.at, duyet: b.dataset.gcd }) })
+        .then(function () { baoOk(b.dataset.gcd === "ok" ? "Đã duyệt — Claude sẽ cải tiến ở phiên kế tiếp" : "Đã đánh dấu không duyệt");
+          return napGcAll(); }).then(function () { moNhomTG(g); $id("hxBody").querySelectorAll(".hx-gc-cho").forEach(function (t) { t.remove(); }); danhDauGcCho(); })
+        .catch(function (e) { b.parentNode.querySelectorAll("button").forEach(function (z) { z.disabled = false; }); if (typeof toast === "function") toast("Không lưu được: " + (e.message || e), "loi"); }); }; });
   }
-  /* 22/10 user: ghi chú cải tiến của người khác tamlc → nút Duyệt / Không duyệt ở Nhật ký (chỉ quản trị thấy; máy chủ cũng chỉ nhận lệnh duyệt
-     từ tamlc) — Claude chỉ làm ghi chú đã duyệt (ghi-chu.mjs), tránh tốn công phân tích ghi chú không đáng. */
-  function veGcDuyet() {
-    var el = $id("hxGcDuyet"); if (!el || !(window.TK && window.TK.nguoi && window.TK.nguoi.vaiTro === "quantri")) return;
-    goi("/api/ghi-chu").then(function (ds) {
-      var cho = (ds || []).filter(function (g) { return g.duyet === "cho"; }); el = $id("hxGcDuyet"); if (!el) return;   // Nhật ký có thể đã vẽ lại trong lúc chờ — lấy khung MỚI
-      if (!cho.length) { el.innerHTML = ""; return; }
-      el.innerHTML = '<div class="panel hx-gcd"><div class="panel-head"><span>Ghi chú cải tiến chờ duyệt</span><span>' + cho.length + '</span></div>' +
-        cho.map(function (g) { var d = new Date(g.at);
-          return '<div class="hx-gcd-dong"><div class="nd"><div class="muted" style="font-size:12px">' + ("0" + d.getDate()).slice(-2) + "/" + ("0" + (d.getMonth() + 1)).slice(-2) + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) +
-            ' · <b>@' + e_(String(g.boi || "?").replace(/@.*$/, "")) + '</b> · ' + e_(g.tieuDe || g.id) + '</div><div>' + e_(g.noiDung) + '</div></div>' +
-            '<div class="hx-gcd-nut"><button type="button" class="hx-nut nho" data-gcd="ok" data-id="' + e_(g.id) + '" data-at="' + e_(g.at) + '">Duyệt</button>' +
-            '<button type="button" class="hx-nut nho phu" data-gcd="khong" data-id="' + e_(g.id) + '" data-at="' + e_(g.at) + '">Không duyệt</button></div></div>'; }).join("") + '</div>';
-      el.querySelectorAll("[data-gcd]").forEach(function (b) { b.onclick = function () { b.disabled = true;
-        goi("/api/ghi-chu", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: b.dataset.id, at: b.dataset.at, duyet: b.dataset.gcd }) })
-          .then(function () { baoOk(b.dataset.gcd === "ok" ? "Đã duyệt — Claude sẽ cải tiến ở phiên kế tiếp" : "Đã bỏ ghi chú này"); veGcDuyet(); })
-          .catch(function (e) { b.disabled = false; if (typeof toast === "function") toast("Không lưu được: " + (e.message || e), "loi"); }); }; });
+  /* 22/10 user: ghi chú cải tiến của người khác tamlc chờ DUYỆT — không có khối riêng (lặp thông tin), chỉ ở Nhật ký máy và người dùng:
+     dòng nhóm «Ghi chú cải tiến» có nhãn «chờ duyệt N»; pop-up nhóm có cột Nguồn (bấm mở thanh bên của phiếu / lượt) + Hành động (Duyệt / Không duyệt,
+     chỉ quản trị — máy chủ cũng chỉ nhận lệnh duyệt từ tamlc). Claude chỉ làm ghi chú đã duyệt (ghi-chu.mjs). */
+  var GC_ALL = null;
+  var laQT = function () { return !!(window.TK && window.TK.nguoi && window.TK.nguoi.vaiTro === "quantri"); };
+  function napGcAll() { return goi("/api/ghi-chu").then(function (ds) { GC_ALL = ds || []; return GC_ALL; }); }
+  function gcCuaDong(x) {   // dòng Nhật ký «Ghi chú cải tiến» (tạo mới) → ghi chú tương ứng
+    if (!GC_ALL || x.hd !== "Ghi chú cải tiến" || /^(Xoá ghi chú|Đổi cờ|Duyệt ghi chú|Không duyệt ghi chú)/.test(x.nd || "")) return null;
+    var ng = x.nguon || (x.phieu ? { id: x.phieu } : null);
+    return GC_ALL.find(function (g) { return x.gcAt ? g.at === x.gcAt : !!ng && g.id === ng.id && String(g.noiDung).slice(0, 300) === String(x.nd || "").slice(0, 300); }) || null;
+  }
+  function danhDauGcCho() {
+    napGcAll().then(function () {
+      (NHOM_TG || []).forEach(function (g, i) {
+        var n = g.ds.filter(function (x) { var c = gcCuaDong(x); return c && c.duyet === "cho"; }).length; if (!n) return;
+        $id("hxBody").querySelectorAll('[data-tg="' + i + '"] .hx-tag:first-child').forEach(function (t) { if (t.parentNode.querySelector(".hx-gc-cho")) return;
+          t.insertAdjacentHTML("afterend", ' <span class="hx-tag warn hx-gc-cho">' + n + " chờ duyệt</span>"); }); });
     }).catch(function () {});
+  }
+  function oNguon(x) {
+    var ng = x.nguon || (x.phieu ? { loai: "phieu", id: x.phieu } : null); if (!ng) return '<span class="muted">—</span>';
+    return '<button type="button" class="hx-nut nho hx-ng-nguon" data-ngl="' + e_(ng.loai || "phieu") + '" data-ngid="' + e_(ng.id) + '" title="Mở ' + (ng.loai === "luot" ? "lượt ở Theo máy" : "phiếu ở Theo tác vụ") + '">' +
+      (ng.loai === "luot" ? "Theo máy" : "Theo tác vụ") + " ›</button>";
+  }
+  function oHanhDong(x) {
+    var c = gcCuaDong(x); if (!c) return '<span class="muted">—</span>';
+    if (c.duyet === "cho") return laQT() ? '<span class="hx-gcd-nut"><button type="button" class="hx-nut nho" data-gcd="ok" data-id="' + e_(c.id) + '" data-at="' + e_(c.at) + '">Duyệt</button>' +
+      '<button type="button" class="hx-nut nho" data-gcd="khong" data-id="' + e_(c.id) + '" data-at="' + e_(c.at) + '">Không duyệt</button></span>' : '<span class="hx-tag warn">Chờ duyệt</span>';
+    return c.duyet === "khong" ? '<span class="hx-tag bad">Không duyệt</span>' : '<span class="hx-tag good">Đã duyệt</span>';
   }
   function veTG() {
     var all = (D.tacGia || {}).ds || [], demB = {}, demH = {};
@@ -1885,7 +1918,6 @@
     var ndNhom = function (g) { if (g.ds.length === 1) return oNd(g.ds[0]);
       var co = g.ds.filter(function (x) { return x.truong; }).length;
       var tr = g.ds.find(function (x) { return x.truong; }); return (co ? '<div>Đổi <b>' + e_((TEN_TRUONG[tr.truong] || tr.truong).toLowerCase()) + "</b> · " + co + " phiếu có trước / sau</div>" : oNd(g.ds[0])); };
-    h += '<div id="hxGcDuyet"></div>';   // 22/10 ghi chú cải tiến chờ duyệt (chỉ quản trị)
     h += '<div class="panel"><div class="panel-head"><span>Nhật ký máy và người dùng (ghi lên work.hasaki.vn + thao tác trên trang)</span><span>' + ds.length + " lượt · " + nhom.length + " nhóm</span></div>" +
       '<div class="table-wrap"><table class="hx-t-tg" style="table-layout:fixed;width:100%;min-width:0"><thead><tr><th style="width:12%">Lúc</th><th style="width:24%">Bộ nào làm</th><th style="width:16%">Làm gì</th><th style="width:12%">Phiếu</th><th>Nội dung · ảnh</th></tr></thead><tbody>' +
       (nhomHien.map(function (g, i) { var x = g.ds[0];
@@ -1897,7 +1929,7 @@
       (nhom.length > nhomHien.length ? '<div style="padding:12px 16px;text-align:center"><button class="hx-nut" id="hxThemTG">Xem thêm ' + Math.min(60, nhom.length - nhomHien.length) + " nhóm (còn " + (nhom.length - nhomHien.length) + ")</button></div>" : "") + "</div>";
     $id("hxBody").innerHTML = h;
     if ($id("hxThemTG")) $id("hxThemTG").onclick = function () { LOC.soHienTG = SO + 60; veTG(); };
-    veGcDuyet();
+    danhDauGcCho();
     $id("hxBody").querySelectorAll(".hx-tg-nhom").forEach(function (r) { r.onclick = function (ev) { if (ev.target.closest("a")) return; moNhomTG(NHOM_TG[+r.dataset.tg]); }; });
     ganLoc(function (k, v, go) { if (k === "tim") TIM = v; else LOC[k] = v; LOC.soHienTG = 60; luu(); veTG(); if (go) { var i = $id("hxFilters").querySelector("input"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } });
   }
