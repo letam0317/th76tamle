@@ -72,12 +72,16 @@
       /* mục có mục con: con nào «Không» thì ẩn phần đó; mọi con «Không» thì ẩn luôn mục ở thanh bên */
       if (t[2].every(function (c) { return an(c[0]); })) { css.push("#sideNav .s-item[data-tab='" + t[3] + "']{display:none!important}"); return; }
       t[2].forEach(function (c) { if (an(c[0])) css.push((AN_CON[c[0]] || "#sideNav .s-item[data-tab='" + c[0].slice(2) + "']") + "{display:none!important}"); }); }); });
+    /* 22/10 user: khách (chưa đăng nhập) ở Retail không thấy nút chuyển sang Audit Factory — Factory chỉ vào bằng link riêng /factory/ */
+    if (APP === "r" && !TK.nguoi) css.push("#adChuyen a{display:none!important}");
     (THAO_TAC[APP] || []).forEach(function (x) { if (x[2] ? (cur === x[1] && q[x[1]] !== "lam") : q[x[1]] !== "lam") css.push(x[0] + "{display:none!important}"); });
     stQ.textContent = css.join("\n");
     /* tiêu đề nhóm thanh bên: ẩn khi mọi mục trong nhóm bị ẩn */
     [].slice.call(document.querySelectorAll("#sideNav .s-grp:not(.s-khoa)")).forEach(function (h) {   // 15/10 tiêu đề có khoá (Xác minh chưa đăng nhập) luôn hiện
-      var co = false; for (var n = h.nextElementSibling; n && !n.classList.contains("s-grp"); n = n.nextElementSibling) if (n.matches(".s-item,.s-sub") && getComputedStyle(n).display !== "none") co = true;
-      h.style.display = co ? "" : "none"; });
+      /* 22/10 (ảnh tult1): tính theo MỤC thấy được — khung .s-sub luôn hiện dù mọi mục bên trong đã ẩn ⇒ tiêu đề «Tồn kho»/«Xác minh» trơ trọi */
+      var co = false; for (var n = h.nextElementSibling; n && !n.classList.contains("s-grp"); n = n.nextElementSibling)
+        [].slice.call(n.matches(".s-item") ? [n] : n.querySelectorAll(".s-item")).forEach(function (x) { if (getComputedStyle(x).display !== "none" && getComputedStyle(n).display !== "none") co = true; });
+      h.classList.toggle("tk-an", !co); });   // lớp riêng (!important) — dash-bocuc-ap.js tự ghi style.display của tiêu đề nhóm, đè mất kiểu ẩn inline
     /* đang đứng ở tab bị cấm → về Tổng quan */
     /* mục con bị cấm (vd Theo tác vụ) → sang mục con khác cùng nhóm còn quyền; không còn thì về Tổng quan */
     var on = document.querySelector("#sideNav .s-item.on");
@@ -299,6 +303,7 @@
     ".tk-q{width:100%;border-collapse:collapse;font-size:14px}.tk-q th{position:sticky;top:0;background:var(--ad-nen2,var(--surface2));font-weight:600;padding:8px 12px;text-align:center;border-bottom:1px solid var(--border)}",
     ".tk-q th:first-child,.tk-q td:first-child{text-align:left}.tk-q td{padding:6px 12px;text-align:center;border-bottom:1px solid var(--ad-chia,var(--border))}",
     ".tk-q .tk-qg td{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface)}.tk-q input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}",
+    "#sideNav .s-grp.tk-an{display:none!important}",
     ".tk-q .tk-qcha td:first-child{font-weight:600}.tk-q .tk-qcon td:first-child{padding-left:28px;color:var(--muted)}",
     /* bản QC: chắn = nền trang phủ kín (dưới hộp đăng nhập #tkHop 1400); dấu chìm trên cùng, không bắt chuột */
     "#tkCanQC{position:fixed;inset:0;z-index:1350;display:flex;align-items:flex-start;justify-content:center;padding:80px 16px 16px;background:var(--bg,var(--surface));overflow:auto}",
@@ -317,4 +322,7 @@
   var lan = 0, t0 = setInterval(function () { if (document.getElementById("adChuyen") || ++lan > 100) { clearInterval(t0); apQuyen(); kiem(); } }, 100);
   new MutationObserver(function (ms) { if (ms.some(function (m) { return m.attributeName === "class" && m.target.classList && m.target.classList.contains("s-item"); })) apQuyen(); })
     .observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["class"] });
+  /* 22/10: thanh bên dựng lại (đăng nhập/xuất, bố cục, dò máy chủ) ⇒ áp quyền lại để ẩn tiêu đề nhóm trống (trước chỉ áp khi đổi mục đang mở) */
+  var hAp = 0, t1 = setInterval(function () { var sn = document.getElementById("sideNav"); if (!sn) return; clearInterval(t1);
+    new MutationObserver(function () { clearTimeout(hAp); hAp = setTimeout(apQuyen, 0); }).observe(sn, { childList: true }); }, 100);
 })();
