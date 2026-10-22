@@ -1757,7 +1757,8 @@
     if (LOC.tgNgay && !Array.isArray(LOC.tgNgay)) LOC.tgNgay = "";   // 19/10 bộ lọc ngày chuẩn: bỏ giá trị cũ kiểu "số ngày lùi"
     var ngayCo = {}; all.forEach(function (x) { ngayCo[String(x.t).slice(0, 10)] = 1; });
     var ds = all.filter(function (x) { return (!LOC.tgBo || x.ten === LOC.tgBo) && (!LOC.tgHd || x.hd === LOC.tgHd) && trongKhoang(String(x.t).slice(0, 10), LOC.tgNgay) &&
-      (!q || (x.phieu + " " + x.ten + " " + x.chuoi + " " + (x.nguoi || "") + " " + (x.tk || "") + " " + x.nd + " " + x.tep.join(" ")).toLowerCase().indexOf(q) >= 0); });
+      (!q || (x.phieu + " " + x.ten + " " + x.chuoi + " " + (x.nguoi || "") + " " + (x.tk || "") +
+        " " + x.nd + " " + x.tep.join(" ")).toLowerCase().indexOf(q) >= 0); });
     var h = boLoc([{ k: "tgBo", lbl: "Bộ nào làm", v: LOC.tgBo || "", opt: [["", "Tất cả (" + all.length + ")"]].concat(Object.keys(demB).sort(function (a, b) { return demB[b] - demB[a]; }).map(function (k) { return [k, k + " (" + demB[k] + ")"]; })) },
       { k: "tgHd", lbl: "Làm gì", v: LOC.tgHd || "", opt: [["", "Tất cả"]].concat(Object.keys(demH).sort(function (a, b) { return demH[b] - demH[a]; }).map(function (k) { return [k, k + " (" + demH[k] + ")"]; })) },
       { k: "tgNgay", lbl: "Ngày", ngay: 1, v: LOC.tgNgay || "", coDuLieu: function (iso) { return !!ngayCo[iso]; }, nhan: function (a, b) { return a ? "" : "14 ngày"; },
