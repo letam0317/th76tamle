@@ -81,6 +81,7 @@
     /* đang đứng ở tab bị cấm → về Tổng quan */
     /* mục con bị cấm (vd Theo tác vụ) → sang mục con khác cùng nhóm còn quyền; không còn thì về Tổng quan */
     var on = document.querySelector("#sideNav .s-item.on");
+    veQC();
     if (cur && on && getComputedStyle(on).display === "none" && !(cur === "r.xacminh" && !TK.nguoi)) {
       var ke = on.dataset.sub ? [].slice.call(on.parentNode.querySelectorAll(".s-item[data-sub]")).filter(function (x) { return getComputedStyle(x).display !== "none"; })[0] : null;
       var home = ke || document.querySelector("#sideNav .s-item[data-tab='home']"); if (home) home.click(); }
@@ -117,11 +118,34 @@
   function dongHop() { var o = document.getElementById("tkHop"); if (o) o.remove(); document.removeEventListener("keydown", escDong); }
   function trangThai(o, cls, txt) { var s = o.querySelector(".tk-st"); s.className = "tk-st " + cls; s.textContent = txt; }
 
+  /* ---------- 22/10 BẢN QC (qc.audit-dc.pages.dev): chỉ quản trị dùng; dấu chìm «QC» phủ toàn màn hình ----------
+     User: «tài khoản được cấp chỉ thao tác/xem được trên bản chính audit-dc.pages.dev — không thao tác/xem/chỉnh sửa bố cục được ở bản qc»
+     và «bản QC nên có dấu chìm QC ở toàn màn hình». Bản chính = audit-dc.pages.dev (không tên phụ). */
+  var QC = /\.audit-dc\.pages\.dev$/.test(location.hostname);
+  var laQT = function () { return !!(TK.nguoi && TK.nguoi.vaiTro === "quantri"); };
+  function veQC() {
+    if (!QC || !document.body) return;
+    if (!document.getElementById("tkDauChim")) { var dc = document.createElement("div"); dc.id = "tkDauChim"; dc.setAttribute("aria-hidden", "true"); document.body.appendChild(dc); }
+    var c = document.getElementById("tkCanQC");
+    if (laQT()) { if (c) c.remove(); return; }
+    if (!c) { c = document.createElement("div"); c.id = "tkCanQC"; document.body.appendChild(c); }
+    var chinh = "https://audit-dc.pages.dev" + location.pathname + location.search + location.hash;
+    c.innerHTML = '<div class="tk-box" role="dialog" aria-modal="true"><div class="tk-hd"><b>Bản QC — chỉ dành cho quản trị</b></div>' +
+      '<div class="tk-bd"><div class="tk-f">' +
+      '<div>' + (TK.nguoi ? "Tài khoản <b>" + e_(TK.nguoi.id) + "</b> chỉ dùng được trên bản chính."
+        : "Bản này để kiểm thử trước khi phát hành. Tài khoản được cấp xem và thao tác trên bản chính.") + "</div>" +
+      '<div class="tk-nut"><a class="tk-chinh tk-lk" href="' + e_(chinh) + '">Mở bản chính</a>' +
+      (TK.nguoi ? '<button type="button" class="tk-chinh tk-phu" data-a="dx">Đăng xuất</button>' : '<button type="button" class="tk-chinh tk-phu" data-a="dn">Đăng nhập quản trị</button>') + "</div></div></div></div>";
+    c.onclick = function (ev) { var a = ev.target.dataset && ev.target.dataset.a; if (a === "dn") moDangNhap(); if (a === "dx") dangXuat(); };
+  }
+  if (QC) { if (document.body) veQC(); else document.addEventListener("DOMContentLoaded", veQC); }
+
   function dangNhap(id, mk) {
     /* 17/10 user điện thoại «Cannot read properties of undefined (reading 'quyen')»: Apps Script chập chờn từng trả «success» mà THIẾU nguoi
        (cùng họ lỗi gas-chap-chon-404) → thử lại 1 lần; vẫn thiếu thì báo câu dễ hiểu, không để lỗi kỹ thuật rơi ra ô đăng nhập. */
     var lan = function (k) { return goi("tk_dangnhap", { id: id, mk: mk }).then(function (j) {
       if (!j.nguoi || !j.phien) { if (k) return lan(0); throw new Error("Máy chủ trả thiếu thông tin tài khoản — bấm Đăng nhập lại"); }
+      if (QC && j.nguoi.vaiTro !== "quantri") { goi("tk_dangxuat", { phien: j.phien }).catch(function () {}); throw new Error("Tài khoản này chỉ dùng được trên bản chính audit-dc.pages.dev"); }
       datNguoi(j.nguoi, j.phien); TK.quyen = chuanQ(j.nguoi.quyen); nho(); apQuyen(); doiPhienXm(); bao(); return j.nguoi; }); };
     return lan(1);
   }
@@ -276,6 +300,15 @@
     ".tk-q th:first-child,.tk-q td:first-child{text-align:left}.tk-q td{padding:6px 12px;text-align:center;border-bottom:1px solid var(--ad-chia,var(--border))}",
     ".tk-q .tk-qg td{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface)}.tk-q input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}",
     ".tk-q .tk-qcha td:first-child{font-weight:600}.tk-q .tk-qcon td:first-child{padding-left:28px;color:var(--muted)}",
+    /* bản QC: chắn = nền trang phủ kín (dưới hộp đăng nhập #tkHop 1400); dấu chìm trên cùng, không bắt chuột */
+    "#tkCanQC{position:fixed;inset:0;z-index:1350;display:flex;align-items:flex-start;justify-content:center;padding:80px 16px 16px;background:var(--bg,var(--surface));overflow:auto}",
+    "#tkCanQC .tk-box{width:100%;max-width:440px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;animation:popIn .2s ease}",
+    "#tkCanQC .tk-hd{padding:16px 24px;border-bottom:1px solid var(--border);font-size:16px}#tkCanQC .tk-bd{padding:16px 24px 24px;font-size:14px}",
+    "#tkCanQC .tk-lk{display:inline-flex;align-items:center;text-decoration:none}#tkCanQC .tk-phu{background:var(--surface);color:var(--text);border-color:var(--border)}",
+    "#tkDauChim{position:fixed;inset:0;z-index:2147483000;pointer-events:none;background-repeat:repeat;background-size:280px 200px;" +
+      "background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='200'%3E" +
+      "%3Ctext x='140' y='110' text-anchor='middle' transform='rotate(-30 140 100)' font-family='Arial,sans-serif' font-size='72' font-weight='700'" +
+      " fill='rgba(128,128,128,0.14)'%3EQC%3C/text%3E%3C/svg%3E\")}",
     "@media(max-width:768px){.tk-ql,.tk-hai{grid-template-columns:minmax(0,1fr)}#tkHop{padding-top:16px}#tkHop .tk-bd{padding:12px 16px 16px}.tk-q input{width:20px;height:20px}.tk-q td{padding:8px}}"
   ].join("\n");
   (document.head || document.documentElement).appendChild(st);

@@ -605,7 +605,14 @@ const sv = http.createServer(async (q, s) => {
     }
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
     if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1, diaGB: diaTrongGB() } : { ok: 1 });   /* 22/10 diaGB: laptop + điện thoại chọn bản dự phòng NHIỀU CHỖ nhất */   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
-    if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
+    if (p === "/api/du-lieu") {
+      /* 22/10 user: «chỉ tamlc coi được ai gửi form + Ghi nhận 5S» ⇒ tài khoản khác nhận bản đã GỠ người gửi (Nhật ký + thẻ phiếu).
+         Chủ = tài khoản tamlc, phiên đăng nhập riêng cũ của laptop (không phải phiên tài khoản), hoặc tiến trình nội bộ không qua trình duyệt. */
+      const ph = kiemPhien(phien), chu = !trinhDuyet && noiBo || (ph && (!ph.tk || ph.email === (process.env.HSK_CHU_TK || "tamlc")));
+      const d = chuanTuSau(gom()); if (chu) return guiJ(s, 200, d);
+      return guiJ(s, 200, Object.assign({}, d, { phieu: (d.phieu || []).map((x) => (x.nguoiGui ? Object.assign({}, x, { nguoiGui: undefined }) : x)),
+        tacGia: Object.assign({}, d.tacGia, { ds: ((d.tacGia || {}).ds || []).map((x) => (x.nguoi ? Object.assign({}, x, { nguoi: "" }) : x)) }) }));
+    }   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
     if (p === "/api/qc-dem") return guiJ(s, 200, docJ(path.join(EXP, "qc-dem.json"), { chua: 1 }));   // 20/10 kết quả bộ đo chạy đêm (chay-qc-dem.mjs)
     if (p === "/api/sao-luu") return guiJ(s, 200, docJ(path.join(EXP, "sao-luu-gan-nhat.json"), { chua: 1 }));   // 20/10 lần sao lưu gần nhất

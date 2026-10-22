@@ -1169,7 +1169,9 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
             thoiGianViPham: thoiGianViPham,
             // 12/10/2026 — biết AI gửi: mã máy (đã cấp quyền OTP → GAS tra ra tên khai lúc xin mã) + tài khoản dashboard
             // nếu có (hợp đồng hsk-nguoi-dung). GAS ghi vào sổ RIÊNG TƯ, không lên sheet công khai, không hiện cho người gửi.
-            tb: (() => { try { return localStorage.getItem('tb-khoa') || ''; } catch (e) { return ''; } })(),
+            tb: (() => { try { return localStorage.getItem('tb-khoa') || (localStorage.getItem('tk-phien') ? 'tk:' + localStorage.getItem('tk-phien') : ''); } catch (e) { return ''; } })(),
+            // 22/10 user «Ghi nhận 5S nên biết ai gửi (WF vẫn tạo bằng tamlc, chỉ tamlc coi)»: gửi phiên tài khoản — GAS tự tra ra người (không tin tên tự khai)
+            tkPhien: (() => { try { return localStorage.getItem('tk-phien') || ''; } catch (e) { return ''; } })(),
             nguoiGui: (() => { try { const u = window.HSK_NGUOI_DUNG || (window.parent && window.parent !== window && window.parent.HSK_NGUOI_DUNG) || JSON.parse(localStorage.getItem('hsk-nguoi-dung') || sessionStorage.getItem('hsk-nguoi-dung') || 'null');
               return u ? { ten: u.ten || u.name || u.staff_name || '', code: u.code || u.ma || '' } : null; } catch (e) { return null; } })(),
             ua: navigator.userAgent,

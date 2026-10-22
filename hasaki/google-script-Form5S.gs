@@ -23,6 +23,11 @@ function soNguoiGui_() {
 function khoaNguoiGui_(luc, viTri) { var t = luc instanceof Date ? luc.getTime() : new Date(luc).getTime(); return Math.floor(t / 1000) + '|' + String(viTri || '').trim(); }
 function ghiNguoiGui_(luc, duLieu) {
   var tb = String(duLieu.tb || ''), all = propsMemo_(), tenMay = '';
+  /* 22/10: người gửi = TÀI KHOẢN audit-dc đã đăng nhập (GAS tự tra phiên → không giả được bằng tên tự khai). Mã «tk:<phiên>» là chìa khoá:
+     KHÔNG lưu mẩu nào của nó vào sổ. */
+  var tkp = String(duLieu.tkPhien || (tb.indexOf('tk:') === 0 ? tb.slice(3) : '')), nTk = tkp && typeof tkPhien_ === 'function' ? tkPhien_(tkp) : null;
+  if (tb.indexOf('tk:') === 0) { tb = ''; tenMay = '(đăng nhập tài khoản, máy chưa cấp mã)'; }
+  if (nTk) duLieu.nguoiGui = { ten: nTk.ten || nTk.id, code: 'tk:' + nTk.id };
   if (tb) {
     if (tb === String(all.DEVICE_KEY || '')) tenMay = '(khoá chung quản trị)';
     else { try { var dd = JSON.parse(all.TB_DUYET || '{}') || {}; tenMay = dd[tb] ? (dd[tb].ten || '(không tên)') : '(máy chưa duyệt)'; } catch (e) { } }
