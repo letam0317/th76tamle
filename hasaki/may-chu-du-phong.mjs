@@ -49,6 +49,17 @@ if (!fs.existsSync(EXE)) {
 const ping = await fetch(`http://127.0.0.1:${PORT}/api/ping`, { signal: AbortSignal.timeout(3000) }).then((r) => r.ok ? r.json() : null, () => null);
 if (!ping) nen("bang-591.mjs", "du-phong-591.out");
 else if (!ping.duPhong) log("8591 đang chạy bản KHÔNG dự phòng — để nguyên");
+else if (!ping.guong) {
+  /* 22/10: bản dự phòng CŨ (trước gương clip) không có cơ chế tự thoát khi code đổi ⇒ chạy mãi bản cũ dù máy đã kéo code mới.
+     Ping bản mới có guong:1 — thiếu thì dừng tiến trình bang-591.mjs (chỉ khi nó LÀ bản dự phòng) rồi bật lại bản mới. Chạy 1 lần duy nhất. */
+  const ps = spawnSync("powershell.exe", ["-NoProfile", "-Command",
+    /* chỉ đúng tiến trình đang NGHE cổng của bản dự phòng (không đụng bang-591 khác trên máy) */
+    `Get-NetTCPConnection -LocalPort ${PORT} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force; $_ }`],
+    { windowsHide: true, encoding: "utf8", timeout: 30000 });
+  log("bản dự phòng cũ (chưa có gương clip) → dừng pid", (ps.stdout || "").trim().split(/\s+/).join(",") || "?", "rồi bật bản mới");
+  await new Promise((r) => setTimeout(r, 3000));
+  nen("bang-591.mjs", "du-phong-591.out");
+}
 
 // 3) đường hầm
 if (fs.existsSync(EXE) && !song(".duong-ham-591.pid")) nen("duong-ham-591.mjs", "du-phong-ham.out");
