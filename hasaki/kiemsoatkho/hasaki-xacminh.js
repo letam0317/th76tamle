@@ -204,6 +204,8 @@
         "#modal.hx-ben .hx-qd-ls .hx-lans{max-height:none;overflow:visible;display:flex;flex-direction:column;gap:0;border-top:1px solid var(--ad-chia,var(--border))}" +
         "#modal.hx-ben .hx-lan{border:0;border-bottom:1px solid var(--ad-chia,var(--border));border-radius:0!important;background:transparent;min-height:48px;padding:6px 8px}" +
         "#modal.hx-ben .hx-lan:hover{background:var(--ad-nen2,transparent)}#modal.hx-ben .hx-lan.on{background:var(--ad-chon)}#modal.hx-ben .hx-lan.vl{background:color-mix(in srgb,var(--warn) 8%,var(--surface))}" +
+        /* 22/10 lượt RÚT RA khỏi ô (chieu:"ra", PICK_MASTER) — nền nhạt theo biến info sẵn có, không màu cứng */
+        "#modal .hx-lan.ra{background:color-mix(in srgb,var(--info,var(--accent)) 6%,var(--surface))}#modal .hx-lan.ra .hx-tag{margin-right:4px}" +
         "#modal.hx-ben .hx-lan .gio{font-weight:600;min-width:88px}#modal.hx-ben .hx-lan .pl{width:24px;height:24px;font-size:10px}" +
         /* Form dọc + Descriptions */
         "#modal.hx-ben .hx-qd-o .lbl{margin-bottom:4px}#modal.hx-ben .hx-qd-nguon:empty,#modal.hx-ben .hx-qd-khung[hidden]{display:none}" +
@@ -1461,12 +1463,15 @@
        thì đưa lên tiêu đề 1 lần (luật không lặp) */
     var chuNg = function (x) { return x.nguon ? x.nguon.chu + (x.nguon.tu ? " · " + x.nguon.tu : "") : ""; };
     var thuong = LS.ds.filter(function (x) { return !x.vatLy; }), ngChung = thuong.length > 1 && thuong.every(function (x) { return x.nguon && chuNg(x) === chuNg(thuong[0]); }) ? chuNg(thuong[0]) : "";   // loại lặp ở mọi dòng thì KHÔNG ghi ở dòng (13/10 user bỏ dòng đếm lượt) — chỉ ghi loại KHÁC
-    var dong = LS.ds.map(function (x, j) { var co = idx[j] >= 0, vl = !!x.vatLy;
-      return '<div role="button" tabindex="0" class="hx-lan' + (co ? "" : " khong") + (vl ? " vl" : "") + '" data-lan="' + idx[j] + '"' + (co ? "" : ' aria-disabled="true" title="Chưa cắt được clip lượt này"') + '>' +
+    var dong = LS.ds.map(function (x, j) { var co = idx[j] >= 0, vl = !!x.vatLy, ra = x.chieu === "ra";
+      return '<div role="button" tabindex="0" class="hx-lan' + (co ? "" : " khong") + (vl ? " vl" : "") + (ra ? " ra" : "") + '" data-lan="' + idx[j] + '"' + (co ? "" : ' aria-disabled="true" title="Chưa cắt được clip lượt này"') + '>' +
         '<span class="gio">' + e_(x.at.slice(8, 10) + "/" + x.at.slice(5, 7) + " " + x.at.slice(11, 16)) + '<small>trước ' + e_(x.truocGio < 24 ? soVN(x.truocGio) + " giờ" : soVN(Math.round(x.truocGio / 24 * 10) / 10) + " ngày") + '</small></span>' +
         /* 20/10 user: tên NV luôn «Họ tên [email|Trạng thái]», cả cụm tô màu theo trạng thái (Active xanh · Pending tím · Inactive xám) — tra theo email/mã ở máy chủ */
         '<span class="ai">' + (x.email ? cumNV(x.ten, x.email, x.ttNv) : '<b>' + e_(x.ten) + '</b>' + (x.ma ? ' <span class="muted">' + e_(x.ma) + '</span>' : "")) +
           (vl ? '<small><span class="hx-tag vl">Không qua hệ thống</span> ' + e_(x.loai) + (x.nguonVL === "may" ? " · máy soi camera" + (x.moTa ? " · " + e_(x.moTa.slice(0, 90)) + (x.moTa.length > 90 ? "…" : "") : "") : "") + '</small>'
+            /* 22/10 user «toàn châm, không thấy lấy hàng»: lượt RÚT RA khỏi ô (WMS bin_out, PICK_MASTER) — «N cái · Rút hàng khỏi ô → <xe> · Giỏ N» */
+            : ra ? '<small class="hx-nguon-lan hx-lan-hang"><span class="sl">' + e_(x.qty) + ' cái</span> · <span class="hx-tag info" title="' + e_(x.tt || "") + '">Rút hàng khỏi ô</span>' +
+                (x.oToi ? ' → <span class="vtn" title="' + e_(x.oToi) + '">' + e_(String(x.oToi).replace(/ [(][0-9]+[)]$/, "")) + '</span>' : "") + (x.oToiGhiChu ? ' · <span class="gc">' + e_(x.oToiGhiChu) + '</span>' : "") + '</small>'
             /* 20/10 user: 1 HÀNG trái→phải Số lượng · Loại điều chuyển · Vị trí nguồn · Ghi chú (ô TF = xe/giỏ trung chuyển ⇒ vị trí nguồn = ô gốc thật; ghi mã ô ĐẦY ĐỦ — user 20/10 đính chính, không rút gọn) */
             : (function () { var o = /^F0-TF-/.test(x.oNguon || "") && x.goc ? x.goc : (x.oNguon || x.goc || ""), oDu = String(o).replace(/ [(][0-9]+[)]$/, "");
                 return '<small class="hx-nguon-lan hx-lan-hang"' + (x.nguon ? ' title="' + e_(x.nguon.chiTiet) + '"' : "") + '><span class="sl">' + e_(x.qty) + ' cái</span> · <span class="ldc" title="' + e_(x.tt || "") + '">' + e_(loaiGon(x)) + '</span>' +
@@ -1487,6 +1492,7 @@
      xét LOẠI LỆNH trước khu nguồn (13740905: 3 châm hàng + 4 trả hàng đơn huỷ). Tên chuẩn ở sổ từ ngữ tu-ngu.mjs (LOAI_TAC_DONG). */
   function loaiTD(x) {
     var c = (x.nguon && x.nguon.chu) || "", l = String(x.loai || "");
+    if (x.chieu === "ra") return "rút hàng khỏi ô";   // 22/10 lượt WMS bin_out (PICK_MASTER) — không phải châm
     if (/trả hàng đơn (huỷ|hủy)|REPUSH_ORDER_CANCEL/i.test(l)) return "trả hàng đơn huỷ";
     if (/^Nhận hàng IT/.test(c)) return "châm hàng (IT)";
     if (/^Hàng hoàn/.test(c)) return "hàng hoàn (bin RT)";
@@ -1635,7 +1641,8 @@
     /* 12/10 user: lịch sử châm vào ô (WMS) gần giờ ghi nhận nhất trước, mỗi lượt 1 clip — KHÔNG thành nút trên thanh nguồn (8 nút làm răng cưa),
        bấm ở danh sách bên phải để phát */
     var lanIdx = (LS ? LS.ds : []).map(function (x) { if (!x.clip) return -1;
-      var bd = x.vatLy && x.tgClip != null ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - x.tgClip * 1e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ") : lui20(x.at);
+      var bd = x.vatLy && x.tgClip != null ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - x.tgClip * 1e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ")
+        : x.chieu === "ra" ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - 60e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ") : lui20(x.at);   // 22/10 clip lượt rút ra cắt −60 s
       nguon.push({ k: "lan", an: 1, ten: x.ten + " " + x.at.slice(11, 16), url: u_(x.clip), video: 1, tua: x.vatLy && x.tgClip != null ? Math.max(0, x.tgClip - 3) : null, info: { batDau: bd, suKien: [] } });
       return nguon.length - 1; });
     var coCam = nguon.some(function (n) { return n.video; });

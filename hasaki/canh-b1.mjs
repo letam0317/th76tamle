@@ -13,8 +13,8 @@
  *  Chỉ TỰ LÀM khi luật được bạn duyệt "Cho máy tự làm" (.exports/quy-tac-duyet.json do sheet-b1-treo.py
  *  ghi từ tab QUY TẮC XÁC MINH) VÀ kết luận chắc (đúng 1 người). Mọi ca khác → NGHI NGỜ, ghi sheet.
  *
- *  Tải upstream: danh sách phiếu từ .exports/tasks-cache.json (0 lượt); WMS transfer-bins 1 lượt/phiếu
- *  TB lần đầu, cache vĩnh viễn (dữ liệu quá khứ không đổi) — trần --max=15 lượt/lần chạy.
+ *  Tải upstream: danh sách phiếu từ .exports/tasks-cache.json (0 lượt); WMS transfer-bins 2 lượt/phiếu
+ *  TB lần đầu (bin_in châm vào + bin_out rút ra — 22/10), cache vĩnh viễn (dữ liệu quá khứ không đổi) — trần --max=15 lượt/lần chạy.
  *  Ghi: chỉ khi --lam, trong cửa 07:00–18:00 T2–T7 (--force xuyên cửa). Đóng B1 qua
  *  auto-complete-single-task.mjs (khuôn đã kiểm chứng); dừng phiếu theo khuôn canh-b11 (re-create-step −1).
  *
@@ -160,21 +160,37 @@ function kenhCamera(bin) {
 const F_CACHE = path.join(DIR, ".cache-canh-b1.json");
 const CACHE = docJ(F_CACHE, {});
 let wmsToken = null, nWms = 0;
-async function lichSuCat(bin, pt) {
-  const k = bin + "|" + pt;
-  if (CACHE[k]) return CACHE[k];
-  if (nWms >= MAX_WMS) return null;                                     // hết trần lượt gọi — lượt sau
+/* 1 lượt GET transfer-bins theo 1 chiều (bin_in = châm VÀO ô · bin_out = RÚT RA khỏi ô), cửa sổ CUA_SO_GIO trước giờ ghi nhận */
+async function goiTransfer(bin, pt, chieu) {
   if (!wmsToken) wmsToken = (await layTokenSongWork(DIR, () => {})).replace(/^Bearer /, "");
   nWms++;
-  const to = msVN(pt), q = { page: 1, size: 100, warehouse_id: /-A2-/.test(bin) ? 874 : 863, bin_in: bin,   /* 05/10: kệ A2 = kho WMS 874 (863 trả 0 lệnh) */ from_date: to - CUA_SO_GIO * 36e5, to_date: to };
+  const to = msVN(pt), q = { page: 1, size: 100, warehouse_id: /-A2-/.test(bin) ? 874 : 863, [chieu]: bin,   /* 05/10: kệ A2 = kho WMS 874 (863 trả 0 lệnh) */ from_date: to - CUA_SO_GIO * 36e5, to_date: to };
+  const r = await fetch(WMS + "/wms/transfer-bins?" + new URLSearchParams(q), { headers: { authorization: "Bearer " + wmsToken, "Company-Ids": "1001", "user-agent-type": "web" }, signal: AbortSignal.timeout(150000) });
+  return ((await r.json()).records || []).filter((x) => x[chieu] === bin && Number(x.status) === 3);
+}
+/* 22/10 user «lượt tác động vào ô toàn châm hàng, không thấy lấy hàng»: thêm chiều RA (bin_out=<ô> → PICK_MASTER: rút hàng khỏi ô
+   sang xe F0-TF…, bước đầu của châm/dời ô — KHÔNG phải soạn đơn). User đồng ý +1 lượt WMS/phiếu. Lưu MẢNG RIÊNG CACHE[k].ra
+   [{at, xong, loai, qty, email, toi}] — KHÔNG trộn vào rec: luật gợi ý người vi phạm (TB-01/02/03) vẫn chỉ xét châm.
+   Bản ghi cũ chưa có `ra` → gọi bổ sung RIÊNG chiều ra (không gọi lại chiều vào), tính vào trần MAX_WMS; lỗi chiều ra không hỏng chiều vào. */
+async function boSungRa(k, bin, pt) {
+  if (nWms >= MAX_WMS) return;                                          // hết trần — lượt sau bổ sung
   try {
-    const r = await fetch(WMS + "/wms/transfer-bins?" + new URLSearchParams(q), { headers: { authorization: "Bearer " + wmsToken, "Company-Ids": "1001", "user-agent-type": "web" }, signal: AbortSignal.timeout(150000) });
-    const j = await r.json();
-    const rec = (j.records || []).filter((x) => x.bin_in === bin && Number(x.status) === 3)
+    const ra = (await goiTransfer(bin, pt, "bin_out"))
+      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, toi: x.bin_in || "" }));
+    CACHE[k].ra = ra; ghiJ(F_CACHE, CACHE);
+  } catch (e) { log("   ⚠ WMS chiều ra " + bin + ": " + String(e.message).slice(0, 80)); }
+}
+async function lichSuCat(bin, pt) {
+  const k = bin + "|" + pt;
+  if (CACHE[k]) { if (!Array.isArray(CACHE[k].ra)) await boSungRa(k, bin, pt); return CACHE[k]; }
+  if (nWms >= MAX_WMS) return null;                                     // hết trần lượt gọi — lượt sau
+  try {
+    const rec = (await goiTransfer(bin, pt, "bin_in"))
       .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, tu: x.bin_out || "" }));   // 20/10 giữ ô nguồn (Source location) — cùng lượt gọi
     CACHE[k] = { rec, luc: new Date().toISOString() }; ghiJ(F_CACHE, CACHE);
-    return CACHE[k];
   } catch (e) { log("   ⚠ WMS " + bin + ": " + String(e.message).slice(0, 80)); return null; }
+  await boSungRa(k, bin, pt);
+  return CACHE[k];
 }
 const nguoi = (em) => { const x = nvTheoEmail(em); return x ? { ten: x.staff_name, code: String(x.code), email: em } : { ten: em, code: "", email: em }; };
 

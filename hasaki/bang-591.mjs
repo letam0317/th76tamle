@@ -249,7 +249,7 @@ function gom() {
      (bang-chung-b1.json lanKho, tim-bang-chung-b1.mjs cắt quanh giờ TẠO lệnh). */
   { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
-    const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" };
+    const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" }, LOAI_RA = { PICK_MASTER: "Rút hàng khỏi ô" };
     /* 16/10 user «1 cái đó từ đâu — hàng hoàn hay pick dư hay châm/soạn hàng»: sổ nguon-cham-b1.mjs lần ngược lệnh đưa món hàng VÀO XE
        trước lượt châm (0 lượt gọi ở đây — chỉ đọc sổ). chu = nhãn ngắn trên dòng, chiTiet = chuỗi đầy đủ cho title. */
     const NG = docJ(path.join(EXP, "nguon-cham-b1.json"), { lan: {} }); NG.lan ||= {};
@@ -281,12 +281,19 @@ function gom() {
       if (!bin || !ngay) continue;
       const rec = (CW[bin + "|" + ngay] || {}).rec; if (!rec) continue;
       const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
-      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.at === r.at);
+      /* 22/10 user «toàn châm hàng, không thấy lấy hàng»: lượt RÚT RA khỏi ô (cò B1 bin_out → CW.ra, PICK_MASTER: ô → xe/giỏ F0-TF) xếp CHUNG
+         theo giờ với châm; chiều:"ra" để giao diện tô khác. Không áp sổ nguồn châm (nguon-cham-b1) cho lượt ra. */
+      const raDs = ((CW[bin + "|" + ngay] || {}).ra || []).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.chieu === "ra" && z.at === r.at);
+        return { at: r.at, chieu: "ra", ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI_RA[r.loai] || r.loai,
+          truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, tt: r.loai || "", oToi: r.toi || "", oToiGhiChu: ghiChuO(r.toi),
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
+      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.chieu !== "ra" && z.at === r.at);
         return { at: r.at, ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
           /* 20/10 user: ghi rõ Transfer Type + Source location như trang WMS Transfer location (bin_in = ô) — 0 lượt gọi thêm: bin_out có trong sổ nguon-cham-b1 / bộ đệm cò */
           tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", oGhiChu: ghiChuO(r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || ""), goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
-          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
-      p.lsKho = { bin, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; })
+        .concat(raDs).sort((a, b) => (a.at < b.at ? 1 : -1));
+      p.lsKho = { bin, ra: raDs.length, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
 
   /* 13/10 user: "người có tác động mà KHÔNG thao tác ở hệ thống — khi có vi phạm cũng cần ghi lại, gắn nhãn highlight".
