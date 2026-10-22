@@ -209,6 +209,54 @@ if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
     }
   }
 
+  // 1c) 22/10 user «can cap nhat ngay - co the k can t bam»: 5 phut/lan hoi GitHub (git ls-remote, nhe) nhanh dang theo doi co commit MOI
+  //     khac HEAD may nay -> tu lam y nhu bam «Cap nhat ngay» (dat .cap-nhat-ngay bo cho canary + chay task 'Audit cap nhat PC').
+  //     Moi commit chi kich 1 lan (so .kiem-ban-moi.json); task cap nhat tu kiem loi/khoi phuc nhu cu.
+  try {
+    const KBM_F = path.join(DIR, ".kiem-ban-moi.json");
+    let kbm = {}; try { kbm = JSON.parse(fs.readFileSync(KBM_F, "utf8")); } catch { /* lan dau */ }
+    if (Date.now() - (kbm.luc || 0) >= 5 * 60e3) {
+      kbm.luc = Date.now();
+      const { execFileSync } = await import("node:child_process");
+      const cfgN = JSON.parse(fs.readFileSync(path.join(DIR, "cai-pc", "dieu-phoi.json"), "utf8")).nhanh;
+      let GIT = "git"; try { GIT = fs.readFileSync(path.join(DIR, ".git-exe"), "utf8").trim() || "git"; } catch { /* git tren PATH */ }
+      const o = { cwd: DIR, encoding: "utf8", windowsHide: true, timeout: 30000 };
+      const xa = String(execFileSync(GIT, ["ls-remote", "origin", "refs/heads/" + cfgN], o)).split(/\s/)[0];
+      const dang = String(execFileSync(GIT, ["rev-parse", "HEAD"], o)).trim();
+      if (/^[0-9a-f]{40}$/.test(xa) && xa !== dang && kbm.daKich !== xa) {
+        kbm.daKich = xa;
+        try { fs.writeFileSync(CAPNGAY_F, "tu-dong " + xa.slice(0, 7)); } catch { /* */ }
+        const { execFile } = await import("node:child_process");
+        const ok = await new Promise((res) => execFile("schtasks", ["/Run", "/TN", "Audit cap nhat PC"], { windowsHide: true, timeout: 15000 }, (e) => res(!e)));
+        nk(`ban moi tren GitHub ${dang.slice(0, 7)} -> ${xa.slice(0, 7)}: tu cap nhat ngay -> ${ok ? "da goi task cap nhat" : "LOI goi task cap nhat"}`);
+      }
+    }
+    ghiJson(KBM_F, kbm, { thut: 0 });
+  } catch { /* mang / git loi: luot sau thu lai; khong lam hong nhip tim */ }
+
+  // 1d) 22/10 doi may chu du phong sang BANGCHUYEN-2: may KHONG con duoc giao «may-chu-xm-du-phong» ma van con ban du phong 8591
+  //     + duong ham chay ngam (tien trinh tach roi, song tiep sau khi bo viec) -> van bao xmHam, dien thoai co the chon nham ban cu.
+  //     Tat khi 3 nhip LIEN TIEP (~3') danh sach viec giao KHONG RONG ma khong co viec nay; chi tat 8591 neu ping bao duPhong (khong bao gio dung may chu that).
+  try {
+    const BO_F = path.join(DIR, ".bo-du-phong.json");
+    let giao = null; try { giao = JSON.parse(fs.readFileSync(GIAO_F, "utf8")); } catch { /* chua tinh */ }
+    let bo = { n: 0 }; try { bo = JSON.parse(fs.readFileSync(BO_F, "utf8")); } catch { /* lan dau */ }
+    if (Array.isArray(giao) && giao.length && !giao.includes("may-chu-xm-du-phong")) {
+      const pj = await fetch("http://127.0.0.1:8591/api/ping", { signal: AbortSignal.timeout(3000) }).then((x) => (x.ok ? x.json() : null), () => null);
+      bo.n = pj && pj.duPhong ? (bo.n || 0) + 1 : 0;
+      if (bo.n >= 3) {
+        const { execFileSync } = await import("node:child_process");
+        const ps = (lenh) => { try { return String(execFileSync("powershell.exe", ["-NoProfile", "-Command", lenh], { encoding: "utf8", windowsHide: true, timeout: 30000 })).trim(); } catch { return ""; } };
+        const pid8591 = ps("Get-NetTCPConnection -LocalPort 8591 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force; $_ }");
+        let pidHam = ""; try { pidHam = fs.readFileSync(path.join(DIR, ".duong-ham-591.pid"), "utf8").trim(); if (/^\d+$/.test(pidHam)) ps("taskkill /PID " + pidHam + " /T /F"); } catch { /* khong co ham */ }   // taskkill /T: ca cay (node + cloudflared con)
+        try { fs.unlinkSync(path.join(DIR, ".duong-ham-591.url")); } catch { /* */ } try { fs.unlinkSync("C:/ProgramData/AuditFactory/duong-ham-591.url"); } catch { /* */ }
+        nk(`khong con giao may-chu-xm-du-phong -> tat ban du phong 8591 (pid ${pid8591 || "?"}) + duong ham (pid ${pidHam || "?"})`);
+        bo.n = 0;
+      }
+    } else bo.n = 0;
+    ghiJson(BO_F, bo, { thut: 0 });
+  } catch { /* khong lam hong nhip tim */ }
+
   // 2) CHAY BU: viec bi dung giua chung o may khac, dieu phoi chon may nay -> chay task "5S DP <viec>" ngay (van qua cong gac)
   if (r.nguon === "gas" && r.chuyen?.length) {
     const { mayChay } = await import("./dieu-phoi.mjs");

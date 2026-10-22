@@ -46,6 +46,14 @@ function Doi-ODuLieu($duAn, $gocThu) {   # $gocThu: QC - thay "<o>:\AuditFactory
       if (-not $co) { $l += "BAIXE_DIR=$baixe" }
       $moiNd = ($l -join "`r`n"); if ($moiNd -ne ((Get-Content $envF) -join "`r`n")) { $moiNd | Out-File $envF -Encoding utf8; $da += ".env" } }
   } catch { Ghi "[X] o du lieu .env: $_" }
+  # 22/10 user «nguoi khac dung may tram co vo D:\AuditFactory xem duoc du lieu k? can bao mat - k cho xem»: khoa quyen y nhu C:\AuditFactory
+  #   (CAI-PC.ps1): bo ke thua, CHI SYSTEM + Administrators; con chau /reset de ke thua quyen moi. Chi lam 1 lan (da khoa thi bo qua).
+  if (-not $gocThu -and (Test-Path $gocO)) { try {
+    if (-not (Get-Acl $gocO).AreAccessRulesProtected) {
+      & icacls.exe $gocO /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" | Out-Null
+      & icacls.exe "$gocO\*" /reset /T /C /Q 2>&1 | Out-Null
+      Ghi "o du lieu ${o}: da khoa quyen $gocO (chi SYSTEM + Administrators)" }
+  } catch { Ghi "[X] o du lieu khoa quyen: $_" } }
   if ($da.Count) { Ghi ("o du lieu ${o}: da chuyen " + ($da -join ",")) }
   return $baixe
 }
