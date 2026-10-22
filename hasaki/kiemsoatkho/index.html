@@ -1595,7 +1595,7 @@ window.hxDoMayChu = function(){
   if (!coPhien) return Promise.resolve(false);
   var ping = function(u, ms){ var c = new AbortController(); setTimeout(function(){ c.abort(); }, ms);
     return fetch(u + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return r.json().catch(function(){ return {}; }); })
-      .then(function(j){ if (j && j.duPhong) window.__HX_DU_PHONG = 1; return u; }); };
+      .then(function(j){ if (j && j.duPhong) { window.__HX_DU_PHONG = 1; window.__HX_MA_HOA = j.maHoa ? 1 : 0; } else window.__HX_MA_HOA = 0; return u; }); };
   var docTep = function(goc){ return fetch(goc + "summary/xm-may-chu.json?t=" + Date.now(), { cache: "no-store" }).then(function(r){ return r.json(); })
     .then(function(j){ if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(j.url || "")) throw 0; return ping(j.url, 8000); }); };
   /* 19/10 user «laptop tắt thì điện thoại phải xem được»: laptop không trả lời → hỏi Apps Script (pcBangPh, cần phiên tài khoản) địa chỉ
@@ -1608,27 +1608,30 @@ window.hxDoMayChu = function(){
         if (!ds.length) throw 0;
         /* 21/10 (Theo máy điện thoại «0 sự việc»): laptop thật + PC dự phòng chỉ xem cùng báo đường hầm → ping hết,
            máy KHÔNG dự phòng trả lời là lấy ngay; chỉ khi laptop im mới chịu bản chỉ xem (thiếu dữ liệu bãi xe, Theo máy trống) */
-        return new Promise(function(ok, hong){ var con = ds.length, that = null, du = null, duDia = -1;
-          var chot = function(){ if (that) { window.__HX_DU_PHONG = 0; ok(that); } else if (du) { window.__HX_DU_PHONG = 1; ok(du); } else hong(0); };
+        return new Promise(function(ok, hong){ var con = ds.length, that = null, du = null, duDia = -1, duMa = 0;
+          var chot = function(){ if (that) { window.__HX_DU_PHONG = 0; window.__HX_MA_HOA = 0; ok(that); }
+            else if (du) { window.__HX_DU_PHONG = 1; window.__HX_MA_HOA = duMa; ok(du); } else hong(0); };
           ds.forEach(function(m){ var c = new AbortController(); setTimeout(function(){ c.abort(); }, 8000);
             fetch(m.xmHam + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return r.json().catch(function(){ return {}; }); })
               /* 22/10: nhiều bản dự phòng → máy nhiều chỗ (có gương clip đủ nhất, BANGCHUYEN-2) */
-              .then(function(x){ if (x && x.duPhong) { if (!du || (x.diaGB || 0) > duDia) { du = m.xmHam; duDia = x.diaGB || 0; } }
+              .then(function(x){ if (x && x.duPhong) { if (!du || (x.diaGB || 0) > duDia) { du = m.xmHam; duDia = x.diaGB || 0; duMa = x.maHoa ? 1 : 0; } }
                 else { that = that || m.xmHam; con = 0; chot(); } }, function(){})
               .then(function(){ if (con > 0 && !--con) chot(); }); }); }); }); };
   var ham = function(){ var cu = ""; try { cu = localStorage.getItem("hx-ham") || ""; } catch(e){}
-    return (cu ? ping(cu, 6000).then(function(u){ if (window.__HX_DU_PHONG) { window.__HX_DU_PHONG = 0; throw 0; } return u; }) : Promise.reject(0))
+    return (cu ? ping(cu, 6000).then(function(u){ if (window.__HX_DU_PHONG) { window.__HX_DU_PHONG = 0; window.__HX_MA_HOA = 0; throw 0; } return u; }) : Promise.reject(0))
       /* 20/10: bỏ tệp địa chỉ công khai summary/xm-may-chu.json — địa chỉ laptop cũng đi qua nhịp tim (xmHam) → pcBangPh sau đăng nhập */
       .catch(duPhong)
       .then(function(u){ if (!window.__HX_DU_PHONG) try { localStorage.setItem("hx-ham", u); } catch(e){} return u; }, duPhong)
       .then(function(u){ window.__HX_QUA_HAM = 1;
-        if (window.__HX_DU_PHONG && typeof toast === "function") setTimeout(function(){ toast("Laptop đang tắt — đang xem bản dự phòng (chỉ xem, quyết định làm khi laptop bật)", "loi"); }, 600);
+        var tb = "Laptop đang tắt — đang xem bản dự phòng" + (window.__HX_MA_HOA ? " mã hoá" : "") + " (chỉ xem, quyết định làm khi laptop bật)";
+        if (window.__HX_DU_PHONG && typeof toast === "function") setTimeout(function(){ toast(tb, "loi"); }, 600);
         return u; }); };
   var p = window.__HX_KHONG_MAY ? ham() : ping("http://127.0.0.1:8591", 1500).catch(function(){ return ham(); });
-  return window.__HX_DO = p.then(function(u){ window.HX_API = u; window.__HX_MAY_CHU = 1; document.body.classList.remove("hx-an"); if (typeof homeVeLai === "function") setTimeout(homeVeLai, 0); return true; },   /* 20/10 dò máy chủ/đường hầm xong → vẽ lại Tổng quan (thẻ Xác minh) */
+  return window.__HX_DO = p.then(function(u){ window.HX_API = u; window.__HX_MAY_CHU = 1; if (window.hxGuongMa) window.hxGuongMa.capNhat(); document.body.classList.remove("hx-an"); if (typeof homeVeLai === "function") setTimeout(homeVeLai, 0); return true; },   /* 20/10 dò máy chủ/đường hầm xong → vẽ lại Tổng quan (thẻ Xác minh) */
     function(){ window.__HX_DO = null;   /* 22/10: dò hỏng KHÔNG nhớ — lần sau (đăng nhập xong, laptop bật lại) dò lại được */
       var ph = ""; try { ph = localStorage.getItem("hx-phien") || ""; } catch(e){} if (ph && !window.__HX_KHONG_MAY) window.__HX_CHAN = 1; return false; });
 };</script>
+<script src="guong-ma-trang.js?v=20261022a"></script>   <!-- 22/10 bản dự phòng Xác minh MÃ HOÁ: window.hxGuongMa (sw.js + đường lùi blob khi không có service worker — iPhone) -->
 <script>/* 14/10: pop-up không che thanh bên — --pop-trai = mép phải thật của #sideNav (máy tính); điện thoại = 0 (ngăn kéo nổi trên pop-up) */
 (function(){var nav=document.getElementById("sideNav");if(!nav)return;var h=0;
   var tg=document.getElementById("sideToggle");

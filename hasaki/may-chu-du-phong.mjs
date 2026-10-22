@@ -8,6 +8,9 @@
  *   3) đường hầm chưa chạy → bật duong-ham-591.mjs (XM_DU_PHONG=1): địa chỉ không ghi GitHub (đó là chỗ của laptop) mà ghi
  *      .duong-ham-591.url → nhip-pc.mjs gửi kèm nhịp tim (xmHam) → trang (hxDoMayChu) hỏi Apps Script pcBangPh khi laptop không trả lời.
  *   4) mỗi 15' kéo dữ liệu Xác minh từ kho Drive (dong-bo-xm keo vao,chung,ra — chỉ kéo, không đẩy, không xoá kho).
+ *      22/10 user «cả admin máy gương cũng KHÔNG xem được clip lẫn dữ liệu Xác minh»: chế độ MÃ HOÁ (mặc định; XM_MA_HOA=0 mới về kiểu cũ)
+ *      BỎ bước kéo bản rõ này — dữ liệu tới PC chỉ còn dạng BẢN MÃ do laptop đẩy (guong-clip-du-phong.mjs) — và DỌN bản rõ cũ do bước kéo /
+ *      gương bản rõ để lại (don-ban-ro-du-phong.mjs; nhip-pc.mjs cũng gọi nên máy đã thôi làm dự phòng vẫn được dọn).
  *  Laptop KHÔNG chạy tệp này (thoát ngay khi không phải RUNNER_VAI=pc). Log: may-chu-du-phong.log
  */
 import fs from "node:fs";
@@ -25,6 +28,7 @@ const EXE = path.join(DIR, "bin", "cloudflared.exe");
 const PORT = Number(process.env.BANG591_PORT || 8591);
 const KEO_F = path.join(DIR, ".du-phong-keo");
 const ENV = { ...process.env, XM_DU_PHONG: "1" };
+const MA_HOA = process.env.XM_MA_HOA !== "0";
 
 function nen(tep, logTen) {   // tiến trình chạy nền, sống tiếp sau khi lượt này thoát
   const fd = fs.openSync(path.join(DIR, logTen), "a");
@@ -49,14 +53,14 @@ if (!fs.existsSync(EXE)) {
 const ping = await fetch(`http://127.0.0.1:${PORT}/api/ping`, { signal: AbortSignal.timeout(3000) }).then((r) => r.ok ? r.json() : null, () => null);
 if (!ping) nen("bang-591.mjs", "du-phong-591.out");
 else if (!ping.duPhong) log("8591 đang chạy bản KHÔNG dự phòng — để nguyên");
-else if (!ping.guong) {
+else if (MA_HOA ? !ping.maHoa : !ping.guong) {
   /* 22/10: bản dự phòng CŨ (trước gương clip) không có cơ chế tự thoát khi code đổi ⇒ chạy mãi bản cũ dù máy đã kéo code mới.
      Ping bản mới có guong:1 — thiếu thì dừng tiến trình bang-591.mjs (chỉ khi nó LÀ bản dự phòng) rồi bật lại bản mới. Chạy 1 lần duy nhất. */
   const ps = spawnSync("powershell.exe", ["-NoProfile", "-Command",
     /* chỉ đúng tiến trình đang NGHE cổng của bản dự phòng (không đụng bang-591 khác trên máy) */
     `Get-NetTCPConnection -LocalPort ${PORT} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force; $_ }`],
     { windowsHide: true, encoding: "utf8", timeout: 30000 });
-  log("bản dự phòng cũ (chưa có gương clip) → dừng pid", (ps.stdout || "").trim().split(/\s+/).join(",") || "?", "rồi bật bản mới");
+  log("bản dự phòng cũ (" + (MA_HOA ? "chưa mã hoá" : "chưa có gương clip") + ") → dừng pid", (ps.stdout || "").trim().split(/\s+/).join(",") || "?", "rồi bật bản mới");
   await new Promise((r) => setTimeout(r, 3000));
   nen("bang-591.mjs", "du-phong-591.out");
 }
@@ -64,7 +68,11 @@ else if (!ping.guong) {
 // 3) đường hầm
 if (fs.existsSync(EXE) && !song(".duong-ham-591.pid")) nen("duong-ham-591.mjs", "du-phong-ham.out");
 
-// 4) dữ liệu (15' một lần)
+// 4) dữ liệu (15' một lần) — chế độ mã hoá: không kéo bản rõ, dọn bản rõ cũ
+if (MA_HOA) {
+  try { const { donBanRo } = await import("./don-ban-ro-du-phong.mjs"); await donBanRo(log); } catch (e) { log("✗ dọn bản rõ lỗi:", e.message); }
+  process.exit(0);
+}
 let keoLuc = 0; try { keoLuc = Number(fs.readFileSync(KEO_F, "utf8")) || 0; } catch { /* lần đầu */ }
 if (Date.now() - keoLuc >= 15 * 60e3) {
   fs.writeFileSync(KEO_F, String(Date.now()));

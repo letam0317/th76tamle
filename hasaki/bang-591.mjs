@@ -26,6 +26,7 @@ import { dangNhap, kiemPhien, dangXuat, taoPhienTk } from "./xacminh-dang-nhap.m
 import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 import crypto from "node:crypto";
 import { kiemKy, kiemRel, timTepLuot, relTepLuot, DUOI_OK, TRAN_TEP } from "./guong-clip-chung.mjs";   // 22/10 gương clip laptop → bản dự phòng
+import { RE_TEN, DUOI_TEP, DAU as DAU_MA, kiemDauBanMa } from "./guong-ma-hoa.mjs";   // 22/10 bản dự phòng MÃ HOÁ (PC chỉ giữ bản mã, tên ẩn)
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXP = path.join(DIR, ".exports");
@@ -40,6 +41,9 @@ const LAN = process.argv.includes("--lan");
    Bản dự phòng CHỈ CHO XEM: mọi lệnh ghi (POST, trừ đăng nhập/đăng xuất) trả 503 ⇒ quyết định chỉ ghi ở 1 nguồn (laptop), không trùng/không mất.
    Không gửi gói khoá lên GAS (gói phải luôn theo .env laptop). */
 const DU_PHONG = process.env.XM_DU_PHONG === "1";
+/* 22/10 user «cả admin máy gương cũng KHÔNG xem được clip lẫn dữ liệu Xác minh»: bản dự phòng MẶC ĐỊNH chạy chế độ MÃ HOÁ (XM_MA_HOA=0 mới về
+   kiểu cũ): KHÔNG phục vụ bản rõ nào (dữ liệu, /bc /anh /video /cs /thu), chỉ GET /ma/<tên ẩn> trả bản mã (Range) cho trình duyệt có khoá giải. */
+const MA_HOA = DU_PHONG && process.env.XM_MA_HOA !== "0";
 const KHOA = process.env.BANG591_KHOA || "";
 const QD = ["Lập phiếu (NV Hasaki)", "Không phải NV Hasaki", "Xe ra / không vi phạm", "Không rõ – bỏ qua"];
 const log = (...a) => console.log(new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }), ...a);
@@ -504,13 +508,84 @@ async function xuLyGuong(q, s, u, p) {
   } catch (e) { fs.rmSync(tam, { force: true }); throw e; }
   finally { GUONG_DANG--; }
 }
+/* ---- 22/10 GƯƠNG MÃ HOÁ (chỉ bản dự phòng MA_HOA) — PC KHÔNG có khoá K: chỉ cất bản mã theo tên ẩn, phát lại theo Range ----
+     GET /api/guong-ma/co        (ký HMAC như gương cũ, rel "")        → { tep: { <tên ẩn>: cỡ bản mã }, tranTong, maHoa: 1 }
+     PUT /api/guong-ma?ten=<64 hex> (rel "ma:<tên>", thân = bản mã)  → kiểm đầu tệp (định dạng + cỡ) + sha256 → <BC>/.guong-ma/<tên>.bin
+     PUT /api/guong-ma/dung      (rel "dung", thân JSON {ds:[tên…]}) → danh sách laptop còn dùng (dọn khi vượt trần: tên không còn dùng trước)
+     GET /ma/<tên>               (phiên như /bc/ cũ)                  → bản mã, Range → 206
+   Thư mục .guong-ma chỉ có tên ẩn + cỡ + giờ nhận — không có mã phiếu, đường dẫn, giờ camera. */
+const GUONG_MA = path.join(GOC_BC, ".guong-ma"), DUNG_MA = path.join(GUONG_MA, ".dung.json");
+let MA_DANG = 0;
+function tepMa() {   // { tên: { co, luc } } mọi bản mã đang cất
+  const ra = {}; let ds = []; try { ds = fs.readdirSync(GUONG_MA); } catch { return ra; }
+  for (const f of ds) {
+    const t = f.slice(0, -DUOI_TEP.length); if (!f.endsWith(DUOI_TEP) || !RE_TEN.test(t)) continue;
+    try { const st = fs.statSync(path.join(GUONG_MA, f)); ra[t] = { co: st.size, luc: st.mtimeMs }; } catch { /* */ }
+  }
+  return ra;
+}
+function donChoMa(can) {   // vượt trần → xoá bản mã laptop KHÔNG còn dùng trước, rồi bản cũ nhất
+  const ds = tepMa(); let tong = Object.values(ds).reduce((a, x) => a + x.co, 0);
+  if (tong + can <= TRAN_GUONG) return true;
+  const dung = new Set((docJ(DUNG_MA, {}).ds) || []);
+  for (const [t, x] of Object.entries(ds).sort(([a, x], [b, y]) => (dung.has(a) ? 1 : 0) - (dung.has(b) ? 1 : 0) || x.luc - y.luc)) {
+    if (tong + can <= TRAN_GUONG) break;
+    try { fs.unlinkSync(path.join(GUONG_MA, t + DUOI_TEP)); tong -= x.co; log("gương mã hoá: xoá " + t.slice(0, 12) + "… (" + (dung.has(t) ? "cũ nhất, còn dùng" : "không còn dùng") + ")"); } catch { /* */ }
+  }
+  return tong + can <= TRAN_GUONG;
+}
+async function xuLyGuongMa(q, s, u, p) {
+  const ten = String(u.searchParams.get("ten") || "");
+  const rel = p === "/api/guong-ma/co" ? "" : p === "/api/guong-ma/dung" ? "dung" : "ma:" + ten;
+  const o = { pt: q.method, rel, luc: q.headers["x-guong-luc"], co: Number(q.headers["content-length"] || 0), sha: String(q.headers["x-guong-sha256"] || "") };
+  const loiKy = kiemKy(process.env.APPSCRIPT_KEY || "", o, q.headers["x-guong-ky"]);
+  if (loiKy) { log("gương mã hoá: TỪ CHỐI (" + loiKy + ") từ " + (q.headers["cf-connecting-ip"] || q.socket.remoteAddress)); return guiJ(s, loiKy === "máy chủ chưa có khoá" ? 503 : 401, { loi: loiKy }); }
+  if (p === "/api/guong-ma/co" && q.method === "GET") return guiJ(s, 200, { tep: Object.fromEntries(Object.entries(tepMa()).map(([t, x]) => [t, x.co])), tranTong: TRAN_GUONG, maHoa: 1 });
+  if (q.method !== "PUT" || (p !== "/api/guong-ma" && p !== "/api/guong-ma/dung")) return guiJ(s, 405, { loi: "chỉ GET /api/guong-ma/co · PUT /api/guong-ma?ten= · PUT /api/guong-ma/dung" });
+  if (!/^[0-9a-f]{64}$/.test(o.sha)) return guiJ(s, 400, { loi: "thiếu x-guong-sha256" });
+  if (!(o.co > 0)) return guiJ(s, 411, { loi: "thiếu Content-Length" });
+  if (p === "/api/guong-ma/dung") {
+    if (o.co > 4 * 1048576) return guiJ(s, 413, { loi: "danh sách quá lớn" });
+    const ch = []; let n = 0; for await (const c of q) { n += c.length; if (n > o.co) break; ch.push(c); }
+    const b = Buffer.concat(ch); if (b.length !== o.co || crypto.createHash("sha256").update(b).digest("hex") !== o.sha) return guiJ(s, 400, { loi: "thân không khớp" });
+    let ds = []; try { ds = (JSON.parse(b.toString("utf8")).ds || []).filter((t) => RE_TEN.test(String(t))); } catch { return guiJ(s, 400, { loi: "JSON hỏng" }); }
+    ghiJson(DUNG_MA, { luc: new Date().toISOString(), ds }, { thut: 0 }); return guiJ(s, 200, { ok: 1, n: ds.length });
+  }
+  if (!RE_TEN.test(ten)) return guiJ(s, 400, { loi: "tên ẩn phải là 64 ký tự hex" });
+  if (o.co > TRAN_TEP + 8192) return guiJ(s, 413, { loi: "tệp quá 100 MB" });
+  try {
+    const st = fs.statfsSync(fs.existsSync(GOC_BC) ? GOC_BC : path.parse(GOC_BC).root);
+    if (st.bavail * st.bsize < o.co + 2 * 1024 ** 3) return guiJ(s, 507, { loi: "đĩa PC sắp đầy (còn " + Math.round(st.bavail * st.bsize / 1e9 * 10) / 10 + " GB)" });
+  } catch { /* */ }
+  if (!donChoMa(o.co)) return guiJ(s, 507, { loi: "vượt trần gương " + Math.round(TRAN_GUONG / 1024 ** 3) + " GB" });
+  fs.mkdirSync(GUONG_MA, { recursive: true });
+  const dich = path.join(GUONG_MA, ten + DUOI_TEP), tam = path.join(GUONG_MA, ".tam-" + process.pid + "-" + crypto.randomBytes(4).toString("hex"));
+  MA_DANG++;
+  try {
+    const h = crypto.createHash("sha256"), w = fs.createWriteStream(tam); let n = 0, dau = Buffer.alloc(0), loiDau = "";
+    for await (const ch of q) {
+      n += ch.length; if (n > o.co) break;
+      if (dau.length < DAU_MA) { dau = Buffer.concat([dau, ch.subarray(0, DAU_MA - dau.length)]); if (dau.length === DAU_MA && (loiDau = kiemDauBanMa(dau, o.co))) break; }
+      h.update(ch); if (!w.write(ch)) await new Promise((r) => w.once("drain", r));
+    }
+    await new Promise((r, j) => w.end((e) => (e ? j(e) : r())));
+    if (loiDau || dau.length < DAU_MA) { fs.rmSync(tam, { force: true }); return guiJ(s, 400, { loi: "không phải bản mã hợp lệ: " + (loiDau || "thiếu đầu tệp") }); }
+    if (n !== o.co) { fs.rmSync(tam, { force: true }); return guiJ(s, 400, { loi: "thân thiếu/thừa byte (" + n + "/" + o.co + ")" }); }
+    if (h.digest("hex") !== o.sha) { fs.rmSync(tam, { force: true }); return guiJ(s, 400, { loi: "sha256 không khớp" }); }
+    fs.renameSync(tam, dich);
+    log("gương mã hoá: nhận " + ten.slice(0, 12) + "… (" + Math.round(o.co / 1e4) / 100 + " MB)");
+    return guiJ(s, 200, { ok: 1, ten, co: o.co });
+  } catch (e) { fs.rmSync(tam, { force: true }); throw e; }
+  finally { MA_DANG--; }
+}
 /* 22/10: bản dự phòng chạy mãi trên PC — PC kéo code mới (git pull 2 giờ/lần) nhưng tiến trình cũ không tự nạp. Bản dự phòng soi giờ sửa
-   của chính nó + guong-clip-chung.mjs mỗi 5'; đổi thì thoát (khi không đang nhận tệp) → may-chu-du-phong.mjs (5'/lần) bật lại bản mới. */
-if (DU_PHONG) {
-  const TEP_CODE = [fileURLToPath(import.meta.url), path.join(DIR, "guong-clip-chung.mjs"), path.join(DIR, "xacminh-dang-nhap.mjs")];
+   của chính nó + guong-clip-chung.mjs mỗi 5'; đổi thì thoát (khi không đang nhận tệp) → may-chu-du-phong.mjs (5'/lần) bật lại bản mới.
+   XM_KHONG_TU_NAP=1: bộ đo (qc-guong-*.mjs) bật bản thử trên laptop đang sửa code — không tự thoát giữa chừng. */
+if (DU_PHONG && process.env.XM_KHONG_TU_NAP !== "1") {
+  const TEP_CODE = [fileURLToPath(import.meta.url), path.join(DIR, "guong-clip-chung.mjs"), path.join(DIR, "xacminh-dang-nhap.mjs"), path.join(DIR, "guong-ma-hoa.mjs")];
   const dau = () => TEP_CODE.map((f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } }).join("|");
   const goc = dau();
-  setInterval(() => { if (GUONG_DANG === 0 && dau() !== goc) { log("bản dự phòng: code đổi — thoát để may-chu-du-phong bật lại bản mới"); process.exit(0); } }, 5 * 60e3).unref();
+  setInterval(() => { if (GUONG_DANG === 0 && MA_DANG === 0 && dau() !== goc) { log("bản dự phòng: code đổi — thoát để may-chu-du-phong bật lại bản mới"); process.exit(0); } }, 5 * 60e3).unref();
 }
 
 // ---- máy chủ ----
@@ -559,7 +634,7 @@ const sv = http.createServer(async (q, s) => {
   const lai = (goc && !NGUON_OK.test(goc)) || (q.headers["sec-fetch-site"] === "cross-site" && !NGUON_OK.test(goc || gocRef) && !(!goc && kiemPhien(phienQ)));
   if (lai && q.url !== "/" ) { s.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" }); return s.end("chỉ trang Audit Hasaki của chủ máy được đọc"); }
   if (NGUON_OK.test(goc)) {
- s.setHeader("Access-Control-Allow-Origin", goc); s.setHeader("Vary", "Origin"); s.setHeader("Access-Control-Allow-Headers", "content-type,x-khoa,x-hx-phien"); s.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS"); }
+ s.setHeader("Access-Control-Allow-Origin", goc); s.setHeader("Vary", "Origin"); s.setHeader("Access-Control-Allow-Headers", "content-type,x-khoa,x-hx-phien,range"); s.setHeader("Access-Control-Expose-Headers", "Content-Range,Content-Length,Accept-Ranges"); s.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS"); }
   if (q.headers["access-control-request-private-network"]) s.setHeader("Access-Control-Allow-Private-Network", "true");
   if (q.method === "OPTIONS") { s.writeHead(204); return s.end(); }
   datNguoi(null);   // 22/10 ngữ cảnh người của lượt trước không được rò sang lượt này
@@ -577,7 +652,8 @@ const sv = http.createServer(async (q, s) => {
     const noiBo = !quaHam && (q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.socket.remoteAddress === "::ffff:127.0.0.1");
     const phien = String(q.headers["x-hx-phien"] || u.searchParams.get("phien") || "");
     /* 22/10 gương clip: CHỈ bản dự phòng; đi qua hầm được (laptop chỉ tới được PC qua hầm) nhưng xác thực bằng chữ ký HMAC, không bằng phiên */
-    if (DU_PHONG && (p === "/api/guong-clip" || p === "/api/guong-clip/co")) return await xuLyGuong(q, s, u, p);
+    if (DU_PHONG && (p === "/api/guong-clip" || p === "/api/guong-clip/co")) return MA_HOA ? guiJ(s, 410, { loi: "bản dự phòng mã hoá — gương bản rõ đã tắt, dùng /api/guong-ma", maHoa: 1 }) : await xuLyGuong(q, s, u, p);
+    if (MA_HOA && (p === "/api/guong-ma" || p === "/api/guong-ma/co" || p === "/api/guong-ma/dung")) return await xuLyGuongMa(q, s, u, p);   // 22/10 gương mã hoá (ký HMAC, không phiên)
     if (quaHam && !/^\/(api\/(ping|dang-nhap|dang-nhap-tk|dang-xuat)|m\/[\w.-]+)$/.test(p) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
     if (p === "/api/dang-nhap" && q.method === "POST") {
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
@@ -599,7 +675,7 @@ const sv = http.createServer(async (q, s) => {
       const kq = taoPhienTk(ng.id, qx === "xem"); log("đăng nhập Xác minh (tài khoản chung): " + ng.id + (qx === "xem" ? " · chỉ xem" : ""));
       return guiJ(s, 200, kq);
     }
-    const canPhien = (p.startsWith("/api/") && p !== "/api/ping") || p.startsWith("/anh/") || p.startsWith("/video/") || p.startsWith("/bc/") || p.startsWith("/cs/") || p === "/thu";
+    const canPhien = (p.startsWith("/api/") && p !== "/api/ping") || p.startsWith("/anh/") || p.startsWith("/video/") || p.startsWith("/bc/") || p.startsWith("/cs/") || p.startsWith("/ma/") || p === "/thu";
     if (canPhien && (trinhDuyet || !noiBo) && !kiemPhien(phien)) return guiJ(s, 401, { loi: "Cần đăng nhập", canDangNhap: 1 });
     /* 14/10: phiên «chỉ xem» (quyền Xác minh = xem) không được gọi lệnh ghi */
     if (canPhien && q.method === "POST" && (kiemPhien(phien) || {}).chiXem) return guiJ(s, 403, { loi: "Tài khoản chỉ có quyền xem phần Xác minh" });
@@ -615,11 +691,30 @@ const sv = http.createServer(async (q, s) => {
       s.on("finish", () => { if (nc.soGhiWork) return; if (nc.gcAt) tt.gcAt = nc.gcAt; try { ghiThaoTac(Object.assign({ tk: nc.nguoi.id, may: nc.nguoi.thietBi, ok: s.statusCode < 400, http: s.statusCode, url: "POST " + p }, tt)); } catch { /* sổ hỏng không làm hỏng lệnh */ } });
     }
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
-    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1, diaGB: diaTrongGB() } : { ok: 1 });   /* 22/10 diaGB: laptop + điện thoại chọn bản dự phòng NHIỀU CHỖ nhất */   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
+    /* 22/10 bản dự phòng MÃ HOÁ: chỉ còn phát bản mã (/ma/) — mọi đường bản rõ (dữ liệu, ảnh, clip, ảnh nhỏ) trả 410. Máy trạm (/api/may-tram,
+       qc-dem, sao-luu, sức khoẻ) vẫn trả thẳng: là trạng thái các PC lấy từ Apps Script bằng khoá máy trạm mà chính PC này vốn đã có, không phải dữ liệu Xác minh. */
+    const banRo = (p.startsWith("/api/") && !/^\/api\/(ping|phien|may-tram|qc-dem|sao-luu|suc-khoe-du-lieu)$/.test(p)) || /^\/(bc|anh|video|cs)\//.test(p) || p === "/thu";
+    if (MA_HOA && q.method === "GET" && banRo) return guiJ(s, 410, { loi: "Bản dự phòng mã hoá — dữ liệu chỉ phát dạng mã hoá qua /ma/ (trang giải mã)", maHoa: 1 });
+    if (MA_HOA && p.startsWith("/ma/")) {   // bản mã theo tên ẩn — Range → 206 (trình phát kéo đúng đoạn cần)
+      const ten = p.slice(4), f = path.join(GUONG_MA, ten + DUOI_TEP);
+      if (!RE_TEN.test(ten) || !fs.existsSync(f)) return guiJ(s, 404, { loi: "chưa có tệp này" });
+      const st = fs.statSync(f), rg = /^bytes=(\d+)-(\d*)$/.exec(String(q.headers.range || "").trim());
+      const h = { "Content-Type": "application/octet-stream", "Accept-Ranges": "bytes", "Cache-Control": "no-store" };
+      if (rg) {
+        const a = +rg[1], z = rg[2] ? Math.min(+rg[2], st.size - 1) : st.size - 1;
+        if (a >= st.size || a > z) { s.writeHead(416, { "Content-Range": "bytes */" + st.size }); return s.end(); }
+        s.writeHead(206, { ...h, "Content-Range": `bytes ${a}-${z}/${st.size}`, "Content-Length": z - a + 1 }); return fs.createReadStream(f, { start: a, end: z }).pipe(s);
+      }
+      s.writeHead(200, { ...h, "Content-Length": st.size }); return fs.createReadStream(f).pipe(s);
+    }
+    /* 22/10 maHoa:1 = bản dự phòng mã hoá (laptop chỉ đẩy bản mã); guong:0 để laptop bản cũ không đẩy bản rõ sang */
+    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: MA_HOA ? 0 : 1, maHoa: MA_HOA ? 1 : 0, diaGB: diaTrongGB() } : { ok: 1 });   /* 22/10 diaGB: laptop + điện thoại chọn bản dự phòng NHIỀU CHỖ nhất */   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") {
       /* 22/10 user: «chỉ tamlc coi được ai gửi form + Ghi nhận 5S» ⇒ tài khoản khác nhận bản đã GỠ người gửi (Nhật ký + thẻ phiếu).
          Chủ = tài khoản tamlc, phiên đăng nhập riêng cũ của laptop (không phải phiên tài khoản), hoặc tiến trình nội bộ không qua trình duyệt. */
-      const ph = kiemPhien(phien), chu = !trinhDuyet && noiBo || (ph && (!ph.tk || ph.email === (process.env.HSK_CHU_TK || "tamlc")));
+      /* 22/10 ?go=1: gương mã hoá chụp bản ĐÃ GỠ người gửi (khoá giải mã cấp cho mọi tài khoản có quyền Xác minh, không riêng tamlc) */
+      const ph = kiemPhien(phien), go = u.searchParams.get("go") === "1";
+      const chu = !go && (!trinhDuyet && noiBo || (ph && (!ph.tk || ph.email === (process.env.HSK_CHU_TK || "tamlc"))));
       const d = chuanTuSau(gom()); if (chu) return guiJ(s, 200, d);
       return guiJ(s, 200, Object.assign({}, d, { phieu: (d.phieu || []).map((x) => (x.nguoiGui ? Object.assign({}, x, { nguoiGui: undefined }) : x)),
         tacGia: Object.assign({}, d.tacGia, { ds: ((d.tacGia || {}).ds || []).map((x) => (x.nguoi ? Object.assign({}, x, { nguoi: "" }) : x)) }) }));

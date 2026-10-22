@@ -20,6 +20,9 @@ j = await post({ action: "pcBoCai" }, "pcBoCai"); ok(j && Number(j.code) === 401
 j = await post({ action: "pcBang", key: "sai-khoa" }, "pcBang-sai"); ok(j && j.status !== "success", "chính: khoá sai → từ chối", j && j.message);
 j = await post({ action: "sucKhoeDuLieu", key: KEY }, "sucKhoeDuLieu"); ok(j && j.status === "success" && j.props && j.sheets, "chính: sucKhoeDuLieu (mới)", j && j.props ? `${j.props.so} khoá · ${(j.props.byte / 1024).toFixed(0)} KB/500 KB · ` + j.sheets.map((s) => s.ten + ":" + (s.o ? Math.round(s.o / 1000) + "k ô" : "lỗi " + s.loi)).join(" · ") : j && j.message);
 j = await post({ action: "xm_ds", key: KEY }, "xm_ds"); ok(j && j.status === "success", "XacMinh: xm_ds (khoá)", j && (j.message || (j.ds ? Object.keys(j.ds).length + " tệp" : "")));
+/* 22/10 khoá giải mã bản dự phòng: KHÔNG phiên → 401; có SECRET mà không phiên → vẫn 401 (máy trạm giữ SECRET không được lấy khoá) */
+j = await post({ action: "xmKhoaMa" }, "xmKhoaMa"); ok(j && Number(j.code) === 401 && !j.khoa, "XacMinh: xmKhoaMa không phiên → 401", j && (j.code + " " + j.message));
+j = await post({ action: "xmKhoaMa", key: KEY }, "xmKhoaMa-key"); ok(j && Number(j.code) === 401 && !j.khoa, "XacMinh: xmKhoaMa chỉ có SECRET → 401 (không trao khoá cho máy trạm)", j && (j.code + " " + j.message));
 let t = await get("action=readTab&tab=CHAMCONG-VESINH&sheet=CHAMCONG-VESINH&callback=cb"); ok(/403|canKhoa/.test(t), "ReadTab: readTab không tb → 403", t.slice(0, 90));
 t = await get("action=lastSync&callback=cb"); ok(/success/.test(t), "Form5S: lastSync GET", t.slice(0, 90));
 t = await get("action=bridgeCaps&callback=cb"); ok(/bridgeToken/.test(t), "chính: bridgeCaps GET");

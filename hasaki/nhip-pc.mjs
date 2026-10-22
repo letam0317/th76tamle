@@ -257,6 +257,10 @@ if (process.argv[1] && process.argv[1].endsWith("nhip-pc.mjs")) {
     ghiJson(BO_F, bo, { thut: 0 });
   } catch { /* khong lam hong nhip tim */ }
 
+  // 1e) 22/10 user «ca admin may guong cung KHONG xem duoc clip lan du lieu Xac minh»: ban du phong nay chi giu BAN MA — don ban ro cu
+  //     do ban du phong de lai (guong ban ro, anh nho, du lieu keo kho Drive) tren MOI PC, ke ca may da thoi lam du phong (QLIT). Khong co dau -> 0 viec.
+  try { const { donBanRo } = await import("./don-ban-ro-du-phong.mjs"); await donBanRo(nk); } catch { /* khong lam hong nhip tim */ }
+
   // 2) CHAY BU: viec bi dung giua chung o may khac, dieu phoi chon may nay -> chay task "5S DP <viec>" ngay (van qua cong gac)
   if (r.nguon === "gas" && r.chuyen?.length) {
     const { mayChay } = await import("./dieu-phoi.mjs");

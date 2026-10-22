@@ -256,7 +256,7 @@ async function apiNtThu(req, res) {
 async function apiTkThu(req, res) {
   if (!laMayNay(req) || req.method !== "POST") return traJson(res, 403, { status: "error", message: "chỉ máy chạy bản QC" });
   const d = JSON.parse(await docThan(req, 1e5));
-  if (!/^tk_(khach|dangnhap|toi|dangxuat|doimk|ds|luu|xoa|luukhach)$/.test(String(d.action || ""))) return traJson(res, 400, { status: "error", message: "lệnh lạ" });
+  if (!/^(tk_(khach|dangnhap|toi|dangxuat|doimk|ds|luu|xoa|luukhach)|xmKhoaMa)$/.test(String(d.action || "")))   /* 22/10 + xmKhoaMa: khoá giải mã bản dự phòng (chỉ đọc, gác bằng phiên) */ return traJson(res, 400, { status: "error", message: "lệnh lạ" });
   const r = await fetch(NT_GAS_HEAD, { method: "POST", headers: { "Content-Type": "text/plain", Authorization: "Bearer " + await ntTokenChu() }, body: JSON.stringify(d) });
   res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }); res.end(await r.text());
 }

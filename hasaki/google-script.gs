@@ -171,6 +171,8 @@ function doPostGoc_(e) {
     if (duLieu && duLieu.action === 'pr_hoan') return keyBodyOK_(duLieu) ? apiPrHoan(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });
     if (duLieu && duLieu.action === 'pr_trangthai') return apiPrTrangThai(duLieu);
     if (duLieu && /^xm_(ds|tai|gui|khoa|xoa)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? apiXm(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 14/10 kho dữ liệu xác minh
+    if (duLieu && duLieu.action === 'xmKhoaMa') return apiXmKhoaMa_(duLieu);   // 22/10 khoá giải mã bản dự phòng — CHỈ phiên tài khoản có quyền Xác minh (KHÔNG nhận SECRET: máy trạm có SECRET)
+    if (duLieu && duLieu.action === 'xmDatKhoaMa') return keyBodyOK_(duLieu) ? apiXmDatKhoaMa_(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 22/10 laptop nạp khoá (chỉ ghi, không đọc)
     if (duLieu && /^dc_(them|lay|xong|trangthai|tai)$/.test(String(duLieu.action || ''))) return keyBodyOK_(duLieu) ? apiDc(duLieu) : phanHoiJson({ status: 'error', message: 'Sai key' });   // 05/10 dựng clip từ xa
     if (duLieu && duLieu.action === 'pr_hangdoi') return apiPrHangDoi(duLieu);
     if (duLieu && duLieu.action === 'requestStockSync') return apiRequestStockSync(duLieu);   // nút "Tải lại dữ liệu" — public, tự bảo vệ bằng cooldown 4h + chống spam cờ

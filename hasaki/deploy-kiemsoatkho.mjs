@@ -48,6 +48,9 @@ const FILES = [
   ["kiemsoatkho/kho170-topview.webp", "kho170-topview.webp"],
   ["kiemsoatkho/kho170-bocuc.js", "kho170-bocuc.js"],
   ["kiemsoatkho/tai-khoan.js", "tai-khoan.js"],             // 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory, Apps Script tk_*)
+  ["kiemsoatkho/sw.js", "sw.js"],
+  ["kiemsoatkho/giai-ma-guong.js", "giai-ma-guong.js"],     // 22/10 giải mã đoạn dùng chung sw.js + trang (đường lùi iPhone)
+  ["kiemsoatkho/guong-ma-trang.js", "guong-ma-trang.js"],   // 22/10 window.hxGuongMa — index.html nạp ngay sau hxDoMayChu                           // 22/10 bộ giải mã luồng bản dự phòng Xác minh mã hoá (chỉ chạm đường __giai-ma/, chỉ đăng ký khi bản dự phòng mã hoá)
   ["kiemsoatkho/dash-bocuc.js", "dash-bocuc.js"],           // 13/10 bố cục dashboard (bộ Chỉnh bố cục ở bản QC ghi, «Chốt phát hành» đẩy)
   ["kiemsoatkho/thanh-phan.css", "thanh-phan.css"],       // 21/10 chip trạng thái + nút dùng chung (Mẫu 1) — index.html nạp ở <head>
   ["kiemsoatkho/thanh-cuon.css", "thanh-cuon.css"],       // 17/10 thanh cuộn chung theo theme (mọi trang)

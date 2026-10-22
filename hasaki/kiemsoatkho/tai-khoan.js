@@ -328,6 +328,7 @@
       .catch(function () { return false; });
   }
   window.tkDoiPhienXm = doiPhienXm;
+  window.tkGoi = goi;   // 22/10 dùng chung cho index.html hxGuongMa (xmKhoaMa — khoá giải mã bản dự phòng) — cùng địa chỉ GAS / bản QC
   function bao() { try { document.dispatchEvent(new CustomEvent("tk-doi")); } catch (e) {} if (typeof window.homeRender === "function") try { window.homeRender(); } catch (e) {} }
 
   /* ---------- nạp: khách / kiểm phiên (1 lượt gọi Apps Script mỗi lần mở trang; nhớ 6 giờ để vẽ ngay) ---------- */

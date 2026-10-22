@@ -3,6 +3,43 @@
  * Cùng một dự án Apps Script → dùng chung hằng/hàm ở google-script.gs (SECRET, keyBodyOK_, phanHoiJson…). KHÔNG đặt bí mật ở tệp này.
  * deploy-gas.mjs chép sang .clasp-deploy/XacMinh.js — nhớ chạy qc-gas-gac.mjs (bảng lệnh–gác). */
 /* ==============================================================================================
+ *  KHOÁ GIẢI MÃ BẢN DỰ PHÒNG XÁC MINH · 22/10/2026
+ * ----------------------------------------------------------------------------------------------
+ *  User 22/10: «máy gương clip dự phòng phải để CẢ ADMIN của máy đó cũng KHÔNG xem được clip lẫn dữ liệu Xác minh, mà clip vẫn
+ *  phát nhanh, tua được». Laptop mã hoá mọi thứ đẩy sang máy dự phòng bằng khoá K (hasaki/guong-ma-hoa.mjs); máy dự phòng KHÔNG có K.
+ *  Trình duyệt người xem lấy K ở đây:
+ *   xmKhoaMa {phien}            → {khoa, vanTay}  — phiên tài khoản (TaiKhoan.gs tkPhien_) còn hạn + quyền r.xacminh «xem»/«làm».
+ *                                  KHÔNG nhận SECRET (APPSCRIPT_KEY nằm trên mọi máy trạm — nhận SECRET = trao K cho admin PC).
+ *                                  Trần 30 lần / 10 phút / tài khoản (CacheService).
+ *   xmDatKhoaMa {key, khoa, cuVanTay?} → {vanTay} — SECRET, CHỈ GHI (không bao giờ trả K). Đã có khoá khác thì phải gửi kèm vân tay
+ *                                  khoá cũ (16 hex đầu sha256) — máy trạm không biết K cũ nên không tráo được khoá.
+ *  K nằm ở Script Properties «XM_MA_KHOA» (base64 32 byte). Sinh + nạp: hasaki/tao-khoa-ma-xm.mjs.
+ * ============================================================================================== */
+function xmVanTay_(b64) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.base64Decode(b64)).map(function (x) { return ('0' + (x & 255).toString(16)).slice(-2); }).join('').slice(0, 16);
+}
+function xmKhoaHopLe_(k) { return /^[A-Za-z0-9+\/]{43}=$/.test(String(k || '')); }
+function apiXmDatKhoaMa_(d) {   // SECRET (router đã kiểm keyBodyOK_)
+  var k = String(d.khoa || '');
+  if (!xmKhoaHopLe_(k)) return phanHoiJson({ status: 'error', message: 'Khoá phải là 32 byte dạng base64 (44 ký tự)' });
+  var props = PropertiesService.getScriptProperties(), cu = props.getProperty('XM_MA_KHOA') || '';
+  if (cu && cu !== k && String(d.cuVanTay || '') !== xmVanTay_(cu)) return phanHoiJson({ status: 'error', code: 409, message: 'Đã có khoá khác — gửi kèm cuVanTay của khoá cũ để thay', vanTayCu: '' });
+  props.setProperty('XM_MA_KHOA', k);
+  return phanHoiJson({ status: 'success', vanTay: xmVanTay_(k) });
+}
+function apiXmKhoaMa_(d) {
+  var nTk = (typeof tkPhien_ === 'function') ? tkPhien_(d.phien || d.ph) : null;
+  if (!nTk) return phanHoiJson({ status: 'error', code: 401, message: 'Phiên đăng nhập đã hết — đăng nhập lại.' });
+  var q = nTk.quyen ? nTk.quyen['r.xacminh'] : '';
+  if (q !== 'xem' && q !== 'lam') return phanHoiJson({ status: 'error', code: 403, message: 'Tài khoản ' + nTk.id + ' chưa có quyền Xác minh.' });
+  var cache = CacheService.getScriptCache(), kd = 'xmkm_' + String(nTk.id).slice(0, 40), n = Number(cache.get(kd) || 0);
+  if (n >= 30) return phanHoiJson({ status: 'error', code: 429, message: 'Hỏi khoá giải mã quá nhiều lần — thử lại sau 10 phút.' });
+  cache.put(kd, String(n + 1), 600);
+  var k = PropertiesService.getScriptProperties().getProperty('XM_MA_KHOA') || '';
+  if (!xmKhoaHopLe_(k)) return phanHoiJson({ status: 'error', code: 503, message: 'Apps Script chưa có khoá giải mã (XM_MA_KHOA) — chạy tao-khoa-ma-xm.mjs trên laptop.' });
+  return phanHoiJson({ status: 'success', khoa: k, vanTay: xmVanTay_(k) });
+}
+/* ==============================================================================================
  *  DỰNG CLIP TỪ XA — hàng đợi cho Desktop-JE75K38 (máy in tem) · 05/10/2026
  * ----------------------------------------------------------------------------------------------
  *  User 05/10: "cách 2 đi, vì đang k ở cạnh pc" — laptop (mạng khách, không vào được mạng nội bộ)
@@ -155,3 +192,4 @@ function apiDc(duLieu) {
   }
   return phanHoiJson({ status: 'error', message: 'Lệnh dc lạ' });
 }
+

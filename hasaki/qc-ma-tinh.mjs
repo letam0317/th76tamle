@@ -13,7 +13,7 @@ import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi t
 
 const DIR = path.dirname(fileURLToPath(import.meta.url)), KS = path.join(DIR, "kiemsoatkho"), MOC_F = path.join(DIR, "cai-pc", "qc-ma-tinh-moc.json");
 const A = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith("--")).map((x) => { const [k, v] = x.slice(2).split("="); return [k, v ?? "1"]; }));
-export const TEP = ["tien-ich.js", "index.html","hasaki-xacminh.js", "hasaki-maytram.js", "hasaki-planogram.js", "factory-kiemke.js", "factory-stock.js", "hasaki-kiemke.js", "hasaki-pc.js", "hasaki-tonbatthuong.js", "tai-khoan.js", "bo-loc-ngay.js", "hasaki-giaodien-antd.js", "form.html", "nghiem-thu.html"];
+export const TEP = ["tien-ich.js", "index.html", "sw.js", "giai-ma-guong.js", "guong-ma-trang.js","hasaki-xacminh.js", "hasaki-maytram.js", "hasaki-planogram.js", "factory-kiemke.js", "factory-stock.js", "hasaki-kiemke.js", "hasaki-pc.js", "hasaki-tonbatthuong.js", "tai-khoan.js", "bo-loc-ngay.js", "hasaki-giaodien-antd.js", "form.html", "nghiem-thu.html"];
 const TIEN_ICH = ["esc", "e_", "$id", "toast", "hm", "ngayVN", "baoOk", "baoLoi", "docJ", "debounce"];
 const dem = (s, re) => (s.match(re) || []).length;
 const tap = (s, re, i = 1) => new Set([...s.matchAll(re)].map((m) => m[i]));

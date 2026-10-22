@@ -28,7 +28,12 @@
   var PHIEN = (function () { try { return localStorage.getItem("hx-phien") || ""; } catch (e) { return ""; } })();
   window.addEventListener("hx-phien", function () { try { PHIEN = localStorage.getItem("hx-phien") || ""; } catch (e) {} });   // 13/10: đăng nhập ở tab Máy trạm cũng mở Xác minh
   var datPhien = function (v) { PHIEN = v || ""; try { if (PHIEN) localStorage.setItem("hx-phien", PHIEN); else localStorage.removeItem("hx-phien"); } catch (e) {} try { window.dispatchEvent(new CustomEvent("hx-phien")); } catch (e) {} };
-  var u_ = function (p) { return p && p.charAt(0) === "/" ? API + p + (/^\/(anh|video|bc|cs)\//.test(p) ? (p.indexOf("?") < 0 ? "?" : "&") + "phien=" + PHIEN : "") : p; };
+  /* 22/10 bản dự phòng MÃ HOÁ (window.__HX_MA_HOA, index.html hxGuongMa): ảnh/clip đi đường giải mã nội bộ «__giai-ma/» (sw.js) thay /bc /anh /video /cs */
+  var maHoa_ = function () { return !!(window.__HX_MA_HOA && window.hxGuongMa); };
+  var u_ = function (p) {
+    if (p && maHoa_() && /^\/(anh|video|bc|cs)\//.test(p)) return window.hxGuongMa.tep(p);
+    return p && p.charAt(0) === "/" ? API + p + (/^\/(anh|video|bc|cs)\//.test(p) ? (p.indexOf("?") < 0 ? "?" : "&") + "phien=" + PHIEN : "") : p;
+  };
   var QD = ["Lập phiếu (NV Hasaki)", "Không phải NV Hasaki", "Xe ra / không vi phạm", "Không rõ – bỏ qua"];
   var tenLoai = function (l) { return l === "phan-loai" ? "Khu phân loại giấy" : "Bãi xe NCC"; };
   var ngayChu = function (s) { return String(s == null ? "" : s).replace(/\b(0[1-9]|1[0-2])-([0-3]\d)(?= \d{2}:\d{2})/g, "$2/$1"); };   // 13/10 chữ máy ghi "08-18 13:59" → "18/08 13:59" như mọi chỗ khác
@@ -446,6 +451,10 @@
   /* ---------- tải dữ liệu ---------- */
   function goi(path, opt) {
     opt = Object.assign({}, opt || {});
+    /* 22/10 bản dự phòng MÃ HOÁ: GET dữ liệu = bản chụp laptop đã mã hoá (giải ở sw.js); lệnh ghi vẫn gửi máy chủ (trả 503 «chỉ xem» như cũ) */
+    if (maHoa_() && (!opt.method || opt.method === "GET")) return window.hxGuongMa.api(path).catch(function (e) {
+      if (e && e.ma === 401 && e.canDangNhap) { datPhien(""); D = null; veDangNhap("Phiên đăng nhập đã hết — đăng nhập lại."); var x = new Error(e.message); x.dangNhap = 1; throw x; }
+      throw e; });
     var ctl = new AbortController(); var h = setTimeout(function () { ctl.abort(); }, opt.tg || 8000); delete opt.tg;   // tg: trần riêng (gọi qua Apps Script = 45 s, bộ chuẩn mục 3)
     opt.headers = Object.assign({}, opt.headers || {}, PHIEN ? { "x-hx-phien": PHIEN } : {});
     return fetch(API + path, Object.assign({ signal: ctl.signal }, opt)).then(function (r) { clearTimeout(h); return r.json().then(function (j) {
@@ -471,7 +480,10 @@
     /* 10/10 GIẬT LAG: nhịp 2' trước đây dựng lại CẢ tab dù dữ liệu y nguyên (capNhat đổi mỗi lần gọi) → chỉ vẽ khi nội dung đổi */
     return goi("/api/du-lieu").then(function (j) { taiXong(j, im); })
       .catch(function (e) { if (e && e.dangNhap) return; try { console.error("[xác minh] tải/vẽ lỗi:", e && e.stack || e); } catch (x) {} if (D && PANE.querySelector("#hxBody")) return;   /* đang có dữ liệu cũ (lượt tự tải lại hỏng) → giữ màn, không xoá trắng */
-        D = null; PANE.innerHTML = '<div class="panel" style="margin-top:14px"><div class="hx-trong"><b>Tab này chỉ mở được trên máy quản lý.</b><br>Dữ liệu xác minh có hình người và ảnh cổng bảo vệ nên không đưa lên mạng — máy chủ nội bộ chưa chạy hoặc bạn đang mở từ máy khác.</div></div>'; });
+        D = null;
+        if (maHoa_()) { PANE.innerHTML = '<div class="panel" style="margin-top:14px"><div class="hx-trong"><b>Không mở được bản dự phòng mã hoá.</b><br>' + e_((e && e.message) || "Lỗi giải mã") +
+          '<br>Laptop đang tắt — thử đăng xuất rồi đăng nhập lại, hoặc chờ laptop bật.</div></div>'; return; }
+        PANE.innerHTML = '<div class="panel" style="margin-top:14px"><div class="hx-trong"><b>Tab này chỉ mở được trên máy quản lý.</b><br>Dữ liệu xác minh có hình người và ảnh cổng bảo vệ nên không đưa lên mạng — máy chủ nội bộ chưa chạy hoặc bạn đang mở từ máy khác.</div></div>'; });
   }
   function taiXong(j, im) { var ky = ""; try { ky = JSON.stringify(Object.assign({}, j, { capNhat: 0 })); } catch (e) {}
     if (D && ky && ky === tai._ky) { D.capNhat = j.capNhat; return; } tai._ky = ky; D = j; GIU = {}; if (!im) ve(); }
@@ -1294,7 +1306,10 @@
     if (window.requestIdleCallback) requestIdleCallback(ganTitle, { timeout: 1500 }); else setTimeout(ganTitle, 200);
   }
   function coBC(p) { var b = bcPhieu(p); return !!(b.clip || b.moc.length || b.kho || b.trung || b.veSinh || (b.ls && b.ls.ds.some(function (x) { return x.clip; }))); }   // video thô KHÔNG tính — chưa dựng clip chuẩn thì chưa xem được
-  var thu_ = function (url) { return url ? API + "/thu?u=" + encodeURIComponent(String(url).replace(API, "").replace(/[?&]phien=[0-9a-f]*/, "")) + "&phien=" + PHIEN : ""; };   // 05/10 lag cuộn: ảnh nhỏ 320 px thay ảnh gốc
+  var thu_ = function (url) {
+    if (url && maHoa_()) return window.hxGuongMa.thu(url, API);   // 22/10 ảnh nhỏ bản mã (thiếu thì sw.js lùi về ảnh gốc); ảnh ngoài (hr-media) để nguyên
+    return url ? API + "/thu?u=" + encodeURIComponent(String(url).replace(API, "").replace(/[?&]phien=[0-9a-f]*/, "")) + "&phien=" + PHIEN : "";
+  };   // 05/10 lag cuộn: ảnh nhỏ 320 px thay ảnh gốc
   function dsMoTaBC(b) {
     var c = [];
     if (!b.clip && b.chupClip) c.push('<span class="hx-tag">Camera lúc chụp (chưa thấy người làm)</span>');
@@ -1721,7 +1736,8 @@
            «Đang tải clip…» tới khi có hình; lỗi nguồn → «Không tải được clip lượt này»; tự phát bị chặn → nút ▶ bấm để phát */
         k.classList.remove("hx-loi-clip", "hx-cham-phat"); k.classList.add("hx-dang-tai");
         v.addEventListener("loadeddata", function () { k.classList.remove("hx-dang-tai"); }, { once: true });
-        v.addEventListener("error", function () { k.classList.remove("hx-dang-tai"); k.classList.add("hx-loi-clip"); }, { once: true });
+        v.addEventListener("error", function () { k.classList.remove("hx-dang-tai"); if (v.__gmK) return;   /* 22/10 bản mã hoá: đường lùi blob (guong-ma-trang.js) đang tải — tự báo «Đang tải clip x%» */
+          k.classList.add("hx-loi-clip"); }, { once: true });
         var pl = v.play(); if (pl && pl.catch) pl.catch(function () { k.classList.add("hx-cham-phat"); });
         k.onclick = function (ev) { if (k.classList.contains("hx-cham-phat") && !ev.target.closest(".hx-pd,.hx-tl-hang")) { k.classList.remove("hx-cham-phat"); v.play().catch(function () {}); } };
         dangXem = { n: n, v: v, bd: bd }; tlTacVu(v, bd, sk);

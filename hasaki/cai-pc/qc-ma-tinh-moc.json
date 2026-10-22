@@ -38,8 +38,7 @@
    769,
    820,
    940,
-   1200,
-   1300
+   1200
   ],
   "dongDai": 51,
   "cdnKhongGhim": 0
@@ -85,7 +84,7 @@
    900,
    1200
   ],
-  "dongDai": 174,
+  "dongDai": 176,
   "cdnKhongGhim": 0
  },
  "hasaki-maytram.js": {
@@ -216,7 +215,7 @@
    820,
    1024
   ],
-  "dongDai": 24,
+  "dongDai": 18,
   "cdnKhongGhim": 0
  },
  "hasaki-pc.js": {
@@ -361,7 +360,7 @@
   "dongDai": 13,
   "cdnKhongGhim": 1
  },
- "_luc": "2026-10-21T04:25:21.233Z",
+ "_luc": "2026-10-22T09:59:58.270Z",
  "_ghiTho": {
   "agy-xm.mjs": 5,
   "ai-hoi-anh.mjs": 1,
@@ -399,7 +398,7 @@
   "doc-chat-qltt.mjs": 1,
   "doi-soat-kiemke.mjs": 1,
   "dung-clip-agent.mjs": 3,
-  "duong-ham-591.mjs": 2,
+  "duong-ham-591.mjs": 1,
   "ep-tuoi.mjs": 1,
   "export-pc.mjs": 1,
   "ghi-tac-dong-may.mjs": 1,
@@ -499,6 +498,136 @@
   "_trung-anh.mjs": 2
  },
  "tien-ich.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
+ },
+ "kho170-sodo.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 1,
+  "cdnKhongGhim": 0
+ },
+ "kho170-3d.html": {
+  "hex": 67,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [
+   "chip",
+   "ddb",
+   "mnX",
+   "on"
+  ],
+  "lopChip": [],
+  "media": [
+   600,
+   760
+  ],
+  "dongDai": 13,
+  "cdnKhongGhim": 1
+ },
+ "kho170-thongso.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 1,
+  "cdnKhongGhim": 0
+ },
+ "kho170-vach.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 1,
+  "cdnKhongGhim": 0
+ },
+ "kho170-topview.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 1,
+  "cdnKhongGhim": 0
+ },
+ "kho170-bocuc.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
+ },
+ "dash-bocuc.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
+ },
+ "dash-bocuc-ap.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [
+   769
+  ],
+  "dongDai": 3,
+  "cdnKhongGhim": 0
+ },
+ "taisan-vitri.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 1,
+  "cdnKhongGhim": 0
+ },
+ "sw.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
+ },
+ "giai-ma-guong.js": {
+  "hex": 0,
+  "tienIch": {},
+  "lopBang": [],
+  "lopNut": [],
+  "lopChip": [],
+  "media": [],
+  "dongDai": 0,
+  "cdnKhongGhim": 0
+ },
+ "guong-ma-trang.js": {
   "hex": 0,
   "tienIch": {},
   "lopBang": [],

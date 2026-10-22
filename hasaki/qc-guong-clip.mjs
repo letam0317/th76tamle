@@ -3,6 +3,8 @@
  *   · bật bản dự phòng THỬ ở cổng 8593 (XM_DU_PHONG=1) với thư mục bằng chứng TẠM (BAIXE_DIR=<tạm>/bai-xe) — 8591 thật chỉ bị ĐỌC /api/du-lieu;
  *   · bản thứ 2 ở 8594 trần gương rất nhỏ để thử «vượt trần → xoá tệp gương cũ nhất không còn tham chiếu»;
  *   · (mặc định) 1 đường hầm cloudflared riêng trỏ vào 8593 — ca đi qua hầm. --khong-ham để bỏ.
+ * 22/10 (chiều): bản dự phòng nay MẶC ĐỊNH mã hoá (qc-guong-ma-hoa.mjs đo phần đó) và laptop KHÔNG còn đẩy bản rõ ⇒ bộ này đo lối gương
+ *   BẢN RÕ CŨ của máy chủ (XM_MA_HOA=0 — đường lùi tay khi cần) bằng PUT trực tiếp, cộng ca «laptop mới từ chối đẩy bản rõ».
  * Dùng: node qc-guong-clip.mjs [--khong-ham]   → xoá thư mục tạm + tắt mọi tiến trình thử khi xong. */
 import fs from "node:fs";
 import os from "node:os";
@@ -27,12 +29,16 @@ let dat = 0, truot = 0; const ok = (d, t) => { d ? dat++ : truot++; console.log(
 const ngu = (ms) => new Promise((r) => setTimeout(r, ms));
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
 const ky = (pt, rel, co, s, luc = Date.now(), khoa = KHOA) => ({ "x-guong-luc": String(luc), "x-guong-ky": kyGuong(khoa, { pt, rel, luc, co, sha: s }) });
-const put = (goc, rel, buf, h = ky("PUT", rel, buf.length, sha(buf))) => fetch(goc + "/api/guong-clip?p=" + encodeURIComponent(rel), { method: "PUT", body: buf, headers: { "x-guong-sha256": sha(buf), ...h } }).then(async (r) => ({ ma: r.status, j: await r.json().catch(() => ({})) }), () => ({ ma: 0, j: {} }));
+const put = (goc, rel, buf, h = ky("PUT", rel, buf.length, sha(buf)), mt) => fetch(goc + "/api/guong-clip?p=" + encodeURIComponent(rel), { method: "PUT", body: buf, headers: { "x-guong-sha256": sha(buf), ...(mt ? { "x-guong-mtime": String(mt) } : {}), ...h } }).then(async (r) => ({ ma: r.status, j: await r.json().catch(() => ({})) }), () => ({ ma: 0, j: {} }));
+/* 22/10: 5 tệp thật nhỏ (đường tương đối → tệp gốc trên laptop) — đẩy THẲNG bằng PUT (laptop không còn lối đẩy bản rõ) */
+const TEP5 = ["may/13808701_CHUP-09190804.jpg", "may/13881466_CHUP-09240843.jpg", "may/14047709_KHO-10041614.jpg", "bai-xe/2026-10-15/BXM-080832.jpg", "bai-xe-tam/2026-10-15/BXM-luot-080642-113s.mp4"];
+const gocCua = (rel) => (rel.startsWith("bai-xe-tam/") ? path.join(DIR, ".exports", ".bai-xe-tam", ...rel.split("/").slice(1)) : path.join(BC_THAT, ...rel.split("/")));
+const dayThang = async (goc, rels) => { let n = 0; for (const r of rels) { const f = gocCua(r); if ((await put(goc, r, fs.readFileSync(f), undefined, Math.round(fs.statSync(f).mtimeMs))).ma === 200) n++; } return n; };
 const coDs = (goc) => fetch(goc + "/api/guong-clip/co", { headers: ky("GET", "", 0, "") }).then((r) => r.json()).then((j) => j.tep || {}, () => ({}));
-const chayGuong = (...a) => { const r = spawnSync(process.execPath, ["guong-clip-du-phong.mjs", ...a], { cwd: DIR, encoding: "utf8", env: { ...process.env, TIEN_DO: "0" }, timeout: 600e3 }); return String(r.stdout || "") + String(r.stderr || ""); };
+const chayGuong = (...a) => { const r = spawnSync(process.execPath, ["guong-clip-du-phong.mjs", ...a], { cwd: DIR, encoding: "utf8", env: { ...process.env, TIEN_DO: "0", XM_MA_KHOA: "" }, timeout: 600e3 }); return String(r.stdout || "") + String(r.stderr || ""); };
 
 const tienTrinh = [];
-const bat = (cong, tam, them = {}) => { const c = spawn(process.execPath, ["bang-591.mjs"], { cwd: DIR, env: { ...process.env, XM_DU_PHONG: "1", BANG591_PORT: String(cong), BAIXE_DIR: path.join(tam, "bai-xe"), ...them }, windowsHide: true, stdio: "ignore" }); tienTrinh.push(c); return c; };
+const bat = (cong, tam, them = {}) => { const c = spawn(process.execPath, ["bang-591.mjs"], { cwd: DIR, env: { ...process.env, XM_DU_PHONG: "1", XM_MA_HOA: "0", XM_KHONG_TU_NAP: "1", BANG591_PORT: String(cong), BAIXE_DIR: path.join(tam, "bai-xe"), ...them }, windowsHide: true, stdio: "ignore" }); tienTrinh.push(c); return c; };
 const don = () => { for (const c of tienTrinh) try { c.kill(); } catch { /* */ } };
 process.on("exit", don);
 
@@ -49,7 +55,7 @@ try {
   bat(8593, TAM); bat(8594, TAM2, { GUONG_TRAN_GB: String(250e3 / 1024 ** 3) });   // 8594: trần ~250 KB
   for (let i = 0; i < 40; i++) { if (await fetch(D + "/api/ping").then((r) => r.ok, () => false) && await fetch(D2 + "/api/ping").then((r) => r.ok, () => false)) break; await ngu(500); }
   const pj = await fetch(D + "/api/ping").then((r) => r.json(), () => ({}));
-  ok(pj.duPhong === 1 && pj.guong === 1, "ping bản dự phòng thử: duPhong + guong");
+  ok(pj.duPhong === 1 && pj.guong === 1 && pj.maHoa === 0, "ping bản dự phòng thử (XM_MA_HOA=0): duPhong + guong, maHoa 0");
 
   // --- xác thực ---
   ok((await fetch(D + "/api/guong-clip/co")).status === 401, "không chữ ký → 401");
@@ -71,11 +77,14 @@ try {
   const sai = await fetch(D + "/api/guong-clip?p=may%2Fsai.jpg", { method: "PUT", body: b0, headers: { "x-guong-sha256": sha(Buffer.from("x")), ...ky("PUT", "may/sai.jpg", 3, sha(Buffer.from("x"))) } });
   ok(sai.status === 400 && !fs.existsSync(path.join(TAM, "may", "sai.jpg")), "thân không khớp sha256 → 400, không để lại tệp");
 
-  // --- script: --thu không đẩy; lần 1 đẩy 5; lần 2 đẩy 0 ---
-  const t0 = chayGuong("--thu", "--dich=" + D, "--loc=" + LOC);
-  ok(/sẽ đẩy 5 tệp/.test(t0) && Object.keys(await coDs(D)).length === 0, "--thu: liệt kê 5 tệp, không đẩy (" + (t0.match(/sẽ đẩy \d+ tệp[^\n]*/) || [""])[0] + ")");
-  const t1 = chayGuong("--dich=" + D, "--loc=" + LOC);
-  ok(/đã đẩy 5 tệp/.test(t1) && /hỏng 0/.test(t1), "lượt 1 đẩy 5 tệp (" + (t1.match(/đã đẩy[^\n]*/) || [t1.slice(-200)])[0] + ")");
+  // --- 22/10: laptop mới KHÔNG BAO GIỜ đẩy bản rõ: thiếu khoá → dừng; có khoá mà đích không mã hoá → không đẩy gì ---
+  const t0 = chayGuong("--dich=" + D, "--loc=" + LOC);
+  ok(/thiếu\/hỏng XM_MA_KHOA/.test(t0) && Object.keys(await coDs(D)).length === 0, "laptop thiếu XM_MA_KHOA → dừng, không đẩy bản rõ");
+  const t0b = spawnSync(process.execPath, ["guong-clip-du-phong.mjs", "--dich=" + D, "--loc=" + LOC], { cwd: DIR, encoding: "utf8", env: { ...process.env, TIEN_DO: "0", XM_MA_KHOA: crypto.randomBytes(32).toString("base64"), GUONG_MA_SO: path.join(TAM, "so-thu.json") }, timeout: 300e3 });
+  ok(/từ chối liệt kê/.test(String(t0b.stdout)) && Object.keys(await coDs(D)).length === 0, "laptop có khoá, đích CHƯA mã hoá → không đẩy gì (" + (String(t0b.stdout).match(/✗[^\n]*/) || [""])[0].slice(0, 90) + ")");
+  try { fs.rmSync(path.join(TAM, "so-thu.json"), { force: true }); } catch { /* */ }
+  const n1 = await dayThang(D, TEP5);
+  ok(n1 === 5, "PUT thẳng 5 tệp vào lối gương bản rõ cũ → " + n1 + "/5");
   const co = await coDs(D); let khop = 0, n = 0;
   for (const [rel, c] of Object.entries(co)) { n++; const goc = rel.startsWith("bai-xe-tam/") ? path.join(DIR, ".exports", ".bai-xe-tam", ...rel.split("/").slice(1)) : path.join(BC_THAT, ...rel.split("/")); if (fs.statSync(goc).size === c) khop++; }
   ok(n === 5 && khop === 5, "«co» liệt kê " + n + " tệp, đúng cỡ " + khop + "/5");
@@ -92,8 +101,6 @@ try {
   ok(rv.status === 200 && sha(bVid) === sha(fs.readFileSync(path.join(DIR, ".exports", ".bai-xe-tam", "2026-10-15", "BXM-luot-080642-113s.mp4"))), "Theo máy: /video/" + lId + "/0 (ket-qua.json ghi đường của máy khác) → tìm ra bản gương, đúng byte");
   const rr = await fetch(D + "/video/" + lId + "/0", { headers: { "x-hx-phien": PHIEN, "user-agent": "Mozilla/5.0", range: "bytes=0-99" } });
   ok(rr.status === 206 && (await rr.arrayBuffer()).byteLength === 100, "video gương tua được (Range → 206)");
-  const t2 = chayGuong("--dich=" + D, "--loc=" + LOC);
-  ok(/thiếu\/khác cỡ 0/.test(t2) && /đã đẩy 0 tệp/.test(t2), "lượt 2: đã đủ, đẩy 0 tệp");
   // giờ sửa giữ theo laptop (để dong-bo-xm «ra» trên PC không đẩy ngược lên kho Drive)
   const mtG = fs.statSync(path.join(TAM, "may", "13808701_CHUP-09190804.jpg")).mtimeMs, mtL = fs.statSync(path.join(BC_THAT, "may", "13808701_CHUP-09190804.jpg")).mtimeMs;
   ok(Math.abs(mtG - mtL) < 2000, "tệp gương giữ giờ sửa của laptop");
@@ -124,8 +131,8 @@ try {
     if (song) {
       ok((await fetch(HAM + "/api/guong-clip/co")).status === 401, "qua hầm, không chữ ký → 401");
       ok((await fetch(HAM + "/api/guong-clip/co", { headers: { "x-hx-phien": PHIEN, "user-agent": "Mozilla/5.0" } })).status === 401, "qua hầm, có PHIÊN đăng nhập nhưng không chữ ký → 401 (phiên không mở được gương)");
-      const th = chayGuong("--dich=" + HAM, "--loc=^may/14047705_CHUP-10050943\\.jpg$");
-      ok(/đã đẩy 1 tệp/.test(th), "qua hầm: đẩy 1 tệp (" + (th.match(/đã đẩy[^\n]*/) || [th.slice(-200)])[0] + ")");
+      const bh0 = fs.readFileSync(path.join(BC_THAT, "may", "14047705_CHUP-10050943.jpg"));
+      ok((await put(HAM, "may/14047705_CHUP-10050943.jpg", bh0)).ma === 200, "qua hầm: PUT 1 tệp có chữ ký → 200");
       ok((await fetch(HAM + "/bc/may/14047705_CHUP-10050943.jpg", { headers: { "user-agent": "Mozilla/5.0" } })).status === 401, "qua hầm: xem /bc/ không phiên → 401");
       const bh = Buffer.from(await (await fetch(HAM + "/bc/may/14047705_CHUP-10050943.jpg", { headers: { "x-hx-phien": PHIEN, "user-agent": "Mozilla/5.0" } })).arrayBuffer());
       ok(sha(bh) === sha(fs.readFileSync(path.join(BC_THAT, "may", "14047705_CHUP-10050943.jpg"))), "qua hầm: /bc/ có phiên = đúng byte gốc");
