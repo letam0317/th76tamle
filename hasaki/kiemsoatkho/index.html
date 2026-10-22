@@ -28,7 +28,7 @@ window.GOC_DL=/\.pages\.dev$|^(localhost|127\.0\.0\.1)$/.test(location.hostname)
 <!-- TĂNG TỐC: tải dữ liệu tính sẵn SONG SONG với việc dựng trang (tiết kiệm 1 vòng mạng) -->
 <!-- index.json nạp kèm cache-buster trong JS (luôn tươi) nên không preload URL tĩnh (tránh fetch trùng) -->
 <link rel="preconnect" href="https://docs.google.com" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,3 39.8,23.9 62,24.5 44.3,38.3 50.6,60 32,47.2 13.4,60 19.7,38.3 2,24.5 24.2,23.9' fill='%23d81e05'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='2 1.5 60 60'%3E%3Cpolygon points='32,3 39.8,23.9 62,24.5 44.3,38.3 50.6,60 32,47.2 13.4,60 19.7,38.3 2,24.5 24.2,23.9' fill='%23d81e05'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <!-- TĂNG TỐC 05/09/2026: font Inter KHÔNG chặn vẽ trang (media=print → all khi tải xong; chữ hệ thống hiện trước, swap sau).
@@ -1567,7 +1567,7 @@ body.side-anim{overflow-x:clip;}
 <!-- 12/10 giao diện Ant Design: LIVE mặc định (user "theo ant design chưa live"); nạp ĐỒNG BỘ ở head để khung hình đầu đã đúng kiểu, tắt trong Cài đặt -->
 <script>window.AD_BI_DANH={"tonkho/kiemke":"kk","tonkho/batthuong":"kk#pane-htonbat"};   /* 15/10 link cũ → mục gộp «Tồn kho chính xác» */ window.AD_TEN='Audit Retail'; window.AD_CHUYEN={ten:'Audit Factory', app:'factory'};</script>   <!-- 13/10 user: Audit Hasaki → Audit Retail + nút sang Factory cuối thanh bên -->
 <script src="tien-ich.js?v=20261020a"></script><!-- 20/10 tiện ích chung: esc/$id/hm/ngayVN — nạp TRƯỚC mọi mô-đun -->
-<script src="hasaki-giaodien-antd.js?v=20261022d"></script>
+<script src="hasaki-giaodien-antd.js?v=20261022e"></script>
 <script src="tai-khoan.js?v=20261022d"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
 <link rel="stylesheet" href="thanh-phan.css?v=20261021a"><!-- 21/10 chip trạng thái + nút dùng chung mọi tab (Mẫu 1 đánh giá 20/10) -->
 <link rel="stylesheet" href="thanh-cuon.css?v=20261022a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->

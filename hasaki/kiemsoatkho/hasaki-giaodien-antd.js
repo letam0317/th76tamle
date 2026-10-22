@@ -188,7 +188,7 @@
     H + " #sideNav .s-item.on .sn{color:var(--accent)}",
     /* logo đầu thanh bên — trượt cùng thanh bên */
     "#adLogo{display:none}",
-    H + " #adLogo{display:flex;align-items:center;gap:4px;position:fixed;   /* 22/10 user: khoảng logo ↔ chữ còn 1/2 (8 → 4px) */top:0;left:0;z-index:61;width:216px;height:56px;padding:0 24px;" +
+    H + " #adLogo{display:flex;align-items:center;gap:8px;position:fixed;top:0;left:0;z-index:61;width:216px;height:56px;padding:0 24px;" +
       "background:var(--surface);border-right:1px solid var(--ad-chia);font-size:16px;font-weight:600;color:var(--text);white-space:nowrap;" +
       "transform:translate3d(-100%,0,0);visibility:hidden;transition:transform .32s var(--ez-apple,ease),visibility 0s linear .32s}",
     H + " #adLogo img{width:24px;height:24px;border-radius:50%;flex:none}",
