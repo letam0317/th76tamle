@@ -1740,7 +1740,7 @@
     if (!g) return; var x0 = g.ds[0], coTS = g.ds.some(function (x) { return x.truong; });
     var lk = function (id) { return id ? '<a class="status-link" href="https://work.hasaki.vn/tasks?task_id=' + e_(id) + '" target="_blank" rel="noopener">' + e_(id) + "</a>" : '<span class="muted">—</span>'; };
     $id("mTitle").innerHTML = e_(x0.ten) + ' <span class="stat-sub">' + e_(x0.hd) + " · " + g.ds.length + " lượt</span>";
-    $id("mBody").innerHTML = '<div class="hx-tg-ct"><div class="muted" style="margin:0 0 12px">' + e_(x0.cach) + " · " + e_(x0.may) + (x0.chuoi.indexOf(" › ") > 0 ? " · gọi từ " + e_(x0.chuoi.split(" › ").slice(0, -1).join(" › ")) : "") + "</div>" +
+    $id("mBody").innerHTML = '<div class="hx-tg-ct"><div class="muted" style="margin:0 0 12px">' + (x0.tk ? "Tài khoản " + e_(x0.tk) + " · " : "") + e_(x0.cach) + " · " + e_(x0.may) + (x0.chuoi.indexOf(" › ") > 0 ? " · gọi từ " + e_(x0.chuoi.split(" › ").slice(0, -1).join(" › ")) : "") + "</div>" +
       '<div class="table-wrap"><table class="mbcard hx-tg-bang"><thead><tr><th style="width:110px">Lúc</th><th style="width:100px">Phiếu</th>' + (coTS ? '<th style="width:90px">Trường</th><th>Trước khi điều chỉnh</th><th>Sau khi điều chỉnh</th>' : "<th>Nội dung · ảnh</th>") + "</tr></thead><tbody>" +
       g.ds.slice().reverse().map(function (x) { var k = coTS ? khacBiet(x.truoc, x.sau) : null;
         return "<tr><td data-lb=\"Lúc\">" + e_(x.t.slice(8, 10) + "/" + x.t.slice(5, 7) + " " + x.t.slice(11, 19)) + '</td><td class="mb-hd">' + lk(x.phieu) + "</td>" +
@@ -1757,23 +1757,24 @@
     if (LOC.tgNgay && !Array.isArray(LOC.tgNgay)) LOC.tgNgay = "";   // 19/10 bộ lọc ngày chuẩn: bỏ giá trị cũ kiểu "số ngày lùi"
     var ngayCo = {}; all.forEach(function (x) { ngayCo[String(x.t).slice(0, 10)] = 1; });
     var ds = all.filter(function (x) { return (!LOC.tgBo || x.ten === LOC.tgBo) && (!LOC.tgHd || x.hd === LOC.tgHd) && trongKhoang(String(x.t).slice(0, 10), LOC.tgNgay) &&
-      (!q || (x.phieu + " " + x.ten + " " + x.chuoi + " " + (x.nguoi || "") + " " + x.nd + " " + x.tep.join(" ")).toLowerCase().indexOf(q) >= 0); });
+      (!q || (x.phieu + " " + x.ten + " " + x.chuoi + " " + (x.nguoi || "") + " " + (x.tk || "") + " " + x.nd + " " + x.tep.join(" ")).toLowerCase().indexOf(q) >= 0); });
     var h = boLoc([{ k: "tgBo", lbl: "Bộ nào làm", v: LOC.tgBo || "", opt: [["", "Tất cả (" + all.length + ")"]].concat(Object.keys(demB).sort(function (a, b) { return demB[b] - demB[a]; }).map(function (k) { return [k, k + " (" + demB[k] + ")"]; })) },
       { k: "tgHd", lbl: "Làm gì", v: LOC.tgHd || "", opt: [["", "Tất cả"]].concat(Object.keys(demH).sort(function (a, b) { return demH[b] - demH[a]; }).map(function (k) { return [k, k + " (" + demH[k] + ")"]; })) },
       { k: "tgNgay", lbl: "Ngày", ngay: 1, v: LOC.tgNgay || "", coDuLieu: function (iso) { return !!ngayCo[iso]; }, nhan: function (a, b) { return a ? "" : "14 ngày"; },
         presets: [{ k: "today", lb: "Hôm nay" }, { k: "yesterday", lb: "Hôm qua" }, { k: "3", lb: "3 ngày" }, { k: "7", lb: "7 ngày" }, { k: "all", lb: "Tất cả" }] },
-      { k: "tim", lbl: "Tìm (mã phiếu / người gửi / tên ảnh)", input: 1, v: TIM, ph: "14082801 / Nguyễn… / bang-chung…" }]);
+      { k: "tim", lbl: "Tìm (mã phiếu / người gửi / tài khoản / tên ảnh)", input: 1, v: TIM, ph: "14082801 / Nguyễn… / tamlc / bang-chung…" }]);
     var link = function (id) { return "https://work.hasaki.vn/tasks?task_id=" + id; };
     var oPhieu = function (x) { return x.phieu ? '<a class="status-link" href="' + e_(link(x.phieu)) + '" target="_blank" rel="noopener">' + e_(x.phieu) + '</a>' + (x.doan ? ' <span class="muted" title="Máy suy ra từ phiếu vừa đọc trước đó">(suy ra)</span>' : "") : '<span class="muted">—</span>'; };
     var oBo = function (x) { return '<b>' + e_(x.ten) + '</b>' + (x.chuoi.indexOf(" › ") > 0 ? '<div class="muted" style="font-size:12px">gọi từ ' + e_(x.chuoi.split(" › ").slice(0, -1).join(" › ")) + '</div>' : "") +
       (x.nguoi ? '<div style="font-size:13px;margin-top:2px">Người gửi: <b>' + e_(x.nguoi) + '</b></div>' : "") +
+      (x.tk ? '<div style="font-size:13px;margin-top:2px">Tài khoản: <b>' + e_(x.tk) + '</b></div>' : "") +   // 22/10 thao tác của người dùng tài khoản
       '<div class="muted" style="font-size:12px">' + e_(x.cach) + ' · ' + e_(x.may) + '</div>'; };
     var oViec = function (x) { return '<span class="hx-tag ' + (HD_TAG[x.hd] || "") + '">' + e_(x.hd) + '</span>' + (x.ok ? "" : ' <span class="hx-tag bad">lỗi</span>'); };
     var oNd = function (x) { return (x.nd ? '<div class="hx-l2" title="' + e_(boTag_(x.nd)) + '">' + eTag_(x.nd) + '</div>' : "") + (x.tep.length ? '<div class="muted" style="font-size:12px">Tệp: ' + e_(x.tep.join(", ")) + '</div>' : "") || '<span class="muted">—</span>'; };
     var luc = function (x) { return x.t.slice(8, 10) + "/" + x.t.slice(5, 7) + " " + x.t.slice(11, 16); };
     /* 13/10 user: «cùng 1 thông tin trong 1 khoảng thời gian liên tiếp thì GOM NHÓM, bấm vào ra pop-up chi tiết; hiển thị TRƯỚC VÀ SAU KHI ĐIỀU CHỈNH».
        Gom = các lượt LIỀN NHAU cùng bộ · việc · máy · cách chạy · kết quả, lượt sau cách lượt trước ≤ 10 phút. */
-    var khoaNhom = function (x) { return [x.ten, x.chuoi, x.hd, x.may, x.cach, x.ok, x.nguoi || ""].join("|"); };
+    var khoaNhom = function (x) { return [x.ten, x.chuoi, x.hd, x.may, x.cach, x.ok, x.nguoi || "", x.tk || ""].join("|"); };
     var ms = function (x) { return Date.parse(String(x.t).replace(" ", "T") + "+07:00"); };
     var nhom = []; ds.forEach(function (x) { var g = nhom[nhom.length - 1];
       if (g && khoaNhom(g.ds[0]) === khoaNhom(x) && ms(g.ds[g.ds.length - 1]) - ms(x) <= 10 * 60e3) g.ds.push(x); else nhom.push({ ds: [x] }); });
@@ -1784,7 +1785,7 @@
     var ndNhom = function (g) { if (g.ds.length === 1) return oNd(g.ds[0]);
       var co = g.ds.filter(function (x) { return x.truong; }).length;
       var tr = g.ds.find(function (x) { return x.truong; }); return (co ? '<div>Đổi <b>' + e_((TEN_TRUONG[tr.truong] || tr.truong).toLowerCase()) + "</b> · " + co + " phiếu có trước / sau</div>" : oNd(g.ds[0])); };
-    h += '<div class="panel"><div class="panel-head"><span>Nhật ký máy ghi lên work.hasaki.vn</span><span>' + ds.length + " lượt · " + nhom.length + " nhóm</span></div>" +
+    h += '<div class="panel"><div class="panel-head"><span>Nhật ký máy và người dùng (ghi lên work.hasaki.vn + thao tác trên trang)</span><span>' + ds.length + " lượt · " + nhom.length + " nhóm</span></div>" +
       '<div class="table-wrap"><table class="hx-t-tg" style="table-layout:fixed;width:100%;min-width:0"><thead><tr><th style="width:12%">Lúc</th><th style="width:24%">Bộ nào làm</th><th style="width:16%">Làm gì</th><th style="width:12%">Phiếu</th><th>Nội dung · ảnh</th></tr></thead><tbody>' +
       (nhomHien.map(function (g, i) { var x = g.ds[0];
         return '<tr class="hx-tg-nhom" data-tg="' + i + '" title="Xem chi tiết từng lượt"><td>' + e_(lucNhom(g)) + '</td><td style="white-space:normal">' + oBo(x) + "</td><td>" + oViec(x) + (g.ds.length > 1 ? ' <span class="hx-tag">× ' + g.ds.length + "</span>" : "") +

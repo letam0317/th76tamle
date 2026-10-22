@@ -11,6 +11,7 @@
  *  0 lượt gọi thêm lên upstream: chỉ đọc lại body/phản hồi của chính lượt gọi đó.
  *  Tuyệt đối không được làm hỏng lượt gọi: mọi bước ghi sổ nằm trong try/catch.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import fs from "node:fs"; import path from "node:path"; import os from "node:os"; import crypto from "node:crypto"; import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -45,6 +46,19 @@ process.env.HSK_CHUOI_TAC_GIA = CHUOI;
 /* Ai bấm chạy: Claude Code đặt CLAUDECODE=1; có bàn phím (TTY) = chạy tay; còn lại = lịch nền / tiến trình con. */
 const CACH = process.env.CLAUDECODE ? "Claude (phiên AI)" : process.stdin && process.stdin.isTTY ? "Chạy tay" : "Lịch nền";
 
+/* 22/10 user «đã phân bổ tài khoản cho người dùng thì bổ sung luôn người dùng thao tác gì ở mục Nhật ký — theo luật đã lưu của Nhật ký»:
+   máy chủ 8591 chạy mỗi lượt bấm của tài khoản trong voiNguoi() ⇒ lượt ghi work trong lượt bấm đó mang tên tài khoản (tk), còn lượt bấm
+   không đụng work (quyết định, tác động vật lý, lệnh máy trạm…) ghi 1 dòng bằng ghiThaoTac — CÙNG khuôn dòng sổ, cùng luật gom nhóm ≤10′. */
+const NGUOI = new AsyncLocalStorage();
+export function voiNguoi(nguoi, fn) { return NGUOI.run({ nguoi, soGhiWork: 0 }, fn); }
+/* gắn người cho PHẦN CÒN LẠI của lượt xử lý hiện tại (máy chủ gọi datNguoi(null) đầu mỗi yêu cầu để không rò sang lượt sau) */
+export function datNguoi(nguoi) { NGUOI.enterWith(nguoi ? { nguoi, soGhiWork: 0 } : undefined); }
+export function nguCanh() { return NGUOI.getStore() || null; }
+export function ghiThaoTac(o) {
+  const c = NGUOI.getStore();
+  ghi(Object.assign({ t: vn(Date.now()), bo: SCRIPT, ten: "Người dùng bấm trên trang", chuoi: CHUOI, cach: "Bấm trên trang", may: (c && c.nguoi && c.nguoi.thietBi) || os.hostname(),
+    tk: c && c.nguoi ? c.nguoi.id : undefined }, o));
+}
 let phieuGanNhat = "";
 /* bản đọc gần nhất của từng phiếu (lượt GET task-input mà chính bộ chạy vốn đã gọi) → lấy GIÁ TRỊ TRƯỚC khi sửa — 0 lượt gọi thêm */
 const banDoc = new Map();   // phiếu vừa đọc trong tiến trình này — dùng cho lượt ghi chỉ có id bước (re-create-step)
@@ -121,8 +135,9 @@ if (typeof globalThis.fetch === "function" && !globalThis.fetch.__soTacGia) {
       let doan = false;
       if (!phieu && phieuGanNhat && /re-create-step|task-input/.test(u.pathname)) { phieu = phieuGanNhat; doan = true; }
       if (phieu) phieuGanNhat = phieu;
-      ghi({ t: vn(t0), bo: SCRIPT, ten: TEN_BO[SCRIPT] || (SCRIPT.startsWith("_") ? "Script làm tay (" + SCRIPT + ")" : SCRIPT), chuoi: CHUOI, cach: CACH,
-        may: os.hostname(), hd, phieu, doan: doan || undefined, idMoi: idMoi && idMoi !== phieu ? idMoi : undefined,
+      const nc = NGUOI.getStore(); if (nc) nc.soGhiWork++;
+      ghi({ t: vn(t0), bo: SCRIPT, ten: nc ? "Người dùng bấm trên trang" : TEN_BO[SCRIPT] || (SCRIPT.startsWith("_") ? "Script làm tay (" + SCRIPT + ")" : SCRIPT), chuoi: CHUOI, cach: nc ? "Bấm trên trang" : CACH,
+        may: (nc && nc.nguoi.thietBi) || os.hostname(), tk: nc ? nc.nguoi.id : undefined, hd, phieu, doan: doan || undefined, idMoi: idMoi && idMoi !== phieu ? idMoi : undefined,
         nguoiThat: globalThis.__HSK_NGUOI_THAT || undefined,   // người thật đứng sau (vd người gửi form 5S) — bộ gọi tự đặt
         noiDung: f.noiDung || undefined, tep: f.tep.length ? f.tep : undefined, http: r.status, ok: r.ok && !(j && j.status === 0),
         truong: f.truong || undefined, truoc: f.truong && phieu && banDoc.has(phieu) && banDoc.get(phieu)[f.truong] != null ? String(typeof banDoc.get(phieu)[f.truong] === "object" ? JSON.stringify(banDoc.get(phieu)[f.truong]) : banDoc.get(phieu)[f.truong]).slice(0, 500) : undefined,

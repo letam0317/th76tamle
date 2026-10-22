@@ -21,7 +21,7 @@
 import fs from "node:fs"; import path from "node:path"; import http from "node:http"; import os from "node:os"; import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { chuanTuSau } from "./tu-ngu.mjs";
-import { docSo, TEN_BO } from "./so-tac-gia.mjs";
+import { docSo, TEN_BO, datNguoi, nguCanh, ghiThaoTac } from "./so-tac-gia.mjs";
 import { dangNhap, kiemPhien, dangXuat, taoPhienTk } from "./xacminh-dang-nhap.mjs";   // 12/10 user: phần Xác minh phải có tài khoản + mật khẩu   // 12/10 sổ tác giả: cò/script nào đã tạo phiếu · bình luận · ảnh (chỉ đọc tệp trên máy)
 import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 import crypto from "node:crypto";
@@ -335,7 +335,7 @@ function gom() {
     const tao = new Map(); for (const d of docSo(60, 20000)) if (d.hd === "Tạo phiếu" && d.phieu && !tao.has(d.phieu)) tao.set(d.phieu, d);
     for (const p of phieu) { const d = tao.get(String(p.id)); if (d) { p.mayTao = d.ten; if (d.nguoiThat) p.nguoiGui = ai(d.nguoiThat); } }
     return { ds: docSo(14, 2000).map((d) => ({ t: d.t, ten: d.ten, chuoi: String(d.chuoi || "").split(" › ").map((x) => TEN_BO[x] || x).join(" › "), cach: d.cach, may: d.may, hd: d.hd, phieu: d.phieu || "", doan: !!d.doan,
-      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false,
+      nd: d.noiDung || "", nguoi: ai(d.nguoiThat), tk: d.tk || "", tep: (d.tep || []).map((x) => x.ten + (x.kb ? " · " + x.kb + " KB" : "")), ok: d.ok !== false,
       truong: d.truong || "", truoc: d.truoc == null ? null : d.truoc, sau: d.sau == null ? null : d.sau })) };   // 13/10: trước / sau khi điều chỉnh
   })();
   const tuoi = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
@@ -519,6 +519,23 @@ const guiJ = (s, code, o) => { s.writeHead(code, { "Content-Type": "application/
 const hopLe = (q) => !LAN || !KHOA || q.socket.remoteAddress === "127.0.0.1" || q.socket.remoteAddress === "::1" || q.headers["x-khoa"] === KHOA ||
   new URL(q.url, "http://x").searchParams.get("khoa") === KHOA;
 const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/((xemtruoc|qc)\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + audit-dc.pages.dev + bản xem trước xemtruoc. — QC bảo mật: KHÔNG nhận link phụ <mã>.audit-dc.pages.dev (bản cũ Cloudflare giữ vĩnh viễn)
+/* 22/10 tên việc + nội dung cho dòng Nhật ký của lệnh bấm KHÔNG đụng work.hasaki (đọc TRƯỚC khi lệnh chạy để có giá trị «trước») */
+function moTaThaoTac(p, b) {
+  let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
+  const ct = (x, n) => String(x == null ? "" : x).replace(/\s+/g, " ").slice(0, n || 300);
+  if (p === "/api/quyet-dinh-b1") return { hd: "Quyết định phiếu B1", phieu: /^\d{6,10}$/.test(String(o.id)) ? String(o.id) : "", truong: "Quyết định",
+    truoc: (docJ(path.join(EXP, "b1-quyet-dinh-web.json"), {})[o.id] || {}).qd || "(chưa có)", sau: o.qd || "(bỏ)", noiDung: ct(o.gc) || undefined };
+  if (p === "/api/quyet-dinh") return { hd: "Quyết định xác minh", truong: "Quyết định", truoc: (docJ(SO_QD, {})[o.id] || {}).qd || "(chưa có)", sau: o.qd || "(bỏ)",
+    noiDung: ct("Lượt " + o.id + (o.gc ? " · " + o.gc : "")) };
+  if (p === "/api/tac-dong-vat-ly") return { hd: o.xoa ? "Gỡ tác động vật lý" : "Ghi tác động vật lý", phieu: ct(o.id, 12), noiDung: ct("NV " + (o.ma || "?") + (o.viec ? " · " + o.viec : "")) };
+  if (p === "/api/thu-hep") return { hd: "Thu hẹp khung clip", noiDung: ct("Lượt " + o.id + " · " + (o.tu ?? "") + "–" + (o.den ?? "")) };
+  if (p === "/api/phan-cong-task") return { hd: "Nạp task phân công", phieu: (String(o.link || "").match(/(\d{7,9})/) || [])[1] || "" };
+  if (p === "/api/may-tram/duyet-khoa") return { hd: "Duyệt khoá máy trạm", noiDung: ct((o.dongY ? "Duyệt" : "Từ chối") + " · " + o.may) };
+  if (p === "/api/may-tram/lenh") return { hd: "Lệnh máy trạm", noiDung: ct((o.xoa ? "Xoá lệnh" : o.capNhat ? "Cập nhật" : o.dung ? "Dừng" : "Tiếp tục") + " · " + (o.viec || "cả máy") + " · " + o.may) };
+  if (p === "/api/ghi-chu") return { hd: "Ghi chú cải tiến", phieu: o.loai === "phieu" ? ct(o.id, 12) : "",
+    noiDung: ct(o.xoa ? "Xoá ghi chú" : o.tt ? "Đổi cờ → " + o.tt + (o.xong ? " · " + o.xong : "") : o.noiDung) };
+  return { hd: "Bấm " + p.replace(/^\/api\//, "") };
+}
 const sv = http.createServer(async (q, s) => {
   const goc = q.headers.origin || "";
   /* 05/10 user: "trang chỉ mình t coi được" — chỉ nhận trang của chính dự án. BỎ origin "null"/file:// (trang web lạ dựng được
@@ -534,6 +551,7 @@ const sv = http.createServer(async (q, s) => {
  s.setHeader("Access-Control-Allow-Origin", goc); s.setHeader("Vary", "Origin"); s.setHeader("Access-Control-Allow-Headers", "content-type,x-khoa,x-hx-phien"); s.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS"); }
   if (q.headers["access-control-request-private-network"]) s.setHeader("Access-Control-Allow-Private-Network", "true");
   if (q.method === "OPTIONS") { s.writeHead(204); return s.end(); }
+  datNguoi(null);   // 22/10 ngữ cảnh người của lượt trước không được rò sang lượt này
   try {
     const u = new URL(q.url, "http://x"), p = decodeURIComponent(u.pathname);
     if (p.startsWith("/api/") || p.startsWith("/anh/") || p.startsWith("/video/") || p.startsWith("/bc/") || p === "/thu") { if (!hopLe(q)) return guiJ(s, 403, { loi: "thiết bị chưa được cấp quyền" }); }
@@ -575,6 +593,16 @@ const sv = http.createServer(async (q, s) => {
     /* 14/10: phiên «chỉ xem» (quyền Xác minh = xem) không được gọi lệnh ghi */
     if (canPhien && q.method === "POST" && (kiemPhien(phien) || {}).chiXem) return guiJ(s, 403, { loi: "Tài khoản chỉ có quyền xem phần Xác minh" });
     if (DU_PHONG && q.method === "POST" && p.startsWith("/api/")) return guiJ(s, 503, { loi: "Laptop đang tắt — đang xem bản dự phòng (chỉ xem). Quyết định / ghi chú làm khi laptop bật lại.", duPhong: 1 });
+    /* 22/10 Nhật ký ghi THAO TÁC của từng tài khoản (luật sổ tác giả): đọc trước thân lệnh (trả lại nguyên cho đoạn xử lý), gắn người vào ngữ cảnh
+       ⇒ lượt ghi work trong lệnh này mang tên tài khoản; lệnh không đụng work thì ghi 1 dòng khi trả lời xong (có trước/sau với quyết định). */
+    if (q.method === "POST" && p.startsWith("/api/") && trinhDuyet && kiemPhien(phien)) {
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e5) break; }
+      q[Symbol.asyncIterator] = async function* () { if (b) yield b; };
+      const ph = kiemPhien(phien), ua = String(q.headers["user-agent"] || "");
+      datNguoi({ id: ph.email || "?", thietBi: (/Mobi|Android|iPhone/.test(ua) ? "Điện thoại" : "Máy tính") + (quaHam ? " · ngoài mạng" : "") });
+      const nc = nguCanh(), tt = moTaThaoTac(p, b);
+      s.on("finish", () => { if (nc.soGhiWork) return; try { ghiThaoTac(Object.assign({ tk: nc.nguoi.id, may: nc.nguoi.thietBi, ok: s.statusCode < 400, http: s.statusCode, url: "POST " + p }, tt)); } catch { /* sổ hỏng không làm hỏng lệnh */ } });
+    }
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
     if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1, diaGB: diaTrongGB() } : { ok: 1 });   /* 22/10 diaGB: laptop + điện thoại chọn bản dự phòng NHIỀU CHỖ nhất */   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
