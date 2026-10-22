@@ -1740,7 +1740,8 @@
     if (!g) return; var x0 = g.ds[0], coTS = g.ds.some(function (x) { return x.truong; });
     var lk = function (id) { return id ? '<a class="status-link" href="https://work.hasaki.vn/tasks?task_id=' + e_(id) + '" target="_blank" rel="noopener">' + e_(id) + "</a>" : '<span class="muted">—</span>'; };
     $id("mTitle").innerHTML = e_(x0.ten) + ' <span class="stat-sub">' + e_(x0.hd) + " · " + g.ds.length + " lượt</span>";
-    $id("mBody").innerHTML = '<div class="hx-tg-ct"><div class="muted" style="margin:0 0 12px">' + (x0.tk ? "Tài khoản " + e_(x0.tk) + " · " : "") + e_(x0.cach) + " · " + e_(x0.may) + (x0.chuoi.indexOf(" › ") > 0 ? " · gọi từ " + e_(x0.chuoi.split(" › ").slice(0, -1).join(" › ")) : "") + "</div>" +
+    $id("mBody").innerHTML = '<div class="hx-tg-ct"><div class="muted" style="margin:0 0 12px">' +
+      (x0.tk ? "Tài khoản " + e_(x0.tk) + " · " : "") + e_(x0.cach) + " · " + e_(x0.may) + (x0.chuoi.indexOf(" › ") > 0 ? " · gọi từ " + e_(x0.chuoi.split(" › ").slice(0, -1).join(" › ")) : "") + "</div>" +
       '<div class="table-wrap"><table class="mbcard hx-tg-bang"><thead><tr><th style="width:110px">Lúc</th><th style="width:100px">Phiếu</th>' + (coTS ? '<th style="width:90px">Trường</th><th>Trước khi điều chỉnh</th><th>Sau khi điều chỉnh</th>' : "<th>Nội dung · ảnh</th>") + "</tr></thead><tbody>" +
       g.ds.slice().reverse().map(function (x) { var k = coTS ? khacBiet(x.truoc, x.sau) : null;
         return "<tr><td data-lb=\"Lúc\">" + e_(x.t.slice(8, 10) + "/" + x.t.slice(5, 7) + " " + x.t.slice(11, 19)) + '</td><td class="mb-hd">' + lk(x.phieu) + "</td>" +
