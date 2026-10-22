@@ -292,7 +292,7 @@ var CSS = [
 "@media(max-width:768px){#pane-kk #hkWhBar{grid-template-columns:repeat(2,minmax(0,1fr));}#pane-kk #hkWhBar .hk-ma{grid-column:1/-1;}}",   // điện thoại: ô mã trọn hàng, đủ chỗ gõ
 ".hk-ma{display:flex;flex-direction:column;gap:4px;min-width:0;}",
 ".hk-ma-o{display:flex;min-width:0;}",
-".hk-ma-o .cs{flex:0 0 42%;width:auto;min-width:0;}",
+".hk-ma-o .cs{flex:0 0 auto;width:auto;min-width:0;}",
 ".hk-ma-o .cs-trigger{border-top-right-radius:0;border-bottom-right-radius:0;background:color-mix(in srgb, var(--muted) 8%, var(--surface));}",
 ".hk-ma-o input{flex:1 1 auto;min-width:0;margin-left:-1px;border-top-left-radius:0!important;border-bottom-left-radius:0!important;}",
 ".hk-ma-o .cs-trigger:focus,.hk-ma-o input:focus{position:relative;z-index:1;}",
@@ -650,6 +650,14 @@ function renderWhBar(){
     var datMa = function(){ var v = maInp ? maInp.value.trim() : ""; S.id = S.src = S.req = ""; S[S.maLoai] = v; render(); };
     if (maSel){
       if (typeof window.enhanceSelect === "function") window.enhanceSelect(maSel);
+      /* 22/10 user: khung chọn loại mã khít chữ, KHOÁ CỨNG bề rộng theo chữ dài nhất («Request code») — đổi loại không làm ô nhảy */
+      var wr = maSel._csWrap, tg = wr && wr.querySelector(".cs-trigger");
+      if (tg){
+        var cs = getComputedStyle(tg), sp = document.createElement("span"), dai = Object.keys(MA_LOAI).reduce(function(a, k){ return MA_LOAI[k].length > a.length ? MA_LOAI[k] : a; }, "");
+        sp.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0"; sp.style.font = cs.font; sp.textContent = dai; document.body.appendChild(sp);
+        var px = sp.getBoundingClientRect().width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth) + 10 + (parseFloat(cs.columnGap) || 8) + 2;
+        sp.remove(); wr.style.flex = "0 0 " + Math.ceil(px) + "px";
+      }
       maSel.addEventListener("change", function(){ S.maLoai = this.value; if (maInp) maInp.placeholder = "Nhập " + MA_LOAI[S.maLoai] + "…"; datMa(); });
     }
     if (maInp) maInp.addEventListener("input", function(){ clearTimeout(_debT); _debT = setTimeout(datMa, 250); });

@@ -1437,14 +1437,17 @@ var CSS = [
   "#hpVtModal .hp-vtr1 #hpVtPg{order:2;}" +
   "#hpVtModal #hpVtGhi{order:3;margin:0;}" +
   "#hpVtModal .hp-modalhd>div:first-child{order:1;margin-left:auto;text-align:right;min-width:0;}}",
-/* 22/10 user (điện thoại), trái→phải, trên→dưới: hàng 1 «mã vị trí  camera_00052» không xuống dòng · hàng 2 «Yêu cầu #… ↗» … «Đóng»
-   · hàng 3 «Ghi nhận 5S · còn N phiếu» ngay dưới «Yêu cầu». Thanh bên vừa khít màn: đầu trang đã ẩn nên đỉnh = 0, cao 100dvh. */
-"@media(max-width:768px){#hpVtModal.hp-modal{top:0!important;}body:has(#hpVtModal.show) #sideToggle{opacity:0;pointer-events:none;}#hpVtModal .hp-modalbox{height:100dvh;max-height:100dvh!important;}" +
-  "#hpVtModal .hp-modalhd{flex-direction:column;align-items:stretch;gap:6px;}" +
-  "#hpVtModal .hp-modalhd>div:first-child{order:-1;display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;}" +
-  "#hpVtTitle,#hpVtSub{flex:none;min-width:0;}#hpVtSub{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;}.hp-vt-sban{display:none;}" +
-  "#hpVtModal .hp-vtacts{max-width:none;width:100%;align-items:flex-start;}" +
-  "#hpVtModal .hp-vtr1{width:100%;flex-wrap:nowrap;}#hpVtModal .hp-vtr1 .hp-mdong{margin-left:auto;}}",
+/* 22/10 user (điện thoại, ảnh mũi tên lần 2): hàng 1 «mã vị trí · Ghi nhận 5S … Yêu cầu #… ↗» · hàng 2 «camera_… … Đóng».
+   Lưới 2 hàng, 2 khối bọc cũ display:contents để từng mục tự vào ô. Thanh bên bám inset:0 của khung (không dùng vh/dvh — thanh công cụ
+   trình duyệt điện thoại co giãn làm hở khoảng trống ở đáy); thân tự giãn hết phần còn lại. */
+"@media(max-width:768px){#hpVtModal.hp-modal{top:0!important;bottom:0;}body:has(#hpVtModal.show) #sideToggle{opacity:0;pointer-events:none;}" +
+  "#hpVtModal .hp-modalbox{height:auto!important;max-height:none!important;align-self:stretch;}#hpVtModal .hp-modalbody{flex:1 1 auto;min-height:0;}" +
+  "#hpVtModal .hp-modalhd{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:'ma ghi yc' 'cam cam dong';align-items:center;gap:6px 10px;}" +
+  "#hpVtModal .hp-modalhd>div:first-child,#hpVtModal .hp-vtacts,#hpVtModal .hp-vtr1{display:contents;}" +
+  "#hpVtTitle{grid-area:ma;white-space:nowrap;}#hpVtSub{grid-area:cam;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.hp-vt-sban{display:none;}" +
+  "#hpVtModal #hpVtGhi,#hpVtModal #hpVtLt{grid-area:ghi;justify-self:start;margin:0;white-space:normal;text-align:left;}" +
+  "#hpVtModal #hpVtPg{grid-area:yc;justify-self:end;padding:0 6px!important;font-size:12px!important;}#hpVtModal .hp-mdong{grid-area:dong;justify-self:end;}" +
+  "#hpVtModal #hpVtGhi{line-height:1.25;font-size:11.5px;}#hpVtModal .hp-modalhd{column-gap:8px;}}",   // ghi dài («· còn N phiếu») tự xuống tối đa 2 dòng trong khe giữa, không đẩy «Yêu cầu» ra mép
 ".hp-vtr1{display:flex;align-items:center;gap:8px;}.hp-vtpg{font-size:12px;white-space:nowrap;}.hp-vtpg:empty{display:none;}.hp-vt-tgon{display:none;}",
 "@media(max-width:768px){#hpVtModal .hp-modalbox{width:100vw!important;}body:has(#hpVtModal.show) header{translate:0 -100%;pointer-events:none}.hp-vt-tday{display:none}.hp-vt-tgon{display:inline}" +
   "#hpVtModal .hp-vtr1 .hsk-nut,#hpVtModal .hp-vtpg{min-height:28px!important;height:28px;padding:0 8px!important;font-size:13px!important;border-radius:6px}.hp-vtpg{border:1px solid var(--border,#e5e7eb);display:inline-flex;align-items:center;text-decoration:none}}",
