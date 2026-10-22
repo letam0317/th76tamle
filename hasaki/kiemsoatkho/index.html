@@ -1612,7 +1612,9 @@ window.hxDoMayChu = function(){
           var chot = function(){ if (that) { window.__HX_DU_PHONG = 0; ok(that); } else if (du) { window.__HX_DU_PHONG = 1; ok(du); } else hong(0); };
           ds.forEach(function(m){ var c = new AbortController(); setTimeout(function(){ c.abort(); }, 8000);
             fetch(m.xmHam + "/api/ping", { signal: c.signal }).then(function(r){ if (!r.ok) throw 0; return r.json().catch(function(){ return {}; }); })
-              .then(function(x){ if (x && x.duPhong) { if (!du || (x.diaGB || 0) > duDia) { du = m.xmHam; duDia = x.diaGB || 0; } } else { that = that || m.xmHam; con = 0; chot(); } }, function(){})   /* 22/10: nhiều bản dự phòng → máy nhiều chỗ (có gương clip đủ nhất, BANGCHUYEN-2) */
+              /* 22/10: nhiều bản dự phòng → máy nhiều chỗ (có gương clip đủ nhất, BANGCHUYEN-2) */
+              .then(function(x){ if (x && x.duPhong) { if (!du || (x.diaGB || 0) > duDia) { du = m.xmHam; duDia = x.diaGB || 0; } }
+                else { that = that || m.xmHam; con = 0; chot(); } }, function(){})
               .then(function(){ if (con > 0 && !--con) chot(); }); }); }); }); };
   var ham = function(){ var cu = ""; try { cu = localStorage.getItem("hx-ham") || ""; } catch(e){}
     return (cu ? ping(cu, 6000).then(function(u){ if (window.__HX_DU_PHONG) { window.__HX_DU_PHONG = 0; throw 0; } return u; }) : Promise.reject(0))
