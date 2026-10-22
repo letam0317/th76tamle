@@ -21,6 +21,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { layTokenGhiWork } from "./session-rules.js";
 import { docSoQLTT, chonQLTTCanBang, ghiLuot, timTheoTenAnToan } from "./qltt.js";
+import { nvTheoMoTa, khopMoTa } from "./nv-mo-ta.mjs";   // 22/10 chốt chặn [NF]/[ĐG] giao đúng NV ở Mô tả
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const V = "https://wshr.hasaki.vn/api";
@@ -100,6 +101,17 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   log("  NV vi phạm : " + ds.map((x) => x.staff_name + " (" + x.code + ")").join(", "));
   log("  QLTT       : " + qltt + "  ← " + (QLTT_EP ? "ÉP qua --qltt" : q.nguon + " (" + q.ghiChu + ")"));
   if (b1.status === 2) { log("ℹ B1 đã đóng sẵn — không làm gì."); return; }
+  /* 22/10 user «[NF], [ĐG] đã có NV vi phạm → phải bắn đúng»: Mô tả phiếu ghi «Nhân viên vi phạm: …» /
+     «Nhân viên đóng gói: Tên (email)» thì --nv PHẢI trùng đúng tập người đó, lệch/không tra được → KHÔNG ghi.
+     Mọi đường giao B1.1 (canh-b1, canh-b11, luat-3-ngay, bai-xe-phieu…) đều qua đây nên chốt một chỗ.
+     Gốc: 14223350 Mô tả ghi Nguyễn Tấn Vũ, máy giao Lâm Thanh Tú. --ep-nv chỉ khi người đã soát tay. */
+  const mt = /^\[(NF|ĐG)\]/.test(d.name || "") && !process.argv.includes("--ep-nv") ? nvTheoMoTa(d.note, db) : null;
+  if (mt && !khopMoTa(mt, ds.map((x) => x.code))) {
+    log("⛔ CHẶN: Mô tả phiếu ghi «" + mt.chu + "» → " + (mt.thieu.length ? "không tra được duy nhất: " + mt.thieu.join(", ") : mt.ds.map((n) => n.ten + " (" + n.code + ")").join(", "))
+      + " nhưng đang giao cho " + ds.map((x) => x.staff_name + " (" + x.code + ")").join(", ") + " — KHÔNG ghi. Sửa --nv cho đúng Mô tả (hoặc --ep-nv nếu đã soát tay).");
+    process.exit(9);
+  }
+  if (mt) log("  ✓ Khớp NV vi phạm ghi ở Mô tả phiếu");
   if (!LAM) { log("— DIỄN TẬP, chưa ghi gì. Thêm --lam để làm thật."); return; }
 
   const r1 = await ghi(token, b1.id, "data", { "value[configs][staff]": codes, "value[configs][QLBP02]": qltt });

@@ -31,7 +31,7 @@ import { chuanTu, chuanTuSau } from "./tu-ngu.mjs";   // TU-01: "châm hàng" kh
 import { execFileSync } from "node:child_process";
 import { layTokenSongWork, layTokenGhiWork, mayDuocChay } from "./session-rules.js";
 import { laHangMucVeSinhHangNgay, napNguonTruyVet, traPhanCong } from "./truy-vet-vesinh.mjs";
-import { timTheoTenAnToan } from "./qltt.js";   // 22/10 tên ở Mô tả phiếu → tra an toàn (bẫy trùng tên)
+import { nvTheoMoTa as nvMoTaChung } from "./nv-mo-ta.mjs";   // 22/10 tên NV ở Mô tả phiếu (tra an toàn, bẫy trùng tên)
 import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -195,14 +195,9 @@ async function nvTheoMoTa(p) {
     const d = await docTask(/^Bearer /.test(wshrToken) ? wshrToken : "Bearer " + wshrToken, p.id); if (!d) return null;
     note = String(d.note || ""); CACHE[k] = note; ghiJ(F_CACHE, CACHE);
   }
-  const m = /Nhân viên vi phạm:\s*([^\n]+)/.exec(String(note || "").replace(/<[^>]+>/g, "\n"));
-  if (!m) return { khong: true };
-  const ds = m[1].split(/,|;| và /).map((s) => s.trim()).filter(Boolean).map((s) => {
-    const em = /\(([^()\s]+@[^()\s]+)\)/.exec(s)?.[1], ten = s.replace(/\([^)]*\)/g, "").trim();
-    const x = em ? nvTheoEmail(em) : timTheoTenAnToan(ten, DB);
-    return x ? { ten: x.staff_name, code: String(x.code), email: x.staff_email } : { ten, code: "", email: "" };
-  });
-  return { chu: m[1].trim(), ds };
+  const mt = nvMoTaChung(note, DB);   // nguồn chung nv-mo-ta.mjs (cùng luật với chốt chặn ở auto-complete-single-task)
+  if (!mt) return { khong: true };
+  return { chu: mt.chu, ds: [...mt.ds, ...mt.thieu.map((t) => ({ ten: t, code: "", email: "" }))] };
 }
 
 /* ---- xét 1 phiếu → kết quả ---- */
