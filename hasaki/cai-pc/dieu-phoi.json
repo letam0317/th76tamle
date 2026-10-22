@@ -13,6 +13,14 @@
     "DESKTOP-JE75K38",
     "DESKTOP-FOQ5T89"
   ],
+  "_khoaChiMay": "22/10 user «ma hoa bi mat tren PC… lam»: khoa camera top-review + Gemini CHI giu tren 2 may lam viec camera/B1 (JE75K38, FOQ5T89) - may khac bi GO khoi .env, cong gac tu ne viec thieu khoa. khoaMaHoa: ma hoa DPAPI pham vi may (cai-pc/khoa-bi-mat.ps1 + nap-bi-mat.cjs). khoaBoQua: may goc (laptop) khong bao gio bi dong vao .env.",
+  "khoaChiMay": {
+    "TOPREVIEW_USER": ["DESKTOP-JE75K38", "DESKTOP-FOQ5T89"],
+    "TOPREVIEW_PASS": ["DESKTOP-JE75K38", "DESKTOP-FOQ5T89"],
+    "GEMINI_API_KEY": ["DESKTOP-JE75K38", "DESKTOP-FOQ5T89"]
+  },
+  "khoaMaHoa": ["APPSCRIPT_KEY", "TOPREVIEW_USER", "TOPREVIEW_PASS", "GEMINI_API_KEY"],
+  "khoaBoQua": ["HSK-KHO170-tamlc-1"],
   "capNhat": {
     "tenTask": "Audit cap nhat PC",
     "nhip": "PT2H",

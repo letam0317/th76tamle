@@ -99,7 +99,10 @@ try {
     $envF = "$duAn\.env"; $dong = @{}
     if (Test-Path $envF) { foreach($l in Get-Content $envF){ if($l -match '^\s*([A-Z0-9_]+)\s*='){ $dong[$matches[1]] = $l } } }
     $themKhoa = @()
-    foreach($k in $kq.envKeys){ if(-not $dong.ContainsKey($k)){ $dong[$k] = "$k="; $themKhoa += $k } }
+    $mayNay = [System.Net.Dns]::GetHostName()
+    foreach($k in $kq.envKeys){
+      if ($cfg.khoaChiMay -and $cfg.khoaChiMay.$k -and -not (@($cfg.khoaChiMay.$k) -contains $mayNay)) { continue }   # 22/10 khoa chi cho may chi dinh
+      if(-not $dong.ContainsKey($k)){ $dong[$k] = "$k="; $themKhoa += $k } }
     foreach($p in $cfg.envCung.PSObject.Properties){ $dong[$p.Name] = "$($p.Name)=$($p.Value)" }
     if ($script:baixeO) { $dong["BAIXE_DIR"] = "BAIXE_DIR=$script:baixeO" }   # 20/10 bang chung o o phu (o-du-lieu.ps1)
     ($dong.Values | Sort-Object) -join "`r`n" | Out-File $envF -Encoding utf8
@@ -108,6 +111,8 @@ try {
   # 20/10 DU LIEU NANG CUA CO XAC MINH -> O PHU (D:...) neu co, moi luot (o-du-lieu.ps1)
   if (Test-Path "$kit\o-du-lieu.ps1") { try { . "$kit\o-du-lieu.ps1"; $script:baixeO = Doi-ODuLieu $duAn } catch { Ghi "[X] o du lieu: $_" } }
   # VAN DON DIA dinh ky (PC xoa-ngay raw da dinh phieu + van dia thap; laptop no-op). Khong de dia day lam may tu "yeu".
+  # 22/10 BI MAT TREN PC: go khoa khong giao cho may + ma hoa .env DPAPI pham vi may (khoa-bi-mat.ps1; laptop khong bi dong vao)
+  if (Test-Path "$kit\khoa-bi-mat.ps1") { try { . "$kit\khoa-bi-mat.ps1"; Khoa-BiMat $duAn $cfg $NODE } catch { Ghi "[X] bi mat: $_" } }
   if (Test-Path "$duAn\don-clip.mjs") { Push-Location $duAn; try { & $NODE don-clip.mjs --im 2>&1 | Out-Null } catch {}; Pop-Location }
   @{ may = [System.Net.Dns]::GetHostName(); luc = (Get-Date).ToString("s"); ban = $sha } | ConvertTo-Json | Out-File "$duAn\.nhip-pc.json" -Encoding utf8
 } catch { Ghi "[X] loi: $_" }
