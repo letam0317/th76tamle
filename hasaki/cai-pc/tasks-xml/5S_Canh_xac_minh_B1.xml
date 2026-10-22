@@ -28,7 +28,7 @@
     <CalendarTrigger>
       <StartBoundary>2026-10-05T07:50:00+07:00</StartBoundary>
       <Repetition>
-        <Interval>PT2H</Interval>
+        <Interval>PT30M</Interval>
         <Duration>PT10H</Duration>
         <StopAtDurationEnd>true</StopAtDurationEnd>
       </Repetition>

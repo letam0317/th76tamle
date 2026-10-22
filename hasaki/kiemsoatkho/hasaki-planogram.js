@@ -2831,7 +2831,7 @@ function render(){
           '#hpOtpQ .nl{flex:1 1 160px;font-size:12.5px;min-width:0}</style>' +
           '<div id="hpXinQ"><input id="hpXinTen" maxlength="60" placeholder="Bạn là ai? (tên · bộ phận)">' +
           '<button id="hpXinBtn" type="button">Xin mã OTP</button><div id="hpXinTT"></div></div>' +
-          /* 23/10 user «đã cấp quyền cho người dùng thì bỏ OTP»: có tài khoản → đăng nhập là đủ (đăng nhập xong trang tự tải lại dữ liệu) */
+          /* 22/10 user «đã cấp quyền cho người dùng thì bỏ OTP»: có tài khoản → đăng nhập là đủ (đăng nhập xong trang tự tải lại dữ liệu) */
           (window.tkMoDangNhap ? '<div style="margin-top:12px;font-size:13px">Đã được cấp tài khoản? <button type="button" onclick="window.tkMoDangNhap()" ' +
             'style="border:0;background:none;padding:0;color:var(--accent);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline">Đăng nhập</button> — không cần OTP.</div>' : "") +
           '<div id="hpOtpQ"><input id="hpOtpMa" inputmode="numeric" autocomplete="one-time-code" maxlength="4" ' +

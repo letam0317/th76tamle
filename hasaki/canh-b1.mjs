@@ -55,7 +55,14 @@ if (LAM && !FORCE) {
 }
 /* 01/10: chia VAI máy (laptop 09:00–17:55 T2–T7 · PC phần bù) — RUNNER_VAI trống = chạy như cũ; --force hàm tự xét.
    Diễn tập/--qc không bị chặn (chỉ in lý do) để còn kiểm luật ngoài giờ. Mẫu từ phiên new-folder-6e, hàm ở session-rules.js. */
-if (!mayDuocChay(log) && LAM && !QC) process.exit(0);
+/* 22/10 user «[ĐG] đủ thông tin vẫn chưa tự chuyển B1.1, toàn đợi nhắc»: lịch nay 30'/lần. Lượt ĐỦ (WMS/camera/sheet) giữ đúng nhịp cũ
+   07:50, 09:50 … 17:50 (tính theo ĐỒNG HỒ nên mọi máy cùng hiểu); các lượt xen giữa là lượt NHẸ: chỉ phiếu [ĐG] (+ [NF] có tên NV ở Mô tả),
+   0 lượt WMS, rồi thoát mã 10 để canh-xac-minh-hidden.vbs bỏ canh-trung-nv + đẩy sheet. --nang ép lượt đủ. */
+const NHE = LAM && !QC && !FORCE && !A.includes("--nang") && (() => {
+  const d = new Date(Date.now() + 7 * 36e5), phut = d.getUTCHours() * 60 + d.getUTCMinutes() - (7 * 60 + 50);
+  return !(phut >= -5 && ((phut % 120) + 120) % 120 < 15);
+})();
+if (!mayDuocChay(log) && LAM && !QC) process.exit(NHE ? 10 : 0);
 
 /* ---- chống chạy chồng (FAIL-CLOSED, khuôn canh-b11): lỗi khi dò khoá → coi như đang chạy ---- */
 const F_KHOA = path.join(DIR, ".canh-b1.lock");
@@ -82,6 +89,11 @@ for (const v of Object.values(C.rows)) {
   const m = /task_id=(\d+)/.exec(v[I.link] || ""); if (!m) continue;
   if (v[I.st] !== "None" || v[I.b1] !== "None") continue;            // chỉ phiếu đang treo ở B1
   phieu.push({ id: m[1], ten: String(v[I.ten] || ""), ngay: String(v[I.ngay] || ""), loi: String(v[I.loi] || ""), bin: String(v[I.bin] || "").trim(), giao: v[I.b1giao] });
+}
+
+if (NHE) {
+  for (let i = phieu.length - 1; i >= 0; i--) if (!/^\[(ĐG|NF)\]/.test(phieu[i].ten)) phieu.splice(i, 1);
+  log("Lượt NHẸ (30'): chỉ phiếu [ĐG]/[NF] có tên NV — " + phieu.length + " phiếu (lượt đủ ở 07:50/09:50/…/17:50)");
 }
 
 /* ---- danh bạ (cache sẵn của canh-b11, 0 lượt) ---- */
@@ -215,6 +227,7 @@ async function xet(p) {
       return { luat, ketLuan: "B1.1", nv: mt.ds, doChac: "CAO", camera: cam, lyDo: "Người kiểm ghi ở Mô tả phiếu: Nhân viên vi phạm = " + mt.ds.map((n) => n.ten + " (" + n.code + ")").join(", ") };
     }
   }
+  if (NHE && !/^\[ĐG\]/.test(p.ten || "")) return { luat: "NHE", ketLuan: "bo-qua", lyDo: "" };   // [NF] chưa có tên ở Mô tả → để lượt đủ (cần WMS)
   if (/^\[ĐG\]/.test(p.ten || "") && daDuyet("DG-01")) {
     const dg = await nvDongGoi(p.id);
     if (!dg) return { luat: "DG-01", ketLuan: "cho-wms", lyDo: "Chưa đọc được Mô tả phiếu (lỗi mạng) — lượt sau" };
@@ -348,6 +361,7 @@ let iTD = 0;
 for (const p of phieu) {
   TD?.tienDo({ buoc: "Soát phiếu B1 theo luật", task: p.id, i: ++iTD, n: phieu.length });
   const kq = await xet(p);
+  if (kq.luat === "NHE") continue;
   KQ[p.id] = { ...kq, bin: p.bin, ngay: p.ngay, luc: new Date().toISOString() };
   dem[kq.luat + "·" + kq.ketLuan] = (dem[kq.luat + "·" + kq.ketLuan] || 0) + 1;
   if (kq.ketLuan === "canh-b11") continue;
@@ -403,5 +417,6 @@ for (const [id, { qd, gc }] of Object.entries(QD)) {
 ghiJ(F_KQ, KQ); ghiJ(F_SO, SO); ghiJ(F_CN, CN);
 log("Tổng: " + Object.entries(dem).map(([k, n]) => k + " " + n).join(" · ") + " · WMS " + nWms + " lượt");
 /* 20/10 sổ Mô tả phiếu (thanh bên Theo tác vụ «Ghi chú») — chỉ phiếu mới, tối đa 40 lượt/lần */
-try { const MT = await import("./mo-ta-phieu.mjs"), tk = wshrToken || await layTokenSongWork(DIR, () => {}); await MT.capNhatMoTa(tk, { log }); await MT.capNhatMoTaViTri(tk, { log }); } catch (e) { log("mô tả phiếu/vị trí lỗi: " + e.message); }
+if (!NHE) try { const MT = await import("./mo-ta-phieu.mjs"), tk = wshrToken || await layTokenSongWork(DIR, () => {}); await MT.capNhatMoTa(tk, { log }); await MT.capNhatMoTaViTri(tk, { log }); } catch (e) { log("mô tả phiếu/vị trí lỗi: " + e.message); }
 await TD?.xong();
+if (NHE) process.exit(10);
