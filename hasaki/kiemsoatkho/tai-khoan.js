@@ -168,10 +168,16 @@
     fetch("https://www.cloudflare.com/cdn-cgi/trace").then(function (r) { return r.text(); }).then(function (t) { var m = /^ip=(.+)$/m.exec(t); if (!m) throw 0; tra(m[1]); })
       .catch(function () { fetch("https://api.ipify.org?format=json").then(function (r) { return r.json(); }).then(function (j) { tra(j && j.ip); }).catch(function () { tra(""); }); });
   }
-  var duocGhi = function () { return TK.nguoi ? window.tkCo("r.task", "lam") : !!ls.get("tb-khoa"); };
+  /* 22/10 user: quyền từ OTP Ghi nhận chỉ 43 phút (tb-het, máy chủ cũng tự hết hạn) — máy duyệt lâu dài (không có tb-het) giữ như cũ */
+  var duocGhi = function () {
+    if (TK.nguoi) return window.tkCo("r.task", "lam");
+    var het = Number(ls.get("tb-het") || 0);
+    if (het && Date.now() >= het) { ls.set("tb-khoa", null); ls.set("tb-het", null); return false; }
+    return !!ls.get("tb-khoa");
+  };
   function moOtpGhiNhan() {
     return new Promise(function (xong) {
-      var o = hop("Ghi nhận vi phạm 5S", '<form class="tk-f"><div class="tk-goiy">Máy này chưa được cấp quyền ghi nhận. Khai tên rồi bấm «Xin mã OTP» — quản trị nhận tin Telegram và báo bạn 4 số (làm một lần cho máy này; chỉ xin được khi dùng Wi-Fi công ty).</div>' +
+      var o = hop("Ghi nhận vi phạm 5S", '<form class="tk-f"><div class="tk-goiy">Máy này chưa được cấp quyền ghi nhận. Khai tên rồi bấm «Xin mã OTP» — quản trị báo bạn 4 số. Mã chỉ dùng cho đúng máy này, phải gõ trong 5 phút; gõ đúng thì được ghi nhận trong 43 phút. Chỉ xin được khi dùng Wi-Fi công ty.</div>' +
         '<label>Bạn là ai?<input name="ten" maxlength="60" required placeholder="tên · bộ phận" value="' + e_(ls.get("tb-ten") || "") + '"></label><button type="submit" class="tk-chinh">Xin mã OTP</button>' +
         '<label class="tk-otp" hidden>Mã OTP 4 số<input name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="4" pattern="[0-9]{4}"></label><button type="button" class="tk-chinh tk-otp" data-a="kich" hidden>Kích hoạt</button>' +
         '<div class="tk-goiy">Đã được cấp tài khoản? <button type="button" class="tk-chinh tk-lk2" data-a="dn">Đăng nhập</button> — không cần OTP.</div><div class="tk-st"></div></form>');
@@ -181,14 +187,15 @@
         .then(function (t) { t = String(t).trim(); if (t.charAt(0) !== "{") throw new Error("Máy chủ chập chờn — bấm lại"); return JSON.parse(t); }); };
       f.onsubmit = function (ev) { ev.preventDefault(); var id = mayId(); if (!id) return trangThai(o, "loi", "Trình duyệt đang chặn lưu trữ (cửa sổ riêng tư?) — mở cửa sổ thường rồi thử lại.");
         ls.set("tb-ten", f.ten.value.trim()); trangThai(o, "", "Đang gửi yêu cầu…");
-        layIp(function (ip) { goiGas({ action: "tb_xin", tb: id, ten: f.ten.value.trim(), ip: ip, trang: "kiemsoatkho", ua: (navigator.userAgent || "").slice(0, 160) })
+        layIp(function (ip) { goiGas({ action: "tb_xin", muc: "ghi5s", tb: id, ten: f.ten.value.trim(), ip: ip, trang: "kiemsoatkho", ua: (navigator.userAgent || "").slice(0, 160) })
           .then(function (j) { if (j.status !== "success") throw new Error(j.message || "Không xin được mã");
-            [].slice.call(o.querySelectorAll(".tk-otp")).forEach(function (x) { x.hidden = false; }); f.otp.focus(); trangThai(o, "ok", "Đã gửi — liên hệ quản trị lấy 4 số rồi gõ vào ô trên."); })
+            if (j.duyet) { ls.set("tb-khoa", id); return dongHop(); }   // máy đã được duyệt lâu dài
+            [].slice.call(o.querySelectorAll(".tk-otp")).forEach(function (x) { x.hidden = false; }); f.otp.focus(); trangThai(o, "ok", j.lai ? j.message : "Đã gửi — liên hệ quản trị lấy 4 số, gõ vào ô trên trong 5 phút."); })
           .catch(function (e) { trangThai(o, "loi", e.message); }); }); };
       o.querySelector('[data-a="kich"]').onclick = function () { if (!/^\d{4}$/.test(f.otp.value.trim())) return trangThai(o, "loi", "Gõ đủ 4 số");
         trangThai(o, "", "Đang kiểm…");
-        goiGas({ action: "tb_otp", tb: mayId(), otp: f.otp.value.trim() }).then(function (j) { if (j.status !== "success") throw new Error(j.message || "Mã không đúng");
-          ls.set("tb-khoa", mayId()); dongHop(); }).catch(function (e) { trangThai(o, "loi", e.message); }); };
+        goiGas({ action: "tb_otp", muc: "ghi5s", tb: mayId(), otp: f.otp.value.trim() }).then(function (j) { if (j.status !== "success") throw new Error(j.message || "Sai OTP");
+          ls.set("tb-khoa", mayId()); ls.set("tb-het", j.het ? String(j.het) : null); dongHop(); }).catch(function (e) { trangThai(o, "loi", e.message); }); };
       o.querySelector('[data-a="dn"]').onclick = function () { sauDong = null; moDangNhap(); sauDong = function () { xong(duocGhi()); }; };
     });
   }

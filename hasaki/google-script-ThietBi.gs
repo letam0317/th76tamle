@@ -33,7 +33,7 @@ function tbOK_(duLieu, e) {
   if (!k) return true;   // chưa cấu hình → chưa siết
   var tb = String((duLieu && duLieu.tb) || (e && e.parameter && e.parameter.tb) || '');
   var duyet = {}; try { duyet = JSON.parse(all.TB_DUYET || '{}') || {}; } catch (eD) { duyet = {}; }
-  if (tb && (tb === k || !!duyet[tb])) return true;   // khoá chung HOẶC máy đã duyệt qua bot (tb_xin/tb_duyet)
+  if (tb && (tb === k || tbConHan_(duyet[tb]))) return true;   // khoá chung HOẶC máy đã duyệt qua bot (tb_xin/tb_duyet) — quyền có hạn (OTP Ghi nhận 5S) thì phải còn hạn
   /* 22/10 user «đã là quản trị, đã đăng nhập rồi còn 🔒 Máy này chưa được cấp quyền»: trang mới (xemtruoc.audit-dc) chưa có mã thiết bị.
      Phiên tài khoản audit-dc còn hạn (tk_dangnhap) = đã xác thực người ⇒ đủ thay mã thiết bị. Trang gửi tb = 'tk:<phiên>'. */
   if (tb.indexOf('tk:') === 0 && typeof tkPhien_ === 'function' && tkPhien_(tb.slice(3))) return true;
@@ -74,7 +74,11 @@ function tbTuChoi_() {
  * · Chống spam: 1 máy 1 lượt/10' (cache), trần 30 lượt xin/ngày (Properties), sổ chờ tối đa 30. */
 function tbDsDoc_(khoa) { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(khoa) || '{}') || {}; } catch (e) { return {}; } }
 function tbDsGhi_(khoa, ds) { PropertiesService.getScriptProperties().setProperty(khoa, JSON.stringify(ds)); }
-function tbDuyetCo_(tb) { return !!tbDsDoc_('TB_DUYET')[tb]; }
+/* 22/10 user: OTP «+ Ghi nhận 5S» (muc=ghi5s) — mã phải gõ trong 5 phút, quyền ghi nhận chỉ kéo dài 43 phút, đúng máy đã xin mới dùng được.
+   Bản ghi duyệt có `het` = quyền có hạn; không có `het` = duyệt lâu dài như trước (Planogram/Factory, /duyet_). */
+var TB_GHI5S_OTP_MS = 5 * 60 * 1000, TB_GHI5S_QUYEN_MS = 43 * 60 * 1000;
+function tbConHan_(v) { return !!v && (!v.het || Number(v.het) > new Date().getTime()); }
+function tbDuyetCo_(tb) { return tbConHan_(tbDsDoc_('TB_DUYET')[tb]); }
 function tbBaoTele_(text) {
   // Chưa cấu hình token thì im lặng bỏ qua — yêu cầu vẫn nằm ở sổ chờ, quản trị xem bằng /choduyet.
   try {
@@ -146,10 +150,10 @@ function tbOtpDonRac_(ds) {
   for (var k in ds) if (!ds[k] || Number(ds[k].het || 0) < nay) { delete ds[k]; doi = true; }
   return doi;
 }
-function tbOtpSinh_(tb, ten) {
+function tbOtpSinh_(tb, ten, muc) {
   var ds = tbDsDoc_('TB_OTP'); tbOtpDonRac_(ds);
   var otp = ('000' + Math.floor(Math.random() * 10000)).slice(-4);
-  ds[tb] = { otp: otp, het: new Date().getTime() + TB_OTP_HAN_MS, sai: 0, ten: ten };
+  ds[tb] = { otp: otp, het: new Date().getTime() + (muc === 'ghi5s' ? TB_GHI5S_OTP_MS : TB_OTP_HAN_MS), sai: 0, ten: ten, muc: muc || '' };
   var ks = Object.keys(ds);
   while (ks.length > 30) { delete ds[ks[0]]; ks.shift(); }
   tbDsGhi_('TB_OTP', ds);
@@ -172,8 +176,8 @@ function apiTbOtp_(duLieu) {
   if (!tbKhoaCauHinh_() || tbDuyetCo_(tb)) return phanHoiJson({ status: 'success', duyet: 1 });
   if (otp.length !== 4) return phanHoiJson({ status: 'error', message: 'Mã OTP gồm 4 số.' });
   var ds = tbDsDoc_('TB_OTP'); if (tbOtpDonRac_(ds)) tbDsGhi_('TB_OTP', ds);
-  var g = ds[tb];
-  if (!g) return phanHoiJson({ status: 'error', hetHan: 1, message: 'Chưa có mã cho máy này (hoặc mã đã hết hạn) — bấm "Xin mã OTP" lại.' });
+  var g = ds[tb], laGhi = duLieu.muc === 'ghi5s';
+  if (!g) return phanHoiJson({ status: 'error', hetHan: 1, message: laGhi ? 'Sai OTP — mã chỉ dùng cho đúng máy đã xin và trong 5 phút. Bấm «Xin mã OTP» lại.' : 'Chưa có mã cho máy này (hoặc mã đã hết hạn) — bấm "Xin mã OTP" lại.' });
   if (String(g.otp) !== otp) {
     g.sai = Number(g.sai || 0) + 1;
     var saiNgay = tbSaiDemNgay_();
@@ -187,19 +191,22 @@ function apiTbOtp_(duLieu) {
     tbDsGhi_('TB_OTP', ds);
     return phanHoiJson({ status: 'error', sai: 1, huy: chet ? 1 : 0,
       message: chet ? 'Sai quá nhiều lần — mã đã bị huỷ. Bấm "Xin mã OTP" để nhận mã mới.'
-                    : 'Mã không đúng (còn ' + (5 - g.sai) + ' lần thử).' });
+                    : (laGhi ? 'Sai OTP' : 'Mã không đúng') + ' (còn ' + (5 - g.sai) + ' lần thử).' });
   }
   delete ds[tb]; tbDsGhi_('TB_OTP', ds);
   var duyet = tbDsDoc_('TB_DUYET'), tc = tbDsDoc_('TB_TUCHOI'), cho = tbDsDoc_('TB_CHO');
-  duyet[tb] = { ten: (g.ten || (cho[tb] && cho[tb].ten) || ''), luc: new Date().toISOString(), qua: 'otp' };
+  for (var kd in duyet) if (duyet[kd] && duyet[kd].het && !tbConHan_(duyet[kd])) delete duyet[kd];   // dọn quyền có hạn đã hết
+  var hetQuyen = g.muc === 'ghi5s' ? new Date().getTime() + TB_GHI5S_QUYEN_MS : 0;
+  duyet[tb] = { ten: (g.ten || (cho[tb] && cho[tb].ten) || ''), luc: new Date().toISOString(), qua: hetQuyen ? 'otp-ghi5s' : 'otp' };
+  if (hetQuyen) duyet[tb].het = hetQuyen;
   if (tc[tb]) delete tc[tb];
   if (cho[tb]) { delete cho[tb]; tbDsGhi_('TB_CHO', cho); }
   tbDsGhi_('TB_DUYET', duyet); tbDsGhi_('TB_TUCHOI', tc);
   tbBaoTele_('\u2705 \u0110\u00c3 K\u00cdCH HO\u1ea0T b\u1eb1ng OTP: ' + (g.ten || '(kh\u00f4ng t\u00ean)') +
     '\n\u00b7 M\u00e1y: ' + tb.slice(0, 10) + '\u2026\n\u00b7 L\u00fac: ' +
     Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'HH:mm dd/MM') +
-    '\n\nThu h\u1ed3i m\u00e1y n\u00e0y: /tuchoi_' + tb);
-  return phanHoiJson({ status: 'success', duyet: 1 });
+    '\n\nThu h\u1ed3i m\u00e1y n\u00e0y: /tuchoi_' + tb + (hetQuyen ? '\n(Quy\u1ec1n Ghi nh\u1eadn 5S \u2014 t\u1ef1 h\u1ebft sau 43 ph\u00fat)' : ''));
+  return phanHoiJson({ status: 'success', duyet: 1, het: hetQuyen || undefined });
 }
 function apiTbXin_(duLieu) {
   var tb = String(duLieu.tb || '').trim().toLowerCase();
@@ -215,11 +222,11 @@ function apiTbXin_(duLieu) {
     return phanHoiJson({ status: 'error', code: 403, ngoaiMang: 1,
       message: 'Chỉ xin được mã khi máy đang dùng Wi-Fi của công ty. Nối vào Wi-Fi công ty (đừng dùng 4G) rồi bấm lại.' });
   }
-  var c = CacheService.getScriptCache();
+  var c = CacheService.getScriptCache(), muc = duLieu.muc === 'ghi5s' ? 'ghi5s' : '';
   if (c.get('tbxin_' + tb)) return phanHoiJson({ status: 'success', choOtp: 1, lai: 1,
-    message: 'Vừa gửi yêu cầu cho quản trị rồi — chờ nhận 4 số rồi gõ vào ô bên dưới. (10 phút nữa mới xin lại được.)' });
+    message: 'Vừa gửi yêu cầu cho quản trị rồi — chờ nhận 4 số rồi gõ vào ô bên dưới. (' + (muc ? 5 : 10) + ' phút nữa mới xin lại được.)' });
   if (tbXinDemNgay_() > 30) return phanHoiJson({ status: 'error', message: 'Hôm nay nhận quá nhiều lượt xin cấp quyền — thử lại ngày mai hoặc liên hệ quản trị trực tiếp.' });
-  c.put('tbxin_' + tb, '1', 600);
+  c.put('tbxin_' + tb, '1', muc ? 300 : 600);
   var trang = String(duLieu.trang || '').slice(0, 24), ua = String(duLieu.ua || '').replace(/\s+/g, ' ').slice(0, 160);
   /* Vẫn ghi sổ chờ: để đường phụ /choduyet + /duyet_<mã> (khi laptop sống) dùng được như cũ. */
   var cho = tbDsDoc_('TB_CHO');
@@ -227,17 +234,17 @@ function apiTbXin_(duLieu) {
   var ks = Object.keys(cho);
   while (ks.length > 30) { delete cho[ks[0]]; ks.shift(); }   // sổ chờ đầy → rụng lượt cũ nhất (thứ tự chèn của JSON)
   tbDsGhi_('TB_CHO', cho);
-  var otp = tbOtpSinh_(tb, ten);
+  var otp = tbOtpSinh_(tb, ten, muc);
   var nhanMang = mang.ok ? ('\u2713 m\u1ea1ng c\u00f4ng ty (' + mang.vi + ')')
                          : '\u26a0 CH\u01afA \u0110\u1ed0I CHI\u1ebeU \u0110\u01af\u1ee2C M\u1ea0NG (ch\u01b0a c\u00f3 IP m\u1eabu) \u2014 h\u1ecfi l\u1ea1i xem ng\u01b0\u1eddi n\u00e0y c\u00f3 \u1edf kho kh\u00f4ng';
-  var gui = tbBaoTele_('\ud83d\udd11 M\u00c3 OTP C\u1ea4P QUY\u1ec0N DASHBOARD\n\n\u27a4 M\u00e3: ' + otp +
-    '   (h\u1ea1n 60 ph\u00fat, ch\u1ec9 d\u00f9ng cho \u0111\u00fang m\u00e1y n\u00e0y)\n\n\u00b7 Ng\u01b0\u1eddi xin: ' + ten +
+  var gui = tbBaoTele_((muc ? '\ud83d\udd11 M\u00c3 OTP GHI NH\u1eacN 5S' : '\ud83d\udd11 M\u00c3 OTP C\u1ea4P QUY\u1ec0N DASHBOARD') + '\n\n\u27a4 M\u00e3: ' + otp +
+    (muc ? '   (g\u00f5 trong 5 ph\u00fat, ch\u1ec9 d\u00f9ng cho \u0111\u00fang m\u00e1y n\u00e0y \u2014 quy\u1ec1n ghi nh\u1eadn 43 ph\u00fat)' : '   (h\u1ea1n 60 ph\u00fat, ch\u1ec9 d\u00f9ng cho \u0111\u00fang m\u00e1y n\u00e0y)') + '\n\n\u00b7 Ng\u01b0\u1eddi xin: ' + ten +
     '\n\u00b7 Trang: ' + (trang || '?') + '\n\u00b7 IP: ' + (ip || '?') + '  \u2014 ' + nhanMang +
     '\n\u00b7 M\u00e1y: ' + (ua || '?') +
     '\n\u00b7 L\u00fac: ' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'HH:mm dd/MM') +
     '\n\nN\u1ebfu \u0110\u00daNG ng\u01b0\u1eddi: nh\u1eafn 4 s\u1ed1 tr\u00ean cho h\u1ecd.\nN\u1ebfu KH\u00d4NG: b\u1ecf qua tin n\u00e0y (m\u00e3 t\u1ef1 h\u1ebft h\u1ea1n).\nDuy\u1ec7t nhanh kh\u00f4ng c\u1ea7n m\u00e3: /duyet_' + tb +
     '\nCh\u1eb7n m\u00e1y n\u00e0y: /tuchoi_' + tb);
-  return phanHoiJson({ status: 'success', choOtp: 1, guiTele: gui ? 1 : 0, han: 60,
+  return phanHoiJson({ status: 'success', choOtp: 1, guiTele: gui ? 1 : 0, han: muc ? 5 : 60,
     message: gui ? 'Đã gửi yêu cầu cho quản trị. Liên hệ quản trị để nhận 4 số, rồi gõ vào ô bên dưới.'
                  : 'Đã ghi nhận yêu cầu, nhưng kênh Telegram chưa cấu hình — liên hệ trực tiếp quản trị để nhận mã.' });
 }
