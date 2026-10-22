@@ -63,8 +63,9 @@ fs.mkdirSync(GOC_BC, { recursive: true });
 let lam = 0;
 // 14/10 «chạy ra sao, của task nào» → tab Máy trạm (lượt thật)
 const TD = THU ? null : await import("./tien-do.mjs");
-const dsTD = viec.slice(0, MAX); TD?.batDau("tim-bang-chung-b1", "Tìm khung camera cho phiếu B1");
-for (const w of viec.slice(0, MAX)) {
+/* 22/10 user «khi nào xử lý xong»: phiếu trong hàng chờ KHÔNG bị trần MAX chặn — lượt này cắt hết hàng chờ (đã xếp đầu), tối thiểu MAX phiếu */
+const dsTD = viec.slice(0, Math.max(MAX, viec.filter((w) => HANG[w.id]).length)); TD?.batDau("tim-bang-chung-b1", "Tìm khung camera cho phiếu B1");
+for (const w of dsTD) {
   TD?.tienDo({ buoc: "Tìm khung camera cho phiếu B1", task: w.id, i: dsTD.indexOf(w) + 1, n: dsTD.length, chiTiet: String(w.x && w.x.bin || "") });
   log(w.loai === "kho" ? `▶ ${w.id} · ${w.x.bin} · ${w.v.ten} (${w.v.code}) châm ${w.v.qty ?? "?"} lúc ${w.luc}` : `▶ ${w.id} · ${w.x.bin} · lúc chụp ảnh ${w.luc}`);
   if (THU) continue;

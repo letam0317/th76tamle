@@ -4243,7 +4243,10 @@ function enhanceSelect(sel){
     list.appendChild(li); }); };
   /* 21/10 user («Quyết định» cuối thanh bên thả xuống bị cắt): thiếu chỗ bên dưới (trong khung cuộn/màn) mà bên trên rộng hơn → mở LÊN; còn lại vẫn mở xuống như luật 17/10 */
   const mo=()=>{ csDongHet(wrap); dung(); wrap.classList.remove('len'); wrap.classList.add('show'); trig.setAttribute('aria-expanded','true');
-    try{ const r=trig.getBoundingClientRect(), box=wrap.closest('.modal-box,.panel,main')||document.documentElement, rb=Math.min(window.innerHeight, box.getBoundingClientRect().bottom), can=Math.min(list.scrollHeight, 320)+14;
+    /* 22/10: .panel đang mở bộ lọc là overflow:visible (menu tràn được ra ngoài) → đo theo khung cha, không lật lên chỉ vì panel thấp */
+    try{ const r=trig.getBoundingClientRect(); let box=wrap.closest('.modal-box,.panel,main')||document.documentElement;
+      if(box.classList.contains('panel') && getComputedStyle(box).overflow==='visible') box=(box.parentElement&&box.parentElement.closest('.modal-box,main'))||document.documentElement;
+      const rb=Math.min(window.innerHeight, box.getBoundingClientRect().bottom), can=Math.min(list.scrollHeight, 320)+14;
       if(rb-r.bottom<can && r.top-(Math.max(0, box.getBoundingClientRect().top))>rb-r.bottom) wrap.classList.add('len'); }catch(e){} };
   const dong=()=>{ wrap.classList.remove('show'); trig.setAttribute('aria-expanded','false'); };
   trig.addEventListener('click', e=>{ e.stopPropagation(); wrap.classList.contains('show') ? dong() : mo(); });

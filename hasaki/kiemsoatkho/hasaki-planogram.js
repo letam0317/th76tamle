@@ -1127,6 +1127,7 @@ var CSS = [
 ".hp-vtts>summary::after{content:'▾';margin-left:auto;opacity:.6;transition:transform .2s ease;}",
 ".hp-vtts[open]>summary::after{transform:rotate(180deg);}",
 ".hp-vttsn{font-size:12px;font-weight:700;color:var(--accent,#2f7a55);}",
+"@media(min-width:769px){.hp-vtts>summary{pointer-events:none;cursor:default;}.hp-vtts>summary::after{display:none;}}",   // 22/10 web: Tài sản luôn mở
 ".hp-vtts ul{margin:4px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 12px;}",
 ".hp-vtts li{display:flex;flex-direction:column;gap:1px;font-size:12.5px;padding:6px 8px;border-radius:8px;background:var(--surface,#fff);border:1px solid var(--border,#e8ecf1);}",
 ".hp-vtts li .sl{font-weight:700;color:var(--accent,#2f7a55);}",
@@ -1436,8 +1437,14 @@ var CSS = [
   "#hpVtModal .hp-vtr1 #hpVtPg{order:2;}" +
   "#hpVtModal #hpVtGhi{order:3;margin:0;}" +
   "#hpVtModal .hp-modalhd>div:first-child{order:1;margin-left:auto;text-align:right;min-width:0;}}",
-"@media(max-width:768px){#hpVtModal .hp-modalhd{align-items:flex-start;}#hpVtModal .hp-vtacts{min-width:0;max-width:60%;flex:none;}" +
-  "#hpVtModal .hp-vtr1{flex-wrap:wrap;justify-content:flex-end;}#hpVtModal .hp-modalhd>div:first-child{min-width:0;}}",
+/* 22/10 user (điện thoại), trái→phải, trên→dưới: hàng 1 «mã vị trí  camera_00052» không xuống dòng · hàng 2 «Yêu cầu #… ↗» … «Đóng»
+   · hàng 3 «Ghi nhận 5S · còn N phiếu» ngay dưới «Yêu cầu». Thanh bên vừa khít màn: đầu trang đã ẩn nên đỉnh = 0, cao 100dvh. */
+"@media(max-width:768px){#hpVtModal.hp-modal{top:0!important;}body:has(#hpVtModal.show) #sideToggle{opacity:0;pointer-events:none;}#hpVtModal .hp-modalbox{height:100dvh;max-height:100dvh!important;}" +
+  "#hpVtModal .hp-modalhd{flex-direction:column;align-items:stretch;gap:6px;}" +
+  "#hpVtModal .hp-modalhd>div:first-child{order:-1;display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;}" +
+  "#hpVtTitle,#hpVtSub{flex:none;min-width:0;}#hpVtSub{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;}.hp-vt-sban{display:none;}" +
+  "#hpVtModal .hp-vtacts{max-width:none;width:100%;align-items:flex-start;}" +
+  "#hpVtModal .hp-vtr1{width:100%;flex-wrap:nowrap;}#hpVtModal .hp-vtr1 .hp-mdong{margin-left:auto;}}",
 ".hp-vtr1{display:flex;align-items:center;gap:8px;}.hp-vtpg{font-size:12px;white-space:nowrap;}.hp-vtpg:empty{display:none;}.hp-vt-tgon{display:none;}",
 "@media(max-width:768px){#hpVtModal .hp-modalbox{width:100vw!important;}body:has(#hpVtModal.show) header{translate:0 -100%;pointer-events:none}.hp-vt-tday{display:none}.hp-vt-tgon{display:inline}" +
   "#hpVtModal .hp-vtr1 .hsk-nut,#hpVtModal .hp-vtpg{min-height:28px!important;height:28px;padding:0 8px!important;font-size:13px!important;border-radius:6px}.hp-vtpg{border:1px solid var(--border,#e5e7eb);display:inline-flex;align-items:center;text-decoration:none}}",
@@ -3707,11 +3714,12 @@ function renderVt(){
   $id("hpVtTitle").innerHTML = '<span class="hp-vt-tday">' + esc(locTitle(loc)) + '</span><span class="hp-vt-tgon">' + esc(String(loc).replace(/^F0-/, "")) + '</span>';
   /* Ô là bàn đóng hàng A8 có camera → phụ đề mang luôn mã camera (map CAMERA_BAN, khoá theo khoaO);
    * ô khác giữ nguyên câu chú dẫn cũ. Chỉ đổi CHỮ — không đổi vị trí/màu/element. */
-  $id("hpVtSub").textContent = CAMERA_BAN[kO]
-    ? "Bàn đóng hàng: " + CAMERA_BAN[kO]
+  /* 22/10 user (điện thoại): «Bàn đóng hàng: camera_00052» → «camera_00052», cùng 1 hàng với mã vị trí — tiền tố chỉ ẩn ở điện thoại (CSS .hp-vt-sban) */
+  $id("hpVtSub").innerHTML = CAMERA_BAN[kO]
+    ? '<span class="hp-vt-sban">Bàn đóng hàng: </span>' + esc(CAMERA_BAN[kO])
     /* Câu hướng dẫn "bấm ô ngày bên dưới…" đã bỏ (luật ⑦) — dòng phụ nay mang DỮ LIỆU: khu + ngày đang xem.
        Để trống thì khối tiêu đề thấp hơn cụm nút góc phải, đầu pop-up cao thêm (qc-ghi-nhan-5s bắt 28/09). */
-    : ((areaOf(loc) || {}).ngan || "") + (d ? " · " + thuVN(d) + " " + ngayVN(d) : "");
+    : esc(((areaOf(loc) || {}).ngan || "") + (d ? " · " + thuVN(d) + " " + ngayVN(d) : ""));
   /* Hyperlink DUY NHẤT của pop-up: "Yêu cầu #… ↗" ở góc phải trên (không còn nút Mở planogram riêng) */
   var pg = $id("hpVtPg");
   pg.href = r ? pgDetailUrl(r.id) : pgListUrlLoc(d, loc);
@@ -3929,7 +3937,9 @@ function theTaiSan(loc){
   ds.forEach(function(x){ var ten = String(x[0] || "").split("/")[0].trim() || x[0]; var g = nhom[ten];
     if (!g){ g = nhom[ten] = { ten: ten, full: x[0], n: 0, ct: [] }; thu.push(g); } g.n += (+x[1] || 1); g.ct.push(x); });
   var tong = thu.reduce(function(a, g){ return a + g.n; }, 0);
-  return '<details class="hp-vtcard hp-vtts"><summary>' + hd.replace('<div class="hd">', '<span class="hd">').replace(/<\/div>$/, '</span>') +
+  /* 22/10 user: web LUÔN mở mục Tài sản, không thu lại được (CSS ≥769px chặn bấm summary); điện thoại giữ thu/mở */
+  var web = !(window.matchMedia && matchMedia("(max-width:768px)").matches);
+  return '<details class="hp-vtcard hp-vtts"' + (web ? " open" : "") + '><summary>' + hd.replace('<div class="hd">', '<span class="hd">').replace(/<\/div>$/, '</span>') +
     '<span class="hp-vttsn">' + nf(tong) + ' món · ' + thu.length + ' loại</span></summary><ul>' +
     thu.map(function(g){ return '<li><b>' + esc(g.ten) + '</b>' + (g.n > 1 ? ' <span class="sl">×' + g.n + '</span>' : "") +
       '<small>' + esc(g.full) + '</small>' +

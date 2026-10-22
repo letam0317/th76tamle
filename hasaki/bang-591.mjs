@@ -103,7 +103,7 @@ function gom() {
     const nv = nvRaw.map((x) => { const ma = nvMa[x] || x; return { ma, ten: tenTheoMa(ma) || tenTheoMa(x) }; });
     const gy = goiY[id];
     phieu.push({ id, code: g(r, "Task Code"), link: g(r, "Link Task"), ten: g(r, "Task Name"), ghiChu: (MOTA[id] && MOTA[id].note) || "",   /* 20/10 user: tên phiếu WF lên đầu thanh bên; «Ghi chú» = MÔ TẢ phiếu (sổ mo-ta-phieu.json do mo-ta-phieu.mjs đọc task-input) */
-      ngayVP: g(r, "Ngày vi phạm:"), loi: g(r, "Lỗi vi phạm"), viTri: g(r, "Vị trí ghi nhận"),
+      ngayVP: g(r, "Ngày vi phạm:"), tao: g(r, "Created At"), loi: g(r, "Lỗi vi phạm"), viTri: g(r, "Vị trí ghi nhận"),
       nguoiGhi: String(g(r, "Created By")).replace(/ - \d+$/, ""), anh: String(g(r, "Hình ảnh vi phạm")).split("\n").filter(Boolean)[0] || "", anhDs: String(g(r, "Hình ảnh vi phạm")).split("\n").filter(Boolean),   /* 20/10 user: hiện ĐỦ ảnh của phiếu */
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,
@@ -227,6 +227,15 @@ function gom() {
        lúc lập phiếu (cột Video vi phạm / B1 ▸ Video) nằm trên hr-media, không ở kho bằng chứng local → trước đây bị bỏ qua. */
     if (!p.bc || !p.bc.clip.length) { const r = (c.rows || {})[p.code] || null, vd = r ? [g(r, "Video vi phạm"), g(r, "B1. Xác minh lỗi vi phạm ▸ Video (Nếu có)")].join("\n").split("\n").map((s) => s.trim()).find((s) => /^https?:\/\/\S+\.(webm|mp4)(\?|$)/i.test(s)) : "";
       if (vd) p.bc = { ...(p.bc || { anh: [], chu: "", kenh: "" }), clip: [vd], clipTho: false, truy: null, clipInfo: null, chu: (p.bc && p.bc.chu) || "Clip camera máy đính kèm lúc lập phiếu" }; } }
+
+  /* 22/10 user «Đã đưa vào hàng chờ cắt clip camera > khi nào xử lý xong?»: câu cũ đứng yên dù máy đã cắt xong ⇒ có clip/khung rồi thì
+     báo rõ đã cắt xong lúc nào (vẫn chứa «đang» để mucMay không coi là phiếu đã xử lý xong). */
+  { const TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
+    for (const p of phieu) { const x = p.xm, v = TU[p.id]; if (!x || !/hàng chờ cắt clip/i.test(x.daXuLy || "") || !v) continue;
+      const n = (v.lanKho || []).filter((e) => e.clip).length + (v.clip ? 1 : 0);
+      if (!n && !(v.anh || []).length) continue;
+      const luc = v.taiLuc ? new Date(Date.parse(v.taiLuc) + 7 * 36e5).toISOString() : "";
+      x.daXuLy = "Máy đã cắt xong " + (n ? n + " clip" : "khung camera") + (luc ? " lúc " + luc.slice(8, 10) + "/" + luc.slice(5, 7) + " " + luc.slice(11, 16) : "") + " · đang chờ bạn quyết"; } }
 
   /* 12/10 user: "bổ sung bằng chứng truy vấn được ở WMS — lịch sử chuyển vị trí … lỗi lộn xộn thì người phụ trách kệ có khả năng chịu
      trách nhiệm, đồng thời người châm cũng có khả năng … hiển thị theo thứ tự gần thời gian ghi nhận nhất về trước".
