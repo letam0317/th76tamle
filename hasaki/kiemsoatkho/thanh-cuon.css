@@ -17,3 +17,17 @@
   ::-webkit-scrollbar-thumb:hover{background:var(--tc-con-dam);background-clip:padding-box}
   ::-webkit-scrollbar-button{display:none}
 }
+
+/* 22/10 user «khi cuộn ở các mục thường bị đen/mất phần gần cuối trang — xử lý ở tất cả các hạng mục, Retail + Factory» (ảnh: thanh bên
+   Planogram điện thoại, đáy là dải trống cắt ngang thẻ). GỐC RỄ: phần đó CHƯA ĐƯỢC VẼ, không phải mất dữ liệu.
+   ① will-change gắn VĨNH VIỄN trên khối cao cả trang (.pane Retail, .panel/.vfade Factory, hộp pop-up) ⇒ mỗi khối thành 1 lớp đồ hoạ
+     khổng lồ; điện thoại hết bộ nhớ lớp nên chỉ vẽ quanh màn hình — cuộn nhanh xuống là lộ mảng trống/đen. Hoạt ảnh vào trang vẫn
+     chạy mượt khi bỏ will-change (trình duyệt tự nâng lớp TRONG LÚC chạy hoạt ảnh rồi trả lại).
+   ② kính mờ (backdrop-filter) ở đầu trang + nền pop-up: mỗi khung hình cuộn phải làm mờ lại cả vùng ⇒ vẽ không kịp. Điện thoại bỏ
+     kính mờ (nền pop-up đã tối sẵn), đầu trang Retail đổi nền đặc để chữ cuộn bên dưới không lộ qua. */
+.pane,.vfade,.panel,
+#modal .modal-box,#statModal .modal-box,#ghiModal .gm-box,#hmModal .hmm-box,.modalbox,.hp-modalbox,.hk-modalbox,.hpc-box{will-change:auto!important}
+@media (max-width:768px),(pointer:coarse){
+  *,*::before,*::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .wrap>header:not(.hdr){background:var(--bg)!important}
+}
