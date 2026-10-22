@@ -119,7 +119,8 @@
     document.addEventListener("keydown", escDong); return o;
   }
   function escDong(ev) { if (ev.key === "Escape") dongHop(); }
-  function dongHop() { var o = document.getElementById("tkHop"); if (o) o.remove(); document.removeEventListener("keydown", escDong); }
+  var sauDong = null;   // 1 lần: hộp OTP «+ Ghi nhận» cần biết hộp đã đóng (huỷ / đăng nhập xong)
+  function dongHop() { var o = document.getElementById("tkHop"); if (o) o.remove(); document.removeEventListener("keydown", escDong); var f = sauDong; sauDong = null; if (f) f(); }
   function trangThai(o, cls, txt) { var s = o.querySelector(".tk-st"); s.className = "tk-st " + cls; s.textContent = txt; }
 
   /* ---------- 22/10 BẢN QC (qc.audit-dc.pages.dev): chỉ quản trị dùng; dấu chìm «QC» phủ toàn màn hình ----------
@@ -154,6 +155,57 @@
     return lan(1);
   }
   window.tkDangNhap = dangNhap;
+  /* ---------- 22/10 «+ Ghi nhận 5S»: bỏ PIN chung → đã đăng nhập (có quyền Vi phạm «thao tác») hoặc máy đã duyệt OTP thì mở luôn;
+     khách trên máy lạ xin OTP 4 số (GAS tb_xin tự nhắn Telegram cho quản trị) — cùng đường cấp quyền máy của Planogram/Factory. ---------- */
+  function mayId() {
+    try { var id = localStorage.getItem("tb-may");
+      if (!id || !/^m[a-z0-9]{7,19}$/.test(id)) { id = "m" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-4); localStorage.setItem("tb-may", id); }
+      return id; } catch (e) { return ""; }
+  }
+  function layIp(cb) {
+    var nho = ""; try { nho = sessionStorage.getItem("tb-ip") || ""; } catch (e) {} if (nho) return cb(nho);
+    var tra = function (ip) { ip = String(ip || "").trim(); if (ip) try { sessionStorage.setItem("tb-ip", ip); } catch (e) {} cb(ip); };
+    fetch("https://www.cloudflare.com/cdn-cgi/trace").then(function (r) { return r.text(); }).then(function (t) { var m = /^ip=(.+)$/m.exec(t); if (!m) throw 0; tra(m[1]); })
+      .catch(function () { fetch("https://api.ipify.org?format=json").then(function (r) { return r.json(); }).then(function (j) { tra(j && j.ip); }).catch(function () { tra(""); }); });
+  }
+  var duocGhi = function () { return TK.nguoi ? window.tkCo("r.task", "lam") : !!ls.get("tb-khoa"); };
+  function moOtpGhiNhan() {
+    return new Promise(function (xong) {
+      var o = hop("Ghi nhận vi phạm 5S", '<form class="tk-f"><div class="tk-goiy">Máy này chưa được cấp quyền ghi nhận. Khai tên rồi bấm «Xin mã OTP» — quản trị nhận tin Telegram và báo bạn 4 số (làm một lần cho máy này; chỉ xin được khi dùng Wi-Fi công ty).</div>' +
+        '<label>Bạn là ai?<input name="ten" maxlength="60" required placeholder="tên · bộ phận" value="' + e_(ls.get("tb-ten") || "") + '"></label><button type="submit" class="tk-chinh">Xin mã OTP</button>' +
+        '<label class="tk-otp" hidden>Mã OTP 4 số<input name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="4" pattern="[0-9]{4}"></label><button type="button" class="tk-chinh tk-otp" data-a="kich" hidden>Kích hoạt</button>' +
+        '<div class="tk-goiy">Đã được cấp tài khoản? <button type="button" class="tk-chinh tk-lk2" data-a="dn">Đăng nhập</button> — không cần OTP.</div><div class="tk-st"></div></form>');
+      sauDong = function () { xong(duocGhi()); };
+      var f = o.querySelector("form"); f.ten.focus();
+      var goiGas = function (d) { return fetch(GAS, { method: "POST", body: JSON.stringify(d), redirect: "follow" }).then(function (r) { return r.text(); })
+        .then(function (t) { t = String(t).trim(); if (t.charAt(0) !== "{") throw new Error("Máy chủ chập chờn — bấm lại"); return JSON.parse(t); }); };
+      f.onsubmit = function (ev) { ev.preventDefault(); var id = mayId(); if (!id) return trangThai(o, "loi", "Trình duyệt đang chặn lưu trữ (cửa sổ riêng tư?) — mở cửa sổ thường rồi thử lại.");
+        ls.set("tb-ten", f.ten.value.trim()); trangThai(o, "", "Đang gửi yêu cầu…");
+        layIp(function (ip) { goiGas({ action: "tb_xin", tb: id, ten: f.ten.value.trim(), ip: ip, trang: "kiemsoatkho", ua: (navigator.userAgent || "").slice(0, 160) })
+          .then(function (j) { if (j.status !== "success") throw new Error(j.message || "Không xin được mã");
+            [].slice.call(o.querySelectorAll(".tk-otp")).forEach(function (x) { x.hidden = false; }); f.otp.focus(); trangThai(o, "ok", "Đã gửi — liên hệ quản trị lấy 4 số rồi gõ vào ô trên."); })
+          .catch(function (e) { trangThai(o, "loi", e.message); }); }); };
+      o.querySelector('[data-a="kich"]').onclick = function () { if (!/^\d{4}$/.test(f.otp.value.trim())) return trangThai(o, "loi", "Gõ đủ 4 số");
+        trangThai(o, "", "Đang kiểm…");
+        goiGas({ action: "tb_otp", tb: mayId(), otp: f.otp.value.trim() }).then(function (j) { if (j.status !== "success") throw new Error(j.message || "Mã không đúng");
+          ls.set("tb-khoa", mayId()); dongHop(); }).catch(function (e) { trangThai(o, "loi", e.message); }); };
+      o.querySelector('[data-a="dn"]').onclick = function () { sauDong = null; moDangNhap(); sauDong = function () { xong(duocGhi()); }; };
+    });
+  }
+  /* bọc hộp hỏi PIN của trang (index.html hoiPin) — CHỈ khung «Ghi nhận vi phạm 5S»; các chỗ khác vẫn hỏi PIN như cũ */
+  function bocHoiPin() {
+    if (APP !== "r" || typeof window.hoiPin !== "function" || window.hoiPin.__tk) return;
+    var goc = window.hoiPin;
+    window.hoiPin = function (tieuDe) {
+      if (tieuDe !== "Ghi nhận vi phạm 5S") return goc.apply(this, arguments);
+      if (duocGhi()) return Promise.resolve("ok");
+      if (TK.nguoi) { if (typeof window.toast === "function") window.toast("Tài khoản " + TK.nguoi.id + " chưa có quyền ghi nhận — nhờ quản trị cấp «Vi phạm: Xem + thao tác».", "loi"); return Promise.resolve(null); }
+      return moOtpGhiNhan().then(function (ok) { return ok ? "ok" : null; });
+    };
+    window.hoiPin.__tk = 1;
+    var nut = document.getElementById("btnGhiNhan"); if (nut) nut.title = "Ghi nhận vi phạm 5S";
+  }
+
   function moDangNhap(sau) {
     var o = hop("Đăng nhập", '<form class="tk-f" autocomplete="on"><label>Tài khoản<input name="id" autocomplete="username" required placeholder="vd: tamlc" value="' + e_(ls.get("tk-id") || "") + '"></label>' +
       '<label>Mật khẩu<input name="mk" type="password" autocomplete="current-password" required></label><button type="submit" class="tk-chinh">Đăng nhập</button><div class="tk-st"></div></form>');
@@ -304,6 +356,7 @@
     ".tk-q th:first-child,.tk-q td:first-child{text-align:left}.tk-q td{padding:6px 12px;text-align:center;border-bottom:1px solid var(--ad-chia,var(--border))}",
     ".tk-q .tk-qg td{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface)}.tk-q input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}",
     "#sideNav .s-grp.tk-an{display:none!important}",
+    ".tk-f [hidden]{display:none!important}.tk-f .tk-lk2{min-height:0;padding:0;border:0;background:none;color:var(--accent);font-weight:600;text-decoration:underline}",
     ".tk-q .tk-qcha td:first-child{font-weight:600}.tk-q .tk-qcon td:first-child{padding-left:28px;color:var(--muted)}",
     /* bản QC: chắn = nền trang phủ kín (dưới hộp đăng nhập #tkHop 1400); dấu chìm trên cùng, không bắt chuột */
     "#tkCanQC{position:fixed;inset:0;z-index:1350;display:flex;align-items:flex-start;justify-content:center;padding:80px 16px 16px;background:var(--bg,var(--surface));overflow:auto}",
@@ -319,7 +372,7 @@
   (document.head || document.documentElement).appendChild(st);
 
   /* chờ khung (thanh bên + nút chuyển) dựng xong; áp lại khi mục đang mở đổi */
-  var lan = 0, t0 = setInterval(function () { if (document.getElementById("adChuyen") || ++lan > 100) { clearInterval(t0); apQuyen(); kiem(); } }, 100);
+  var lan = 0, t0 = setInterval(function () { if (document.getElementById("adChuyen") || ++lan > 100) { clearInterval(t0); apQuyen(); kiem(); bocHoiPin(); } }, 100);
   new MutationObserver(function (ms) { if (ms.some(function (m) { return m.attributeName === "class" && m.target.classList && m.target.classList.contains("s-item"); })) apQuyen(); })
     .observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["class"] });
   /* 22/10: thanh bên dựng lại (đăng nhập/xuất, bố cục, dò máy chủ) ⇒ áp quyền lại để ẩn tiêu đề nhóm trống (trước chỉ áp khi đổi mục đang mở) */
