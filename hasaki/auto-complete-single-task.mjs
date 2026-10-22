@@ -87,11 +87,13 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
   if (!ds.length) { log("✗ Không tìm thấy NV nào khớp «" + QUERY_NV + "» trong danh bạ " + db.length + " người."); process.exit(3); }
   const nv = ds[0], codes = ds.map((x) => String(x.code || x.staff_id)).join(",");
   const q = chonQLTTCanBang(nv, db, docSoQLTT(DIR), DIR, false);   // peek — cộng lượt sau khi đóng B1
-  const qltt = QLTT_EP || q.ten;
+  const qltt = QLTT_EP || q.ten;
 
   const d = await docTask(token, TASK);
   if (!d || !Array.isArray(d.subtasks)) { log("✗ Không đọc được task " + TASK); process.exit(4); }
-  const b1 = d.subtasks.find((s) => String(s.workflow_step_id) === "7379" || /B1\./i.test(s.name || ""));
+  /* 22/10: phiếu bị trả về B1 có nhiều bước B1 — lấy bước đang mở, không có thì bước mới nhất (trước lấy bước ĐẦU ⇒ báo «B1 đã đóng sẵn» sai) */
+  const moi = (ds) => ds.find((s) => [0, 1].includes(Number(s.status))) || ds.sort((a, b) => Number(b.id) - Number(a.id))[0];
+  const b1 = moi(d.subtasks.filter((s) => String(s.workflow_step_id) === "7379" || /^B1\.\s/i.test(s.name || "")));
   if (!b1) { log("✗ Task " + d.code + " không có bước B1."); process.exit(5); }
 
   log("Task " + d.code + " (" + TASK + ") · B1 id " + b1.id + " · status hiện tại " + b1.status);
@@ -129,7 +131,7 @@ const docTask = async (token, id) => (await (await fetch(V + "/hr/projects/task-
 
   const sau = await docTask(token, TASK);
   const b1Sau = sau.subtasks.find((s) => String(s.id) === String(b1.id));
-  const b11 = sau.subtasks.find((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || ""));
+  const b11 = moi(sau.subtasks.filter((s) => String(s.workflow_step_id) === "7826" || /B1\.1/i.test(s.name || "")));
   if (b1Sau && b1Sau.status === 2) {
     if (!QLTT_EP && q.pool && q.pool.length > 1) ghiLuot(DIR, qltt);   // chia đều 0,2%: chỉ cộng khi đóng thật
     /* B1.1 PHẢI đứng tên NV vi phạm — engine có thể giao sang quản lý, nên giao lại cho chắc. */

@@ -31,6 +31,7 @@ import { chuanTu, chuanTuSau } from "./tu-ngu.mjs";   // TU-01: "châm hàng" kh
 import { execFileSync } from "node:child_process";
 import { layTokenSongWork, layTokenGhiWork, mayDuocChay } from "./session-rules.js";
 import { laHangMucVeSinhHangNgay, napNguonTruyVet, traPhanCong } from "./truy-vet-vesinh.mjs";
+import { timTheoTenAnToan } from "./qltt.js";   // 22/10 tên ở Mô tả phiếu → tra an toàn (bẫy trùng tên)
 import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -181,10 +182,44 @@ async function nvDongGoi(id) {
   return kq;
 }
 
+/* ---- 22/10 user «bắn sai NV vi phạm»: 14223350 Mô tả ghi «Nhân viên vi phạm: Nguyễn Tấn Vũ» nhưng TB-03 lấy người châm
+   gần nhất trên WMS (Lâm Thanh Tú) rồi nfTuLam tự đóng B1. Người kiểm đã ghi tên → tên đó THẮNG suy luận WMS.
+   Mô tả lấy từ .exports/mo-ta-phieu.json (0 lượt); phiếu [NF] chưa có thì 1 GET task-input, cache khi đọc ra. Tên tra
+   bằng timTheoTenAnToan (bẫy trùng tên); nhiều người ngăn dấu phẩy → giao đủ; 1 tên trùng/không có → nghi-ngo, không tự đóng. */
+const MO_TA = docJ(path.join(EXP, "mo-ta-phieu.json"), {});
+async function nvTheoMoTa(p) {
+  const k = "mt|" + p.id;
+  let note = CACHE[k] ?? MO_TA[p.id]?.note;
+  if (note == null && /^\[NF\]/.test(p.ten || "")) {
+    wshrToken ||= await layTokenSongWork(DIR, () => {});
+    const d = await docTask(/^Bearer /.test(wshrToken) ? wshrToken : "Bearer " + wshrToken, p.id); if (!d) return null;
+    note = String(d.note || ""); CACHE[k] = note; ghiJ(F_CACHE, CACHE);
+  }
+  const m = /Nhân viên vi phạm:\s*([^\n]+)/.exec(String(note || "").replace(/<[^>]+>/g, "\n"));
+  if (!m) return { khong: true };
+  const ds = m[1].split(/,|;| và /).map((s) => s.trim()).filter(Boolean).map((s) => {
+    const em = /\(([^()\s]+@[^()\s]+)\)/.exec(s)?.[1], ten = s.replace(/\([^)]*\)/g, "").trim();
+    const x = em ? nvTheoEmail(em) : timTheoTenAnToan(ten, DB);
+    return x ? { ten: x.staff_name, code: String(x.code), email: x.staff_email } : { ten, code: "", email: "" };
+  });
+  return { chu: m[1].trim(), ds };
+}
+
 /* ---- xét 1 phiếu → kết quả ---- */
 async function xet(p) {
   const loai = phanLoai(p.loi), bin = chuanMa(p.bin), cam = kenhCamera(bin);
   if (loai === "VS") return { luat: "VS", ketLuan: "canh-b11", lyDo: "Lỗi vệ sinh hằng ngày — canh-b11 luật ⑤ xử" };
+  if (!/^\[ĐG\]/.test(p.ten || "")) {
+    const mt = await nvTheoMoTa(p);
+    if (!mt && /^\[NF\]/.test(p.ten || "")) return { luat: "TB-03", ketLuan: "cho-wms", lyDo: "Chưa đọc được Mô tả phiếu NF (lỗi mạng) — lượt sau" };
+    if (mt && !mt.khong) {
+      const luat = loai === "KHAC" || loai === "DL-01" ? "MT-01" : loai;
+      const thieu = mt.ds.filter((n) => !n.code).map((n) => n.ten);
+      if (!mt.ds.length || thieu.length)
+        return { luat, ketLuan: "nghi-ngo", nv: mt.ds, camera: cam, lyDo: "Mô tả phiếu ghi «Nhân viên vi phạm: " + mt.chu + "» nhưng không tra được duy nhất 1 người trong danh bạ cho: " + thieu.join(", ") + " (trùng tên/không có) — bạn nhận người" };
+      return { luat, ketLuan: "B1.1", nv: mt.ds, doChac: "CAO", camera: cam, lyDo: "Người kiểm ghi ở Mô tả phiếu: Nhân viên vi phạm = " + mt.ds.map((n) => n.ten + " (" + n.code + ")").join(", ") };
+    }
+  }
   if (/^\[ĐG\]/.test(p.ten || "") && daDuyet("DG-01")) {
     const dg = await nvDongGoi(p.id);
     if (!dg) return { luat: "DG-01", ketLuan: "cho-wms", lyDo: "Chưa đọc được Mô tả phiếu (lỗi mạng) — lượt sau" };
@@ -327,8 +362,9 @@ for (const p of phieu) {
     const nfTuLam = /^\[NF\]/.test(p.ten || "") && kq.luat === "TB-03";
     if (!choTuLam(kq.luat) && !nfTuLam) { KQ[p.id].choDuyet = true; log("   (luật " + kq.luat + " chưa được duyệt «Cho máy tự làm» — chỉ ghi sheet)"); continue; }
     if (nfTuLam) log("   [NF] tự chuyển theo TB-03 không cần camera (user 21/10)");
-    if (!LAM) { log("   [thử] sẽ đóng B1 → B1.1 cho " + kq.nv[0].ten); continue; }
-    if (dongB1(p.id, kq.nv[0].email)) { SO.lam[p.id] = { luat: kq.luat, nv: kq.nv[0].code, luc: new Date().toISOString() }; ghiDaLam(p.id, "Máy (" + kq.luat + ") chuyển B1.1 cho " + kq.nv[0].ten + " (" + kq.nv[0].code + ")"); }
+    const tenNV = kq.nv.map((n) => n.ten + " (" + n.code + ")").join(", ");   // 22/10 Mô tả có thể ghi nhiều người
+    if (!LAM) { log("   [thử] sẽ đóng B1 → B1.1 cho " + tenNV); continue; }
+    if (dongB1(p.id, kq.nv.map((n) => n.email).join(","))) { SO.lam[p.id] = { luat: kq.luat, nv: kq.nv.map((n) => n.code).join(","), luc: new Date().toISOString() }; ghiDaLam(p.id, "Máy (" + kq.luat + ") chuyển B1.1 cho " + tenNV); }
   }
 }
 ghiJ(F_KQ, KQ);
