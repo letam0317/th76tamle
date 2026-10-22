@@ -39,7 +39,9 @@
     r: [["#btnGhiNhan,.hp-vtghi", "r.task"], [".bb-up", "r.task"], ["#hpcbar,#hpcprev", "r.kk", 1], ["#hpcbar,#hpcprev", "r.htonbat", 1]],
     f: [["#pcbar,#pcprev,#hdrKkPlan", "f.kk", 1], ["#pcbar,#pcprev,#hdrKkPlan", "f.abn", 1], ["#prbar", "f.sku"], ["#tmvBtnIn", "f.tem"]]
   };
-  var KHACH_GOC = (function () { var q = {}; MUC.forEach(function (m) { q[m[0]] = CHA[m[0]] === "r.xacminh" ? "khong" : "lam"; }); return chuanQ(q); })();
+  /* 22/10 (clip user: chưa đăng nhập thấy Planogram/Tồn kho/Xác minh 1–2 giây rồi mới mất): quyền khách MẶC ĐỊNH trên trang = đúng bộ đang đặt ở máy chủ
+     (Retail chỉ Tổng kết · Vi phạm · Quy định; Factory đủ) — máy chủ trả về sau chỉ chỉnh lại nếu quản trị đổi, không còn chớp mục. */
+  var KHACH_GOC = (function () { var q = {}; MUC.forEach(function (m) { q[m[0]] = m[0].charAt(0) === "f" || /^r\.(tong|task|hangmuc)$/.test(m[0]) ? "lam" : "khong"; }); return chuanQ(q); })();
   var e_ = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var ls = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
 
@@ -74,6 +76,9 @@
       t[2].forEach(function (c) { if (an(c[0])) css.push((AN_CON[c[0]] || "#sideNav .s-item[data-tab='" + c[0].slice(2) + "']") + "{display:none!important}"); }); }); });
     /* 22/10 user: khách (chưa đăng nhập) ở Retail không thấy nút chuyển sang Audit Factory — Factory chỉ vào bằng link riêng /factory/ */
     if (APP === "r" && !TK.nguoi) css.push("#adChuyen a{display:none!important}");
+    /* 22/10 (clip user «chưa đăng nhập vẫn thấy mục Xác minh?»): khách không có quyền Xác minh → ẩn cả tiêu đề khoá ở thanh bên lẫn thẻ khoá ở Tổng quan
+       (đăng nhập bằng nút «Đăng nhập» ở chân thanh bên). Thay luật 14/10 «khách vẫn thấy Xác minh để bấm đăng nhập». */
+    if (APP === "r" && !TK.nguoi && (q["r.xacminh"] || "khong") === "khong") css.push("#sideNav .s-grp.s-khoa,.tq-gkhoa{display:none!important}");
     (THAO_TAC[APP] || []).forEach(function (x) { if (x[2] ? (cur === x[1] && q[x[1]] !== "lam") : q[x[1]] !== "lam") css.push(x[0] + "{display:none!important}"); });
     stQ.textContent = css.join("\n");
     /* tiêu đề nhóm thanh bên: ẩn khi mọi mục trong nhóm bị ẩn */
@@ -221,6 +226,7 @@
       dangNhap(f.id.value, f.mk.value).then(function () {
         ls.set("tk-id", f.id.value.trim().toLowerCase().replace(/@.*$/, ""));
         dongHop();
+        if (typeof window.adHuyLinkCho === "function") window.adHuyLinkCho();   // 22/10 không để link sâu cũ kéo sang mục khác sau khi về Tổng quan
         if (sau) { try { sau(); } catch (e) {} }
         try {
           if (typeof window.setTab === "function") window.setTab("home");

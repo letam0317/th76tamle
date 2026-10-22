@@ -426,9 +426,11 @@
         ".hx-gcd-nut{display:flex;gap:8px;flex:none;flex-wrap:nowrap}.hx-gcd-nut [data-gcd=khong]{background:var(--surface);color:var(--text);border-color:var(--border)}" +
         "@media(max-width:560px){.hx-gcd .hx-gcd-dong{flex-direction:column}.hx-gcd-nut .hx-nut{min-height:44px}}" +
         /* (3) «@ai đang xử lý» cạnh nhãn Quyết định — cùng cỡ chữ nhãn, nổi bật + chấm nhấp nháy (cn-dot của «Cập nhật») */
-        ".hx-dx{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:0 7px;border-radius:999px;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn);font:inherit;font-weight:700;vertical-align:baseline}" +
-        ".hx-dx[hidden]{display:none}.hx-dx .cn-dot{color:var(--warn);width:7px;height:7px}" +
-        "#modal .hx-qd-nguon .hx-ng-anh:not(.on){color:var(--text)}" +   /* chip «Ghi nhận» chữ thường — xám nhạt trông như nút bị khoá */
+        ".hx-dxl{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:0 5px;border-radius:4px;line-height:1.35;background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);font:inherit;font-weight:700;vertical-align:baseline;white-space:nowrap}" +   /* 22/10 tông đỏ, khung khít chữ — tên lớp riêng (.hx-dx đã là nút khác cao 40px) */
+        ".hx-dxl[hidden]{display:none}.hx-dxl .cn-dot{color:var(--bad);width:6px;height:6px}" +
+        "#modal .hx-qd-nguon .hx-ng-anh:not(.on){color:var(--text)}" +
+        "#modal [data-tb=tacvu] [data-tp=thongtin]{gap:4px!important}#modal.hx-ben .hx-tb-luoi[data-tb=tacvu] .hx-tb-khung>:is([data-tp=loi],[data-tp=goiy]),#modal .hx-tb-luoi[data-tb=tacvu] .hx-tb-khung>:is([data-tp=loi],[data-tp=goiy]){margin-top:-6px!important}" +   /* 22/10 user: dòng Ngày ghi nhận…Máy gợi ý sát lại còn 1/2 (8 → 4px) */
+        "#modal .hx-qd-anh.nhieu{position:relative}#modal .hx-qd-anh .hx-anh-day-trong{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);margin:0!important;max-width:calc(100% - 20px);padding:4px;background:rgba(0,0,0,.45);border-radius:8px;z-index:2}" +   /* 22/10 dải ảnh nhỏ nằm trong khung ảnh, sát đáy */   /* chip «Ghi nhận» chữ thường — xám nhạt trông như nút bị khoá */
         /* (4) chú thích dưới clip: tối đa 2 dòng (web + điện thoại), giữ chỗ 2 dòng để clip/khung dưới không nhảy */
         "#qdPd{align-items:flex-start}#qdPd>span:not(.gio){white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em;line-height:1.4}",
       ".hx-xdau{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}.hx-xdau .hx-vbar{margin:0;gap:6px;flex-wrap:nowrap}.hx-xdau .hx-qd-nguon{margin:0!important;flex-wrap:nowrap}" +
@@ -723,7 +725,7 @@
         '</div>'; }).join("") + '</div></div>') +
       tp("trangthai", stLuot(l)) +
       /* 17/10 (2) user: 3 chip Xe ra · Không phải NV · Không rõ NGANG HÀNG, «Lưu · lập phiếu» ở dưới 3 chip */
-      tp("quyetdinh", '<div class="hx-qd-o hx-qd-nut"><span class="lbl">Quyết định<span class="hx-dx" hidden></span></span><div class="hx-act">' +
+      tp("quyetdinh", '<div class="hx-qd-o hx-qd-nut"><span class="lbl">Quyết định<span class="hx-dxl" hidden></span></span><div class="hx-act">' +
         /* 17/10 (6) user «rút gọn chip» — câu đầy đủ ở title (rê chuột) */
         '<button data-qd="2" title="' + (PL ? "Không vi phạm" : "Xe ra / không vi phạm") + '"' + (khoa ? " disabled" : "") + '>Không vi phạm</button><button data-qd="1" title="Không phải NV Hasaki"' + (khoa ? " disabled" : "") + '>Không phải NV</button>' +
         '<button data-qd="3" title="Không rõ – bỏ qua"' + (khoa ? " disabled" : "") + '>Không rõ</button>' + (q.qd && !khoa ? '<button data-qd="-1">Bỏ quyết định</button>' : "") +
@@ -779,7 +781,7 @@
     /* 17/10 (8) user «đã chọn NV thì không có dấu xoá ra để chọn lại»: ✕ xoá lựa chọn rồi mở lại danh sách để chọn */
     $id("mBody").querySelectorAll("[data-xoa-ai]").forEach(function (x) { x.onmousedown = function (ev) { ev.preventDefault(); };
       x.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); var n = EV.ng.find(function (y) { return y.so === Number(x.dataset.xoaAi); }), i = $id("mBody").querySelector('[data-cb="' + x.dataset.xoaAi + '"]');
-        n.ma = ""; n.ten = ""; i.value = ""; veChot(); i.focus(); }; });
+        n.ma = ""; n.ten = ""; i.value = ""; if (i._xoaHet) i._xoaHet(); veChot(); i.focus(); }; });
     $id("mBody").querySelectorAll("[data-xoa-muc]").forEach(function (x) { x.onmousedown = function (ev) { ev.preventDefault(); };
       x.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); var t = $id("mBody").querySelector('[data-mcb="' + x.dataset.xoaMuc + '"]'); t.focus(); if (t._xoa) t._xoa(); }; });
     $id("mBody").querySelectorAll("[data-zoom]").forEach(function (z) { z.onclick = function () { var n = EV.ng[Number(z.dataset.zoom) - 1]; openLB([{ url: n.anh, title: (n.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + n.so), sub: l.camera + " · " + n.luc }], 0); }; });
@@ -860,12 +862,27 @@
       if (ds2 && ds2.length) h += '<div class="hx-it h">Danh bạ</div>' + ds2.map(function (c) { return item({ ma: c.ma, ten: c.ten, s: c.chuc }); }).join("");
       if (!h) h = '<div class="hx-it h">' + (k.length < 2 ? "Gõ ≥2 ký tự để tìm trong danh bạ" : "Không tìm thấy") + '</div>';
       menu.innerHTML = h;
-      menu.querySelectorAll("[data-ma]").forEach(function (it) { it.onmousedown = function (ev) { ev.preventDefault(); n.ma = it.dataset.ma; n.ten = it.dataset.ten; inp.value = n.ten + " · " + n.ma; box.classList.remove("show"); boMenu(box); veChot(); }; });
+      menu.querySelectorAll("[data-ma]").forEach(function (it) { it.onmousedown = function (ev) { ev.preventDefault(); them(it.dataset.ma, it.dataset.ten); inp.value = ""; boLoc = true; ve2(); }; });
       datMenu(box);
     };
-    inp.addEventListener("focus", function () { box.classList.add("show"); boLoc = !!inp.value.trim(); inp.select(); ve2(); });   // ve2() gọi datMenu — menu thả lên
+    /* 22/10 user «Là ai chọn được NHIỀU người (vẫn gợi ý) + dấu ✕ xoá — theo luật ô 1. Nhân viên vi phạm của form 5S»: chip trong ô, mỗi chip ✕ riêng;
+       n.ma / n.ten = danh sách ngăn dấu phẩy (luuQD tách thành nhiều dòng cùng người nghi khi gửi máy chủ). Nút ✕ cuối ô vẫn xoá hết. */
+    var ds = [], chips = document.createElement("div"); chips.className = "hx-chips"; box.insertBefore(chips, inp); box.classList.add("hx-nvm");
+    String(n.ma || "").split(",").forEach(function (m, i) { m = m.trim(); if (m) ds.push({ ma: m, ten: String(n.ten || "").split(", ")[i] || "" }); });
+    var dongBo = function () { n.ma = ds.map(function (x) { return x.ma; }).join(","); n.ten = ds.map(function (x) { return x.ten || x.ma; }).join(", "); veChip(); veChot(); };
+    var them = function (ma, ten) { if (!ma || ds.some(function (x) { return x.ma === ma; })) return; ds.push({ ma: ma, ten: ten || "" }); dongBo(); };
+    var veChip = function () {
+      chips.innerHTML = ds.map(function (x, i) { var t = x.ten ? x.ten + " · " + x.ma : x.ma; return '<span class="hx-chip" title="' + e_(t) + '"><span>' + e_(t) + '</span>' + (inp.disabled ? "" : '<button type="button" data-xoa-chip="' + i + '" aria-label="Bỏ ' + e_(x.ten || x.ma) + '">✕</button>') + '</span>'; }).join("");
+      chips.querySelectorAll("[data-xoa-chip]").forEach(function (b) { b.onmousedown = function (ev) { ev.preventDefault(); ev.stopPropagation(); ds.splice(Number(b.dataset.xoaChip), 1); dongBo(); }; });
+      inp.placeholder = ds.length ? "Thêm người…" : (inp.dataset.ph0 || inp.placeholder);
+    };
+    inp.dataset.ph0 = inp.placeholder; inp.value = ""; veChip();
+    inp._xoaHet = function () { ds = []; dongBo(); };
+    inp.addEventListener("focus", function () { box.classList.add("show"); boLoc = !inp.value.trim(); ve2(); });   // ve2() gọi datMenu
     inp.addEventListener("blur", function () { setTimeout(function () { box.classList.remove("show"); boMenu(box); }, 150);
-      var m = inp.value.match(/(?:^|[^\d:])(\d{5,7})(?![\d:])/); if (m && m[1] !== n.ma) { n.ma = m[1]; n.ten = ""; veChot(); } if (!inp.value.trim()) { n.ma = ""; n.ten = ""; veChot(); } });
+      var m = inp.value.match(/(?:^|[^\d:])(\d{5,7})(?![\d:])/); if (m) { them(m[1], ""); inp.value = ""; } });
+    inp.addEventListener("keydown", function (ev) { if (ev.key === "Backspace" && !inp.value && ds.length) { ds.pop(); dongBo(); }
+      if (ev.key === "Enter") { ev.preventDefault(); var a = menu.querySelector("[data-ma]"); if (a) a.dispatchEvent(new MouseEvent("mousedown")); } });
     inp.addEventListener("input", function () { boLoc = false; ve2(); clearTimeout(hT); var k = inp.value.trim(); if (k.length >= 2) hT = setTimeout(function () { goi("/api/nv?q=" + encodeURIComponent(k)).then(ve2).catch(function () {}); }, 220); });
   }
   function ganMucCombo(inp, ds, l) {
@@ -895,7 +912,10 @@
       var thieuMuc = EV.ng.find(function (n) { return !n.khong && !n.muc; });
       if (thieuMuc) return baoLoi((thieuMuc.kieu === "vung" ? "Chỗ có người cử động" : "Người nghi " + thieuMuc.so) + ": chưa chọn lỗi (hạng mục vi phạm)");
       var mucs = QDL || [];
-      body = { id: l.id, qd: QD[0], nguoi: EV.ng.map(function (n) { var x = mucs.find(function (y) { return y.muc === n.muc; }); return { so: n.so, ma: n.ma, khong: n.khong, muc: n.muc, cau: x ? x.cau : "", viTri: n.viTri }; }) };
+      /* 22/10 Là ai chọn nhiều người: 1 người nghi nhiều NV → mỗi NV 1 dòng cùng số người nghi (máy chủ kiểm từng mã trong danh bạ) */
+      body = { id: l.id, qd: QD[0], nguoi: EV.ng.reduce(function (a, n) { var x = mucs.find(function (y) { return y.muc === n.muc; });
+        String(n.ma || "").split(",").map(function (m) { return m.trim(); }).filter(Boolean).concat(n.ma ? [] : [""]).forEach(function (m) { a.push({ so: n.so, ma: m, khong: n.khong, muc: n.muc, cau: x ? x.cau : "", viTri: n.viTri }); });
+        return a; }, []) };
     } else body = { id: l.id, qd: QD[k] };
     goi("/api/quyet-dinh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
       .then(function (j) { baoOk(k === -1 ? "Đã bỏ quyết định" : k === 0 ? "Đã lưu — máy lập phiếu cho " + (j.ten || "") + " trong ≤30 phút" : "Đã lưu: " + QD[k]);
@@ -1497,7 +1517,7 @@
     if (DX) { clearInterval(DX.t); goi("/api/dang-xem?loai=" + DX.loai + "&id=" + encodeURIComponent(DX.id) + "&roi=1").catch(function () {}); DX = null; }
     if (!id) return;
     var nhip = function () {
-      var M = $id("modal"), el = M && M.querySelector(".hx-dx");   // thanh bên web dời khối Quyết định sang cột khác — tìm trong cả pop-up
+      var M = $id("modal"), el = M && M.querySelector(".hx-dxl");   // thanh bên web dời khối Quyết định sang cột khác — tìm trong cả pop-up
       /* lượt đầu chạy ngay lúc vẽ — pop-up chưa kịp gắn «show»: chỉ dừng khi pop-up ĐÃ mở rồi mới đóng / mất khung */
       if (!el || !M || !M.classList.contains("show")) { if (DX && DX.daHien) theoDoiDangXem(); return; }
       if (DX) DX.daHien = true;
@@ -1613,7 +1633,8 @@
     /* 20/10 user: phiếu nhiều ảnh thì hiện ĐỦ — ảnh đầu to + số «1/N» + dãy ảnh nhỏ (cao cố định, giữ chỗ sẵn); bấm ảnh nhỏ đổi ảnh to, bấm ảnh to xem phóng */
     var anhDs = (p.anhDs && p.anhDs.length ? p.anhDs : [bc.anh]).filter(Boolean);
     var anhGN = anhDs.length ? '<div class="hx-qd-anh' + (anhDs.length > 1 ? " nhieu" : "") + '"><span class="lbl">Ảnh ghi nhận</span><img id="qdAnhGN" src="' + e_(anhDs[0]) + '" alt="Ảnh ghi nhận" decoding="async">' +
-      (anhDs.length > 1 ? '<span class="hx-anh-so" id="qdAnhSo">1/' + anhDs.length + '</span></div><div class="hx-anh-day">' + anhDs.map(function (u, i) { return '<button type="button" data-anhi="' + i + '"' + (i ? "" : ' class="on"') + ' aria-label="Ảnh ' + (i + 1) + '/' + anhDs.length + '"><img src="' + e_(thu_(u) || u) + '" alt="" loading="lazy" decoding="async"></button>'; }).join("") + '</div>' : '</div>') : "";
+      /* 22/10 user: dải ảnh nhỏ nằm TRONG khung ảnh ghi nhận, sát đáy dưới ảnh (trước nằm ngoài khung) */
+      (anhDs.length > 1 ? '<span class="hx-anh-so" id="qdAnhSo">1/' + anhDs.length + '</span><div class="hx-anh-day hx-anh-day-trong">' + anhDs.map(function (u, i) { return '<button type="button" data-anhi="' + i + '"' + (i ? "" : ' class="on"') + ' aria-label="Ảnh ' + (i + 1) + '/' + anhDs.length + '"><img src="' + e_(thu_(u) || u) + '" alt="" loading="lazy" decoding="async"></button>'; }).join("") + '</div></div>' : '</div>') : "";
     /* 16/10 (4) user: Quyết định ⇄ «Ai tác động ô…» đổi chỗ — cột TRÁI = bằng chứng camera + Quyết định; cột PHẢI = Ảnh ghi nhận + Ai tác động */
     /* 17/10 (4) user «làm thử cho Theo tác vụ»: rã thành phần + KHUNG như Theo máy (bộ Chỉnh bố cục kéo được) — mặc định TB_MAC.tacvu:
        [camera + nguồn xem 8] [Ảnh ghi nhận + Ai tác động 4] · [12: tình trạng → Lỗi → Máy gợi ý → Quyết định (chốt cứng đáy thanh)] */
@@ -1643,7 +1664,7 @@
         /* 13/10 user: đã có dữ liệu camera thì KHÔNG hiện đoạn «Vì sao» — ai/lúc nào/làm gì đã chạy thành phụ đề dưới clip từng người */
         (!coCam && p.goiY && p.goiY.lyDo ? '<div class="hx-qd-o hx-tb-mt"><span class="lbl">Vì sao · luật ' + e_(p.goiY.luat || "") + '</span><div class="hx-visao" title="Bấm để xem hết">' + e_(ngayChu(p.goiY.lyDo)) + '</div></div>' : "")) +
       tp("quyetdinh", '<div class="hx-qd-ben">' +
-        '<div class="hx-qd-form"><label class="hx-qd-o"><span class="lbl">Quyết định<span class="hx-dx" hidden></span></span><select id="qdSel"><option value="">— chưa quyết —</option>' +
+        '<div class="hx-qd-form"><label class="hx-qd-o"><span class="lbl">Quyết định<span class="hx-dxl" hidden></span></span><select id="qdSel"><option value="">— chưa quyết —</option>' +
           ds.map(function (o) { return '<option' + (o === q.qd ? " selected" : "") + '>' + e_(o) + '</option>'; }).join("") + '</select></label>' +
           /* 22/10 user: gõ mail hoặc họ tên (như ô «1. Nhân viên vi phạm» của form 5S), chọn được nhiều NV */
           '<div class="hx-qd-o"><span class="lbl">Gán người khác</span><div class="hx-cb hx-nvm" id="qdGcBox"><div class="hx-chips"></div><input id="qdGc" type="text" autocomplete="off" spellcheck="false" placeholder="Gõ mail, họ tên hoặc mã NV…"><div class="menu"></div></div></div></div>' +
@@ -1838,11 +1859,13 @@
     boThanhBen(); hienModal("modal");
     if (!laND) return;
     $id("mBody").querySelectorAll("[data-ngl]").forEach(function (b) { b.onclick = function () {   // Nguồn → thanh bên phải của phiếu / lượt (như bấm ở Theo tác vụ / Theo máy)
-      var id = b.dataset.ngid;
-      if (b.dataset.ngl === "luot") { var l = D && D.luot.find(function (z) { return String(z.id) === id; }); if (l) return moLuot(l);
-        if (typeof toast === "function") toast("Lượt này không còn trong danh sách Theo máy (đã quá 14 ngày hoặc đã dọn).", "loi"); return; }
-      var p = D && D.phieu.find(function (z) { return String(z.id) === id; }); if (p) return moQD(p);
-      window.open("https://work.hasaki.vn/tasks?task_id=" + encodeURIComponent(id), "_blank", "noopener");   // phiếu đã đóng — không còn ở Theo tác vụ
+      var id = b.dataset.ngid, mo = null;
+      if (b.dataset.ngl === "luot") { var l = D && D.luot.find(function (z) { return String(z.id) === id; }); if (l) mo = function () { moLuot(l); };
+        else { if (typeof toast === "function") toast("Lượt này không còn trong danh sách Theo máy (đã quá 14 ngày hoặc đã dọn).", "loi"); return; } }
+      else { var p = D && D.phieu.find(function (z) { return String(z.id) === id; }); if (p) mo = function () { moQD(p); }; }
+      if (!mo) { window.open("https://work.hasaki.vn/tasks?task_id=" + encodeURIComponent(id), "_blank", "noopener"); return; }   // phiếu đã đóng — không còn ở Theo tác vụ
+      /* 22/10 (clip user): đóng pop-up nhóm theo hiệu ứng chuẩn rồi mới TRƯỢT thanh bên vào; đóng thanh bên → quay lại đúng pop-up nhóm này */
+      quayLaiTG(g); $id("mClose").click(); setTimeout(mo, 260);
     }; });
     $id("mBody").querySelectorAll("[data-gcd]").forEach(function (b) { b.onclick = function () {
       b.parentNode.querySelectorAll("button").forEach(function (z) { z.disabled = true; });
@@ -1855,6 +1878,16 @@
      dòng nhóm «Ghi chú cải tiến» có nhãn «chờ duyệt N»; pop-up nhóm có cột Nguồn (bấm mở thanh bên của phiếu / lượt) + Hành động (Duyệt / Không duyệt,
      chỉ quản trị — máy chủ cũng chỉ nhận lệnh duyệt từ tamlc). Claude chỉ làm ghi chú đã duyệt (ghi-chu.mjs). */
   var GC_ALL = null;
+  /* 22/10: mở phiếu/lượt từ cột Nguồn của pop-up nhóm Nhật ký → đóng thanh bên thì mở lại pop-up nhóm (khỏi bấm lại tìm) */
+  var QL_TG = null;
+  function quayLaiTG(g) {
+    var M = $id("modal"); if (!M) return; QL_TG = { g: g, buoc: 0 };
+    if (!M.__qlTg) { M.__qlTg = 1; var hien = M.classList.contains("show");
+      new MutationObserver(function () { var dang = M.classList.contains("show"), vuaDong = hien && !dang; hien = dang; if (!QL_TG) return;
+        if (dang) { QL_TG.buoc = M.classList.contains("hx-ben") ? 2 : QL_TG.buoc; return; }   // bước 2 = thanh bên phiếu/lượt đang mở
+        if (vuaDong && QL_TG.buoc === 2) { var g0 = QL_TG.g; QL_TG = null; setTimeout(function () { if (!M.classList.contains("show")) moNhomTG(g0); }, 280); }
+      }).observe(M, { attributes: true, attributeFilter: ["class"] }); }
+  }
   var laQT = function () { return !!(window.TK && window.TK.nguoi && window.TK.nguoi.vaiTro === "quantri"); };
   function napGcAll() { return goi("/api/ghi-chu").then(function (ds) { GC_ALL = ds || []; return GC_ALL; }); }
   function gcCuaDong(x) {   // dòng Nhật ký «Ghi chú cải tiến» (tạo mới) → ghi chú tương ứng

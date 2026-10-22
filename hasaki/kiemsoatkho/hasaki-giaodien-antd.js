@@ -458,6 +458,9 @@
     if (it && !it.classList.contains("on")) it.click(); else dangPop = false;
   });
   window.adDuongMuc = function (it) { return duongMuc(it); };   // cho bộ đo qc-dieu-huong
+  /* 22/10 (clip user: mở link …/xacminh/nhatky, đăng nhập xong lại nhảy vào Nhật ký thay vì Tổng quan): đăng nhập thành công = về Tổng quan theo luật,
+     huỷ lượt «mở link sâu» đang chờ mục Xác minh hiện ra (choMo chờ tới 15 giây) */
+  window.adHuyLinkCho = function () { choMo = ""; };
 
   /* ===== ICON THANH BÊN — khoá = data-tab (+":"+data-sub). Mục nào trùng nghĩa với WMS thì dùng ĐÚNG icon WMS đang dùng
      (Dashboard=gauge · Inventory=warehouse · Physical count=format-list-checkbox · Location management=store-marker · Audit log=history) ===== */
