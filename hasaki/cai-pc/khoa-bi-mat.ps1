@@ -35,6 +35,15 @@ function Khoa-BiMat($duAn, $cfg, $NODE) {
   $nap = Join-Path $duAn 'nap-bi-mat.cjs'
   $muon = '--require "' + ($nap -replace '\\', '/') + '"'   # BAY: NODE_OPTIONS coi "\" trong ngoac kep la ky tu thoat -> duong dan Windows mat het "\" => dung "/"
   if (Test-Path $nap) {
+    # 22/10 LUOI AN TOAN (QLIT mat nhip tim 16:02 chua ro nguyen nhan): chay thu node VOI dung bien nay truoc khi giu - node khong len -> GO bien ngay,
+    # khong ma hoa .env (.env con ban ro thi moi viec chay lai binh thuong). Bo cap nhat la PowerShell nen van chay duoc ke ca khi node hong.
+    $cu = $env:NODE_OPTIONS; $env:NODE_OPTIONS = $muon
+    $okNode = $false; try { $o = & $NODE -e "process.stdout.write('ok')" 2>$null; $okNode = ($LASTEXITCODE -eq 0 -and "$o" -eq 'ok') } catch { $okNode = $false }
+    $env:NODE_OPTIONS = $cu
+    if (-not $okNode) {
+      if ([Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'Machine')) { [Environment]::SetEnvironmentVariable('NODE_OPTIONS', $null, 'Machine') }
+      Ghi "[X] bi mat: node KHONG chay duoc voi bo giai khoa -> da GO NODE_OPTIONS, giu .env ban ro"; return
+    }
     if ([Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'Machine') -ne $muon) {
       [Environment]::SetEnvironmentVariable('NODE_OPTIONS', $muon, 'Machine')
       Ghi "bi mat: dat NODE_OPTIONS cho may (bo giai khoa) - ma hoa .env o luot sau, khi tac vu da nhan bien moi"
