@@ -459,7 +459,7 @@
       /* Gọi GAS: trả HTML (chập chờn 404 — bẫy 12/08) hoặc rớt mạng thì thử lại CÙNG nonce → máy chủ không ghi 2 lần. */
       async goi(body, lan = 4, cho = 150000) {
         const nonce = body.nonce || ('nt' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
-        let tb = ''; try { tb = localStorage.getItem('tb-khoa') || ''; } catch (e) {}
+        let tb = ''; try { tb = localStorage.getItem('tb-khoa') || (localStorage.getItem('tk-phien') ? 'tk:' + localStorage.getItem('tk-phien') : ''); } catch (e) {}   // 23/10 đã đăng nhập tài khoản = đủ quyền, không đòi OTP
         const goi = JSON.stringify(Object.assign({}, body, { nonce, tb }));
         let loi = '';
         for (let i = 0; i < lan; i++) {

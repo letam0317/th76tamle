@@ -190,7 +190,7 @@ function tbOtpGui(otp, cb){
 /* Máy ĐÃ có quyền: báo IP về 1 lượt/ngày để sổ mẫu mạng công ty của GAS luôn theo kịp IP động.
    Hãm bằng localStorage nên không tốn thêm lượt gọi nào trong ngày. */
 function tbBaoIpNeuCan_(){
-  var k = tbKhoa(); if (!k) return;
+  var k = ""; try { k = localStorage.getItem("tb-khoa") || ""; } catch (e) {} if (!k) return;   // chỉ mã thiết bị thật — phiên tài khoản không phải mã máy
   /* file:// = bản nội bộ trên đĩa / bộ đo: đừng đi hỏi IP (mạng bị chặn sạch trong bộ đo,
      và IP của máy đang mở bản đĩa không nói được gì về mạng công ty). */
   if (location.protocol === 'file:') return;
@@ -2831,6 +2831,9 @@ function render(){
           '#hpOtpQ .nl{flex:1 1 160px;font-size:12.5px;min-width:0}</style>' +
           '<div id="hpXinQ"><input id="hpXinTen" maxlength="60" placeholder="Bạn là ai? (tên · bộ phận)">' +
           '<button id="hpXinBtn" type="button">Xin mã OTP</button><div id="hpXinTT"></div></div>' +
+          /* 23/10 user «đã cấp quyền cho người dùng thì bỏ OTP»: có tài khoản → đăng nhập là đủ (đăng nhập xong trang tự tải lại dữ liệu) */
+          (window.tkMoDangNhap ? '<div style="margin-top:12px;font-size:13px">Đã được cấp tài khoản? <button type="button" onclick="window.tkMoDangNhap()" ' +
+            'style="border:0;background:none;padding:0;color:var(--accent);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline">Đăng nhập</button> — không cần OTP.</div>' : "") +
           '<div id="hpOtpQ"><input id="hpOtpMa" inputmode="numeric" autocomplete="one-time-code" maxlength="4" ' +
           'placeholder="••••" aria-label="Mã OTP 4 số">' +
           '<button id="hpOtpBtn" type="button">Kích hoạt</button>' +
