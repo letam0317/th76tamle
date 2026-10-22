@@ -520,6 +520,9 @@ const hopLe = (q) => !LAN || !KHOA || q.socket.remoteAddress === "127.0.0.1" || 
   new URL(q.url, "http://x").searchParams.get("khoa") === KHOA;
 const NGUON_OK = /^(https:\/\/letam0317\.github\.io|https:\/\/((xemtruoc|qc)\.)?audit-dc\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;   // 13/10 + audit-dc.pages.dev + bản xem trước xemtruoc. — QC bảo mật: KHÔNG nhận link phụ <mã>.audit-dc.pages.dev (bản cũ Cloudflare giữ vĩnh viễn)
 /* 22/10 tên việc + nội dung cho dòng Nhật ký của lệnh bấm KHÔNG đụng work.hasaki (đọc TRƯỚC khi lệnh chạy để có giá trị «trước») */
+/* 22/10 chủ dashboard = tài khoản tamlc, phiên đăng nhập riêng cũ của laptop (không phải phiên tài khoản), hoặc tiến trình nội bộ không qua trình duyệt */
+const DANG_XEM = new Map();   // 22/10 «@ai đang xử lý»: "phieu:<id>" | "luot:<id>" → Map(tài khoản → lúc nhịp cuối); chỉ trong bộ nhớ
+function laChuPhien(ph, trinhDuyet, noiBo) { return (!trinhDuyet && noiBo) || !!(ph && (!ph.tk || ph.email === (process.env.HSK_CHU_TK || "tamlc"))); }
 function moTaThaoTac(p, b) {
   let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
   const ct = (x, n) => String(x == null ? "" : x).replace(/\s+/g, " ").slice(0, n || 300);
@@ -533,7 +536,7 @@ function moTaThaoTac(p, b) {
   if (p === "/api/may-tram/duyet-khoa") return { hd: "Duyệt khoá máy trạm", noiDung: ct((o.dongY ? "Duyệt" : "Từ chối") + " · " + o.may) };
   if (p === "/api/may-tram/lenh") return { hd: "Lệnh máy trạm", noiDung: ct((o.xoa ? "Xoá lệnh" : o.capNhat ? "Cập nhật" : o.dung ? "Dừng" : "Tiếp tục") + " · " + (o.viec || "cả máy") + " · " + o.may) };
   if (p === "/api/ghi-chu") return { hd: "Ghi chú cải tiến", phieu: o.loai === "phieu" ? ct(o.id, 12) : "",
-    noiDung: ct(o.xoa ? "Xoá ghi chú" : o.tt ? "Đổi cờ → " + o.tt + (o.xong ? " · " + o.xong : "") : o.noiDung) };
+    noiDung: ct(o.duyet ? (o.duyet === "ok" ? "Duyệt ghi chú" : "Không duyệt ghi chú") : o.xoa ? "Xoá ghi chú" : o.tt ? "Đổi cờ → " + o.tt + (o.xong ? " · " + o.xong : "") : o.noiDung) };
   return { hd: "Bấm " + p.replace(/^\/api\//, "") };
 }
 const sv = http.createServer(async (q, s) => {
@@ -667,7 +670,7 @@ const sv = http.createServer(async (q, s) => {
       const k = String(u.searchParams.get("q") || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const bo = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const ds = k.length < 2 ? [] : [...danhBa().theoMa.values()].filter((x) => x.ma.includes(k) || bo(x.ten).includes(k) || bo(x.email).startsWith(k)).slice(0, 20);
-      return guiJ(s, 200, ds.map((x) => ({ ma: x.ma, ten: x.ten, chuc: String(x.chuc || "").split("/").slice(-1)[0].trim() })));
+      return guiJ(s, 200, ds.map((x) => ({ ma: x.ma, ten: x.ten, email: x.email || "", chuc: String(x.chuc || "").split("/").slice(-1)[0].trim() })));   // 22/10 + email (ô gán NV gõ mail)
     }
     if (p.startsWith("/m/")) {   // mô hình COCO-SSD tải sẵn (.cache-model) cho trình phát clip dò "người" (không nhận mặt)
       const mf = path.join(DIR, ".cache-model", "ssd_mobilenet_v2", path.basename(p));
@@ -719,6 +722,20 @@ const sv = http.createServer(async (q, s) => {
     }
     /* 14/10 user: nút «Ghi chú» ở pop-up Theo tác vụ / Theo máy — ghi điều cần cải tiến; Claude đọc sổ này mỗi phiên để sửa cho lần sau.
        Sổ .exports/ghi-chu-cai-tien.json [{ at, loai:"phieu"|"luot", id, tieuDe, noiDung, boi, xong }] — GET ?id= lấy ghi chú của 1 việc */
+    /* 22/10 user: nhãn «@taina1 đang xử lý» cạnh Quyết định (Theo tác vụ / Theo máy). Trang gọi GET mỗi 15 giây khi pop-up mở (?xem=1),
+       đóng thì ?roi=1; quá 45 giây không nhịp = đã rời. Trả người KHÁC đang mở cùng mục (không tính chính mình). GET → không vào Nhật ký. */
+    if (p === "/api/dang-xem") {
+      const loai = u.searchParams.get("loai") === "luot" ? "luot" : "phieu", id = String(u.searchParams.get("id") || "");
+      if (!/^[\w-]{1,60}$/.test(id)) return guiJ(s, 400, { loi: "thiếu mã" });
+      const ai = String((kiemPhien(phien) || {}).email || (noiBo && !trinhDuyet ? "may" : "")).replace(/@.*$/, "");
+      const k = loai + ":" + id, now = Date.now(), m = DANG_XEM.get(k) || new Map();
+      if (ai && u.searchParams.get("xem") === "1") m.set(ai, now);
+      if (ai && u.searchParams.get("roi") === "1") m.delete(ai);
+      for (const [x, t] of m) if (now - t > 45e3) m.delete(x);
+      if (m.size) DANG_XEM.set(k, m); else DANG_XEM.delete(k);
+      if (DANG_XEM.size > 500) for (const [kk, mm] of DANG_XEM) { if (![...mm.values()].some((t) => now - t < 45e3)) DANG_XEM.delete(kk); }
+      return guiJ(s, 200, { ds: [...m.keys()].filter((x) => x !== ai) });
+    }
     if (p === "/api/ghi-chu") {
       const F = path.join(EXP, "ghi-chu-cai-tien.json"), so = docJ(F, []);
       if (q.method !== "POST") { const id = String(u.searchParams.get("id") || ""); return guiJ(s, 200, so.filter((x) => !id || x.id === id)); }
@@ -728,14 +745,23 @@ const sv = http.createServer(async (q, s) => {
       /* 20/10 user «mục đã ghi chú mà đang cải tiến / cải tiến rồi / chờ cải tiến cần có cờ để nhận biết — loại bỏ — làm mờ»: mỗi ghi chú có
          tt = cho (chờ cải tiến) · dang (đang cải tiến) · xong (đã cải tiến) · bo (không làm, kèm lý do). Dòng cũ: xong có chữ → «xong», trống → «cho».
          POST {id, at, tt, xong?} = đổi trạng thái (Claude / ghi-chu.mjs ghi «xong» = đã sửa gì, hoặc lý do không làm). */
-      if (o.xoa) { const i = so.findIndex((x) => x.id === o.id && x.at === o.xoa); if (i >= 0) so.splice(i, 1); }
+      /* 22/10 user: ghi chú của người KHÁC tamlc → «chờ duyệt»; tamlc duyệt / không duyệt ở Nhật ký — Claude (ghi-chu.mjs) chỉ đọc ghi chú đã duyệt,
+         tránh tốn công phân tích ghi chú không đáng. POST {id, at, duyet:"ok"|"khong"} — chỉ chủ (laChuPhien). */
+      const chu = laChuPhien(kiemPhien(phien), trinhDuyet, noiBo);
+      if (o.duyet) {
+        if (!chu) return guiJ(s, 403, { loi: "Chỉ quản trị duyệt ghi chú" });
+        if (!["ok", "khong"].includes(o.duyet)) return guiJ(s, 400, { loi: "duyệt lạ" });
+        const g = so.find((x) => x.id === o.id && x.at === o.at); if (!g) return guiJ(s, 404, { loi: "không thấy ghi chú" });
+        g.duyet = o.duyet; g.duyetLuc = new Date().toISOString();
+      }
+      else if (o.xoa) { const i = so.findIndex((x) => x.id === o.id && x.at === o.xoa); if (i >= 0) so.splice(i, 1); }
       else if (o.tt) {
         if (!["cho", "dang", "xong", "bo"].includes(o.tt)) return guiJ(s, 400, { loi: "trạng thái lạ" });
         const g = so.find((x) => x.id === o.id && x.at === o.at); if (!g) return guiJ(s, 404, { loi: "không thấy ghi chú" });
         g.tt = o.tt; if (o.xong != null) g.xong = String(o.xong).slice(0, 600) || null; g.ttLuc = new Date().toISOString();
       }
       else { const nd = String(o.noiDung || "").trim().slice(0, 2000); if (!nd) return guiJ(s, 400, { loi: "chưa gõ nội dung" });
-        so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", tt: "cho", xong: null }); }
+        so.push({ at: new Date().toISOString(), loai: o.loai === "luot" ? "luot" : "phieu", id: String(o.id), tieuDe: String(o.tieuDe || "").slice(0, 160), noiDung: nd, boi: (kiemPhien(phien) || {}).email || "", tt: "cho", xong: null, duyet: chu ? "ok" : "cho" }); }
       ghiJson(F, so, { thut: 1 });
       return guiJ(s, 200, { ok: true, ds: so.filter((x) => x.id === o.id) });
     }

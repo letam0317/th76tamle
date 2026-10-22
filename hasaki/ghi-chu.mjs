@@ -28,11 +28,15 @@ if (process.argv[1] && path.basename(process.argv[1]) === "ghi-chu.mjs") {
     ghiJson(F, so, { thut: 1 });
     console.log(`✓ ${id} → ${TEN[tt]}${g.xong ? " · " + g.xong : ""}`);
   } else {
-    const tatCa = A.includes("--tat-ca"); let n = 0;
+    /* 22/10 user: ghi chú của người khác tamlc phải được DUYỆT (Nhật ký) mới đưa Claude làm — «chờ duyệt» / «không duyệt» không liệt kê (--tat-ca vẫn hiện) */
+    const tatCa = A.includes("--tat-ca"); let n = 0, choDuyet = 0;
     so.forEach((g, i) => {
-      const tt = ttCua(g); if (!tatCa && (tt === "xong" || tt === "bo")) return; n++;
+      const tt = ttCua(g); if (!tatCa && (tt === "xong" || tt === "bo")) return;
+      if (!tatCa && g.duyet && g.duyet !== "ok") { if (g.duyet === "cho") choDuyet++; return; }
+      n++;
       console.log(`#${i + 1} [${TEN[tt]}] ${g.loai} ${g.id} · ${g.tieuDe}\n   ${g.at.slice(0, 16).replace("T", " ")} ${g.boi}: ${String(g.noiDung).replace(/\n/g, " / ")}${g.xong ? "\n   → " + g.xong : ""}`);
     });
     console.log(n ? `— ${n} ghi chú` : "Không còn ghi chú chờ cải tiến.");
+    if (choDuyet) console.log(`(${choDuyet} ghi chú của người khác đang CHỜ tamlc duyệt ở Nhật ký — chưa làm)`);
   }
 }
