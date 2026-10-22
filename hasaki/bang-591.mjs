@@ -430,7 +430,10 @@ function mayTram() {
    Trần tổng gương GUONG_TRAN_GB (mặc định 8 GB, chỉ tính tệp DO GƯƠNG GHI — sổ <BC>/.guong-clip-so.json; tệp PC tự sinh không bao giờ bị xoá):
    vượt thì xoá tệp gương KHÔNG còn được tham chiếu trước, rồi tới tệp gương cũ nhất. Đĩa còn < cỡ tệp + 2 GB → 507. */
 const SO_GUONG = path.join(GOC_BC, ".guong-clip-so.json");
-const TRAN_GUONG = Number(process.env.GUONG_TRAN_GB || 8) * 1024 ** 3;   // đo 22/10: đang dùng ~6,1 GB (bc 1,66 · ảnh lượt 0,15 · video lượt 4,32)
+/* 22/10 user «BANGCHUYEN-2 có ổ D 931 GB, ưu tiên máy này làm gương clip»: bằng chứng của PC đã ở ổ phụ (o-du-lieu.ps1 → BAIXE_DIR D:AuditFactory…)
+   ⇒ trần mặc định theo CHỖ TRỐNG ổ chứa bằng chứng: còn > 200 GB → 300 GB, không thì 8 GB. GUONG_TRAN_GB trong .env vẫn thắng. */
+const diaTrongGB = () => { try { const f = fs.statfsSync(fs.existsSync(GOC_BC) ? GOC_BC : path.parse(GOC_BC).root); return Math.round(f.bavail * f.bsize / 1e9); } catch { return 0; } };
+const TRAN_GUONG = Number(process.env.GUONG_TRAN_GB || (diaTrongGB() > 200 ? 300 : 8)) * 1024 ** 3;   // đo 22/10: đang dùng ~6,1 GB (bc 1,66 · ảnh lượt 0,15 · video lượt 4,32)
 let GUONG_DANG = 0;   // số lượt ghi đang chạy (tự nạp code mới phải chờ về 0)
 const ghiSoGuong = (so) => ghiJson(SO_GUONG, so, { thut: 0 });   // sổ nằm trong thư mục bằng chứng (không phải dữ liệu nghiệp vụ .exports)
 function thamChieuGuong() {   // rel các tệp bằng chứng mà dữ liệu đang hiển thị còn dùng (bản dự phòng: theo dữ liệu kéo từ kho Drive)
@@ -573,7 +576,7 @@ const sv = http.createServer(async (q, s) => {
     if (canPhien && q.method === "POST" && (kiemPhien(phien) || {}).chiXem) return guiJ(s, 403, { loi: "Tài khoản chỉ có quyền xem phần Xác minh" });
     if (DU_PHONG && q.method === "POST" && p.startsWith("/api/")) return guiJ(s, 503, { loi: "Laptop đang tắt — đang xem bản dự phòng (chỉ xem). Quyết định / ghi chú làm khi laptop bật lại.", duPhong: 1 });
     if (p === "/api/phien") return guiJ(s, 200, { email: (kiemPhien(phien) || {}).email || "" });
-    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1 } : { ok: 1 });   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
+    if (p === "/api/ping") return guiJ(s, 200, DU_PHONG ? { ok: 1, duPhong: 1, guong: 1, diaGB: diaTrongGB() } : { ok: 1 });   /* 22/10 diaGB: laptop + điện thoại chọn bản dự phòng NHIỀU CHỖ nhất */   // 22/10 guong:1 = bản dự phòng nhận gương clip   // trang dashboard dò máy chủ để hiện/giấu tab Xác minh
     if (p === "/api/du-lieu") return guiJ(s, 200, chuanTuSau(gom()));   // TU-01: mọi chữ ra dashboard qua bộ lọc từ ngữ
     if (p === "/api/quy-dinh") return guiJ(s, 200, await quyDinh());
     if (p === "/api/qc-dem") return guiJ(s, 200, docJ(path.join(EXP, "qc-dem.json"), { chua: 1 }));   // 20/10 kết quả bộ đo chạy đêm (chay-qc-dem.mjs)

@@ -54,12 +54,14 @@ async function timDich() {
   const j = await gasPost({ action: "pcBang", key: KHOA }, () => {}, "pcBang (gương clip)");
   if (!j || j.status !== "success") throw new Error((j && j.message) || "Apps Script không trả bảng máy trạm");
   const ds = (j.may || []).filter((m) => /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(String(m.xmHam || ""))).sort((a, b) => Date.parse(b.luc || 0) - Date.parse(a.luc || 0));
-  let cu = "";
+  /* 22/10 user «ưu tiên BANGCHUYEN-2 (ổ D 931 GB) làm máy gương»: nhiều bản dự phòng cùng sống → chọn máy báo diaGB (chỗ trống ổ bằng chứng) LỚN nhất */
+  let cu = "", tot = null;
   for (const m of ds) {
     const pj = await fetch(m.xmHam + "/api/ping", { signal: AbortSignal.timeout(10000) }).then((r) => (r.ok ? r.json() : null), () => null);
-    if (pj && pj.duPhong && pj.guong) { log("bản dự phòng: " + m.may + " · " + m.xmHam); return m.xmHam; }
-    if (pj && pj.duPhong) cu = m.may;
+    if (pj && pj.duPhong && pj.guong) { if (!tot || (pj.diaGB || 0) > tot.dia) tot = { may: m.may, url: m.xmHam, dia: pj.diaGB || 0 }; }
+    else if (pj && pj.duPhong) cu = m.may;
   }
+  if (tot) { log("bản dự phòng: " + tot.may + " · " + tot.url + " · ổ trống " + tot.dia + " GB"); return tot.url; }
   if (cu) log("⚠ " + cu + " đang chạy bản dự phòng CŨ (chưa có gương clip) — chờ PC kéo code mới (git pull 2 giờ/lần, bản dự phòng tự nạp lại)");
   return "";
 }
