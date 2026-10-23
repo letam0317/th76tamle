@@ -53,6 +53,7 @@ async function dungPhieu(id, buocId, ly, bl) {
    Giữ phiếu đã qua B1 nếu có, không thì phiếu tạo trước; chỉ dừng phiếu còn lại khi nó MỚI treo ở B1. Cả 2 đã qua B1 → in ra, xem tay. */
 const B1 = 7379; so.dl03 ||= {};
 const b1Cua = (x) => (x.subtasks || []).filter((s) => +s.workflow_step_id === B1).pop();
+const conTreo = (x) => (x.subtasks || []).some((s) => [0, 1].includes(+s.status));
 const bamAnh = async (x) => Promise.all([].concat(x.data.configs.IMA00 || []).map(async (p) => sharp(Buffer.from(await (await fetch("https://hr-media.hasaki.vn/production/hr/" + p)).arrayBuffer())).resize(16, 16, { fit: "fill" }).greyscale().raw().toBuffer()));
 const lechAnh = (a, b) => { let d = 0; for (let i = 0; i < 256; i++) d += Math.abs(a[i] - b[i]); return d / 256; };
 const nhomDL = {};
@@ -65,7 +66,6 @@ for (const ds of Object.values(nhomDL)) {
   if (ds.length < 2) continue;
   ds.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.id - b.id);
   const quaB1 = ds.filter((x) => +b1Cua(x).status === 2);
-  const conTreo = (x) => (x.subtasks || []).some((s) => [0, 1].includes(+s.status));
   if (quaB1.length > 1) { if (quaB1.some(conTreo)) console.log("DL-03 ⚠ trùng nhưng", quaB1.length, "phiếu đã qua B1 — xem tay:", quaB1.map((x) => link(x.id)).join(" ")); continue; }
   const giu = quaB1[0] || ds[0];
   for (const x of ds) {
@@ -80,6 +80,33 @@ for (const ds of Object.values(nhomDL)) {
     const ok = await dungPhieu(x.id, treo[0].id, ly, ly + " — đã dừng phiếu này, xử lý ở phiếu giữ.");
     console.log("  ", ok ? "✓ đã dừng" : "✗ đọc lại chưa thấy dừng — xem tay " + link(x.id));
     if (ok) { so.dl03[x.id] = { giu: giu.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
+  }
+}
+/* ---- CH-07 (user chốt 23/10, ca 13774184/13774186: 1 thùng chụp cách 1,5′ ghi thành 2 lỗi khác nhau) ----
+   Cùng ô + giờ vi phạm cách ≤ 15′ + KHÁC lỗi = 1 lần đi kiểm → chỉ tính 1: giữ phiếu đã qua B1 nếu có, không thì phiếu ghi nhận
+   sớm nhất; dừng phiếu còn lại khi nó MỚI treo ở B1. Bỏ giờ tròn HH:00:00 (cò tự động đặt giờ, không phải giờ chụp). */
+so.ch07 ||= {};
+const cumO = {};
+for (const ds of Object.values(nhomDL)) for (const x of ds) { const c = x.data.configs; if (!/:00:00$/.test(c.DATE00)) (cumO[String(c.BIN00 || "").trim()] ||= []).push(x); }
+for (const [o, ds0] of Object.entries(cumO)) {
+  const ds = [...new Map(ds0.map((x) => [x.id, x])).values()].sort((a, b) => a.data.configs.DATE00.localeCompare(b.data.configs.DATE00) || a.id - b.id);
+  const ms = (x) => Date.parse(x.data.configs.DATE00.replace(" ", "T"));
+  for (let i = 0; i < ds.length;) {
+    let j = i + 1; while (j < ds.length && ms(ds[j]) - ms(ds[i]) <= 15 * 60e3) j++;
+    const cum = ds.slice(i, j); i = j;
+    if (cum.length < 2 || new Set(cum.map((x) => x.data.configs.TYPE00)).size < 2) continue;   // cùng lỗi → DL-03 lo
+    const giu = cum.find((x) => +b1Cua(x).status === 2) || cum[0];
+    for (const x of cum) {
+      if (x === giu || x.data.configs.TYPE00 === giu.data.configs.TYPE00 || so.ch07[x.id] || so.dl03[x.id] || !conTreo(x)) continue;
+      const treo = (x.subtasks || []).filter((s) => [0, 1].includes(+s.status));
+      if (treo.length !== 1 || +treo[0].workflow_step_id !== B1) { console.log("CH-07 ⚠", x.id, "cùng lượt với", giu.id, "nhưng đã qua B1 — xem tay"); continue; }
+      const ly = "Gộp vào phiếu " + link(giu.id) + " (cùng ô " + o + ", cùng lượt ghi nhận — 1 lần kiểm chỉ tính 1 lỗi)";
+      console.log("CH-07", x.id, "→ gộp vào", giu.id, "·", o, "·", x.data.configs.DATE00, "vs", giu.data.configs.DATE00); viec++;
+      if (!LAM) continue;
+      const ok = await dungPhieu(x.id, treo[0].id, ly, ly + " — đã dừng phiếu này.");
+      console.log("  ", ok ? "✓ đã dừng" : "✗ đọc lại chưa thấy dừng — xem tay " + link(x.id));
+      if (ok) { so.ch07[x.id] = { vao: giu.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
+    }
   }
 }
 /* ---- CH-05 ---- */

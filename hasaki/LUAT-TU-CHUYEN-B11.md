@@ -30,6 +30,7 @@ Bạn chọn ở cột vàng «Quyết định» trên tab PHIẾU B1 TREO (lu�
 | Lỗi hành vi tại chỗ (ăn uống, CCDC, chắn lối, đùa giỡn, tập trung) và **vị trí không phải mã ô** | `canh-b1.mjs` | CAM-04 | **Chưa** — chỉ ghi sheet, máy cắt khung camera giờ ghi nhận, bạn nhận người |
 | Phiếu thiếu giờ/mã ô, ảnh trùng | `canh-b1.mjs` | DL-01, DL-02 | **Không** |
 | 2 phiếu trùng hoàn toàn / cùng NV·cùng lỗi·cùng ngày | chặn lúc lập: `push-5s-to-workflow.js` (sổ ảnh riêng từng máy) · quét lùi: `canh-trung-nv.mjs` | DL-03, CH-05 | Không chuyển — **dừng phiếu sau**; DL-03: phiếu kia đã qua B1 thì giữ phiếu đó, dừng phiếu còn treo B1 (23/10) |
+| Cùng ô, giờ vi phạm cách ≤ 15′, KHÁC lỗi (1 lần kiểm ghi nhiều lỗi) | `canh-trung-nv.mjs` | CH-07 (user chốt 23/10) | Không chuyển — giữ phiếu đã qua B1 / ghi nhận sớm nhất, **dừng phiếu còn treo B1**; bỏ giờ tròn HH:00:00 |
 | Lấy xe soạn sai thứ tự, gửi xe sai bãi | `bai-xe-phieu.mjs`… | XE-01, BX-01 | Chỉ ghi sheet |
 
 ## 3. Máy chuyển bằng cách nào (khuôn duy nhất: `auto-complete-single-task.mjs`)
