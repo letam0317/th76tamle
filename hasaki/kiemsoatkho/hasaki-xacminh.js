@@ -505,7 +505,9 @@
     if (!D || !PANE) return;
     var bCu = $id("hxBody"); if (bCu && SUB_DANG && SUB_DANG !== SUB) GIU[SUB_DANG] = { k: khoaGiu(), n: bCu };
     var choCam = D.luot.filter(function (l) { return !l.qd && !l.chiLuu; }).length;
-    var qua48 = D.phieu.filter(function (p) { return (p.treoGio || 0) > 48; }).length;
+    /* 23/10 user «đã hoàn thành B1.1 rồi còn đưa vào Theo tác vụ làm gì — Xác minh là để xác minh NV khi còn treo B1»: mục chỉ đếm/hiện phiếu ở B1 */
+    var pB1 = D.phieu.filter(function (p) { return p.buoc === "B1"; });
+    var qua48 = pB1.filter(function (p) { return (p.treoGio || 0) > 48; }).length;
     var nvCo = D.nhanVien.filter(function (x) { return x.viec.some(function (v) { return v.loai !== "dang-giu"; }); });
     var daLap = D.luot.filter(function (l) { return l.may && l.may.trangThai === "xong"; }).length;
     /* 05/10 QC (skill frontend-design): BỎ dải 4 ô số chung — số không thuộc mục đang mở, chữ in hoa, chiếm nửa màn điện thoại; số của từng mục đã nằm ở thanh bên + dòng mô tả mục */
@@ -513,7 +515,7 @@
     /* 05/10 user chán dải chip → kiểu A: các mục con nằm ở THANH BÊN TRÁI của dashboard (nhóm "Xác minh", index.html đọc window.__HX_MUC).
        Trong trang chỉ còn tiêu đề mục; khi thanh bên đang đóng (hoặc điện thoại) có 1 ô chọn "Chuyển mục" theo khuôn bộ lọc host. */
     /* 12/10 user: chỉ còn 3 mục — bỏ Nhắc QLTT (đã có trong Nhật ký, lọc ở đó) + Nhân viên */
-    var MUC = [["treo", "Theo tác vụ", D.phieu.length, D.phieu.length + " phiếu WF591 đang mở, " + qua48 + " phiếu treo quá 48 giờ"],
+    var MUC = [["treo", "Theo tác vụ", pB1.length, pB1.length + " phiếu WF591 chờ xác minh B1, " + qua48 + " phiếu treo quá 48 giờ"],
       ["cam", "Theo máy", choCam, choCam + " sự việc chờ bạn quyết · đã lập " + daLap + " phiếu trong 14 ngày"],
       ["tg", "Nhật ký", tgHomNay(), "Phiếu, bình luận, ảnh do máy tạo bằng tài khoản của bạn trong 14 ngày: bộ nào làm, chạy từ đâu. Chỉ máy này xem được, không ghi lên phiếu"]];
     window.__HX_MUC = { cur: SUB, ds: MUC.map(function (x) { return { k: x[0], ten: x[1], n: x[2] }; }) };
@@ -1121,18 +1123,18 @@
     return "khong";
   }
   function veTreo() {
-    var thuTu = ["B1", "B1.1", "B2", "B2.1", "B3.1", "B3.2", "B3.3", "B4", "B4.1", "B5", "Điều hướng"], dem = {}, demM = {}, THU = ["chac", "vua", "chon", "nhan", "tam", "cam", "tudong", "tra", "soi", "quyet", "khong", "xong"];
-    D.phieu.forEach(function (p) { dem[p.buoc] = (dem[p.buoc] || 0) + 1; var m = mucMay(p); demM[m] = (demM[m] || 0) + 1; });
-    var ds = D.phieu.filter(function (p) { return (!LOC.buoc || p.buoc === LOC.buoc) && (!LOC.treo || (p.treoGio || 0) > 48) && (!LOC.mucMay || (LOC.mucMay === "gc" ? !!gcCua(p.id) : mucMay(p) === LOC.mucMay)) &&
+    var demM = {}, THU = ["chac", "vua", "chon", "nhan", "tam", "cam", "tudong", "tra", "soi", "quyet", "khong", "xong"];
+    var pB1 = D.phieu.filter(function (p) { return p.buoc === "B1"; });   // 23/10: phiếu đã qua B1 không còn việc xác minh → không hiện, bỏ lọc «Đang ở bước»
+    pB1.forEach(function (p) { var m = mucMay(p); demM[m] = (demM[m] || 0) + 1; });
+    var ds = pB1.filter(function (p) { return (!LOC.treo || (p.treoGio || 0) > 48) && (!LOC.mucMay || (LOC.mucMay === "gc" ? !!gcCua(p.id) : mucMay(p) === LOC.mucMay)) &&
       (!TIM || (p.code + " " + p.viTri + " " + p.loi + " " + p.nguoiBuoc + " " + p.nv.map(function (v) { return v.ten + " " + v.ma; }).join(" ")).toLowerCase().indexOf(TIM.toLowerCase()) >= 0); })
       .sort(function (a, b) { var sx = LOC.sxTreo; if (sx && sx.k) { var v = function (p) { return sx.k === "luc" ? String(p.ngayVP || "") : sx.k === "treo" ? (p.treoGio || 0) : sx.k === "ai" ? (aiPhieu(p) ? 0 : 1) + aiPhieu(p) : (coBC(p) ? 0 : 1); };
         var x = v(a), y = v(b); if (x !== y) return (x > y ? 1 : -1) * sx.d; } return THU.indexOf(mucMay(a)) - THU.indexOf(mucMay(b)) || (b.treoGio || 0) - (a.treoGio || 0); });
     taiGC(veTreo); ds = donGC(ds, function (p) { return p.id; });   // 20/10 phiếu có ghi chú dồn cuối, làm mờ
     var SO = Math.max(30, Number(LOC.soHienTreo) || 30), dsHien = ds.slice(0, SO);
     var h = dauPanelLoc("Phiếu đang mở", (ds.length > dsHien.length ? "1–" + dsHien.length + " / " : "") + ds.length + " phiếu", [
-      { k: "mucMay", lbl: "Máy đã biết tới đâu", v: LOC.mucMay || "", opt: [["", "Tất cả (" + D.phieu.length + ")"]].concat(THU.filter(function (k) { return demM[k]; }).map(function (k) { return [k, MUC_MAY[k][0] + " (" + demM[k] + ")"]; }))
-        .concat((function () { var n = D.phieu.filter(function (p) { return gcCua(p.id); }).length; return n || LOC.mucMay === "gc" ? [["gc", "Có ghi chú (" + n + ")"]] : []; })()) },
-      { k: "buoc", lbl: "Đang ở bước", v: LOC.buoc, opt: [["", "Mọi bước (" + D.phieu.length + ")"]].concat(thuTu.filter(function (b) { return dem[b]; }).map(function (b) { return [b, b + " (" + dem[b] + ")"]; })) },
+      { k: "mucMay", lbl: "Máy đã biết tới đâu", v: LOC.mucMay || "", opt: [["", "Tất cả (" + pB1.length + ")"]].concat(THU.filter(function (k) { return demM[k]; }).map(function (k) { return [k, MUC_MAY[k][0] + " (" + demM[k] + ")"]; }))
+        .concat((function () { var n = pB1.filter(function (p) { return gcCua(p.id); }).length; return n || LOC.mucMay === "gc" ? [["gc", "Có ghi chú (" + n + ")"]] : []; })()) },
       { k: "treo", lbl: "Thời gian treo", v: LOC.treo, opt: [["", "Tất cả"], ["48", "Quá 48 giờ"]] },
       { k: "tim", lbl: "Tìm (vị trí / tên NV)", input: 1, v: TIM, ph: "F0-A1 / Nguyễn…" }]) +
       '<div class="table-wrap"><table class="hx-chung" style="table-layout:fixed;width:100%;min-width:0"><thead><tr>' + cotSx(LOC.sxTreo) + '</tr></thead><tbody>' +
