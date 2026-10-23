@@ -17,6 +17,27 @@ import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi t
 const DIR = path.dirname(fileURLToPath(import.meta.url)); process.chdir(DIR);
 const A = Object.fromEntries(process.argv.slice(2).map((x) => { const [k, v] = x.replace(/^--/, "").split("="); return [k, v ?? true]; }));
 const MAX = Number(A.max || 3), THU = !!A.thu;
+/* 23/10 user «lượng clip cắt lớn — CHIA VIỆC + KIỂM TRA KẾT QUẢ sau chia việc của các máy trạm»: 2 phần theo mã phiếu (--phan=i/n hoặc env XM_PHAN
+   do chay-xm đặt từ dieu-phoi.json) — phần i chỉ làm phiếu có task_id % n == i−1 (khuôn xac-minh-dem). Phần 1 ghim JE75K38, phần 2 ghim FOQ5T89
+   (dự phòng chéo), lịch SO LE 1 giờ ⇒ đầu ghi camera không bị 2 máy tải cùng lúc (05/10 đo: gọi dồn → 400). Mỗi clip ghi dấu máy+phần
+   (`may`) để kiem-chia-clip.mjs (laptop) đối soát. Cùng 1 máy gánh cả 2 phần (máy kia tắt) → khoá máy .tim-bang-chung.lock: phần sau CHỜ
+   tối đa 40' rồi mới bỏ lượt (không chạy chồng — 2 tiến trình cùng ghi bang-chung-b1.json sẽ mất phần nhau). */
+const [PHAN_I, PHAN_N] = String(A.phan || process.env.XM_PHAN || "1/1").split("/").map(Number);
+const cuaToi = (id) => !(PHAN_N > 1) || Number(id) % PHAN_N === PHAN_I - 1;
+const DAU = (await import("node:os")).hostname() + " · phần " + PHAN_I + "/" + PHAN_N + " · " + new Date().toISOString();
+const F_KHOA = path.join(path.dirname(fileURLToPath(import.meta.url)), ".exports", ".tim-bang-chung.lock");
+if (!THU) {
+  const song = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  for (let t0 = Date.now(); ;) {
+    let k = null; try { k = JSON.parse(fs.readFileSync(F_KHOA, "utf8")); } catch { /* chưa có khoá */ }
+    if (!k || !song(k.pid) || Date.now() - k.luc > 3 * 36e5) break;
+    /* TBC_CHO_PHUT: bộ thử rút ngắn thời gian chờ */
+    if (Date.now() - t0 > (Number(process.env.TBC_CHO_PHUT) || 40) * 60e3) { console.log("⏭ phần " + PHAN_I + "/" + PHAN_N + ": máy đang chạy phần " + k.phan + " quá 40' — bỏ lượt"); process.exit(0); }
+    await new Promise((r) => setTimeout(r, process.env.TBC_CHO_PHUT ? 2e3 : 30e3));
+  }
+  fs.mkdirSync(path.dirname(F_KHOA), { recursive: true }); ghiJson(F_KHOA, { pid: process.pid, luc: Date.now(), phan: PHAN_I + "/" + PHAN_N }, { thut: 0, ai: "tim-bang-chung-b1 khoá máy" });
+  process.on("exit", () => { try { const k = JSON.parse(fs.readFileSync(F_KHOA, "utf8")); if (k.pid === process.pid) fs.unlinkSync(F_KHOA); } catch { /* */ } });
+}
 const F_KQ = path.join(DIR, ".exports", "canh-b1-ketqua.json"), F_RA = path.join(DIR, ".exports", "bang-chung-b1.json");
 const GOC_BC = path.join(process.env.BAIXE_DIR ? path.dirname(process.env.BAIXE_DIR) : "C:/Users/lechitam/Videos/5S-bang-chung", "may");
 const log = (...a) => console.log(new Date().toTimeString().slice(0, 8), ...a);
@@ -35,6 +56,7 @@ const KENH_THEM = [[/t[uủ] ?lock/i, "172.16.10.10/5,172.16.10.11/4"], [/re ?it
 const kenhThem = (bin) => (KENH_THEM.find(([re]) => re.test(String(bin || ""))) || [])[1] || "";
 const viec = [];
 for (const [id, x] of Object.entries(kq)) {
+  if (!cuaToi(id)) continue;   // 23/10 chia phần
   if (A.id && String(A.id) !== id) continue;
   if (mo && !mo.has(id)) continue;
   const ung = (x.ungVienWms || x.nv || []).filter((v) => (v.lan || []).length);   // 10/10: A1-01 giữ ứng viên WMS riêng
@@ -50,6 +72,7 @@ for (const [id, x] of Object.entries(kq)) {
    Chỉ xác định GÓC camera nhìn thấy chỗ vi phạm, CHƯA thấy người làm ⇒ dashboard không mở khoá Quyết định bằng loại này. Xếp SAU nguồn kho. */
 const daCo = new Set(viec.map((w) => w.id));
 for (const p of PH) { const id = String(p.id);
+  if (!cuaToi(id)) continue;   // 23/10 chia phần
   if (A.id && String(A.id) !== id) continue; if (daCo.has(id) || kq[id] && (kq[id].nv || []).some((v) => (v.lan || []).length)) continue;
   const luc = String(p.ngayVP || "").slice(0, 19); if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(luc)) continue;
   if (so[id] && (so[id].anh || []).length || so[id] && (so[id].hong || 0) >= 3) continue;
@@ -58,7 +81,7 @@ for (const p of PH) { const id = String(p.id);
    (14115619 nằm hàng chờ từ 12/10, bảng còn ghi nhầm «Đã xử lý»). Nay: phiếu trong hàng chờ xếp ĐẦU lượt; có khung/clip rồi thì gỡ khỏi hàng chờ (cuối lượt). */
 const F_HANG = path.join(DIR, ".exports", "b1-cho-camera.json"), HANG = doc(F_HANG, {});
 viec.sort((a, b) => (HANG[b.id] ? 1 : 0) - (HANG[a.id] ? 1 : 0));
-log(`${viec.length} phiếu cần tìm khung camera (chạy tối đa ${MAX})${Object.keys(HANG).length ? ` · hàng chờ cắt clip: ${Object.keys(HANG).join(", ")}` : ""}`);
+log(`[phần ${PHAN_I}/${PHAN_N}] ${viec.length} phiếu cần tìm khung camera (chạy tối đa ${MAX})${Object.keys(HANG).length ? ` · hàng chờ cắt clip: ${Object.keys(HANG).join(", ")}` : ""}`);
 fs.mkdirSync(GOC_BC, { recursive: true });
 let lam = 0;
 // 14/10 «chạy ra sao, của task nào» → tab Máy trạm (lượt thật)
@@ -108,6 +131,7 @@ for (const w of dsTD) {
    Chỉ để XEM trên dashboard nội bộ; gắn lên phiếu vẫn bắt buộc clip chuẩn qua _clip-noi.mjs. Bù cả phiếu đã có khung mà chưa có clip. */
 let clipMoi = 0;
 for (const [id, v] of Object.entries(so)) {
+  if (!cuaToi(id)) continue;   // 23/10 chia phần
   if (clipMoi >= MAX || THU || !(v.anh || []).length || v.clip || (v.hongClip || 0) >= 3) continue;
   if (A.id && String(A.id) !== id) continue;
   const kj = doc(path.join(DIR, ".exports", "kenh-luc-chup", id + ".json"), {});
@@ -116,7 +140,7 @@ for (const [id, v] of Object.entries(so)) {
   const [host, ch] = k.split("/"), t0 = Date.parse(v.luc.replace(" ", "T") + "+07:00") - (v.loai === "chup" ? 80e3 : 20e3), iso = new Date(t0 + 7 * 36e5).toISOString().slice(0, 19);
   const ten = `${id}_${v.loai === "chup" ? "CHUP" : "KHO"}-${v.luc.replace(/[^0-9]/g, "").slice(4, 12)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
   try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, "90", ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
-  if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { v.clip = ten; v.clipKenh = "kênh " + ch; clipMoi++; log(`  ▶ clip ${ten} (${(fs.statSync(ra).size / 1048576).toFixed(1)} MB)`); }
+  if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { v.clip = ten; v.clipKenh = "kênh " + ch; v.clipMay = DAU; clipMoi++; log(`  ▶ clip ${ten} (${(fs.statSync(ra).size / 1048576).toFixed(1)} MB)`); }
   else { v.hongClip = (v.hongClip || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id}: cắt clip kênh ${ch} hỏng (lần ${v.hongClip}/3)`); }
   ghiJson(F_RA, so, { thut: 1 }); await new Promise((r) => setTimeout(r, 2000));
 }
@@ -131,6 +155,7 @@ let clipLan = 0; const THEM = {};   // 23/10 số clip cắt theo yêu cầu «C
    Mốc ra = created_at, −60 s…+30 s (người rút hàng thường đã đứng ở ô trước khi tạo lệnh); châm GIỮ −20…+70 s. Trần 8 lượt gần nhất/phiếu
    GỘP CHUNG cả vào lẫn ra. Tệp `_RA-` (châm `_LAN-`), lanKho ghi chieu:"ra". --thu: chỉ in lượt sẽ cắt, không cắt/không ghi. */
 for (const [id, x] of Object.entries(kq).sort((a, b) => (HANG[b[0]] ? 1 : 0) - (HANG[a[0]] ? 1 : 0))) {   // 23/10 hàng chờ «Cắt thêm» trước
+  if (!cuaToi(id)) continue;   // 23/10 chia phần
   if (clipLan >= MAX_LAN && !HANG[id]) break;
   if (A.id && String(A.id) !== id) continue;
   if (mo && !mo.has(id)) continue;
@@ -144,23 +169,51 @@ for (const [id, x] of Object.entries(kq).sort((a, b) => (HANG[b[0]] ? 1 : 0) - (
   const k = (kj.kenh || []).find((y) => { const [h, c] = y.split("/"); return fs.existsSync(path.join(DIR, ".exports", "kenh-luc-chup", `${id}_${c}_${h.split(".").pop()}_f0.jpg`)); });
   if (!k) continue;
   const [host, ch] = k.split("/");
-  if (THU) { log(`  (thử) ${id} kênh ${ch}: ${rec.map((r) => (r.chieu === "ra" ? "RA " : "VÀO ") + String(r.at).slice(5, 16) + (((v.lanKho || []).find((z) => !z.phu && z.at === r.at && (z.chieu === "ra") === (r.chieu === "ra")) || {}).clip ? " (đã có clip)" : "")).join(" · ")}`); continue; }
+  if (THU) { log(`  (thử) ${id} kênh ${ch}: ${rec.map((r) => (r.chieu === "ra" ? "RA " : "VÀO ") + String(r.at).slice(5, 16) + (((v.lanKho || []).find((z) => !z.phu && z.chieu !== "soan" && z.at === r.at && (z.chieu === "ra") === (r.chieu === "ra")) || {}).clip ? " (đã có clip)" : "")).join(" · ")}`); continue; }
   v.lanKho ||= [];
   for (const r of rec) {
     if (clipLan >= MAX_LAN && !HANG[id]) break;
     const laRa = r.chieu === "ra";
-    let e = v.lanKho.find((z) => !z.phu && z.at === r.at && (z.chieu === "ra") === laRa);   // phu = góc camera cắt thêm (23/10)
+    let e = v.lanKho.find((z) => !z.phu && z.chieu !== "soan" && z.at === r.at && (z.chieu === "ra") === laRa);   // phu = góc camera cắt thêm (23/10)
     if (!e) { e = { at: r.at, xong: r.xong || r.at, email: r.email, qty: r.qty, loai: r.loai, ...(laRa ? { chieu: "ra", toi: r.toi || "" } : {}) }; v.lanKho.push(e); }
     if (e.clip || (e.hong || 0) >= 3) continue;
     const moc = Date.parse(String(e.at).replace(" ", "T") + "+07:00"), iso = new Date(moc - (laRa ? 60e3 : 20e3) + 7 * 36e5).toISOString().slice(0, 19);
     const ten = `${id}_${laRa ? "RA" : "LAN"}-${String(e.at).replace(/[^0-9]/g, "").slice(4, 14)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
     try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, "90", ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
-    if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; if (HANG[id]) { e.themYC = HANG[id].luc; THEM[id] = (THEM[id] || 0) + 1; } clipLan++; log(`  ▶ ${id} lượt ${laRa ? "rút ra" : "châm"} ${String(e.at).slice(5, 16)} ${e.email} → ${ten}`); }
+    if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; e.may = DAU; if (HANG[id]) { e.themYC = HANG[id].luc; THEM[id] = (THEM[id] || 0) + 1; } clipLan++; log(`  ▶ ${id} lượt ${laRa ? "rút ra" : "châm"} ${String(e.at).slice(5, 16)} ${e.email} → ${ten}`); }
     else { e.hong = (e.hong || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id} lượt ${String(e.at).slice(5, 16)}: cắt clip hỏng (lần ${e.hong}/3)`); }
     ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
   }
 }
 log(`xong: ${lam} phiếu có khung mới · ${clipMoi} clip mới · ${clipLan} clip lượt châm → ${F_RA}`);
+/* 23/10 user «bổ sung soạn hàng (pick)» → «làm»: lượt SOẠN theo đơn đúng ô (sổ .exports/soan-hang-b1.json — laptop dựng từ Redash truy vấn 188,
+   0 lượt API WMS; dong-bo-xm kéo về PC) → clip 6 lượt gần giờ ghi nhận nhất, đoạn −45 s…+15 s quanh giờ lấy (rút từ trang soi-video pick của
+   top-review: người soạn thao tác TRƯỚC mốc 10–40 s, rời ô ≤20 s sau). Tệp `_SOAN-`, lanKho chieu:"soan". Trần MAX_LAN chung với lượt châm/rút. */
+const SOAN = doc(path.join(DIR, ".exports", "soan-hang-b1.json"), {});
+for (const [id, x] of Object.entries(kq).sort((a, b) => (HANG[b[0]] ? 1 : 0) - (HANG[a[0]] ? 1 : 0))) {
+  if (!cuaToi(id)) continue;   // 23/10 chia phần
+  if (clipLan >= MAX_LAN || THU) break;
+  if (A.id && String(A.id) !== id) continue;
+  if (mo && !mo.has(id)) continue;
+  const khoa = CWMS[x.bin + "|" + x.ngay] ? x.bin + "|" + x.ngay : Object.keys(CWMS).find((k) => { const [b0, n0] = k.split("|"); return n0 === x.ngay && b0.endsWith("-" + x.bin); });
+  const sh = khoa && SOAN[khoa], v = so[id]; if (!sh || !(sh.ds || []).length || !v) continue;
+  const kj = doc(path.join(DIR, ".exports", "kenh-luc-chup", id + ".json"), {});
+  const k = (kj.kenh || []).find((y) => { const [h, c] = y.split("/"); return fs.existsSync(path.join(DIR, ".exports", "kenh-luc-chup", `${id}_${c}_${h.split(".").pop()}_f0.jpg`)); });
+  if (!k) continue;
+  const [host, ch] = k.split("/"); v.lanKho ||= [];
+  for (const r of sh.ds.slice(0, 6)) {
+    if (clipLan >= MAX_LAN) break;
+    let e = v.lanKho.find((z) => z.chieu === "soan" && z.at === r.at);
+    if (!e) { e = { at: r.at, xong: r.at, chieu: "soan", ten: r.ten, qty: r.qty, gio: r.gio, nhom: r.nhom, sku: r.sku }; v.lanKho.push(e); }
+    if (e.clip || (e.hong || 0) >= 3) continue;
+    const iso = new Date(Date.parse(String(r.at).replace(" ", "T") + "+07:00") - 45e3 + 7 * 36e5).toISOString().slice(0, 19);
+    const ten = `${id}_SOAN-${String(r.at).replace(/[^0-9]/g, "").slice(4, 14)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
+    try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, "60", ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
+    if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; e.may = DAU; if (HANG[id]) { e.themYC = HANG[id].luc; THEM[id] = (THEM[id] || 0) + 1; } clipLan++; log(`  ▶ ${id} lượt soạn ${String(r.at).slice(5, 16)} ${r.ten} → ${ten}`); }
+    else { e.hong = (e.hong || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id} lượt soạn ${String(r.at).slice(5, 16)}: cắt clip hỏng (lần ${e.hong}/3)`); }
+    ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
+  }
+}
 /* 23/10 user «Cắt thêm clip camera > đã cắt theo yêu cầu thì gắn cờ đoạn nào là cắt thêm». KIỂM 23/10: hàng chờ cũ gỡ phiếu ngay khi phiếu
    ĐÃ CÓ clip từ trước ⇒ 4 phiếu chọn «Cắt thêm» hôm 22/10 bị gỡ mà không cắt thêm đoạn nào. Nay mỗi yêu cầu (HANG[id].luc) phải ra clip MỚI:
    ① lượt WMS chưa có clip (trần nâng 8 → 16, ở vòng trên); ② chưa ra gì thì cắt GÓC CAMERA KHÁC (kênh đã ra hình ở lưới, chưa dùng), tối đa 2 kênh —
@@ -168,11 +221,12 @@ log(`xong: ${lam} phiếu có khung mới · ${clipMoi} clip mới · ${clipLan}
    Hết đoạn để cắt (không còn lượt/kênh) cũng gỡ, ghi so[id].themXong để bảng nói thật «không còn đoạn nào để cắt thêm». */
 if (!THU && Object.keys(HANG).length) {
   for (const id of Object.keys(HANG)) {
+  if (!cuaToi(id)) continue;   // 23/10 chia phần
     if (A.id && String(A.id) !== id) continue;
     const v = so[id], yc = HANG[id].luc; if (!v || (mo && !mo.has(id)) || THEM[id]) continue;
     const kj = doc(path.join(DIR, ".exports", "kenh-luc-chup", id + ".json"), {});
     const kenhRa = (kj.kenh || []).filter((y) => { const [h, c] = y.split("/"); return fs.existsSync(path.join(DIR, ".exports", "kenh-luc-chup", `${id}_${c}_${h.split(".").pop()}_f0.jpg`)); });
-    const lan0 = (v.lanKho || []).filter((z) => !z.phu && z.clip).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];   // lượt gần giờ ghi nhận nhất
+    const lan0 = (v.lanKho || []).filter((z) => !z.phu && z.chieu !== "soan" && z.clip).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];   // lượt gần giờ ghi nhận nhất
     const daDung = new Set([lan0 ? lan0.kenh : v.clipKenh].concat(lan0 ? (v.lanKho || []).filter((z) => z.phu && z.at === lan0.at).map((z) => z.kenh) : (v.clipThem || []).map((z) => z.kenh)));
     for (const y of kenhRa) {
       if ((THEM[id] || 0) >= 2) break;
@@ -182,13 +236,13 @@ if (!THU && Object.keys(HANG).length) {
       const ten = lan0 ? `${id}_${laRa ? "RA" : "LAN"}-${String(lan0.at).replace(/[^0-9]/g, "").slice(4, 14)}_THEM_ch${ch}.mp4` : `${id}_${v.loai === "chup" ? "CHUP" : "KHO"}-${String(v.luc).replace(/[^0-9]/g, "").slice(4, 12)}_THEM_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
       try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, "90", ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
       if (!(fs.existsSync(ra) && fs.statSync(ra).size > 50e3)) { try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id}: cắt thêm kênh ${ch} hỏng`); continue; }
-      if (lan0) v.lanKho.push({ at: lan0.at, xong: lan0.xong, email: lan0.email, qty: lan0.qty, loai: lan0.loai, ...(laRa ? { chieu: "ra", toi: lan0.toi || "" } : {}), clip: ten, kenh: "kênh " + ch, phu: 1, themYC: yc });
-      else (v.clipThem ||= []).push({ clip: ten, kenh: "kênh " + ch, themYC: yc });
+      if (lan0) v.lanKho.push({ at: lan0.at, xong: lan0.xong, email: lan0.email, qty: lan0.qty, loai: lan0.loai, ...(laRa ? { chieu: "ra", toi: lan0.toi || "" } : {}), clip: ten, kenh: "kênh " + ch, phu: 1, themYC: yc, may: DAU });
+      else (v.clipThem ||= []).push({ clip: ten, kenh: "kênh " + ch, themYC: yc, may: DAU });
       THEM[id] = (THEM[id] || 0) + 1; log(`  ▶ ${id} cắt thêm góc kênh ${ch} → ${ten}`);
       ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
     }
   }
-  const go = Object.keys(HANG).filter((id) => (mo && !mo.has(id)) || THEM[id] || (so[id] && !(so[id].lanKho || []).some((z) => !z.phu && !z.clip && (z.hong || 0) < 3)));
+  const go = Object.keys(HANG).filter(cuaToi).filter((id) => !A.id || String(A.id) === id).filter((id) => (mo && !mo.has(id)) || THEM[id] || (so[id] && !(so[id].lanKho || []).some((z) => !z.phu && z.chieu !== "soan" && !z.clip && (z.hong || 0) < 3)));
   for (const id of go) if (so[id] && !(mo && !mo.has(id))) so[id].themXong = { yc: HANG[id].luc, luc: new Date().toISOString(), n: THEM[id] || 0 };
   if (go.length) { ghiJson(F_RA, so, { thut: 1 }); const h = doc(F_HANG, {}); go.forEach((id) => delete h[id]); ghiJson(F_HANG, h, { thut: 1 }); log(`hàng chờ cắt clip: xong ${go.map((id) => id + " (" + (THEM[id] || 0) + " clip thêm)").join(", ")}`); }
 }

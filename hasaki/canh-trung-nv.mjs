@@ -5,7 +5,7 @@
  *  "Phiếu của NV" = B1 đã đóng có staff = mã NV (đã qua xác minh). Phiếu đã bị CH-05 gộp thì không đếm cho CH-06.
  *  DL-03 (quét lùi, 23/10): cùng ô + cùng lỗi + cùng giờ vi phạm + ảnh giống = 1 vi phạm lập 2 phiếu → dừng phiếu thừa.
  *  node canh-trung-nv.mjs [--lam]   — 1 lượt board (120 ngày) + sổ .canh-trung-nv.json chống làm lại. */
-import "dotenv/config"; import fs from "node:fs"; import sharp from "sharp";
+import "dotenv/config"; import fs from "node:fs"; import sharp from "sharp"; import { ghiJson } from "./so-ghi.mjs";
 import { layTokenSongWork, layTokenGhiWork } from "./session-rules.js";
 const V = "https://wshr.hasaki.vn/api"; const LAM = process.argv.includes("--lam"); const F_SO = ".canh-trung-nv.json";
 /* cửa giờ 07–18 T2–T7 (như canh-b1/canh-b11) + khoá chống chạy chồng */
@@ -79,7 +79,7 @@ for (const ds of Object.values(nhomDL)) {
     if (!LAM) continue;
     const ok = await dungPhieu(x.id, treo[0].id, ly, ly + " — đã dừng phiếu này, xử lý ở phiếu giữ.");
     console.log("  ", ok ? "✓ đã dừng" : "✗ đọc lại chưa thấy dừng — xem tay " + link(x.id));
-    if (ok) { so.dl03[x.id] = { giu: giu.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
+    if (ok) { so.dl03[x.id] = { giu: giu.id, luc: new Date().toISOString() }; ghiJson(F_SO, so); }
   }
 }
 /* ---- CH-07 (user chốt 23/10, ca 13774184/13774186: 1 thùng chụp cách 1,5′ ghi thành 2 lỗi khác nhau) ----
@@ -105,7 +105,7 @@ for (const [o, ds0] of Object.entries(cumO)) {
       if (!LAM) continue;
       const ok = await dungPhieu(x.id, treo[0].id, ly, ly + " — đã dừng phiếu này.");
       console.log("  ", ok ? "✓ đã dừng" : "✗ đọc lại chưa thấy dừng — xem tay " + link(x.id));
-      if (ok) { so.ch07[x.id] = { vao: giu.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
+      if (ok) { so.ch07[x.id] = { vao: giu.id, luc: new Date().toISOString() }; ghiJson(F_SO, so); }
     }
   }
 }
@@ -127,7 +127,7 @@ for (const ds of Object.values(nhom)) {
     if (p.treo.length !== 1) { console.log("  ⚠ cần đúng 1 bước treo để dừng — xem tay"); continue; }
     const ok = await dungPhieu(p.id, p.treo[0].id, ly, bl);
     console.log("  ", ok ? "✓ đã dừng + nhắc/tag QLTT" : "✗ đọc lại chưa thấy dừng — xem tay " + link(p.id));
-    if (ok) { so.gop[p.id] = { vao: dau.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
+    if (ok) { so.gop[p.id] = { vao: dau.id, luc: new Date().toISOString() }; ghiJson(F_SO, so); }
   }
 }
 /* ---- CH-06 ---- */
@@ -145,7 +145,7 @@ for (const [k, ds] of Object.entries(thang)) {
     console.log("CH-06", p.id, "·", nv ? nv.staff_name : p.nv, "· lỗi thứ", i + 1, "tháng", k.split("|")[1]); viec++;
     if (!LAM) continue;
     const fc = new FormData(); fc.set("obj_id", String(p.id)); fc.set("comment", bl); await fetch(V + "/v2/task/comment", { method: "POST", body: fc, headers: HW }).catch(() => {});
-    so.tag06[p.id] = { thu: i + 1, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); console.log("   ✓ đã tag QLTT");
+    so.tag06[p.id] = { thu: i + 1, luc: new Date().toISOString() }; ghiJson(F_SO, so); console.log("   ✓ đã tag QLTT");
   }
 }
 console.log(viec ? "" : "Không có việc CH-05/CH-06.", LAM ? "" : "(diễn tập — thêm --lam để làm)");

@@ -1,10 +1,11 @@
 {
   "_doc": "14/10: dữ liệu 4 cò xác minh đồng bộ qua kho Drive (dong-bo-xm.mjs). vao = laptop sinh, PC chỉ kéo · chung = cò đọc+ghi, máy vừa chạy đẩy, máy kia kéo (trong khoá chung xm_khoa) · ra = kết quả nặng: máy chạy chỉ đẩy tệp MỚI TẠO trong lượt, laptop kéo về rồi xoá khỏi kho. «@BC/» = thư mục bằng chứng (thư mục cha của BAIXE_DIR; laptop mặc định C:/Users/lechitam/Videos/5S-bang-chung).",
-  "_gop": "19/10: tệp JSON khoá theo phiếu/ngày mà NHIỀU MÁY cùng ghi khi cò soi camera chạy song song (không khoá chung) → đẩy/kéo bằng gộp 3 chiều (dong-bo-xm.mjs gop3), không đè cả tệp. Phải nằm trong «chung».",
+  "_gop": "19/10: tệp JSON khoá theo phiếu/ngày mà NHIỀU MÁY cùng ghi khi cò soi camera chạy song song (không khoá chung) → đẩy/kéo bằng gộp 3 chiều (dong-bo-xm.mjs gop3), không đè cả tệp. Phải nằm trong «chung». 23/10: + b1-cho-camera.json (hàng chờ «Cắt thêm»: canh-b1 thêm, 2 phần tim-bang-chung-b1 gỡ phần mình — trước đây máy đẩy sau đè).",
   "gop": [
     ".exports/bang-chung-b1.json",
     ".exports/xac-nhan-camera.json",
-    ".exports/xm-dem-goi.json"
+    ".exports/xm-dem-goi.json",
+    ".exports/b1-cho-camera.json"
   ],
   "vao": [
     ".exports/tasks-cache.json",
@@ -13,7 +14,8 @@
     ".exports/b1-quyet-dinh-web.json",
     ".exports/b1-treo-raw.json",
     ".cache-danhba.json",
-    ".cache-nv170.json"
+    ".cache-nv170.json",
+    ".exports/soan-hang-b1.json"
   ],
   "chung": [
     ".exports/canh-b1-ketqua.json",

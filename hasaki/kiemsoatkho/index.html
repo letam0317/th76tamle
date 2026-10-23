@@ -573,6 +573,11 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 .cl-loi{font-weight:600; margin:3px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .cl-kv{color:var(--muted);}
 .cl-kv b{color:var(--text); font-weight:500;}
+/* 23/10 user t6 — CHỈ điện thoại: mỗi hàng thẻ Vi phạm 1 dòng vừa khít, không tràn/không bẻ giữa chừng: «Ghi nhận cho» và «QL» mỗi ý 1 hàng (dài thì …),
+   hàng ngày giờ bỏ chữ «ngày» + năm hiện tại. Dải bước thanh bên Vi phạm: chỉ vòng số, dàn đều bề ngang (tên bước vẫn ở title + Giai đoạn bên dưới). */
+@media(max-width:560px){.cl-kv .cl-dai,.cl-kv .cl-nam{display:none}.cl-data .cl-kv.cl-tach{white-space:normal;overflow:visible}.cl-kv.cl-tach>.cl-sep{display:none}
+  .cl-kv.cl-tach>.cl-p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vp-buoc{overflow-x:visible;gap:0;padding-left:8px!important;padding-right:8px!important}.vp-buoc .vp-tab{flex:1 1 0;min-width:0;max-width:none;justify-content:center;padding:0 2px}.vp-buoc .vp-tab .vp-ten{display:none}}
 
 .foot{text-align:center; font-size:12px; color:var(--muted); margin:18px 0 0;}
 .empty-row{padding:40px; text-align:center; color:var(--muted);}
@@ -621,6 +626,11 @@ thead th.c-flex, tbody td.c-flex{width:100%; padding:0; border-top:1px solid var
 #modal.hx-ben #mBody{flex:1 0 auto;display:flex;flex-direction:column}
 #modal.hx-ben #mBody.hx-doi{animation:paneIn .26s var(--ez-apple)}
 @media(max-width:760px){#modal.hx-ben{left:0!important}}
+/* 23/10 user «CHỈ điện thoại: thanh bên phải hiển thị thì mặc định tự ẩn thanh tiêu đề hạng mục — như Theo tác vụ/Theo máy — mọi hạng mục có thanh bên phải»:
+   luật của Xác minh (hasaki-xacminh.js) đưa về VỎ CHUNG #modal.hx-ben ⇒ Vi phạm (và mục nào dùng hskThanhBen sau này) cùng luật. Planogram (#hpVtModal) có luật riêng sẵn;
+   Factory #plgmodal phủ toàn màn top:0. Cùng nhịp .32s var(--ez-apple), chỉ trượt (translate) — không đổi top lúc mở (giật). */
+@media(max-width:768px){#modal.hx-ben{top:0!important}body>header,.main>header,header{transition:translate .32s var(--ez-apple)}body:has(#modal.hx-ben.show) header{translate:0 -100%;pointer-events:none}
+  body:has(#modal.hx-ben.show) #sideToggle{translate:0 -72px!important;opacity:0!important;pointer-events:none!important}}
 @media(min-width:761px){#modal.hx-ben:not(:has(.hx-tb-luoi)){left:max(clamp(260px,20vw,360px),calc(100vw - 740px - 5cm))!important}}   /* 21/10 user: dời mép trái thanh bên phải sang trái thêm 5cm (ra giữa màn hình) */
 @media(min-width:761px){#modal.hx-ben .modal-head{padding:12px 24px;min-height:56px}}
 /* dòng đang xem = nền chọn của Table antd (AD-01 cấm vạch nhấn một cạnh) */
@@ -1569,10 +1579,10 @@ body.side-anim{overflow-x:clip;}
 <script src="tien-ich.js?v=20261020a"></script><!-- 20/10 tiện ích chung: esc/$id/hm/ngayVN — nạp TRƯỚC mọi mô-đun -->
 <script src="hasaki-giaodien-antd.js?v=20261022f"></script>
 <script src="tai-khoan.js?v=20261023a"></script>   <!-- 14/10 đăng nhập + phân quyền (dùng chung Retail/Factory) -->
-<script src="tat-loc.js?v=20261023c" defer></script>   <!-- 22/10 nút «✕ Tắt lọc» · 23/10 dời vào TRONG nút «Bộ lọc», đỏ khi đang lọc, ẩn khi không lọc (dùng chung Retail/Factory) -->
+<script src="tat-loc.js?v=20261023d" defer></script>   <!-- 22/10 nút «✕ Tắt lọc» · 23/10 dời vào TRONG nút «Bộ lọc», đỏ khi đang lọc, ẩn khi không lọc (dùng chung Retail/Factory) -->
 <link rel="stylesheet" href="thanh-phan.css?v=20261021a"><!-- 21/10 chip trạng thái + nút dùng chung mọi tab (Mẫu 1 đánh giá 20/10) -->
 <link rel="stylesheet" href="thanh-cuon.css?v=20261022a"><!-- 17/10 thanh cuộn chung theo theme (bản gốc hasaki/kiemsoatkho/thanh-cuon.css) -->
-<link rel="stylesheet" href="bo-loc-ngay.css?v=20261019a"><script src="bo-loc-ngay.js?v=20261019a"></script><!-- 19/10 BỘ LỌC NGÀY CHUẨN toàn dự án (taoBoLocNgay) -->
+<link rel="stylesheet" href="bo-loc-ngay.css?v=20261019a"><script src="bo-loc-ngay.js?v=20261023a"></script><!-- 19/10 BỘ LỌC NGÀY CHUẨN toàn dự án (taoBoLocNgay) -->
 </head>
 <body class="hx-an">
 <aside id="sideNav" aria-label="Điều hướng hạng mục"></aside>
@@ -2989,8 +2999,9 @@ function _render(){
       <div class="cl-data">
         <div class="cl-loi" title="${esc(r[iLoi]||'')}">${esc(r[iLoi]||'')}</div>
         ${kv('Vị trí',r[iViTri])}
-        <div class="cl-kv">Ghi nhận ngày: <b>${esc(fmtNgay(r[iNgayVP]))}</b>${iCreatedAt>=0&&r[iCreatedAt]?` <span class="cl-sep">|</span> Tạo: <b>${esc(boNamNay(fmtNgay(r[iCreatedAt])))}</b>`:''}</div>
-        ${(nameVP(r)||(iQLTT>=0&&r[iQLTT]))?`<div class="cl-kv">${nameVP(r)?`Ghi nhận cho: <b>${esc(nameVP(r))}</b>`:''}${iQLTT>=0&&r[iQLTT]?`${nameVP(r)?' <span class="cl-sep">|</span> ':''}QL: <b>${esc(tenNganDs(r[iQLTT]))}</b>`:''}</div>`:''}
+        <div class="cl-kv">Ghi nhận<span class="cl-dai"> ngày</span>: <b>${namNgan(esc(fmtNgay(r[iNgayVP])))}</b>${iCreatedAt>=0&&r[iCreatedAt]?` <span class="cl-sep">|</span> Tạo: <b>${esc(boNamNay(fmtNgay(r[iCreatedAt])))}</b>`:''}</div>
+        ${(nameVP(r)||(iQLTT>=0&&r[iQLTT]))?`<div class="cl-kv cl-tach">${nameVP(r)?`<span class="cl-p">Ghi nhận cho: <b>${esc(nameVP(r))}</b></span>`:''}${''
+        }${iQLTT>=0&&r[iQLTT]?`${nameVP(r)?' <span class="cl-sep">|</span> ':''}<span class="cl-p">QL: <b>${esc(tenNganDs(r[iQLTT]))}</b></span>`:''}</div>`:''}
         <div class="cl-kv">Tần suất: ${freqCell(gi,r)}</div>
       </div>
     </div>`;
@@ -3429,6 +3440,8 @@ function anCotDonTri(tb){
 (function(){ var hen=null; try{ new MutationObserver(function(ms){ if(hen) return; hen=setTimeout(function(){ hen=null;
     document.querySelectorAll('.hk-modal.show table,.ht-modal.show table,.hp-modal.show table,#modal.show table,#statModal.show table').forEach(anCotDonTri); },60); })
   .observe(document.body,{childList:true,subtree:true}); }catch(e){} })();
+/* 23/10 user t6 (CHỈ điện thoại): hàng ngang thẻ Vi phạm vừa khít — năm HIỆN TẠI bọc .cl-nam để điện thoại ẩn (dd/mm/yyyy → dd/mm) */
+function namNgan(t){ const y='/'+new Date().getFullYear(); return String(t).replace(y, '<span class="cl-nam">'+y+'</span>'); }
 function nutDauTrang(name){
   name=name||(document.querySelector('.tab.active')||{dataset:{}}).dataset.tab;
   const g=$('btnGhiNhan'), d=$('hdrDangXuat');
@@ -3531,7 +3544,7 @@ function moHasakiMayTram(){
   if(!xmDuocXem()){ xmKhoaPane(pane); return; } xmMoKhoa(pane);
   if(!_mtNap){
     _mtNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261019b';
+      const s=document.createElement('script'); s.src='hasaki-maytram.js?v=20261023a';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-maytram.js'));
       document.body.appendChild(s);
     });
@@ -3590,7 +3603,7 @@ function moHasakiXacMinh(){
     }); return; }   // 19/10: chờ dò máy chủ (laptop hoặc đường hầm); không có thì về Máy trạm (tránh ô đăng nhập lặp)
   if(!_hxNap){
     _hxNap=new Promise((res,rej)=>{
-      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261023c';
+      const s=document.createElement('script'); s.src='hasaki-xacminh.js?v=20261023f';
       s.onload=res; s.onerror=()=>rej(new Error('Không tải được module hasaki-xacminh.js'));
       document.body.appendChild(s);
     });

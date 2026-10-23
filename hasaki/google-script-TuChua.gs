@@ -257,6 +257,7 @@ function tcDongSuCo_(ma) {
   if (!raw) return { status: 'success', daGui: false };   // chưa từng mở → im, gọi thoải mái
   var ho = null; try { ho = JSON.parse(raw); } catch (e) { ho = { moLuc: Date.now() }; }
   props.deleteProperty(khoa);
+  if (true) return { status: 'success', daGui: false, dong: true };   // 23/10/2026 user «xoá bỏ hoàn toàn» thư tự động
   try {
     var gio = Math.round((Date.now() - ho.moLuc) / 3600000);
     MailApp.sendEmail({
@@ -271,6 +272,7 @@ function tcDongSuCo_(ma) {
 
 function tcGui_(sc, loai, ho) {
   ho.nguon = sc.nguon;
+  if (true) return;   // 23/10/2026 user «xoá bỏ hoàn toàn» thư tự động — sổ sự cố vẫn ghi, không gửi thư
   MailApp.sendEmail({
     to: tcEmail_(), name: 'Audit Factory',
     subject: loai.tieuDe(sc) + (ho.mocDaGui ? ' (nhắc lần ' + ho.mocDaGui + ')' : ''),

@@ -149,6 +149,8 @@ async function markDone(row, code) {
 }
 /** Gửi cảnh báo qua Apps Script (gửi email) — dùng khi phiên hết hạn / sự cố. Best-effort. */
 async function sendAlert(msg) {
+  /* 23/10/2026 user «xoá bỏ hoàn toàn» thư «tự đăng nhập work THẤT BẠI»: chỉ ghi nhật ký, KHÔNG gọi Apps Script gửi thư nữa */
+  log("  ⚠ " + String(msg).slice(0, 200) + " (không gửi thư — đã bỏ 23/10)"); if (true) return;
   try {
     const j = (await apiPost("alert", { msg })) || {};   // apiPost trả JSON sẵn (gasPost), không còn Response
     if (j.sent) log("  ✉ Đã gửi email cảnh báo.");

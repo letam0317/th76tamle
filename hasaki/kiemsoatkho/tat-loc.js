@@ -31,13 +31,16 @@
     return MD[kk];
   }
   function dangLoc(x) {
-    if (x.classList.contains("date-filter")) { var c = chuNgay(x); return c !== "Chưa chọn" && c !== ngayMacDinh(x); }
+    if (x.classList.contains("date-filter")) {
+      if (x.__ngay) { var md = x.__ngay.macDinh(), v = x.__ngay.lay(); return String(v[0] || "") + "|" + String(v[1] || "") !== String(md[0] || "") + "|" + String(md[1] || ""); }   // 23/10 trạng thái THẬT của lịch
+      var c = chuNgay(x); return c !== "Chưa chọn" && c !== ngayMacDinh(x); }
     if (x.tagName === "SELECT") return x.options.length > 0 && x.value !== x.options[0].value;
     return !!String(x.value || "").trim();
   }
   function tatLoc(k, manh) {   // manh = mục báo đang lọc ⇒ lịch ngày khác «Chưa chọn» cũng xoá (khoảng ngày đặt từ trước khi trang mở)
     oCuaKhung(k).forEach(function (x) {
       /* «Xoá» trả về mặc định của mục (mục bắt buộc có ngày → hôm nay/hôm qua) ⇒ chữ sau Xoá chính là mặc định */
+      if (x.classList.contains("date-filter") && x.__ngay) { if (dangLoc(x)) x.__ngay.xoa(); return; }   // 23/10 Theo máy: lịch dời ra body → .dp-clear không còn trong ô, xoá thẳng qua API
       if (x.classList.contains("date-filter")) { if (dangLoc(x) || (manh && chuNgay(x) !== "Chưa chọn")) { var b = x.querySelector(".dp-clear"); if (b) { b.click(); MD[khoaNgay(x)] = chuNgay(x); } } return; }
       if (!dangLoc(x)) return;
       if (x.tagName === "SELECT") { x.selectedIndex = 0;

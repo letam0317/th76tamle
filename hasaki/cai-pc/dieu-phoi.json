@@ -15,12 +15,28 @@
   ],
   "_khoaChiMay": "22/10 user «ma hoa bi mat tren PC… lam»: khoa camera top-review + Gemini CHI giu tren 2 may lam viec camera/B1 (JE75K38, FOQ5T89) - may khac bi GO khoi .env, cong gac tu ne viec thieu khoa. khoaMaHoa: ma hoa DPAPI pham vi may (cai-pc/khoa-bi-mat.ps1 + nap-bi-mat.cjs). khoaBoQua: may goc (laptop) khong bao gio bi dong vao .env.",
   "khoaChiMay": {
-    "TOPREVIEW_USER": ["DESKTOP-JE75K38", "DESKTOP-FOQ5T89"],
-    "TOPREVIEW_PASS": ["DESKTOP-JE75K38", "DESKTOP-FOQ5T89"],
-    "GEMINI_API_KEY": ["DESKTOP-JE75K38", "DESKTOP-FOQ5T89"]
+    "TOPREVIEW_USER": [
+      "DESKTOP-JE75K38",
+      "DESKTOP-FOQ5T89"
+    ],
+    "TOPREVIEW_PASS": [
+      "DESKTOP-JE75K38",
+      "DESKTOP-FOQ5T89"
+    ],
+    "GEMINI_API_KEY": [
+      "DESKTOP-JE75K38",
+      "DESKTOP-FOQ5T89"
+    ]
   },
-  "khoaMaHoa": ["APPSCRIPT_KEY", "TOPREVIEW_USER", "TOPREVIEW_PASS", "GEMINI_API_KEY"],
-  "khoaBoQua": ["HSK-KHO170-tamlc-1"],
+  "khoaMaHoa": [
+    "APPSCRIPT_KEY",
+    "TOPREVIEW_USER",
+    "TOPREVIEW_PASS",
+    "GEMINI_API_KEY"
+  ],
+  "khoaBoQua": [
+    "HSK-KHO170-tamlc-1"
+  ],
   "capNhat": {
     "tenTask": "Audit cap nhat PC",
     "nhip": "PT2H",
@@ -80,7 +96,40 @@
       ],
       "dongBoXm": true,
       "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
-      "b1": true
+      "b1": true,
+      "_chiaPhan": "23/10 user «lượng clip cắt lớn — CHIA VIỆC + KIỂM TRA KẾT QUẢ sau chia việc của các máy trạm»: 2 PHẦN theo task_id (XM_PHAN, khuôn xac-minh-camera). Phần 1 ghim JE75K38 (dự phòng FOQ5T89) lịch 08:30 mỗi 2h; phần 2 ghim FOQ5T89 (dự phòng JE75K38) lịch 09:30 mỗi 2h — SO LE 1 giờ để đầu ghi camera không bị 2 máy tải cùng lúc. khoaChung:false (không giữ xm_khoa, không chặn canh-b1/canh-b11); tệp chung ghi bằng gộp 3 chiều (bang-chung-b1.json, b1-cho-camera.json). Cùng 1 máy gánh 2 phần → khoá máy .exports/.tim-bang-chung.lock (chờ ≤40'). Đối soát: kiem-chia-clip.mjs (laptop).",
+      "env": {
+        "XM_PHAN": "1/2"
+      },
+      "khoaChung": false,
+      "uuTien": [
+        "DESKTOP-JE75K38",
+        "DESKTOP-FOQ5T89"
+      ]
+    },
+    {
+      "ten": "tim-bang-chung-b1-2",
+      "xml": "5S_Tim_bang_chung_B1_2.xml",
+      "vbs": "_TIM-BANG-CHUNG-B1.vbs",
+      "nang": true,
+      "giuTTL": 3600,
+      "envKeys": [
+        "APPSCRIPT_URL",
+        "APPSCRIPT_KEY",
+        "TOPREVIEW_USER",
+        "TOPREVIEW_PASS"
+      ],
+      "dongBoXm": true,
+      "b1": true,
+      "env": {
+        "XM_PHAN": "2/2"
+      },
+      "khoaChung": false,
+      "uuTien": [
+        "DESKTOP-FOQ5T89",
+        "DESKTOP-JE75K38"
+      ],
+      "_doc": "23/10: phần 2/2 của tim-bang-chung-b1 (xem _chiaPhan ở phần 1)."
     },
     {
       "ten": "canh-bai-xe-sang",

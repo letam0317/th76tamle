@@ -326,6 +326,9 @@ function apiMark(e) {
 /** Gửi email cảnh báo (vd: phiên work.hasaki.vn hết hạn). Chống spam theo ALERT_THROTTLE_GIO. */
 function apiAlert(e) {
   if ((e.parameter.key || '') !== SECRET) return phanHoiJson({ status: 'error', message: 'Sai key' });
+  /* 23/10/2026 user «mail tự động … Hệ thống 5S đã tự động thử đăng nhập lại work.hasaki.vn nhưng THẤT BẠI … >xoá bỏ hoàn toàn»:
+     KHÔNG gửi thư nữa (máy không còn gọi; giữ action để bản máy cũ còn gọi thì nhận «tat» thay vì lỗi). Cảnh báo đi Telegram / tab Máy trạm. */
+  return phanHoiJson({ status: 'success', skipped: true, tat: true, message: 'Thư cảnh báo đã bỏ hẳn (23/10/2026)' });
   var msg = e.parameter.msg || 'Bộ đẩy báo cáo 5S gặp sự cố.';
   var props = PropertiesService.getScriptProperties();
   var last = Number(props.getProperty('LAST_ALERT_MS') || 0);

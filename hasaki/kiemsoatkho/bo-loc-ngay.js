@@ -149,6 +149,9 @@
     // đóng pop-up khi bấm ra ngoài — bám chính root nên nhiều bản trên 1 trang không đóng nhầm nhau
     document.addEventListener("click", function(e){ if (!pop.classList.contains("hidden") && !root.contains(e.target) && !pop.contains(e.target)) dong(); });
     veNhan();
+    /* 23/10 tat-loc.js (nút ✕ Tắt lọc) đọc/xoá qua đây — pop có lúc bị dời ra body (điện thoại / khung cắt) nên không tìm .dp-clear trong root được */
+    root.__ngay = { lay: function(){ return [tu, den]; }, xoa: xoa,
+      macDinh: function(){ return o.khongRong ? ((o.macDinh && o.macDinh()) || [homNay(), homNay()]) : ["", ""]; } };
     return { el: root, dat: function(a, b){ tu = a || ""; den = b || ""; veNhan(); }, lay: function(){ return [tu, den]; }, mo: mo, dong: dong, veNhan: veNhan,
       dangMo: function(){ return !pop.classList.contains("hidden"); } };
   }

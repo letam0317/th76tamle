@@ -78,7 +78,7 @@ export function gop3(goc, ta, ho) {
     for (const k of new Set([...Object.keys(ho), ...Object.keys(ta)])) {
       const coTa = k in ta, coHo = k in ho, coGoc = k in g;
       if (!coTa) { if (coHo && !(coGoc && giong(ho[k], g[k]))) ra[k] = ho[k]; continue; }   // ta xoá: chỉ xoá khi họ không đổi
-      if (!coHo) { ra[k] = ta[k]; continue; }
+      if (!coHo) { if (!(coGoc && giong(ta[k], g[k]))) ra[k] = ta[k]; continue; }   // họ xoá: chỉ xoá khi ta không đổi (23/10: trước giữ lại ⇒ phiếu phần kia gỡ khỏi hàng chờ «sống lại»)
       const taDoi = !coGoc || !giong(ta[k], g[k]), hoDoi = !coGoc || !giong(ho[k], g[k]);
       ra[k] = !taDoi ? ho[k] : !hoDoi ? ta[k] : gop3(coGoc ? g[k] : undefined, ta[k], ho[k]);
     }

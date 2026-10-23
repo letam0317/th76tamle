@@ -251,6 +251,9 @@ function gom() {
      (bang-chung-b1.json lanKho, tim-bang-chung-b1.mjs cắt quanh giờ TẠO lệnh). */
   { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
+    const chuanTen = (x) => String(x || "").normalize("NFC").trim().toLowerCase().replace(/s+/g, " ");
+    const theoTen = new Map(); for (const v of db.theoMa.values()) if (v.ten) { const k = chuanTen(v.ten); if (!theoTen.has(k)) theoTen.set(k, []); theoTen.get(k).push(v); }
+    const SOAN = docJ(path.join(EXP, "soan-hang-b1.json"), {});
     const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" }, LOAI_RA = { PICK_MASTER: "Rút hàng khỏi ô", SOAN_DON: "Soạn đơn" };   // 23/10 SOAN_DON: người soạn cuối (canh-b1 SH-01, picking group)
     /* 16/10 user «1 cái đó từ đâu — hàng hoàn hay pick dư hay châm/soạn hàng»: sổ nguon-cham-b1.mjs lần ngược lệnh đưa món hàng VÀO XE
        trước lượt châm (0 lượt gọi ở đây — chỉ đọc sổ). chu = nhãn ngắn trên dòng, chiTiet = chuỗi đầy đủ cho title. */
@@ -285,11 +288,13 @@ function gom() {
       const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
       /* 22/10 user «toàn châm hàng, không thấy lấy hàng»: lượt RÚT RA khỏi ô (cò B1 bin_out → CW.ra, PICK_MASTER: ô → xe/giỏ F0-TF) xếp CHUNG
          theo giờ với châm; chiều:"ra" để giao diện tô khác. Không áp sổ nguồn châm (nguon-cham-b1) cho lượt ra. */
-      const raDs = ((CW[bin + "|" + ngay] || {}).ra || []).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && z.chieu === "ra" && z.at === r.at);
+      /* 23/10 hai phiên cùng làm soạn hàng: SH-01 (canh-b1, WMS) ghi SOAN_DON vào .ra; soan-hang-b1 (Redash) ghi lsKho.soan — có Redash thì bỏ SOAN_DON (khỏi hiện 2 lần) */
+      const coRedash = !!(SOAN[bin + "|" + ngay] && SOAN[bin + "|" + ngay].ds.length);
+      const raDs = ((CW[bin + "|" + ngay] || {}).ra || []).filter((r) => !(coRedash && r.loai === "SOAN_DON")).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && z.chieu === "ra" && z.at === r.at);
         return { at: r.at, chieu: "ra", ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI_RA[r.loai] || r.loai,
           truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, tt: r.loai || "", oToi: r.toi || "", oToiGhiChu: ghiChuO(r.toi),
           clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0 }; });
-      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && z.chieu !== "ra" && z.at === r.at);
+      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && !z.chieu && z.at === r.at);   // 23/10 lượt châm không mang chieu (ra / soan có)
         return { at: r.at, ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
           /* 20/10 user: ghi rõ Transfer Type + Source location như trang WMS Transfer location (bin_in = ô) — 0 lượt gọi thêm: bin_out có trong sổ nguon-cham-b1 / bộ đệm cò */
           tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", oGhiChu: ghiChuO(r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || ""), goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
@@ -299,7 +304,15 @@ function gom() {
       for (const z of lan.filter((z) => z.phu && z.clip)) { const i = ds.findIndex((x) => x.at === z.at && (x.chieu === "ra") === (z.chieu === "ra")); if (i < 0) continue;
         ds.splice(i + 1, 0, { ...ds[i], clip: "/bc/may/" + encodeURIComponent(z.clip), kenh: z.kenh || "", them: 1, phu: 1 }); }
       p.lsKho = { bin, ra: raDs.length, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
-        phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
+        phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] };
+      /* 23/10 user «bổ sung soạn hàng (pick)» → «làm»: lượt SOẠN theo đơn đúng ô 72 h trước giờ ghi nhận — sổ .exports/soan-hang-b1.json
+         (soan-hang-b1.mjs, Redash truy vấn 188, 0 lượt API WMS). Để TRƯỜNG RIÊNG lsKho.soan (giao diện cũ bỏ qua, không hiện nhầm thành châm);
+         15 lượt gần giờ ghi nhận nhất + tổng. Redash chỉ có TÊN người soạn ⇒ tra danh bạ theo tên, CHỈ nhận khi tên là duy nhất (bẫy trùng tên). */
+      const sh = SOAN[bin + "|" + ngay];
+      if (sh) { p.lsKho.soanTong = sh.ds.length; if (sh.lyDo) p.lsKho.soanLyDo = sh.lyDo;
+        p.lsKho.soan = sh.ds.slice(0, 15).map((r) => { const ds0 = theoTen.get(chuanTen(r.ten)) || [], nv = ds0.length === 1 ? ds0[0] : null, c = lan.find((z) => z.chieu === "soan" && z.at === r.at);
+          return { at: r.at, chieu: "soan", ten: nv ? nv.ten : r.ten, ma: nv ? nv.ma : "", email: nv ? nv.email || "" : "", ttNv: nv ? nv.tt : "", qty: r.qty, gio: r.gio, nhom: r.nhom, sku: r.sku,
+            truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; }); } } }
 
   /* 13/10 user: "người có tác động mà KHÔNG thao tác ở hệ thống — khi có vi phạm cũng cần ghi lại, gắn nhãn highlight".
      Sổ .exports/tac-dong-vat-ly.json { idPhieu: [{ at, ma, viec, clip, nguon:"tay"|"may", luc }] } — người xem clip ghi tay (POST /api/tac-dong-vat-ly),

@@ -21,7 +21,10 @@ const so = doc(F, {});
 /* 05/10 THU HẸP (user bấm khung sớm nhất đã thấy đồ vật trên dashboard): --id --tu=<ISO> --den=<ISO> → 9 khung chia đều trong [tu, den];
    khi den−tu ≤ 3 phút thì KHÔNG dựng dải nữa mà cắt CLIP lúc đồ vật xuất hiện (tu−20 s … den+20 s) → bằng chứng ai tác động. */
 const THU_HEP = A.id && A.tu && A.den;
-const viec = Object.entries(so).filter(([id, e]) => e.loai === "chup" && (e.anh || []).length && (THU_HEP || !e.anhLui) && (!A.id || A.id === id)).slice(0, MAX);
+/* 23/10 chia phần như tim-bang-chung-b1 (env XM_PHAN do chay-xm đặt): phần i chỉ dựng dải cho phiếu task_id % n == i−1 — 2 máy không làm trùng */
+const [PHAN_I, PHAN_N] = String(A.phan || process.env.XM_PHAN || "1/1").split("/").map(Number);
+const cuaToi = (id) => THU_HEP || !(PHAN_N > 1) || Number(id) % PHAN_N === PHAN_I - 1;
+const viec = Object.entries(so).filter(([id, e]) => cuaToi(id) && e.loai === "chup" && (e.anh || []).length && (THU_HEP || !e.anhLui) && (!A.id || A.id === id)).slice(0, MAX);
 log(`${viec.length} phiếu dựng dải lùi thời gian`);
 for (const [id, e] of viec) {
   const kj = doc(path.join(DIR, ".exports", "kenh-luc-chup", id + ".json"), {});

@@ -72,7 +72,7 @@ process.exit(ma);
    (dinh-ky 5'). Đọc: hasaki/.exports/nhat-ky-may/. */
 function ghiNhatKyMay(t0) {
   const NK = { "xac-minh-camera": ["xac-minh-dem.log"], "xac-minh-camera-2": ["xac-minh-dem.log"], "canh-xac-minh-b1": ["canh-xac-minh.log"],
-    "tim-bang-chung-b1": ["tim-bang-chung-b1.log", "dai-lui.log"], "canh-b11": ["canh-b11.log"] };
+    "tim-bang-chung-b1": ["tim-bang-chung-b1.log", "dai-lui.log"], "tim-bang-chung-b1-2": ["tim-bang-chung-b1.log", "dai-lui.log"], "canh-b11": ["canh-b11.log"] };   // 23/10 phần 2
   try {
     const may = (process.env.COMPUTERNAME || "may").replace(/[^\w.-]/g, "_"), luc = new Date(t0 + 7 * 36e5).toISOString().slice(0, 16).replace(/[-:T]/g, "");
     const duoi = (f, n) => { try { return fs.readFileSync(path.join(DIR, f), "utf8").split(/\r?\n/).slice(-n).join("\n"); } catch { return "(không có " + f + ")"; } };

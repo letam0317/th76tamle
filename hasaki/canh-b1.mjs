@@ -177,18 +177,27 @@ async function boSungRa(k, bin, pt) {
   if (nWms >= MAX_WMS) return;                                          // hết trần — lượt sau bổ sung
   try {
     const ra = (await goiTransfer(bin, pt, "bin_out"))
-      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, toi: x.bin_in || "" }));
+      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, toi: x.bin_in || "", sku: x.sku || "" }));
     CACHE[k].ra = ra; ghiJ(F_CACHE, CACHE);
   } catch (e) { log("   ⚠ WMS chiều ra " + bin + ": " + String(e.message).slice(0, 80)); }
 }
+/* 23/10 user «làm» soạn hàng: soan-hang-b1.mjs (laptop, Redash query 188 theo SKU — 0 lượt API WMS) cần SKU đã châm vào ô. Bộ đệm cũ
+   (trước 23/10) không giữ sku ⇒ gọi lại chiều VÀO 1 lần (chỉ kệ A1, trong trần MAX_WMS), giữ nguyên lượt cũ, chỉ điền sku. */
+async function boSungSku(k, bin, pt) {
+  const c = CACHE[k]; if (c.coSku || !(c.rec || []).length || nWms >= MAX_WMS) return;
+  try {
+    const moi = await goiTransfer(bin, pt, "bin_in"), theo = new Map(moi.map((x) => [x.created_at + "|" + (Number(x.quantity) || 0), x.sku || ""]));
+    c.rec.forEach((r) => { if (!r.sku) r.sku = theo.get(r.at + "|" + r.qty) || ""; }); c.coSku = 1; ghiJ(F_CACHE, CACHE);
+  } catch (e) { log("   ⚠ WMS bổ sung SKU " + bin + ": " + String(e.message).slice(0, 80)); }
+}
 async function lichSuCat(bin, pt) {
   const k = bin + "|" + pt;
-  if (CACHE[k]) { if (!Array.isArray(CACHE[k].ra)) await boSungRa(k, bin, pt); return CACHE[k]; }
+  if (CACHE[k]) { if (!Array.isArray(CACHE[k].ra)) await boSungRa(k, bin, pt); else if (/^F0-A1-/.test(bin)) await boSungSku(k, bin, pt); return CACHE[k]; }
   if (nWms >= MAX_WMS) return null;                                     // hết trần lượt gọi — lượt sau
   try {
     const rec = (await goiTransfer(bin, pt, "bin_in"))
-      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, tu: x.bin_out || "" }));   // 20/10 giữ ô nguồn (Source location) — cùng lượt gọi
-    CACHE[k] = { rec, luc: new Date().toISOString() }; ghiJ(F_CACHE, CACHE);
+      .map((x) => ({ at: x.created_at, xong: x.updated_at, loai: x.transfer_type, qty: Number(x.quantity) || 0, email: x.created_user_name, tu: x.bin_out || "", sku: x.sku || "" }));   // 20/10 giữ ô nguồn (Source location) · 23/10 giữ SKU (soan-hang-b1 tra lượt SOẠN theo SKU) — cùng lượt gọi
+    CACHE[k] = { rec, luc: new Date().toISOString(), coSku: 1 }; ghiJ(F_CACHE, CACHE);
   } catch (e) { log("   ⚠ WMS " + bin + ": " + String(e.message).slice(0, 80)); return null; }
   await boSungRa(k, bin, pt);
   return CACHE[k];
