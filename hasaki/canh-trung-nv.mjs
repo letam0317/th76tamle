@@ -3,8 +3,9 @@
  *         các phiếu sau: dừng (không trừ) + bình luận nhắc NV và tag QLTT.
  *  CH-06: 1 NV trong 1 THÁNG (theo ngày ghi nhận) có ≥3 lỗi (bất kỳ) → ở lỗi thứ 4 (và các lỗi sau) bình luận tag QLTT nhắc tính tuân thủ.
  *  "Phiếu của NV" = B1 đã đóng có staff = mã NV (đã qua xác minh). Phiếu đã bị CH-05 gộp thì không đếm cho CH-06.
+ *  DL-03 (quét lùi, 23/10): cùng ô + cùng lỗi + cùng giờ vi phạm + ảnh giống = 1 vi phạm lập 2 phiếu → dừng phiếu thừa.
  *  node canh-trung-nv.mjs [--lam]   — 1 lượt board (120 ngày) + sổ .canh-trung-nv.json chống làm lại. */
-import "dotenv/config"; import fs from "node:fs";
+import "dotenv/config"; import fs from "node:fs"; import sharp from "sharp";
 import { layTokenSongWork, layTokenGhiWork } from "./session-rules.js";
 const V = "https://wshr.hasaki.vn/api"; const LAM = process.argv.includes("--lam"); const F_SO = ".canh-trung-nv.json";
 /* cửa giờ 07–18 T2–T7 (như canh-b1/canh-b11) + khoá chống chạy chồng */
@@ -33,6 +34,54 @@ for (const x of rows) {
 }
 const QL = (p) => DB.find((d) => d.staff_name === p.ql);
 let viec = 0;
+/* dừng phiếu (re-create-step −1 + note_failed + bình luận), đọc lại để chắc đã dừng — dùng chung DL-03/CH-05 */
+async function dungPhieu(id, buocId, ly, bl) {
+  await fetch(V + "/hr/projects/re-create-step/" + buocId, { method: "POST", headers: { ...HW, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ workflow_step_id: "-1" }) }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 1200));
+  const luc = new Date(Date.now() + 7 * 36e5).toISOString().replace("T", " ").slice(0, 19);
+  const fd = new FormData(); fd.set("id", String(buocId)); fd.set("field", "data");
+  fd.set("value[note_failed]", JSON.stringify([{ note_failed: ly, staff_name: "Lê Chí Tâm", staff_code: "233135", created_at: luc }]));
+  await fetch(V + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fd, headers: HW }).catch(() => {});
+  const fc = new FormData(); fc.set("obj_id", String(id)); fc.set("comment", bl); await fetch(V + "/v2/task/comment", { method: "POST", body: fc, headers: HW }).catch(() => {});
+  const d2 = (await (await fetch(V + "/hr/projects/task-input/" + id, { headers: { authorization: t, accept: "application/json" } })).json()).data;
+  return +d2.status === 2 && !(d2.subtasks || []).some((s) => [0, 1].includes(+s.status));
+}
+/* ---- DL-03 QUÉT LÙI ----
+   23/10: 7 cặp trùng 17/09–05/10 do form gửi đúp. Chặn tại nguồn (push-5s, 05/10) không dọn phiếu cũ, sổ ảnh lại RIÊNG từng máy
+   (laptop ban ngày · PC ngoài giờ) → 4 cặp nằm cả tháng; cặp 19/09 phiếu SAU đã đi hết B3 mà phiếu TRƯỚC còn treo B1 = nguy cơ trừ 2 lần.
+   Cùng ô + cùng lỗi + cùng giờ vi phạm (tới giây) + ảnh giống (xám 16×16, lệch ≤ 6 như _dung-phieu-trung) ⇒ 1 vi phạm.
+   Giữ phiếu đã qua B1 nếu có, không thì phiếu tạo trước; chỉ dừng phiếu còn lại khi nó MỚI treo ở B1. Cả 2 đã qua B1 → in ra, xem tay. */
+const B1 = 7379; so.dl03 ||= {};
+const b1Cua = (x) => (x.subtasks || []).filter((s) => +s.workflow_step_id === B1).pop();
+const bamAnh = async (x) => Promise.all([].concat(x.data.configs.IMA00 || []).map(async (p) => sharp(Buffer.from(await (await fetch("https://hr-media.hasaki.vn/production/hr/" + p)).arrayBuffer())).resize(16, 16, { fit: "fill" }).greyscale().raw().toBuffer()));
+const lechAnh = (a, b) => { let d = 0; for (let i = 0; i < 256; i++) d += Math.abs(a[i] - b[i]); return d / 256; };
+const nhomDL = {};
+for (const x of rows) {
+  if ([4, 6].includes(+x.status)) continue;
+  const b = b1Cua(x), c = (x.data && x.data.configs) || {}; if (!b || +b.status === 4 || !c.DATE00) continue;   // B1 st 4 = đã bị dừng
+  (nhomDL[[String(c.BIN00 || "").trim(), c.TYPE00, c.DATE00].join("|")] ||= []).push(x);
+}
+for (const ds of Object.values(nhomDL)) {
+  if (ds.length < 2) continue;
+  ds.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.id - b.id);
+  const quaB1 = ds.filter((x) => +b1Cua(x).status === 2);
+  const conTreo = (x) => (x.subtasks || []).some((s) => [0, 1].includes(+s.status));
+  if (quaB1.length > 1) { if (quaB1.some(conTreo)) console.log("DL-03 ⚠ trùng nhưng", quaB1.length, "phiếu đã qua B1 — xem tay:", quaB1.map((x) => link(x.id)).join(" ")); continue; }
+  const giu = quaB1[0] || ds[0];
+  for (const x of ds) {
+    if (x === giu || so.dl03[x.id] || !conTreo(x)) continue;   // RA-01: phiếu đã xong → để nguyên
+    const treo = (x.subtasks || []).filter((s) => [0, 1].includes(+s.status));
+    if (treo.length !== 1 || +treo[0].workflow_step_id !== B1) { console.log("DL-03 ⚠", x.id, "trùng", giu.id, "nhưng không chỉ treo B1 — xem tay"); continue; }
+    const ha = await bamAnh(giu), hb = await bamAnh(x);
+    if (!(hb.length && hb.every((y) => ha.some((z) => lechAnh(y, z) <= 6)))) continue;   // ảnh khác → 2 vi phạm thật
+    const ly = "Trùng phiếu " + link(giu.id) + " (cùng ảnh, cùng vị trí, cùng lỗi, cùng giờ vi phạm)";
+    console.log("DL-03", x.id, "→ trùng", giu.id, "·", String(x.data.configs.BIN00).trim(), "·", x.data.configs.DATE00); viec++;
+    if (!LAM) continue;
+    const ok = await dungPhieu(x.id, treo[0].id, ly, ly + " — đã dừng phiếu này, xử lý ở phiếu giữ.");
+    console.log("  ", ok ? "✓ đã dừng" : "✗ đọc lại chưa thấy dừng — xem tay " + link(x.id));
+    if (ok) { so.dl03[x.id] = { giu: giu.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
+  }
+}
 /* ---- CH-05 ---- */
 const nhom = {}; for (const p of P) (nhom[p.nv + "|" + p.loi + "|" + p.ngay] ||= []).push(p);
 for (const ds of Object.values(nhom)) {
@@ -49,15 +98,7 @@ for (const ds of Object.values(nhom)) {
     viec++;
     if (!LAM) continue;
     if (p.treo.length !== 1) { console.log("  ⚠ cần đúng 1 bước treo để dừng — xem tay"); continue; }
-    await fetch(V + "/hr/projects/re-create-step/" + p.treo[0].id, { method: "POST", headers: { ...HW, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ workflow_step_id: "-1" }) }).catch(() => {});
-    await new Promise((r) => setTimeout(r, 1200));
-    const luc = new Date(Date.now() + 7 * 36e5).toISOString().replace("T", " ").slice(0, 19);
-    const fd = new FormData(); fd.set("id", String(p.treo[0].id)); fd.set("field", "data");
-    fd.set("value[note_failed]", JSON.stringify([{ note_failed: ly, staff_name: "Lê Chí Tâm", staff_code: "233135", created_at: luc }]));
-    await fetch(V + "/hr/projects/mass-update-field-task-input", { method: "POST", body: fd, headers: HW }).catch(() => {});
-    const fc = new FormData(); fc.set("obj_id", String(p.id)); fc.set("comment", bl); await fetch(V + "/v2/task/comment", { method: "POST", body: fc, headers: HW }).catch(() => {});
-    const d2 = (await (await fetch(V + "/hr/projects/task-input/" + p.id, { headers: { authorization: t, accept: "application/json" } })).json()).data;
-    const ok = +d2.status === 2 && !(d2.subtasks || []).some((s) => [0, 1].includes(+s.status));
+    const ok = await dungPhieu(p.id, p.treo[0].id, ly, bl);
     console.log("  ", ok ? "✓ đã dừng + nhắc/tag QLTT" : "✗ đọc lại chưa thấy dừng — xem tay " + link(p.id));
     if (ok) { so.gop[p.id] = { vao: dau.id, luc: new Date().toISOString() }; fs.writeFileSync(F_SO, JSON.stringify(so, null, 1)); }
   }
