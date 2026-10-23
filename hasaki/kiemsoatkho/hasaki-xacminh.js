@@ -1468,6 +1468,8 @@
         '<span class="gio">' + e_(x.at.slice(8, 10) + "/" + x.at.slice(5, 7) + " " + x.at.slice(11, 16)) + '<small>trước ' + e_(x.truocGio < 24 ? soVN(x.truocGio) + " giờ" : soVN(Math.round(x.truocGio / 24 * 10) / 10) + " ngày") + '</small></span>' +
         /* 20/10 user: tên NV luôn «Họ tên [email|Trạng thái]», cả cụm tô màu theo trạng thái (Active xanh · Pending tím · Inactive xám) — tra theo email/mã ở máy chủ */
         '<span class="ai">' + (x.email ? cumNV(x.ten, x.email, x.ttNv) : '<b>' + e_(x.ten) + '</b>' + (x.ma ? ' <span class="muted">' + e_(x.ma) + '</span>' : "")) +
+          /* 23/10 user: clip máy cắt theo yêu cầu «Cắt thêm clip camera» → cờ ngay sau cụm tên NV (góc camera thêm ghi kèm kênh) */
+          (x.them ? ' <span class="hx-tag warn" title="Máy cắt theo yêu cầu «Cắt thêm clip camera»' + (x.kenh ? " · " + e_(x.kenh) : "") + '">Cắt thêm' + (x.phu && x.kenh ? " · " + e_(x.kenh) : "") + '</span>' : "") +
           (vl ? '<small><span class="hx-tag vl">Không qua hệ thống</span> ' + e_(x.loai) + (x.nguonVL === "may" ? " · máy soi camera" + (x.moTa ? " · " + e_(x.moTa.slice(0, 90)) + (x.moTa.length > 90 ? "…" : "") : "") : "") + '</small>'
             /* 22/10 user «toàn châm, không thấy lấy hàng»: lượt RÚT RA khỏi ô (WMS bin_out, PICK_MASTER) — «N cái · Rút hàng khỏi ô → <xe> · Giỏ N» */
             : ra ? '<small class="hx-nguon-lan hx-lan-hang"><span class="sl">' + e_(x.qty) + ' cái</span> · <span class="hx-tag info" title="' + e_(x.tt || "") + '">Rút hàng khỏi ô</span>' +
@@ -1638,6 +1640,9 @@
     ((bc.vs && bc.vs.cam && bc.vs.cam.soi) || []).forEach(function (a) { nguon.push({ k: "soi", ten: "Camera lúc nộp báo cáo (ảnh soi)", url: u_(a) }); });   // 07/10
     bc.moc.forEach(function (a, i) { nguon.push({ k: "moc" + i, an: 1, ten: "Khung camera " + (i + 1), url: u_(a) }); });   // 19/10 (4) không còn nút — chỉ làm hình dự phòng khi phiếu không có clip
     if (bc.chupClip && !bc.clip) nguon.push({ k: "chup", ten: "Clip lúc người kiểm chụp", url: u_(bc.chupClip), video: 1, info: bc.chupInfo });
+    /* 23/10 «Cắt thêm clip camera» không có lượt WMS: góc camera khác cùng mốc — nút riêng, tên đã là cờ «Cắt thêm · kênh N» */
+    ((p.bc && p.bc.clipThem) || []).concat((p.bcChup && p.bcChup.clipThem) || []).forEach(function (z, i) {
+      nguon.push({ k: "them" + i, ten: "Cắt thêm · " + z.kenh, url: u_(z.url), video: 1, info: bc.clip ? bc.clipInfo : bc.chupInfo }); });
     /* 12/10 user: lịch sử châm vào ô (WMS) gần giờ ghi nhận nhất trước, mỗi lượt 1 clip — KHÔNG thành nút trên thanh nguồn (8 nút làm răng cưa),
        bấm ở danh sách bên phải để phát */
     var lanIdx = (LS ? LS.ds : []).map(function (x) { if (!x.clip) return -1;

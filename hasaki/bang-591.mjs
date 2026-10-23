@@ -218,17 +218,17 @@ function gom() {
        ⇒ mỗi clip máy dựng kèm clipInfo {batDau, suKien:[{t, chu}], cach} — dashboard chạy phụ đề theo giờ camera */
     const lui = (t, giay) => new Date(Date.parse(String(t).replace(" ", "T") + "+07:00") - giay * 1000 + 7 * 36e5).toISOString().slice(0, 19);
     for (const [id, v] of Object.entries(tu)) { const o = (m[id] ||= { clip: [], anh: [] });
-      if (v.loai === "chup") { if ((v.anh || []).length) o.chup = { anh: v.anh.map((a) => "may/" + a), clip: v.clip ? "may/" + v.clip : "", chu: v.chu || "", lui: v.anhLui ? "may/" + v.anhLui : "", luiMoc: v.luiMoc || null, luiCo: v.luiCo || null, luc: v.luc,
+      if (v.loai === "chup") { if ((v.anh || []).length) o.chup = { anh: v.anh.map((a) => "may/" + a), clip: v.clip ? "may/" + v.clip : "", clipThem: (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh })), chu: v.chu || "", lui: v.anhLui ? "may/" + v.anhLui : "", luiMoc: v.luiMoc || null, luiCo: v.luiCo || null, luc: v.luc,
           clipInfo: { batDau: lui(v.luc, 80), suKien: [{ t: lui(v.luc, 0), chu: "Người kiểm chụp ảnh ghi nhận vi phạm ở đây" }] + (v.kenh || "") + "). Chỉ để biết góc nhìn — người trong clip là người kiểm, CHƯA phải người vi phạm." } };
         if (v.truy && v.truy.clip) { o.clipMay = "may/" + v.truy.clip; o.truy = v.truy; o.clipInfo = { batDau: lui(String(v.truy.tu).replace("T", " "), 20), suKien: [{ t: String(v.truy.tu).replace("T", " "), chu: "Mốc cuối CHƯA có đồ vật (bạn chọn trên dải)" }, { t: String(v.truy.den).replace("T", " "), chu: "Mốc đầu ĐÃ có đồ vật" }] }; o.chu = `Clip lúc đồ vật xuất hiện ${String(v.truy.tu).slice(5, 16).replace("T", " ")}–${String(v.truy.den).slice(11, 16)} (${v.truy.kenh})`; }   // 05/10: thu hẹp xong = BẰNG CHỨNG ai tác động
         continue; }   // lúc chụp ảnh: chỉ góc nhìn, KHÔNG phải bằng chứng người làm
-      (v.anh || []).forEach((a) => o.anh.push("may/" + a)); if (v.chu) o.chu = v.chu; if (v.kenh) o.kenh = v.kenh; if (v.clip) o.clipMay = "may/" + v.clip;
+      (v.anh || []).forEach((a) => o.anh.push("may/" + a)); if (v.chu) o.chu = v.chu; if (v.kenh) o.kenh = v.kenh; if (v.clip) o.clipMay = "may/" + v.clip; o.clipThem = (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh }));
       if (v.clip && v.luc) o.clipInfo = { batDau: lui(v.luc, 20), suKien: [{ t: lui(v.luc, 0), chu: "Hệ thống kho ghi nhận: " + String(v.chuKho || v.chu || "").replace(/^Khung camera đúng giờ hệ thống kho: /, "") }] }; }
     for (const o of Object.values(m)) { o.clip.sort((a, b) => (/CHUAN|NOI/.test(b) - /CHUAN|NOI/.test(a)) || b.localeCompare(a)); o.clip = o.clip.slice(0, 1); o.anh = o.anh.slice(0, 4); }
     return m; })();
   for (const p of phieu) { const b = BC[p.id]; const enc = (f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/");
-    if (b && b.chup) p.bcChup = { clipInfo: b.chup.clipInfo, anh: b.chup.anh.map(enc), clip: b.chup.clip ? enc(b.chup.clip) : "", chu: b.chup.chu, lui: b.chup.lui ? enc(b.chup.lui) : "", luiMoc: b.chup.luiMoc, luiCo: b.chup.luiCo, luc: b.chup.luc };
-    if (b && (b.clip.length || b.anh.length || b.clipMay)) p.bc = { clip: (b.clip.length ? b.clip : b.clipMay ? [b.clipMay] : []).map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), clipTho: !b.clip.length && !!b.clipMay, truy: b.truy || null, clipInfo: !b.clip.length ? b.clipInfo || null : null, anh: b.anh.map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), chu: b.chu || "", kenh: b.kenh || "" };
+    if (b && b.chup) p.bcChup = { clipThem: (b.chup.clipThem || []).map((z) => ({ url: enc(z.clip), kenh: z.kenh })), clipInfo: b.chup.clipInfo, anh: b.chup.anh.map(enc), clip: b.chup.clip ? enc(b.chup.clip) : "", chu: b.chup.chu, lui: b.chup.lui ? enc(b.chup.lui) : "", luiMoc: b.chup.luiMoc, luiCo: b.chup.luiCo, luc: b.chup.luc };
+    if (b && (b.clip.length || b.anh.length || b.clipMay)) p.bc = { clip: (b.clip.length ? b.clip : b.clipMay ? [b.clipMay] : []).map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), clipTho: !b.clip.length && !!b.clipMay, truy: b.truy || null, clipInfo: !b.clip.length ? b.clipInfo || null : null, anh: b.anh.map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), chu: b.chu || "", kenh: b.kenh || "", clipThem: (b.clipThem || []).map((z) => ({ url: enc(z.clip), kenh: z.kenh })) };
     /* 15/10 user (phiếu 14046962 bãi xe): «đã có clip do chính máy chạy mà vẫn "Chưa có bằng chứng camera — máy đang tìm"». Clip máy ĐÍNH KÈM
        lúc lập phiếu (cột Video vi phạm / B1 ▸ Video) nằm trên hr-media, không ở kho bằng chứng local → trước đây bị bỏ qua. */
     if (!p.bc || !p.bc.clip.length) { const r = (c.rows || {})[p.code] || null, vd = r ? [g(r, "Video vi phạm"), g(r, "B1. Xác minh lỗi vi phạm ▸ Video (Nếu có)")].join("\n").split("\n").map((s) => s.trim()).find((s) => /^https?:\/\/\S+\.(webm|mp4)(\?|$)/i.test(s)) : "";
@@ -238,10 +238,12 @@ function gom() {
      báo rõ đã cắt xong lúc nào (vẫn chứa «đang» để mucMay không coi là phiếu đã xử lý xong). */
   { const TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     for (const p of phieu) { const x = p.xm, v = TU[p.id]; if (!x || !/hàng chờ cắt clip/i.test(x.daXuLy || "") || !v) continue;
-      const n = (v.lanKho || []).filter((e) => e.clip).length + (v.clip ? 1 : 0);
-      if (!n && !(v.anh || []).length) continue;
-      const luc = v.taiLuc ? new Date(Date.parse(v.taiLuc) + 7 * 36e5).toISOString() : "";
-      x.daXuLy = "Máy đã cắt xong " + (n ? n + " clip" : "khung camera") + (luc ? " lúc " + luc.slice(8, 10) + "/" + luc.slice(5, 7) + " " + luc.slice(11, 16) : "") + " · đang chờ bạn quyết"; } }
+      /* 23/10: chỉ đếm clip cắt THEO YÊU CẦU (themYC) — trước đây đếm cả clip có sẵn nên báo «đã cắt xong» dù không cắt thêm đoạn nào */
+      const tx = v.themXong, n = tx ? tx.n : 0;
+      if (!tx) continue;
+      const luc = new Date(Date.parse(tx.luc) + 7 * 36e5).toISOString();
+      if (!n) { x.daXuLy = "Máy không còn đoạn nào để cắt thêm (đã cắt mọi lượt và mọi góc camera thấy ô) lúc " + luc.slice(8, 10) + "/" + luc.slice(5, 7) + " " + luc.slice(11, 16) + " · đang chờ bạn quyết"; continue; }
+      x.daXuLy = "Máy đã cắt thêm " + n + " clip" + (luc ? " lúc " + luc.slice(8, 10) + "/" + luc.slice(5, 7) + " " + luc.slice(11, 16) : "") + " · đang chờ bạn quyết"; } }
 
   /* 12/10 user: "bổ sung bằng chứng truy vấn được ở WMS — lịch sử chuyển vị trí … lỗi lộn xộn thì người phụ trách kệ có khả năng chịu
      trách nhiệm, đồng thời người châm cũng có khả năng … hiển thị theo thứ tự gần thời gian ghi nhận nhất về trước".
@@ -283,16 +285,19 @@ function gom() {
       const tGhi = t(ngay), lan = (TU[p.id] || {}).lanKho || [];
       /* 22/10 user «toàn châm hàng, không thấy lấy hàng»: lượt RÚT RA khỏi ô (cò B1 bin_out → CW.ra, PICK_MASTER: ô → xe/giỏ F0-TF) xếp CHUNG
          theo giờ với châm; chiều:"ra" để giao diện tô khác. Không áp sổ nguồn châm (nguon-cham-b1) cho lượt ra. */
-      const raDs = ((CW[bin + "|" + ngay] || {}).ra || []).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.chieu === "ra" && z.at === r.at);
+      const raDs = ((CW[bin + "|" + ngay] || {}).ra || []).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && z.chieu === "ra" && z.at === r.at);
         return { at: r.at, chieu: "ra", ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI_RA[r.loai] || r.loai,
           truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, tt: r.loai || "", oToi: r.toi || "", oToiGhiChu: ghiChuO(r.toi),
-          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; });
-      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => z.chieu !== "ra" && z.at === r.at);
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0 }; });
+      const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && z.chieu !== "ra" && z.at === r.at);
         return { at: r.at, ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
           /* 20/10 user: ghi rõ Transfer Type + Source location như trang WMS Transfer location (bin_in = ô) — 0 lượt gọi thêm: bin_out có trong sổ nguon-cham-b1 / bộ đệm cò */
           tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", oGhiChu: ghiChuO(r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || ""), goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
-          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; })
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0 }; })
         .concat(raDs).sort((a, b) => (a.at < b.at ? 1 : -1));
+      /* 23/10 «Cắt thêm clip camera»: góc camera khác của cùng lượt (lanKho phu:1) = 1 dòng riêng ngay dưới dòng gốc, cờ «Cắt thêm» */
+      for (const z of lan.filter((z) => z.phu && z.clip)) { const i = ds.findIndex((x) => x.at === z.at && (x.chieu === "ra") === (z.chieu === "ra")); if (i < 0) continue;
+        ds.splice(i + 1, 0, { ...ds[i], clip: "/bc/may/" + encodeURIComponent(z.clip), kenh: z.kenh || "", them: 1, phu: 1 }); }
       p.lsKho = { bin, ra: raDs.length, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] }; } }
 

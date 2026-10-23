@@ -126,43 +126,70 @@ for (const [id, v] of Object.entries(so)) {
    KIỂM 12/10 trên 13808708 kênh 31: lúc tạo lệnh 15:10 có 3 người đang châm vào ô 07; lúc hoàn tất 15:27 dãy trống ⇒ KHÔNG dùng giờ hoàn tất.
    Kênh = kênh đã ra hình của lưới phía trên. Ghi so[id].lanKho = [{at, xong, email, qty, loai, clip | hong}]. */
 const CWMS = doc(path.join(DIR, ".cache-canh-b1.json"), {}), MAX_LAN = Number(A.maxLan || 24);   // ~8 s/clip ⇒ 24 lượt ≈ 3–4 phút, dưới trần 50 phút của lịch
-let clipLan = 0;
+let clipLan = 0; const THEM = {};   // 23/10 số clip cắt theo yêu cầu «Cắt thêm» trong lượt này
 /* 22/10 user «toàn châm hàng, không thấy lấy hàng»: cắt cả lượt RÚT RA khỏi ô (CWMS[k].ra — cò B1 bin_out, PICK_MASTER ô → xe/giỏ).
    Mốc ra = created_at, −60 s…+30 s (người rút hàng thường đã đứng ở ô trước khi tạo lệnh); châm GIỮ −20…+70 s. Trần 8 lượt gần nhất/phiếu
    GỘP CHUNG cả vào lẫn ra. Tệp `_RA-` (châm `_LAN-`), lanKho ghi chieu:"ra". --thu: chỉ in lượt sẽ cắt, không cắt/không ghi. */
-for (const [id, x] of Object.entries(kq)) {
-  if (clipLan >= MAX_LAN) break;
+for (const [id, x] of Object.entries(kq).sort((a, b) => (HANG[b[0]] ? 1 : 0) - (HANG[a[0]] ? 1 : 0))) {   // 23/10 hàng chờ «Cắt thêm» trước
+  if (clipLan >= MAX_LAN && !HANG[id]) break;
   if (A.id && String(A.id) !== id) continue;
   if (mo && !mo.has(id)) continue;
   /* 12/10: gợi ý cò B1 cũ ghi bin NGẮN ("507-03-04-02") còn khoá bộ đệm là mã đầy đủ ("F0-A1-507-03-04-02") ⇒ ghép theo đuôi mã */
   const khoa = CWMS[x.bin + "|" + x.ngay] ? x.bin + "|" + x.ngay : Object.keys(CWMS).find((k) => { const [b0, n0] = k.split("|"); return n0 === x.ngay && b0.endsWith("-" + x.bin); });
   const cw = (khoa && CWMS[khoa]) || {};
   const rec = (cw.rec || []).map((r) => ({ ...r, chieu: "vao" })).concat((cw.ra || []).map((r) => ({ ...r, chieu: "ra" })))
-    .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8);
+    .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, HANG[id] ? 16 : 8);   // 23/10 phiếu bạn chọn «Cắt thêm»: trần 16 lượt
   const v = so[id]; if (!rec.length || !v) continue;
   const kj = doc(path.join(DIR, ".exports", "kenh-luc-chup", id + ".json"), {});
   const k = (kj.kenh || []).find((y) => { const [h, c] = y.split("/"); return fs.existsSync(path.join(DIR, ".exports", "kenh-luc-chup", `${id}_${c}_${h.split(".").pop()}_f0.jpg`)); });
   if (!k) continue;
   const [host, ch] = k.split("/");
-  if (THU) { log(`  (thử) ${id} kênh ${ch}: ${rec.map((r) => (r.chieu === "ra" ? "RA " : "VÀO ") + String(r.at).slice(5, 16) + (((v.lanKho || []).find((z) => z.at === r.at && (z.chieu === "ra") === (r.chieu === "ra")) || {}).clip ? " (đã có clip)" : "")).join(" · ")}`); continue; }
+  if (THU) { log(`  (thử) ${id} kênh ${ch}: ${rec.map((r) => (r.chieu === "ra" ? "RA " : "VÀO ") + String(r.at).slice(5, 16) + (((v.lanKho || []).find((z) => !z.phu && z.at === r.at && (z.chieu === "ra") === (r.chieu === "ra")) || {}).clip ? " (đã có clip)" : "")).join(" · ")}`); continue; }
   v.lanKho ||= [];
   for (const r of rec) {
-    if (clipLan >= MAX_LAN) break;
+    if (clipLan >= MAX_LAN && !HANG[id]) break;
     const laRa = r.chieu === "ra";
-    let e = v.lanKho.find((z) => z.at === r.at && (z.chieu === "ra") === laRa);
+    let e = v.lanKho.find((z) => !z.phu && z.at === r.at && (z.chieu === "ra") === laRa);   // phu = góc camera cắt thêm (23/10)
     if (!e) { e = { at: r.at, xong: r.xong || r.at, email: r.email, qty: r.qty, loai: r.loai, ...(laRa ? { chieu: "ra", toi: r.toi || "" } : {}) }; v.lanKho.push(e); }
     if (e.clip || (e.hong || 0) >= 3) continue;
     const moc = Date.parse(String(e.at).replace(" ", "T") + "+07:00"), iso = new Date(moc - (laRa ? 60e3 : 20e3) + 7 * 36e5).toISOString().slice(0, 19);
     const ten = `${id}_${laRa ? "RA" : "LAN"}-${String(e.at).replace(/[^0-9]/g, "").slice(4, 14)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
     try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, "90", ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
-    if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; clipLan++; log(`  ▶ ${id} lượt ${laRa ? "rút ra" : "châm"} ${String(e.at).slice(5, 16)} ${e.email} → ${ten}`); }
+    if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; if (HANG[id]) { e.themYC = HANG[id].luc; THEM[id] = (THEM[id] || 0) + 1; } clipLan++; log(`  ▶ ${id} lượt ${laRa ? "rút ra" : "châm"} ${String(e.at).slice(5, 16)} ${e.email} → ${ten}`); }
     else { e.hong = (e.hong || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id} lượt ${String(e.at).slice(5, 16)}: cắt clip hỏng (lần ${e.hong}/3)`); }
     ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
   }
 }
 log(`xong: ${lam} phiếu có khung mới · ${clipMoi} clip mới · ${clipLan} clip lượt châm → ${F_RA}`);
-if (!THU && Object.keys(HANG).length) {   // gỡ khỏi hàng chờ: đã có khung/clip, hoặc phiếu không còn ở B1
-  const bc = doc(F_RA, {}), go = Object.keys(HANG).filter((id) => (mo && !mo.has(id)) || (bc[id] && ((bc[id].anh || []).length || bc[id].clip || (bc[id].lanKho || []).some((e) => e.clip))));
-  if (go.length) { const h = doc(F_HANG, {}); go.forEach((id) => delete h[id]); ghiJson(F_HANG, h, { thut: 1 }); log(`hàng chờ cắt clip: xong ${go.join(", ")}`); }
+/* 23/10 user «Cắt thêm clip camera > đã cắt theo yêu cầu thì gắn cờ đoạn nào là cắt thêm». KIỂM 23/10: hàng chờ cũ gỡ phiếu ngay khi phiếu
+   ĐÃ CÓ clip từ trước ⇒ 4 phiếu chọn «Cắt thêm» hôm 22/10 bị gỡ mà không cắt thêm đoạn nào. Nay mỗi yêu cầu (HANG[id].luc) phải ra clip MỚI:
+   ① lượt WMS chưa có clip (trần nâng 8 → 16, ở vòng trên); ② chưa ra gì thì cắt GÓC CAMERA KHÁC (kênh đã ra hình ở lưới, chưa dùng), tối đa 2 kênh —
+   lượt gần giờ ghi nhận nhất (lanKho phu:1) hoặc mốc chụp/kho (clipThem). Mọi clip cắt theo yêu cầu mang themYC = giờ yêu cầu → dashboard gắn cờ «Cắt thêm».
+   Hết đoạn để cắt (không còn lượt/kênh) cũng gỡ, ghi so[id].themXong để bảng nói thật «không còn đoạn nào để cắt thêm». */
+if (!THU && Object.keys(HANG).length) {
+  for (const id of Object.keys(HANG)) {
+    if (A.id && String(A.id) !== id) continue;
+    const v = so[id], yc = HANG[id].luc; if (!v || (mo && !mo.has(id)) || THEM[id]) continue;
+    const kj = doc(path.join(DIR, ".exports", "kenh-luc-chup", id + ".json"), {});
+    const kenhRa = (kj.kenh || []).filter((y) => { const [h, c] = y.split("/"); return fs.existsSync(path.join(DIR, ".exports", "kenh-luc-chup", `${id}_${c}_${h.split(".").pop()}_f0.jpg`)); });
+    const lan0 = (v.lanKho || []).filter((z) => !z.phu && z.clip).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];   // lượt gần giờ ghi nhận nhất
+    const daDung = new Set([lan0 ? lan0.kenh : v.clipKenh].concat(lan0 ? (v.lanKho || []).filter((z) => z.phu && z.at === lan0.at).map((z) => z.kenh) : (v.clipThem || []).map((z) => z.kenh)));
+    for (const y of kenhRa) {
+      if ((THEM[id] || 0) >= 2) break;
+      const [host, ch] = y.split("/"); if (daDung.has("kênh " + ch)) continue;
+      const laRa = lan0 && lan0.chieu === "ra", moc = lan0 ? Date.parse(String(lan0.at).replace(" ", "T") + "+07:00") : Date.parse(String(v.luc).replace(" ", "T") + "+07:00");
+      const lui = lan0 ? (laRa ? 60e3 : 20e3) : (v.loai === "chup" ? 80e3 : 20e3), iso = new Date(moc - lui + 7 * 36e5).toISOString().slice(0, 19);
+      const ten = lan0 ? `${id}_${laRa ? "RA" : "LAN"}-${String(lan0.at).replace(/[^0-9]/g, "").slice(4, 14)}_THEM_ch${ch}.mp4` : `${id}_${v.loai === "chup" ? "CHUP" : "KHO"}-${String(v.luc).replace(/[^0-9]/g, "").slice(4, 12)}_THEM_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
+      try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, "90", ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
+      if (!(fs.existsSync(ra) && fs.statSync(ra).size > 50e3)) { try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id}: cắt thêm kênh ${ch} hỏng`); continue; }
+      if (lan0) v.lanKho.push({ at: lan0.at, xong: lan0.xong, email: lan0.email, qty: lan0.qty, loai: lan0.loai, ...(laRa ? { chieu: "ra", toi: lan0.toi || "" } : {}), clip: ten, kenh: "kênh " + ch, phu: 1, themYC: yc });
+      else (v.clipThem ||= []).push({ clip: ten, kenh: "kênh " + ch, themYC: yc });
+      THEM[id] = (THEM[id] || 0) + 1; log(`  ▶ ${id} cắt thêm góc kênh ${ch} → ${ten}`);
+      ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
+    }
+  }
+  const go = Object.keys(HANG).filter((id) => (mo && !mo.has(id)) || THEM[id] || (so[id] && !(so[id].lanKho || []).some((z) => !z.phu && !z.clip && (z.hong || 0) < 3)));
+  for (const id of go) if (so[id] && !(mo && !mo.has(id))) so[id].themXong = { yc: HANG[id].luc, luc: new Date().toISOString(), n: THEM[id] || 0 };
+  if (go.length) { ghiJson(F_RA, so, { thut: 1 }); const h = doc(F_HANG, {}); go.forEach((id) => delete h[id]); ghiJson(F_HANG, h, { thut: 1 }); log(`hàng chờ cắt clip: xong ${go.map((id) => id + " (" + (THEM[id] || 0) + " clip thêm)").join(", ")}`); }
 }
 await TD?.xong();

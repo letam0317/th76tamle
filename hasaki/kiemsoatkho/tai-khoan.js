@@ -174,11 +174,13 @@
       .catch(function () { fetch("https://api.ipify.org?format=json").then(function (r) { return r.json(); }).then(function (j) { tra(j && j.ip); }).catch(function () { tra(""); }); });
   }
   /* 22/10 user: quyền từ OTP Ghi nhận chỉ 43 phút (tb-het, máy chủ cũng tự hết hạn) — máy duyệt lâu dài (không có tb-het) giữ như cũ */
+  /* 23/10 user (t2): chưa đăng nhập, chưa gõ OTP mà vẫn bấm thẳng «+ Ghi nhận» được — vì tb-khoa còn do link #khoa= / OTP Planogram-Factory cũ đặt
+     (không có tb-het). Khách nay CHỈ được ghi khi còn hạn OTP Ghi nhận (tb-het); khoá thiết bị đơn thuần không còn mở form. */
   var duocGhi = function () {
     if (TK.nguoi) return window.tkCo("r.task", "lam");
     var het = Number(ls.get("tb-het") || 0);
-    if (het && Date.now() >= het) { ls.set("tb-khoa", null); ls.set("tb-het", null); return false; }
-    return !!ls.get("tb-khoa");
+    if (het && Date.now() >= het) { ls.set("tb-het", null); return false; }
+    return !!het && !!ls.get("tb-khoa");
   };
   function moOtpGhiNhan() {
     return new Promise(function (xong) {
@@ -194,7 +196,7 @@
         ls.set("tb-ten", f.ten.value.trim()); trangThai(o, "", "Đang gửi yêu cầu…");
         layIp(function (ip) { goiGas({ action: "tb_xin", muc: "ghi5s", tb: id, ten: f.ten.value.trim(), ip: ip, trang: "kiemsoatkho", ua: (navigator.userAgent || "").slice(0, 160) })
           .then(function (j) { if (j.status !== "success") throw new Error(j.message || "Không xin được mã");
-            if (j.duyet) { ls.set("tb-khoa", id); return dongHop(); }   // máy đã được duyệt lâu dài
+            if (j.duyet) { ls.set("tb-khoa", id); ls.set("tb-het", String(Date.now() + 43 * 60e3)); return dongHop(); }   // máy máy chủ đã duyệt lâu dài — vẫn chỉ mở 43' mỗi lần khai tên (23/10)
             [].slice.call(o.querySelectorAll(".tk-otp")).forEach(function (x) { x.hidden = false; }); f.otp.focus(); trangThai(o, "ok", j.lai ? j.message : "Đã gửi — liên hệ quản trị lấy 4 số, gõ vào ô trên trong 5 phút."); })
           .catch(function (e) { trangThai(o, "loi", e.message); }); }); };
       o.querySelector('[data-a="kich"]').onclick = function () { if (!/^\d{4}$/.test(f.otp.value.trim())) return trangThai(o, "loi", "Gõ đủ 4 số");
