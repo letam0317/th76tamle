@@ -242,7 +242,11 @@ if (!THU && Object.keys(HANG).length) {
       ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
     }
   }
-  const go = Object.keys(HANG).filter(cuaToi).filter((id) => !A.id || String(A.id) === id).filter((id) => (mo && !mo.has(id)) || THEM[id] || (so[id] && !(so[id].lanKho || []).some((z) => !z.phu && z.chieu !== "soan" && !z.clip && (z.hong || 0) < 3)));
+  /* 23/10: còn lượt SOẠN (6 gần nhất) chưa cắt thì CHƯA gỡ — chạm trần MAX_LAN giữa chừng thì lượt sau cắt tiếp vẫn mang cờ «Cắt thêm» */
+  const conSoan = (id) => { const x = kq[id]; if (!x || !so[id]) return false;
+    const k = CWMS[x.bin + "|" + x.ngay] ? x.bin + "|" + x.ngay : Object.keys(CWMS).find((k0) => { const [b0, n0] = k0.split("|"); return n0 === x.ngay && b0.endsWith("-" + x.bin); });
+    return ((k && SOAN[k]) || { ds: [] }).ds.slice(0, 6).some((r) => !(so[id].lanKho || []).some((e) => e.chieu === "soan" && e.at === r.at && (e.clip || (e.hong || 0) >= 3))); };
+  const go = Object.keys(HANG).filter(cuaToi).filter((id) => !A.id || String(A.id) === id).filter((id) => (mo && !mo.has(id)) || THEM[id] || (so[id] && !conSoan(id) && !(so[id].lanKho || []).some((z) => !z.phu && z.chieu !== "soan" && !z.clip && (z.hong || 0) < 3)));
   for (const id of go) if (so[id] && !(mo && !mo.has(id))) so[id].themXong = { yc: HANG[id].luc, luc: new Date().toISOString(), n: THEM[id] || 0 };
   if (go.length) { ghiJson(F_RA, so, { thut: 1 }); const h = doc(F_HANG, {}); go.forEach((id) => delete h[id]); ghiJson(F_HANG, h, { thut: 1 }); log(`hàng chờ cắt clip: xong ${go.map((id) => id + " (" + (THEM[id] || 0) + " clip thêm)").join(", ")}`); }
 }
