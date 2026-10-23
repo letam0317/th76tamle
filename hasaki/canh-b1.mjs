@@ -32,6 +32,7 @@ import { execFileSync } from "node:child_process";
 import { layTokenSongWork, layTokenGhiWork, mayDuocChay } from "./session-rules.js";
 import { laHangMucVeSinhHangNgay, napNguonTruyVet, traPhanCong } from "./truy-vet-vesinh.mjs";
 import { nvTheoMoTa as nvMoTaChung } from "./nv-mo-ta.mjs";   // 22/10 tên NV ở Mô tả phiếu (tra an toàn, bẫy trùng tên)
+import { traCuuSanPham } from "./tra-sku-hasaki.mjs";   // 23/10 SH-01: mã vạch quét → SKU
 import { ghiJson } from "./so-ghi.mjs";   // 20/10 ghi sổ JSON an toàn (ghi tạm → đổi tên) + nhật ký ai ghi
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -228,6 +229,56 @@ async function nvTheoMoTa(p) {
   return { chu: mt.chu, ds: [...mt.ds, ...mt.thieu.map((t) => ({ ten: t, code: "", email: "" }))] };
 }
 
+/* ---- SH-01 người soạn cuối (23/10 user «WMS có mục lưu lại soạn mà»): danh sách picking group LỌC ĐƯỢC THEO SKU (skus=) →
+   1 lượt danh sách (72h trước ảnh) + đọc chi tiết từ group mới nhất tới khi gặp dòng lấy tại ĐÚNG ô trước giờ ảnh (tối đa 6).
+   Thử 13881464: 3 lượt, ra thuyltt8 07:42:04 — camera cùng ô thấy người chạm hàng 07:42:06. (Nhật ký thao tác + xuất chi tiết
+   picking: tài khoản không có quyền — 403.) SKU lấy từ Mô tả «Mã SP quét: … → SKU x» / mã 9 số / mã vạch tra hasaki.vn.
+   Lượt soạn ghi vào CACHE[ô|giờ].ra (loai SOAN_DON) để tim-bang-chung-b1 cắt clip và bảng 591 hiện như lượt rút khỏi ô. */
+async function skuPhieu(p) {
+  let note = CACHE["mt|" + p.id] ?? MO_TA[p.id]?.note;
+  if (note == null) {
+    wshrToken ||= await layTokenSongWork(DIR, () => {});
+    const d = await docTask(/^Bearer /.test(wshrToken) ? wshrToken : "Bearer " + wshrToken, p.id); if (!d) return null;
+    note = String(d.note || ""); CACHE["mt|" + p.id] = note; ghiJ(F_CACHE, CACHE);
+  }
+  const m = /→\s*SKU\s*(\d{6,})/.exec(note) || /Mã SP quét:\s*(\d{9})\b/.exec(note);
+  if (m) return m[1];
+  const ma = /Mã SP quét:\s*([0-9A-Za-z]{8,})/.exec(note);
+  if (!ma) return "";
+  return ((await traCuuSanPham(ma[1])) || {}).sku || { maVach: ma[1] };   // WMS không lọc picking group/tồn theo mã vạch (thử 23/10)
+}
+async function nguoiSoanCuoi(p, bin) {
+  const k = "sh|" + p.id;
+  if (CACHE[k]) return CACHE[k];
+  const sku = await skuPhieu(p); if (sku == null) return null;
+  if (!sku) return { khong: "Mô tả phiếu không có mã SP — không lọc được lượt soạn" };
+  if (sku.maVach) return { khong: "Mô tả chỉ có mã vạch " + sku.maVach + ", tra hasaki.vn không ra SKU — WMS không lọc lượt soạn theo mã vạch" };
+  if (nWms + 2 > MAX_WMS) return null;                                  // hết trần — lượt sau
+  if (!wmsToken) wmsToken = (await layTokenSongWork(DIR, () => {})).replace(/^Bearer /, "");
+  const H = { authorization: "Bearer " + wmsToken, "Company-Ids": "1001", "user-agent-type": "web" }, den = msVN(p.ngay);
+  try {
+    nWms++;
+    const q = new URLSearchParams({ from_date: den - 72 * 36e5, to_date: den, page: 1, size: 200, warehouse_ids: /-A2-/.test(bin) ? 874 : 863, skus: sku });
+    const ds = ((await (await fetch(WMS + "/wms/outbound-orders/picking-group/group?" + q, { headers: H, signal: AbortSignal.timeout(60000) })).json()).records || [])
+      .sort((a, b) => b.picking_group_id - a.picking_group_id);
+    let kq = null;
+    for (const g of ds.slice(0, 6)) {
+      if (nWms >= MAX_WMS) return null;
+      nWms++;
+      const j = await (await fetch(WMS + "/wms/outbound-orders/picking-group/" + g.picking_group_id, { headers: H, signal: AbortSignal.timeout(60000) })).json();
+      const L = ((j.data || j).locations || []).filter((x) => x.location === bin && String(x.sku) === sku && x.picked_at && msVN(x.picked_at) <= den)
+        .sort((a, b) => (a.picked_at < b.picked_at ? 1 : -1));
+      if (L.length) { kq = { email: L[0].picker_name, at: L[0].picked_at, qty: Number(L[0].quantity_picked) || 0, group: g.picking_group_number || g.picking_group_id, sku }; break; }
+    }
+    CACHE[k] = kq || { khong: "Không có lượt soạn SKU " + sku + " tại ô trong 72h trước ảnh (" + ds.length + " group có SKU)" };
+    if (kq) {   // vào danh sách lượt tác động → cắt clip quanh giờ soạn
+      const kc = bin + "|" + p.ngay; CACHE[kc] ||= { rec: [], ra: [], luc: new Date().toISOString(), chiSoan: 1 }; CACHE[kc].ra ||= [];
+      if (!CACHE[kc].ra.some((r) => r.loai === "SOAN_DON" && r.at === kq.at)) CACHE[kc].ra.push({ at: kq.at, xong: kq.at, loai: "SOAN_DON", qty: kq.qty, email: kq.email, toi: "Group " + kq.group });
+    }
+    ghiJ(F_CACHE, CACHE); return CACHE[k];
+  } catch (e) { log("   ⚠ WMS soạn hàng " + bin + ": " + String(e.message).slice(0, 80)); return null; }
+}
+
 /* ---- xét 1 phiếu → kết quả ---- */
 async function xet(p) {
   const loai = phanLoai(p.loi), bin = chuanMa(p.bin), cam = kenhCamera(bin);
@@ -258,7 +309,13 @@ async function xet(p) {
   }
   if (!bin || !/^\d{4}-\d\d-\d\d \d\d:\d\d/.test(p.ngay))
     return { luat: "DL-01", ketLuan: "nghi-ngo", lyDo: !bin ? "Vị trí «" + p.bin + "» không phải mã ô — không tra được ai tác động" : "Phiếu thiếu giờ ghi nhận" };
-  if (loai === "SH-01") return { luat: "SH-01", ketLuan: "nghi-ngo", camera: cam, lyDo: "Lỗi soạn hàng — chưa tự tra người lấy (tốn 47–54 lượt WMS/phiếu). Chọn «Cắt thêm clip camera» nếu cần" + (cam ? " · " + cam : "") };
+  if (loai === "SH-01") {
+    const s = await nguoiSoanCuoi(p, bin);
+    if (!s) return { luat: "SH-01", ketLuan: "cho-wms", camera: cam, lyDo: "Chưa tra được lượt soạn hàng (trần lượt gọi/lỗi mạng) — lượt sau" };
+    if (s.khong) return { luat: "SH-01", ketLuan: "nghi-ngo", camera: cam, lyDo: "Lỗi soạn hàng — " + s.khong + "; xem clip lúc chụp + dải 72 giờ" + (cam ? " · " + cam : "") };
+    const g = { ...nguoi(s.email), qty: s.qty, lan: [String(s.at).slice(5, 16)] };
+    return { luat: "SH-01", ketLuan: "nghi-ngo", nv: [g], camera: cam, lyDo: "Người soạn cuối SKU " + s.sku + " tại ô trước ảnh = " + g.ten + (g.code ? " (" + g.code + ")" : "") + " lấy " + s.qty + " cái lúc " + g.lan[0] + " (picking group " + s.group + ") — máy cắt clip quanh giờ đó, bạn xem rồi quyết" };
+  }
   if (loai === "KHAC") {
     const dx = deXuatCho(p.loi);
     return { luat: "KHAC", ketLuan: "nghi-ngo", camera: cam, deXuat: dx,

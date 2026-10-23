@@ -251,7 +251,7 @@ function gom() {
      (bang-chung-b1.json lanKho, tim-bang-chung-b1.mjs cắt quanh giờ TẠO lệnh). */
   { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
-    const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" }, LOAI_RA = { PICK_MASTER: "Rút hàng khỏi ô" };
+    const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" }, LOAI_RA = { PICK_MASTER: "Rút hàng khỏi ô", SOAN_DON: "Soạn đơn" };   // 23/10 SOAN_DON: người soạn cuối (canh-b1 SH-01, picking group)
     /* 16/10 user «1 cái đó từ đâu — hàng hoàn hay pick dư hay châm/soạn hàng»: sổ nguon-cham-b1.mjs lần ngược lệnh đưa món hàng VÀO XE
        trước lượt châm (0 lượt gọi ở đây — chỉ đọc sổ). chu = nhãn ngắn trên dòng, chiTiet = chuỗi đầy đủ cho title. */
     const NG = docJ(path.join(EXP, "nguon-cham-b1.json"), { lan: {} }); NG.lan ||= {};
