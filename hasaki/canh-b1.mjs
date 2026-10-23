@@ -461,8 +461,12 @@ for (const [id, { qd, gc }] of Object.entries(QD)) {
   const maTrong = (s) => [...new Set(String(s || "").match(/\b\d{6}\b/g) || [])];
   let viec = null;
   if (qd === "Gán lỗi cho NV máy nghi") {
-    const m = maTrong(gc).length ? maTrong(gc) : (KQ[id]?.nv || []).map((n) => n.code).filter(Boolean).length === 1 ? [(KQ[id].nv[0].code)] : maTrong(RAW[id]?.nghi);
-    viec = m.length === 1 ? { loai: "b11", nv: m[0] } : { loai: "hoi", lyDo: m.length ? "Có " + m.length + " NV nghi (" + m.join(", ") + ") — ghi mã người chịu ở cột «Ghi chú của bạn» (nhiều người ngăn bằng dấu phẩy)" : "Không có mã NV nghi — ghi mã ở cột Ghi chú" };
+    /* 23/10 user «đã quyết mà không thấy lập B1.1»: máy nghi NHIỀU người thì trước đây rơi về RAW (sheet) rỗng → hỏi «Không có mã NV nghi» (sai)
+       và câu hỏi không lên bảng. Nay ứng viên = danh sách máy nghi (KQ.nv); 1 người → làm, nhiều người → hỏi kèm tên (bang-591 đưa canBan lên phiếu). */
+    const ung = [...new Set((KQ[id]?.nv || []).map((n) => String(n.code || "")).filter(Boolean))];
+    const m = maTrong(gc).length ? maTrong(gc) : ung.length ? ung : maTrong(RAW[id]?.nghi);
+    const tenUng = (KQ[id]?.nv || []).filter((n) => n.code).map((n) => n.ten + " " + n.code).join(", ");
+    viec = m.length === 1 ? { loai: "b11", nv: m[0] } : { loai: "hoi", lyDo: m.length ? "Máy nghi " + m.length + " người (" + (tenUng || m.join(", ")) + ") — chưa biết gán ai: bấm «Đổi quyết định», ghi mã người chịu vào Ghi chú (nhiều người ngăn dấu phẩy) hoặc dùng «Gán người khác»" : "Máy không nghi ai — bấm «Đổi quyết định», ghi mã người chịu vào Ghi chú hoặc dùng «Gán người khác»" };
     if (m.length > 1 && maTrong(gc).length > 1) viec = { loai: "b11", nv: m.join(",") };
   } else if (qd === "Gán cho người phụ trách kệ") {
     const m = maTrong(RAW[id]?.phuTrach); viec = m.length === 1 ? { loai: "b11", nv: m[0] } : { loai: "hoi", lyDo: "Không tra được mã người phụ trách kệ" };

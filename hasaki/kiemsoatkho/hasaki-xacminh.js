@@ -1103,7 +1103,8 @@
     var x = p.xm || {}, g = p.goiY;
     /* 20/10 user «14115619 ghi Đã xử lý mà vẫn treo B1»: cột «Đã xử lý» = «Đã đưa vào hàng chờ cắt clip camera» (12/10) bị coi là XONG.
        Câu hàng chờ / đang làm KHÔNG phải xong → xét tiếp như phiếu thường (bằng chứng + gợi ý của máy). */
-    if (x.daXuLy && !/hàng chờ|đang /i.test(x.daXuLy)) return "xong"; if (p.qdB1 && !/^Cắt thêm clip/.test(p.qdB1.qd || "")) return "quyet";
+    if (x.daXuLy && !/hàng chờ|đang /i.test(x.daXuLy)) return "xong"; if (p.qdB1 && g && g.canBan) return "chon";   // 23/10: máy hỏi lại sau quyết định (nghi nhiều người) → về tay bạn
+    if (p.qdB1 && !/^Cắt thêm clip/.test(p.qdB1.qd || "")) return "quyet";
     /* 07/10 luật vệ sinh VS-06/VS-07 (canh-b11 ⑤ ghi vesinh-xet.json): kho bụi quá 8h / camera đã đo → nhờ anh Tâm; báo cáo trong 8h → máy tra camera lượt kế; còn lại máy tự xử */
     var vs = p.vs; if (vs) { if (vs.bui || vs.camSo || vs.cam) return "tam";
       if (vs.hanhDong === "khong-phan-cong" || vs.hanhDong === "nguoi-xac-minh") return "chon";   /* 20/10: vị trí không có phân công / nghỉ ngắn mà có người khác báo cáo → máy để NGƯỜI quyết (trước hiện «Chờ camera xác nhận» / «Máy tự xử») */ if (vs.hanhDong === "camera") return "cam"; if (vs.hanhDong === "dong-b1" || /^nghi_/.test(vs.hanhDong || "")) return "tudong"; }
@@ -1379,7 +1380,8 @@
     var nutQD = '<span role="button" tabindex="0" class="hsk-nut phu nho hx-qd-cl' + (bc && p.buoc === "B1" && !daXong ? "" : " hx-qd-cho") +
       '" data-moqd="' + e_(p.id) + '">' + (daQD && p.buoc === "B1" && !daXong ? "Đổi quyết định" : "Quyết định") + '</span>';
     var cBC = dsMoTaBC(b).map(function (s) { return s.replace(/<[^>]+>/g, ""); });
-    var chuBC = cBC.length ? '<b>' + cBC[0] + '</b>' + (cBC.length > 1 ? " · " + cBC.slice(1).join(" · ") : "") : '<span class="muted">Chỉ có ảnh ghi nhận</span>';
+    var chuBC = (q && p.goiY && p.goiY.canBan ? '<span class="hx-tag warn" style="white-space:normal">Máy chưa làm được: ' + e_(p.goiY.canBan) + '</span> ' : "") +   // 23/10
+      (cBC.length ? '<b>' + cBC[0] + '</b>' + (cBC.length > 1 ? " · " + cBC.slice(1).join(" · ") : "") : '<span class="muted">Chỉ có ảnh ghi nhận</span>');
     var tgTao = p.tao || p.giao;
     return '<div class="cl-item vp' + (tGC ? " hx-gc-mo" : "") + '" data-p="' + e_(p.id) + '">' +
       '<div class="cl-hang1">' + anhThe(p, b) + '<span class="cl-tt">' + chips + '</span>' +
@@ -1426,7 +1428,8 @@
       if (vsChu) return '<span class="hx-tag ' + (vs.bui || vs.camSo || vs.cam ? "warn" : "info") + '" style="white-space:normal">' + e_(vsChu) + '</span>' + (bc ? ' <button class="hx-nut nho" data-qd="' + e_(p.id) + '">Quyết định</button>' : "") + duoi;
     }
     var dau = x.daXuLy ? '<span class="hx-tag good" style="white-space:normal">' + e_(String(x.daXuLy).slice(0, 60)) + '</span>'
-      : q ? '<span class="hx-tag info">' + e_(q.qd) + '</span>' + (p.buoc === "B1" ? ' <button class="badge-link" data-qd="' + e_(p.id) + '">Đổi quyết định</button>' : "")
+      : q ? '<span class="hx-tag info">' + e_(q.qd) + '</span>' + (p.buoc === "B1" ? ' <button class="badge-link" data-qd="' + e_(p.id) + '">Đổi quyết định</button>' : "") +
+        (p.goiY && p.goiY.canBan ? '<div style="margin-top:4px"><span class="hx-tag warn" style="white-space:normal">Máy chưa làm được: ' + e_(p.goiY.canBan) + '</span></div>' : "")
       : p.buoc !== "B1" ? '<span class="muted" style="font-size:12px">Đã qua B1</span>'
       : bc ? '<button class="hx-nut nho" data-qd="' + e_(p.id) + '">Quyết định</button>'
       : '<span class="muted" style="font-size:13px">Chưa quyết được — chờ bằng chứng</span>';

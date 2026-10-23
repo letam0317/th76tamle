@@ -114,7 +114,7 @@ function gom() {
       buoc: dang?.buoc || "?", tenBuoc: dang?.tenBuoc || "", nguoiBuoc: dang?.nguoi || "", giao: dang?.giao || "",
       treoGio: dang?.giao ? Math.round((now - t(dang.giao)) / 36e5) : null, nv,
       giaiTrinh: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Giải trình:"), xacNhan: g(r, "B1.1 Nhân viên xác nhận lỗi vi phạm ▸ Xác nhận lỗi:"),
-      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", nv: (() => {   /* 20/10 user: xếp hạng ứng viên — lượt tác động GẦN giờ ghi nhận nhất trước, rồi nhiều lượt hơn (canh-b1 chưa có điểm riêng) */
+      goiY: gy ? { luat: gy.luat, ketLuan: gy.ketLuan, lyDo: gy.lyDo, doChac: gy.doChac || "", canBan: gy.canBan || "",   /* 23/10 câu máy hỏi lại sau quyết định (QD-01 «hoi») */ nv: (() => {   /* 20/10 user: xếp hạng ứng viên — lượt tác động GẦN giờ ghi nhận nhất trước, rồi nhiều lượt hơn (canh-b1 chưa có điểm riêng) */
         const T = t(g(r, "Ngày vi phạm:")), nam = String(g(r, "Ngày vi phạm:")).slice(0, 4);
         const ds = (gy.nv || []).filter((n) => n && n.code).map((n) => { const d = db.theoMa.get(String(n.code)), lan = (n.lan || []).map((x) => t(nam + "-" + String(x).replace(" ", " "))).filter((x) => !isNaN(x));
           return { ten: n.ten, ma: n.code, email: (d && d.email) || n.email || "", ttNv: d ? d.tt : "Inactive", cach: lan.length && !isNaN(T) ? Math.min(...lan.map((x) => Math.abs(T - x))) : Infinity, soLan: lan.length }; });
