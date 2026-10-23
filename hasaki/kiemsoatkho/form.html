@@ -418,10 +418,11 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
       <!-- ===== Nút gửi báo cáo ===== -->
       <button
         type="submit"
-        :disabled="!!(dangGui || dangNen)"
+        :disabled="!!(dangGui || dangNen || daGuiCho)"
         class="w-full rounded-2xl bg-blue-600 text-white font-semibold py-3.5 text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <span x-show="!dangGui && !dangNen">GỬI BÁO CÁO</span>
+        <span x-show="!dangGui && !dangNen && !daGuiCho">GỬI BÁO CÁO</span>
+        <span x-show="daGuiCho && !dangGui" x-cloak>Đã gửi — đang lưu lên hệ thống...</span>
         <span x-show="dangGui" x-cloak>Đang gửi, vui lòng đợi...</span>
         <span x-show="dangNen && !dangGui" x-cloak>Đang xử lý video...</span>
       </button>
@@ -510,6 +511,7 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
         dangQuet: false,    // đang bật camera quét mã?
         keoVao: false,      // đang kéo file vào vùng thả?
         dangGui: false,
+        daGuiCho: false,    // đã báo «đã gửi» sớm, máy chủ chưa trả lời → nút vẫn khoá
         thongBao: { loai: '', noiDung: '' },
         _scanner: null,     // đối tượng camera quét mã
         dangChupAnh: false, // đang mở camera?
@@ -1116,6 +1118,7 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
 
         // ---- Gửi báo cáo ----
         async guiBaoCao() {
+          if (this.dangGui || this.daGuiCho) return;   // Enter trong ô nhập vẫn gửi form dù nút đã khoá
           this.thongBao = { loai: '', noiDung: '' };
 
           // Kiểm tra các mục bắt buộc (*)
@@ -1200,6 +1203,7 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
             if (som === 'cho') {
               this.thongBao = { loai: 'info', noiDung: '✓ Đã gửi báo cáo — đang lưu lên hệ thống. Bạn đóng form được rồi.' };
               this.dangGui = false;
+              this.daGuiCho = true;   // 23/10: nút vẫn khoá tới khi máy chủ trả lời — form chưa xoá nên bấm lại = gửi đúp (task 13774089/13774091)
             }
             const res = await goi;
             const ketQua = await res.json();
@@ -1218,6 +1222,7 @@ history.replaceState(null,'',location.pathname+location.search+con);}}catch(e){}
             this.thongBao = { loai: 'err', noiDung: '✗ CHƯA lưu được: ' + err.message + ' — nội dung vẫn còn, bấm GỬI BÁO CÁO để thử lại.' };
           } finally {
             this.dangGui = false;
+            this.daGuiCho = false;
           }
         }
       };
