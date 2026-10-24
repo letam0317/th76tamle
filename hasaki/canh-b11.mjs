@@ -774,7 +774,13 @@ async function guiBinhLuan(token, id, text) {     // dạng "form obj_id+comment
         /* 20/10: nghỉ ngắn mà CÓ người khác báo cáo ngày xét → máy để người xác minh (nhánh dưới) — trước ghi «nghi_ngan» làm bảng hiện «Máy tự xử» sai (13950762) */
         ghiXet(x, kq, kq.suyNV ? (kq.trongCuaSoBui ? "camera" : kq.ketLuan === "chua_dat" ? "bui" : "dong-b1") : kq.ketLuan === "nghi_ngan" && kq.coBaoCaoNgayXet ? "nguoi-xac-minh" : kq.ketLuan);
         if (kq.suyNV) {   /* (2) đi làm mà không báo cáo / vệ sinh chưa đạt */
-          const nhan = kq.ketLuan === "chua_dat" ? "VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn)" : "KHÔNG báo cáo";
+          /* 24/10 user (phiếu 14264232 — Huyền Trang nghỉ 17-18, chỉ đi làm 19/10): phiếu do LUẬT 3 NGÀY lập là phiếu THEO VỊ TRÍ
+             (báo QL / không người / nghỉ dài) — ghi nhận NV chỉ do co-luy-tien (đủ 3 lần từ 17/10). Nhận diện bằng ảnh IMA00
+             «bang-chung-3-ngay» (0 lượt gọi). Không đóng B1 cho NV ở đây, để QL xử theo bình luận của luat-3-ngay. */
+          if ([].concat(c.IMA00 || []).some((u) => /bang-chung-3-ngay/.test(String(u)))) {
+            ghiXet(x, kq, "luat-3-ngay"); log("⑤ " + x.t.code + ": phiếu luật 3 ngày (theo vị trí) — không đóng B1 cho NV, phần NV do cò luỹ tiến."); continue;
+          }
+          const nhan =kq.ketLuan === "chua_dat" ? "VỆ SINH CHƯA ĐẠT (có báo cáo mà vẫn bẩn)" : "KHÔNG báo cáo";
           const g14 = daGhiNhan14(kq.khoa, kq.suyNV, ngayVP(x), x.t.id, loaiCua(x.t));
           if (g14) { nFail++; await fail14(x, g14); continue; }
           /* ═══ 07/10 (user) — CỬA SỔ BỤI 8h + CAMERA GIỜ BÁO CÁO (chỉ khi phụ trách CÓ báo cáo) ═══

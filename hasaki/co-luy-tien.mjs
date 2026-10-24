@@ -70,14 +70,21 @@ for (const r of tab.rows) {
       });
       return { d, o, dong: dm(d) + ": " + chiTiet.join(", ") + " · " + (cc[d] ? "chấm công " + cc[d] : "có mặt theo camera") };
     });
-    KH.push({ code, ten: String(r[iTen] || ""), em, ngay, d3: k.keNay[MOI_LAN - 1], soPhieu: k.soPhieu, n: k.n });
+    /* 24/10 user: mô tả kê ĐỦ từng ngày từ lần 1 → lần 3 (vd 15/16 đi làm không báo cáo · 17/18 nghỉ · 19 đi làm không báo cáo)
+       để NV thấy ngày nghỉ KHÔNG bị tính — phiếu 14264232 kê 2 ngày nghỉ mà không nói rõ nên NV tưởng bị phạt oan. */
+    const lich = [];
+    for (let d = k.keNay[0]; d <= k.keNay[MOI_LAN - 1]; d = lechNgay(d, 1)) {
+      const x = ngay.find((y) => y.d === d);
+      lich.push(x ? x.dong + " → TÍNH 1 lần" : dm(d) + ": " + (cc[d] ? "đi làm " + cc[d] + ", không vi phạm" : "nghỉ") + " → không tính");
+    }
+    KH.push({ code, ten: String(r[iTen] || ""), em, ngay, lich, d3: k.keNay[MOI_LAN - 1], soPhieu: k.soPhieu, n: k.n });
     ghi = ghi.concat(k.keNay[MOI_LAN - 1]);
   }
 }
 
 const L = ["# Diễn tập cò luỹ tiến — " + homNay, "", "Tính từ " + dmy(TU) + " tới " + dmy(homQua) + " (ngày đã khép). Mỗi biên bản = " + MOI_LAN + " lần → KPI −2%.", "",
   "**" + KH.length + " biên bản** sẽ lập" + (LAM ? "" : " (diễn tập — chưa gửi gì)") + ".", ""];
-for (const p of KH) { L.push("## " + p.ten + " (" + p.code + ") — " + p.ngay.map((x) => dm(x.d)).join(" · ")); for (const x of p.ngay) L.push("- " + x.dong); L.push(""); }
+for (const p of KH) { L.push("## " + p.ten + " (" + p.code + ") — " + p.ngay.map((x) => dm(x.d)).join(" · ")); for (const x of p.lich) L.push("- " + x); L.push(""); }
 fs.mkdirSync(path.join(DIR, ".exports"), { recursive: true });
 fs.writeFileSync(path.join(DIR, ".exports", "co-luy-tien-dien-tap.md"), L.join("\n"));
 log("cò luỹ tiến: " + KH.length + " biên bản (" + (LAM ? "LÀM THẬT" : "diễn tập") + "), tính từ " + TU);
@@ -91,7 +98,7 @@ const trinh = await puppeteer.launch({ headless: true, executablePath: EDGE_PATH
 async function anh(p) {
   const html = "<meta charset=utf-8><style>body{font:14px Arial;margin:16px;color:#111}h2{margin:0 0 4px;font-size:18px}p{margin:0 0 10px;color:#555}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;padding:6px 8px;vertical-align:top}th{background:#fee2e2}</style>" +
     "<h2>" + esc(p.ten) + " (" + esc(p.code) + ") — " + MOI_LAN + " ngày đi làm không báo cáo vệ sinh</h2><p>Cò luỹ tiến tự lập " + dmy(homNay) + " · nguồn: yêu cầu vệ sinh planogram · camera đóng gói A8 · bảng phân công · chấm công</p>" +
-    "<table><tr><th>Ngày</th><th>Vị trí không báo cáo · người có mặt</th></tr>" + p.ngay.map((x) => "<tr><td>" + dm(x.d) + "</td><td>" + esc(x.dong.slice(7)) + "</td></tr>").join("") + "</table>";
+    "<table><tr><th>Ngày</th><th>Vị trí không báo cáo · người có mặt</th></tr>" + p.lich.map((x) => "<tr><td>" + x.slice(0, 5) + "</td><td>" + esc(x.slice(7)) + "</td></tr>").join("") + "</table>";
   const pg = await trinh.newPage(); await pg.setViewport({ width: 860, height: 300 }); await pg.setContent(html);
   const b = await pg.screenshot({ fullPage: true, type: "png" }); await pg.close(); return Buffer.from(b).toString("base64");
 }
@@ -102,7 +109,7 @@ try {
     const khoa = p.code + "|" + p.d3;
     if (so.phieu[khoa]) continue;
     const hienTrang = ["Cò tự ghi nhận: " + MOI_LAN + " ngày có đi làm nhưng KHÔNG báo cáo vệ sinh vị trí được giao"]
-      .concat(p.ngay.map((x) => x.dong))
+      .concat(p.lich)
       .concat(["Phụ trách: " + p.ten + " (" + p.code + ") -Có đi làm nhưng KHÔNG báo cáo vệ sinh ô này",
         "Vi phạm luỹ tiến: đủ " + MOI_LAN + " lần (" + p.ngay.map((x) => dmy(x.d)).join(" · ") + ") → KPI -2%",
         "Người ghi nhận: Cò luỹ tiến (tự động)"]).join("\n");
