@@ -251,8 +251,13 @@ function gom() {
      (bang-chung-b1.json lanKho, tim-bang-chung-b1.mjs cắt quanh giờ TẠO lệnh). */
   { const CW = docJ(path.join(DIR, ".cache-canh-b1.json"), {}), TU = docJ(path.join(EXP, "bang-chung-b1.json"), {});
     const theoEmail = new Map(); for (const v of db.theoMa.values()) if (v.email) theoEmail.set(String(v.email).toLowerCase(), v);
-    const chuanTen = (x) => String(x || "").normalize("NFC").trim().toLowerCase().replace(/s+/g, " ");
+    const chuanTen = (x) => String(x || "").normalize("NFC").trim().toLowerCase().replace(/\s+/g, " ");
     const theoTen = new Map(); for (const v of db.theoMa.values()) if (v.ten) { const k = chuanTen(v.ten); if (!theoTen.has(k)) theoTen.set(k, []); theoTen.get(k).push(v); }
+    /* 24/10 user «sao Tuyết Trâm/Huyền Trang không có mail/trạng thái»: Redash chỉ có TÊN, 2 tên này trùng 2 và 6 người trong danh bạ ⇒ trước bỏ trống.
+       Trùng tên thì lọc người Active có chức danh soạn hàng (Đóng gói · Pick Pack · Phát triển cửa hàng — đúng 3 chức danh của 60/60 tên khớp duy nhất
+       24/10); còn đúng 1 người mới nhận, ghi doanTen để biết là suy theo chức danh. Gỡ 15/16 tên trùng; «Picker» (tài khoản chung) vẫn để trống. */
+    const nvSoan = (ten) => { const ds0 = theoTen.get(chuanTen(ten)) || []; if (ds0.length === 1) return ds0[0];
+      const loc = ds0.filter((v) => v.tt === "Active" && /Đóng gói|Pick Pack|Phát triển cửa hàng/i.test(v.chuc || "")); return loc.length === 1 ? { ...loc[0], doanTen: 1 } : null; };
     const SOAN = docJ(path.join(EXP, "soan-hang-b1.json"), {});
     const LOAI = { PUSH_MASTER: "Châm từ kho tổng", REPUSH_ORDER_CANCEL_PUSH: "Trả hàng đơn huỷ" }, LOAI_RA = { PICK_MASTER: "Rút hàng khỏi ô", SOAN_DON: "Soạn đơn" };   // 23/10 SOAN_DON: người soạn cuối (canh-b1 SH-01, picking group)
     /* 16/10 user «1 cái đó từ đâu — hàng hoàn hay pick dư hay châm/soạn hàng»: sổ nguon-cham-b1.mjs lần ngược lệnh đưa món hàng VÀO XE
@@ -310,8 +315,8 @@ function gom() {
          15 lượt gần giờ ghi nhận nhất + tổng. Redash chỉ có TÊN người soạn ⇒ tra danh bạ theo tên, CHỈ nhận khi tên là duy nhất (bẫy trùng tên). */
       const sh = SOAN[bin + "|" + ngay];
       if (sh) { p.lsKho.soanTong = sh.ds.length; if (sh.lyDo) p.lsKho.soanLyDo = sh.lyDo;
-        p.lsKho.soan = sh.ds.slice(0, 15).map((r) => { const ds0 = theoTen.get(chuanTen(r.ten)) || [], nv = ds0.length === 1 ? ds0[0] : null, c = lan.find((z) => z.chieu === "soan" && z.at === r.at);
-          return { at: r.at, chieu: "soan", ten: nv ? nv.ten : r.ten, ma: nv ? nv.ma : "", email: nv ? nv.email || "" : "", ttNv: nv ? nv.tt : "", qty: r.qty, gio: r.gio, nhom: r.nhom, sku: r.sku,
+        p.lsKho.soan = sh.ds.slice(0, 15).map((r) => { const nv = nvSoan(r.ten), c =lan.find((z) => z.chieu === "soan" && z.at === r.at);
+          return { at: r.at, chieu: "soan", doanTen: nv && nv.doanTen ? 1 : 0, ten: nv ? nv.ten : r.ten, ma: nv ? nv.ma : "", email: nv ? nv.email || "" : "", ttNv: nv ? nv.tt : "", qty: r.qty, gio: r.gio, nhom: r.nhom, sku: r.sku,
             truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", lui: c && c.lui ? c.lui : null }; }); } } }
 
   /* 13/10 user: "người có tác động mà KHÔNG thao tác ở hệ thống — khi có vi phạm cũng cần ghi lại, gắn nhãn highlight".
