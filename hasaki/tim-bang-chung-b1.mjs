@@ -138,6 +138,10 @@ const raHinh = (id, y) => { const [h, c] = y.split("/"); if (fs.existsSync(path.
 /* 24/10 user «các clip cắt thêm 30s VỀ TRƯỚC so với các clip hiện tại — cắt thêm, không phải dời»: mọi clip bắt đầu sớm hơn 30 s, điểm cuối GIỮ
    nguyên (độ dài +30 s). Mỗi clip ghi lui = số giây trước mốc lúc bắt đầu ⇒ bang-591/hasaki-xacminh tính giờ camera đúng cho cả clip cũ lẫn mới. */
 const TRUOC_THEM = 30;
+/* 24/10 máy trạm hỏng 58/58 lượt cắt mà nhật ký không nói vì sao (stdio ignore) ⇒ giữ lời _cat-doan, in lý do 3 lần hỏng đầu mỗi lượt chạy */
+let soLyDo = 0;
+const catDoan = (...a) => { try { execFileSync(process.execPath, ["_cat-doan.mjs", ...a], { encoding: "utf8", windowsHide: true, timeout: 240000 }); }
+  catch (e) { if (soLyDo++ < 3) log(`  ↳ lý do hỏng: ${String((e.stdout || "") + (e.stderr || "") || e.message).replace(/\s+/g, " ").slice(0, 300)}`); } };
 let clipMoi = 0;
 for (const [id, v] of Object.entries(so)) {
   if (!cuaToi(id)) continue;   // 23/10 chia phần
@@ -148,7 +152,7 @@ for (const [id, v] of Object.entries(so)) {
   if (!k) continue;
   const [host, ch] = k.split("/"), luiS = (v.loai === "chup" ? 80 : 20) + TRUOC_THEM, t0 = Date.parse(v.luc.replace(" ", "T") + "+07:00") - luiS * 1e3, iso = new Date(t0 + 7 * 36e5).toISOString().slice(0, 19);
   const ten = `${id}_${v.loai === "chup" ? "CHUP" : "KHO"}-${v.luc.replace(/[^0-9]/g, "").slice(4, 12)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
-  try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, String(90 + TRUOC_THEM), ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
+  catDoan(host, ch, iso, String(90 + TRUOC_THEM), ra);
   if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { v.clip = ten; v.clipKenh = "kênh " + ch; v.clipMay = DAU; v.clipLui = luiS; clipMoi++; log(`  ▶ clip ${ten} (${(fs.statSync(ra).size / 1048576).toFixed(1)} MB)`); }
   else { v.hongClip = (v.hongClip || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id}: cắt clip kênh ${ch} hỏng (lần ${v.hongClip}/3)`); }
   ghiJson(F_RA, so, { thut: 1 }); await new Promise((r) => setTimeout(r, 2000));
@@ -188,7 +192,7 @@ for (const [id, x] of Object.entries(kq).sort((a, b) => (HANG[b[0]] ? 1 : 0) - (
     if (e.clip || (e.hong || 0) >= 3) continue;
     const luiS = (laRa ? 60 : 20) + TRUOC_THEM, moc = Date.parse(String(e.at).replace(" ", "T") + "+07:00"), iso = new Date(moc - luiS * 1e3 + 7 * 36e5).toISOString().slice(0, 19);
     const ten = `${id}_${laRa ? "RA" : "LAN"}-${String(e.at).replace(/[^0-9]/g, "").slice(4, 14)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
-    try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, String(90 + TRUOC_THEM), ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
+    catDoan(host, ch, iso, String(90 + TRUOC_THEM), ra);
     if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; e.may = DAU; e.lui = luiS; if (HANG[id]) { e.themYC = HANG[id].luc; THEM[id] = (THEM[id] || 0) + 1; } clipLan++; log(`  ▶ ${id} lượt ${laRa ? "rút ra" : "châm"} ${String(e.at).slice(5, 16)} ${e.email} → ${ten}`); }
     else { e.hong = (e.hong || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id} lượt ${String(e.at).slice(5, 16)}: cắt clip hỏng (lần ${e.hong}/3)`); }
     ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
@@ -217,7 +221,7 @@ for (const [id, x] of Object.entries(kq).sort((a, b) => (HANG[b[0]] ? 1 : 0) - (
     if (e.clip || (e.hong || 0) >= 3) continue;
     const luiS = 45 + TRUOC_THEM, iso = new Date(Date.parse(String(r.at).replace(" ", "T") + "+07:00") - luiS * 1e3 + 7 * 36e5).toISOString().slice(0, 19);
     const ten = `${id}_SOAN-${String(r.at).replace(/[^0-9]/g, "").slice(4, 14)}_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
-    try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, String(60 + TRUOC_THEM), ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
+    catDoan(host, ch, iso, String(60 + TRUOC_THEM), ra);
     if (fs.existsSync(ra) && fs.statSync(ra).size > 50e3) { e.clip = ten; e.kenh = "kênh " + ch; e.may = DAU; e.lui = luiS; if (HANG[id]) { e.themYC = HANG[id].luc; THEM[id] = (THEM[id] || 0) + 1; } clipLan++; log(`  ▶ ${id} lượt soạn ${String(r.at).slice(5, 16)} ${r.ten} → ${ten}`); }
     else { e.hong = (e.hong || 0) + 1; try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id} lượt soạn ${String(r.at).slice(5, 16)}: cắt clip hỏng (lần ${e.hong}/3)`); }
     ghiJson(F_RA, so, { thut: 1 }); await new Promise((r2) => setTimeout(r2, 2000));
@@ -243,7 +247,7 @@ if (!THU && Object.keys(HANG).length) {
       const laRa = lan0 && lan0.chieu === "ra", moc = lan0 ? Date.parse(String(lan0.at).replace(" ", "T") + "+07:00") : Date.parse(String(v.luc).replace(" ", "T") + "+07:00");
       const luiS = (lan0 ? (laRa ? 60 : 20) : (v.loai === "chup" ? 80 : 20)) + TRUOC_THEM, iso = new Date(moc - luiS * 1e3 + 7 * 36e5).toISOString().slice(0, 19);
       const ten = lan0 ? `${id}_${laRa ? "RA" : "LAN"}-${String(lan0.at).replace(/[^0-9]/g, "").slice(4, 14)}_THEM_ch${ch}.mp4` : `${id}_${v.loai === "chup" ? "CHUP" : "KHO"}-${String(v.luc).replace(/[^0-9]/g, "").slice(4, 12)}_THEM_ch${ch}.mp4`, ra = path.join(GOC_BC, ten);
-      try { execFileSync(process.execPath, ["_cat-doan.mjs", host, ch, iso, String(90 + TRUOC_THEM), ra], { stdio: "ignore", windowsHide: true, timeout: 240000 }); } catch { /* xét file bên dưới */ }
+      catDoan(host, ch, iso, String(90 + TRUOC_THEM), ra);
       if (!(fs.existsSync(ra) && fs.statSync(ra).size > 50e3)) { try { fs.unlinkSync(ra); } catch { /* */ } log(`  ✗ ${id}: cắt thêm kênh ${ch} hỏng`); continue; }
       if (lan0) v.lanKho.push({ at: lan0.at, xong: lan0.xong, email: lan0.email, qty: lan0.qty, loai: lan0.loai, ...(laRa ? { chieu: "ra", toi: lan0.toi || "" } : {}), clip: ten, kenh: "kênh " + ch, phu: 1, themYC: yc, may: DAU, lui: luiS });
       else (v.clipThem ||= []).push({ clip: ten, kenh: "kênh " + ch, themYC: yc, may: DAU, lui: luiS });
