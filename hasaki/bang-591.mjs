@@ -219,11 +219,11 @@ function gom() {
     const lui = (t, giay) => new Date(Date.parse(String(t).replace(" ", "T") + "+07:00") - giay * 1000 + 7 * 36e5).toISOString().slice(0, 19);
     for (const [id, v] of Object.entries(tu)) { const o = (m[id] ||= { clip: [], anh: [] });
       if (v.loai === "chup") { if ((v.anh || []).length) o.chup = { anh: v.anh.map((a) => "may/" + a), clip: v.clip ? "may/" + v.clip : "", clipThem: (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh })), chu: v.chu || "", lui: v.anhLui ? "may/" + v.anhLui : "", luiMoc: v.luiMoc || null, luiCo: v.luiCo || null, luc: v.luc,
-          clipInfo: { batDau: lui(v.luc, 80), suKien: [{ t: lui(v.luc, 0), chu: "Người kiểm chụp ảnh ghi nhận vi phạm ở đây" }] + (v.kenh || "") + "). Chỉ để biết góc nhìn — người trong clip là người kiểm, CHƯA phải người vi phạm." } };
+          clipInfo: { batDau: lui(v.luc, v.clipLui || 80), suKien: [{ t: lui(v.luc, 0), chu: "Người kiểm chụp ảnh ghi nhận vi phạm ở đây" }] + (v.kenh || "") + "). Chỉ để biết góc nhìn — người trong clip là người kiểm, CHƯA phải người vi phạm." } };
         if (v.truy && v.truy.clip) { o.clipMay = "may/" + v.truy.clip; o.truy = v.truy; o.clipInfo = { batDau: lui(String(v.truy.tu).replace("T", " "), 20), suKien: [{ t: String(v.truy.tu).replace("T", " "), chu: "Mốc cuối CHƯA có đồ vật (bạn chọn trên dải)" }, { t: String(v.truy.den).replace("T", " "), chu: "Mốc đầu ĐÃ có đồ vật" }] }; o.chu = `Clip lúc đồ vật xuất hiện ${String(v.truy.tu).slice(5, 16).replace("T", " ")}–${String(v.truy.den).slice(11, 16)} (${v.truy.kenh})`; }   // 05/10: thu hẹp xong = BẰNG CHỨNG ai tác động
         continue; }   // lúc chụp ảnh: chỉ góc nhìn, KHÔNG phải bằng chứng người làm
       (v.anh || []).forEach((a) => o.anh.push("may/" + a)); if (v.chu) o.chu = v.chu; if (v.kenh) o.kenh = v.kenh; if (v.clip) o.clipMay = "may/" + v.clip; o.clipThem = (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh }));
-      if (v.clip && v.luc) o.clipInfo = { batDau: lui(v.luc, 20), suKien: [{ t: lui(v.luc, 0), chu: "Hệ thống kho ghi nhận: " + String(v.chuKho || v.chu || "").replace(/^Khung camera đúng giờ hệ thống kho: /, "") }] }; }
+      if (v.clip && v.luc) o.clipInfo = { batDau: lui(v.luc, v.clipLui || 20), suKien: [{ t: lui(v.luc, 0), chu: "Hệ thống kho ghi nhận: " + String(v.chuKho || v.chu || "").replace(/^Khung camera đúng giờ hệ thống kho: /, "") }] }; }
     for (const o of Object.values(m)) { o.clip.sort((a, b) => (/CHUAN|NOI/.test(b) - /CHUAN|NOI/.test(a)) || b.localeCompare(a)); o.clip = o.clip.slice(0, 1); o.anh = o.anh.slice(0, 4); }
     return m; })();
   for (const p of phieu) { const b = BC[p.id]; const enc = (f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/");
@@ -293,16 +293,16 @@ function gom() {
       const raDs = ((CW[bin + "|" + ngay] || {}).ra || []).filter((r) => !(coRedash && r.loai === "SOAN_DON")).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && z.chieu === "ra" && z.at === r.at);
         return { at: r.at, chieu: "ra", ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI_RA[r.loai] || r.loai,
           truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, tt: r.loai || "", oToi: r.toi || "", oToiGhiChu: ghiChuO(r.toi),
-          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0 }; });
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0, lui: c && c.lui ? c.lui : null }; });
       const ds = rec.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map((r) => { const nv = theoEmail.get(String(r.email || "").toLowerCase()), c = lan.find((z) => !z.phu && !z.chieu && z.at === r.at);   // 23/10 lượt châm không mang chieu (ra / soan có)
         return { at: r.at, ten: nv ? nv.ten : String(r.email || "").replace(/@.*/, ""), ma: nv ? nv.ma : "", email: r.email || "", ttNv: nv ? nv.tt : "Inactive", qty: r.qty, loai: LOAI[r.loai] || r.loai, truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, nguon: nguonLan(NG.lan[bin + "|" + r.at]),
           /* 20/10 user: ghi rõ Transfer Type + Source location như trang WMS Transfer location (bin_in = ô) — 0 lượt gọi thêm: bin_out có trong sổ nguon-cham-b1 / bộ đệm cò */
           tt: r.loai || "", oNguon: r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || "", oGhiChu: ghiChuO(r.tu || ((NG.lan[bin + "|" + r.at] || {}).tu) || ""), goc: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).tu || "", gocLoai: (((NG.lan[bin + "|" + r.at] || {}).nguon) || {}).loai || "",
-          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0 }; })
+          clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", them: c && c.themYC ? 1 : 0, lui: c && c.lui ? c.lui : null }; })
         .concat(raDs).sort((a, b) => (a.at < b.at ? 1 : -1));
       /* 23/10 «Cắt thêm clip camera»: góc camera khác của cùng lượt (lanKho phu:1) = 1 dòng riêng ngay dưới dòng gốc, cờ «Cắt thêm» */
       for (const z of lan.filter((z) => z.phu && z.clip)) { const i = ds.findIndex((x) => x.at === z.at && (x.chieu === "ra") === (z.chieu === "ra")); if (i < 0) continue;
-        ds.splice(i + 1, 0, { ...ds[i], clip: "/bc/may/" + encodeURIComponent(z.clip), kenh: z.kenh || "", them: 1, phu: 1 }); }
+        ds.splice(i + 1, 0, { ...ds[i], clip: "/bc/may/" + encodeURIComponent(z.clip), kenh: z.kenh || "", them: 1, phu: 1, lui: z.lui || null }); }
       p.lsKho = { bin, ra: raDs.length, ghi: ngay, gioCuaSo: 72, ds, nguoi: new Set(ds.map((x) => x.ten)).size,
         phuTrach: gy.luat === "A1-01" ? (gy.nv || []).map((n) => ({ ten: n.ten, ma: n.code })) : [] };
       /* 23/10 user «bổ sung soạn hàng (pick)» → «làm»: lượt SOẠN theo đơn đúng ô 72 h trước giờ ghi nhận — sổ .exports/soan-hang-b1.json
@@ -312,7 +312,7 @@ function gom() {
       if (sh) { p.lsKho.soanTong = sh.ds.length; if (sh.lyDo) p.lsKho.soanLyDo = sh.lyDo;
         p.lsKho.soan = sh.ds.slice(0, 15).map((r) => { const ds0 = theoTen.get(chuanTen(r.ten)) || [], nv = ds0.length === 1 ? ds0[0] : null, c = lan.find((z) => z.chieu === "soan" && z.at === r.at);
           return { at: r.at, chieu: "soan", ten: nv ? nv.ten : r.ten, ma: nv ? nv.ma : "", email: nv ? nv.email || "" : "", ttNv: nv ? nv.tt : "", qty: r.qty, gio: r.gio, nhom: r.nhom, sku: r.sku,
-            truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "" }; }); } } }
+            truocGio: Math.round((tGhi - t(r.at)) / 36e5 * 10) / 10, clip: c && c.clip ? "/bc/may/" + encodeURIComponent(c.clip) : "", kenh: c ? c.kenh || "" : "", lui: c && c.lui ? c.lui : null }; }); } } }
 
   /* 13/10 user: "người có tác động mà KHÔNG thao tác ở hệ thống — khi có vi phạm cũng cần ghi lại, gắn nhãn highlight".
      Sổ .exports/tac-dong-vat-ly.json { idPhieu: [{ at, ma, viec, clip, nguon:"tay"|"may", luc }] } — người xem clip ghi tay (POST /api/tac-dong-vat-ly),

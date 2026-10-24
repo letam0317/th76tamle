@@ -1679,6 +1679,7 @@
        bấm ở danh sách bên phải để phát */
     var lanIdx = (LS ? LS.ds : []).map(function (x) { if (!x.clip) return -1;
       var bd = x.vatLy && x.tgClip != null ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - x.tgClip * 1e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ")
+        : x.lui ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - x.lui * 1e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ")   // 24/10 clip mới ghi sẵn số giây trước mốc (+30 s về trước)
         : x.chieu === "soan" ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - 45e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ")   // 23/10 clip soạn cắt −45 s
         : x.chieu === "ra" ? new Date(Date.parse(String(x.at).replace(" ", "T") + "+07:00") - 60e3 + 7 * 36e5).toISOString().slice(0, 19).replace("T", " ") : lui20(x.at);   // 22/10 clip lượt rút ra cắt −60 s
       nguon.push({ k: "lan", an: 1, ten: x.ten + " " + x.at.slice(11, 16), url: u_(x.clip), video: 1, tua: x.vatLy && x.tgClip != null ? Math.max(0, x.tgClip - 3) : null, info: { batDau: bd, suKien: [] } });
