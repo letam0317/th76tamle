@@ -146,8 +146,12 @@ const raHinh = (id, y) => { const [h, c] = y.split("/"); if (fs.existsSync(path.
 const TRUOC_THEM = 30;
 /* 24/10 máy trạm hỏng 58/58 lượt cắt mà nhật ký không nói vì sao (stdio ignore) ⇒ giữ lời _cat-doan, in lý do 3 lần hỏng đầu mỗi lượt chạy */
 let soLyDo = 0;
-const catDoan = (...a) => { try { execFileSync(process.execPath, ["_cat-doan.mjs", ...a], { encoding: "utf8", windowsHide: true, timeout: 240000 }); }
-  catch (e) { if (soLyDo++ < 3) log(`  ↳ lý do hỏng: ${String((e.stdout || "") + (e.stderr || "") || e.message).replace(/\s+/g, " ").slice(0, 300)}`); } };
+const catDoan = (...a) => { let out = "";
+  try { out = execFileSync(process.execPath, ["_cat-doan.mjs", ...a], { encoding: "utf8", windowsHide: true, timeout: 240000 }); }
+  catch (e) { out = (e.stdout || "") + (e.stderr || "") || e.message; }
+  /* 24/10 JE75K38: _cat-doan thoát 0 mà tệp < 50 KB (không ném lỗi) ⇒ in cả kích thước tệp + lời _cat-doan */
+  const ra = a[a.length - 1], co = fs.existsSync(ra) ? fs.statSync(ra).size : -1;
+  if (co <= 50e3 && soLyDo++ < 3) log(`  ↳ lý do hỏng: tệp ${co < 0 ? "không có" : co + " byte"} · ${String(out).replace(/\s+/g, " ").slice(0, 300)}`); };
 let clipMoi = 0;
 for (const [id, v] of Object.entries(so)) {
   if (!cuaToi(id)) continue;   // 23/10 chia phần
