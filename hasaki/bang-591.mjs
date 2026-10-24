@@ -218,16 +218,19 @@ function gom() {
        ⇒ mỗi clip máy dựng kèm clipInfo {batDau, suKien:[{t, chu}], cach} — dashboard chạy phụ đề theo giờ camera */
     const lui = (t, giay) => new Date(Date.parse(String(t).replace(" ", "T") + "+07:00") - giay * 1000 + 7 * 36e5).toISOString().slice(0, 19);
     for (const [id, v] of Object.entries(tu)) { const o = (m[id] ||= { clip: [], anh: [] });
-      if (v.loai === "chup") { if ((v.anh || []).length) o.chup = { anh: v.anh.map((a) => "may/" + a), clip: v.clip ? "may/" + v.clip : "", clipThem: (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh })), chu: v.chu || "", lui: v.anhLui ? "may/" + v.anhLui : "", luiMoc: v.luiMoc || null, luiCo: v.luiCo || null, luc: v.luc,
+      if (v.loai === "chup") { if ((v.anh || []).length) o.chup = { anh: v.anh.map((a) => "may/" + a), clip: v.clip ? "may/" + v.clip : "", clipThem: (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh })), chu: v.chu || "", lui: v.anhLui ? "may/" + v.anhLui : "", luiMoc: v.luiMoc || null, luiCo: v.luiCo || null, luc: v.luc, timVat: v.timVat || null,
           clipInfo: { batDau: lui(v.luc, v.clipLui || 80), suKien: [{ t: lui(v.luc, 0), chu: "Người kiểm chụp ảnh ghi nhận vi phạm ở đây" }] + (v.kenh || "") + "). Chỉ để biết góc nhìn — người trong clip là người kiểm, CHƯA phải người vi phạm." } };
-        if (v.truy && v.truy.clip) { o.clipMay = "may/" + v.truy.clip; o.truy = v.truy; o.clipInfo = { batDau: lui(String(v.truy.tu).replace("T", " "), 20), suKien: [{ t: String(v.truy.tu).replace("T", " "), chu: "Mốc cuối CHƯA có đồ vật (bạn chọn trên dải)" }, { t: String(v.truy.den).replace("T", " "), chu: "Mốc đầu ĐÃ có đồ vật" }] }; o.chu = `Clip lúc đồ vật xuất hiện ${String(v.truy.tu).slice(5, 16).replace("T", " ")}–${String(v.truy.den).slice(11, 16)} (${v.truy.kenh})`; }   // 05/10: thu hẹp xong = BẰNG CHỨNG ai tác động
+        if (v.truy && v.truy.clip) { o.clipMay = "may/" + v.truy.clip; o.truy = v.truy; o.clipInfo = { batDau: lui(String(v.truy.tu).replace("T", " "), 20), suKien: [{ t: String(v.truy.tu).replace("T", " "), chu: "Mốc cuối CHƯA có " + (v.truy.may ? (v.truy.moTa || "đồ vật") + " (máy tìm)" : "đồ vật (bạn chọn trên dải)") }, { t: String(v.truy.den).replace("T", " "), chu: "Mốc đầu ĐÃ có " + (v.truy.moTa || "đồ vật") }] };
+          /* 24/10 tim-vat-xuat-hien.mjs: máy tự tìm (truy.may) → nói rõ đồ vật gì + độ chắc */
+          o.chu = (v.truy.may ? `Máy tìm: ${v.truy.moTa || "đồ vật"} xuất hiện ` : "Clip lúc đồ vật xuất hiện ") + `${String(v.truy.tu).slice(5, 16).replace("T", " ")}–${String(v.truy.den).slice(11, 16)} (${v.truy.kenh})` + (v.truy.may ? " · độ chắc " + ({ cao: "cao", vua: "vừa", thap: "thấp" }[v.truy.doChac] || "?") : ""); }
+        else if (v.timVat && v.timVat.ketLuan !== "tim-thay" && o.chup) o.chup.chu = "Máy tìm đồ vật: " + (v.timVat.lyDo || "chưa xác định được");   // 05/10: thu hẹp xong = BẰNG CHỨNG ai tác động
         continue; }   // lúc chụp ảnh: chỉ góc nhìn, KHÔNG phải bằng chứng người làm
       (v.anh || []).forEach((a) => o.anh.push("may/" + a)); if (v.chu) o.chu = v.chu; if (v.kenh) o.kenh = v.kenh; if (v.clip) o.clipMay = "may/" + v.clip; o.clipThem = (v.clipThem || []).map((z) => ({ clip: "may/" + z.clip, kenh: z.kenh }));
       if (v.clip && v.luc) o.clipInfo = { batDau: lui(v.luc, v.clipLui || 20), suKien: [{ t: lui(v.luc, 0), chu: "Hệ thống kho ghi nhận: " + String(v.chuKho || v.chu || "").replace(/^Khung camera đúng giờ hệ thống kho: /, "") }] }; }
     for (const o of Object.values(m)) { o.clip.sort((a, b) => (/CHUAN|NOI/.test(b) - /CHUAN|NOI/.test(a)) || b.localeCompare(a)); o.clip = o.clip.slice(0, 1); o.anh = o.anh.slice(0, 4); }
     return m; })();
   for (const p of phieu) { const b = BC[p.id]; const enc = (f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/");
-    if (b && b.chup) p.bcChup = { clipThem: (b.chup.clipThem || []).map((z) => ({ url: enc(z.clip), kenh: z.kenh })), clipInfo: b.chup.clipInfo, anh: b.chup.anh.map(enc), clip: b.chup.clip ? enc(b.chup.clip) : "", chu: b.chup.chu, lui: b.chup.lui ? enc(b.chup.lui) : "", luiMoc: b.chup.luiMoc, luiCo: b.chup.luiCo, luc: b.chup.luc };
+    if (b && b.chup) p.bcChup = { clipThem: (b.chup.clipThem || []).map((z) => ({ url: enc(z.clip), kenh: z.kenh })), clipInfo: b.chup.clipInfo, anh: b.chup.anh.map(enc), clip: b.chup.clip ? enc(b.chup.clip) : "", chu: b.chup.chu, lui: b.chup.lui ? enc(b.chup.lui) : "", luiMoc: b.chup.luiMoc, luiCo: b.chup.luiCo, luc: b.chup.luc, timVat: b.chup.timVat || null };
     if (b && (b.clip.length || b.anh.length || b.clipMay)) p.bc = { clip: (b.clip.length ? b.clip : b.clipMay ? [b.clipMay] : []).map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), clipTho: !b.clip.length && !!b.clipMay, truy: b.truy || null, clipInfo: !b.clip.length ? b.clipInfo || null : null, anh: b.anh.map((f) => "/bc/" + f.split("/").map(encodeURIComponent).join("/")), chu: b.chu || "", kenh: b.kenh || "", clipThem: (b.clipThem || []).map((z) => ({ url: enc(z.clip), kenh: z.kenh })) };
     /* 15/10 user (phiếu 14046962 bãi xe): «đã có clip do chính máy chạy mà vẫn "Chưa có bằng chứng camera — máy đang tìm"». Clip máy ĐÍNH KÈM
        lúc lập phiếu (cột Video vi phạm / B1 ▸ Video) nằm trên hr-media, không ở kho bằng chứng local → trước đây bị bỏ qua. */
@@ -632,8 +635,8 @@ function laChuPhien(ph, trinhDuyet, noiBo) { return (!trinhDuyet && noiBo) || !!
    nguon {loai: phieu|luot, id}; dòng tạo ghi chú ghi thêm gcAt (mốc ghi chú, máy chủ gắn khi lưu) để nút Duyệt trỏ đúng ghi chú. */
 function moTaThaoTac(p, b) {
   const r = moTaThaoTac_(p, b); let o = {}; try { o = JSON.parse(b || "{}"); } catch { /* */ }
-  const id = String(o.id || "").slice(0, 60), luot = { "/api/quyet-dinh": 1, "/api/thu-hep": 1 }[p] || (p === "/api/ghi-chu" && o.loai === "luot");
-  if (/^[\w-]{1,60}$/.test(id) && /^\/api\/(quyet-dinh-b1|quyet-dinh|tac-dong-vat-ly|thu-hep|ghi-chu)$/.test(p)) r.nguon = { loai: luot ? "luot" : "phieu", id };
+  const id = String(o.id || "").slice(0, 60), luot = { "/api/quyet-dinh": 1, "/api/thu-hep": 1, "/api/tim-vat": 1 }[p] || (p === "/api/ghi-chu" && o.loai === "luot");
+  if (/^[\w-]{1,60}$/.test(id) && /^\/api\/(quyet-dinh-b1|quyet-dinh|tac-dong-vat-ly|thu-hep|tim-vat|ghi-chu)$/.test(p)) r.nguon = { loai: luot ? "luot" : "phieu", id };
   return r;
 }
 function moTaThaoTac_(p, b) {
@@ -644,6 +647,7 @@ function moTaThaoTac_(p, b) {
   if (p === "/api/quyet-dinh") return { hd: "Quyết định xác minh", truong: "Quyết định", truoc: (docJ(SO_QD, {})[o.id] || {}).qd || "(chưa có)", sau: o.qd || "(bỏ)",
     noiDung: ct("Lượt " + o.id + (o.gc ? " · " + o.gc : "")) };
   if (p === "/api/tac-dong-vat-ly") return { hd: o.xoa ? "Gỡ tác động vật lý" : "Ghi tác động vật lý", phieu: ct(o.id, 12), noiDung: ct("NV " + (o.ma || "?") + (o.viec ? " · " + o.viec : "")) };
+  if (p === "/api/tim-vat") return { hd: "Khoanh đồ vật cho máy tìm", noiDung: ct("Lượt " + o.id + " · ô " + (o.vung || []).join(",")) };
   if (p === "/api/thu-hep") return { hd: "Thu hẹp khung clip", noiDung: ct("Lượt " + o.id + " · " + (o.tu ?? "") + "–" + (o.den ?? "")) };
   if (p === "/api/phan-cong-task") return { hd: "Nạp task phân công", phieu: (String(o.link || "").match(/(\d{7,9})/) || [])[1] || "" };
   if (p === "/api/may-tram/duyet-khoa") return { hd: "Duyệt khoá máy trạm", noiDung: ct((o.dongY ? "Duyệt" : "Từ chối") + " · " + o.may) };
@@ -924,6 +928,14 @@ const sv = http.createServer(async (q, s) => {
       ghiJson(SO_QD, so, { thut: 1 }); DEM = null;
       log("quyết định", o.id, o.qd || "(bỏ)", ma);
       return guiJ(s, 200, { ok: true, ten: ma ? ma.split(",").map((m) => danhBa().theoMa.get(m)?.ten).join(", ") : null });
+    }
+    if (p === "/api/tim-vat" && q.method === "POST") {   // 24/10: người kéo ô đồ vật trên khung lúc chụp (máy chưa khoanh chắc) → tim-vat-xuat-hien.mjs tự dò + cắt clip
+      let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }
+      const o = JSON.parse(b || "{}"), v = Array.isArray(o.vung) ? o.vung.map((x) => Math.round(Number(x))) : [];
+      if (!/^\d{7,9}$/.test(String(o.id || "")) || v.length !== 4 || v.some((x) => !Number.isFinite(x) || x < 0) || v[0] + v[2] > 1280 || v[1] + v[3] > 720 || v[2] < 16 || v[3] < 16) return guiJ(s, 400, { loi: "ô khoanh không hợp lệ" });
+      const { spawn } = await import("node:child_process");
+      spawn(process.execPath, [path.join(DIR, "tim-vat-xuat-hien.mjs"), "--id=" + o.id, "--vung=" + v.join(","), "--ghi"], { cwd: DIR, detached: true, stdio: "ignore", windowsHide: true }).unref();
+      DEM = null; return guiJ(s, 200, { ok: true });
     }
     if (p === "/api/thu-hep" && q.method === "POST") {   // 05/10: user bấm khung sớm nhất đã thấy đồ vật → máy chụp 9 khung dày hơn trong khoảng đó (≤3 phút thì cắt clip)
       let b = ""; for await (const ch of q) { b += ch; if (b.length > 2e3) return guiJ(s, 413, { loi: "quá lớn" }); }

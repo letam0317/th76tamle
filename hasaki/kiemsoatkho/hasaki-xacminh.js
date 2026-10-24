@@ -1459,6 +1459,38 @@
      phải: 1 dòng tình trạng bằng chứng · lỗi · máy gợi ý · quyết định. Dải 72 giờ BẤM ĐƯỢC: bấm khung SỚM NHẤT đã có đồ vật
      → máy chụp 9 khung dày hơn trong khoảng đó; ≤ 3 phút thì máy cắt clip lúc đồ vật xuất hiện (= bằng chứng ai tác động). */
   var MOC_LUI = [0, 1, 3, 6, 12, 24, 36, 48, 72];
+  /* 24/10 user «sao t biết được» khung nào còn đồ vật → máy tự tìm (tim-vat-xuat-hien.mjs). Dòng này nói máy đã làm tới đâu;
+     máy chưa khoanh chắc → người kéo 1 ô quanh đồ vật ở KHUNG 1 (lúc chụp), máy dò tiếp + cắt clip. */
+  function tvChu(p) { var t = (p.bcChup || {}).timVat;
+    if (!t) return "Máy chưa tìm đồ vật ở phiếu này. Kéo 1 ô quanh đồ vật ở khung 1 để máy tự tìm lúc nó xuất hiện.";
+    if (t.ketLuan === "co-tu-truoc-72h") return "Máy tìm: " + (t.lyDo || "đồ vật có từ trước 72 giờ") + ".";
+    return "Máy tìm: " + (t.lyDo || "chưa xác định được") + ". Kéo 1 ô quanh đồ vật ở khung 1 để máy tìm lại."; }
+  function ganKhoanh(k, p) {
+    var nut = k.querySelector("#qdKhoanh"), dong = k.querySelector("#qdKhoanhDong"), o0 = k.querySelector('[data-o="0"]'); if (!nut || !o0) return;
+    nut.onclick = function () {
+      k.dataset.khoanh = "1"; nut.hidden = true; dong.firstChild.textContent = "Kéo ô quanh đồ vật ở khung 1 (lúc chụp)… ";
+      o0.style.cursor = "crosshair"; o0.style.touchAction = "none";
+      var o = document.createElement("div"); o.style.cssText = "position:absolute;border:2px solid var(--warn);pointer-events:none;display:none"; o0.appendChild(o);
+      var bd = null, v = null;
+      function td(ev) { var b = o0.getBoundingClientRect(); return [Math.min(1, Math.max(0, (ev.clientX - b.left) / b.width)), Math.min(1, Math.max(0, (ev.clientY - b.top) / b.height))]; }
+      o0.onpointerdown = function (ev) { ev.preventDefault(); try { o0.setPointerCapture(ev.pointerId); } catch (e) { /* */ } bd = td(ev); };
+      o0.onpointermove = function (ev) { if (!bd) return; var c = td(ev); v = [Math.min(bd[0], c[0]), Math.min(bd[1], c[1]), Math.abs(c[0] - bd[0]), Math.abs(c[1] - bd[1])];
+        o.style.display = "block"; o.style.left = v[0] * 100 + "%"; o.style.top = v[1] * 100 + "%"; o.style.width = v[2] * 100 + "%"; o.style.height = v[3] * 100 + "%"; };
+      o0.onpointerup = function () { bd = null; if (!v || v[2] < 0.03 || v[3] < 0.03) return;
+        /* khung dải: dải chữ 32 px trên ảnh 360 px (ô 392) → đổi về toạ độ camera 1280×720 */
+        var cap = 32 / 392, X = Math.round(v[0] * 1280), Y = Math.round(Math.max(0, (v[1] - cap) / (1 - cap)) * 720), Wv = Math.round(v[2] * 1280), Hv = Math.round(v[3] / (1 - cap) * 720);
+        Wv = Math.min(Wv, 1280 - X); Hv = Math.min(Hv, 720 - Y);
+        dong.innerHTML = 'Đã khoanh. <button class="hx-nut nho" id="qdKhoanhGui">Gửi máy tìm</button> <button class="hx-nut nho" id="qdKhoanhLai">Kéo lại</button>';
+        dong.querySelector("#qdKhoanhLai").onclick = function () { o.style.display = "none"; v = null; dong.textContent = "Kéo ô quanh đồ vật ở khung 1 (lúc chụp)… "; };
+        dong.querySelector("#qdKhoanhGui").onclick = function () { dong.textContent = "Đang gửi…";
+          goi("/api/tim-vat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: p.id, vung: [X, Y, Wv, Hv] }) })
+            .then(function () { dong.textContent = "Máy đang tìm (thường 5–10 phút)…"; var cu = JSON.stringify((p.bcChup || {}).timVat || null), lan = 0;
+              var h = setInterval(function () { lan++; tai(true).then(function () { var p2 = D.phieu.find(function (y) { return y.id === p.id; });
+                if (p2 && (JSON.stringify((p2.bcChup || {}).timVat || null) !== cu || (p2.bc && p2.bc.truy))) { clearInterval(h); if (document.querySelector("#modal.show")) moQD(p2);
+                  if (typeof toast === "function") toast(p2.bc && p2.bc.truy ? "Máy đã tìm ra lúc đồ vật xuất hiện" : "Máy tìm xong — xem dòng kết quả", "ok"); }
+                else if (lan > 30) { clearInterval(h); dong.textContent = "Máy chưa trả kết quả sau 15 phút — mở lại phiếu sau."; } }); }, 30000); })
+            .catch(function (e) { dong.textContent = "Lỗi: " + e.message; }); }; };
+    }; }
   function mocLui(p) { var c = p.bcChup || {}; if (c.luiMoc && c.luiMoc.length) return c.luiMoc;
     var T = Date.parse(String(c.luc || p.ngayVP).replace(" ", "T") + "+07:00"); return MOC_LUI.map(function (h) { return new Date(T - h * 36e5 - 34000 + 7 * 36e5).toISOString().slice(0, 19); }); }
   /* 12/10: khối «Ai tác động ô này trước giờ ghi nhận» — phụ trách kệ + từng lượt châm (WMS), gần giờ ghi nhận nhất trước */
@@ -1810,15 +1842,20 @@
           v.addEventListener("timeupdate", cap); v.addEventListener("seeked", cap); cap(); }
         return; }
       if (n.k !== "lui") { k.innerHTML = '<img src="' + e_(n.url) + '" alt="' + e_(n.ten) + '" style="cursor:zoom-in">'; k.querySelector("img").onclick = function () { if (typeof openLB === "function") openLB([{ url: n.url, title: n.ten }], 0); }; return; }
-      var moc = mocLui(p);
+      var moc = mocLui(p); delete k.dataset.khoanh;   // chế độ kéo ô của lần mở trước không được sót lại
       k.innerHTML = '<div class="hx-lui"><img src="' + e_(n.url) + '" alt="Dải 72 giờ">' + moc.map(function (m, j) { var ph = Math.round((Date.parse(moc[0]) - Date.parse(m)) / 6e4), nh = !j ? "Lúc chụp" : ph < 60 ? ph + " phút trước" : (Math.round(ph / 6) / 10 + "").replace(".", ",") + " giờ trước";
           /* ảnh dải đã in sẵn «LÚC CHỤP / −1 giờ …» trên từng khung → không dán nhãn lặp.
              16/10 BẪY đã dính: chú thích «//» từng chèn GIỮA biểu thức này, nuốt mất «.join("") + '</div>'» → 9 nút nối dấu phẩy («,,,,,,,,»),
              khung không đóng, #qdLuiChu không có (bấm khung lỗi ngầm). Chú thích chỉ đặt trên dòng riêng. */
           return '<button data-o="' + j + '" title="' + e_(nh + " · " + m.replace("T", " ").slice(5, 16)) + '" aria-label="' + e_(nh) + '"></button>'; }).join("") + '</div>' +
-        '<div class="hx-pd hx-lui-pd"><span class="sap">9 khung camera ô này: khung 1 = lúc chụp ảnh ghi nhận, các khung sau lùi dần tới 72 giờ trước</span></div>' +
-        '<div class="hx-lui-chu" id="qdLuiChu" hidden></div>';
-      k.querySelectorAll("[data-o]").forEach(function (b) { b.onclick = function () {
+        '<div class="hx-pd hx-lui-pd"><span class="sap">' + (/_LUI-TV-/.test(n.url)
+          ? "Máy tự so vùng đồ vật: viền xanh = có, đỏ = không. Máy chưa ra kết quả thì bấm khung CŨ NHẤT còn thấy đồ vật để chụp dày hơn"
+          : "Khung 1 = lúc chụp, lùi dần tới 72 giờ. Bấm khung CŨ NHẤT còn thấy đồ vật → máy chụp dày hơn, dưới 3 phút thì tự cắt clip") + '</span></div>' +
+        '<div class="hx-lui-chu" id="qdLuiChu" hidden></div>' +
+        /* 24/10 tim-vat-xuat-hien: máy tự khoanh + dò; khoanh chưa chắc → người KÉO Ô 1 lần trên khung 1 (lúc chụp) → máy dò tiếp */
+        (p.bc && p.bc.truy ? "" : '<div class="hx-lui-chu" id="qdKhoanhDong">' + e_(tvChu(p)) + ' <button class="hx-nut nho" id="qdKhoanh">Khoanh đồ vật</button></div>');
+      ganKhoanh(k, p);
+      k.querySelectorAll("[data-o]").forEach(function (b) { b.onclick = function () { if (k.dataset.khoanh) return;
         var j = Number(b.dataset.o), chu = $id("qdLuiChu"); chu.hidden = false;
         if (j >= moc.length - 1) { chu.innerHTML = "Đồ vật có từ trước khung cuối — quá 72 giờ, máy chưa lùi xa hơn được."; return; }
         var tu = moc[j + 1], den = moc[j]; chu.textContent = "Máy đang chụp thêm trong khoảng " + tu.slice(5, 16).replace("T", " ") + " → " + den.slice(5, 16).replace("T", " ") + " (khoảng 1 phút)…";

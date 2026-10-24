@@ -92,7 +92,8 @@
         "APPSCRIPT_URL",
         "APPSCRIPT_KEY",
         "TOPREVIEW_USER",
-        "TOPREVIEW_PASS"
+        "TOPREVIEW_PASS",
+        "GEMINI_API_KEY"
       ],
       "dongBoXm": true,
       "_dongBoXm": "14/10: dữ liệu .exports qua kho Drive (dong-bo-xm/chay-xm); QC PC giả đạt 4/4 cò → gỡ ghim laptop",
@@ -117,7 +118,8 @@
         "APPSCRIPT_URL",
         "APPSCRIPT_KEY",
         "TOPREVIEW_USER",
-        "TOPREVIEW_PASS"
+        "TOPREVIEW_PASS",
+        "GEMINI_API_KEY"
       ],
       "dongBoXm": true,
       "b1": true,
